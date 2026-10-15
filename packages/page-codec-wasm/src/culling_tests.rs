@@ -1,9 +1,8 @@
 use super::families::{families, FAMILIES};
 use super::*;
-use crate::split::{bisect_centres, sort_along};
+use crate::split::{bisect_least_cost, sort_along};
 use trillion3d_math::aabb::half_area;
 use trillion3d_math::random::xorshift64;
-use trillion3d_math::sphere::enclosing_sphere;
 
 /// `n` centres from `seed`, on a lattice of `cells` steps per axis so that many coincide, with a
 /// NaN coordinate every `nan` centres (none for 0).
@@ -23,8 +22,14 @@ fn centres(seed: u64, n: usize, cells: u64, nan: usize) -> Vec<[f64; 3]> {
         .collect()
 }
 
+/// The median split with each centre as its own box: what the cost weighs is the halves' spread.
+fn bisect_points(slice: &mut [usize], centres: &[[f64; 3]]) -> usize {
+    let at = slice.len() / 2;
+    bisect_least_cost(slice, centres, |id| (centres[id], centres[id]), at)
+}
+
 #[test]
-fn bisect_centres_sorts_an_even_group_and_splits_it_in_half() {
+fn the_split_sorts_an_even_group_and_splits_it_in_half() {
     let centres = [
         [10.0, 0.0, 0.0],
         [10.0, 0.0, 0.0],
@@ -32,7 +37,7 @@ fn bisect_centres_sorts_an_even_group_and_splits_it_in_half() {
         [20.0, 0.0, 0.0],
     ];
     let mut slice = [3usize, 1, 0, 2];
-    let axis = bisect_centres(&mut slice, &centres);
+    let axis = bisect_points(&mut slice, &centres);
     let middle = slice.len() / 2;
     sort_along(&mut slice[..middle], &centres, axis);
     sort_along(&mut slice[middle..], &centres, axis);
@@ -40,7 +45,7 @@ fn bisect_centres_sorts_an_even_group_and_splits_it_in_half() {
 }
 
 #[test]
-fn bisect_centres_splits_an_odd_group_with_the_larger_half_last() {
+fn the_split_splits_an_odd_group_with_the_larger_half_last() {
     let centres = [
         [30.0, 0.0, 0.0],
         [10.0, 0.0, 0.0],
@@ -49,7 +54,7 @@ fn bisect_centres_splits_an_odd_group_with_the_larger_half_last() {
         [5.0, 0.0, 0.0],
     ];
     let mut slice = [0usize, 1, 2, 3, 4];
-    let axis = bisect_centres(&mut slice, &centres);
+    let axis = bisect_points(&mut slice, &centres);
     let middle = slice.len() / 2;
     sort_along(&mut slice[..middle], &centres, axis);
     sort_along(&mut slice[middle..], &centres, axis);
@@ -70,7 +75,7 @@ fn a_selection_with_sorted_halves_is_the_full_sort() {
             slice.swap(k, (state % (k as u64 + 1)) as usize);
         }
         let mut sorted = slice.clone();
-        let axis = bisect_centres(&mut slice, &centres);
+        let axis = bisect_points(&mut slice, &centres);
         sort_along(&mut sorted, &centres, axis);
         let middle = n / 2;
         sort_along(&mut slice[..middle], &centres, axis);
@@ -165,5 +170,8 @@ fn node_bounds_merges_a_rejection_node_from_its_clusters() {
     assert_eq!(root.min, [0.0, 0.0, 0.0]);
     assert_eq!(root.max, [11.0, 11.0, 10.0]);
     assert_eq!(root.max_parent_error, 5.0);
-    assert_eq!(root.sphere, enclosing_sphere(&[sphere_a, sphere_b]));
+    assert_eq!(root.sphere, ball_of_balls(&[sphere_a, sphere_b]));
+    // The two spheres' own ball: on their axis, reaching both far sides (17.32 / 2 + 0.75).
+    let reach = (300.0f64.sqrt() + 1.5) / 2.0;
+    assert!((root.sphere[3] - reach).abs() < 1e-9);
 }

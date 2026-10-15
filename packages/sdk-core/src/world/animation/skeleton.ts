@@ -1,4 +1,6 @@
-import { linearStretchBound, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
+import { transformDirectionRow } from '../../../../math/src/vector/vector.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { linearPartIdentityDistanceSq } from '../../../../math/src/matrix/singular.ts'
 import type { Object3D } from '../object/object3d.ts'
@@ -49,32 +51,19 @@ export class Skeleton {
    */
   palette(meshWorld: ArrayLike<number>, out: Float32Array, at = 0) {
     const m = invertMatrix4(meshInverse, meshWorld)
-    // `meshInverse · joint` for its three rows only — the fourth is never read —, each term the
-    // expression `multiplyMatrix4` computes, rounded once into the palette.
-    const m11 = m[0],
-      m12 = m[4],
-      m13 = m[8],
-      m14 = m[12]
-    const m21 = m[1],
-      m22 = m[5],
-      m23 = m[9],
-      m24 = m[13]
-    const m31 = m[2],
-      m32 = m[6],
-      m33 = m[10],
-      m34 = m[14]
     for (let j = 0; j < this.bones.length; j++) {
       boneWorld.set(this.bones[j].matrixWorld.elements)
       multiplyMatrix4(joint, boneWorld, this.inverses[j])
+      // `meshInverse · joint` for its three upper rows only — the fourth is never read —, each term
+      // `multiplyMatrix4`'s sum (`transformDirectionRow` of the column, plus its fourth product),
+      // rounded once into the palette.
       const base = at + j * PALETTE_FLOATS
       for (let column = 0; column < 4; column++) {
-        const b1 = joint[column * 4],
-          b2 = joint[column * 4 + 1],
-          b3 = joint[column * 4 + 2],
-          b4 = joint[column * 4 + 3]
-        out[base + column] = m11 * b1 + m12 * b2 + m13 * b3 + m14 * b4
-        out[base + 4 + column] = m21 * b1 + m22 * b2 + m23 * b3 + m24 * b4
-        out[base + 8 + column] = m31 * b1 + m32 * b2 + m33 * b3 + m34 * b4
+        const c = column * 4,
+          b4 = joint[c + 3]
+        for (let row = 0; row < 3; row++)
+          out[base + row * 4 + column] =
+            transformDirectionRow(m, row, joint[c], joint[c + 1], joint[c + 2]) + m[12 + row] * b4
       }
     }
     return out
@@ -114,12 +103,12 @@ export function paletteReach(
   return most
 }
 
-/** The most a joint's linear part stretches a vector, bounded by `√(‖L‖₁·‖L‖∞)` (one at rest,
- *  never below the true norm): how far a morph's displacement moves once
- *  the joints carry it. */
+/** The most a joint's linear part stretches a vector (`maxStretch`, its rows read as columns: a
+ *  matrix and its transpose share it), one at rest: how far a morph's displacement moves once the
+ *  joints carry it. */
 export function paletteStretch(palette: Float32Array, at: number, joints: number) {
   let most = 1
   for (let j = 0; j < joints; j++)
-    most = Math.max(most, linearStretchBound(palette, at + j * PALETTE_FLOATS))
+    most = Math.max(most, maxStretch(palette, at + j * PALETTE_FLOATS))
   return most
 }

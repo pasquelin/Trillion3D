@@ -1,6 +1,6 @@
 /**
  * CPU side of the virtual shadow map cache: the array-level cache manager, the per-light cache
- * entries and the per-map cache entries, plus the light mobility factor.
+ * entries and the per-map cache entries.
  *
  * What it holds across frames: one entry per light, keyed by its scene id, each with one
  * entry per shadow map (clipmap levels, 6 cube faces or 1 spot map) carrying the cached projection
@@ -16,7 +16,6 @@ import {
   VSM_SUN_DEPTH_KEEP,
   VSM_PRESSURE_LOAD,
   VSM_PRESSURE_BIAS_MAX,
-  VSM_PRESSURE_BIAS_FLOOR,
   VSM_PRESSURE_CALM_FRAMES,
   VSM_LIGHT_KEEP_FRAMES,
   VSM_POOL_PAGES,
@@ -29,12 +28,9 @@ import {
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import { createReadbackRing, type ReadbackRing } from '../gpu/core/readbackRing.ts'
-import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
+import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import type { VsmLocalLightSetup } from './localLight.ts'
-
-/** Frames a light stays active after its last change: its mobility factor falls over them. */
-const VSM_LIGHT_ACTIVE_FRAME_COUNT = 10
 
 /** The next-frame map data, 16 bytes on the GPU (`VsmNextMap`). */
 export interface VsmNextMap {
@@ -45,9 +41,10 @@ export interface VsmNextMap {
 
 /** What the per-light setup needs of the id allocator (see `frameSetup.ts`). */
 export interface VsmIdAllocator {
-  allocateUnreferenced(singlePage: boolean, count: number): number
+  allocateUnreferenced(count: number): number
   writeNextMap(prevMapId: number, data: VsmNextMap): void
-  readonly mapSlotCount: number
+  fits(count: number): boolean
+  readonly mapCount: number
 }
 
 /** A clipmap level's cache state, centimetres. */
@@ -121,7 +118,6 @@ interface VsmSunCacheKey {
 interface VsmLocalLightCacheKey {
   worldToLight: ArrayLike<number>
   lightOriginShift: [number, number, number]
-  isCachedFarLight: boolean
   shape: [number, number, number]
 }
 
@@ -134,7 +130,6 @@ function copyInto(to: number[], from: ArrayLike<number>) {
 /** One light's cache entry. */
 export class VsmLightCache {
   renderedFrame = -1
-  scheduledFrame = -1
   prevMapId = -1
   mapId = -1
   isUncached = false
@@ -146,7 +141,6 @@ export class VsmLightCache {
   private localCacheKey: VsmLocalLightCacheKey & { worldToLight: number[] } = {
     worldToLight: [],
     lightOriginShift: [0, 0, 0],
-    isCachedFarLight: false,
     shape: [Number.NaN, Number.NaN, Number.NaN],
   }
   private clipmapCacheKey: VsmSunCacheKey = { lightDirection: [NaN, NaN, NaN], firstLevel: 0 }
@@ -162,13 +156,6 @@ export class VsmLightCache {
     this.mapCaches = Array.from({ length: mapCount }, () => new VsmMapCache())
   }
 
-  /** A distant light that has been rendered: all its pages are mapped and rendered. */
-  isFullyCached() {
-    return this.localCacheKey.isCachedFarLight && this.renderedFrame >= 0
-  }
-  isCachedFarLight() {
-    return this.localCacheKey.isCachedFarLight
-  }
   markRendered(frameIndex: number) {
     this.renderedFrame = frameIndex
   }
@@ -178,13 +165,10 @@ export class VsmLightCache {
   isInvalidated() {
     return this.renderedFrame < 0
   }
-  /** The collector's filter: an entry that may hold cached
-   *  pages to invalidate — not fully cached, uncached or invalidated, and given an id. */
+  /** The collector's filter: an entry that may hold cached pages to invalidate — neither
+   *  uncached nor invalidated, and given an id. */
   mayHoldCachedPages() {
-    return !(this.isFullyCached() || this.isUncached || this.isInvalidated()) && this.mapId >= 0
-  }
-  markScheduled(frameIndex: number) {
-    this.scheduledFrame = frameIndex
+    return !(this.isUncached || this.isInvalidated()) && this.mapId >= 0
   }
   moveToMapId(next: number) {
     this.prevMapId = this.mapId
@@ -225,59 +209,14 @@ export class VsmLightCache {
     const changed =
       !sameValues(key.worldToLight, k.worldToLight) ||
       !sameValues(key.lightOriginShift, k.lightOriginShift) ||
-      key.isCachedFarLight !== k.isCachedFarLight ||
       !sameValues(key.shape, k.shape)
     this.updateCommon(changed, forceInvalidate, false)
     if (changed) {
       copyInto(k.worldToLight, key.worldToLight)
       copyInto(k.lightOriginShift, key.lightOriginShift)
-      k.isCachedFarLight = key.isCachedFarLight
       copyInto(k.shape, key.shape)
     }
   }
-}
-
-/** A light's mobility state, which the scene renderer reads as its factor: `firstActiveFrame` the
- *  frame its activity began, −1 before the first frame that reads it. */
-export interface LightMobility {
-  firstActiveFrame: number
-  mobilityFactor: number
-  active: boolean
-}
-
-/** A light's mobility state at the start: not active. */
-export const newLightMobility = (): LightMobility => ({
-  firstActiveFrame: -1,
-  mobilityFactor: 0,
-  active: false,
-})
-
-/**
- * Advances a light's mobility at `frame`, once per frame per light, with `updated` true when the
- * light was added or changed: the factor is 1 then, and falls to 0 over the next
- * `VSM_LIGHT_ACTIVE_FRAME_COUNT` frames. Returns the factor. Lights are movable (stationary lights
- * are treated as movable).
- */
-export function advanceLightMobility(m: LightMobility, updated: boolean, frame: number) {
-  if (updated) {
-    m.firstActiveFrame = -1
-    m.active = true
-    m.mobilityFactor = 1
-  }
-  if (m.active) {
-    if (m.firstActiveFrame === -1) {
-      m.firstActiveFrame = frame
-      m.mobilityFactor = 1
-    } else if (frame - m.firstActiveFrame < VSM_LIGHT_ACTIVE_FRAME_COUNT) {
-      m.mobilityFactor = Math.fround(
-        1 - saturate((frame - m.firstActiveFrame) / VSM_LIGHT_ACTIVE_FRAME_COUNT),
-      )
-    } else {
-      m.active = false
-      m.mobilityFactor = 0
-    }
-  }
-  return m.active ? m.mobilityFactor : 0
 }
 
 interface VsmCacheManagerOptions {
@@ -297,12 +236,8 @@ export class VsmCacheManager {
   private lastFrameOverBudget = 0
   /** The scene frame number of the frame being set up. */
   frameStamp = 0
-  /** Previous frame's uniform counts; null = no cache data . */
-  prevFrame: {
-    mapSlotCount: number
-    fullMapCount: number
-    singlePageMapCount: number
-  } | null = null
+  /** Previous frame's map count; null = no cache data. */
+  prevFrame: { mapCount: number } | null = null
 
   constructor(options: VsmCacheManagerOptions = {}) {
     this.cacheEnabled = options.cacheEnabled ?? true
@@ -315,7 +250,7 @@ export class VsmCacheManager {
 
   /** The invalidations run only over a previous frame's maps: cache data and slots. */
   acceptsInvalidations() {
-    return this.hasPreviousFrame() && (this.prevFrame?.mapSlotCount ?? 0) > 0
+    return this.hasPreviousFrame() && (this.prevFrame?.mapCount ?? 0) > 0
   }
 
   /** Finds or creates a light's cache entry. */
@@ -342,11 +277,14 @@ export class VsmCacheManager {
     for (const [key, entry] of this.entries) {
       let keep = true
       if (entry.seenThisFrame) {
-        if (entry.mapId + entry.mapCaches.length > ids.mapSlotCount)
+        if (entry.mapId + entry.mapCaches.length > ids.mapCount)
           throw new Error('VSM: referenced cache entry id out of range')
-      } else if (((frameStamp - entry.lastSeenFrame) | 0) <= VSM_LIGHT_KEEP_FRAMES) {
+      } else if (
+        ((frameStamp - entry.lastSeenFrame) | 0) <= VSM_LIGHT_KEEP_FRAMES &&
+        ids.fits(entry.mapCaches.length)
+      ) {
         const numMaps = entry.mapCaches.length
-        entry.moveToMapId(ids.allocateUnreferenced(entry.isCachedFarLight(), numMaps))
+        entry.moveToMapId(ids.allocateUnreferenced(numMaps))
         for (const map of entry.mapCaches) {
           map.update(entry)
           map.projectionData.flags = (map.projectionData.flags | VSM_MAP_UNSEEN) >>> 0
@@ -374,13 +312,7 @@ export class VsmCacheManager {
    * Extracts the frame data (CPU part): a frame that allocated shadow data replaces the previous
    * frame's (`frame`); a frame without (`null`) keeps it.
    */
-  keepFrameForNext(
-    frame: {
-      mapSlotCount: number
-      fullMapCount: number
-      singlePageMapCount: number
-    } | null,
-  ) {
+  keepFrameForNext(frame: { mapCount: number } | null) {
     if (frame) this.prevFrame = this.cacheEnabled ? { ...frame } : null
     for (const entry of this.entries.values()) entry.seenThisFrame = false
   }
@@ -393,23 +325,6 @@ export class VsmCacheManager {
   /** Processes the removed lights: entries of removed lights go (their ids may be reused). */
   dropRemovedLights(isRemoved: (lightId: string) => boolean) {
     for (const [key, entry] of this.entries) if (isRemoved(entry.lightId)) this.entries.delete(key)
-  }
-
-  /** The distant (fully cached) light to refresh this frame: the oldest scheduled, one at most. */
-  scheduleFarLights() {
-    if (!this.cacheEnabled) return
-    const frame = this.frameStamp | 0
-    let oldest: VsmLightCache | null = null,
-      oldestAge = 0
-    for (const entry of this.entries.values()) {
-      if (!entry.isFullyCached()) continue
-      const age = (frame - (entry.scheduledFrame | 0)) | 0
-      if (oldest === null || age > oldestAge) {
-        oldest = entry
-        oldestAge = age
-      }
-    }
-    oldest?.markScheduled(frame)
   }
 
   /** Free AVAILABLE pages of the last status message read back (diagnostics). */
@@ -430,16 +345,22 @@ export class VsmCacheManager {
       currentAllocation <= Math.fround(VSM_PRESSURE_LOAD) &&
       (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
     ) {
-      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_FALL))
+      this.pressureBias = approach(this.pressureBias, targetBias, VSM_PRESSURE_FALL)
     } else if (currentAllocation > Math.fround(VSM_PRESSURE_LOAD)) {
       this.lastFrameOverBudget = frameStamp
-      this.pressureBias = Math.fround(lerp(this.pressureBias, targetBias, VSM_PRESSURE_RISE))
+      this.pressureBias = approach(this.pressureBias, targetBias, VSM_PRESSURE_RISE)
     }
-    const bias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
-    // In f32, nine tenths of k·2^-149 round back to it for k <= 4: the decay would stop there.
-    this.pressureBias = bias < VSM_PRESSURE_BIAS_FLOOR ? 0 : bias
+    this.pressureBias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
     return this.pressureBias
   }
+}
+
+/** `from` moved `share` of the way to `to`, in f32, or `to` itself once that step no longer moves
+ *  it: a geometric approach in f32 stalls where rounding returns the value it starts from (nine
+ *  tenths of k·2^-149 round back to it for k ≤ 4), so the bias reaches its target, 0 included. */
+function approach(from: number, to: number, share: number) {
+  const next = Math.fround(lerp(from, to, share))
+  return next === from ? to : next
 }
 
 /** Bytes the readback holds at most: `maxInFlight` copies of the 4-word message. */

@@ -1,10 +1,10 @@
 //! Fitting of one channel of a 4 × 4 block to a segment of its own: what the
 //! two-channel writers — BC5, the ASTC luminance-alpha block — do for X and
 //! for Y, each on its ladder. The segment is the channel's extremes, the
-//! endpoints are re-solved by least squares for the assigned rungs as in
-//! `fit.rs`, in one dimension: no covariance, no axis, since a channel's axis
-//! is the channel.
-use super::fit::{nearest_rung, Texels};
+//! endpoints are re-solved by `fit::solve` for the assigned rungs, in one
+//! dimension, then clamped to a byte: no covariance, no axis, since a
+//! channel's axis is the channel.
+use super::fit::{nearest_rung, solve, Texels};
 use trillion3d_math::scalar::remap;
 
 /// Endpoints of `channel` on `ladder`, as bytes, and the rung of every texel on
@@ -21,24 +21,11 @@ pub fn fit_channel(texels: &Texels, channel: usize, ladder: &[f32]) -> (u8, u8, 
         }
         values.map(|v| nearest_rung(ladder, remap(v, e0, e1)))
     };
+    let columns = values.map(|v| [v]);
     for _ in 0..3 {
         let rung = assign(e0, e1);
-        let (mut a, mut b, mut c, mut x, mut y) = (0.0f32, 0.0f32, 0.0f32, 0.0f32, 0.0f32);
-        for (&v, &r) in values.iter().zip(&rung) {
-            let w = ladder[r as usize];
-            let u = 1.0 - w;
-            a += u * u;
-            b += u * w;
-            c += w * w;
-            x += v * u;
-            y += v * w;
-        }
-        let det = a * c - b * b;
-        if det.abs() < 1e-6 {
-            break;
-        }
-        e0 = ((x * c - y * b) / det).clamp(0.0, 255.0);
-        e1 = ((y * a - x * b) / det).clamp(0.0, 255.0);
+        let ([s0], [s1]) = solve(&columns, ladder, &rung, [e0], [e1]);
+        (e0, e1) = (s0.clamp(0.0, 255.0), s1.clamp(0.0, 255.0));
     }
     let (b0, b1) = (e0.round() as u8, e1.round() as u8);
     (b0, b1, assign(f32::from(b0), f32::from(b1)))

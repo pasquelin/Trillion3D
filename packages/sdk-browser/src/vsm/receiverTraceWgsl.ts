@@ -1,8 +1,7 @@
 /**
  * The shadow of one light at one receiver, through the virtual shadow maps: the one estimator every
- * lit surface reads. The receiver is pushed along its normal by the normal bias, a screen ray
- * (`vsmScreenRayCast`) finds the contact occluders the maps are too coarse to hold, and the traces
- * (`traceWgsl.ts`) march rays across the light's disk or sphere from where it stops.
+ * lit surface reads. The receiver is pushed along its normal by the normal bias, then traced
+ * (`traceWgsl.ts`): its rays' screen segment, then their march over the light's map.
  *
  * Two hosts evaluate it, on the same view uniform (`VsmProjectionView`, `projectionView.ts`), the same
  * blue noise and the same maps:
@@ -13,35 +12,18 @@
  *   ray hitting a narrow occluder (`rayCountStatement`). It never traces fewer rays than a voting
  *   pixel would: never less image.
  *
- * The host declares `vsmView` and `vsm` (`VsmUniforms`), and gives the pool the traces sample
- * (`pool`), the noise pair (`noise`) and the depth pyramid's bindings the screen ray marches (`hiz`,
- * `SCREEN_MARCH_WGSL`).
+ * The host declares `vsmView` and `vsm` (`VsmUniforms`) and gives what the trace reads
+ * (`VsmTraceHost`).
  */
-import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
-import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
-import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
-import { VSM_TRACE_LIGHT_WGSL, VSM_TRACE_RESULT_WGSL, vsmTraceWgsl } from './traceWgsl.ts'
-
-/** Bits of `VSM_PROJECTION_KINDS`: a directional light in the pass, a local one. */
-export const VSM_PROJECTION_KINDS_DIRECTIONAL = 1
-export const VSM_PROJECTION_KINDS_LOCAL = 2
-
-/** What a host gives the receiver's trace (`vsmReceiverTraceWgsl`). */
-export interface VsmReceiverTraceHost {
-  /** The pool's `vsmPoolLoad` the traces sample. */
-  pool: WgslDecl
-  /** The rays' noise pair (`vsmNoiseTwo`). */
-  noise: WgslDecl
-  /** The depth pyramid's group and first binding (`hizDepthEntries`). */
-  hiz: readonly [group: number, binding: number]
-  /** A fragment's trace, which no other lane votes beside. */
-  lone: boolean
-}
+import { VSM_TRACE_LIGHT_WGSL, type VsmTraceHost, vsmTraceWgsl } from './traceWgsl.ts'
+import { VSM_TRACE_RESULT_WGSL } from './traceCommonWgsl.ts'
 
 /**
- * THE NORMAL BIAS OF A RECEIVER, the one reading of it: the projection's trace (below) and the
+ * THE BIASES OF A RECEIVER, the one reading of them — its normal bias length and the normal it
+ * follows (`vsmBiasNormal`): the projection's trace (below) and the
  * translucent casters' transmission read (`vsmReceiverFromEye`, `../lighting/direct/vsmConsumerWgsl.ts`)
  * push a receiver by the same length, so the mask and the transmission read one point. Its inverse
  * tangent is the projection's own (`halfFovTangents.z`, 1 under an orthographic view), its distance
@@ -62,32 +44,31 @@ fn vsmCameraDistance(v:vec3f)->f32{
 fn vsmNormalOffset(fromEye:vec3f)->f32{
  return vsmNormalOffsetLength(vsm.normalBias,vsmCameraDistance(fromEye),vsmView.halfFovTangents.z);
 }
+/** The normal a receiver's biases follow (normal bias, receiver-plane depth slope): its triangle's
+ *  plane \`plane\` (the engine's shadow receiver, \`shadowReceiver\`) turned to the side the shading
+ *  normal \`n\` faces, or \`n\` where it has no plane (zero). The one rule of the projection and of
+ *  the lighting. */
+fn vsmBiasNormal(n:vec3f,plane:vec3f)->vec3f{
+ if(dot(plane,plane)==0.0){return n;}
+ return select(plane,-plane,dot(plane,n)<0.0);
+}
 `,
 )
 
-export const vsmReceiverTraceWgsl = ({ pool, noise, hiz, lone }: VsmReceiverTraceHost) =>
+/** The trace of one light at one receiver, every host's (`VsmTraceHost`): the projection's 64
+ *  pixels a group, a blended surface's or the water's fragment alone. */
+export const vsmReceiverTraceWgsl = (host: VsmTraceHost) =>
   wgslBlock(
-    `vsmReceiverTraceWgsl(${hiz.join(', ')}, ${lone})`,
+    `vsmReceiverTraceWgsl(${host.hiz.join(', ')}, ${host.lone})`,
     [
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       VSM_NORMAL_OFFSET_WGSL,
       VSM_TRACE_LIGHT_WGSL,
       VSM_TRACE_RESULT_WGSL,
-      vsmTraceWgsl(pool, noise, lone),
-      SCREEN_MARCH_WGSL(hiz[0], hiz[1]),
-      clipToFramebuffer,
+      vsmTraceWgsl(host),
     ],
     /* wgsl */ `
-/** The kinds of the pass's lights, set by the projection pass (\`pipelineFor\`, \`projectionPass.ts\`):
- *  a directional light, a local one, or both (any other value, the fragments' own). A pass of one
- *  kind is compiled with that kind's trace alone: the other kind's code, and the registers its peak
- *  holds, are not in it. The same light either way. */
-override VSM_PROJECTION_KINDS:u32=0u;
-fn vsmLightIsDirectional(light:VsmProjectionLight)->bool{
- let kinds=VSM_PROJECTION_KINDS;
- return kinds==${VSM_PROJECTION_KINDS_DIRECTIONAL}u||(kinds!=${VSM_PROJECTION_KINDS_LOCAL}u&&light.kind==LIGHT_KIND_DIRECTIONAL);
-}
 /** \`biasNormal\`: the normal the receiver's biases follow (normal bias, receiver-plane depth slope);
  *  the shading normal unless the engine's shadow receiver gives its triangle's plane. */
 struct VsmSurfaceInfo{valid:bool,subsurface:bool,worldNormal:vec3f,biasNormal:vec3f,}
@@ -96,43 +77,12 @@ struct VsmSurfaceInfo{valid:bool,subsurface:bool,worldNormal:vec3f,biasNormal:ve
  *  ray length and its blue noise — zero elsewhere, where no light reads them (the projection's
  *  \`vsmLightParticipates\`, the traces' \`participating\`). */
 struct VsmPixel{pos:vec2u,inRect:bool,info:VsmSurfaceInfo,sceneDepth:f32,shifted:vec3f,screenRayWorld:f32,noise:f32,}
-/** The screen-space ray cast: the engine's screen march (\`screenMarch\`, \`gpu/hiz/screenMarch.ts\`)
- *  of the depth along the ray's length, whose reach is the ray's own and whose thickness is
- *  \`thickness\` pixels of footprint — the ray's depth span, so that a surface nearer than the ray
- *  by more than it spans is no occluder of the point the ray leaves. The first crossing is the
- *  occluder: the ray's length up to it, a pixel and a half back (declared: the map trace starts
- *  at the surface, never behind it), or the whole length where it meets nothing. */
-fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,thickness:f32)->f32{
- let size=vsmView.viewPixels.xy;
- let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin,1.0),size);
- let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(rayOrigin+rayDirection*rayLength,1.0),size);
- let d=stop-start;
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab,0xffffffffu,0.0);
- // A transparent surface is no occluder here: the maps' transmission is its shadow.
- if(hit.t<0.0||hit.front){return rayLength;}
- return rayLength*max(0.0,hit.t-1.5/max(max(abs(d.x),abs(d.y)),1e-6));
-}
-/** Light k's shadow at a receiver (\`vsmView.lights[k]\`: its record and its map id). */
-fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool,voteSplit:bool)->VsmTraceResult{
- let light=vsmView.lights[k];
- let info=pixel.info;
- let directional=vsmLightIsDirectional(light);
- let toLight=light.shiftedPosition-pixel.shifted;
- let L=select(toLight*inverseSqrt(dot(toLight,toLight)),light.direction,directional);
- let worldNormal=info.biasNormal;
- var shiftedPosition=pixel.shifted;
- var traceStart=pixel.screenRayWorld;
- if(participating){
-  if(!info.subsurface){shiftedPosition+=worldNormal*vsmNormalOffset(shiftedPosition-vsmView.shiftedEye);}
-  if(!info.subsurface&&pixel.screenRayWorld>0.0){
-   traceStart=vsmScreenRayCast(shiftedPosition,L,pixel.screenRayWorld,pixel.screenRayWorld/vsmPixelWorldSize(pixel.sceneDepth,vsmView.viewToClip,vsmView.viewPixels.xy));
-  }
- }
- if(directional){
-  return vsmTraceSun(light.mapId,light,pixel.pos,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
- }else{
-  return vsmTraceLocal(light.mapId,light,pixel.pos,pixel.sceneDepth,shiftedPosition,traceStart,pixel.noise,worldNormal,participating,voteSplit);
- }
+/** Light k's shadow at a receiver (\`vsmView.lights[k]\`): the receiver pushed along its bias normal
+ *  by the normal bias (a thin-subsurface one is not), then traced (\`vsmTraceLight\`). */
+fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool)->VsmTraceResult{
+ var P=pixel.shifted;
+ if(participating&&!pixel.info.subsurface){P+=pixel.info.biasNormal*vsmNormalOffset(P-vsmView.shiftedEye);}
+ return vsmTraceLight(vsmView.lights[k],pixel,P,participating);
 }
 `,
   )

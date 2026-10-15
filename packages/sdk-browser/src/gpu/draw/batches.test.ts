@@ -7,7 +7,6 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import { VIS_SHADER } from '../../visibility/shader/visWgsl.ts'
 import { drawShader } from './shader.ts'
-import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
 import { BASE_SLOTS, BATCH_SHIFT, HALF_SLOTS, drawBatches, slotCount } from './contract.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
@@ -113,14 +112,13 @@ test('the tested half keeps or drops every batch of a row with the row', () => {
   // `hizRejected` reads the Hi-Z verdict at the row's slot: rejected rows hold verdict 1.
   const pages = Array.from({ length: 12 }, (_, row) => ({ hizSlot: row }))
   const hizFlags = Uint32Array.from(pages, (_, row) => (rejected.has(row) ? 1 : 2))
-  const { survives } = shaderRun<{ survives: (entry: number) => boolean }>(
-    REST_COMPACT_SHADER,
-    ['survives', 'hizRejected', 'instanceRow'],
+  const { drawn } = shaderRun<{ drawn: (item: { pageIndex: number }) => boolean }>(
+    drawShader(1, true),
+    ['drawn', 'hizRejected'],
     { pages, hizFlags },
   )
   for (let row = 0; row < 12; row++)
-    for (let b = 0; b < 4; b++)
-      assert.equal(survives((row | (b << BATCH_SHIFT)) >>> 0), !rejected.has(row), `${row}/${b}`)
+    assert.equal(drawn({ pageIndex: row }), !rejected.has(row), `${row}`)
 })
 
 test('the shape: a catalogue under a batch keeps its corners, a wider one launches batches', () => {

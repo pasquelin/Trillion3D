@@ -19,7 +19,6 @@ import {
   QUEUE_ENTRIES_START,
   childBase,
   coldBase,
-  residentBase,
   selectionListCap,
 } from './layout.ts'
 import { dagFlagShape, flagShapeWords } from './flagSections.ts'
@@ -70,7 +69,7 @@ function residency(packed: PackedDag, resident: ArrayLike<number>, slots?: numbe
   )
   const bits = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset)
   return {
-    ready: residentFlags(bits, packed.pageCount, residentBase(packed.pageCount)),
+    ready: residentFlags(bits, packed.pageCount, 0),
     childReady: residentFlags(bits, packed.pageCount, childBase(packed.pageCount)),
   }
 }

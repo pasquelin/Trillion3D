@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { OP, SHAPE } from '../../../sdk-core/src/physics/layout.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import { followNode } from './followNode.ts'
 import { createPhysicsPoses } from './poses.ts'
 import {
   cooked,
@@ -68,10 +69,18 @@ test('a kinematic body inside a dynamic body’s subtree follows its moving pare
   // Its model moved by the page: the lid goes where its node is drawn, not where the model puts it.
   model.position.set(3, 0, 0)
   model.updateMatrixWorld(true)
-  tiles.moved(model)
+  followNode(
+    model,
+    bodies,
+    writer,
+    tiles,
+    () => {},
+    () => {},
+  )
+  // The model's own bodies first (`followModel`), then the nodes bodies move (`followMove`).
   const moved = writer.take()
-  const [crateOp, , ...crateAt] = pose(moved)
-  const [lidOp, , ...lidAt] = pose(moved, 9)
+  const [lidOp, , ...lidAt] = pose(moved)
+  const [crateOp, , ...crateAt] = pose(moved, 9)
   assert.deepEqual([crateOp, lidOp], [OP.teleport, OP.moveKinematic])
   assert.ok(close(crateAt, [3, 1, 0]) && close(lidAt, [3, 1, -1]), `${crateAt} / ${lidAt}`)
 })

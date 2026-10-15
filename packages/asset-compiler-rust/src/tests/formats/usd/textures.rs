@@ -53,7 +53,7 @@ fn a_texture_of_a_referenced_layer_resolves_against_the_directory_of_that_layer(
         &["sous/textures/checker.png"],
     );
     assert_eq!(
-        unsupported(&run)["usd-texture-missing"],
+        unsupported(&run)["texture-missing"],
         Value::Null,
         "the referenced layer's texture is found"
     );
@@ -96,7 +96,7 @@ fn the_wrap_scale_bias_and_colour_space_of_a_uv_texture_are_carried_or_counted()
         )],
         &["textures/checker.png"],
     );
-    assert_eq!(unsupported(&run)["usd-texture-wrap-unsupported"], 1);
+    assert_eq!(unsupported(&run)["texture-wrap-unsupported"], 1);
 
     let scale = "            float4 inputs:scale = (0.5, 0.5, 0.5, 1)\n";
     let run = compile_files(

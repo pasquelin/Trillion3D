@@ -10,6 +10,5 @@ export const waveShader = (positions: Float32Array) =>
       count: number,
       p: number[],
       previous: boolean,
-      normal: boolean,
-    ) => number[]
+    ) => { p: number[]; n: number[] }
   }>(wgslModule(DEFORM_WGSL), ['deformWaves'], { positions, cos: Math.cos }).deformWaves

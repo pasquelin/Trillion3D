@@ -5,19 +5,23 @@ type GltfBuffers = (Binary, Vec<usize>, Vec<(String, String)>);
 /// The document's buffers as one binary, each started on a 4-byte boundary, with each buffer's
 /// offset in it and the digest of each sidecar read; `flatten_buffer_views` then points every view
 /// at buffer 0. A sidecar's digest must match its `runtime.sidecars[]` entry when a manifest
-/// declares one; a GLB's BIN chunk carries no sidecar digest.
+/// declares one; a GLB's BIN chunk carries no sidecar digest. Every buffer is resolved and checked
+/// by one walk; a document of one buffer is that buffer itself, mapped or embedded, never copied.
 pub(super) fn concat_gltf_buffers(
     dir: &Path,
     g: &Value,
-    embedded: Option<Binary>,
+    mut embedded: Option<Binary>,
     declared: Option<&Value>,
 ) -> Result<GltfBuffers> {
     let buffers = values(g, "buffers")?;
     if buffers.is_empty() {
         return Err(invalid("glTF buffers are required"));
     }
-    if buffers.len() == 1 {
-        if let Some(uri) = buffers[0]
+    // `None` is a buffer EXT_meshopt_compression leaves without its uncompressed fallback.
+    let mut parts: Vec<Option<Binary>> = Vec::with_capacity(buffers.len());
+    let mut sidecars = Vec::new();
+    for (i, buffer) in buffers.iter().enumerate() {
+        let part = if let Some(uri) = buffer
             .get("uri")
             .and_then(Value::as_str)
             .filter(|s| !s.is_empty())
@@ -25,66 +29,41 @@ pub(super) fn concat_gltf_buffers(
             if !is_safe_source_name(uri) {
                 return Err(invalid("glTF buffer uri is required"));
             }
-            let digest = hash_file(&dir.join(uri))?;
-            verify_sidecar(declared, uri, &digest)?;
             let map = map_source(&dir.join(uri))?;
-            if required_index(buffers[0].get("byteLength"), "buffer.byteLength")? > map.len() {
-                return Err(invalid("glTF buffer byteLength exceeds source bytes"));
-            }
-            return Ok((
-                Binary::Mapped(map),
-                vec![0],
-                vec![(uri.to_string(), digest)],
-            ));
+            let digest = hash(&map);
+            verify_sidecar(declared, uri, &digest)?;
+            sidecars.push((uri.to_string(), digest));
+            Binary::Mapped(map)
+        } else if compressed::placeholder(g, i) && (i != 0 || embedded.is_none()) {
+            parts.push(None);
+            continue;
+        } else if i == 0 {
+            embedded
+                .take()
+                .ok_or_else(|| invalid("glTF buffer uri is required"))?
+        } else {
+            return Err(invalid("glTF buffer uri is required"));
+        };
+        if required_index(buffer.get("byteLength"), "buffer.byteLength")? > part.bytes().len() {
+            return Err(invalid("glTF buffer byteLength exceeds source bytes"));
         }
-        if let Some(bin) = embedded {
-            if required_index(buffers[0].get("byteLength"), "buffer.byteLength")?
-                > bin.bytes().len()
-            {
-                return Err(invalid("glTF buffer byteLength exceeds source bytes"));
-            }
-            return Ok((bin, vec![0], Vec::new()));
+        parts.push(Some(part));
+    }
+    if let [Some(_)] = parts.as_slice() {
+        if let Some(Some(only)) = parts.pop() {
+            return Ok((only, vec![0], sidecars));
         }
     }
     let mut out = Vec::new();
-    let mut offsets = Vec::new();
-    let mut sidecars = Vec::new();
-    for (i, buffer) in buffers.iter().enumerate() {
-        let pad = crate::shared_math::pad_to_4(out.len());
-        out.extend(std::iter::repeat_n(0u8, pad));
-        offsets.push(out.len());
-        if let Some(uri) = buffer
-            .get("uri")
-            .and_then(Value::as_str)
-            .filter(|s| !s.is_empty())
-        {
-            if !is_safe_source_name(uri) {
-                return Err(invalid("glTF buffer uri is required"));
-            }
-            let bytes = fs::read(dir.join(uri))?;
-            if required_index(buffer.get("byteLength"), "buffer.byteLength")? > bytes.len() {
-                return Err(invalid("glTF buffer byteLength exceeds source bytes"));
-            }
-            let digest = hash(&bytes);
-            verify_sidecar(declared, uri, &digest)?;
-            sidecars.push((uri.to_string(), digest));
-            out.extend_from_slice(&bytes);
-        } else if compressed::placeholder(g, i) && (i != 0 || embedded.is_none()) {
-            // EXT_meshopt_compression permits an absent uncompressed fallback.
-            offsets[i] = usize::MAX;
+    let mut offsets = Vec::with_capacity(parts.len());
+    for part in &parts {
+        let Some(part) = part else {
+            offsets.push(usize::MAX);
             continue;
-        } else if i == 0 {
-            let bin = embedded
-                .as_ref()
-                .ok_or_else(|| invalid("glTF buffer uri is required"))?
-                .bytes();
-            if required_index(buffer.get("byteLength"), "buffer.byteLength")? > bin.len() {
-                return Err(invalid("glTF buffer byteLength exceeds source bytes"));
-            }
-            out.extend_from_slice(bin);
-        } else {
-            return Err(invalid("glTF buffer uri is required"));
-        }
+        };
+        out.resize(out.len() + crate::shared_math::pad_to_4(out.len()), 0);
+        offsets.push(out.len());
+        out.extend_from_slice(part.bytes());
     }
     Ok((Binary::Owned(out), offsets, sidecars))
 }

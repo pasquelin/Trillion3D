@@ -26,8 +26,7 @@ function markingWords(projection: ArrayLike<number>, perspective: boolean, size:
   // A marking made now holds zeroed parameters: every word it sends is seen.
   const marking = createVsmMarking(device, res)
   marking.encode(pass, {
-    fullMapCount: 1,
-    singlePageMapCount: 0,
+    mapCount: 1,
     perspective,
     perPage: {
       ids: new Uint32Array(2),

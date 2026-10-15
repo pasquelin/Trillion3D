@@ -2,13 +2,11 @@ import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { texelsRefusal, textureRgba } from '../../visibility/types.ts'
 import { generateMaterialMips } from '../../texture/mipBatch.ts'
 import type { MipChain } from '../../texture/mipGroups.ts'
-import { materialMipTexture } from '../../texture/mips.ts'
+import { materialMipTexture, turnFlags } from '../../texture/mips.ts'
 import { mipLevelCountFor } from '../../texture/tiles.ts'
 import type { CoverageReaders } from '../../texture/coverage.ts'
-import { writeRgba } from './write.ts'
-import { createTexelTurn, turnFlags, type TexelTurn } from './texelTurn.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
-import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
+import { writeRgba } from './write.ts'
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
@@ -32,8 +30,7 @@ export type TileScratch = {
   /** Bytes it holds, mips included (`textureBytesOf`). */
   bytes: number
   /** Writes the source's current picture again, mips included: what a live texture keeps. Its
-   *  turn and its mips in `encoder` when given, submitted by its owner at once (`reduce`), who
-   *  `rest`s after. */
+   *  turn and its mips in `encoder` when given, submitted by its owner at once (`reduce`). */
   fill(encoder?: GPUCommandEncoder): void
   /** Builds its mips again from the picture it holds, under its readers' rule now (#42): in
    *  `encoder` when given, which its owner submits before any other batch writes the mips'
@@ -44,13 +41,9 @@ export type TileScratch = {
   /** What `reduce` hands `generateMaterialMips`, for a batch that reduces several at once: the
    *  mips are then built, no longer `stale`. */
   chain(): MipChain
-  /** The command buffer of its last picture was submitted: its turn gives its ring back
-   *  (`texelTurn.ts`). Called at once when no encoder was handed. */
+  /** The command buffer that turned its picture was submitted: a static picture's raw texels
+   *  (`turn`) are let go. A live texture never settles: it keeps them for its next picture. */
   settle(): void
-  /** A live texture's picture was submitted: its turn keeps its ring and words for the next
-   *  picture — taken once, never again a picture —, and gives them back (`settle`) once no picture
-   *  came for `READBACK_IDLE_MS`, as the device's spares do (`heldBuffers`). */
-  rest(): void
   destroy(): void
 }
 
@@ -83,29 +76,38 @@ function scratchDescriptor({ width, height, format }: ScratchOptions): GPUTextur
   }
 }
 
-/** Sends the picture as it is now into `texture`, its mips not built, under the host texture's
- *  `flipY` and `premultiplyAlpha`: the picture's last row lands at v = 0 (#362). Raw texels to turn
- *  go through `held.turned`, made at the first such picture; a turn is encoded in `encoder` when
- *  given. */
+/** What a working texture keeps of its raw texels: the `rgba8unorm` texture `writeTexture` fills
+ *  when the host texture asks them turned, and the turn its next reduction runs, if one waits. */
+type Raw = { texture?: GPUTexture; turn?: { raw: GPUTexture; flags: number } }
+
+/**
+ * Sends the picture as it is now, its mips not built, under the host texture's `flipY` and
+ * `premultiplyAlpha`: the picture's last row lands at v = 0 (#362). Raw texels go up as they are,
+ * by `writeTexture`: into level 0 when they ask no turn; into `raw` otherwise, which the next
+ * reduction turns into level 0 as its first step (`turnLevel`, `../../texture/mipsWgsl.ts`) — no
+ * texel touched here, no ring, no pass of their own.
+ */
 function uploadPicture(
   device: GPUDevice,
   texture: GPUTexture,
   { map, width, height, errorCode }: ScratchOptions,
-  held: { turned?: TexelTurn },
-  encoder?: GPUCommandEncoder,
+  raw: Raw,
 ) {
   const rgba = textureRgba(map)
   if (rgba) {
     const refusal = texelsRefusal(map)
     if (refusal) throw new Error(refusal)
     if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE')
-    // Turned on the GPU, never texel by texel here.
     const flags = turnFlags(map)
-    if (!flags) writeRgba(device.queue, texture, [0, 0, 0], rgba.data, width, height)
-    else {
-      held.turned ??= createTexelTurn(device, texture, width, height)
-      held.turned.upload(rgba.data, flags, encoder)
-    }
+    if (!flags) return writeRgba(device.queue, texture, [0, 0, 0], rgba.data, width, height)
+    raw.texture ??= device.createTexture({
+      label: 'Trillion3D texture raw texels',
+      size: { width, height },
+      format: 'rgba8unorm',
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    })
+    writeRgba(device.queue, raw.texture, [0, 0, 0], rgba.data, width, height)
+    raw.turn = { raw: raw.texture, flags }
   } else {
     const image = map.image as GPUCopyExternalImageSource | undefined
     if (!image) throw new Error(errorCode)
@@ -117,62 +119,46 @@ function uploadPicture(
   }
 }
 
-/** When the turn of `held` gives its ring and words back: at once (`settle`), or once no picture
- *  came for `READBACK_IDLE_MS` (`rest`). */
-function turnRelease(held: { turned?: TexelTurn }) {
-  let idle: ReturnType<typeof setTimeout> | undefined
-  const settle = () => {
-    clearTimeout(idle)
-    held.turned?.release()
-  }
-  const rest = () => {
-    clearTimeout(idle)
-    if (!held.turned) return
-    idle = setTimeout(settle, READBACK_IDLE_MS)
-    // A host process never waits on the hold.
-    ;(idle as { unref?: () => void }).unref?.()
-  }
-  return { settle, rest }
-}
-
-export function createTileScratch(
-  device: GPUDevice,
-  options: ScratchOptions,
-  /** Where its first picture is encoded — submitted by its owner, who `settle`s after —, else in
-   *  a submit of its own. */
-  first?: GPUCommandEncoder,
-): TileScratch {
+export function createTileScratch(device: GPUDevice, options: ScratchOptions): TileScratch {
   const { width, height, format } = options
   const descriptor = scratchDescriptor(options)
   const texture = device.createTexture(descriptor)
-  /** The GPU turn of raw texels the host texture asks to flip or premultiply (`texelTurn.ts`):
-   *  made at the first such picture, its ring given back after it — a static picture fills once
-   *  (`settle`) —, kept while a live texture's pictures keep coming (`rest`). */
-  const held: { turned?: TexelTurn } = {}
+  /** Its raw texels, made at the first picture that asks a turn and kept while it lives. */
+  const raw: Raw = {}
   let stale = true
-  const upload = (encoder?: GPUCommandEncoder) =>
-    uploadPicture(device, texture, options, held, encoder)
+  const upload = () => uploadPicture(device, texture, options, raw)
+  /** The next reduction's chain, the turn of the picture it waits for taken with it. */
   const chain = (): MipChain => {
     stale = false
-    const cutoff = options.coverage?.cutoff(options.map)
-    return { texture, format, width, height, weighted: cutoff !== undefined, cutoff }
+    const cutoff = options.coverage?.cutoff(options.map),
+      { turn } = raw
+    raw.turn = undefined
+    return { texture, format, width, height, weighted: cutoff !== undefined, cutoff, turn }
   }
   const reduce = (encoder?: GPUCommandEncoder) => generateMaterialMips(device, [chain()], encoder)
-  const { settle, rest } = turnRelease(held)
+  /** A static picture turned and submitted: its raw texels are let go. */
+  const settle = () => {
+    if (raw.turn) return
+    raw.texture?.destroy()
+    raw.texture = undefined
+  }
+  const destroy = () => {
+    texture.destroy()
+    raw.texture?.destroy()
+    raw.texture = raw.turn = undefined
+  }
   try {
-    upload(first)
+    upload()
   } catch (error) {
     // A picture refused at its first fill leaves no texture behind: its tile asks again.
-    texture.destroy()
-    settle()
+    destroy()
     throw error
   }
-  if (!first) settle()
   return {
     texture,
     bytes: textureBytesOf(descriptor) ?? 0,
     fill: (encoder?: GPUCommandEncoder) => {
-      upload(encoder)
+      upload()
       reduce(encoder)
     },
     reduce,
@@ -181,10 +167,6 @@ export function createTileScratch(
     },
     chain,
     settle,
-    rest,
-    destroy: () => {
-      texture.destroy()
-      settle()
-    },
+    destroy,
   }
 }

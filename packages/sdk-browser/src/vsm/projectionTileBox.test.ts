@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../lighting/shaderRunF32.fixture.ts'
-import { VSM_LIGHT_KIND_DIRECTIONAL, VSM_LIGHT_KIND_POINT } from './constants.ts'
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import {
   PROJECTION_CODE,
   NAMES,
@@ -37,7 +37,7 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
       // The float tests in binary32, as a GPU runs them, the box's root against them.
       ...F32_SCOPE,
       ...PROJECTION_SCOPE,
-      VSM_PROJECTION_KINDS: 0,
+      VSM_TRACE_KINDS: 3,
       vsmView: { lights },
       ...roots,
     })
@@ -85,11 +85,11 @@ test('the box test never drops a light a pixel of the tile is in, even with the 
 
 test('a lit point not finite makes every light a candidate: its own test is the device’s', () => {
   const lights = lightsOf(mulberry32(7), 12, [[0, 0, 0]]).map((l) =>
-    l.kind === VSM_LIGHT_KIND_DIRECTIONAL ? { ...l, kind: VSM_LIGHT_KIND_POINT } : l,
+    l.kind === LIGHT_KIND.directional ? { ...l, kind: LIGHT_KIND.point } : l,
   )
   const scope = {
     ...PROJECTION_SCOPE,
-    VSM_PROJECTION_KINDS: 0,
+    VSM_TRACE_KINDS: 3,
     vsmView: { lights },
     vsmTileBounds: [0, 0, 0, 0, 0, 0],
     vsmTileHeld: 0,
@@ -122,11 +122,11 @@ test('a lit point not finite makes every light a candidate: its own test is the 
   assert.deepEqual(bound(false, [1, 2, 3]), [0, false])
 })
 
-test('a pass of one light, or of suns alone, takes its lights as the candidates: no box, no barrier for it', () => {
+test('every pass bounds its tile: the box, then the candidates', () => {
   const entry = functionsOf(PROJECTION_CODE, ['vsmProjection'])
   assert.match(
     entry,
-    /var candidates=vec2u\(1u,0u\);\n if\(VSM_PROJECTION_KINDS==1u\)\{candidates=vsmLightsBelow\(lightCount\);\}\n else if\(!VSM_PROJECTION_ONE_LIGHT\)\{\n {2}vsmTileBound\(/,
+    / vsmTileBound\(pixel\.info\.valid,pixel\.shifted\);\n workgroupBarrier\(\);\n vsmTileCandidate\(groupIndex,lightCount\);/,
   )
   const { vsmLightsBelow } = shaderRun<{ vsmLightsBelow: (count: number) => number[] }>(
     PROJECTION_CODE,

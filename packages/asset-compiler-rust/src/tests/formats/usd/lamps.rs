@@ -88,7 +88,7 @@ fn the_punctual_uslux_schemas_become_gltf_lights_and_the_others_stay_counted() {
     close(&lights[1], "/spot/innerConeAngle", 30f64.to_radians());
     assert_eq!(
         run.prepared("usd").0["unsupported"],
-        json!({"usd-light-unsupported": 1}),
+        json!({"light-unsupported": 1}),
         "the DomeLight is no longer counted"
     );
 }

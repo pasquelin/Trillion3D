@@ -2,7 +2,7 @@
 // only the ordinary, budgeted frames of the observed trajectory request texture levels.
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { MeasureViewOptions } from '../harness/measureOptions.ts'
-import { explorerOptions } from '../harness/explorerPage.ts'
+import { BENCH_BACKGROUND, explorerOptions } from '../harness/explorerPage.ts'
 import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
 type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.EngineFactory | undefined>
@@ -15,6 +15,7 @@ export async function runGazeNetwork(options: MeasureViewOptions) {
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
   const world = await sdk.openMeasuredWorld(canvas, explorerOptions(options, factory))
+  world.setClearColor(BENCH_BACKGROUND)
   for (const pose of options.poses!) {
     await animationFrame()
     world.render(pose)

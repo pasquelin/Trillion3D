@@ -60,6 +60,9 @@ pub const BOOTSTRAP_BUNDLE_BYTES: usize = 1024 * 1024;
 pub const MANIFEST_FILE: &str = "clusters.json";
 /// Code of a job stopped on a cancel request: what the batch counts and the event reports.
 pub const CANCELLED: &str = "CANCELLED";
+/// The file that names a directory's product — a source, a converted scene, a published scope:
+/// one name for every writer and reader.
+pub const MANIFEST_POINTER: &str = "manifest.json";
 #[derive(Debug)]
 pub struct CompilerError {
     pub code: &'static str,
@@ -110,10 +113,7 @@ pub struct Options {
     pub cancelled: Arc<AtomicBool>,
 }
 fn check(o: &Options) -> Result<()> {
-    if o.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new(CANCELLED, "Compilation cancelled"));
-    }
-    Ok(())
+    plugins::scene::cancel::check(&o.cancelled)
 }
 fn implementation_hash() -> &'static str {
     include_str!(concat!(env!("OUT_DIR"), "/implementation_hash.txt"))

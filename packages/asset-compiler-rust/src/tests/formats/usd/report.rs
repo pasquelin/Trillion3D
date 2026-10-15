@@ -55,11 +55,11 @@ fn everything_this_driver_does_not_carry_is_counted_by_its_name() {
         unsupported(&run),
         json!({
             "usd-point-instancer-unsupported": 1,
-            "usd-curves-unsupported": 1,
+            "curves-unsupported": 1,
             "usd-volume-unsupported": 1,
             "usd-skel-unsupported": 1,
-            "usd-camera-unsupported": 1,
-            "usd-light-unsupported": 1,
+            "camera-unsupported": 1,
+            "light-unsupported": 1,
             "usd-subdivision-unsupported": 1,
         }),
         "the menagerie report has moved"
@@ -192,7 +192,7 @@ fn a_texture_whose_file_is_missing_is_counted_and_the_material_stays() {
         }
     }"#;
     let run = compile_layer("texture", &wrap("", body));
-    assert_eq!(unsupported(&run)["usd-texture-missing"], 1);
+    assert_eq!(unsupported(&run)["texture-missing"], 1);
     let (_, gltf) = run.prepared("usd");
     assert_eq!(gltf["materials"].as_array().map(Vec::len), Some(1));
     assert!(gltf.get("images").is_none(), "no image poured in");

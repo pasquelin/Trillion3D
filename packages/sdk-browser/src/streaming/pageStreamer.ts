@@ -5,7 +5,7 @@ import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } f
 import { createTransferQueue } from './queueRanges.ts'
 import { createReadFailures } from './failures.ts'
 import { retriableError } from '../cluster/checked.ts'
-import { createStreamingCache } from './cache.ts'
+import { cacheStats, createStreamingCache } from './cache.ts'
 import { asIndices } from './indexView.ts'
 import { manifestEntryBytes, manifestTableBytes } from './manifestTables.ts'
 import { createReadWatch } from './readWatch.ts'
@@ -102,7 +102,7 @@ export function createPageStreamer(
   const reads = createStreamingQueue(context, transfer, streaming)
   const { forget, keep } = reads
   const { read, watch } = createReadWatch(reads.subscribe)
-  const readBytes = (url: string, signal: AbortSignal, priority = 0) => {
+  const readBytes = (url: string, signal: AbortSignal, priority?: number) => {
     state.requested++
     return read(url, signal, priority)
   }
@@ -151,15 +151,14 @@ export function createPageStreamer(
      *  settles once every read and `onPage` has, rejecting with the first failure in `urls` order. */
     async request(urls: readonly string[], options: BatchRead) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))]
-      state.requested += unique.length
       emit?.('page-request-batch', 'Batched page request received', () => ({
         version: 1,
         requested: urls.length,
         unique: unique.length,
       }))
-      const { signal, priority = 1, onPage } = options
+      const { signal, priority, onPage } = options
       const landed = await Promise.allSettled(
-        unique.map((url) => read(url, signal, priority).then((bytes) => onPage?.(url, bytes))),
+        unique.map((url) => readBytes(url, signal, priority).then((bytes) => onPage?.(url, bytes))),
       )
       for (const page of landed) if (page.status === 'rejected') throw page.reason
     },
@@ -173,9 +172,7 @@ export function createPageStreamer(
         loading: state.active,
         queued: queue.size,
         transferInFlightBytes: state.activeBytes,
-        resident: store.pageCount,
-        residentBytes: store.bytes,
-        maxCachedBytes: store.budgetBytes,
+        ...cacheStats(store),
         /** CPU bytes held (manifest tables, transfers, the engine's tables, the cache's entries). */
         cpuBytes: state.tableBytes + state.activeBytes + state.engineBytes + store.bytes,
         cpuBudgetBytes: store.cpuBytes,
@@ -195,11 +192,11 @@ export function createPageStreamer(
         failed: failures.count(),
       }))
       abort.abort(abortError())
+      // The cache is its owner's, for the next session: the session's pins and transfers give
+      // their holds back before the jobs are let go.
+      streaming.close()
       jobs.clear()
       queue.clear()
-      // The cache is its owner's, for the next session.
-      streaming.close()
-      pinned.clear()
       failures.clear()
     },
   }

@@ -1,11 +1,11 @@
-//! Tighter projection spheres (`tight.rs`): equivalence on its edge
-//! cases, then on whole DAGs of smooth meshes.
+//! Projection spheres (`min_ball::point_sphere`, `ball_of_balls`): their edge cases, then whole DAGs
+//! of smooth meshes.
+use super::part18::{box_centred, merged};
 use super::*;
-use tight::point_sphere;
-use trillion3d_math::sphere::enclosing_sphere;
 use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::{length, sub};
-use trillion3d_page_codec::min_ball::ball_of_balls;
+use trillion3d_page_codec::min_ball::point_sphere;
+use trillion3d_page_codec::min_ball::{ball_of_balls, min_ball};
 
 /// Deterministic uniform draws in [-1, 1).
 fn draws(seed: u64) -> impl FnMut() -> f64 {
@@ -17,6 +17,18 @@ fn draws(seed: u64) -> impl FnMut() -> f64 {
 /// runtime reads: `|c - C| + r <= R`.
 fn holds(outer: [f64; 4], c: [f64; 3], r: f64, slack: f64) -> bool {
     length(sub(c, [outer[0], outer[1], outer[2]])) + r <= outer[3] * (1.0 + slack)
+}
+
+/// The oracle the smallest ball is checked against: the box centre and its farthest vertex.
+fn box_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
+    let points: Vec<[f64; 3]> = indices.iter().map(|&v| point(positions, v)).collect();
+    let (low, high) = trillion3d_math::aabb::aabb_of(points.iter().copied());
+    let c = trillion3d_math::aabb::centre(low, high);
+    let r = points
+        .iter()
+        .map(|&p| length(sub(p, c)))
+        .fold(0.0, f64::max);
+    [c[0], c[1], c[2], r]
 }
 
 fn holds_vertices(sphere: [f64; 4], positions: &[f32], indices: &[u32]) -> bool {
@@ -62,36 +74,26 @@ fn a_point_sphere_holds_every_vertex_and_is_never_larger_than_the_box_one() {
         let indices: Vec<u32> = (0..n as u32).chain(0..n as u32 / 2).collect();
         let (sphere, base) = (
             point_sphere(&positions, &indices),
-            bounds::bounding_sphere(&positions, &indices),
+            box_sphere(&positions, &indices),
         );
         assert!(holds_vertices(sphere, &positions, &indices), "case {case}");
-        assert!(sphere[3] <= base[3], "case {case}");
-        if sphere[3] < base[3] {
-            tighter += 1;
-        } else {
-            assert_eq!(
-                sphere.map(f64::to_bits),
-                base.map(f64::to_bits),
-                "case {case}"
-            );
-        }
+        // The smallest ball, up to the rounding of its re-measured radius.
+        assert!(sphere[3] <= base[3] * (1.0 + 1e-12), "case {case}");
+        tighter += usize::from(sphere[3] < base[3]);
     }
     assert!(tighter > 200, "{tighter} spheres tightened");
-    // Nothing, one vertex, and non-finite vertices keep the box sphere.
+    // Nothing and non-finite vertices give the zero sphere; one vertex is its own point.
     let positions = [0.0, -0.0, 0.0, f32::NAN, 1.0, 2.0, f32::INFINITY, 0.0, 0.0];
-    for indices in [&[][..], &[0], &[0, 1], &[0, 2]] {
-        let (sphere, base) = (
-            point_sphere(&positions, indices),
-            bounds::bounding_sphere(&positions, indices),
-        );
-        assert_eq!(sphere.map(f64::to_bits), base.map(f64::to_bits));
+    for indices in [&[][..], &[0, 1], &[0, 2]] {
+        assert_eq!(point_sphere(&positions, indices), [0.0; 4]);
     }
+    assert_eq!(point_sphere(&positions, &[0]), [0.0, -0.0, 0.0, 0.0]);
 }
 
 #[test]
-fn a_ball_of_balls_holds_every_ball_and_is_never_larger_than_the_merge() {
+fn a_ball_of_balls_holds_every_ball_and_is_the_smallest() {
     let mut next = draws(0xba11);
-    assert_eq!(ball_of_balls(&[]), enclosing_sphere(&[]));
+    assert_eq!(ball_of_balls(&[]), [0.0; 4]);
     let one = [1.0, 2.0, 3.0, 0.5];
     assert_eq!(ball_of_balls(&[one, [9.0, 9.0, 9.0, -1.0]]), one);
     for case in 0..400 {
@@ -107,34 +109,43 @@ fn a_ball_of_balls_holds_every_ball_and_is_never_larger_than_the_merge() {
                 [next() + far, next() * 2.0 - far, next() * 0.1, r]
             })
             .collect();
-        let (ball, merged) = (ball_of_balls(&spheres), enclosing_sphere(&spheres));
-        assert!(ball[3] <= merged[3], "case {case}");
-        // The merge falls back as it was, within its own rounding; a tightened ball holds exactly.
-        let slack = if ball == merged { 1e-12 } else { 0.0 };
+        let (ball, merged) = (ball_of_balls(&spheres), merged(&spheres));
+        // Never larger than the sequential merge nor the box-centred sphere it replaced, up to the
+        // containment margin.
+        assert!(ball[3] <= merged[3] + 1e-9, "case {case}");
+        assert!(ball[3] <= box_centred(&spheres) + 1e-9, "case {case}");
         for &s in spheres.iter().filter(|s| s[3] >= 0.0) {
-            assert!(holds(ball, [s[0], s[1], s[2]], s[3], slack), "case {case}");
+            assert!(holds(ball, [s[0], s[1], s[2]], s[3], 0.0), "case {case}");
+        }
+        // Balls of radius zero are points: their ball is the points' smallest one.
+        if case % 5 == 0 {
+            let mut points: Vec<[f64; 3]> = spheres
+                .iter()
+                .filter(|s| s[3] >= 0.0)
+                .map(|s| [s[0], s[1], s[2]])
+                .collect();
+            let (_, radius) = min_ball(&mut points).expect("points");
+            assert!(
+                (ball[3] - radius).abs() <= 1e-9 * (1.0 + far),
+                "case {case}"
+            );
         }
     }
 }
 
 #[test]
-fn every_tightened_sphere_holds_its_cluster_and_children_and_is_no_larger_than_the_builder_one() {
+fn every_sphere_holds_its_cluster_and_children() {
     for (positions, indices) in [grid(96), ball(160)] {
         let (dag, groups, _) = build_of(&positions, &indices);
-        // The builder's spheres, rebuilt as `build.rs` makes them.
-        let mut loose: Vec<[f64; 4]> = vec![[0.0; 4]; dag.len()];
-        for (id, cluster) in dag.iter().enumerate().filter(|(_, c)| c.level == 0) {
-            loose[id] = bounds::bounding_sphere(&positions, &cluster.indices);
-            assert!(cluster.sphere[3] <= loose[id][3]);
+        for cluster in dag.iter().filter(|c| c.level == 0) {
+            assert_eq!(cluster.sphere, point_sphere(&positions, &cluster.indices));
             assert!(holds_vertices(cluster.sphere, &positions, &cluster.indices));
         }
-        let (mut smaller, mut larger) = (0usize, 0usize);
         for group in &groups {
-            let children: Vec<[f64; 4]> = group.children.iter().map(|&id| loose[id]).collect();
-            let builder = enclosing_sphere(&children);
-            group.outputs.iter().for_each(|&id| loose[id] = builder);
+            let children: Vec<[f64; 4]> = group.children.iter().map(|&id| dag[id].sphere).collect();
+            assert_eq!(group.sphere, ball_of_balls(&children));
             for &id in &group.children {
-                // A group left on the builder's merge keeps its rounding (1.1e-13 m).
+                // A ball left on the merge keeps its rounding (1.1e-13 m).
                 let [x, y, z, r] = dag[id].sphere;
                 assert!(holds(group.sphere, [x, y, z], r, 1e-12), "a child leaves");
                 assert_eq!(dag[id].parent_sphere, group.sphere);
@@ -145,14 +156,6 @@ fn every_tightened_sphere_holds_its_cluster_and_children_and_is_no_larger_than_t
             // A group under the floor is its level's only one, with no group to join.
             let peers = groups.iter().filter(|g| g.level == group.level).count();
             assert!(group.children.len() >= DAG_GROUP_MIN || peers == 1);
-            smaller += usize::from(group.sphere[3] < builder[3]);
-            larger += usize::from(group.sphere[3] > builder[3]);
         }
-        assert_eq!(larger, 0, "{larger} of {} groups larger", groups.len());
-        assert!(
-            smaller * 2 > groups.len(),
-            "{smaller} of {} groups smaller",
-            groups.len()
-        );
     }
 }

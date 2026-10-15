@@ -10,7 +10,7 @@ import { admitWanted, type EnsureOptions, type EnsureRun, type EnsureState } fro
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
 export function createWebgpuResidentEnsurer(options: EnsureOptions) {
-  const { getCache, hasBytes, parentsOf, prefetch, lowerTiers, bytesRevision } = options
+  const { getCache, hasBytes, parentsOf, prefetch, lowerTier, bytesRevision } = options
   /** The frame's main-thread clock: past what it leaves a job yields a task, past
    *  `STREAMING_SHARES_PER_FRAME` of a visible page a frame. A share between two frames spends what
    *  the frame's stages left; a page whose frames do not come — nothing opens the clock — opens it. */
@@ -43,10 +43,7 @@ export function createWebgpuResidentEnsurer(options: EnsureOptions) {
   return Object.assign(ensure, {
     /** Advanced whenever what a pass reads may have moved: the pool's pages, a page's bytes, a
      *  lower tier's report. The upload queue's own revision is the caller's (`queue.ts`). */
-    revision: () =>
-      (getCache()?.residencyRevision ?? 0) +
-      bytesRevision() +
-      lowerTiers().reduce((sum, tier) => sum + tier.revision, 0),
+    revision: () => (getCache()?.residencyRevision ?? 0) + bytesRevision() + lowerTier().revision,
   })
 }
 

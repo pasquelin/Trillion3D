@@ -6,22 +6,10 @@
 // Identity, translation, scale, the rotations and composition come from the maths crate, where
 // this driver's other modules import them too: repeating them here would let them diverge.
 use crate::compiler_world::Mat4;
-use trillion3d_math::matrix::{multiply_matrix4_from_zero, scaling};
-use trillion3d_math::rotation::{quaternion_wxyz, turn};
+use trillion3d_math::rotation::quaternion_wxyz;
 
 /// Rotation of a quaternion `(w, x, y, z)`, as USD writes it. A length at or under `f64::EPSILON`
 /// rotates nothing; a NaN one still divides, as this driver always has.
 pub(super) fn orientation(q: [f64; 4]) -> Mat4 {
     quaternion_wxyz(q, |length| length > f64::EPSILON || length.is_nan())
-}
-
-/// Scene-root matrix: the layer's unit into metres, then the layer's up axis onto glTF's, which
-/// is always `Y`. A `Z`-up layer rotates −90° around `X`, sending `(x, y, z)` to `(x, z, −y)`; a
-/// `Y`-up layer does not rotate.
-pub(super) fn root(meters_per_unit: f64, z_up: bool) -> Mat4 {
-    let scale = scaling([meters_per_unit; 3]);
-    if !z_up {
-        return scale;
-    }
-    multiply_matrix4_from_zero(&scale, &turn(0, (-90.0f64).to_radians()))
 }

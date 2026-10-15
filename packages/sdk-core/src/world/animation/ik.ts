@@ -12,6 +12,7 @@ import type { Object3D } from '../object/object3d.ts'
 
 import type { XYZLike } from '../math/likes.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { frameAcross } from '../../../../math/src/vector/frame.ts'
 
 const scratch = {
   a: new Float64Array(3),
@@ -37,8 +38,6 @@ const scratch = {
   keptRoot: new Quaternion(),
   keptMid: new Quaternion(),
 }
-const X = [1, 0, 0],
-  Y = [0, 1, 0]
 /** `Math.hypot`'s length, not the length rule: a straight or folded chain bends by angles its last
  *  bits decide (an arc cosine at ±1, a roll about an axis the elbow lies on), so a length or an
  *  axis one bit off turns a bone far from its pose there (docs/MATHS.md "Lengths"). The turn's
@@ -47,9 +46,11 @@ const length = (v: ArrayLike<number>) => hypot3(v[0], v[1], v[2])
 const clampedAcos = (x: number) => Math.acos(clamp(x, -1, 1))
 const angle = (a: ArrayLike<number>, b: ArrayLike<number>) =>
   clampedAcos(dotVector3(a, b) / (length(a) * length(b) || 1))
-/** Some axis across `v`: `v × x`, or `v × y` when `v` runs nearly along x. */
-const across = (out: Float64Array, v: ArrayLike<number>) =>
-  crossVector3(out, v, Math.abs(v[0]) < 0.9 * length(v) ? X : Y)
+/** Some axis across `v`: the first row of the frame around its direction (`frameAcross`). */
+function across(out: Float64Array, v: ArrayLike<number>) {
+  const l = length(v)
+  return frameAcross(out, v[0] / l, v[1] / l, v[2] / l)
+}
 
 /** Writes a node's world position into `out`. */
 function worldPoint(node: Object3D, out: Float64Array) {

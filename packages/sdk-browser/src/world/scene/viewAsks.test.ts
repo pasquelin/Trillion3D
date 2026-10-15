@@ -67,3 +67,19 @@ test('a page asked again while on its way is waited on till it lands, lifted onc
   await eventually(() => sent.length === 3)
   assert.deepEqual(sent, ['p0.bin', 'p2.bin', 'p1.bin'], 'lifted before the one still ahead')
 })
+
+test('a page asked holds one pin while the frames ask it, and none once it left the plan', () => {
+  const pinned = new Map<string, number>()
+  const asks = createViewAsks({
+    readBytes: () => new Promise<Uint8Array>(() => {}),
+    pin: (url) => void pinned.set(url, (pinned.get(url) ?? 0) + 1),
+    unpin: (url) => void pinned.set(url, pinned.get(url)! - 1),
+  })
+  asks.ask(['a', 'b'], PRIORITY_PREFETCH)
+  asks.end()
+  asks.ask(['a'], PRIORITY_VISIBLE) // lifted: still one pin
+  asks.end()
+  assert.deepEqual(Object.fromEntries(pinned), { a: 1, b: 0 }, 'b left the plan')
+  asks.drop(new Error('closed'))
+  assert.deepEqual(Object.fromEntries(pinned), { a: 0, b: 0 }, 'closed: none pinned')
+})

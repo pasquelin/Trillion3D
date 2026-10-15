@@ -11,10 +11,11 @@ import { createBounceSchedule } from './schedule.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { syncBounceProbes, type ProxyBoxes } from './probeSync.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
-import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../gpu/core/computeStages.ts'
 import { BOUNCE_PASS } from '../stage/passLabels.ts'
 import type { GpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { worldLightLists } from './worldLightLists.ts'
+import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
 import type { ProxyResources } from '../gpu/dag/cutReaders.ts'
 
 /** What the probes read of the scene's proxy (`gpu/dag/proxyInstances.ts`, through the selection): what its
@@ -75,10 +76,7 @@ export async function createGpuBounceProbes(
   })
   try {
     const module = await createCheckedShaderModule(device, BOUNCE_PROBE_SHADER, 'BOUNCE_PROBE')
-    pipeline = await buildComputePipeline(device, {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint: 'updateProbes' },
-    })
+    pipeline = await buildComputeStage(device, [layout], module, 'updateProbes')
     follow = await createSnapshotFollow(device, uniform.buffer, queue, probesView, snapshotView)
   } catch (error) {
     release()
@@ -153,7 +151,7 @@ export async function createGpuBounceProbes(
       const group = bind(proxy, lights(), listing ?? noLists)
       frame++
       const groups = schedule.plan(batch())
-      if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups)
+      if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups * PROBE_QUEUE_WORDS)
       uniform.write(generation, groups, frame)
       // One pass: the probes' update, then the snapshot's follow-up. The snapshot equals the probes here — the
       // last update's texels followed it, and a clear clears both —: the update reads it.

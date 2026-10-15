@@ -75,7 +75,6 @@ export function sunAt(eye: number[], cache = new VsmCacheManager()) {
     kind: 'directional',
     firstId: 0,
     count: LEVELS,
-    shouldRender: true,
     clipmap,
   }
   return { cache, clipmap, light }
@@ -85,13 +84,11 @@ export function sunAt(eye: number[], cache = new VsmCacheManager()) {
 export function localAt(input: Omit<VsmLocalLightInput, 'id'>, cache = new VsmCacheManager()) {
   const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
   const view = vsmLocalViewData(camera, { width: 1024, height: 1024 })
-  const { cacheEntry } = addVsmLocalLightShadow(cache, { id: 'lamp', ...input }, [view], 0)
+  const { cacheEntry } = addVsmLocalLightShadow(cache, { id: 'lamp', ...input }, [view])
   const light: VsmBoundLight = {
     kind: input.kind,
     firstId: 0,
     count: cacheEntry.mapCaches.length,
-    shouldRender: true,
-    singlePage: false,
     entry: cacheEntry,
   }
   return { cache, light }

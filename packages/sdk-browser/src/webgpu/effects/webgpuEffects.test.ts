@@ -29,7 +29,7 @@ test('an empty chain returns its input and creates, writes and encodes nothing',
   assert.equal(effects.bytes, 0)
 })
 
-test('a bloom compiles once, then draws 2 × levels passes into targets made once per size', async () => {
+test('a bloom compiles once, then draws its levels; the composition blends it in', async () => {
   const { gpu, effects } = await loaded()
   const bloom = effect.bloom({ intensity: 0.5 })
   const { encoder, passes } = recorder(gpu)
@@ -37,20 +37,20 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
   assert.equal(effects.loading, true)
   await effects.settled()
   const levels = bloomLevelSizes(64, 32).length
-  const output = effects.encode(encoder, [bloom], input, 64, 32)
-  assert.notEqual(output, input)
-  assert.equal(passes.length, 2 * levels)
-  assert.equal(effects.draws, 2 * levels)
+  // The chain's last bloom leaves its blend to the composition, which reads the image it read.
+  assert.equal(effects.encode(encoder, [bloom], input, 64, 32), input)
+  assert.equal(passes.length, 2 * levels - 1)
+  assert.equal(effects.draws, 2 * levels - 1)
   assert.deepEqual(
     passes.map(loadOf),
-    [...Array(levels).fill('clear'), ...Array(levels - 1).fill('load'), 'clear'],
-    'down the levels, up adding into each, then the blend',
+    [...Array(levels).fill('clear'), ...Array(levels - 1).fill('load')],
+    'down the levels, then up adding into each',
   )
-  assert.equal(viewOf(passes.at(-1)!), output)
-  assert.equal(effects.bytes, 64 * 32 * 8 + bloomLevelBytes(64, 32))
+  assert.ok(effects.blend, 'its blend, for the composition')
+  assert.equal(effects.bytes, bloomLevelBytes(64, 32))
   const made = gpu.textures.length,
     writes = gpu.writes.length
-  assert.equal(made, 2, 'one pass target and the level chain')
+  assert.equal(made, 1, 'the level chain alone: no pass target')
   // At 256 bytes the range goes up as one write, as the whole range did, never longer than it.
   const uniform = gpu.writes.filter((w) => w.buffer.label === 'Trillion3D bloom uniform')
   assert.equal(uniform.length, 1, 'the range in one write')
@@ -65,17 +65,13 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
   effects.encode(encoder, [bloom], input, 64, 32)
   assert.equal(gpu.writes.length, writes + 1, 'a setting rewrites the uniform once')
   effects.encode(encoder, [bloom], input, 128, 64)
-  assert.equal(
-    effects.bytes,
-    128 * 64 * 8 + bloomLevelBytes(128, 64),
-    'the targets follow the size',
-  )
+  assert.equal(effects.bytes, bloomLevelBytes(128, 64), 'the levels follow the size')
   effects.encode(encoder, [], input, 128, 64)
   assert.equal(effects.bytes, 0, 'an emptied chain gives its targets back')
   for (const texture of gpu.textures) assert.ok(gpu.destroyed.includes(texture), texture.label)
 })
 
-test('two passes read each other through two targets in turn', async () => {
+test('a bloom another pass follows writes the target the next one reads', async () => {
   const { gpu, effects } = await loaded()
   const { encoder, passes } = recorder(gpu)
   const chain = [effect.bloom(), effect.bloom()]
@@ -83,14 +79,9 @@ test('two passes read each other through two targets in turn', async () => {
   await effects.settled()
   const output = effects.encode(encoder, chain, input, 64, 32)
   const each = 2 * bloomLevelSizes(64, 32).length
-  assert.equal(gpu.textures.length, 3, 'two pass targets and the level chain')
-  assert.equal(passes.length, 2 * each)
-  assert.notEqual(viewOf(passes[each - 1]), output, 'the first writes one target')
-  assert.equal(
-    viewOf(passes[2 * each - 1]),
-    output,
-    'the second the other, which composition reads',
-  )
+  assert.equal(gpu.textures.length, 2, 'one pass target and the level chain')
+  assert.equal(passes.length, 2 * each - 1, 'the second bloom leaves its blend to the composition')
+  assert.equal(viewOf(passes[each - 1]), output, 'the first wrote what the second read')
 })
 
 test('two blooms draw with their own settings, each from its own uniform range', async () => {
@@ -108,8 +99,10 @@ test('two blooms draw with their own settings, each from its own uniform range',
     if (write.buffer === (uniform as unknown)) floats.set(floatsOf(write), write.offset / 4)
   const levels = bloomLevelSizes(64, 32).length,
     each = 2 * levels
+  // The first bloom's blend is its last pass's slot; the second's, the composition's.
+  const slots = [offsetOf(passes[each - 1])!, effects.blend!.offset]
   chain.forEach((bloom, n) => {
-    const at = offsetOf(passes[(n + 1) * each - 1])! / 4,
+    const at = slots[n] / 4,
       { keep, glow } = bloomBlend(bloom.intensity, levels)
     assert.deepEqual(
       [...floats.subarray(at + 4, at + 7)],
@@ -119,46 +112,23 @@ test('two blooms draw with their own settings, each from its own uniform range',
   })
 })
 
-test('a fused chain leaves its last blend to the composition: one pass and one target fewer', async () => {
+test('the last blend is kept from frame to frame, reading its own slot', async () => {
   const { gpu, effects } = await loaded()
-  const { encoder, passes, handed } = recorder(gpu)
+  const { encoder, handed } = recorder(gpu)
   const bloom = effect.bloom({ intensity: 0.5 })
   effects.encode(encoder, [bloom], input, 64, 32)
   await effects.settled()
   const levels = bloomLevelSizes(64, 32).length
   effects.encode(encoder, [bloom], input, 64, 32)
-  assert.equal(gpu.textures.length, 2, 'unfused: a pass target and the level chain')
-  assert.equal(effects.blend, undefined)
-  passes.length = 0
-  assert.equal(
-    effects.encode(encoder, [bloom], input, 64, 32, true),
-    input,
-    'composition reads the input',
-  )
-  assert.equal(passes.length, 2 * levels - 1, 'no blend pass')
-  assert.equal(effects.draws, 2 * levels - 1)
-  assert.ok(passes.every((pass) => viewOf(pass) !== input && pass.label === 'Trillion3D bloom'))
   const stride = uniformStride(gpu.device.limits)
   assert.equal(effects.blend!.offset, (2 * levels - 1) * stride, 'the blend reads its own slot')
   const fused = effects.blend,
     kept = handed().size
-  effects.encode(encoder, [bloom], input, 64, 32, true)
+  effects.encode(encoder, [bloom], input, 64, 32)
   assert.equal(effects.blend, fused, 'the same blend, kept from frame to frame')
   assert.equal(
     handed().size,
     kept,
     'a frame hands the descriptor and offset arrays it had: none made',
   )
-  assert.equal(gpu.destroyed.length, 1, 'the pass target is given back')
-  assert.equal(effects.bytes, bloomLevelBytes(64, 32))
-  // Two blooms: the first writes the one target left, the second blends it in the composition.
-  const chain = [effect.bloom(), bloom]
-  passes.length = 0
-  const output = effects.encode(encoder, chain, input, 64, 32, true)
-  assert.equal(passes.length, 4 * levels - 1)
-  assert.equal(viewOf(passes[2 * levels - 1]), output, 'the first bloom wrote what the second read')
-  assert.equal(effects.bytes, 64 * 32 * 8 + bloomLevelBytes(64, 32))
-  assert.equal(effects.blend!.offset, (4 * levels - 1) * stride, 'the second bloom’s last slot')
-  effects.encode(encoder, [bloom], input, 64, 32)
-  assert.equal(effects.blend, undefined, 'unfused again, the bloom blends itself')
 })

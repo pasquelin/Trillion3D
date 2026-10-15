@@ -1,10 +1,11 @@
 // Buoyancy, batched: `jolt_water_query` lists the pieces of the awake bodies that reach the water,
 // the module fits each piece its own water plane from the waves (`waterPlanes.cpp`), and one BUOYANCY command
-// pushes every body at its pieces' centre of buoyancy. A piece is a compound's sub-shape, a slice
-// of a single primitive longer than the slice length, or the whole body. Word layouts:
+// pushes every body at its pieces' centre of buoyancy, each piece measured exactly (`submerged.h`).
+// A piece is a compound's sub-shape, a slice of a single shape longer than the slice length, or
+// the whole body. Word layouts:
 // `packages/sdk-core/src/physics/layout.ts` (WATER_PIECE_WORDS, BUOYANCY_WORDS, PLANE_WORDS).
 #include "binding.h"
-#include "roundVolume.h"
+#include "submerged.h"
 #include "words.h"
 
 #include <Jolt/Physics/Body/Body.h>
@@ -22,76 +23,55 @@ namespace {
 
 constexpr uint32_t MAX_SLICES = 4;
 
-/** A piece of a body: its shape, its transform from the body's centre of mass, its scale; a body
- *  of revolution's from `from` to `to` along its axis, measured here (`roundVolume.cpp`), any
- *  other's by Jolt. */
+/** A piece of a body's shape, from its centre of mass: sub-shape `index` of the compound it is
+ *  (under its decorators), else slice `index` of `count` across the longest side of its bounds —
+ *  the shape whole, cut by its two `slab` sides —; its placement, its scale, its bounds. */
 struct Piece {
   const Shape *shape;
-  Mat44 local;
+  Mat44 place;
   Vec3 scale;
-  bool round = false;
-  Round profile{};
-  float from = 0, to = 0;
+  Cut slab[2];
+  uint32_t cuts;
+  AABox bounds;
 };
 
 std::vector<uint32_t> pieces;
 BodyIDVector awake;
 
-/** Slices of a single shape. A body of revolution is cut across its axis when that is its longest
- *  side. A box's volume is its local box, so a slice of it is that box scaled along its longest
- *  axis; a hull cannot be cut through Jolt, nor a sphere, which Jolt measures by its own radius
- *  whatever the scale (a slice of it would count as the whole ball): whole, its cap is exact. */
-uint32_t slicesOf(const Shape *shape, float sliceLength) {
-  Round round;
-  Vec3 offset;
-  float length;
-  if (sliceLength <= 0) return 1;
-  if (roundOf(*shape, round, offset)) {
-    length = round.length();
-    if (length < 2 * std::max({round.bottomRadius, round.topRadius, round.cap})) return 1;
+/** Piece `index` of `count` of a body's `shape`. */
+Piece pieceOf(const Shape &shape, uint32_t index, uint32_t count) {
+  Mat44 place = Mat44::sIdentity();
+  Vec3 scale = Vec3::sOne();
+  if (const Shape *compound = compoundOf(shape, place, scale)) {
+    const CompoundShape::SubShape &sub = static_cast<const CompoundShape *>(compound)->GetSubShape(index);
+    Mat44 at = place * sub.GetLocalTransformNoScale(scale);
+    Vec3 size = sub.TransformScale(scale);
+    return {sub.mShape.GetPtr(), at, size, {}, 0, sub.mShape->GetLocalBounds().Scaled(size).Transformed(at)};
   }
-  else if (shape->GetType() != EShapeType::Convex || shape->GetSubType() == EShapeSubType::ConvexHull ||
-           shape->GetSubType() == EShapeSubType::Sphere)
-    return 1;
-  else length = shape->GetLocalBounds().GetSize().ReduceMax();
-  return std::clamp(uint32_t(std::ceil(length / sliceLength)), 1u, MAX_SLICES);
+  AABox bounds = shape.GetLocalBounds();
+  Piece piece{&shape, Mat44::sIdentity(), Vec3::sOne(), {}, 0, bounds};
+  if (count == 1) return piece;
+  int k = bounds.GetSize().GetHighestComponentIndex();
+  float lo = bounds.mMin[k], step = bounds.GetSize()[k] / float(count);
+  float from = lo + step * float(index), to = index + 1 == count ? bounds.mMax[k] : lo + step * float(index + 1);
+  Vec3 axis = Vec3::sZero();
+  axis.SetComponent(k, 1.0f);
+  piece.slab[0] = {-axis, from}, piece.slab[1] = {axis, -to}, piece.cuts = 2;
+  piece.bounds.mMin.SetComponent(k, from), piece.bounds.mMax.SetComponent(k, to);
+  return piece;
 }
 
-/** Makes `piece` slice `index` of `count` of its shape's length when that shape is a body of
- *  revolution; false otherwise. */
-bool rounded(Piece &piece, uint32_t index, uint32_t count) {
-  Vec3 offset;
-  if (!roundOf(*piece.shape, piece.profile, offset)) return false;
-  float start = piece.profile.start(), length = piece.profile.length();
-  piece.round = true;
-  piece.local = piece.local * Mat44::sTranslation(offset);
-  piece.from = start + length * float(index) / float(count);
-  piece.to = index + 1 == count ? start + length : start + length * float(index + 1) / float(count);
-  return true;
-}
-
-/** Piece `index` of `count` of a body's shape. */
-Piece pieceOf(const Shape *shape, uint32_t index, uint32_t count) {
-  if (shape->GetType() == EShapeType::Compound) {
-    const CompoundShape::SubShape &sub = static_cast<const CompoundShape *>(shape)->GetSubShape(index);
-    Piece piece{sub.mShape.GetPtr(), sub.GetLocalTransformNoScale(Vec3::sOne()), Vec3::sOne()};
-    rounded(piece, 0, 1);
-    return piece;
-  }
-  Piece piece{shape, Mat44::sIdentity(), Vec3::sOne()};
-  if (rounded(piece, index, count) || count == 1) return piece;
-  AABox bounds = shape->GetLocalBounds();
-  Vec3 size = bounds.GetSize(), scale = Vec3::sOne(), at = bounds.GetCenter();
-  int axis = size.GetHighestComponentIndex();
-  scale.SetComponent(axis, 1.0f / float(count));
-  at.SetComponent(axis, bounds.mMin[axis] + (float(index) + 0.5f) * size[axis] / float(count));
-  return {shape, Mat44::sTranslation(at), scale};
-}
-
-uint32_t countOf(const Shape *shape, float sliceLength) {
-  return shape->GetType() == EShapeType::Compound
-             ? static_cast<const CompoundShape *>(shape)->GetNumSubShapes()
-             : slicesOf(shape, sliceLength);
+/** The pieces of a body's `shape`: a compound's sub-shapes, else slices `sliceLength` long at most
+ *  (`MAX_SLICES` of them) across the longest side of its bounds, when it can be cut so. */
+uint32_t countOf(const Shape &shape, float sliceLength) {
+  Mat44 place = Mat44::sIdentity();
+  Vec3 scale = Vec3::sOne();
+  if (const Shape *compound = compoundOf(shape, place, scale))
+    return static_cast<const CompoundShape *>(compound)->GetNumSubShapes();
+  Vec3 size = shape.GetLocalBounds().GetSize(), axis = Vec3::sZero();
+  axis.SetComponent(size.GetHighestComponentIndex(), 1.0f);
+  if (sliceLength <= 0 || !sliceable(shape, axis)) return 1;
+  return std::clamp(uint32_t(std::ceil(size.ReduceMax() / sliceLength)), 1u, MAX_SLICES);
 }
 
 /** The engine slot of an engine id, when that id is still the slot's body. */
@@ -117,41 +97,33 @@ uint32_t runBuoyancy(const uint32_t *w) {
   while (plane < end) {
     uint32_t engine = plane[0];
     const Slot *slot = slotOf(engine);
-    Body *body = slot && world.dt > 0 ? locks.TryGetBody(slot->id) : nullptr;
-    float total = 0, submerged = 0;
-    Vec3 centre = Vec3::sZero();
+    Body *body = slot && world.stepping ? locks.TryGetBody(slot->id) : nullptr;
+    Submerged sums;
     for (; plane < end && plane[0] == engine; plane += PLANE_WORDS) {
       if (!body || !body->IsDynamic()) continue;
       const Shape *shape = body->GetShape();
       uint32_t index = plane[1] & 0xFFFFu, pieces = plane[1] >> 16;
       // A stale record (the body's shape changed since the query) names no piece of it.
-      uint32_t limit = shape->GetType() == EShapeType::Compound ? countOf(shape, 0) : MAX_SLICES;
+      Mat44 place = Mat44::sIdentity();
+      Vec3 scale = Vec3::sOne();
+      const Shape *compound = compoundOf(*shape, place, scale);
+      uint32_t limit = compound ? countOf(*shape, 0) : MAX_SLICES;
       if (index >= pieces || pieces > limit) continue;
-      Piece piece = pieceOf(shape, index, pieces);
-      Plane surface = Plane::sFromPointAndNormal(Vec3(vec3(plane + 2) - body->GetCenterOfMassPosition()),
-                                                 vec3(plane + 5).NormalizedOr(Vec3::sAxisY()));
-      float pieceTotal, pieceSubmerged;
-      Vec3 pieceCentre;
-      Mat44 frame = Mat44::sRotation(body->GetRotation()) * piece.local;
-      if (piece.round)
-        roundSubmerged(piece.profile, piece.from, piece.to, frame, surface, pieceTotal, pieceSubmerged, pieceCentre);
-      else
-        piece.shape->GetSubmergedVolume(frame, piece.scale, surface, pieceTotal, pieceSubmerged, pieceCentre
-                                        JPH_IF_DEBUG_RENDERER(, body->GetCenterOfMassPosition()));
-      total += pieceTotal;
-      submerged += pieceSubmerged;
-      centre += pieceSubmerged * pieceCentre;
+      Piece piece = pieceOf(*shape, index, pieces);
+      // The water's space: the body's centre of mass at its origin, the world's axes.
+      Quat turn = body->GetRotation();
+      Vec3 up = vec3(plane + 5).NormalizedOr(Vec3::sAxisY());
+      Cut water{up, -up.Dot(Vec3(vec3(plane + 2) - body->GetCenterOfMassPosition()))};
+      Cut slab[2] = {{turn * piece.slab[0].normal, piece.slab[0].constant}, {turn * piece.slab[1].normal, piece.slab[1].constant}};
+      trillion::submerged(*piece.shape, Mat44::sRotation(turn) * piece.place, piece.scale, water, slab, piece.cuts, sums);
     }
-    if (!body || submerged <= 0 || total <= 0) continue;
-    centre /= submerged;
-    // The pieces' volumes add up to the shape's, but for their rounding: Jolt's buoyancy takes
-    // the shape's own.
-    float volume = body->GetShape()->GetVolume();
-    submerged *= volume / total;
+    if (!body || sums.volume <= 0 || sums.total <= 0) continue;
+    // Every piece measured exactly (`submerged.h`): their volumes are the body's.
+    Vec3 centre = sums.moment / sums.volume;
     // Jolt's buoyancy factor is the fluid's density over the body's: `density` is the water's.
-    float factor = density * volume * body->GetMotionProperties()->GetInverseMass();
-    body->ApplyBuoyancyImpulse(volume, submerged, centre, factor, linearDrag, angularDrag, current,
-                               gravity, world.dt);
+    float factor = density * sums.total * body->GetMotionProperties()->GetInverseMass();
+    body->ApplyBuoyancyImpulse(sums.total, sums.volume, centre, factor, linearDrag, angularDrag, current,
+                               gravity, world.fixedStep);
   }
   return BUOYANCY_WORDS + count * PLANE_WORDS;
 }
@@ -179,14 +151,11 @@ uint32_t jolt_water_query(float top, float sliceLength) {
     if (!body || !body->IsDynamic() || !trillion::slotOf(engine) ||
         body->GetWorldSpaceBounds().mMin.GetY() >= top)
       continue;
-    const Shape *shape = body->GetShape();
+    const Shape &shape = *body->GetShape();
     uint32_t count = trillion::countOf(shape, sliceLength);
     Mat44 com = body->GetCenterOfMassTransform();
     for (uint32_t i = 0; i < count; ++i) {
-      trillion::Piece piece = trillion::pieceOf(shape, i, count);
-      AABox local = piece.round ? roundBounds(piece.profile, piece.from, piece.to)
-                                : piece.shape->GetLocalBounds().Scaled(piece.scale);
-      AABox box = local.Transformed(com * piece.local);
+      AABox box = trillion::pieceOf(shape, i, count).bounds.Transformed(com);
       Vec3 centre = box.GetCenter(), half = box.GetExtent();
       float floats[4] = {centre.GetX(), centre.GetZ(), half.GetX(), half.GetZ()};
       uint32_t words[trillion::WATER_PIECE_WORDS] = {engine, i | count << 16};

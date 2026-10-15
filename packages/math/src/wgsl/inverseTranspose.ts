@@ -1,6 +1,7 @@
 import { wgslFn, wgslStruct } from './decl.ts'
-import { SINGULAR_DETERMINANT } from './constants.ts'
+import { DIVISOR_FLOOR } from './constants.ts'
 import { isFiniteWord } from './integer.ts'
+import { cofactor3 } from './matrix.ts'
 
 /**
  * The 3×3 inverse-transpose, the normal matrix of a world, written once for the whole engine
@@ -19,8 +20,8 @@ import { isFiniteWord } from './integer.ts'
  * normal and its winding; a collapsed one (rank ≤ 1, or a null, infinite or NaN sum) has a zero
  * adjoint, and `unitOrZero` returns the null vector rather than a NaN.
  *
- * What depends only on the matrix (normalisation, determinant, the adjoint's three cross
- * products) is gathered in `invTranspose3Prep`, computed once; `invTranspose3Apply` keeps per
+ * What depends only on the matrix (normalisation, determinant, the cofactors `cofactor3`) is
+ * gathered in `invTranspose3Prep`, computed once; `invTranspose3Apply` keeps per
  * vector the 3×3 product and the factor.
  */
 
@@ -46,13 +47,14 @@ export const isFiniteScale = wgslFn(
 
 export const invTranspose3Prep = wgslFn(
   'invTranspose3Prep',
-  [InvT3, SINGULAR_DETERMINANT, absoluteSum3, isFiniteScale],
+  [InvT3, DIVISOR_FLOOR, absoluteSum3, isFiniteScale, cofactor3],
   `fn invTranspose3Prep(m:mat3x3f)->InvT3{
  let t=absoluteSum3(m);
  let finite=isFiniteScale(t);
- let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
- let det=dot(a,cross(b,c));let z=vec3f(0.0);
- return InvT3(mat3x3f(select(z,cross(b,c),finite),select(z,cross(c,a),finite),select(z,cross(a,b),finite)),1.0/(det*t),finite&&abs(det)>SINGULAR_DETERMINANT);
+ let a=m[0]/t;
+ let C=cofactor3(a,m[1]/t,m[2]/t);
+ let det=dot(a,C[0]);let z=vec3f(0.0);
+ return InvT3(mat3x3f(select(z,C[0],finite),select(z,C[1],finite),select(z,C[2],finite)),1.0/(det*t),finite&&abs(det)>DIVISOR_FLOOR);
 }`,
 )
 

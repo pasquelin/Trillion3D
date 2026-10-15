@@ -11,15 +11,14 @@ import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
  *
  * This is the SAME rule as the opaques', to the letter: the same conservative projection
  * (`projectBox`), the same uniform — the buffer the partition wrote for this frame —, the same
- * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidHides`), on the farthest layer of
+ * rectangle pick (`hizRectPick`) and the same pyramid walk (`pyramidHides`), on the farthest layer of
  * the Hi-Z pyramid the frame just built. Nothing is proper to transparents except what fidelity requires:
  *
  *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry, and at
  *    least the layer the transparent passes draw on (`TRANSPARENT_DEPTH_LAYER`). A cluster does
  *    not announce its own here, and the bias only BRINGS the depth bound closer: taking it
  *    maximal rejects less, never more;
- *  - a box that clips the near plane, an empty off-screen rectangle, a frame without a pyramid
- *    (`uni.levels == 0`), a footprint no mip covers and an entry never culled (its bit in
+ *  - a box that clips the near plane, an empty off-screen rectangle, a footprint no mip covers and an entry never culled (its bit in
  *    `unculled`, `neverCulled`) reject nothing at all;
  *  - the verdict is written for EVERY entry every frame, never accumulated: a frame that does
  *    not encode this kernel leaves no remainder of it (the caller then clears the buffer).
@@ -35,6 +34,7 @@ export function transparentOcclusionShader() {
 @group(0) @binding(2) var<storage, read_write> occluded:array<u32>;
 @group(0) @binding(3) var<uniform> uni:Uni;
 @group(0) @binding(4) var<storage, read> unculled:array<u32>;
+@group(0) @binding(5) var<uniform> hizLevels:HizLevels;
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(id,n,WORKGROUP_THREADS);if(i>=arrayLength(&corners)/${CORNER_VALUES}u){return;}
@@ -43,7 +43,7 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_
  // (\`hiddenByPyramid\`); only the layer bias is the highest the frame names, at least the
  // transparent passes' own.
  let open=bitIsSet(unculled[bitWord(i)],i);
- let reject=!open&&box.clips==0u&&uni.levels>0u&&hiddenByPyramid(box.rect,box.nearest);
+ let reject=!open&&box.clips==0u&&hiddenByPyramid(box.rect,box.nearest);
  occluded[i]=select(0u,1u,reject);
 }
 `,

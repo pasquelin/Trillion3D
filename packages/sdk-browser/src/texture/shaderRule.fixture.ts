@@ -1,15 +1,5 @@
 import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
-import { WGSL_LIBRARY } from '../../../math/src/wgsl/library.fixture.ts'
-import { visPageIndex, visTriangle } from '../visibility/visWords.ts'
 
-/** The function names of the WGSL library, and the visibility identifier's one decoder every pass
- *  reads an identifier with (`../visibility/visWords.ts`): small shared helpers a run takes on its
- *  own. */
-const LIBRARY_FUNCTIONS = new Set([
-  ...WGSL_LIBRARY.filter((decl) => decl.kind === 'fn').map((decl) => decl.name),
-  visPageIndex.name,
-  visTriangle.name,
-])
 /** An unsigned vector as the shaders build one (`vec2u`, `vec4u`…), flattened: each word converted
  *  as the GPU does, truncated and wrapped to an unsigned 32-bit integer. */
 export const vec = (...parts: Array<number | Record<string, number>>) => {
@@ -42,16 +32,12 @@ export function functionBody(input: WgslSource, name: string) {
   return text.slice(text.indexOf('{') + 1, text.lastIndexOf('}'))
 }
 
-/** The text of the functions `names` and of every shared helper (`LIBRARY_FUNCTIONS`) of `input`
- *  they call, through each other, but those `bound` already defines: a test names the shader's own
- *  functions it runs, never the shared helpers. */
+/** The text of the functions `names` and of every function of `input` they call, through each
+ *  other, but those `bound` already defines: a test names only the entries it runs, never the
+ *  call graph under them. */
 export function reachedFunctions(input: WgslSource, names: string[], bound: object) {
   const source = wgslSource(input)
-  const declared = new Set(
-    [...source.matchAll(/\bfn (\w+)\(/g)]
-      .map((match) => match[1])
-      .filter((name) => LIBRARY_FUNCTIONS.has(name)),
-  )
+  const declared = new Set([...source.matchAll(/\bfn (\w+)\(/g)].map((match) => match[1]))
   const reached = [...new Set(names)]
   for (let i = 0; i < reached.length; i++)
     for (const [, called] of functionsOf(source, [reached[i]]).matchAll(/\b(\w+)\(/g))

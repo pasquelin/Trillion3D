@@ -14,7 +14,6 @@ import {
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { textureBytesBeside } from './besidePools.ts'
 import { prepareHostReductions } from '../../../texture/mips.ts'
-import { prepareTexelTurn } from '../../tile/texelTurn.ts'
 import { queueTableGrowth } from '../prepare/growthQueue.ts'
 
 /**
@@ -62,13 +61,9 @@ async function appendNow(
     ...{ tails: laneTails(taken), demand: laneDemand(taken) },
   }
   if ((await growLane(rt, a)) === 'moved') return appendNow(rt, texture, kind)
-  // A host texture's mips reduce on the device, its raw texels turn there: what they take
-  // compiled before its tail does.
-  if (entry.source.kind === 'host')
-    await Promise.all([
-      prepareHostReductions(device, encoding, [kind]),
-      prepareTexelTurn(device, [entry]),
-    ])
+  // A host texture's mips reduce on the device, its raw texels turned as their first step: what
+  // they take compiled before its tail does.
+  if (entry.source.kind === 'host') await prepareHostReductions(device, encoding, [kind])
   rt.signal.throwIfAborted()
   return appendEntry(rt, texture, a)
 }

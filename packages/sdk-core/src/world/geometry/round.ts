@@ -6,6 +6,7 @@ import {
   circlePoint,
 } from '../../../../math/src/vector/vector.ts'
 import { subtract, cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
+import { frameAcross } from '../../../../math/src/vector/frame.ts'
 import { GeometryBuilder, pieces, withRecipe } from './builder.ts'
 import type { Curve } from '../math/curves.ts'
 import { HALF_PI, TAU } from '../../../../math/src/constants.ts'
@@ -172,8 +173,7 @@ function sweep(
   // The first normal is any direction across the first tangent; each next one is the previous
   // turned by the least rotation that carries one tangent onto the next.
   const t0 = tangents[0]
-  const seed: V3 = Math.abs(t0[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]
-  const normals: V3[] = [unit(cross(cross(t0, seed), t0))]
+  const normals: V3[] = [unit(frameAcross<V3>([0, 0, 0], t0[0], t0[1], t0[2]))]
   for (let i = 1; i <= count; i++) {
     const n = normals[i - 1],
       t = tangents[i]

@@ -1,7 +1,7 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
-import { invTranspose3Apply, unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import {
   edgeFunction,
   perspectiveBarycentric,
@@ -66,11 +66,10 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   ddx=g[0];ddy=g[1];
  }
  let model=(page.flags>>${MODEL_SHIFT}u)&7u;
- // A matcap material reads its image by the view-space normal: the base map at that coordinate.
+ // A matcap material reads its image by the view-space normal: the base map at that coordinate,
+ // from the triangle's world normals the decode turned to the row's side (\`decodeTriangle\`).
  if(model==${SURFACE_MODEL.matcap}u){
-  // The row's normal matrix, as the rows pass composed it (\`rowFrame\`).
-  let it=rowFrame(pageIndex,page.world).invT;let h=pageHeader(page);let k=pageTriangle(page,h,tri);
-  uv=matcapUv(unitOrZero(invTranspose3Apply(it,pageNormal(page,h,k.x))*bary.x+invTranspose3Apply(it,pageNormal(page,h,k.y))*bary.y+invTranspose3Apply(it,pageNormal(page,h,k.z))*bary.z));
+  uv=matcapUv(unitOrZero(t.n0*bary.x+t.n1*bary.y+t.n2*bary.z));
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
  // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
@@ -122,8 +121,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   let side=select(1.0,-1.0,(page.flags&${FLAG_BACK}u)!=0u);
   // The three vertex normals, turned to \`side\` (\`decodeTriangle\`), the receiver offset reads too.
   let n0=t.n0;let n1=t.n1;let n2=t.n2;
-  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`): the arithmetic the
-  // readers that decode the triangle themselves share (\`receiverOffsetWgsl.ts\`).
+  // The shadow receiver, once, from this decode (\`receiverTargetWgsl.ts\`), which every shadow
+  // read takes (\`receiverOffsetWgsl.ts\`).
   if(HAS_VERTEX_NORMAL&&(page.flags&${FLAG_SPRITE | FLAG_LINE}u)==0u){
    let receiver=shadowReceiverOfTriangle(bary,w0,w1,w2,n0,n1,n2,select(1.0,face,DOUBLE_SIDED));
    rcvOffset=receiver.offset;
@@ -150,8 +149,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
     let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,t.uvb-t.uva,t.uvc-t.uva);
     T=frame.T*screenFace;B=frame.B*screenFace;
    }
-   if(DOUBLE_SIDED&&HAS_VERTEX_NORMAL){T*=face;B*=face;}
-   N=bendNormal(N,T,B,mapN);
+   N=bendNormal(N,T,B,select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL),mapN);
   }
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
@@ -180,7 +178,6 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       ORM_LAW_WGSL,
       DIAGNOSTIC_PALETTE_WGSL,
       worldMatrix3,
-      invTranspose3Apply,
       unitOrZero,
       edgeFunction,
       perspectiveBarycentric,

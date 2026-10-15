@@ -16,3 +16,6 @@
 export const WATER_RANK_SHIFT = 16
 /** Transmissive items a scene may carry: the rank counts them in sixteen bits. */
 export const WATER_MAX_ITEMS = (1 << WATER_RANK_SHIFT) - 1
+/** The opacity's steps in the word's high bits, above the rank: the one scale its writer and its
+ *  reader share (`surfaceWgsl.ts`). */
+export const WATER_OPACITY_STEPS = 2 ** (32 - WATER_RANK_SHIFT) - 1

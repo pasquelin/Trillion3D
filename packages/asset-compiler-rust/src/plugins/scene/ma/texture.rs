@@ -9,15 +9,13 @@
 //! here, and following it would leave the served directory: only its file name is kept, looked
 //! up at the image root then in `sourceimages`, the folder Maya gives a project's textures.
 use super::*;
+use crate::gltf_codes::{CLAMP_TO_EDGE, REPEAT};
 
 /// Directory a Maya project reserves for textures.
 const IMAGES_DIRECTORY: &str = "sourceimages";
 /// What separates segments of a path Maya writes: the machine that exported may be a Windows
 /// machine, and the path it wrote then carries backslashes.
 const SEPARATORS: &[char] = &['/', '\\'];
-/// The two wrap modes of a glTF sampler: repeat, or clamp to the last texel.
-const REPEAT: u32 = 10497;
-const CLAMP: u32 = 33071;
 /// Placement components of a `place2dTexture` that a glTF without `KHR_texture_transform` does
 /// not carry, each with the value that moves nothing. Maya writes them as a block or component
 /// by component, and both writings say the same thing.
@@ -45,7 +43,7 @@ pub(super) fn connected(world: &mut World<'_>, node: usize, names: &[&str]) -> O
 pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
     let document = world.document;
     if document.nodes[node].kind != "file" {
-        world.refuse(report::TEXTURE_UNSUPPORTED);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
     let written = document.nodes[node]
@@ -63,7 +61,7 @@ fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
         .into_iter()
         .find_map(|path| crate::import::readable(images, &path).map(|mime| (path, mime)))
     else {
-        world.refuse(report::TEXTURE_MISSING);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_MISSING);
         world.scene.image_unreadable(written);
         return None;
     };
@@ -119,7 +117,7 @@ fn sampler(world: &mut World<'_>, node: usize) -> usize {
         .unwrap_or(true)
     {
         true => REPEAT,
-        false => CLAMP,
+        false => CLAMP_TO_EDGE,
     };
     world
         .scene

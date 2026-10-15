@@ -14,9 +14,6 @@ import type { Readers } from './composeReaders.ts'
 import type { ComposeGpu } from './gpuComposeGpu.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 
-/** A root's world a parent composes, its `stamp` moving with its composition. */
-export type ComposedView = MatrixElements & { stamp?: number }
-
 export function createComposeState(roots: number) {
   return {
     roots,
@@ -69,7 +66,7 @@ export function createComposeState(roots: number) {
     linked: new Map<number, Int32Array>(),
     /** The world view each composed root was composed at: what its unlink lets go, even once a
      *  shortened list names another root, or none, at its rank (`removeComposedWorld`). */
-    views: new Map<number, ComposedView>(),
+    views: new Map<number, MatrixElements>(),
     /** Each linked parent's slot. */
     parentIds: new Map<object, number>(),
     /** The roots each slot linked, some since taken by another slot; the slots no parent holds. */
@@ -79,11 +76,6 @@ export function createComposeState(roots: number) {
     slots: 0,
     /** Each parent's world as last sent, in double. */
     worlds: new Float64Array(MATRIX_VALUES),
-    /** Each parent's world at the last drawn frame, in double. */
-    previous: new Float64Array(MATRIX_VALUES),
-    /** Whether each parent's world reverses orientation, as the draw bins of its rows were made
-     *  for it (`../webgpu/pages/prepare/pipelineFor.ts`). */
-    winding: [] as boolean[],
     packed: new Uint32Array(PACKED_MATRIX_WORDS),
     /** Roots linked since the last frame, with the world their motion starts from. */
     seeds: new Map<number, Float32Array<ArrayBuffer>>(),
@@ -94,7 +86,9 @@ export function createComposeState(roots: number) {
     motionBound: undefined as GPUBuffer | undefined,
     /** The frame whose parents the GPU holds. */
     frame: -1,
-    /** A parent moved since the last drawn frame: the temporal pass reads the motion. */
+    /** A parent moved since the frame last sent the parents (`settleSlot`), and what the frame
+     *  took of it: a parent moved since the last drawn frame, the temporal pass reads the motion. */
+    movedSince: false,
     moving: false,
     gpu: undefined as ComposeGpu | undefined,
   }

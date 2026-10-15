@@ -39,7 +39,7 @@ test("a cell's rows cast as their host mesh says, and follow its castShadow once
   )
 })
 
-test('the rows under a core parent follow its world on the GPU: the first rows are written and linked whole, the next cells linked in place, a move sends one world', async () => {
+test('the rows under a core parent follow its world on the GPU: the first rows are written and linked whole, each frame sends each parent its world alone, never a row', async () => {
   const { cells, bytes, core } = world(0, null)
   cells.pose(() => frame)
   const frame = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
@@ -74,9 +74,19 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   core.position.set(0, 20, 0)
   const moved = calls.length
   cells.frame([0, 0, 0], 1e5, port, noBudget)
-  assert.equal(calls.length, moved + 1, 'a core parent moved: its world alone')
+  assert.equal(calls.length, moved + 2, 'each parent sent its world: the composition decides')
   assert.equal(updates.length, sent, 'no row written')
-  assert.equal(calls.at(-1)!.world[13], 20, 'its world in the frame')
+  assert.deepEqual(
+    calls
+      .slice(moved)
+      .map(({ links: count, world }) => [count, world[13]])
+      .sort(),
+    [
+      [0, 0],
+      [0, 20],
+    ],
+    'the core parent at its new world, in the frame',
+  )
 })
 
 test('a frame move reaches every slot even when a row is linked before the next follow', () => {

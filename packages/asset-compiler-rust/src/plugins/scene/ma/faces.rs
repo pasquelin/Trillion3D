@@ -38,7 +38,7 @@ pub(super) fn polygons(operands: &[Token]) -> (Vec<Face>, Vec<&'static str>) {
                         face.uv_set = set;
                         face.uvs = uvs;
                     }
-                    _ => counted.push(report::UV_DROPPED),
+                    _ => counted.push(crate::plugins::scene::codes::UV_DROPPED),
                 }
             }
             "h" => {

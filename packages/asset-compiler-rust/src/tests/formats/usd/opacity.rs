@@ -34,13 +34,13 @@ fn only_the_alpha_channel_of_the_base_colour_texture_carries_the_opacity() {
     assert_eq!(gltf["materials"][0]["alphaMode"], "BLEND");
     assert_eq!(pbr(&gltf)["baseColorFactor"], json!([1.0, 1.0, 1.0, 1.0]));
     assert_eq!(
-        unsupported(&alpha)["usd-texture-channel-unsupported"],
+        unsupported(&alpha)["texture-channel-unsupported"],
         Value::Null
     );
 
     let red = carried_by("outputs:r");
     assert_eq!(
-        unsupported(&red)["usd-texture-channel-unsupported"],
+        unsupported(&red)["texture-channel-unsupported"],
         1,
         "a channel glTF does not read must be counted"
     );

@@ -1,15 +1,11 @@
-// the two linear searches of the streaming path.
+// the linear search of the streaming path's queue.
 import { createJobHeap } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
-import { pushPending } from '../../../packages/sdk-browser/src/world/render/draw.ts'
 import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts'
 import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
-import {
-  referencePushPending,
-  referenceRetireDeLaFile,
-} from '../../oracles/browser/streaming-lookups.ts'
+import { referenceRetireDeLaFile } from '../../oracles/browser/streaming-lookups.ts'
 
 function rafale(total: number, annulations: number, depart: number) {
   const alea = xorshiftRandom(depart)
@@ -60,16 +56,6 @@ function optimisedPass({ urls, vises }: { urls: string[]; vises: number[] }) {
   return left
 }
 
-function adresses(total: number, depart: number) {
-  const alea = xorshiftRandom(depart)
-  const output: string[] = []
-  for (let i = 0; i < total; i++)
-    output.push(
-      alea() < 0.3 && output.length ? output[Math.floor(alea() * output.length)] : `p/${i}.bin`,
-    )
-  return output
-}
-
 const resG5 = await measure({
   name: 'removing a cancelled request from the queue',
   fichier: 'packages/sdk-browser/src/streaming/queueOrder.ts',
@@ -82,24 +68,6 @@ const resG5 = await measure({
   options: { tours: 40, budgetMs: 1500 },
 })
 
-const urlsEmpilees = adresses(4000, 0x61)
-const resG6 = await measure({
-  name: 'pending stack',
-  fichier: 'packages/sdk-browser/src/world/render/draw.ts',
-  cas: [{ name: '4 000 addresses to stack', input: urlsEmpilees, size: 4000 }],
-  calculation: (urls: readonly string[]) => {
-    const set = new Set<string>()
-    pushPending(set, urls)
-    return [...set]
-  },
-  expected: (urls: readonly string[]) => {
-    const arr: string[] = []
-    referencePushPending(arr, urls)
-    return arr
-  },
-  options: { tours: 100, budgetMs: 1500 },
-})
-
 await stress({
   name: 'job heap extremes',
   calculation: (q: Job[]) => {
@@ -110,8 +78,4 @@ await stress({
   extremes: [{ name: 'empty', input: [] }],
 })
 
-rapport(
-  'recherches-streaming',
-  [resG5, resG6],
-  'G5 and G6 remove and stack the exact same addresses',
-)
+rapport('recherches-streaming', [resG5], 'G5 removes the exact same addresses')

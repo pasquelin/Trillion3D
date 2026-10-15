@@ -3,7 +3,7 @@
 // the physics module's, never rewritten. Here only the driver's pedals and wheel become the controller's input,
 // and each step's wheels are written back for the page to draw. Word layouts:
 // `packages/sdk-core/src/physics/vehicleLayout.ts` (VEHICLE, UNVEHICLE, DRIVE).
-#include "binding.h"
+#include "contacts.h"
 #include "slotLists.h"
 #include "words.h"
 
@@ -30,8 +30,6 @@ enum Kind : uint32_t { CAR, MOTORCYCLE, TRACKED };
 enum Role : uint32_t { STEERS = 1, DRIVEN = 2, HANDBRAKE = 4, SPROCKET = 8 };
 /// The engine's objects face −z, up +y: so do its vehicles, in their body's frame.
 const Vec3 FORWARD(0, 0, -1), UP(0, 1, 0), RIGHT(1, 0, 0);
-/// Brakes are sized on Earth, whatever the world's gravity (vehicleSpec.ts BRAKES), m/s².
-constexpr float STANDARD_GRAVITY = 9.80665f;
 /// Below this forward speed a vehicle stands still: the brake pedal then backs it up, and a
 /// tracked vehicle steered turns on the spot (m/s; 0.1 and 1).
 constexpr float STOPPED = 0.1f, PIVOT = 1.0f;
@@ -50,18 +48,12 @@ struct Vehicle {
   Ref<VehicleConstraint> constraint;
   /** The body's shape before its centre of mass was lowered, given back when the vehicle leaves. */
   RefConst<Shape> shape;
-  /** The page's vehicle id, the body's slot, the kind. */
-  uint32_t id = 0, body = 0, kind = 0;
+  /** The page's vehicle id, the body's slot, the kind, its position in `onBody`'s list there. */
+  uint32_t id = 0, body = 0, kind = 0, onBodyAt = 0;
   /** The driver's input (DRIVE), and the wheel as the hand has turned it so far. */
   float throttle = 0, brake = 0, steer = 0, handbrake = 0, steered = 0;
   /** Of full lock per second, and a tracked vehicle's inner track ratio (vehicleSpec.ts). */
   float steerRate = 4, trackTurn = 0.6f;
-  /** Per anti-roll bar, in order: its stiffness, N/m, and the body's mass felt at its wheels, kg. */
-  std::vector<float> bars;
-  /** The suspension's angular frequency and damping ratio, and the step the bars are set for. */
-  float omega = 0, damping = 0, barStep = 0;
-  /** Steps its state was written since its body last rested (`REST_WRITES`). */
-  uint32_t restWrites = 0;
   /** Not driven since it was made or last stood still: it holds its brakes (`applyInput`). */
   bool parked = true;
 };
@@ -106,18 +98,16 @@ void powertrainOf(VehicleEngineSettings &engine, VehicleTransmissionSettings &ge
   gearbox.mReverseGearRatios = {-f32(s + 22)};
 }
 
-/// The settings of a vehicle on `body` from the VEHICLE words at `w`; its anti-roll bars and
-/// suspension kept in `vehicle` (`setBars`).
-VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body, Vehicle &vehicle) {
+/// The settings of a vehicle on `body` from the VEHICLE words at `w`.
+VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body) {
   const uint32_t kind = w[2], count = w[4], *s = w + 5;
   float mass = 1.0f / std::max(body.GetMotionProperties()->GetInverseMass(), 1e-9f);
   float frequency = f32(s + 24), damping = f32(s + 25), travel = f32(s + 26), antiRoll = f32(s + 27);
   float maxSteer = f32(s + 28), grip = f32(s + 30), finalDrive = f32(s + 23);
   float omega = 2 * JPH_PI * frequency, gravity = world().system->GetGravity().Length();
-  vehicle.omega = omega, vehicle.damping = damping;
+  // Brakes are sized on Earth, whatever the world's gravity (vehicleSpec.ts BRAKES).
   float share = mass / float(count), lock = grip * share * STANDARD_GRAVITY;
-  const MotionProperties &motion = *body.GetMotionProperties();
-  const Mat44 inverse = motion.GetLocalSpaceInverseInertia();
+  const Mat44 inverse = body.GetMotionProperties()->GetLocalSpaceInverseInertia();
   VehicleConstraintSettings settings;
   settings.mUp = UP;
   settings.mForward = FORWARD;
@@ -149,7 +139,7 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body, Vehicl
     // (`VehicleConstraint.cpp`, `SetupVelocityConstraint`), millimetres off once `lower` moved the
     // centre of mass between the wheels.
     Vec3 arm = (vec3(p) - body.GetShape()->GetCenterOfMass()).Cross(-UP);
-    float felt = 1.0f / (motion.GetInverseMass() + arm.Dot(inverse.Multiply3x3(arm)));
+    float felt = 1.0f / inverseMassAlong(body, body.GetRotation() * arm);
     felts.push_back(felt);
     float sag = share * gravity / (felt * omega * omega);
     wheel->mSuspensionMinLength = radius;
@@ -194,9 +184,15 @@ VehicleConstraintSettings settingsOf(const uint32_t *w, const Body &body, Vehicl
     if (antiRoll > 0 && f32(wheels[i]) < 0 && j >= 0) {
       VehicleAntiRollBar bar;
       bar.mLeftWheel = int(i), bar.mRightWheel = j;
+      // Jolt adds a bar's `stiffness × travel × dt` to its wheels' suspension constraint as a
+      // velocity bias, which the soft spring turns into an impulse through its effective mass
+      // `1 / (1 / felt + softness)`, softness `1 / (dt (c + dt k))` (`SpringPart.h`), dt the
+      // page's fixed step, the only one a vehicle is driven by: the stiffness handed to Jolt is the
+      // bar's over that mass, so that the bar pushes with its own N/m at any mass.
+      float felt = (felts[i] + felts[j]) / 2, dt = world().fixedStep;
+      float softness = 1 / (felt * dt * (2 * damping * omega + dt * omega * omega));
+      bar.mStiffness = antiRoll * felt * omega * omega * (1 / felt + softness);
       settings.mAntiRollBars.push_back(bar);
-      float felt = (felts[i] + felts[j]) / 2;
-      vehicle.bars.insert(vehicle.bars.end(), {antiRoll * felt * omega * omega, felt});
     }
     if (!(uint32_t(f32(wheels[i] + 5)) & DRIVEN)) continue;
     int k = partnerOf(wheels, i, DRIVEN);
@@ -261,7 +257,7 @@ void lower(Body &body, const uint32_t *w) {
 
 void remove(Vehicle &vehicle) {
   if (vehicle.constraint) {
-    onBody.remove(vehicle.body, uint32_t(&vehicle - vehicles.data()));
+    if (const uint32_t *moved = onBody.removeAt(vehicle.body, vehicle.onBodyAt)) vehicles[*moved].onBodyAt = vehicle.onBodyAt;
     world().system->RemoveStepListener(vehicle.constraint);
     world().system->RemoveConstraint(vehicle.constraint);
     reshape(*vehicle.constraint->GetVehicleBody(), vehicle.shape, vehicle.shape);
@@ -281,13 +277,13 @@ void add(const uint32_t *w) {
   Vehicle &vehicle = vehicles[index];
   vehicle.shape = lock.GetBody().GetShape();
   lower(lock.GetBody(), w);
-  vehicle.constraint = new VehicleConstraint(lock.GetBody(), settingsOf(w, lock.GetBody(), vehicle));
+  vehicle.constraint = new VehicleConstraint(lock.GetBody(), settingsOf(w, lock.GetBody()));
   if (w[2] == TRACKED) vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterRay(MOVING, UP));
   // A motorcycle's tyre is rounded across (the whole half width as convex radius, as the
   // motorcycle's cast does): leaned, it rolls on its shoulder rather than on an edge.
   else vehicle.constraint->SetVehicleCollisionTester(new VehicleCollisionTesterCastCylinder(MOVING, w[2] == MOTORCYCLE ? 1.0f : 0.1f));
   vehicle.id = id, vehicle.body = slotIndex, vehicle.kind = w[2];
-  onBody.add(slotIndex, index);
+  vehicle.onBodyAt = onBody.add(slotIndex, index);
   float steerTime = f32(w + 5 + 29);
   vehicle.steerRate = steerTime > 0 ? 1.0f / steerTime : FLT_MAX;
   vehicle.trackTurn = Clamp(f32(w + 5 + 31), 0.01f, 1.0f);
@@ -295,21 +291,8 @@ void add(const uint32_t *w) {
   world().system->AddStepListener(vehicle.constraint);
 }
 
-/// Sets the anti-roll bars for a step of `dt`. Jolt adds a bar's `stiffness × travel × dt` to its
-/// wheels' suspension constraint as a velocity bias, which the soft spring turns into an impulse
-/// through its effective mass `1 / (1 / felt + softness)`, softness `1 / (dt (c + dt k))`
-/// (`SpringPart.h`): the stiffness handed to Jolt is the bar's over that mass, so that the bar
-/// pushes with its own N/m at any mass and step.
-void setBars(Vehicle &v, float dt) {
-  if (dt == v.barStep) return;
-  v.barStep = dt;
-  VehicleAntiRollBars &bars = v.constraint->GetAntiRollBars();
-  for (size_t b = 0; b < bars.size(); ++b) {
-    float stiffness = v.bars[2 * b], felt = v.bars[2 * b + 1];
-    float softness = 1 / (felt * dt * (2 * v.damping * v.omega + dt * v.omega * v.omega));
-    bars[b].mStiffness = stiffness * (1 / felt + softness);
-  }
-}
+/// The body's speed along its forward axis, m/s: negative rolling back.
+float forwardSpeed(const Body &body) { return (body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD); }
 
 /// The vehicle's engine, whichever its controller.
 VehicleEngine &vehicleEngine(Vehicle &v) {
@@ -325,26 +308,19 @@ const VehicleTransmission &vehicleGearbox(const Vehicle &v) {
   return static_cast<const WheeledVehicleController *>(controller)->GetTransmission();
 }
 
-/// Holds a parked vehicle's brakes, its engine turning nothing: it idles. Jolt lets a vehicle
-/// sleep only once its engine idles (`VehicleEngine::AllowSleep`); left to spin down from
-/// 2,500 rpm for seven seconds, a car braked to a stop stayed awake, its body shaking 0.4 mm a
-/// step on its brakes, and every shadow page under it and its wheels was drawn again each frame.
-/// A tracked vehicle pivoting on the spot is parked too, but drives: its engine runs.
-float holdParked(Vehicle &v) {
-  VehicleEngine &engine = vehicleEngine(v);
-  if (!engine.AllowSleep()) engine.SetCurrentRPM(engine.mMinRPM);
-  return 1;
-}
-
 /// Hands the driver's input to the controller: the brake pedal backs a vehicle up once it stands
 /// still, the accelerator brakes one rolling back first, and a steered tracked vehicle slows its
 /// inner track, or turns on the spot at a standstill. Parked — not driven
 /// since it was made or since it last stood still with its pedals released — a vehicle holds its
 /// brakes: set down on a slope it stays where it landed instead of rolling down it forever, and
 /// Jolt lets it sleep (`parkedVehicles.test.ts`). Driven then released, it coasts until it stops.
+/// Jolt lets a vehicle sleep only once its engine idles (`VehicleEngine::AllowSleep`): left to spin
+/// down from 2,500 rpm for seven seconds, a car braked to a stop stayed awake, its body shaking
+/// 0.4 mm a step on its brakes, so a parked one idles at once. A tracked vehicle pivoting on the
+/// spot is parked too, but drives: its engine runs.
 void applyInput(Vehicle &v, float dt) {
   const Body &body = *v.constraint->GetVehicleBody();
-  float speed = (body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD);
+  float speed = forwardSpeed(body);
   float turn = dt * v.steerRate;
   v.steered += Clamp(v.steer - v.steered, -turn, turn);
   float forward = v.throttle, brake = v.brake;
@@ -353,16 +329,20 @@ void applyInput(Vehicle &v, float dt) {
   if (brake > 0 && forward == 0 && speed < STOPPED) forward = -brake, brake = 0;
   else if (forward > 0 && speed < -STOPPED) brake = forward, forward = 0;
   VehicleController *controller = v.constraint->GetController();
+  float left = 1, right = 1;
   if (v.kind == TRACKED) {
-    float left = 1, right = 1, amount = std::abs(v.steered);
+    float amount = std::abs(v.steered);
     float &inner = v.steered > 0 ? right : left;
     if (amount > 0 && forward == 0 && brake == 0 && std::abs(speed) < PIVOT) forward = amount, inner = -1;
     else inner = 1 - amount * (1 - v.trackTurn);
-    if (v.parked && forward == 0) brake = holdParked(v);
-    static_cast<TrackedVehicleController *>(controller)->SetDriverInput(forward, left, right, std::max(brake, v.handbrake));
-    return;
   }
-  if (v.parked) brake = holdParked(v);
+  if (v.parked && forward == 0) {
+    brake = 1;
+    VehicleEngine &engine = vehicleEngine(v);
+    if (!engine.AllowSleep()) engine.SetCurrentRPM(engine.mMinRPM);
+  }
+  if (v.kind == TRACKED)
+    return static_cast<TrackedVehicleController *>(controller)->SetDriverInput(forward, left, right, std::max(brake, v.handbrake));
   // Leaned, a motorcycle brakes less, or it slides out from under its rider.
   if (v.kind == MOTORCYCLE && brake > 0) {
     Vec3 up = body.GetRotation() * UP, ahead = body.GetRotation() * FORWARD;
@@ -405,12 +385,12 @@ void driveVehicles(float dt) {
   BodyInterface &bodies = world().system->GetBodyInterfaceNoLock();
   for (Vehicle &vehicle : vehicles) {
     if (!vehicle.constraint) continue;
-    setBars(vehicle, dt);
     applyInput(vehicle, dt);
     // Past its rest writes, its wheels are not cast while inactive (0; the default 1 casts every
     // step): the running gear is part of the body's own shape (`lower`), so what moves into the
     // wheels meets the body and wakes it, and the wheels are cast again once it is awake.
-    vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(vehicle.restWrites >= REST_WRITES ? 0 : 1);
+    const Slot &slot = world().slots[vehicle.body];
+    vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(slot.restWrites >= REST_WRITES ? 0 : 1);
     // A vehicle driven, or whose wheel still turns back, stays awake.
     if (vehicle.throttle > 0 || vehicle.brake > 0 || vehicle.handbrake > 0 || vehicle.steered != 0)
       bodies.ActivateBody(vehicle.constraint->GetVehicleBody()->GetID());
@@ -419,24 +399,18 @@ void driveVehicles(float dt) {
 
 void writeVehicles() {
   state.clear();
-  auto put = [](float value) {
-    uint32_t word;
-    std::memcpy(&word, &value, 4);
-    state.push_back(word);
-  };
+  auto put = [](float value) { putF32(&state.emplace_back(), value); };
   for (Vehicle &vehicle : vehicles) {
     if (!vehicle.constraint) continue;
     const Body &body = *vehicle.constraint->GetVehicleBody();
     // At rest, its state is written `REST_WRITES` times, then not until it moves.
-    if (body.IsActive()) vehicle.restWrites = 0;
-    else if (vehicle.restWrites >= REST_WRITES) continue;
-    else ++vehicle.restWrites;
+    if (world().slots[vehicle.body].rests(body.IsActive(), REST_WRITES)) continue;
     const VehicleEngine &engine = vehicleEngine(vehicle);
     const VehicleTransmission &gearbox = vehicleGearbox(vehicle);
     uint32_t count = uint32_t(vehicle.constraint->GetWheels().size());
     state.push_back(vehicle.id);
     state.push_back(count);
-    put((body.GetRotation().Conjugated() * body.GetLinearVelocity()).Dot(FORWARD));
+    put(forwardSpeed(body));
     put(engine.GetCurrentRPM());
     put(float(gearbox.GetCurrentGear()));
     for (uint32_t i = 0; i < count; ++i) {

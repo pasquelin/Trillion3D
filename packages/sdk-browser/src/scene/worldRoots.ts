@@ -66,15 +66,16 @@ function announcedFile(
   return announced && { url: new URL(name, base).href, ...announced }
 }
 
-/** The world stream of `table`, opened on first use — `dag` its DAG file, read whole then by
- *  `read`, `pages` each bundle's —: only an opened stream is kept, so a family refusal is asked
- *  again on the next use (`onDemand`), and a table out of rank is refused again, before any page
- *  is served. */
+/** The world stream of `table`, its binary at the resolved `url`, opened on first use — `dag` its
+ *  DAG file, read whole then by `read`, `pages` each bundle's —: only an opened stream is kept, so
+ *  a family refusal is asked again on the next use (`onDemand`), and a table out of rank is
+ *  refused again, before any page is served. */
 function worldStream(
   table: WorldRoots,
+  url: string,
   dag: StreamPage | undefined,
   read: (page: StreamPage) => Promise<Uint8Array>,
-  pages: (bundle: number, signal: AbortSignal, priority?: number) => Promise<WorldRootsPage[]>,
+  pages: (bundle: number, signal?: AbortSignal, priority?: number) => Promise<WorldRootsPage[]>,
 ) {
   let stream: WorldStream | undefined
   const open = async () => {
@@ -84,20 +85,14 @@ function worldStream(
     const landed = createListeners<[addresses: readonly string[]]>()
     return (stream ??= {
       landed,
-      dag: worldRootDag(
-        { ...records, payload: table.payload, pinned: table.pinned },
-        worldRootPages,
-      ),
+      dag: worldRootDag({ ...records, url, pinned: table.pinned }, worldRootPages),
       // An object root's cell is its object's (`origin`, the table's rank).
       superRoots:
         records && cellSuperRoots(records.clusters, table.cells.cellOf, table.cells.count),
-      source: worldPageServer(table, pages, landed.emit),
+      source: worldPageServer(table, url, pages, landed.emit),
     })
   }
-  return {
-    open,
-    keptBytes: (held: { has(bundle: number): boolean }) => stream?.source.keptBytes(held) ?? 0,
-  }
+  return { open }
 }
 
 /** The pinned top of `table`'s binary at `url`, read for a load on `signal` through `queue`, its
@@ -167,7 +162,7 @@ export async function openWorldRoots(
   bundles.bind(queue)
   if (whole) await bundles.hold(0, { signal })
   const dag = announcedFile(files, WORLD_ROOTS_DAG, base)
-  const stream = worldStream(table, dag, (page) => bundles.file(page, signal), bundles.pages)
+  const stream = worldStream(table, url, dag, (page) => bundles.file(page, signal), bundles.pages)
   const roots = worldRootsHold(table, top, {
     bundles,
     stream,
@@ -243,10 +238,9 @@ function worldRootsHold(table: WorldRoots, top: WorldRootsPage[][], parts: HoldP
     cover: bundles.cover,
     /** The session's queue the bundles are read through, bound by each session. */
     bind: bundles.bind,
-    /** Every byte held here: the pinned top's, the placed cells' bundles', the bundles the source
-     *  keeps for a page in flight, and the DAG a world draws. */
-    bytes: () =>
-      table.pinnedTopBytes + bundles.bytes() + stream.keptBytes(bundles) + roots.drawnBytes,
+    /** Every byte held here: the pinned top's, the bundles the placed cells and the pages in flight
+     *  hold (`worldBundles.ts`), and the DAG a world draws. */
+    bytes: () => table.pinnedTopBytes + bundles.bytes() + roots.drawnBytes,
   }
   return roots
 }

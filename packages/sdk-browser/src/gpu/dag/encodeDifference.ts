@@ -2,7 +2,8 @@ import { DAG_ARGS } from './shader/armWgsl.ts'
 import type { DagResources } from './resources.ts'
 import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
 
-const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
+/** The cut's compute pass, whoever encodes it: the cut, its difference alone, a list growth. */
+export const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
 
 /** Each kept list's argument record (`shader/armWgsl.ts`). */
 const LIST_ARGS = [DAG_ARGS.list0, DAG_ARGS.list1]

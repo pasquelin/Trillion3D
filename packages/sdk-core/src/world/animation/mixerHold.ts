@@ -11,6 +11,7 @@ import { BLEND_SIN, holdTables, intervalOf, type HoldTable } from './poseHold.ts
 import { screenErrorBound } from '../../lod/screenErrorBound.ts'
 import { objectEdits } from '../../scene/core/nodeEdits.ts'
 import { dotScalar3, dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 
 /** The most a held point may stray from where the true pose draws it, in pixels: under one
  *  pixel's half, it lands on the same pixel centre or the next. */
@@ -101,20 +102,14 @@ type Hold = {
   /** Frames held since the pose was written; frames left to write without asking (`WAITS`). */
   held: number
   wait: number
-  /** The drift read for the next frame ahead of a held one, `aheadTo` seconds on from `at`
-   *  (`NaN`: none): the next frame asks the same of the same state. */
-  aheadTo: number
-  ahead: Drift
 }
 const holds = new WeakMap<Mixer, Hold>()
 
-/** `holdFrame`'s answers: write the true pose and ask the next frame's samples ahead, write it
- *  without asking (the next frame holds), hold, or write it and record nothing (no view, or a
- *  rig the view keeps far from holding, `WAITS`). */
+/** `holdFrame`'s answers: write the true pose, hold, or write it and record nothing (no view, or
+ *  a rig the view keeps far from holding, `WAITS`). */
 export const WRITE = 0,
-  WRITE_QUIET = 1,
-  HELD = 2,
-  UNRECORDED = 3
+  HELD = 1,
+  UNRECORDED = 2
 /** How many frames a rig whose pose strays `p` pixels a frame is written without being asked
  *  whether it holds: `2 log₂(p / MOST_PIXELS)`, at most `WAITS`. Writing is always the true pose;
  *  a view that brings the rig closer to holding is only found that much later. */
@@ -123,17 +118,10 @@ const WAITS = 30
 /**
  * This frame of `mixer`, `seconds` long: `HELD` when its actions' state is the last update's and
  * the pose last written stays within `MOST_PIXELS` of the true pose at the current view — each
- * playing action then advanced by `seconds`, as `advance` would, and nothing else done; a held
- * frame asks ahead (`ask`) when the next one, `ahead` seconds on, will not hold. Else `WRITE`, or
- * `WRITE_QUIET` when the next frame will hold and needs no sample asked, or `UNRECORDED`.
+ * playing action then advanced by `seconds`, as `advance` would, and nothing else done. Else
+ * `WRITE`, or `UNRECORDED`.
  */
-export function holdFrame(
-  mixer: Mixer,
-  actions: ReadonlyMap<Clip, Action>,
-  seconds: number,
-  ahead: number | null,
-  ask: (action: Action) => void,
-) {
+export function holdFrame(mixer: Mixer, actions: ReadonlyMap<Clip, Action>, seconds: number) {
   const hold = holds.get(mixer)
   if (hold && hold.wait > 0) {
     hold.wait--
@@ -150,13 +138,7 @@ export function holdFrame(
   if (!tables || !(hold.count > 0)) return WRITE
   if (!hold.placed) placeWritten(hold, tables)
   hold.steady = true
-  let pixels = FAR
-  // The drift the last held frame read for this one, when the view alone has changed.
-  if (hold.aheadTo === seconds) {
-    copyDrift(hold.ahead, drift)
-    pixels = pixelsOfDrift(hold, root, view)
-  }
-  if (!(pixels < MOST_PIXELS)) pixels = lag(hold, tables, root, view, hold.at, seconds, hold.next)
+  const pixels = lag(hold, tables, root, view, hold.at, seconds, hold.next)
   hold.ready = pixels !== FAR
   if (pixels < MOST_PIXELS) {
     hold.steady = hold.ready = false
@@ -165,22 +147,13 @@ export function holdFrame(
       played.time = played.action.time += seconds * played.action.timeScale
     }
     hold.held++
-    if (ahead !== null) {
-      const pixels = lag(hold, tables, root, view, hold.at, ahead, null)
-      copyDrift(drift, hold.ahead)
-      hold.aheadTo = ahead
-      if (!(pixels < MOST_PIXELS)) for (let i = 0; i < hold.count; i++) ask(hold.played[i].action)
-    }
     return HELD
   }
   // A lap's end or a leap says nothing of the view: only a bound found too large does.
   const perFrame = pixels / (hold.held + 1)
   if (perFrame > MOST_PIXELS && pixels < Number.MAX_VALUE)
     hold.wait = Math.min(WAITS, Math.floor(2 * Math.log2(perFrame / MOST_PIXELS)))
-  if (ahead === null || !hold.ready) return WRITE
-  return lag(hold, tables, root, view, hold.next, seconds + ahead, null) < MOST_PIXELS
-    ? WRITE_QUIET
-    : WRITE
+  return WRITE
 }
 
 /** Records `mixer`'s state after an update that wrote its pose. */
@@ -196,7 +169,6 @@ export function holdWritten(mixer: Mixer, actions: ReadonlyMap<Clip, Action>) {
     hold.placed = hold.ready
     hold.steady = hold.ready = false
     hold.held = 0
-    hold.aheadTo = NaN
     return
   }
   let count = 0,
@@ -229,7 +201,6 @@ export function holdWritten(mixer: Mixer, actions: ReadonlyMap<Clip, Action>) {
   hold.edits = objectEdits()
   hold.placed = hold.steady = hold.ready = false
   hold.held = 0
-  hold.aheadTo = NaN
 }
 
 function empty(): Hold {
@@ -249,8 +220,6 @@ function empty(): Hold {
     steady: false,
     held: 0,
     wait: 0,
-    aheadTo: NaN,
-    ahead: { moved: 0, turned: 0, leaped: false, far: false },
   }
 }
 
@@ -369,9 +338,8 @@ function placeWritten(hold: Hold, tables: HoldTable[]) {
   hold.placed = true
 }
 
-/** `lag` when an action leaves its lap: no bound, and `into` left unread. */
+/** `lag` when an action leaves its lap: no bound, and `out` left unread. */
 const FAR = Infinity
-const scratch = placement()
 
 /** What `lag` reads of the drift between two clip times, before any view: the most a point of the
  *  rig moved, its blended rotation's `x` grown, whether a value leaps, whether an action left the
@@ -381,7 +349,7 @@ const drift: Drift = { moved: 0, turned: 0, leaped: false, far: false }
 
 /**
  * The most pixels a point of the rig is drawn from its true pose at `view` when the pose standing
- * at `from` is kept until each action's time `to` seconds on — read into `into` when given:
+ * at `from` is kept until each action's time `to` seconds on, read into `out`:
  * `FAR` when an action leaves the lap of `from`, `Infinity` when a value leaps between them or a
  * blended rotation leaves its linear bound. The drift it read stays in `drift`.
  */
@@ -392,9 +360,8 @@ function lag(
   view: HoldView,
   from: Placement,
   to: number,
-  into: Placement | null,
+  out: Placement,
 ) {
-  const out = into ?? scratch
   drift.moved = drift.turned = 0
   drift.leaped = drift.far = false
   for (let i = 0; i < hold.count; i++) {
@@ -414,13 +381,6 @@ function lag(
   return pixelsOfDrift(hold, root, view)
 }
 
-function copyDrift(from: Drift, to: Drift) {
-  to.moved = from.moved
-  to.turned = from.turned
-  to.leaped = from.leaped
-  to.far = from.far
-}
-
 /** The pixels `view` draws the drift in `drift` at. */
 function pixelsOfDrift(hold: Hold, root: Object3D, view: HoldView) {
   if (drift.far) return FAR
@@ -430,7 +390,8 @@ function pixelsOfDrift(hold: Hold, root: Object3D, view: HoldView) {
 
 /** `moved` metres, in the frame of `root`'s parent, as pixels at `view` (`screenErrorBound`, the
  *  cluster cut's certified bound): anywhere in the ball of `radius` about `root`'s origin as the
- *  last frame placed it, the parent stretching lengths by its largest axis. */
+ *  last frame placed it, the parent stretching lengths by its largest singular value (`maxStretch`,
+ *  the stretch the cut projects through). */
 function pixelsOf(moved: number, root: Object3D, radius: number, view: HoldView) {
   if (!(moved > 0)) return moved === 0 ? 0 : Number.MAX_VALUE
   const m = root.matrixWorld.elements
@@ -439,7 +400,7 @@ function pixelsOf(moved: number, root: Object3D, radius: number, view: HoldView)
     z = m[14] - view.eye[2],
     depth = dotVector3Xyz(view.forward, x, y, z),
     lateral = Math.sqrt(Math.max(0, dotScalar3(x, y, z, x, y, z) - depth * depth))
-  const stretch = root.parent ? root.parent.matrixWorld.getMaxScaleOnAxis() : 1
+  const stretch = root.parent ? maxStretch(root.parent.matrixWorld.elements) : 1
   const pixels = screenErrorBound(
     moved,
     stretch,

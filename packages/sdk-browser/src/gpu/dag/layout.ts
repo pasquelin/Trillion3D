@@ -37,7 +37,7 @@ import { lastTrue } from '../../../../math/src/scalar/search.ts'
 /** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
  *  stride to sixteen bytes — the twelfth word is that padding. */
 export const CLUSTER_WORDS = 12
-/** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
+/** Words of the cold record. */
 export const COLD_WORDS = 13
 const CLUSTER_LEVEL_MAX = 0xffffff
 
@@ -132,14 +132,13 @@ export const OUT_COUNT = 0,
   /** How many requests ahead the snapshot holds, behind every one of the camera's (`dagSortRequests`). */
   OUT_AHEAD_PLACED = 7
 
-/** First residency word: the cut rule's `resident(c)` (`../../page/cut/readiness.ts`, `ready`). A page
- *  names its placement in the entries that carry it (`shader/levelWgsl.ts`), never in a word of its
- *  own. */
-export const residentBase = (_pageCount: number) => 0
-/** Residency words: one bit per cluster, thirty-two clusters per word. */
+/** Residency words: one bit per cluster, thirty-two clusters per word. The first set opens the
+ *  cold words at word 0: the cut rule's `resident(c)` (`../../page/cut/readiness.ts`, `ready`). A
+ *  page names its placement in the entries that carry it (`shader/levelWgsl.ts`), never in a word
+ *  of its own. */
 export const residentWords = (pageCount: number) => bitWords(Math.max(0, pageCount))
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
-export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount)
+export const childBase = (pageCount: number) => residentWords(pageCount)
 /** First word of the pool's list: its count, then a content key per held slot (`poolList.ts`). */
 export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount)
 /** First word of the record keys, one per unique record: the content key it reads (`evict.ts`). */

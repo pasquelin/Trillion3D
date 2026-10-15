@@ -1,11 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitMask, bitWord } from '../../../../math/src/wgsl/integer.ts'
-import {
-  VIS_MAX_PAGE_TRIANGLES,
-  VIS_TRIANGLE_BITS,
-  visPageIndex,
-  visTriangle,
-} from '../visWords.ts'
+import { VIS_TRIANGLE_BITS, visPageIndex, visRowIn, visTriangle } from '../visWords.ts'
 import {
   FLAT_INDEX_WGSL,
   OPEN_SLICE_WGSL,
@@ -61,9 +56,8 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
  let at=l.y*${MARK_TILE}u+l.x;
  tileIds[at]=id;
  workgroupBarrier();
- if(id<${VIS_MAX_PAGE_TRIANGLES}u){return;}
  let rows=atomicLoad(&shadeCache[SHADE_CACHE_ROWS]);
- if((id>>${VIS_TRIANGLE_BITS}u)>rows){return;}
+ if(!visRowIn(id,rows)){return;}
  let left=select(0u,tileIds[at-min(l.x,1u)],l.x>0u);
  let leftLeft=select(0u,tileIds[at-min(l.x,2u)],l.x>1u);
  let up=select(0u,tileIds[at-select(0u,${MARK_TILE}u,l.y>0u)],l.y>0u);
@@ -115,6 +109,7 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
     bitWord,
     bitMask,
     visPageIndex,
+    visRowIn,
     visTriangle,
   ],
 )

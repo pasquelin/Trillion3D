@@ -4,36 +4,13 @@ import { canonicalPage } from './evict.ts'
 import type { PackedDag } from './types.ts'
 import type { RangeTarget } from './runWrites.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { dispatchGrid, groupWidth } from '../dispatch/grid.ts'
-import { POOL_LANES } from '../pool/sortWords.ts'
-import { DAG_ARGS } from './shader/armWgsl.ts'
-
-/**
- * What arms the pool sort's per-group stages for the `count` slots the list holds (`DAG_ARGS.pool`):
- * in rows of the device's width, written once before each cut (`sync`), after the list's count in the
- * queue's order — the GPU's dispatch covers what its count holds, and no workgroup past it, where a
- * dispatch over the list's cap ran thousands for nothing.
- */
-export function poolSortArming(device: GPUDevice, args: GPUBuffer) {
-  const width = groupWidth(device.limits),
-    record = new Uint32Array(2)
-  return (count: number) => {
-    // An empty list arms no workgroup: its stages walk no slot.
-    const [x, y] = dispatchGrid(ceilDiv(count, POOL_LANES), width)
-    record[0] = x
-    record[1] = y
-    device.queue.writeBuffer(args, DAG_ARGS.pool, record)
-  }
-}
 
 /**
  * The keys the pool holds, as the eviction queue sweeps them (`shader/evictWgsl.ts`): a count, then
  * one content key per held slot (`../evict.ts`), fed by the cache's arrivals and departures — named
  * by the key's canonical page — and kept dense — a departure takes the last entry's place —, so the
- * sweep is bounded by the slots, never the catalogue. `note` returns whether the list moved; `sync`,
- * the step before every cut (`runtime.ts`, `syncTables`), arms the pool sort once for the count the
- * list then holds, however many pages landed or left since.
+ * sweep is bounded by the slots, never the catalogue. `note` returns whether the list moved; the cut
+ * arms the pool sort for the count it holds (`shader/evictWgsl.ts`, `armPoolSort`).
  */
 export function createDagPoolList(
   packed: PackedDag,
@@ -41,8 +18,6 @@ export function createDagPoolList(
   /** The pages a pool already holds, for a cut made beside it (a growth in place): listed at once,
    *  in one write. */
   held: ((page: number) => boolean) | undefined,
-  /** Arms the pool sort for the count the list holds (`poolSortArming`). */
-  arm: (count: number) => void,
 ) {
   const { buffer, byteOffset, length } = packed.pageCones,
     words = new Uint32Array(buffer, byteOffset, length),
@@ -54,9 +29,7 @@ export function createDagPoolList(
     pageOf = (k: number) => canonicalPage(words[keyWords + k])
   /** Each listed page's entry, 1 for the first. */
   const entry = createSparseInts()
-  let writes = true,
-    /** Whether the list's count moved since the sort was last armed. */
-    owed = false
+  let writes = true
   const write = (word: number, count = 1) =>
     writes && cold(word * 4, buffer as ArrayBuffer, byteOffset + word * 4, 4 * count)
   const note = (page: number, held: boolean) => {
@@ -69,12 +42,7 @@ export function createDagPoolList(
     words[base + at] = moved
     write(base + at)
     write(base)
-    owed = true
     return true
-  }
-  const sync = () => {
-    if (owed) arm(words[base])
-    owed = false
   }
   if (held) {
     writes = false
@@ -86,7 +54,6 @@ export function createDagPoolList(
     for (const page of canonical) if (held(page)) note(page, true)
     writes = true
     write(base, words[base] + 1)
-    sync()
   }
-  return { note, sync, entries: entry }
+  return { note, entries: entry }
 }

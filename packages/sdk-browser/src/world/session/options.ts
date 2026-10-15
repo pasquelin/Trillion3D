@@ -31,8 +31,6 @@ export interface MeasuredWorldOptions {
    *  step that ends after the hand-over (a cut the device refuses): `what` the content, `reason`
    *  the limit. The session goes on with the cut it runs; the owner says it by name. */
   onContentRefused?: (what: string, reason: string) => void
-  /** False: the interactive session installs no camera controller of its own. */
-  ownControls?: boolean
   /** Called after every frame the session draws, with that frame's metrics. */
   onFrame?: (metrics: import('../../../../sdk-core/src/contracts/metrics.ts').FrameMetrics) => void
   replicaCount?: 1 | 4 | 9 | 12
@@ -60,12 +58,6 @@ export interface MeasuredWorldOptions {
   pageCache?: import('../../streaming/pageCache.ts').PageCache
   pixelError?: number
   lodAdaptive?: boolean
-  /** Presentation clear color supplied by the host, encoded as 0xRRGGBB. */
-  clearColor?: number
-  /** The host's clear colour now, `0xRRGGBB`, `undefined` for none (the default clears): what a
-   *  diagnostic compares the pixels with once a background changed in place, `clearColor` being
-   *  only the one the session opened on. */
-  currentClearColor?: () => number | undefined
   /** Bounded diagnostics emitted by a backend and owned by the host report. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
   /** Summary suppresses per-frame trace records; trace is the default with an observer. */
@@ -123,8 +115,7 @@ export interface MeasuredWorldOptions {
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
    *  every source image, what a world asks for each model after its first, whose baked levels
-   *  the session's base does not serve (`worldLoader.ts`). Without `createImageBitmap` no level
-   *  can be read, and the images are read as under `'host'` (`resolveTextureSource`). */
+   *  the session's base does not serve (`worldLoader.ts`). */
   textureSource?: 'host' | 'cache'
   sceneLighting?: Object3D
   /** Lines and points drawn over the image, held by the world (`world.guides`). */

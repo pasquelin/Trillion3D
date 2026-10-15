@@ -4,11 +4,12 @@
  * bytes those lists take beside the first transmission.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { createWorstChunk, vsmWorstChunk, type VsmWorst } from './rowPageBound.ts'
-import { vsmChunkRows } from './chunkKernels.ts'
+import { createVsmRowBound, vsmChunkRows, type VsmWorst } from './rowPageBound.ts'
+import { answerUnbound } from './rowBoundFit.ts'
 import { vsmChunkRowsWithin, vsmDrawFloorBytes } from './chunkLists.ts'
 import { vsmListSizing, vsmSizingFor, type VsmListSizes, type VsmWithin } from './chunkSizing.ts'
-import { vsmChunkParamSlots, vsmRenderViews, type VsmRenderChunking } from './chunkParams.ts'
+import { vsmChunkParamSlots, type VsmRenderChunking } from './chunkParams.ts'
+import { vsmRenderViewBound } from './mapViews.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 import { VSM_TRANSMISSION_HEADER_BYTES, VSM_TRANSMISSION_PAGE_BYTES } from './transmissionShared.ts'
 import type { VsmTransmission } from './transmissionMade.ts'
@@ -18,12 +19,12 @@ import type { VsmTransmissionFrame } from './transmissionPass.ts'
 /** Blended candidates a chunk takes: its page list holds this many times the pool's pages. */
 const CHUNK_ROWS = 64
 
-/** The frame's map views, rows, worst case, list sizing and bin, rewritten each frame and floor:
- *  read at once. */
-const viewList: number[] = []
+/** The frame's rows, worst case, list sizing and bin, rewritten each frame and floor: read at
+ *  once. */
 const range = { first: 0, end: 0, candidates: 0 }
 const worst: VsmWorst = { rows: 0, cmdsPerRow: 0, pages: 0, cap: 0 }
-const floorChunk = createWorstChunk()
+const floorBound = createVsmRowBound()
+const floorWorst: VsmWorst = { rows: 0, cmdsPerRow: 0, pages: 0, cap: 0 }
 /** The transmission's list sizing: its page list holds a header a command and the pages after
  *  them (`vsmListSizing`); its chunks cut the `used` rows, every blended row a candidate. */
 const sizing = vsmListSizing(VSM_TRANSMISSION_PAGE_BYTES, VSM_TRANSMISSION_HEADER_BYTES)
@@ -42,8 +43,12 @@ export function vsmTransmissionFloorBytes(
   pages: number,
 ) {
   if (used <= 0 || rowCount <= 0 || viewWords <= 0) return 0
-  const rows = Math.min(CHUNK_ROWS, used),
-    holds = vsmWorstChunk(floorChunk, rows, Math.min(viewMips, pages), pages)
+  const rows = Math.min(CHUNK_ROWS, used)
+  floorWorst.rows = rows
+  floorWorst.cmdsPerRow = Math.min(viewMips, pages)
+  floorWorst.pages = pages
+  floorWorst.cap = rows * pages
+  const holds = answerUnbound(floorBound, floorWorst, rows)
   const slots = vsmChunkParamSlots(limits)
   return vsmDrawFloorBytes(
     rows,
@@ -51,16 +56,15 @@ export function vsmTransmissionFloorBytes(
   )
 }
 
-/** What a frame's bin takes: its views, its chunks within the GPU budget's room
- *  (`vsmChunkRowsWithin`), and the commands and pages a chunk's lists hold — the chunking of the
- *  opaque raster's parameter slots (`chunkParams.ts`), `rowCount` the blended rows. */
+/** What a frame's bin takes: its views' bound (the GPU lists those with pages to draw), its chunks
+ *  within the GPU budget's room (`vsmChunkRowsWithin`), and the commands and pages a chunk's lists
+ *  hold — the chunking of the opaque raster's parameter slots (`chunkParams.ts`), `rowCount` the
+ *  blended rows. */
 export interface BinPlan extends VsmRenderChunking {
-  views: number[]
   used: number
   within: VsmWithin<VsmListSizes>
 }
 const plan: BinPlan = {
-  views: viewList,
   used: 0,
   within: sizing.within,
   rowCount: 0,
@@ -79,10 +83,10 @@ export function binPlan(
   frame: VsmTransmissionFrame,
   scene: VsmRenderScene,
 ): BinPlan | undefined {
-  // Map views, as the opaque raster's.
-  const { views, viewMips } = vsmRenderViews(frame.lights, viewList)
+  // Map views, as the opaque raster's: their bound, the GPU listing those with pages to draw.
+  const { views, viewMips } = vsmRenderViewBound(frame.lights)
   const rowCount = Math.max(0, frame.rowEnd - frame.rowFirst)
-  if (views.length === 0 || rowCount === 0 || frame.used <= 0) return
+  if (views === 0 || rowCount === 0 || frame.used <= 0) return
   const pages = trans.layout.poolPages
   const used = Math.min(frame.used, rowCount)
   range.first = frame.rowFirst
@@ -93,7 +97,7 @@ export function binPlan(
   worst.pages = pages
   worst.cap = CHUNK_ROWS * pages
   const chosen = vsmChunkRows(ctx.rowBound, scene.rowSpheres, range, frame.lights, worst)
-  const sized = vsmSizingFor(sizing, used, rowCount, views.length, chosen, ctx.slots)
+  const sized = vsmSizingFor(sizing, used, rowCount, 4 * views, chosen, ctx.slots)
   const within = vsmChunkRowsWithin(
     frame.device,
     ctx.buffers,
@@ -103,7 +107,7 @@ export function binPlan(
   )
   const chunkRows = within.rows
   plan.rowCount = rowCount
-  plan.viewCount = views.length / 4
+  plan.viewCount = views
   plan.used = used
   plan.chunks = within.size ? ceilDiv(used, chunkRows) : 0
   plan.chunkRows = chunkRows

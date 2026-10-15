@@ -46,11 +46,14 @@ test('palette reach includes translated points and spheres stretched on each axi
   assert.equal(paletteReach(palette, 2, 0, []), 0)
 })
 
-test('palette stretch bounds both shear directions and selects the largest joint', () => {
+test('palette stretch is the largest singular value in both shear directions, largest joint', () => {
   const xShear = [1, 3, 0, 100, 0, 1, 0, -200, 0, 0, 1, 300]
   const yShear = [1, 0, 0, 0, 3, 1, 0, 0, 0, 0, 1, 0]
+  // [[1, 3], [0, 1]] stretches by (3 + √13) / 2, below its longest row or column sum, 4.
   for (const matrix of [xShear, yShear])
-    assert.equal(paletteStretch(new Float32Array(matrix), 0, 1), 4)
+    assert.ok(
+      Math.abs(paletteStretch(new Float32Array(matrix), 0, 1) - (3 + Math.sqrt(13)) / 2) < 1e-12,
+    )
   const p = new Float32Array([99, ...identity, ...xShear, ...[1, 0, 0, 0, 0, -7, 0, 0, 0, 0, 2, 0]])
   assert.equal(paletteStretch(p, 1, 3), 7)
   assert.equal(paletteStretch(p, 1, 0), 1)

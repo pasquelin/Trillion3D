@@ -79,8 +79,8 @@ pub(super) fn scene(
     (request.progress)(json!({"phase":"import-source","step":"nodes","plugin":NAME,
         "nodes":document.nodes.len(),"roots":children.len()}));
     world.scene.node(json!({
-        "name": "ma-root",
-        "matrix": xform::root(document.meters_per_unit),
+        "name": crate::plugins::scene::axes::ROOT_NAME,
+        "matrix": crate::plugins::scene::axes::root(document.meters_per_unit, false),
         "children": children,
     }));
 }
@@ -91,7 +91,7 @@ fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
         return None;
     }
     if depth > MAX_DEPTH {
-        world.refuse(report::HIERARCHY_TOO_DEEP);
+        world.refuse(crate::plugins::scene::codes::HIERARCHY_TOO_DEEP);
         return None;
     }
     let document = world.document;

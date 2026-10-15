@@ -22,8 +22,8 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  * text, its layout and its verdicts are those of before.
  *
  * The array holds the views a cut runs: the camera's, and the view ahead of it (`AHEAD_VIEW`).
- * `uniforms.ts` writes `viewCount` 1 and nothing else indexes a view; the shader still carries the
- * entry's view bits, as the view ahead is the one view past the camera's.
+ * The camera's entries carry view 0, the view ahead's view 1: no word of `work` nor of the uniforms
+ * is kept per view.
  */
 const DAG_MAX_VIEWS = AHEAD_VIEW + 1
 /** Bits below the view index in a work entry: 2^27 nodes or clusters, five bits of view. */
@@ -33,10 +33,6 @@ if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
 
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
 export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * VIEW_BLOCK_WORDS * 4
-/** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each — live count,
- *  live offset, drawn count —, then one word: zeroed by `dagPrepare`, read by no kernel since the
- *  cut runs one view; the frame count lies behind them (`dagWorkLayout`). */
-export const VIEW_WORD_ROWS = 3
 /**
  * Bits of the output's flag word set when work was dropped — a descent queue full, or the
  * candidate list, the live list or the log the cut writes: the cut is then not drawn
@@ -60,12 +56,6 @@ var<private> vi:u32;
 fn packEntry(view:u32,index:u32)->u32{return (view<<VIEW_SHIFT)|index;}
 fn entryIndex(entry:u32)->u32{return entry&ENTRY_INDEX;}
 fn entryView(entry:u32)->u32{return entry>>VIEW_SHIFT;}
-/** Per-primitive frustum planes: one row of the primitives per view. */
-fn slotOf(w:u32)->u32{return vi*views[0u].worldCount+w;}
-/** Row \`row\` of the per-view words, for view \`v\` (\`VIEW_WORD_ROWS\`). */
-fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;}
-/** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
-fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
 ${wgslConsts({
   QUEUE_DROPPED,
   LIST_DROPPED,

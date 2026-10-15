@@ -1,7 +1,7 @@
 import type { GpuCut, SelectionUniforms } from '../core/selection.ts'
 import { createDagOutputScratch, type DagOutputScratch } from './uniforms.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
-import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
+import { listWords } from './readoutWords.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
 import type { DagResources } from './resources.ts'
 import { noteWhole } from './swap.ts'
@@ -11,7 +11,6 @@ import { readDagSlot } from './readbackSlot.ts'
 import { createReadbackRing, unlessRefused } from '../core/readbackRing.ts'
 import { behind } from '../core/behind.ts'
 import { widerFlagShape } from './flagSections.ts'
-import { ADMISSION_BUCKETS } from './request.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** What a copy was cut under, taken when it is copied: the readback's cut is made of it, and the
@@ -75,7 +74,7 @@ export function createAsideSlots(resources: DagResources, state: DagRuntimeState
     resources.device,
     {
       label: 'Trillion3D DAG aside readback',
-      bytes: 2 * SELECTION_HEADER_WORDS * 4 + ADMISSION_BUCKETS * 4,
+      bytes: listWords(0) * 8,
       count: DAG_READBACK_SLOTS,
       chain(read, copy) {
         // A mapping cut short by `dispose` or refused: the next copy tries again. Any other error
@@ -108,15 +107,14 @@ function readAsideSlot(
 ) {
   const { resources, state, slots } = own,
     { ranks, listCap } = read,
-    drawn = SELECTION_HEADER_WORDS + ranks
+    drawn = listWords(ranks)
   const { parsed, demand, grown, grownFlags, moved, retried } = readDagSlot(
     range,
     {
-      bytes: drawn * 8 + ADMISSION_BUCKETS * 4,
+      bytes: drawn * 8,
       drawnWordOffset: drawn,
       listCap,
       scratch,
-      levelsWord: 2 * drawn,
     },
     {
       limits: resources.device.limits,

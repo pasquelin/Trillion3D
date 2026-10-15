@@ -68,7 +68,7 @@ fn files_record<'a>(products: impl Iterator<Item = &'a Product>) -> Value {
 pub(super) fn write_pointer(o: &Options, key: &str, cache_format: u32) -> Result<()> {
     let pointer = json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{key}/{MANIFEST_FILE}")});
     atomic(
-        &o.scope_directory().join("manifest.json"),
+        &o.scope_directory().join(crate::MANIFEST_POINTER),
         &serde_json::to_vec(&pointer)?,
     )
 }

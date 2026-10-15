@@ -1,18 +1,11 @@
-// The world's joints: Jolt's own two-body constraints — fixed, point, hinge, slider, distance and
-// cone here, the advanced kinds in `advancedJoints.cpp` — between two bodies or a body and the
-// world, with their limits, limit springs and motors. A joint past its break force is taken out
-// after the step and reported. Word layouts: layout.ts (JOINT, UNJOINT, MOTOR).
+// The world's joints: Jolt's own two-body constraints (built by `jointSettings.cpp`, driven and
+// weighed by `jointMotors.cpp`) between two bodies or a body and the world, with their limits,
+// limit springs and motors. A joint past its break force is taken out after the step and
+// reported. Word layouts: layout.ts (JOINT, UNJOINT, MOTOR).
 #include "binding.h"
 #include "joints.h"
-#include "jointIndex.h"
+#include "slotLists.h"
 #include "words.h"
-
-#include <Jolt/Physics/Constraints/ConeConstraint.h>
-#include <Jolt/Physics/Constraints/DistanceConstraint.h>
-#include <Jolt/Physics/Constraints/FixedConstraint.h>
-#include <Jolt/Physics/Constraints/HingeConstraint.h>
-#include <Jolt/Physics/Constraints/PointConstraint.h>
-#include <Jolt/Physics/Constraints/SliderConstraint.h>
 
 #include <algorithm>
 #include <cmath>
@@ -33,142 +26,31 @@ struct Joint {
   Vec3 axisA = Vec3::sZero(), axisB = Vec3::sZero();
   /** A gear's or a rack and pinion's body order and phase correction. */
   GearOrder order;
-  /** A path's fraction where its body stood when the step began (`carryAlongPath`). */
-  float along = 0;
+  /** Its position in the lists of its ends' slots (`a`, `b`), and in the BREAKABLE list: each is
+   *  taken out where it stands (`SlotLists::removeAt`). */
+  uint32_t at[2] = {0, 0}, listed = 0;
 };
 
 std::vector<Joint> joints;
-/** Each joint under its body ends (the world's none), and every path and breakable joint: what
- *  `link`, `dropJoints`, the step's path carry and its breaking walk. */
-JointIndex ends;
+/** Each joint under its body ends' slots (the world's none), by index, in no order: what `link`
+ *  and `dropJoints` walk — a body's few joints, filtered by kind. */
+SlotLists<uint32_t> ends;
+/** Every breakable joint, the step's breaking walk (one list, its key 0). */
+SlotLists<uint32_t> breakable;
 /** This step's broken joints, by id. */
 std::vector<uint32_t> broken;
-/** The joints `link` has visited since the module started: a diagnostic, read by the tests only
- *  (`jolt_link_visits`), so its cost is counted, never timed. */
-uint32_t linkVisits = 0;
-/** The path joints the step's carry, and the joints its breaking, have visited since the module
- *  started: diagnostics, read by the tests only (`jolt_path_visits`, `jolt_break_visits`). */
-uint32_t pathVisits = 0, breakVisits = 0;
-
-/// A body's frame from the words (`point, axis, normal` in its own frame), its point moved from
-/// the body's origin to its centre of mass (Jolt's `LocalToBodyCOM`); the world's frame as given.
-Frame frameOf(const uint32_t *w, uint32_t engine) {
-  Vec3 point = vec3(w);
-  if (engine != MISS) {
-    const Slot &slot = world().slots[engine & INDEX_MASK];
-    point -= world().system->GetBodyInterfaceNoLock().GetShape(slot.id)->GetCenterOfMass();
-  }
-  return {point, vec3(w + 3).NormalizedOr(Vec3::sAxisY()), vec3(w + 6).NormalizedOr(Vec3::sAxisX())};
-}
-
-/// The body a joint end names, or the world when it names none (`BodyID()`); false when the slot
-/// holds no body (refused, or removed since): the joint is not made.
-bool bodyOf(uint32_t engine, BodyID &id) {
-  if (engine == MISS) return (id = BodyID(), true);
-  uint32_t index = engine & INDEX_MASK;
-  const std::vector<Slot> &slots = world().slots;
-  if (index >= slots.size() || !slots[index].used || slots[index].engine != engine || slots[index].soft)
-    return false;
-  return (id = slots[index].id, true);
-}
-
-/// The settings of a core joint kind between two frames; `v` is `min, max, frequency, damping`.
-Ref<TwoBodyConstraintSettings> settingsOf(uint32_t kind, const Frame &f1, const Frame &f2, const uint32_t *v) {
-  float min = f32(v), max = f32(v + 1);
-  SpringSettings spring(ESpringMode::FrequencyAndDamping, f32(v + 2), f32(v + 3));
-  auto place = [&](auto *s) {
-    s->mSpace = EConstraintSpace::LocalToBodyCOM;
-    s->mPoint1 = RVec3(f1.point);
-    s->mPoint2 = RVec3(f2.point);
-    return s;
-  };
-  switch (kind) {
-    case FIXED: {
-      auto *s = place(new FixedConstraintSettings);
-      s->mAxisX1 = f1.axis, s->mAxisY1 = f1.normal, s->mAxisX2 = f2.axis, s->mAxisY2 = f2.normal;
-      return s;
-    }
-    case POINT:
-      return place(new PointConstraintSettings);
-    case HINGE: {
-      auto *s = place(new HingeConstraintSettings);
-      s->mHingeAxis1 = f1.axis, s->mNormalAxis1 = f1.normal, s->mHingeAxis2 = f2.axis, s->mNormalAxis2 = f2.normal;
-      s->mLimitsMin = Clamp(min, -JPH_PI, 0.0f);
-      s->mLimitsMax = Clamp(max, 0.0f, JPH_PI);
-      s->mLimitsSpringSettings = spring;
-      return s;
-    }
-    case SLIDER: {
-      auto *s = place(new SliderConstraintSettings);
-      s->mSliderAxis1 = f1.axis, s->mNormalAxis1 = f1.normal, s->mSliderAxis2 = f2.axis, s->mNormalAxis2 = f2.normal;
-      s->mLimitsMin = Clamp(min, -FLT_MAX, 0.0f);
-      s->mLimitsMax = Clamp(max, 0.0f, FLT_MAX);
-      s->mLimitsSpringSettings = spring;
-      return s;
-    }
-    case DISTANCE: {
-      auto *s = place(new DistanceConstraintSettings);
-      s->mMinDistance = Clamp(min, 0.0f, FLT_MAX);
-      s->mMaxDistance = Clamp(max, s->mMinDistance, FLT_MAX);
-      s->mLimitsSpringSettings = spring;
-      return s;
-    }
-    default: {  // CONE
-      auto *s = place(new ConeConstraintSettings);
-      s->mTwistAxis1 = f1.axis, s->mTwistAxis2 = f2.axis;
-      s->mHalfConeAngle = Clamp(max, 0.0f, JPH_PI);
-      return s;
-    }
-  }
-}
-
-/// Drives a hinge (radians), a slider (metres), a swing-twist, a six-DOF's `axis` or a path by its
-/// motor: off, to a velocity or to a position, with at most `maxForce` (N·m or N; 0 is no bound).
-/// Other kinds have no motor.
-void drive(Joint &joint, uint32_t mode, float target, float maxForce, uint32_t axis) {
-  float limit = maxForce > 0 && std::isfinite(maxForce) ? maxForce : FLT_MAX;
-  EMotorState state = mode == MOTOR_VELOCITY ? EMotorState::Velocity : mode == MOTOR_POSITION ? EMotorState::Position : EMotorState::Off;
-  if (joint.kind == HINGE) {
-    auto *hinge = static_cast<HingeConstraint *>(joint.constraint.GetPtr());
-    hinge->GetMotorSettings().SetTorqueLimit(limit);
-    hinge->SetMotorState(state);
-    if (mode == MOTOR_VELOCITY) hinge->SetTargetAngularVelocity(target);
-    else if (mode == MOTOR_POSITION) hinge->SetTargetAngle(target);
-  } else if (joint.kind == SLIDER) {
-    auto *slider = static_cast<SliderConstraint *>(joint.constraint.GetPtr());
-    slider->GetMotorSettings().SetForceLimit(limit);
-    slider->SetMotorState(state);
-    if (mode == MOTOR_VELOCITY) slider->SetTargetVelocity(target);
-    else if (mode == MOTOR_POSITION) slider->SetTargetPosition(target);
-  } else if (!driveAdvanced(joint.constraint.GetPtr(), joint.kind, state, target, limit, axis)) return;
-  world().system->GetBodyInterfaceNoLock().ActivateConstraint(joint.constraint);
-}
-
-/// The linear impulse the joint gave its bodies in the last step (N·s): what holds them together.
-float pull(const Joint &joint) {
-  Constraint *c = joint.constraint.GetPtr();
-  switch (joint.kind) {
-    case FIXED: return static_cast<FixedConstraint *>(c)->GetTotalLambdaPosition().Length();
-    case POINT: return static_cast<PointConstraint *>(c)->GetTotalLambdaPosition().Length();
-    case HINGE: return static_cast<HingeConstraint *>(c)->GetTotalLambdaPosition().Length();
-    case SLIDER: {
-      auto *slider = static_cast<SliderConstraint *>(c);
-      return slider->GetTotalLambdaPosition().Length() + std::abs(slider->GetTotalLambdaPositionLimits());
-    }
-    case DISTANCE: return std::abs(static_cast<DistanceConstraint *>(c)->GetTotalLambdaPosition());
-    case CONE: return static_cast<ConeConstraint *>(c)->GetTotalLambdaPosition().Length();
-    default: return advancedPull(c, joint.kind);
-  }
-}
+/** The joints `link` and the step's breaking have visited since the module started:
+ *  diagnostics read by the tests only (`jolt_*_visits`), counted, never timed. */
+uint32_t linkVisits = 0, breakVisits = 0;
 
 /// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
 /// body's frame — of several, the one in the lowest joint slot; null when none does.
 const Constraint *holder(uint32_t kind, uint32_t slot, Vec3 axis) {
   uint32_t first = UINT32_MAX;
-  for (uint32_t i : ends.at(slot, kind)) {
+  for (uint32_t i : ends.at(slot)) {
     ++linkVisits;
     const Joint &joint = joints[i];
-    if (i < first && joint.a == slot && joint.axisA.Dot(axis) > 0.999f) first = i;
+    if (joint.kind == kind && i < first && joint.a == slot && joint.axisA.Dot(axis) > 0.999f) first = i;
   }
   return first == UINT32_MAX ? nullptr : joints[first].constraint.GetPtr();
 }
@@ -190,18 +72,25 @@ void link(Joint &joint) {
 /// none keeps one gone. Other kinds hold no gear.
 void relinkGearsOn(const Joint &joint) {
   if (joint.kind != HINGE && joint.kind != SLIDER) return;
-  for (uint32_t kind : {GEAR, RACK_AND_PINION})
-    for (uint32_t i : ends.at(joint.a, kind)) link(joints[i]);
+  for (uint32_t i : ends.at(joint.a))
+    if (joints[i].kind == GEAR || joints[i].kind == RACK_AND_PINION) link(joints[i]);
 }
 
 /// Files the joint at `index` under its body ends, among the paths if it is one and among the
 /// breakable joints if a finite force breaks it; or takes it out.
 void file(uint32_t index, bool in) {
-  const Joint &joint = joints[index];
-  for (uint32_t slot : {joint.a, joint.b})
-    if (slot != MISS) in ? ends.add(slot, joint.kind, index) : ends.remove(slot, joint.kind, index);
-  if (joint.kind == PATH) ends.mark(JointIndex::PATHS, index, in);
-  if (joint.breakForce > 0 && std::isfinite(joint.breakForce)) ends.mark(JointIndex::BREAKABLE, index, in);
+  Joint &joint = joints[index];
+  // Lists `index` under `key` of `where`, its position kept in `at`; or takes it out from there,
+  // the joint moved into its place given its new position (`of(other)`).
+  auto list = [&](SlotLists<uint32_t> &where, uint32_t key, uint32_t &at, auto of) {
+    if (in) at = where.add(key, index);
+    else if (const uint32_t *moved = where.removeAt(key, at)) of(joints[*moved]) = at;
+  };
+  for (uint32_t side : {0u, 1u})
+    if (uint32_t slot = side ? joint.b : joint.a; slot != MISS)
+      list(ends, slot, joint.at[side], [=](Joint &o) -> uint32_t & { return o.at[o.a == slot ? 0 : 1]; });
+  if (joint.breakForce > 0 && std::isfinite(joint.breakForce))
+    list(breakable, 0, joint.listed, [](Joint &o) -> uint32_t & { return o.listed; });
 }
 
 /// Takes out the joint at `index`, if any, and relinks the gears it held.
@@ -226,20 +115,21 @@ void add(const uint32_t *w) {
   // (from the world when `b` names none), and Jolt solves the turn from the steadier side. A rack
   // and pinion, and some gears, Jolt makes `a` first (`gearOrder`).
   Frame f1 = frameOf(w + 17, w[4]), f2 = frameOf(w + 8, w[3]);
-  Ref<TwoBodyConstraintSettings> settings = kind <= CONE ? settingsOf(kind, f1, f2, w + 26)
-                                                         : advancedSettings(kind, f1, f2, w + 26, w + JOINT_WORDS, w[7], vec3(w + 17));
+  GearOrder order = gearOrder(kind, w + JOINT_WORDS, w[7]);
+  Ref<TwoBodyConstraintSettings> settings = jointSettings(kind, f1, f2, w + 26, w + JOINT_WORDS, w[7], vec3(w + 17), order);
   if (!settings) return;
   BodyInterface &bodies = world().system->GetBodyInterfaceNoLock();
   Joint &joint = joints[index];
-  joint.order = gearOrder(kind, w + JOINT_WORDS, w[7]);
+  joint.order = order;
   joint.constraint = joint.order.aFirst ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
+  if (kind == PATH) joint.constraint = keptPath(joint.constraint, *settings);
   joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32);
   joint.axisA = f2.axis, joint.axisB = f1.axis;
   joint.a = w[3] == MISS ? MISS : w[3] & INDEX_MASK;
   joint.b = w[4] == MISS ? MISS : w[4] & INDEX_MASK;
   world().system->AddConstraint(joint.constraint);
   bodies.ActivateConstraint(joint.constraint);
-  drive(joint, w[5], f32(w + 30), f32(w + 31), w[6]);
+  driveJoint(joint.constraint, kind, w[5], f32(w + 30), f32(w + 31), w[6]);
   file(index, true);
   if (kind == GEAR || kind == RACK_AND_PINION) link(joint);
   else relinkGearsOn(joint);
@@ -259,42 +149,27 @@ uint32_t jointCommand(const uint32_t *w) {
     if (joint) take(index);
     return UNJOINT_WORDS;
   }
-  if (joint) drive(*joint, w[2], f32(w + 4), f32(w + 5), w[3]);
+  if (joint) driveJoint(joint->constraint, joint->kind, w[2], f32(w + 4), f32(w + 5), w[3]);
   return MOTOR_WORDS;
 }
 
 void dropJoints(uint32_t index) {
-  for (uint32_t kind = FIXED; kind <= RACK_AND_PINION; kind++) {
-    // A copy: taking a joint out changes the list.
-    std::vector<uint32_t> held = ends.at(index, kind);
-    for (uint32_t i : held) take(i);
-  }
-}
-
-void notePaths() {
-  for (uint32_t i : ends.every(JointIndex::PATHS)) joints[i].along = pathFraction(joints[i].constraint);
-}
-
-void carryPaths() {
-  const std::vector<uint32_t> &paths = ends.every(JointIndex::PATHS);
-  pathVisits += uint32_t(paths.size());
-  for (uint32_t i : paths) carryAlongPath(joints[i].constraint, joints[i].along);
+  // A copy, since taking a joint out changes the list; in joint order, the same every run.
+  std::vector<uint32_t> held = ends.at(index);
+  std::sort(held.begin(), held.end());
+  for (uint32_t i : held) take(i);
 }
 
 void breakJoints(float dt) {
   broken.clear();
   if (dt <= 0) return;
-  const std::vector<uint32_t> &breakable = ends.every(JointIndex::BREAKABLE);
-  breakVisits += uint32_t(breakable.size());
+  breakVisits += uint32_t(breakable.at(0).size());
   // Taking a joint out changes the list: the broken are found first, then taken in slot order.
   std::vector<uint32_t> gone;
-  for (uint32_t i : breakable)
-    if (pull(joints[i]) > joints[i].breakForce * dt) gone.push_back(i);
+  for (uint32_t i : breakable.at(0))
+    if (jointPull(joints[i].constraint, joints[i].kind) > joints[i].breakForce * dt) gone.push_back(i);
   std::sort(gone.begin(), gone.end());
-  for (uint32_t i : gone) {
-    broken.push_back(joints[i].id);
-    take(i);
-  }
+  for (uint32_t i : gone) broken.push_back(joints[i].id), take(i);
 }
 
 }  // namespace trillion
@@ -304,11 +179,8 @@ extern "C" {
 /// The joints the last step broke: their count, then each joint id.
 uint32_t jolt_broken_count() { return uint32_t(trillion::broken.size()); }
 uint32_t jolt_broken(uint32_t i) { return trillion::broken[i]; }
-/// The joints the gear linking has visited since the module started: the tests' measure of its cost.
+/// The joints the gear linking and the breaking have visited: the tests' measures.
 uint32_t jolt_link_visits() { return trillion::linkVisits; }
-/// The path joints the step's carry has visited since the module started: the tests' measure of its cost.
-uint32_t jolt_path_visits() { return trillion::pathVisits; }
-/// The breakable joints the step's breaking has visited since the module started: likewise.
 uint32_t jolt_break_visits() { return trillion::breakVisits; }
 
 }  // extern "C"

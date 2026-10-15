@@ -7,7 +7,6 @@ import {
   VSM_LOG2_PAGE,
   VSM_MIPS,
   VSM_POOL_PAGES,
-  VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_PAGE_TEXELS,
   VSM_LEVEL0_PAGES,
   VSM_PAGE_TABLE_BLOCK_HEIGHT,
@@ -20,7 +19,8 @@ type VsmCoverMode = 'directional' | 'none'
 export interface VsmResourceOptions {
   /** Physical pages of the pool, default 2048; rounded up to whole pool rows. */
   poolPages?: number
-  /** Capacity for full (non single-page) maps: clipmap levels + local light faces. */
+  /** Page-table blocks of 128 × 192: a map whose finest mip is 0 takes one, a coarser one a
+   *  quarter or less (`tableBlocks.ts`). */
   fullMapCapacity: number
   /** Directional maps (clipmap levels), sizes the directional-only receiver cover. */
   sunMapCapacity?: number
@@ -69,11 +69,15 @@ function mipChain(width: number, height: number, mips: number) {
   return { offsets, words }
 }
 
-/** Full maps a page-table row holds: half a row's width over a map's level-0 pages, a power of two;
- *  one extra entry of the last row holds the single-page maps. */
+/** Blocks a page-table row holds: half a row's width over a map's level-0 pages, a power of two. */
 export const VSM_TABLES_PER_ROW = VSM_TABLE_ROW_WIDTH / 2 / VSM_LEVEL0_PAGES
 if (!isPow2(VSM_TABLES_PER_ROW))
   throw new Error('VSM: page table row must be a power of two tables')
+
+/** Declared: the maps a set holds past one a block, the records a frame may write beyond its blocks:
+ *  a map whose finest mip is coarser than 0 takes a quarter of a block or less (`tableBlocks.ts`),
+ *  so far lights take records, not table rows. Each is a projection record (288 B) of both frames. */
+const VSM_MAPS_PAST_BLOCKS = 1024 * 8
 
 /** The physical pool's row, in pages: one page-table row's width, a power of two. */
 const POOL_PAGES_X = Math.floor(VSM_TABLE_ROW_WIDTH / VSM_PAGE_TEXELS)
@@ -91,9 +95,9 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     physicalPagesY * VSM_PAGE_TEXELS,
   ]
 
-  // The page table: `VSM_TABLES_PER_ROW` tables a row, one extra entry for the single-page block.
-  const maxFull = Math.max(0, options.fullMapCapacity)
-  const pageTableRows = ceilDiv(maxFull + 1, VSM_TABLES_PER_ROW)
+  // The page table: `VSM_TABLES_PER_ROW` blocks a row, one block at least.
+  const maxFull = Math.max(1, options.fullMapCapacity)
+  const pageTableRows = ceilDiv(maxFull, VSM_TABLES_PER_ROW)
   const pageTableSize: [number, number] = [
     VSM_TABLES_PER_ROW * VSM_LEVEL0_PAGES,
     pageTableRows * VSM_PAGE_TABLE_BLOCK_HEIGHT,
@@ -105,8 +109,8 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
   const coverMode: VsmCoverMode = options.coverMode ?? 'directional'
   let coverSize: [number, number], coverMips: number
   if (coverMode === 'directional') {
-    // Directional maps (+1 single-page entry), a full row only past one row.
-    const required = Math.max(0, options.sunMapCapacity ?? maxFull) + 1
+    // Directional maps, the first blocks (`tableBlocks.ts`), a full row only past one row.
+    const required = Math.max(1, options.sunMapCapacity ?? maxFull)
     const rows = ceilDiv(required, VSM_TABLES_PER_ROW)
     const rowEntries = rows === 1 ? required : VSM_TABLES_PER_ROW
     coverSize = [2 * rowEntries * VSM_LEVEL0_PAGES, 2 * rows * VSM_PAGE_TABLE_BLOCK_HEIGHT]
@@ -118,7 +122,7 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
   }
   const masks = mipChain(coverSize[0], coverSize[1], coverMips)
 
-  const mapSlots = VSM_SINGLE_PAGE_MAP_SLOTS + maxFull
+  const mapSlots = VSM_MAPS_PAST_BLOCKS + maxFull
 
   return {
     poolPages,

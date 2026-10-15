@@ -16,48 +16,33 @@
  * whole copies: O(A' + F' + P') written, the tail drawn again over the records and whole copies
  * held (O(F + W) words, a doubling of the tail only when it is full, amortised O(1) a float).
  */
-import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { loadDeformationCode, prepareDeformationCompute } from './prepare.ts'
 import { placeFloatPages } from '../webgpu/core/geometryPrepare.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
-import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
-import { animates, assignDeformationOutputs, pageDeforms, rowsAnimate } from './outputs.ts'
+import { assignDeformationOutputs } from './outputs.ts'
+import { deformsAny } from './session.ts'
 import { markWebgpuLost } from '../webgpu/pages/io/lost.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
-/** Whether the content a source brings is moved by the deformation stage or written by it: a
- *  primitive measured with joints or targets, a page that asks for results (`pageDeforms`), a mesh
- *  of the source or of its rows that animates. */
-export function deformsContent(
-  source: DrawSource,
-  primitive: Primitive,
-  pages: readonly PageRec[],
-) {
-  return (
-    !!primitive.deformation ||
-    source.dynamic ||
-    pages.some(pageDeforms) ||
-    animates(source.node) ||
-    rowsAnimate(source.rows ?? undefined)
-  )
-}
-
 /**
- * The session can move what `pages` bring, the float geometries of the pages that read them placed
- * in the pool: the stage's code loaded and its compute made when the session was opened with none.
- * False where the device or the pool refuses (no room).
+ * The session can move what `roots` and the blended `copies` bring, the float geometries of the
+ * `pages` that read them placed in the pool: the stage's code loaded for them by the open's rule
+ * (`deformsAny`) and its compute made when the session was opened with none. False where the
+ * device or the pool refuses (no room).
  */
 export async function prepareDeformationGrowth(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  deforms: boolean,
+  roots: readonly ClusterRoot<PageRec>[],
+  copies: readonly BlendCopy[],
   pages: readonly PageRec[],
 ) {
-  await loadDeformationCode(rt.vis, deforms)
+  const deformed = copies.filter((copy) => !copy.userData.pagedBlend)
+  await loadDeformationCode(rt.vis, deformsAny(roots, deformed))
   if (rt.signal.aborted || rt.run.lost) return false
-  await prepareDeformationCompute(rt, device, deforms)
+  await prepareDeformationCompute(rt, device)
   return !!rt.vis.vertexPool && placeFloatPages(rt.vis.vertexPool, pages)
 }
 

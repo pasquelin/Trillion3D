@@ -34,13 +34,13 @@ const lightIds = { ids: undefined as unknown as VsmMapIds, allocations: allocati
 // The local lights' input and views, rewritten for each light: the setup keeps neither.
 const localViews: ReturnType<typeof vsmLocalViewData>[] = []
 const localInput: VsmLocalLightInput = { id: '', kind: 'point', position: [], range: 0 }
+/** The frame's shadowed local lights, nearest the eye first. */
+const nearFirst: SceneLight[] = []
 
 /** The frame's next allocation record, rewritten whole. */
 function allocation(
   light: SceneLight,
   entry: VsmLightCache,
-  singlePage: boolean,
-  shouldRender: boolean,
   clipmap: VsmClipmap | undefined,
   local: VsmLocalLightSetup | undefined,
 ) {
@@ -49,8 +49,6 @@ function allocation(
   record.kind = light.kind
   record.firstId = entry.mapId
   record.count = entry.mapCaches.length
-  record.singlePage = singlePage
-  record.shouldRender = shouldRender
   record.entry = entry
   record.clipmap = clipmap
   record.local = local
@@ -84,10 +82,18 @@ function setupLocalLights(
   casting: readonly VsmFrameLight[],
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  mobilityOf: (id: string) => number,
 ) {
   localViews.length = 0
-  for (const { light } of casting) {
+  // Nearest the eye first: past the map slots, the farthest lights go (`allocateLightIds`).
+  nearFirst.length = 0
+  for (const { light } of casting) nearFirst.push(light)
+  const eye = camera.eye
+  const distanceSq = (l: SceneLight) => {
+    const p = l.position ?? eye
+    return (p[0] - eye[0]) ** 2 + (p[1] - eye[1]) ** 2 + (p[2] - eye[2]) ** 2
+  }
+  nearFirst.sort((a, b) => distanceSq(a) - distanceSq(b))
+  for (const light of nearFirst) {
     if ((light.kind !== 'point' && light.kind !== 'spot') || !light.position || !light.range)
       continue
     if (!localViews.length) localViews.push(vsmLocalViewData(camera, viewport))
@@ -101,26 +107,36 @@ function setupLocalLights(
     input.innerConeAngle =
       light.coneAngle !== undefined ? light.coneAngle * (1 - (light.penumbra ?? 1)) : undefined
     input.sourceRadius = light.emitterRadius
-    const setup = addVsmLocalLightShadow(state.cache, input, localViews, mobilityOf(light.id))
+    const setup = addVsmLocalLightShadow(state.cache, input, localViews)
     locals.push(light)
     setups.push(setup)
   }
 }
 
-/** The id allocation: directional, local, then unreferenced entries. */
+/** The id allocation: directional, local, then unreferenced entries, within the set's map slots: a
+ *  light past them — the farthest, the local lights coming nearest first — casts no shadow this
+ *  frame, its entry dropped; the others keep theirs. */
 function allocateLightIds(state: VsmFrameState) {
-  const ids = state.ids.reset()
+  const ids = state.ids.reset(state.resources.layout.mapSlots)
   allocationScratch.length = 0
   for (let i = 0; i < suns.length; i++) {
     const entry = clipmaps[i].cacheEntry
+    if (!ids.fits(entry.mapCaches.length)) {
+      state.cache.entries.delete(entry.lightId)
+      continue
+    }
     entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
-    allocation(suns[i], entry, false, true, clipmaps[i], undefined)
+    allocation(suns[i], entry, clipmaps[i], undefined)
   }
   for (let i = 0; i < locals.length; i++) {
     const setup = setups[i],
       entry = setup.cacheEntry
-    entry.moveToMapId(ids.allocateLocal(entry.isCachedFarLight(), entry.mapCaches.length))
-    allocation(locals[i], entry, entry.isCachedFarLight(), setup.drawsThisFrame, undefined, setup)
+    if (!ids.fits(entry.mapCaches.length)) {
+      state.cache.entries.delete(entry.lightId)
+      continue
+    }
+    entry.moveToMapId(ids.allocateLocal(entry.mapCaches.length))
+    allocation(locals[i], entry, undefined, setup)
   }
   state.cache.carryUnseenLights(ids)
   lightIds.ids = ids
@@ -133,10 +149,9 @@ export function allocateFrameLights(
   casting: readonly VsmFrameLight[],
   camera: VsmCameraInput,
   viewport: VsmViewport,
-  mobilityOf: (id: string) => number,
 ) {
   suns.length = clipmaps.length = locals.length = setups.length = 0
   setupDirectionalLights(state, casting, camera, viewport)
-  setupLocalLights(state, casting, camera, viewport, mobilityOf)
+  setupLocalLights(state, casting, camera, viewport)
   return allocateLightIds(state)
 }

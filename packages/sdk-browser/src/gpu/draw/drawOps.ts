@@ -1,5 +1,6 @@
 import { DRAW_ITEM_U32 } from './contract.ts'
 import type { GpuDraw } from './contract.ts'
+import type { OpenPass } from '../core/lazyComputePass.ts'
 import { createGpuDrawBuffers } from './buffers.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
@@ -10,36 +11,47 @@ import { bufferEntries } from '../core/computeBindings.ts'
 
 type Held = ReturnType<typeof createGpuDrawBuffers>
 
-/** What the compact's methods share (`factory.ts`): its kernels, the row buffers held, the mask
- *  its group binds, its uniform words. */
+/** A half's three kernels and their group layout (`factory.ts`). */
+export type DrawKernels = {
+  layout: GPUBindGroupLayout
+  count: GPUComputePipeline
+  prefix: GPUComputePipeline
+  scatter: GPUComputePipeline
+}
+
+/** What the compact's methods share (`factory.ts`): each half's kernels, the row buffers held,
+ *  the mask its groups bind, the tested half's group and what it binds, its uniform words. */
 export type Draw = {
   device: GPUDevice
   slotCap: number
   layerSlots: number
   corners: number
   perRow: number
-  layout: GPUBindGroupLayout
-  countPipeline: GPUComputePipeline
-  prefixPipeline: GPUComputePipeline
-  scatterPipeline: GPUComputePipeline
+  occluders: DrawKernels
+  tested: DrawKernels
   held: Held
   boundMask: GPUBuffer
   bindGroup: GPUBindGroup
+  /** The tested half's group, over `boundMask`, the page table and the Hi-Z verdicts it names. */
+  testedGroup: GPUBindGroup | undefined
+  testedBound: readonly GPUBuffer[]
   uniData: Uint32Array<ArrayBuffer>
   disposed: boolean
 }
 
-/** The compact's group on the buffers `held`, the draw mask `maskBuffer`. */
+/** A half's group on the buffers `held`, the draw mask `maskBuffer`, and the tested half's
+ *  `verdicts`: the page table and the Hi-Z flags. */
 export function drawBindGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   held: Held,
   maskBuffer: GPUBuffer,
+  verdicts: readonly GPUBuffer[] = [],
 ) {
   const { itemsBuf, uniforms, instanceBuffer, indirectBuffer, groupCounts } = held
-  const { groupOffsets, restBuf, slotUsedBuf } = held
+  const { groupOffsets, restBuf, slotTotals } = held
   const bound = [itemsBuf, uniforms, instanceBuffer, indirectBuffer, groupCounts]
-  bound.push(groupOffsets, maskBuffer, restBuf, slotUsedBuf)
+  bound.push(groupOffsets, maskBuffer, restBuf, slotTotals, ...verdicts)
   return device.createBindGroup({
     layout,
     entries: bufferEntries(bound),
@@ -56,7 +68,7 @@ export function uploadDrawItems(d: Draw, items: Uint32Array, from: number, to: n
   d.device.queue.writeBuffer(d.held.itemsBuf, at, buffer as ArrayBuffer, byteOffset + at, bytes)
 }
 
-/** Count, prefix and scatter in the frame's compute pass (`GpuDraw.encode`). */
+/** The occluder half's count, prefix and scatter in the frame's compute pass (`GpuDraw.encode`). */
 export function encodeDraw(
   d: Draw,
   open: Parameters<GpuDraw['encode']>[0],
@@ -80,19 +92,41 @@ export function encodeDraw(
   const mask = selection?.maskBuffer ?? held.itemsBuf
   if (mask !== d.boundMask) {
     d.boundMask = mask
-    d.bindGroup = drawBindGroup(d.device, d.layout, held, mask)
+    d.bindGroup = drawBindGroup(d.device, d.occluders.layout, held, mask)
   }
   // Only the words that changed go up — most images change none; a grown table's new
   // buffer is held as its zeros (`writeChanged`).
   writeChanged(d.device, held.uniforms, uniData, 0, uniData.length)
-  const pass = open.pass
-  pass.setBindGroup(0, d.bindGroup)
-  pass.setPipeline(d.countPipeline)
-  // One workgroup per group of items: each lane reads its own item once (`countGroups`).
+  dispatchHalf(open.pass, d.occluders, d.bindGroup, liveGroups)
+}
+
+/** The tested half's count, prefix and scatter, after the Hi-Z test whose verdicts `flags` it reads
+ *  through the page table `pages` (`GpuDraw.encodeTested`): the occluder half's uniform, the
+ *  items it counted. */
+export function encodeDrawTested(d: Draw, open: OpenPass, pages: GPUBuffer, flags: GPUBuffer) {
+  if (d.disposed) return
+  const bound = d.testedBound
+  if (!d.testedGroup || bound[0] !== d.boundMask || bound[1] !== pages || bound[2] !== flags) {
+    d.testedBound = [d.boundMask, pages, flags]
+    d.testedGroup = drawBindGroup(d.device, d.tested.layout, d.held, d.boundMask, [pages, flags])
+  }
+  dispatchHalf(open.pass, d.tested, d.testedGroup, d.uniData[3])
+}
+
+/** One workgroup per group of items for the count and the scatter — each lane reads its own item
+ *  once (`countGroups`) —, one for the prefix. */
+function dispatchHalf(
+  pass: GPUComputePassEncoder,
+  kernels: DrawKernels,
+  group: GPUBindGroup,
+  liveGroups: number,
+) {
+  pass.setBindGroup(0, group)
+  pass.setPipeline(kernels.count)
   dispatchRows(pass, liveGroups)
-  pass.setPipeline(d.prefixPipeline)
+  pass.setPipeline(kernels.prefix)
   pass.dispatchWorkgroups(1)
-  pass.setPipeline(d.scatterPipeline)
+  pass.setPipeline(kernels.scatter)
   dispatchRows(pass, liveGroups)
 }
 
@@ -107,7 +141,8 @@ export function growDraw(d: Draw, rows: number) {
     d.held = next
     d.slotCap = rows
     if (d.boundMask === old.itemsBuf) d.boundMask = next.itemsBuf
-    d.bindGroup = drawBindGroup(device, d.layout, next, d.boundMask)
+    d.bindGroup = drawBindGroup(device, d.occluders.layout, next, d.boundMask)
+    d.testedGroup = undefined
     return old.all
   })
 }

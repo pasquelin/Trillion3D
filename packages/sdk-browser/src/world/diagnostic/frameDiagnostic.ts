@@ -18,6 +18,8 @@ type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
   metricsScratch: FrameMetrics
   pageIdByUrl: Map<string, number>
   streamer: PageStreaming
+  /** The queue's numbers the frame's metrics read (`fillMetrics`). */
+  stream: { resident: number }
   scope: AssetScope
   frameNumber: number
 }
@@ -42,13 +44,12 @@ function requestedPageIds(
 
 export function emitExplorerFrameDiagnostic(inputs: Inputs) {
   const { diagnosticChannel, engine, camera, lookAtTarget, metricsScratch } = inputs
-  const { pageIdByUrl, streamer, scope, frameNumber, diagnose } = inputs
+  const { pageIdByUrl, streamer, stream, scope, frameNumber, diagnose } = inputs
   // Snapshot construction and enqueueing happen after cpuFrameMs is closed;
   // the channel defers all observer work to a later microtask.
   if (diagnosticChannel.enabled && diagnosticChannel.detail === 'trace') {
     const protectedOrRequestedPageIds = requestedPageIds(engine, streamer, pageIdByUrl)
-    const { eye } = readCameraWorld(diagnosticCam, camera),
-      stream = streamer.stats()
+    const { eye } = readCameraWorld(diagnosticCam, camera)
     diagnose('frame', 'Rendered frame', {
       kind: 'frame',
       timingScope: 'host-render',
@@ -65,28 +66,12 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
         far: diagnosticCam.far,
       },
       timestamp: Date.now(),
+      // The frame's metrics once, every count among them; beside them only what they lack.
       metrics: { ...metricsScratch },
-      selection: {
-        clusters: metricsScratch.clusters,
-        selectedTriangles: metricsScratch.selectedTriangles,
-        frustumRejected: metricsScratch.frustumRejected,
-        lodLevel: metricsScratch.lodLevel,
-      },
-      display: {
-        protectedOrRequestedPageIds,
-        selectedTriangles: metricsScratch.selectedTriangles,
-        submittedTriangles: metricsScratch.submittedTriangles,
-      },
+      display: { protectedOrRequestedPageIds },
       cache: {
-        residentPages: metricsScratch.residentPages,
         cacheResident: stream.resident,
-        cacheEvictions: stream.evictions,
         reason: 'cache-eviction-is-separate-from-display-detachment',
-      },
-      reportedDrawStats: {
-        drawCalls: metricsScratch.drawCalls,
-        submittedTriangles: metricsScratch.submittedTriangles,
-        geometryAllocationBytes: metricsScratch.geometryAllocationBytes,
       },
     })
   }

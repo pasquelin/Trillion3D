@@ -14,9 +14,11 @@ import { near } from '../../../../math/src/float/near.fixture.ts'
 /** The card's functions, as the software harness runs them. */
 const shaderOf = (name: string) => functionsOf(wgslModule(impostorCardWgsl(cardTileWgsl())), [name])
 const octFold = runShaderText<number[]>(shaderOf('octFold'))
+const octEncode = runShaderText<number[]>(shaderOf('octEncode'), { octFold })
+const octDecode = runShaderText<number[]>(shaderOf('octDecode'), { octFold })
 const run = {
-  encode: runShaderText<number[]>(shaderOf('octEncodeHemi'), { octFold }),
-  decode: runShaderText<number[]>(shaderOf('octDecodeHemi'), { octFold }),
+  encode: runShaderText<number[]>(shaderOf('octEncodeHemi'), { octEncode }),
+  decode: runShaderText<number[]>(shaderOf('octDecodeHemi'), { octDecode }),
   weights: runShaderText<number[]>(shaderOf('impWeights')),
 }
 const encode = (direction: number[], hemi: boolean) => run.encode(direction, hemi ? 1 : 0)

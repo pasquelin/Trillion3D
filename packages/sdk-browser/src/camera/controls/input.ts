@@ -13,10 +13,9 @@ import { length2 } from '../../../../math/src/vector/vector.ts'
  * between them and the pixel motion of their midpoint — which is how a touch surface zooms
  * and pans at once. Nothing is polled: a controller that receives no event does no work.
  *
- * TOUCH. A touch screen scrolls the page on one finger and zooms it on two unless the surface
- * claims the gesture with `touch-action: none`; the browser otherwise cancels the pointer
- * stream mid-drag and no pinch ever reaches a controller. `dispose()` puts the value the host
- * had written back, and gives up every capture still held, so the page is left as it was.
+ * TOUCH. The surface claims the gesture with `touch-action: none`, else the browser scrolls and
+ * cancels the pointer stream mid-drag; `dispose()` puts the host's value back and gives up every
+ * capture still held.
  */
 export interface DragHandlers {
   /** One pointer moved by `(dx, dy)` pixels, `button` being the one that started the drag. */
@@ -148,15 +147,16 @@ function editable(target: EventTarget | null) {
  * listeners sit on the document that owns the surface: a key pressed while the canvas has no
  * focus still steers, as a viewer expects, and `dispose()` takes them back off. The keys of
  * `used` — the ones the controller steers with — keep their default action from the page (Space
- * and the arrows would scroll it). A key typed into a field, a list or an editor is the field's:
- * it neither steers nor loses its action; a checkbox, a slider or a button that kept the focus
- * after a click takes no typing, and the key steers.
+ * and the arrows would scroll it). A key typed into a field, a list or an editor is the field's;
+ * a checkbox, a slider or a button that kept the focus after a click takes no typing.
  */
 export function trackKeys(
   surface: HTMLElement,
   base: ControlBase,
   onChange: () => void,
   used: readonly (KeyAxis | readonly string[])[],
+  /** Heard at every press, auto-repeats included: a controller that steps by a press. */
+  onPress?: (code: string) => void,
 ) {
   const pressed = new Set<string>(),
     steering = new Set(used.flat(2))
@@ -164,6 +164,7 @@ export function trackKeys(
   base.listen<KeyboardEvent>(document, 'keydown', (event) => {
     if (event.metaKey || event.ctrlKey || editable(event.target)) return
     if (steering.has(event.code)) event.preventDefault()
+    onPress?.(event.code)
     if (pressed.has(event.code)) return
     pressed.add(event.code)
     onChange()
@@ -174,10 +175,9 @@ export function trackKeys(
   // A window that loses focus never sends the `keyup`: the key would stay held forever. Nor
   // does a paused controller hear it.
   const release = () => {
-    if (pressed.size) {
-      pressed.clear()
-      onChange()
-    }
+    if (!pressed.size) return
+    pressed.clear()
+    onChange()
   }
   base.listen<Event>(document.defaultView ?? document, 'blur', release)
   base.onPause(release)
@@ -202,9 +202,10 @@ export const ADVANCE_ARROW_KEYS: KeyAxis = [
     ['KeyA', 'ArrowLeft'],
   ]
 
+/** Whether a key of `group` is held. */
+export const heldAny = (pressed: Set<string>, group: readonly string[]) =>
+  group.some((code) => pressed.has(code))
+
 /** `+1` when the first group is held, `-1` for the second, `0` for both or neither. */
-export function axisOf(pressed: Set<string>, positive: string[], negative: string[]) {
-  const up = positive.some((code) => pressed.has(code)) ? 1 : 0
-  const down = negative.some((code) => pressed.has(code)) ? 1 : 0
-  return up - down
-}
+export const axisOf = (pressed: Set<string>, positive: string[], negative: string[]) =>
+  Number(heldAny(pressed, positive)) - Number(heldAny(pressed, negative))

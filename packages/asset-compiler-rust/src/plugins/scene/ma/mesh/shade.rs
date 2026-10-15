@@ -30,7 +30,7 @@ pub(super) fn fill(
         }
     }
     if !written.is_empty() {
-        world.refuse(report::NORMALS_DROPPED);
+        world.refuse(crate::plugins::scene::codes::NORMALS_DROPPED);
     }
     world.refuse(report::NORMALS_COMPUTED);
     compute(surface, polygons, edges, corners, world.cancelled)

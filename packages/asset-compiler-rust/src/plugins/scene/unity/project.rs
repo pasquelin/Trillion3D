@@ -79,7 +79,7 @@ impl Project {
             true
         });
         if !complete {
-            return Err(CompilerError::new(crate::CANCELLED, "Import cancelled"));
+            return Err(crate::plugins::scene::cancel::refusal());
         }
         Ok(project)
     }
@@ -100,18 +100,6 @@ impl Project {
     /// File this GUID names.
     pub(super) fn asset(&self, guid: &str) -> Option<&Path> {
         self.by_guid.get(guid).map(PathBuf::as_path)
-    }
-
-    /// URI of an asset relative to the served directory, escaped as any relative URI reference:
-    /// `%`, `#`, space and anything that is not an unreserved character are written there as
-    /// `%XX`, otherwise the engine would request another file, or none. `None` when the asset
-    /// is outside this directory: the engine could not request it.
-    pub(super) fn relative_uri(&self, asset: &Path) -> Option<String> {
-        let relative = normalise(asset)
-            .strip_prefix(normalise(&self.source_dir))
-            .map(Path::to_path_buf)
-            .ok()?;
-        Some(crate::uri::encode_relative(&relative))
     }
 }
 

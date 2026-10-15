@@ -41,6 +41,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     onDiagnostic: diagnostics.onDiagnostic,
     ...reglages.explorerOptions(options, factory),
   })
+  explorer.setClearColor(reglages.BENCH_BACKGROUND)
   // What the file brought, before any bench addition. A dist older than the light-import
   // batch has no such function: the measurement returns `null`, never an invented count.
   const declared = typeof explorer.importedLights === 'function' ? explorer.importedLights() : null

@@ -7,10 +7,12 @@
  * `rowSphere.ts`), so a word is the one the CPU would have written from the same world. One thread a
  * row: every row of the table (`params.all`), or the rows a list names.
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { CORNERS_WGSL, LOD_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { INPUT_FLAGS, ROW_INPUT_DOUBLES } from './rowInputPack.ts'
 import { CENTRE_ERROR, SPHERE_GROWTH, SPHERE_MARGIN } from './rowSphere.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
+import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import { LOD_BIT, ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { dAdd, dMul, splitDouble } from '../../../math/src/wgsl/double.ts'
@@ -54,7 +56,7 @@ const SPHERE_MARGIN:f32=${wgslF32(SPHERE_MARGIN)};
 const CENTRE_ERROR:f32=${wgslF32(CENTRE_ERROR)};
 fn composeSphere(row:u32,world:array<vec2u,16>){
  let at=row*${ROW_INPUT_DOUBLES}u;
- let s=row*8u;
+ let s=row*${CLUSTER_SPHERE_FLOATS}u;
  var m:array<f32,9>;
  var size=0.0;
  var sums=0.0;
@@ -98,8 +100,8 @@ const CLEAR_ROW_WGSL = wgslBlock(
   [FINITE_SENTINEL],
   `
 fn clearRow(row:u32){
- if((params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*8u<=arrayLength(&spheres)){
-  for(var k=0u;k<8u;k++){spheres[row*8u+k]=0.0;}
+ if((params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*${CLUSTER_SPHERE_FLOATS}u<=arrayLength(&spheres)){
+  for(var k=0u;k<${CLUSTER_SPHERE_FLOATS}u;k++){spheres[row*${CLUSTER_SPHERE_FLOATS}u+k]=0.0;}
  }
  if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){
   for(var k=0u;k<${CORNER_VALUES}u;k++){corners[row*${CORNER_VALUES}u+k]=0u;}
@@ -139,12 +141,12 @@ export const DERIVE_ROWS_WGSL = wgslProgram(
 fn deriveRow(row:u32,emit:bool,stale:bool){
  let at=row*${ROW_INPUT_DOUBLES}u;
  let base=row*${ROW_WORDS}u;
- let sphered=(params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*8u<=arrayLength(&spheres);
+ let sphered=(params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*${CLUSTER_SPHERE_FLOATS}u<=arrayLength(&spheres);
  let casts=sphered&&(params.parts&${PART_CASTS}u)!=0u;
  if(stale&&casts){staleRow(row);}
  if(at+${ROW_INPUT_DOUBLES}u>arrayLength(&inputs)||base+${ROW_WORDS}u>arrayLength(&table)){return;}
  let casting=emit&&casts;
- var was:array<f32,8>;
+ var was:array<f32,${CLUSTER_SPHERE_FLOATS}>;
  if(casting){was=rowSphere(row);}
  if((inputs[at+${INPUT_FLAGS}u].x&${LOD_BIT.record}u)==0u){
   if(casting){castRow(row,was,false,false);}
@@ -153,17 +155,17 @@ fn deriveRow(row:u32,emit:bool,stale:bool){
  }
  let rank=table[base+${PAGE_INFO.at.placement}u];
  if(rank>=params.rootCount){return;}
- var world:array<vec2u,16>;
+ var world:array<vec2u,${MATRIX_VALUES}>;
  var worldSame=true;
- for(var k=0u;k<16u;k++){
-  world[k]=rootWorlds[rank*16u+k];
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){
+  world[k]=rootWorlds[rank*${MATRIX_VALUES}u+k];
   let single=toF32(world[k]);
   worldSame=worldSame&&table[base+k]==single;
   table[base+k]=single;
  }
  if(sphered){
   composeSphere(row,world);
-  if((params.parts&${PART_CASTS}u)!=0u){spheres[row*8u+7u]=castCode(row);}
+  if((params.parts&${PART_CASTS}u)!=0u){spheres[row*${CLUSTER_SPHERE_FLOATS}u+7u]=castCode(row);}
  }
  if(casting){castRow(row,was,worldSame,true);}
  if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}

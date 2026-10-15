@@ -76,7 +76,6 @@ export async function prepareFeedbackAb(
     false,
     rt.vis.shadeBindGroupLayout,
     rt.vis.writesEmissiveAo,
-    rt.vis.shadeCache?.constants,
   )
   const blend = await createWebgpuBlendPipelines(
     device,

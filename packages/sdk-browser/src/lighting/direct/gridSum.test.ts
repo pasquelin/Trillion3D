@@ -36,15 +36,7 @@ const PROGRAMS = [false, true].flatMap((shadowed) =>
     ),
   ),
 )
-const NAMES = [
-  'sliceLighting',
-  'declaredLight',
-  'directIncidence',
-  'rangeWindow',
-  'isSun',
-  'isSunKind',
-  'isRect',
-]
+const NAMES = ['sliceLighting']
 const K = wgslConstants(PROGRAMS[0])
 
 /** A lamp's record as the contract writes it: a point, or a spot looking down. */
@@ -72,29 +64,14 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       thinSubsurface: [0, 0, 0],
       surfaceModel: 2,
       shadowReceiverOffset: [0, 0, 0],
-      // No receiver plane: the read biases along the shading normal (`shadowBiasNormal`).
+      // No receiver plane: the read biases along the shading normal (`vsmBiasNormal`).
       shadowReceiverPlane: [0, 0, 0],
-      shadowBiasNormal: (n: number[]) => n,
+      vsmBiasNormal: (n: number[]) => n,
       shadowTransmission: [1, 1, 1],
       // A lamp with no shadow slot: the shipped read answers one (`shadowFactor`).
       shadowFactor: () => 1,
     }
-    const names = [
-      ...NAMES,
-      'lobeSurface',
-      'surfaceLight',
-      'standardLobe',
-      'lobeSum',
-      'fresnelSchlick',
-      'ggxDistribution',
-      'modelLight',
-      'thinTransmission',
-      // The maths library's, which the lobe and the lamp's diffuse call.
-      'ndotvFloor',
-      'f0Of',
-      'lambertAlbedo',
-      'lambertAlbedoMul',
-    ]
+    const names = NAMES
     const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(program, names, scope)
     const at = (slice: number[]) => sliceLighting([0.8, 0.7, 0.6], 0.2, 0.5, N, V, P, 1, slice)
     return { cell: at([2, listed.length]), every: at([K.TILE_NO_SLICE, lamps.length]), listed }

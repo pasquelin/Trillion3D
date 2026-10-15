@@ -1,6 +1,17 @@
 import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts'
 import type { ClusterCut } from '../../page/selection/math.ts'
-import { CULL_STRIDE, DAG_NODE_FLOATS } from './types.ts'
+import {
+  CULL_CEIL,
+  CULL_CHILD_COUNT,
+  CULL_FIRST_CHILD,
+  CULL_FIRST_PAGE,
+  CULL_MAX,
+  CULL_MIN,
+  CULL_PAGE_COUNT,
+  CULL_SPHERE,
+  CULL_STRIDE,
+  DAG_NODE_FLOATS,
+} from './types.ts'
 import type { Culling } from './packRoots.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import {
@@ -82,18 +93,18 @@ export function packCullingNodes(
       dst = (nodeBase + n) * DAG_NODE_FLOATS,
       at = n * BOUND_STRIDE
     for (let a = 0; a < 3; a++) {
-      nodes[dst + NODE_MIN + a] = culling.nodes[src + a]
-      nodes[dst + NODE_MAX + a] = culling.nodes[src + 3 + a]
+      nodes[dst + NODE_MIN + a] = culling.nodes[src + CULL_MIN + a]
+      nodes[dst + NODE_MAX + a] = culling.nodes[src + CULL_MAX + a]
     }
     for (let a = 0; a < 4; a++) {
-      nodes[dst + NODE_SPHERE + a] = culling.nodes[src + 6 + a]
+      nodes[dst + NODE_SPHERE + a] = culling.nodes[src + CULL_SPHERE + a]
       nodes[dst + NODE_FLOOR_SPHERE + a] = bounds[at + OWN_SPHERE + a]
     }
-    nodes[dst + NODE_CEIL] = culling.nodes[src + 10]
-    nodeInts[dst + NODE_FIRST_CHILD] = nodeBase + culling.nodes[src + 11]
-    nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + 12]
-    nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + 13]
-    nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14]
+    nodes[dst + NODE_CEIL] = culling.nodes[src + CULL_CEIL]
+    nodeInts[dst + NODE_FIRST_CHILD] = nodeBase + culling.nodes[src + CULL_FIRST_CHILD]
+    nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + CULL_CHILD_COUNT]
+    nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + CULL_FIRST_PAGE]
+    nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + CULL_PAGE_COUNT]
     // No placement of its own: a queue entry names the placement that reads it.
     nodeInts[dst + NODE_WORLD] = 0
     const floor = bounds[at + OWN_FLOOR]
@@ -103,9 +114,9 @@ export function packCullingNodes(
     nodeInts[dst + NODE_OPEN] = open ? open[n] : 0
     nodeInts[dst + NODE_KIND] = 0
     nodeInts[dst + NODE_PAD] = 0
-    if (!culling.nodes[src + 12]) {
-      const first = culling.nodes[src + 13],
-        pages = culling.nodes[src + 14]
+    if (!culling.nodes[src + CULL_CHILD_COUNT]) {
+      const first = culling.nodes[src + CULL_FIRST_PAGE],
+        pages = culling.nodes[src + CULL_PAGE_COUNT]
       for (let i = 0; i < pages && first + i < owner.length; i++) owner[first + i] = nodeBase + n
     }
   }

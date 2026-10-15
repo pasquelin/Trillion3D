@@ -59,7 +59,7 @@ fn grownPlane(p:vec4f,reach:f32)->vec4f{return vec4f(p.xyz,p.w+reach*(abs(p.x)+a
 /** How far the current primitive's GPU deformation moves a vertex this frame, in its units
  *  (\`reachOf\`), set once the kernel knows which primitive it reads: every box and sphere grows by it. */
 var<private> deformReach:f32;
-/** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`markReach\`). */
+/** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`rootMark\`). */
 fn reachOf(w:u32)->f32{return unpack2x16float(markOf(w)).y;}
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
 fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
@@ -82,21 +82,18 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
  if(i<blockCount()){atomicStore(&work[blockBase()+i],0u);for(var k=0u;k<BLOCK_MASK_WORDS;k++){atomicStore(&work[drawMaskBase()+BLOCK_MASK_WORDS*i+k],0u);}}
- if(i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
- if(i==0u){atomicStore(&work[drawnGroupsMax()],0u);clearRaised();}
+ if(i==0u){clearRaised();armPoolSort();}
  if(hasTree()){prepareTreeRoots(i);return;}
- let world=views[0u].worldCount;
- if(i>=world*views[0u].viewCount){return;}
- vi=i/world;let w=i-vi*world;
+ if(i>=views[0u].worldCount){return;}
+ vi=0u;
  // The primitive's root opens the descent: one thread, one root, no counter to contend for, unless
  // its gate closes it (\`opensRoot\`).
- openRoot(i,w);
+ openRoot(i,i);
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
  // Totals are summed in the workgroup first (\`totalsWgsl.ts\`), so EVERY thread in the
- // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
- ouvreTotaux(lid);
+ // group crosses the barrier: a thread with no cluster does not return early, it does nothing.
  let s=flatIndex(id,n,WORKGROUP_THREADS);
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);let w=liveWorld(s);
@@ -111,12 +108,12 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
    // matrix product, no projection, no sphere read again.
    draw=drawsCompared(isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,childResident(i));
   }
-  noteImage(r,clusterFlags,draw);
+  tallyDrawn(r,clusterFlags,draw);
   // Drawn count of this page's block, held here rather than reread later page by page; its bit is
   // the draw mask every reader takes (\`compactWgsl.ts\`).
   if(draw){atomicAdd(&work[blockBase()+i/WORKGROUP_THREADS],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(r);}
  }
- verseTotaux(lid);
+ flushTally(lid);
 }
 `,
   [

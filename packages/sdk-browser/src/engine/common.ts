@@ -5,9 +5,12 @@
  */
 import { MAX_PREFETCH_HORIZON_MS } from './prefetchHorizon.ts'
 /** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
- *  rewrites it. */
-export const pixelRatioOf = (options: { pixelRatio?: number }) =>
-  options.pixelRatio ?? DEFAULT_PIXEL_RATIO
+ *  rewrites it. Unset, the screen's of `view` (the canvas's window) when one is given, else 1:
+ *  the one resolver of the ratio. */
+export const pixelRatioOf = (
+  options: { pixelRatio?: number },
+  view?: { devicePixelRatio?: number } | null,
+) => options.pixelRatio ?? view?.devicePixelRatio ?? DEFAULT_PIXEL_RATIO
 
 export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,
@@ -16,8 +19,11 @@ export const DEFAULT_FOV = 55,
   DEFAULT_PAGE_WORKERS = 32,
   /** Addresses a frame issues at most, taken from the head of the priority-ordered list. */
   PAGE_REQUEST_BATCH = 256,
-  /** Cache pages a frame queues at most in the arrival queue. */
+  /** Cache pages a frame queues at most in the arrival queue, and pages its drain delivers at most. */
   ARRIVAL_QUEUE_BATCH = 64,
+  /** Index bytes the arrival queue's drain delivers at most a frame: a double of the frame's one
+   *  time budget, never its replacement (a packet's cluster count is unknown in advance). */
+  ARRIVAL_QUEUE_BYTES = 512 * 1024,
   /**
    * The main thread's share of a frame, in milliseconds: ONE CLOCK its streaming stages spend in
    * priority order — the arrived pages integrated, the row records and texture tiles, then the

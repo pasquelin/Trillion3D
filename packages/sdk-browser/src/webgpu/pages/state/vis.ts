@@ -10,7 +10,6 @@ import type { GpuHiz } from '../../../gpu/hiz/types.ts'
 import type { ReflectionPipelines } from '../../../reflections/reflectionPipelines.ts'
 import type { GpuRaster } from '../../../gpu/raster/raster.ts'
 import type { GpuDraw } from '../../../gpu/draw/contract.ts'
-import type { GpuRestCompact } from '../../../gpu/raster/restCompact.ts'
 import { MAX_DRAW_SLOTS } from '../../../gpu/draw/contract.ts'
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts'
@@ -69,9 +68,6 @@ export interface WebgpuVisState {
   /** The reflection's kernels (`../../../reflections/gpu.ts`), made with the Hi-Z. */
   reflectionPipelines: ReflectionPipelines | undefined
   gpuRaster: GpuRaster | undefined
-  visHizRestBack: GPURenderPipeline | undefined
-  visHizRestNone: GPURenderPipeline | undefined
-  visHizRestFront: GPURenderPipeline | undefined
   /**
    * Pipelines of coplanar layers above 0: same modules and same states as layer 0, plus the layer's
    * depth bias in hardware units. A scene with no stacked coplanar surface creates none and draws
@@ -92,8 +88,6 @@ export interface WebgpuVisState {
   blendBindGroupLayout: GPUBindGroupLayout | undefined
   blendPipelines: BlendModePipelines | undefined
   gpuDraw: GpuDraw | undefined
-  /** Compaction of the tested half, between the occlusion test and the second pass. */
-  gpuRestCompact: GpuRestCompact | undefined
   shadeBindGroupLayout: GPUBindGroupLayout | undefined
   shadeBindGroup: GPUBindGroup | undefined
   // Raster slots × tested-or-not, and the small-triangle groups by flag source × selection: both
@@ -153,9 +147,6 @@ export function createWebgpuVisState(): WebgpuVisState {
     gpuHiz: undefined,
     reflectionPipelines: undefined,
     gpuRaster: undefined,
-    visHizRestBack: undefined,
-    visHizRestNone: undefined,
-    visHizRestFront: undefined,
     visLayerPipelines: [],
     drawLayerSlots: 1,
     gpuPartition: undefined,
@@ -166,10 +157,9 @@ export function createWebgpuVisState(): WebgpuVisState {
     blendBindGroupLayout: undefined,
     blendPipelines: undefined,
     gpuDraw: undefined,
-    gpuRestCompact: undefined,
     shadeBindGroupLayout: undefined,
     shadeBindGroup: undefined,
-    visSlotGroups: new Array(MAX_DRAW_SLOTS * 2).fill(undefined),
+    visSlotGroups: new Array(MAX_DRAW_SLOTS).fill(undefined),
     visGroupsRevision: 0,
     rasterGroups: new Array(8).fill(undefined),
     visIdentity: createWebgpuBindIdentity(),

@@ -178,8 +178,7 @@ export async function loadPreparedScene(
   mathBatch.catch(() => {})
   // The scene is built from the cache alone: its tables, the binary of the document it draws and
   // the images they locate. `textureSource` reads `'host'` for a model after a world's first
-  // (`worldLoader.ts`), or where the platform cannot read the baked levels
-  // (`resolveTextureSource`).
+  // (`worldLoader.ts`).
   const read = await readTables(load)
   const { tables } = read
   const scene = await buildScene(load, tables)

@@ -3,7 +3,7 @@ use crate::compiler_world::{world_matrices, Mat4};
 use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
-use trillion3d_math::linear::longest_column;
+use trillion3d_math::linear::max_stretch;
 use trillion3d_math::matrix::transform_point;
 
 /// Max world scale under which each source mesh placed. Primitive placed
@@ -16,7 +16,7 @@ pub fn mesh_scales(g: &Value, chosen: &BTreeSet<usize>) -> Result<BTreeMap<usize
     for node_id in chosen {
         let node = item(nodes, *node_id, "node")?;
         let mesh = required_index(node.get("mesh"), "node.mesh")?;
-        let scale = longest_column(&world[*node_id]);
+        let scale = max_stretch(&world[*node_id]);
         let slot = scales.entry(mesh).or_insert(0.0);
         if scale > *slot {
             *slot = scale;

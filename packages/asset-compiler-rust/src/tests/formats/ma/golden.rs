@@ -51,7 +51,7 @@ fn a_file_without_the_maya_header_is_refused_by_name() {
     fs::write(&file, "createNode transform -n \"X\";\n").expect("file");
     assert_eq!(
         refused_golden_source(&file, "ma-header"),
-        "ma-file-invalid",
+        "file-invalid",
         "a file without a Maya header must be refused by name"
     );
     let _ = fs::remove_dir_all(&root);

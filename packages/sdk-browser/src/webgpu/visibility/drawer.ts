@@ -20,10 +20,6 @@ const SLOT_BUNDLE = {
   depthStencilFormat: VIS_DEPTH.format,
 }
 
-/** The flags a half binds: the tested half reads the pyramid's verdicts, the occluders none. */
-const halfFlags = (vis: WebgpuPagesRuntime['vis'], rest: boolean) =>
-  rest ? prepared(vis, 'gpuHiz').flags : vis.zeroFlags
-
 /** What a half's walk drew, and whether every slot with a pipeline found its group. */
 type SlotWalk = { draws: number; complete: boolean }
 
@@ -33,33 +29,31 @@ const walking = {
   rt: undefined as WebgpuPagesRuntime | undefined,
   device: undefined as GPUDevice | undefined,
   rest: false,
-  compacted: false,
 }
 
 /**
- * Records a half's slot draws (`walking`). A slot draws with its pipeline — its occluder slot's
- * when compacted, the twin for its opaque bins — and its group; a slot with a pipeline whose group
- * cannot be made yet leaves the walk incomplete, walked again next frame.
+ * Records a half's slot draws (`walking`). A slot draws with its face mode's pipeline — the twin
+ * for its opaque bins — and its group; a slot with a pipeline whose group cannot be made yet leaves
+ * the walk incomplete, walked again next frame.
  */
 const recordSlots: RecordBundle = (encoder): SlotWalk => {
-  const { rest, compacted } = walking,
+  const { rest } = walking,
     rt = walking.rt!,
     device = walking.device!,
     { vis } = rt,
     indirect = prepared(vis, 'gpuDraw').indirectBuffer
   const walk = { draws: 0, complete: true }
-  // No layout or no flags: no slot binds this frame, the key holding both.
-  if (!vis.visBindGroupLayout || !halfFlags(vis, rest)) return walk
+  // No layout: no slot binds this frame, the key holding it.
+  if (!vis.visBindGroupLayout) return walk
   // A coplanar layer is one more set of slots, drawn in the same order: its clusters carry their
   // pipeline's depth bias, those of layer 0 do not change.
   for (let layer = 0; layer < vis.drawLayerSlots; layer++) {
     const start = layer * BASE_SLOTS + (rest ? HALF_SLOTS : 0)
     for (let bin = 0; bin < HALF_SLOTS; bin++) {
-      // A compacted tested slot draws with its occluder slot's pipeline, a half before.
       const s = start + bin,
-        pipeline = visSlotPipeline(rt, rest && compacted ? s - HALF_SLOTS : s)
+        pipeline = visSlotPipeline(rt, s)
       if (!pipeline) continue
-      const group = visGroupFor(rt, device, s, rest)
+      const group = visGroupFor(rt, device, s)
       if (!group) {
         walk.complete = false
         continue
@@ -75,19 +69,18 @@ const recordSlots: RecordBundle = (encoder): SlotWalk => {
 
 /**
  * Draws the occluder half (`rest` false) or the tested half, by indirect commands, executed as the
- * half's render bundle (`rt.vis.visBundles`). A tested half whose rejected rows the compaction
- * removed (`compacted`) draws with the occluders' pipelines: every row it holds survives, so the
- * vertex stage has no verdict left to read.
+ * half's render bundle (`rt.vis.visBundles`). Both draw with the same pipelines: the tested half's
+ * compaction left its rejected rows out (`GpuDraw.encodeTested`), so no vertex stage reads a
+ * verdict.
  *
- * Each half draws its opaque slots, then its cutout ones (bins from `CULL_BINS`). An occluder
- * slot, or a compacted tested one, draws its opaque rows with the twin: their depth is down, early
- * rejected, before a cutout fragment reads its page. The call count depends only on the slot count,
+ * Each half draws its opaque slots, then its cutout ones (bins from `CULL_BINS`), its opaque rows
+ * with the twin: their depth is down, early rejected, before a cutout fragment reads its page. The call count depends only on the slot count,
  * never on the rows or on what the partition decided: each slot's instance count lives in the
  * indirect command the GPU wrote, and a slot nothing fills draws zero instances.
  *
  * The key holds what decides the walk, not the walk, nor what is the same for every key of a
- * half's bundles (the runtime, its device, the half): the compaction, the indirect buffer, the
- * layer count, the group layout and flags, the slot groups' revision (`visGroupsRevision`, moved
+ * half's bundles (the runtime, its device, the half): the indirect buffer, the
+ * layer count, the group layout, the slot groups' revision (`visGroupsRevision`, moved
  * where they are voided), the layer pipelines and layer 0's six — a held frame compares these and
  * replays; the walk runs only when one moved. Each call counts on `rt.run.gpuDrawCalls`.
  */
@@ -96,20 +89,17 @@ export function drawVis(
   device: GPUDevice,
   pass: GPURenderPassEncoder,
   rest: boolean,
-  compacted = false,
 ) {
   const { vis } = rt
   const bundles = vis.visBundles[rest ? 1 : 0],
     key = bundles.keyed(SLOT_BUNDLE)
-  key.push(compacted, prepared(vis, 'gpuDraw').indirectBuffer, vis.drawLayerSlots)
-  key.push(vis.visBindGroupLayout, halfFlags(vis, rest), vis.visGroupsRevision)
+  key.push(prepared(vis, 'gpuDraw').indirectBuffer, vis.drawLayerSlots)
+  key.push(vis.visBindGroupLayout, vis.visGroupsRevision)
   key.push(vis.visLayerPipelines, vis.visLayerPipelines.length)
   key.push(vis.visPipelineBack, vis.visPipelineNone, vis.visPipelineFront)
-  key.push(vis.visHizRestBack, vis.visHizRestNone, vis.visHizRestFront)
   walking.rt = rt
   walking.device = device
   walking.rest = rest
-  walking.compacted = compacted
   const walk = bundles.execute(pass, device, recordSlots) as SlotWalk
   walking.rt = walking.device = undefined
   if (!walk.complete) bundles.forgetLatest()

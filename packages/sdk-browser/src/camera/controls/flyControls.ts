@@ -1,12 +1,6 @@
 import { createChangeGate, createControlBase } from './base.ts'
-import {
-  ADVANCE_KEYS,
-  axisOf,
-  STRAFE_KEYS,
-  trackKeys,
-  trackPointers,
-  type KeyAxis,
-} from './input.ts'
+import { ADVANCE_KEYS, axisOf, STRAFE_KEYS, trackKeys, type KeyAxis } from './input.ts'
+import { trackLook } from './look.ts'
 import { controlPose } from './pose.ts'
 import { moveLocal } from './math.ts'
 import {
@@ -15,7 +9,6 @@ import {
   localTurnQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import { clamp, clampCompare } from '../../../../math/src/scalar/reals.ts'
-import { PI } from '../../../../math/src/constants.ts'
 import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
 /**
@@ -106,16 +99,10 @@ export function createFlyCameraControls(
     orientation = new Float64Array(4),
     turn = new Float64Array(4),
     stick = new Float64Array(3),
-    moved = new Float64Array(7)
+    moved = new Float64Array(7),
+    looked = new Float64Array(2)
   const gate = createChangeGate(base, 7)
-  let lookPitch = 0,
-    lookYaw = 0,
-    held = false
-  const look = (dx: number, dy: number) => {
-    const speed = api.lookSpeed ?? PI / (surface.clientHeight || 1)
-    lookYaw -= dx * speed
-    lookPitch -= dy * speed
-  }
+  let held = false
   const api: FlyCameraControls = {
     ...base.api,
     object: pose.object,
@@ -132,11 +119,11 @@ export function createFlyCameraControls(
         const wanted = clamp(axisOf(keys, ...keyed) + input, -1, 1)
         return (stick[axis] += clampCompare(wanted - stick[axis], -travel, travel))
       }
+      look.take(looked)
       const pitch =
-          lookPitch + deflect(0, PITCH, api.pitchInput) * (api.pitchSpeed ?? api.rollSpeed) * dt,
-        yaw = lookYaw + deflect(1, YAW, api.yawInput) * (api.yawSpeed ?? api.rollSpeed) * dt,
+          looked[1] + deflect(0, PITCH, api.pitchInput) * (api.pitchSpeed ?? api.rollSpeed) * dt,
+        yaw = looked[0] + deflect(1, YAW, api.yawInput) * (api.yawSpeed ?? api.rollSpeed) * dt,
         roll = deflect(2, ROLL, api.rollInput) * api.rollSpeed * dt
-      lookPitch = lookYaw = 0
       if (pitch || yaw || roll)
         normalizeQuaternion(
           multiplyQuaternion(orientation, orientation, localTurnQuaternion(turn, pitch, yaw, roll)),
@@ -164,21 +151,12 @@ export function createFlyCameraControls(
     RISE,
     ADVANCE_KEYS,
   ])
-  trackPointers(surface, base, {
-    down: () => (held = true),
-    up: () => (held = false),
-    drag: (dx, dy) => {
-      if (!api.dragToLook || !api.pointerLook) return
-      look(dx, dy)
-      base.emit()
-    },
-  })
-  // `dragToLook = false`: the pointer steers by hovering, which is why this listener is its
-  // own and not the tracker's — the tracker only ever reports a pointer that is down.
-  base.listen<PointerEvent>(surface, 'pointermove', (event) => {
-    if (api.dragToLook || held || !api.pointerLook) return
-    look(event.movementX, event.movementY)
-    base.emit()
+  // A drag looks (`dragToLook`), or the pointer hovering over the surface while none is held.
+  const look = trackLook(surface, base, api, {
+    down: () => void (held = true),
+    up: () => void (held = false),
+    drag: () => api.dragToLook && api.pointerLook,
+    move: () => !api.dragToLook && !held && api.pointerLook,
   })
   return api
 }

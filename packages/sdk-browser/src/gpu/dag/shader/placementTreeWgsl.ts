@@ -49,16 +49,18 @@ fn opensRoot(w:u32)->bool{return rootOf(w)!=NO_INDEX&&(markOf(w)&${CARD_ROOT}u)=
 fn openRoot(at:u32,w:u32){
  putEntry(queueBase(0u),at,select(NO_INDEX,packEntry(vi,rootOf(w)),opensRoot(w)),w);
 }
-/** \`dagPrepare\`'s thread \`i\`, with a tree: the top nodes, the world DAG's root behind them, and
- *  each member drawn whatever the view behind it — thread \`top + 1 + j\`, member \`j\`. */
+/** \`dagPrepare\`'s thread \`i\`, with a tree, writes queue 0's entry \`i\` (\`rootSlots\`): the top
+ *  nodes, the world DAG's root behind them when packed, then each member drawn whatever the view. */
 fn prepareTreeRoots(i:u32){
  let top=views[0u].treeTop;
  if(i<top){putEntry(queueBase(0u),i,packEntry(0u,treeEntry(i)),0u);return;}
  let w=views[0u].worldRoot;
- if(i==top){if(w!=NO_INDEX){vi=0u;openRoot(top,w);}return;}
- let j=i-top-1u;
+ let world=select(0u,1u,w!=NO_INDEX);
+ vi=0u;
+ if(i<top+world){openRoot(i,w);return;}
+ let j=i-top-world;
  if(j>=views[0u].alwaysCount){return;}
- vi=0u;openRoot(top+select(0u,1u,w!=NO_INDEX)+j,treeAlwaysAt(j));
+ openRoot(i,treeAlwaysAt(j));
 }
 `,
 )

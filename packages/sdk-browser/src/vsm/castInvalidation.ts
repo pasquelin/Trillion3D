@@ -39,8 +39,8 @@ export function vsmCastMaps(
 /**
  * Stales the pages the shadow changes touched in the previous frame's maps, into `encoder`: the
  * list `casts`' records then the CPU's `boxes`, over the previous frame's `maps` (`vsmCastMaps`) of
- * its `mapSlotCount` slots, the list emptied once read. Nothing when neither changed; nothing
- * staled when the previous frame had no slot or no map may hold cached pages, the list emptied all
+ * its `mapCount` maps, the list emptied once read. Nothing when neither changed; nothing
+ * staled when the previous frame had no map or none may hold cached pages, the list emptied all
  * the same — no page holds what it names. Must run before the page carry. Returns the threads the
  * CPU's boxes take, the CPU's part of the dispatch the GPU sizes.
  */
@@ -48,7 +48,7 @@ export function encodeCastInvalidation(
   encoder: GPUCommandEncoder,
   res: VsmResources,
   device: GPUDevice,
-  mapSlotCount: number,
+  mapCount: number,
   maps: Uint32Array | null,
   boxes: VsmCastBoxes | null,
   casts: CastChanges,
@@ -56,7 +56,7 @@ export function encodeCastInvalidation(
   const boxCount = boxes?.count ?? 0
   if (!casts.appended && !boxCount) return 0
   let threads = 0
-  if (mapSlotCount > 0 && maps) {
+  if (mapCount > 0 && maps) {
     encodeCastStale(encoder, res, device, maps, boxes, casts.buffer)
     threads = boxCount * maps.length
   }

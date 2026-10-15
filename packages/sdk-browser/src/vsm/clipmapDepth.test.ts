@@ -4,11 +4,11 @@
 // rounded number — the exact one, short of overflow, where both are infinite. On the sample's own
 // level the depth was (raw − 0) / 1: it is (raw − 0) · 1, raw itself. Run in f32 over raw depths and
 // biases of every exponent the reversed-Z depth reaches, signed zeros among them.
+import { vsmProjectionSampleWgsl } from './projectionSampleWgsl.ts'
 import { fromF32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
-import { vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 

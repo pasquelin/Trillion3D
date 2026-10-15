@@ -39,7 +39,7 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
       frame.block.subarray(matrix, matrix + 16),
       ...(rest as [number, number, number]),
     )
-    const delta = deformWaves(layout.wave, 1, [...at], previous, false)
+    const delta = deformWaves(layout.wave, 1, [...at], previous).p
     transformAffinePoint(
       local,
       frame.block.subarray(matrix + 16, matrix + 32),

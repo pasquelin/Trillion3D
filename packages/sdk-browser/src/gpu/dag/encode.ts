@@ -1,13 +1,10 @@
 import type { DagResources } from './resources.ts'
 import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
-import { encodeDifference } from './encodeDifference.ts'
+import { DAG_PASS, encodeDifference } from './encodeDifference.ts'
 import { encodePoolSort } from '../pool/sort.ts'
 import { BLOCK_MASK_WORDS } from './shader/floorWgsl.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { DAG_SELECTION_PASS } from '../../stage/passLabels.ts'
-
-const DAG_PASS: GPUComputePassDescriptor = { label: DAG_SELECTION_PASS }
 
 /**
  * Cut kernels, encoded in order, in ONE compute pass. Each dispatch waits for the previous — the
@@ -82,7 +79,7 @@ function encodeOnce(
     pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.drawn)
   } else pass.setBindGroup(0, bindGroup)
   // Its dispatch also resets the block counts.
-  flat(pass, preparePipeline, width, Math.max(prepareEntries(resources), blockCount))
+  flat(pass, preparePipeline, width, Math.max(levelEntries(resources), blockCount))
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that.
   //
@@ -137,8 +134,8 @@ function encodeOnce(
   pass.dispatchWorkgroups(1)
   pass.setPipeline(raisePipeline)
   pass.dispatchWorkgroups(1)
-  // A thread a slot of the pool's list, its group stages armed for the list's own count
-  // (`../poolList.ts`, `poolSortArming`).
+  // A thread a slot of the pool's list, its group stages armed for the list's own count by
+  // `dagPrepare` (`shader/evictWgsl.ts`, `armPoolSort`).
   encodePoolSort(pass, evictSort, 0, width, dispatchArgs, DAG_ARGS.pool)
   // The rows the cut's pages need, stamped, and their queue when a readback copies the cut
   // (`../../webgpu/row/rowEviction.ts`): the cut's group back after them.
@@ -159,19 +156,9 @@ function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, bindGroup }: 
   pass.setBindGroup(0, bindGroup)
 }
 
-/**
- * The threads of `dagPrepare` (`levelEntries` the entries pass 0 reads): without a placement tree,
- * every placement; with one, the tree's top nodes, the world DAG's root, then a thread each member
- * drawn whatever the view (`shader/placementTreeWgsl.ts`).
- */
-function prepareEntries({ packed, worldCount }: DagResources) {
-  const tree = packed.placementTree
-  if (!tree) return worldCount
-  const always = tree.always.set.count
-  return tree.levels[0].count + (always ? 1 + always : (packed.world?.root ?? -1) >= 0 ? 1 : 0)
-}
-
-/** The entries of queue 0 pass 0 reads (`prepareEntries`). */
+/** The entries of queue 0, one `dagPrepare` thread each: without a placement tree, every
+ *  placement; with one, the tree's top nodes, the world DAG's root, then each member drawn whatever
+ *  the view (`shader/placementTreeWgsl.ts`). */
 function levelEntries({ packed, worldCount }: DagResources) {
   const tree = packed.placementTree
   if (!tree) return worldCount

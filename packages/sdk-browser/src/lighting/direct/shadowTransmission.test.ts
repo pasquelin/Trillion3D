@@ -23,7 +23,7 @@ function pagedSample(p: V) {
   return {
     depth: 0,
     mipLevel: 0,
-    handle: { id: MAP, isSinglePage: false },
+    handle: { id: MAP },
     valid: true,
     mapTexelXY: at,
     mapTexelPos: p,
@@ -131,8 +131,7 @@ test('the resolve reads the mask, and the transmission alone where a pane covers
                   ? [0x99, 0x66, 0x33].map((c) => c / 255)
                   : [1, 1, 1]
               },
-              vsmHandleFromIdDirectional: (id: number) => ({ id, isSinglePage: false }),
-              vsmHandleFromId: (id: number) => ({ id, isSinglePage: false }),
+              vsmHandleFromId: (id: number) => ({ id }),
               vsmProjectionOf: () => (reads.projection++, pd),
               vsmCubeFace: () => 2,
               vsmDistanceSqToOrigin: () => 1,

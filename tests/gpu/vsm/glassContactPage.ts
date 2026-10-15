@@ -49,9 +49,7 @@ export type GlassContact = {
 
 /** The contact ray's cast as the projection pass ships it, cut out of its module. */
 const castText = () => {
-  const module = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
-    subgroups: false,
-  })
+  const module = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
   return functionsOf(module, ['vsmScreenRayCast'])
 }
 

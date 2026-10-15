@@ -4,30 +4,20 @@
 import { alignUp } from '../../../../../../math/src/scalar/integers.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { vsmShadowed } from '../../../../vsm/seenLights.ts'
-import {
-  VSM_MIPS,
-  VSM_SUN_COARSEST_LEVEL,
-  VSM_SUN_FINEST_LEVEL,
-} from '../../../../vsm/constants.ts'
 import { VSM_TABLES_PER_ROW, type VsmResourceOptions } from '../../../../vsm/layout.ts'
+import { vsmMapsOf, vsmRenderViewBound } from '../../../../vsm/mapViews.ts'
 
-/** Directional clipmap levels a sun takes. */
-const CLIPMAP_LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
-/** Room for `maps` full maps, rounded up to whole page-table rows (the last entry of the last row
- *  holds the single-page maps). */
-export const wholeTableRows = (maps: number) => alignUp(maps + 1, VSM_TABLES_PER_ROW) - 1
+/** Directional clipmap levels a sun takes (`vsmMapsOf`). */
+const CLIPMAP_LEVELS = vsmMapsOf('directional')
+/** Room for `maps` page-table blocks, rounded up to whole page-table rows. */
+export const wholeTableRows = (maps: number) => alignUp(maps, VSM_TABLES_PER_ROW)
 
-/** The full maps one light takes when it casts: a clipmap's levels for a sun, six faces for a
- *  point, one for a spot. */
-const mapsOf = (kind: VsmFrameLight['light']['kind']) =>
-  kind === 'directional' ? CLIPMAP_LEVELS : kind === 'point' ? 6 : kind === 'spot' ? 1 : 0
-
-/** Full maps a set is first made for: its suns' clipmap levels, with room for the unreferenced
- *  entries the cache keeps ten frames, rounded to whole page-table rows — one row at least, which
- *  holds a sun and six more maps with that room. A local light takes a full map only while its
- *  view asks finer than one page (`localLight.ts`), else a single-page slot, whose ids the tables
- *  reserve: the full maps a frame plans follow the lights near its eye, never those it sees, and
- *  the plan grows the tables to them in the same frame (`planVirtualShadowFrame`, `grow`). */
+/** Page-table blocks a set is first made for: its suns' clipmap levels, with room for the
+ *  unreferenced entries the cache keeps ten frames, rounded to whole page-table rows — one row at
+ *  least, which holds a sun and more maps with that room. A local light's table is sized by its
+ *  finest mip (`tableBlocks.ts`): a far one takes one entry of a block, so the blocks a frame plans
+ *  follow the lights near its eye, and the plan grows the tables to them in the same frame
+ *  (`planVirtualShadowFrame`, `grow`). */
 export function fullMapsFor(lights: readonly VsmFrameLight[]) {
   let maps = 0
   for (const entry of lights)
@@ -42,19 +32,15 @@ export function castingCount(lights: readonly VsmFrameLight[]) {
   return count
 }
 
-/** The raster's views the frame's casting lights take at most (`vsmRenderViews`): a view per
- *  clipmap level of one mip, a view per local map of every mip. */
+/** The frame's casting lights (`vsmShadowed`), rewritten by each `renderViewBound`. */
+const casting: VsmFrameLight['light'][] = []
+/** The raster's views the frame's casting lights take at most (`vsmRenderViewBound`, the raster's
+ *  own rule), before their maps are set up. */
 export function renderViewBound(lights: readonly VsmFrameLight[]) {
-  let views = 0,
-    mips = 0
-  for (const entry of lights) {
-    if (!vsmShadowed(entry)) continue
-    const { light } = entry,
-      maps = mapsOf(light.kind)
-    views += maps
-    mips += light.kind === 'directional' ? maps : maps * VSM_MIPS
-  }
-  return { viewWords: 4 * views, viewMips: mips }
+  casting.length = 0
+  for (const entry of lights) if (vsmShadowed(entry)) casting.push(entry.light)
+  const { views, viewMips } = vsmRenderViewBound(casting)
+  return { viewWords: 4 * views, viewMips }
 }
 
 export function directionalCount(lights: readonly VsmFrameLight[]) {

@@ -46,7 +46,7 @@ test('material methods refuse a world without an open drawing session', () => {
     () => null,
     () => assert.fail('no frame to invalidate'),
   )
-  assert.throws(() => api.materials(), /add a model first/)
-  assert.throws(() => api.setMaterial('0', {}), /add a model first/)
-  assert.throws(() => api.createMaterial(), /add a model first/)
+  assert.throws(() => api.materials(), /draws nothing yet/)
+  assert.throws(() => api.setMaterial('0', {}), /draws nothing yet/)
+  assert.throws(() => api.createMaterial(), /draws nothing yet/)
 })

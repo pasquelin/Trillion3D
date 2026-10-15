@@ -1,6 +1,6 @@
 // A frame of the resolve's triangle cache in `shaderRun` (`shadeCacheWgsl.ts`) on the rows and
 // image of `triangleScene.fixture.ts`: the shipped marks, rows and triangles passes — `none`, no
-// pass and `SHADE_CACHE` false —, then the shipped `pixelTriangle` and
+// pass and no row laid —, then the shipped `pixelTriangle` and
 // `decodeTriangle`. The page decode runs on integers, its results in
 // binary32; the rest of the decode in binary32 (`F32_SCOPE`); the cache passes on words.
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -102,7 +102,6 @@ export function cacheRun(width: number, height: number, none = false) {
     work,
     pages,
     tileIds,
-    SHADE_CACHE: !none,
     // A narrow grid: the triangles pass's dispatch holds x to it.
     GROUP_WIDTH: 2,
     decodeTriangle: exact.decodeTriangle,

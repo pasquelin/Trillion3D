@@ -3,7 +3,7 @@ import { hizUniformSlots } from './uniforms.ts'
 import { HIZ_LEVELS_WORDS } from './levelsUniform.ts'
 import { cleanupFailedHiz, createHizPipelines, hizArgsGroup, hizPagesGroup } from './pipelines.ts'
 import { HIZ_TEST_ARGS_BYTES } from './bindEntries.ts'
-import { TESTED_U32 } from '../partition/contract.ts'
+import { TESTED_BOX } from '../partition/contract.ts'
 import type { GpuHiz } from './types.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import {
@@ -37,7 +37,7 @@ export async function createGpuHiz(
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
     h = hizState(device, pipelines, buffers, Math.max(1, maxBounds))
-    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots, h.front))
+    const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
     return gpu
@@ -64,7 +64,7 @@ function hizState(
   // Tested boxes and the frame state belong to the GPU partition, which does not exist yet.
   const idle = device.createBuffer({
     label: 'Trillion3D HiZ idle bounds v1',
-    size: TESTED_U32 * 4,
+    size: TESTED_BOX.words * 4,
     usage: GPUBufferUsage.STORAGE,
   })
   const flags = hizFlags(device, cap)
@@ -82,9 +82,9 @@ function hizState(
   return {
     ...pipelines,
     device,
-    // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread depth and lay their own, and the
-    // front layer's making, which copies the opaque depth once (`holdFrontLayer`). The front layer
-    // is written by the transparents' fold, a storage texture, and cleared as an attachment.
+    // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread depth and lay their own. The
+    // front layer is written by the transparents' fold, a storage texture, and cleared as an
+    // attachment.
     level0Usage:
       GPUTextureUsage.RENDER_ATTACHMENT |
       GPUTextureUsage.TEXTURE_BINDING |
@@ -102,7 +102,6 @@ function hizState(
     idle,
     buffers,
     disposed: false,
-    front: false,
     at: undefined,
     bindGroup: undefined,
     bounds: idle,
@@ -138,15 +137,10 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
       bindHiz(h)
     },
     growFlags: (rows) => hizGrowFlags(h, gpu, rows),
-    /** Pyramid mips, with their offset and width: what the partition reads to express a
-     *  screen rectangle in texels of the mip that covers it exactly. */
-    levels: () => h.at?.drawn.levels ?? [],
+    levelTable: h.levelTable,
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
     pyramidView: () => (h.disposed ? undefined : h.at?.pyramidView),
-    front: (encoder, wanted) => hizFront(h, gpu, encoder, wanted),
-    get holdsFront() {
-      return h.front
-    },
+    front: (wanted) => hizFront(h, wanted),
     depth() {
       if (h.disposed) return undefined
       bindHiz(h)

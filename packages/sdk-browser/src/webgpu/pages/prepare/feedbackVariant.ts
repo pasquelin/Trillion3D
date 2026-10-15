@@ -1,7 +1,7 @@
+import { retire } from '../../../gpu/core/frameRetire.ts'
 import { FEEDBACK_BYTES } from '../../../scene/surfaceBuffer.ts'
 import { SHADE_SHADER } from '../../../visibility/shader/shadeWgsl.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
-import { shadeWithoutFeedbackCode } from '../../visibility/shaders.ts'
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'
 import { blendWritesShare } from './asIsShareTarget.ts'
 import { blendContext } from './contractLight.ts'
@@ -38,7 +38,7 @@ export function syncFeedbackTarget(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const [width, height] = gpu.allocatedSize
   if (vis.writesFeedback) makeFeedbackTarget(rt, device, width, height)
   else {
-    gpu.feedbackTexture!.destroy()
+    retire(device, gpu.feedbackTexture!)
     gpu.feedbackTexture = gpu.feedbackView = undefined
   }
   gpu.targetBytes += (vis.writesFeedback ? 1 : -1) * width * height * FEEDBACK_BYTES
@@ -108,9 +108,7 @@ async function feedbackPipelines(
   feedback: boolean,
 ): Promise<FeedbackPipelines> {
   const { vis, blendState } = rt
-  const module = device.createShaderModule({
-    code: feedback ? SHADE_SHADER : shadeWithoutFeedbackCode(),
-  })
+  const module = device.createShaderModule({ code: SHADE_SHADER })
   const shadeMade = createWebgpuShadePipelines(
     device,
     module,
@@ -119,7 +117,6 @@ async function feedbackPipelines(
     feedback,
     vis.shadeBindGroupLayout,
     vis.writesEmissiveAo,
-    vis.shadeCache?.constants,
   )
   const blendMade =
     vis.blendPipelines &&

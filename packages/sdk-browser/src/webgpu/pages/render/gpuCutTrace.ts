@@ -22,7 +22,9 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.cpuStart
   steps[CPU_STEP.transparentPrepareMs] = timing.transparentPrepareMs
   steps[CPU_STEP.transparentDrawMs] = timing.transparentDrawMs
-  steps[CPU_STEP.transparentEncodeMs] = timing.transparentEncodeMs
+  // The transparents' encoding is their preparation and their draws: one sum, never a third count.
+  const transparentMs = timing.transparentPrepareMs + timing.transparentDrawMs
+  steps[CPU_STEP.transparentEncodeMs] = transparentMs
   steps[CPU_STEP.admissionMs] = m.admissionEnd - m.adoptEnd
   steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd
   steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd
@@ -32,7 +34,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   // Remaining encode excludes submit itself: the two steps never overlap.
   steps[CPU_STEP.encodeRestMs] = Math.max(
     0,
-    submitMs - timing.lastPartitionMs - timing.transparentEncodeMs - timing.lastQueueSubmitMs,
+    submitMs - timing.lastPartitionMs - transparentMs - timing.lastQueueSubmitMs,
   )
   steps[CPU_STEP.queueSubmitMs] = timing.lastQueueSubmitMs
   steps[CPU_STEP.encodeSubmitMs] = submitMs
@@ -49,7 +51,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
     selectionMs: m.selectionEnd - m.cpuStart,
     residencyScheduleAndTargetsMs: m.encodeStart - m.selectionEnd,
     encodeSubmitMs: submitMs,
-    transparentEncodeMs: timing.transparentEncodeMs,
+    transparentEncodeMs: transparentMs,
     transparentIncludedIn: 'encodeSubmitMs',
     asyncResidencyWaitMs: null,
     /** Pages the residency path had to touch: the cut's difference, not its size. */

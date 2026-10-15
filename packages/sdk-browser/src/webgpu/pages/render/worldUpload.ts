@@ -4,6 +4,7 @@ import { blendSource, followHostVisibility } from '../../../placement/hidden.ts'
 import { noteKeyRecord } from '../../blend/keyRecords.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
+import { worldMoved } from '../../../page/selection/rootWorld.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'
 import { appendRootsUnder, appendUnder } from './movedNode.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
@@ -94,6 +95,8 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   // A scene that changed shape names no root: every row's world matrix, the only shared input to
   // a row the scene can still change after `prepare()`, is written again.
   if (moved.length) {
+    // Each moved root's world version moves: its box, stretch and winding are taken again.
+    for (const rank of moved) worldMoved(selectionRoots[rank])
     rows.tableEpoch++
     invalidateOccluderHistory(run)
   }

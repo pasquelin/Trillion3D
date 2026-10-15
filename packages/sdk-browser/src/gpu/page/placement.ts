@@ -1,163 +1,194 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import type { ResidentPage } from './types.ts'
 import type { PageHomes } from './homes.ts'
 import type { Eviction, NoVictim } from './eviction.ts'
 
-/** Where an arrival lands: its slot and first byte, and the pages that give them up, if any — they
- *  are still resident, and leave before the arrival is written. */
-export type Place = { slot: number; offset: number; victims: readonly ResidentPage[] }
+/** Where an arrival lands: its first byte, and the pages that give it up, if any — they are still
+ *  resident, and leave before the arrival is written. */
+export type Place = { offset: number; victims: readonly ResidentPage[] }
 
-/** How a pool places its arrivals: the bytes a page may fill, the place it takes, and the slots no
- *  page holds. */
-export interface Placement {
-  /** The bytes `key`'s page may fill: one past them would write over a neighbour. */
-  room(key: string): number
-  /** The place of `key`'s page of `bytes`, taken, or why none is; `lower`, a page of a lower tier,
-   *  takes an old page's alone (`eviction.ts`). */
-  slotFor(key: string, bytes: number, lower?: boolean): Place | NoVictim
-  /** `page` left without an arrival to take its place: free for the next one. */
-  freed(page: ResidentPage): void
-  /** How many places no page holds: slots, and quarters of the slots split. */
-  readonly free: number
-  /** Each slot split in quarters, by the keys of the pages its quarters hold; none where a page
-   *  fills its slot or its home. */
-  readonly split: ReadonlyMap<number, ReadonlySet<string>>
-}
+/** The bytes a pool of `slots` pages of `pageBytes` at most takes: the catalogue's own bytes when
+ *  they fit the slots' (`homes.ts`), the slots' otherwise. */
+export const poolBytes = (pageBytes: number, slots: number, homes?: PageHomes) =>
+  homes && homes.bytes <= pageBytes * slots ? homes.bytes : pageBytes * slots
 
-/** `homes`' page at `key`; a key the catalogue does not name has no place there, and is refused
- *  by name. */
-function homeOf({ homes }: PageHomes, key: string) {
-  const home = homes.get(key)
-  if (!home) throw new Error('PAGE_HOME_MISSING')
-  return home
-}
-
-/** A pool that holds the whole catalogue: each page at its own home (`homes.ts`), no slot to
- *  choose, none to take back; it counts the `empty` homes, nothing more. */
-export function homePlacement(homes: PageHomes, empty: number): Placement {
-  return {
-    room: (key) => homeOf(homes, key).bytes,
-    slotFor(key) {
-      const { rank, offset } = homeOf(homes, key)
-      empty--
-      return { slot: rank, offset, victims: [] }
-    },
-    freed() {
-      empty++
-    },
-    get free() {
-      return empty
-    },
-    split: new Map(),
-  }
-}
+/** A free span's size class: spans of `[4·2^c, 4·2^(c+1))` bytes in class `c`. */
+const classOf = (bytes: number) => 31 - Math.clz32(Math.max(1, bytes >>> 2))
 
 /**
- * A slot of the scene's largest cluster holds a page that fits a quarter of it four to the slot —
- * the world's super-roots, eight hundred bytes in a slot of four thousand, are held four times as
- * many in the same bytes. A quarter lies at its slot's offset plus its rank's share; the page table
- * names every page by its offset alone, so nothing that reads a page knows which it took. A slot is
- * free, held whole, or split, and a split slot is free again once its last quarter leaves. A pool
- * whose slot does not divide into four whole words splits none.
+ * THE POOL'S ONE ALLOCATOR: byte spans of the pool buffer, held in an array sorted by offset, free
+ * or held, the free ones filed by size class. A page's width is its home's (`homes.ts`: its bytes
+ * and its deformation tails) when the catalogue names it, its bytes padded to a word otherwise.
+ * - While the pool holds the catalogue's bytes (`poolBytes`), a page takes its home at its exact
+ *   width: homes partition the pool and only their pages hold them, so a home is always free for
+ *   its page — no search, no victim.
+ * - Otherwise its width rounds up to a grain, the widest page halved while it stays whole words and
+ *   holds the page (`grainOf`), aligned to itself: the first free span of its class or above that
+ *   holds an aligned grain is split (segregated fit); else the eviction order (`eviction.ts`) gives
+ *   its first victim whose aligned grain holds only free or evictable spans, and they leave with it.
+ * A freed span joins its free neighbours. Fixed slots are its equal-width case — every page the
+ * widest, every grain one slot, every window one victim —; a page a quarter of the widest takes a
+ * quarter, a half a half, and a grain never straddles a wider one, so a widest arrival frees the
+ * aligned grain of the small pages the order gives up. Cost: an arrival a binary search per free
+ * span it looks at and O(n) word moves to split one (n the spans, twice the pages at most); a
+ * window O(spans in one grain) beside the order's walk.
  */
-export const SLOT_SPLIT = 4
-
-/** The bytes of a quarter of a slot of `pageBytes`, or 0 when a slot does not split. */
-export const quarterBytesOf = (pageBytes: number) =>
-  pageBytes % (4 * SLOT_SPLIT) === 0 ? pageBytes / SLOT_SPLIT : 0
-
-/** What a pool of fixed slots has free and split: the slots no page holds, the free quarters of
- *  the split slots, each `slot · SLOT_SPLIT + quarter`, and each split slot's pages by key. */
-export type SlotLayout = {
-  free: number[]
-  quarters: Set<number>
-  split: Map<number, Set<string>>
-}
-
-/** A layout of `free` slots, none split. */
-export const wholeSlots = (free: number[]): SlotLayout => ({
-  free,
-  quarters: new Set(),
-  split: new Map(),
-})
-
-/** A pool of fixed slots of `pageBytes` laid out as `layout`: a free place, the last first, else
- *  the one `eviction` gives back — a quarter from any page it lists, a whole slot from a whole
- *  page or a split slot every page of which it lists. */
-export function slotPlacement(
-  pageBytes: number,
-  { free, quarters, split }: SlotLayout,
-  eviction: Eviction,
-  resident: ReadonlyMap<string, ResidentPage>,
-): Placement {
-  const quarterBytes = quarterBytesOf(pageBytes)
-  const quarterOf = (page: ResidentPage) =>
-    split.get(page.slot)?.has(page.key) ? (page.offset - page.slot * pageBytes) / quarterBytes : -1
-  /** `page`'s place given back: a whole slot to the free ones, a quarter to the free quarters —
-   *  its slot whole and free again once it holds none. */
-  const release = (page: ResidentPage) => {
-    const quarter = quarterOf(page)
-    if (quarter < 0) return void free.push(page.slot)
-    const held = split.get(page.slot)!
-    held.delete(page.key)
-    quarters.add(page.slot * SLOT_SPLIT + quarter)
-    if (held.size > 0) return
-    for (let at = 0; at < SLOT_SPLIT; at++) quarters.delete(page.slot * SLOT_SPLIT + at)
-    split.delete(page.slot)
-    free.push(page.slot)
-  }
-  /** A free quarter, taken: a free one, else one of a free slot split. */
-  const takeQuarter = () => {
-    for (const at of quarters) {
-      quarters.delete(at)
-      return at
+export function createPlacement(o: {
+  bytes: number
+  /** The widest page: the room of one the catalogue does not name, and the largest grain. */
+  widest: number
+  homes?: PageHomes
+  eviction: Eviction
+  resident: ReadonlyMap<string, ResidentPage>
+}) {
+  const { eviction, resident, homes, widest } = o
+  const held = homes && o.bytes >= homes.bytes ? homes : undefined
+  const starts: number[] = [0],
+    sizes: number[] = [o.bytes],
+    keys: (string | null)[] = [null],
+    buckets: Set<number>[] = []
+  let freeBytes = 0,
+    count = 0
+  const bucket = (bytes: number) => (buckets[classOf(bytes)] ??= new Set())
+  const refree = (i: number) => (bucket(sizes[i]).add(starts[i]), (freeBytes += sizes[i]))
+  const unfree = (i: number) => (bucket(sizes[i]).delete(starts[i]), (freeBytes -= sizes[i]))
+  refree(0)
+  /** The span holding byte `offset`. */
+  const indexOf = (offset: number) => {
+    let low = 0,
+      high = starts.length - 1
+    while (low < high) {
+      const mid = (low + high + 1) >>> 1
+      if (starts[mid] <= offset) low = mid
+      else high = mid - 1
     }
-    const slot = free.pop()
-    if (slot === undefined) return undefined
-    split.set(slot, new Set())
-    for (let quarter = 1; quarter < SLOT_SPLIT; quarter++) quarters.add(slot * SLOT_SPLIT + quarter)
-    return slot * SLOT_SPLIT
+    return low
   }
-  /** Whether every page of split `slot` may leave with a whole arrival: each listed by the order,
-   *  none in use (`eviction.ts`). */
-  const leaves = (slot: number, lower?: boolean) => {
-    for (const key of split.get(slot) ?? []) if (!eviction.evictable(key, lower)) return false
-    return true
+  /** Free span `i` gives `[offset, offset + width)` to `key`; what lies before and after stays free. */
+  const carve = (i: number, offset: number, width: number, key: string) => {
+    const start = starts[i],
+      end = start + sizes[i]
+    unfree(i)
+    const at = offset > start ? [start, offset] : [offset],
+      size = offset > start ? [offset - start, width] : [width],
+      owner: (string | null)[] = offset > start ? [null, key] : [key]
+    if (offset + width < end)
+      (at.push(offset + width), size.push(end - offset - width), owner.push(null))
+    starts.splice(i, 1, ...at)
+    sizes.splice(i, 1, ...size)
+    keys.splice(i, 1, ...owner)
+    for (let k = 0; k < owner.length; k++) if (owner[k] === null) refree(i + k)
+    count++
   }
-  /** A place of `quarter` size, taken; `victims` already gone from the layout. */
-  const take = (key: string, quarter: boolean, victims: ResidentPage[]): Place | undefined => {
-    if (!quarter) {
-      const slot = free.pop()
-      return slot === undefined ? undefined : { slot, offset: slot * pageBytes, victims }
-    }
-    const at = takeQuarter()
-    if (at === undefined) return undefined
-    const slot = Math.floor(at / SLOT_SPLIT)
-    split.get(slot)!.add(key)
-    return { slot, offset: slot * pageBytes + (at % SLOT_SPLIT) * quarterBytes, victims }
+  /** Held span `i` free again, joined to its free neighbours. */
+  const release = (i: number) => {
+    let first = i,
+      last = i
+    if (i > 0 && keys[i - 1] === null) unfree((first = i - 1))
+    if (i + 1 < keys.length && keys[i + 1] === null) unfree((last = i + 1))
+    const size = starts[last] + sizes[last] - starts[first]
+    starts.splice(first, last - first + 1, starts[first])
+    sizes.splice(first, last - first + 1, size)
+    keys.splice(first, last - first + 1, null)
+    refree(first)
+    count--
+  }
+  /** The first free span holding `width` bytes at an offset aligned to `width`: its index and that
+   *  offset, or none. */
+  const fit = (width: number) => {
+    for (let c = classOf(width); c < buckets.length; c++)
+      for (const start of buckets[c] ?? []) {
+        const i = indexOf(start),
+          at = Math.ceil(start / width) * width
+        if (at + width <= start + sizes[i]) return { i, at }
+      }
+    return undefined
+  }
+  /** The grain `[at, at + width)` holding `page`, when every span it meets is free or evictable. */
+  const windowAt = (page: ResidentPage, width: number, lower?: boolean) => {
+    const at = Math.floor(page.offset / width) * width
+    if (at + width > o.bytes) return undefined
+    for (let j = indexOf(at); j < keys.length && starts[j] < at + width; j++)
+      if (keys[j] !== null && !eviction.evictable(keys[j]!, lower)) return undefined
+    return at
+  }
+  /** The grain a page of `bytes` takes: the widest halved while whole words still hold it. */
+  const grainOf = (bytes: number) => {
+    let grain = widest
+    while (grain % 8 === 0 && grain / 2 >= bytes) grain /= 2
+    return Math.max(grain, alignUp(bytes, 4))
+  }
+  /** The bytes `key`'s page of `bytes` takes: its home's width while the pool holds the catalogue,
+   *  else its grain. */
+  const widthFor = (key: string, bytes: number) => {
+    const own = homes?.homes.get(key)?.bytes ?? alignUp(bytes, 4)
+    return held ? own : grainOf(own)
   }
   return {
-    room: () => pageBytes,
-    slotFor(key, bytes, lower) {
-      const quarter = quarterBytes > 0 && bytes <= quarterBytes
-      const place = take(key, quarter, [])
-      if (place) return place
+    /** The bytes `key`'s page may fill: one past them would write over a neighbour. */
+    room: (key: string) => homes?.homes.get(key)?.bytes ?? widest,
+    /** The place of `key`'s page of `bytes`, taken, or why none is; `lower`, a page of a lower
+     *  tier, takes an old page's alone (`eviction.ts`). */
+    place(key: string, bytes: number, lower?: boolean): Place | NoVictim {
+      const width = widthFor(key, bytes)
+      if (held) {
+        const home = held.homes.get(key)
+        if (!home) throw new Error('PAGE_HOME_MISSING')
+        const i = indexOf(home.offset)
+        if (keys[i] !== null) return 'eviction-queue-spent'
+        carve(i, home.offset, width, key)
+        return { offset: home.offset, victims: [] }
+      }
+      const free = fit(width)
+      if (free) {
+        carve(free.i, free.at, width, key)
+        return { offset: free.at, victims: [] }
+      }
       const page = eviction.victim(
-        (candidate) => quarter || quarterOf(candidate) < 0 || leaves(candidate.slot, lower),
+        (candidate) => windowAt(candidate, width, lower) !== undefined,
         lower,
       )
       if (typeof page === 'string') return page
-      // A whole slot asked of a split one leaves with every page of it; any other victim alone.
-      const victims =
-        quarter || quarterOf(page) < 0
-          ? [page]
-          : [...split.get(page.slot)!].map((held) => resident.get(held)!)
-      for (const victim of victims) release(victim)
-      return take(key, quarter, victims)!
+      const at = windowAt(page, width, lower)!,
+        victims: ResidentPage[] = []
+      for (let j = indexOf(at); j < keys.length && starts[j] < at + width; j++)
+        if (keys[j] !== null) victims.push(resident.get(keys[j]!)!)
+      for (const victim of victims) release(indexOf(victim.offset))
+      carve(indexOf(at), at, width, key)
+      return { offset: at, victims }
     },
-    freed: release,
+    /** A resize's place for `key`'s page of `width` (`widthFor`): its home while the pool holds the
+     *  catalogue, else `offset` when that grain is free, else the first free grain; -1 when none
+     *  is. Never a victim. */
+    keep(key: string, width: number, offset: number) {
+      const at = held ? held.homes.get(key)?.offset : offset % width === 0 ? offset : -1
+      if (at !== undefined && at >= 0 && at + width <= o.bytes) {
+        const i = indexOf(at)
+        if (keys[i] === null && starts[i] + sizes[i] >= at + width) {
+          carve(i, at, width, key)
+          return at
+        }
+      }
+      if (held) return -1
+      const free = fit(width)
+      if (!free) return -1
+      carve(free.i, free.at, width, key)
+      return free.at
+    },
+    widthFor,
+    /** The bytes `page` holds: its span's. */
+    widthOf: (page: ResidentPage) => sizes[indexOf(page.offset)],
+    /** `page` left without an arrival to take its place: free for the next one. */
+    freed(page: ResidentPage) {
+      const i = indexOf(page.offset)
+      if (keys[i] === page.key) release(i)
+    },
+    /** How many places no page holds: the homes empty while the pool holds the catalogue, else
+     *  the widest grains its free bytes make. */
     get free() {
-      return free.length + quarters.size
+      return held ? held.homes.size - count : Math.floor(freeBytes / widest)
     },
-    split,
   }
 }
+
+export type Placement = ReturnType<typeof createPlacement>

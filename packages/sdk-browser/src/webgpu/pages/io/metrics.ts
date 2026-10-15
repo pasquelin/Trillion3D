@@ -15,6 +15,7 @@ import { vsmFrameMetrics } from '../render/vsm/vsmStats.ts'
 import { destroyEngineVsm } from '../render/vsm/engineVsm.ts'
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts'
 import { transparentCounts } from '../state/transparentCounts.ts'
+import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
 
 /** Geometry bytes: the cached allocation total plus the three concatenated visibility buffers. */
 export function vertexBytesOf(
@@ -104,7 +105,8 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
 /** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
 export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   const { gpu, capture, timing, blendState, services } = rt,
-    { scene, pagedBlendCopies } = rt.setup
+    { scene, pagedBlendCopies } = rt.setup,
+    device = gpu.device
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt)
   // The main view's resources are released below; a capture under way releases its own view.
@@ -173,6 +175,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   const closing = gpu.cache?.dispose()
   gpu.cache = undefined
   scene.clear()
+  // The session submits nothing more: what it retired goes now, as after a frame's submit.
+  if (device) destroyRetired(device)
   rt.diag.drainTraceNow()
   return Promise.resolve(closing).then(() => {})
 }

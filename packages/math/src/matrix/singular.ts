@@ -1,3 +1,5 @@
+import { linearPartDeterminant } from './matrix4.ts'
+import { LINEAR_PART } from './matrixElements.ts'
 /**
  * THE ENGINE "SINGULAR MATRIX" RULE, written once, for the CPU AND for the GPU.
  *
@@ -9,7 +11,7 @@
  *
  * THE RULE, in one sentence. The linear part is divided by the sum of the absolute values of its
  * nine terms — its scale — BEFORE the determinant; it is singular when this normalised
- * determinant does not exceed `SINGULAR_DETERMINANT`. A zero, infinite or NaN scale is singular:
+ * determinant does not exceed `DIVISOR_FLOOR`. A zero, infinite or NaN scale is singular:
  * the division then yields nothing.
  *
  * WHERE IT APPLIES. `normalMatrix3` (`matrix3.ts`) on the CPU, `invTranspose3Prep`
@@ -28,7 +30,7 @@
  * single precision: only normalisation crosses that floor, so this threshold judges
  * nothing but the shape of the matrix, never its size.
  */
-export const SINGULAR_DETERMINANT = 1e-20
+export const DIVISOR_FLOOR = 1e-20 // also every shader divisor's floor (`../wgsl/constants.ts`)
 
 /**
  * The SCALE of a linear part: the sum of the absolute values of the nine terms of the 3×3 block of a
@@ -84,17 +86,14 @@ export function linearPartIdentityDistanceSq(m: ArrayLike<number>, at = 0) {
 export function normalizedLinearDeterminant(m: ArrayLike<number>) {
   const t = linearPartScale(m)
   if (!(t > 0) || !Number.isFinite(t)) return NaN
-  const a0 = m[0] / t,
-    a1 = m[1] / t,
-    a2 = m[2] / t
-  const b0 = m[4] / t,
-    b1 = m[5] / t,
-    b2 = m[6] / t
-  const c0 = m[8] / t,
-    c1 = m[9] / t,
-    c2 = m[10] / t
-  return a0 * (b1 * c2 - b2 * c1) + a1 * (b2 * c0 - b0 * c2) + a2 * (b0 * c1 - b1 * c0)
+  // The three columns divided first, then `linearPartDeterminant`: its first-column expansion is
+  // the triple product `a · (b × c)` term for term, the same bits.
+  for (const k of LINEAR_PART) SCALED[k] = m[k] / t
+  return linearPartDeterminant(SCALED)
 }
+
+/** `normalizedLinearDeterminant`'s divided columns, held between the division and the product. */
+const SCALED = /* @__PURE__ */ new Float64Array(16)
 
 /**
  * THE DECISION, in the very form of the WGSL kernel (`invTranspose3Prep`): the factor that multiplies
@@ -118,6 +117,6 @@ export function normalizedLinearDeterminant(m: ArrayLike<number>) {
 export function adjugateFactor(m: ArrayLike<number>, determinant: number) {
   const normalized = normalizedLinearDeterminant(m)
   if (Number.isNaN(normalized)) return null
-  if (determinant === 0 || !(Math.abs(normalized) > SINGULAR_DETERMINANT)) return 1
+  if (determinant === 0 || !(Math.abs(normalized) > DIVISOR_FLOOR)) return 1
   return 1 / determinant
 }

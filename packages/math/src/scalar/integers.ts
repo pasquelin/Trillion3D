@@ -4,10 +4,10 @@
 export const ceilDiv = (count: number, size: number) => Math.ceil(count / size)
 
 /** The workgroups that cover `n` threads of `size` each, one at least. */
-export const workgroupCount = (n: number, size: number) => Math.max(1, Math.ceil(n / size))
+export const workgroupCount = (n: number, size: number) => Math.max(1, ceilDiv(n, size))
 
-/** The least multiple of `n > 0` not under `x`: `Math.ceil(x / n) * n`. */
-export const alignUp = (x: number, n: number) => Math.ceil(x / n) * n
+/** The least multiple of `n > 0` not under `x`: `ceilDiv(x, n) * n`. */
+export const alignUp = (x: number, n: number) => ceilDiv(x, n) * n
 
 /** The greatest multiple of `n > 0` not over `x`: `Math.floor(x / n) * n`. */
 export const alignDown = (x: number, n: number) => Math.floor(x / n) * n

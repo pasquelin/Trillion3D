@@ -1,4 +1,3 @@
-import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { BOX_VALUES, boxUnion } from '../../../math/src/geometry/box.ts'
 import { encloseTransform, ROUND, widenBox } from '../../../math/src/geometry/boxEnclosure.ts'
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
@@ -12,8 +11,7 @@ import type { SessionDeformation } from './session.ts'
  *  exact box. */
 const TRIG_ERROR = 2 ** -11
 
-const inverse = new Float64Array(16),
-  rest = new Float64Array(BOX_VALUES),
+const rest = new Float64Array(BOX_VALUES),
   world = new Float64Array(BOX_VALUES),
   shift = new Float64Array(BOX_VALUES),
   local = new Float64Array(BOX_VALUES),
@@ -39,7 +37,13 @@ function waveSlack(model: Waves, count: number, box: Float64Array) {
  *  the displacement box of its rectangle (`Waves.displacementBox`), by the float32 waves' error
  *  and the sum's rounding (`widenBox`), then carried back the same way. False when a transform
  *  bounds nothing (a singular or non-finite pose). */
-function pageBox(rec: PageRec, e: ArrayLike<number>, model: Waves | null, count: number) {
+function pageBox(
+  rec: PageRec,
+  e: ArrayLike<number>,
+  inverse: ArrayLike<number>,
+  model: Waves | null,
+  count: number,
+) {
   rest.set(rec.min, 0)
   rest.set(rec.max, 3)
   if (!model) return (local.set(rest), true)
@@ -106,11 +110,13 @@ function writeGroup(
   for (let n = 0; n < ranks.length; n++) {
     const { world: placed, pages } = roots[ranks[n]],
       e = placed.elements,
-      model = deformation.frame.wavesAlone(deformation.entryOf(ranks[n])) ?? null,
-      count = deformation.frame.drawnWaves(deformation.entryOf(ranks[n]))
-    if (model) invertMatrix4(inverse, e)
+      { frame } = deformation,
+      entry = deformation.entryOf(ranks[n]),
+      model = frame.wavesAlone(entry) ?? null,
+      count = frame.drawnWaves(entry),
+      inverse = model ? frame.waveInverse(entry, e) : e
     for (let k = 0, at = 0; k < pages.length; k++, at += BOX_VALUES) {
-      if (!pageBox(pages[k], e, model, count)) return false
+      if (!pageBox(pages[k], e, inverse, model, count)) return false
       if (n) boxUnion(boxes, at, local[0], local[1], local[2], local[3], local[4], local[5])
       else boxes.set(local, at)
     }

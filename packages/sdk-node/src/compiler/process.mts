@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import type { CompilerEvent } from './contracts.ts'
 import { currentCompilerExecutable } from './executable.mts'
 import { compilerError } from '../messages/catalogue.mts'
-import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts'
+import { lineReader } from './lines.mts'
 
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
 export const CANCEL_GRACE_MS = 5000
@@ -75,32 +75,36 @@ export function runCompiler<T>(
     })
     child.stdout.setEncoding('utf8')
     child.stderr.setEncoding('utf8')
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk
-      if (stdout.length > COMPILER_LINE_LIMIT) fail(compilerError('COMPILER_LINE_LIMIT'))
-    })
-    child.stderr.on(
-      'data',
-      lineReader(
-        (line) => {
-          let event: CompilerEvent
-          try {
-            event = JSON.parse(line) as CompilerEvent
-          } catch {
-            lastError = compilerError('COMPILER_EXIT', line)
-            return
-          }
-          if (event.status === 'error')
-            lastError = compilerError(event.code ?? 'COMPILER_EXIT', event.message ?? line)
-          try {
-            onEvent?.(event)
-          } catch (error) {
-            fail(error)
-          }
-        },
-        () => fail(compilerError('COMPILER_LINE_LIMIT')),
-      ),
+    // The answer is the last line the compiler writes out, read as stderr's events are.
+    const answer = lineReader(
+      (line) => {
+        stdout = line
+      },
+      () => fail(compilerError('COMPILER_LINE_LIMIT')),
     )
+    child.stdout.on('data', answer)
+    child.stdout.on('end', answer.end)
+    const events = lineReader(
+      (line) => {
+        let event: CompilerEvent
+        try {
+          event = JSON.parse(line) as CompilerEvent
+        } catch {
+          lastError = compilerError('COMPILER_EXIT', line)
+          return
+        }
+        if (event.status === 'error')
+          lastError = compilerError(event.code ?? 'COMPILER_EXIT', event.message ?? line)
+        try {
+          onEvent?.(event)
+        } catch (error) {
+          fail(error)
+        }
+      },
+      () => fail(compilerError('COMPILER_LINE_LIMIT')),
+    )
+    child.stderr.on('data', events)
+    child.stderr.on('end', events.end)
     child.on('error', (error: NodeJS.ErrnoException) =>
       fail(
         error.code === 'ENOENT'

@@ -5,7 +5,7 @@ use crate::proxy::tracer::{surface_at, trace, World};
 use std::f64::consts::PI;
 use trillion3d_math::random::splitmix_unit;
 use trillion3d_math::scalar::perspective_slope;
-use trillion3d_math::vec3::{cross, unit_or_itself};
+use trillion3d_math::vec3::{cross, frame_across, unit_or_itself};
 use trillion3d_math::vecn::sub;
 use trillion3d_math::{GOLDEN, GOLDEN_32};
 
@@ -24,12 +24,7 @@ fn hash_unit(seed: u64) -> f64 {
 fn cosine_direction(n: [f64; 3], u1: f64, u2: f64) -> [f64; 3] {
     let radius = u1.sqrt();
     let angle = 2.0 * PI * u2;
-    let up = if n[1].abs() < 0.9 {
-        [0.0, 1.0, 0.0]
-    } else {
-        [1.0, 0.0, 0.0]
-    };
-    let tangent = unit_or_itself(cross(up, n));
+    let tangent = frame_across(n);
     let bitangent = cross(n, tangent);
     let z = (1.0 - u1).max(0.0).sqrt();
     unit_or_itself([

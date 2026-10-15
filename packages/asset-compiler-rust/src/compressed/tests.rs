@@ -42,19 +42,20 @@ fn draco_reference_box_reaches_existing_accessors() {
     .unwrap();
     assert_eq!(positions.count, 24);
     assert_eq!(indices.count, 36);
-    for vertex in 0..positions.count {
+    let (positions, normals) = (
+        positions.collect_f32().unwrap(),
+        normals.collect_f32().unwrap(),
+    );
+    for vertex in 0..24 {
         for axis in 0..3 {
-            assert!((positions.value(vertex, axis).unwrap().abs() - 0.5).abs() < 0.001);
+            assert!((positions[vertex * 3 + axis].abs() - 0.5).abs() < 0.001);
         }
         let length = trillion3d_math::vecn::squared_length(
-            [0, 1, 2].map(|axis| normals.value(vertex, axis).unwrap()),
+            [0, 1, 2].map(|axis| f64::from(normals[vertex * 3 + axis])),
         );
         assert!((length - 1.).abs() < 0.02);
     }
-    for face in 0..12 {
-        let ids: Vec<_> = (0..3)
-            .map(|i| indices.u32_at(face * 3 + i).unwrap())
-            .collect();
+    for ids in indices.collect_u32().unwrap().chunks_exact(3) {
         assert!(ids.iter().all(|&i| i < 24));
         assert!(ids[0] != ids[1] && ids[1] != ids[2] && ids[2] != ids[0]);
     }

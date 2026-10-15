@@ -2,7 +2,7 @@
 //!
 //! A reduction's error measures how far what it keeps moves from the surface it replaces; it says
 //! nothing of a disconnected part it removes whole. Removing one is a simplification like any
-//! other, and costs at least the part's own extent, the diameter of its bounds in the source mesh:
+//! other, and costs at least the part's own extent, the diameter of its smallest ball in the source mesh:
 //! a part drops only at the level whose error covers it, and since a group's error is never below
 //! its children's, a column or an arch stays until the error is as wide as it is. The
 //! simplifier's error alone let a part go at a level that publishes less: on a building of
@@ -14,10 +14,10 @@
 //! and half the rest on the next, all at the same 0.4 m: its coarsest level kept 1.8 % of its area
 //! on a log house. Measured to the surface kept, a roof of parts keeps a cover
 //! within its error.
-use super::bounds::bounding_sphere;
 use crate::join::Join;
 use std::collections::BTreeMap;
 use trillion3d_page_codec::hash::WordMap;
+use trillion3d_page_codec::min_ball::point_sphere;
 
 /// The corners of `source` as local ids of their welded position (`weld`), those ids joined over
 /// its triangles: one root per part.
@@ -58,26 +58,9 @@ pub(super) fn part_extents(positions: &[f32], indices: &[u32], weld: &[u32]) -> 
     extents
 }
 
-/// The extent of a part, the diameter of the bounds of its corners.
+/// The extent of a part, the diameter of the smallest ball of its corners.
 pub(crate) fn extent(positions: &[f32], part: &[u32]) -> f64 {
-    2.0 * bounding_sphere(positions, part)[3]
-}
-
-/// What removing the parts of `source` of which `kept` holds no vertex costs: the largest of their
-/// source extents (`part_extents`) and of their distances to the triangles of `kept`, both over
-/// the source vertices; parts meet at a shared position (`weld`).
-#[cfg(test)]
-pub(super) fn vanished_error(
-    source: &[u32],
-    kept: &[u32],
-    positions: &[f32],
-    weld: &[u32],
-    extents: &[f64],
-) -> f64 {
-    let (extent, removed) = vanished_parts(source, kept, weld, extents);
-    extent.max(crate::physics_cook::hausdorff::one_sided_distance(
-        positions, &removed, kept,
-    ))
+    2.0 * point_sphere(positions, part)[3]
 }
 
 /// The largest source extent of the parts of `source` of which `kept` holds no vertex, and their
@@ -87,7 +70,14 @@ pub(super) fn vanished_extent(source: &[u32], kept: &[u32], weld: &[u32], extent
     vanished_parts(source, kept, weld, extents).0
 }
 
-fn vanished_parts(source: &[u32], kept: &[u32], weld: &[u32], extents: &[f64]) -> (f64, Vec<u32>) {
+/// The largest source extent of the parts of `source` of which `kept` holds no vertex, and the
+/// triangles of those parts.
+pub(super) fn vanished_parts(
+    source: &[u32],
+    kept: &[u32],
+    weld: &[u32],
+    extents: &[f64],
+) -> (f64, Vec<u32>) {
     let (local, corners, mut join) = joined(source, weld);
     let mut alive = vec![false; local.len()];
     for v in kept {

@@ -86,8 +86,7 @@ test('the paint order is the total order of the keys, own entries included, on r
   for (let seed = 1; seed <= 12; seed++) walk(60, seed, 40)
 })
 
-test('a camera jump past the shift budget gives the same order', () => {
-  // Hundreds of entries: a jump costs far more than eight shifts per entry.
+test('camera jumps over hundreds of entries give the same order', () => {
   for (let seed = 21; seed <= 24; seed++) walk(600, seed, 12)
 })
 
@@ -142,7 +141,7 @@ test('empty, single-item and single-pass scenes', () => {
   assert.deepEqual(blendState.runCount, [0, 0])
 })
 
-test('insertion and its merge fallback reach the one sorted list, from any start', () => {
+test('the merge sort reaches the one sorted list, from any start', () => {
   const sortedFrom = (keys: number[], start: number[]) => {
     const seeds = Uint32Array.from(keys.keys(), (item) => item << 6),
       order = Uint32Array.from(start)
@@ -153,7 +152,7 @@ test('insertion and its merge fallback reach the one sorted list, from any start
     Array.from(keys.keys()).sort((a, b) =>
       precedes(keys[a], a, keys[b], b) ? 1 : precedes(keys[b], b, keys[a], a) ? -1 : 0,
     )
-  // A sorted head, a reversed middle that spends the budget, then a tail due at the very front.
+  // A sorted head, a reversed middle, then a tail due at the very front.
   const keys = [
     ...Array.from({ length: 10 }, (_, i) => 1000 - i),
     ...Array.from({ length: 380 }, (_, i) => i + 1),
@@ -164,7 +163,7 @@ test('insertion and its merge fallback reach the one sorted list, from any start
   for (let trial = 0; trial < 50; trial++) {
     const n = 1 + Math.floor(next() * 500),
       start = Array.from({ length: n }, (_, rank) => rank)
-    // Mostly sorted, with a random stretch shuffled: from a few shifts to past the budget.
+    // Mostly sorted, with a random stretch shuffled.
     const from = Math.floor(next() * n),
       to = from + Math.floor(next() * (n - from))
     for (let i = to; i > from; i--) {

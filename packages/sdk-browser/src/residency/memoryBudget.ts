@@ -7,7 +7,6 @@ import { effectChainBytesAt } from '../effects/targets.ts'
 import { admittedPools, validateActiveMemory, type ActiveGpuMemory } from './activeMemory.ts'
 import { SHADOW_POOL_BYTES, BOUNCE_PROBE_BYTES } from './shadowBudgetBytes.ts'
 import { effectTargetReserve } from './effectReserve.ts'
-import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** The largest canvas a budget declares: the effect chain's targets are reserved at its size. */
 export interface BudgetCanvas {
@@ -85,8 +84,9 @@ export function defaultGpuBudget(
  *   (`hostTableBytes`, the streamer's `reserve`), told by each frame, and the cache's entries keep
  *   the rest: the decoded pages and texture levels under one budget.
  * With a session's `active` memory, each share is what it holds — the frame's targets with what
- * else is live beside the pools (`frameTargets`) — and the two pools the rest, less the shadows
- * still to be made (`shadowReserve`), within their floors and ceilings (`admittedPools`). At a canvas's default total (`defaultGpuBudget`), which funds the
+ * else is live beside the pools (`frameTargets`) —, without one what it reserves (`fixedShares`),
+ * and the two pools the rest, less the shadows still to be made (`shadowReserve`), within their
+ * floors and ceilings (`admittedPools`). At a canvas's default total (`defaultGpuBudget`), which funds the
  * frame at full resolution before the pools, the split gives each pool its own default while what
  * else is live fits in what the shares leave unused.
  */
@@ -101,33 +101,39 @@ export function splitMemoryBudget(
   checkBudget(canvas.width, 'INVALID_BUDGET_CANVAS')
   checkBudget(canvas.height, 'INVALID_BUDGET_CANVAS')
   if (active) validateActiveMemory(active)
-  const shadowPool = active?.shadowPool ?? SHADOW_POOL_BYTES
-  const bounceProbes = active?.bounceProbes ?? BOUNCE_PROBE_BYTES
-  const effectTargets = active?.effectTargets ?? effectTargetReserve(canvas)
-  // The camera cut's tables, as a session holds and asks them (`ActiveGpuMemory.cutTables`).
-  const cutTables = active?.cutTables ?? 0
-  const fixed = shadowPool + bounceProbes + cutTables + effectTargets + (active?.frameTargets ?? 0)
-  if (!active && gpu < fixed) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL')
-  const half = Math.floor((gpu - fixed) / 2)
+  const { held, ...shares } = fixedShares(canvas, active)
+  // The fixed shares never shrink: a total under them is refused by name.
+  if (gpu < shares.fixed) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL')
   return {
-    shadowPool,
-    bounceProbes,
-    cutTables,
-    effectTargets,
-    ...(active ? { frameTargets: active.frameTargets } : {}),
-    ...(active
-      ? admittedPools(
-          gpu - fixed,
-          active.geometryMinimum,
-          active.textureMinimum,
-          DEFAULT_GEOMETRY_POOL_BUDGET,
-          DEFAULT_TEXTURE_POOL_BUDGET,
-          active.shadowReserve,
-        )
-      : {
-          geometryPool: clamp(half, 1, DEFAULT_GEOMETRY_POOL_BUDGET),
-          texturePool: clamp(half, 1, DEFAULT_TEXTURE_POOL_BUDGET),
-        }),
+    ...shares,
+    ...admittedPools(
+      gpu - shares.fixed,
+      held.geometryMinimum,
+      held.textureMinimum,
+      DEFAULT_GEOMETRY_POOL_BUDGET,
+      DEFAULT_TEXTURE_POOL_BUDGET,
+      held.shadowReserve,
+    ),
     pageCache: cpu,
   }
+}
+
+/**
+ * The shares a split funds before the pools, and their sum (`fixed`): what a session holds
+ * (`active`), else what one reserves on the declared `canvas` — the shadows (`SHADOW_POOL_BYTES`),
+ * the bounce probes, the effect chain's targets, no frame target, no pool floor. One reading for
+ * a session and for none: the pools are then the rest, by the one admission rule (`admittedPools`).
+ */
+export function fixedShares(canvas: BudgetCanvas, active?: ActiveGpuMemory) {
+  const held = active ?? {
+    ...NOTHING_HELD,
+    shadowPool: SHADOW_POOL_BYTES,
+    bounceProbes: BOUNCE_PROBE_BYTES,
+    effectTargets: effectTargetReserve(canvas),
+  }
+  // The camera cut's tables, as a session holds and asks them (`ActiveGpuMemory.cutTables`).
+  const cutTables = held.cutTables ?? 0
+  const { shadowPool, bounceProbes, effectTargets, frameTargets } = held
+  const fixed = shadowPool + bounceProbes + cutTables + effectTargets + frameTargets
+  return { held, shadowPool, bounceProbes, cutTables, effectTargets, frameTargets, fixed }
 }

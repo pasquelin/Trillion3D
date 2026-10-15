@@ -8,17 +8,18 @@
  * uploaded by the words that changed (`writeChanged`), and the words between two changed ones
  * go up with them: the words a light keeps while it lives (its kind, emitter, finest mip and level)
  * open the record, those its view and its turn move follow, the origin shift and the clipmap's
- * origin, which move with the eye every frame, lie together, and the corner, the range and the pad
- * close it.
+ * origin, which move with the eye every frame, lie together, and the corner, the range and the
+ * table's origin close it.
  *
  * Matrices: 16 floats in the engine's column-major, column-vector convention (`m[column·4 + row]`),
  * as WGSL's mat4x4f reads them. All distances in metres.
  */
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { wordViews } from '../gpu/core/wordViews.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
-import { VSM_LIGHT_KIND_DIRECTIONAL, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
+import { VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
 
 /** Each field's byte offset in a record (`VsmProjectionRecord`). */
 const RECORD_OFFSET = {
@@ -39,12 +40,15 @@ const RECORD_OFFSET = {
   ditherTexels: 268,
   cornerSteps: 272,
   lightRange: 280,
+  tableOrigin: 284,
 } as const
 
 /** A map's record, its matrices and vectors its own: a writer fills them in place frame after
  *  frame (`vsmDefaultProjectionData` makes them). */
 export interface VsmProjectionDataValues {
   lightViewToClip: Float64Array
+  /** The CPU's alone, never uploaded: the clip matrix the UV one is made from (`vsmShadowMatrices`). */
+  shiftedToClip: Float64Array
   shiftedToMapUv: Float64Array
   planesToMapUv: Float64Array
   /** Directional: −light travel direction; local lights: zero. */
@@ -66,16 +70,20 @@ export interface VsmProjectionDataValues {
   flags: number
   ditherTexels: number
   finestMip: number
+  /** Where the map's page table lies in the global one (x | y << 16, `tableBlocks.ts`), the
+   *  frame's. */
+  tableOrigin: number
 }
 
 /** Default record, every array its own. */
 export function vsmDefaultProjectionData(): VsmProjectionDataValues {
   return {
     lightViewToClip: new Float64Array(16),
+    shiftedToClip: new Float64Array(16),
     shiftedToMapUv: new Float64Array(16),
     planesToMapUv: new Float64Array(16),
     lightDirection: [0, 0, 0],
-    lightKind: VSM_LIGHT_KIND_DIRECTIONAL,
+    lightKind: LIGHT_KIND.directional,
     originShift: [0, 0, 0],
     lightRange: 0,
     levelBias: 0,
@@ -87,6 +95,7 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
     flags: 0,
     ditherTexels: 0,
     finestMip: 0,
+    tableOrigin: 0,
   }
 }
 
@@ -125,33 +134,25 @@ export function writeVsmProjectionData(
   u[base + O.flags / 4] = d.flags >>> 0
   f[base + O.ditherTexels / 4] = d.ditherTexels
   u[base + O.finestMip / 4] = d.finestMip
-  // The word after the range, the pad that closes the record: zero.
-  u[base + O.lightRange / 4 + 1] = 0
+  u[base + O.tableOrigin / 4] = d.tableOrigin >>> 0
 }
 
 /** Clip space to shadow UV: x·0.5+0.5, y·−0.5+0.5, z kept, column-vector form. */
 const CLIP_TO_UV = new Float64Array([0.5, 0, 0, 0, 0, -0.5, 0, 0, 0, 0, 1, 0, 0.5, 0.5, 0, 1])
 
-/** The shifted-to-shadow-UV matrix: `scaleBias · viewToClip · view`, the view applied first. */
-export function vsmShadowUvMatrix(
-  out: Float64Array,
-  shiftedToShadowView: Float64Array,
-  viewToClip: Float64Array,
-) {
-  multiplyMatrix4(out, viewToClip, shiftedToShadowView)
-  multiplyMatrix4(out, CLIP_TO_UV, out)
-  return out
-}
-
 const scratch = new Float64Array(16)
 
-/** The normal matrix, transpose(inverse(UV)): it takes a plane (normal, offset) to UV space. */
-export function vsmShadowUvNormalMatrix(
-  out: Float64Array,
+/** A map's three matrices from its view (shifted to shadow view) and its view-to-clip, each made
+ *  once into `d`: shifted-to-clip (the CPU's own reads of the map's clip rows), shifted-to-UV
+ *  (`CLIP_TO_UV` after it, the shaders'), and the planes' matrix, transpose(inverse(UV)), which takes
+ *  a plane (normal, offset) to UV space. */
+export function vsmShadowMatrices(
+  d: Pick<VsmProjectionDataValues, 'shiftedToClip' | 'shiftedToMapUv' | 'planesToMapUv'>,
   shiftedToShadowView: Float64Array,
   viewToClip: Float64Array,
 ) {
-  vsmShadowUvMatrix(scratch, shiftedToShadowView, viewToClip)
-  invertMatrix4(scratch, scratch)
-  return transposeMatrix4(out, scratch)
+  multiplyMatrix4(d.shiftedToClip, viewToClip, shiftedToShadowView)
+  multiplyMatrix4(d.shiftedToMapUv, CLIP_TO_UV, d.shiftedToClip)
+  invertMatrix4(scratch, d.shiftedToMapUv)
+  transposeMatrix4(d.planesToMapUv, scratch)
 }

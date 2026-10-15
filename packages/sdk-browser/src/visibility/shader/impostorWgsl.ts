@@ -23,7 +23,7 @@ fn impWeights(f:vec2f)->vec3f{
 /**
  * The card's view, once per card (the vertex stage): the three frames the eye's direction blends,
  * their weights, and each frame's capture plane's normal `n`; its `x` axis is the library's
- * `tangentImpostor` (`basis` of `octahedron.rs`; `y = n × x`).
+ * `frameAround(n).x` (`basis` of `octahedron.rs`, `frame_across`; `y = n × x`).
  */
 const IMPOSTOR_VIEW_WGSL = wgslBlock(
   'IMPOSTOR_VIEW_WGSL',

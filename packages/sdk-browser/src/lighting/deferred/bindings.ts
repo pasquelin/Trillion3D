@@ -2,8 +2,8 @@
  * The one table of the deferred pass's bindings: the layout (`setup.ts`), the bind-group entries
  * (`program.ts`) and the WGSL declarations read their number here, so the opaque resolve, the blend
  * and the water composite, which extend the same list, read a surface lit on the same numbers. The
- * receiver's reads follow `receiver`; 15 to 17, 20 and 24 to 28 are the receiver's and the shadow
- * read's own, 30 and 31 the resolve proofs'.
+ * receiver target is `receiver`; 15 to 17 and 20 are the shadow read's own, 24 to 28 free, 30 and
+ * 31 the resolve proofs'.
  */
 export const DEFERRED_BINDINGS = {
   baseMetal: 0,
@@ -25,7 +25,7 @@ export const DEFERRED_BINDINGS = {
   pool: 19,
   subsurface: 22,
   receiver: 23,
-  /** The shadow mask's tile words (`vsmMaskFactor`), past the receiver's. */
+  /** The shadow mask's tile words (`vsmMaskFactor`). */
   maskTiles: 29,
   lobes: 32,
   reflection: 33,

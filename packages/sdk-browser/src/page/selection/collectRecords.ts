@@ -1,10 +1,8 @@
 import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
-import { quantizationErrorOf } from './helpers.ts'
 import type { Template } from './template.ts'
 import type { PageRec } from './types.ts'
 import type { DrawSource } from './drawSource.ts'
-import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
-import { OPEN_CONE } from '../cone/cone.ts'
+import type { PageSurface } from '../surface.ts'
 
 /** Grows a box by the grid's quantization error: the surface an engine draws from the pages is the
  *  quantized one, so every bound encloses it. No error, the box is shared as-is. */
@@ -28,10 +26,7 @@ export function createPageRecords(
 ): PageRec[] {
   // The grid moved each position by at most this much: the page boxes grow by it, so culling still
   // encloses the quantized surface an engine draws.
-  const slack = quantizationErrorOf(primitive)
-  // Front-only alone keeps a closed cone: a surface seen from its back is culled by none. A surface
-  // the host opens later reopens its cone at the cut (`../cone/cone.ts`, `leafCone`).
-  const frontOnly = surfaceFrontOnly(surface)
+  const slack = template.quantizationError
   return primitive.pages.map((page, pageIndex) => {
     const entry = template.pages[pageIndex],
       cut = entry.cut,
@@ -68,7 +63,9 @@ export function createPageRecords(
       // recorded for every class, since a page may turn blended in the session.
       sourceOrder: template.sourceOrder[pageIndex],
       renderOrder: order,
-      cone: page.cone && !frontOnly ? OPEN_CONE : page.cone,
+      // The compiler's cone: the cut opens it on a surface seen from its back, read live
+      // (`../cone/cone.ts`, `leafCone`).
+      cone: page.cone,
     }
   })
 }

@@ -6,14 +6,12 @@ import type { Limits } from './deviceListCap.ts'
 import { grownFlagShape, type FlagShape } from './flagSections.ts'
 
 /** Where a readback's lists lie and what they are read into: the bytes copied, the drawn list's
- *  first word, the cap of the list they were cut on, the read's arrays, and the word of the
- *  admission counts (`levelCountsWord`). */
+ *  first word, the cap of the list they were cut on, and the read's arrays. */
 export type SlotRead = {
   bytes: number
   drawnWordOffset: number
   listCap: number
   scratch: DagOutputScratch
-  levelsWord: number
 }
 
 /**
@@ -45,14 +43,7 @@ export function readDagSlot(
   land?: (words: ArrayBuffer, parsed: SelectionResult | null, retried: boolean) => void,
 ) {
   const demand = listDemand(range, read.drawnWordOffset)
-  const parsed = parseDagOutput(
-    range,
-    0,
-    read.bytes,
-    read.drawnWordOffset,
-    read.scratch,
-    read.levelsWord,
-  )
+  const parsed = parseDagOutput(range, 0, read.bytes, read.drawnWordOffset, read.scratch)
   const grown =
     parsed?.truncated && !growth.listFull
       ? grownListCap(growth.limits, growth.pageCount, read.listCap, demand, growth.heldSlots)

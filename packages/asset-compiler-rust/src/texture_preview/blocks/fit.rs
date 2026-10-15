@@ -114,36 +114,36 @@ pub fn assign(texels: &Texels, ladder: &[f32], e0: [f32; 4], e1: [f32; 4]) -> [u
     rung
 }
 
-/// Least-squares endpoints for fixed rungs: the pair that minimises the summed
-/// squared distance between each texel and its point on the segment. A
-/// degenerate system — every texel on the same rung — keeps the endpoints given.
-fn solve(
-    texels: &Texels,
+/// Least-squares endpoints for fixed rungs: the pair that minimises the summed squared distance
+/// between each of the sixteen values and its point on the segment, in any number of channels —
+/// a block's four (`fit`) or one channel's (`channel::fit_channel`). A degenerate system — every
+/// value on the same rung — keeps the endpoints given.
+pub(super) fn solve<const N: usize>(
+    values: &[[f32; N]; 16],
     ladder: &[f32],
     rung: &[u8; 16],
-    e0: [f32; 4],
-    e1: [f32; 4],
-) -> ([f32; 4], [f32; 4]) {
+    e0: [f32; N],
+    e1: [f32; N],
+) -> ([f32; N], [f32; N]) {
     let (mut a, mut b, mut c) = (0.0f32, 0.0f32, 0.0f32);
-    let (mut x, mut y) = ([0.0f32; 4], [0.0f32; 4]);
-    for (texel, &rank) in texels.iter().zip(rung) {
+    let (mut x, mut y) = ([0.0f32; N], [0.0f32; N]);
+    for (value, &rank) in values.iter().zip(rung) {
         let w = ladder[rank as usize];
         let v = 1.0 - w;
         a += v * v;
         b += v * w;
         c += w * w;
-        x = add(x, scale(*texel, v));
-        y = add(y, scale(*texel, w));
+        x = add(x, scale(*value, v));
+        y = add(y, scale(*value, w));
     }
     let det = a * c - b * b;
     if det.abs() < 1e-6 {
         return (e0, e1);
     }
-    let inverse = 1.0 / det;
-    (
-        scale(sub(scale(x, c), scale(y, b)), inverse),
-        scale(sub(scale(y, a), scale(x, b)), inverse),
-    )
+    let solved = |p: [f32; N], q: [f32; N], k: f32, l: f32| {
+        core::array::from_fn(|i| (p[i] * k - q[i] * l) / det)
+    };
+    (solved(x, y, c, b), solved(y, x, a, b))
 }
 
 /// The segment every codec starts from: the block's extremes along its principal

@@ -1,6 +1,5 @@
 import { WORK_BLOCK_WORDS } from './floorWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * The list of live clusters of a frame, and the dispatch argument that sizes it.
@@ -40,7 +39,7 @@ import { OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
  */
 export const DAG_LIVE_WGSL = wgslBlock(
   'DAG_LIVE_WGSL',
-  [OPEN_SLICE_WGSL, WORKGROUP_THREADS_WGSL],
+  [],
   `/** The live list behind the candidates, three words an entry: the page, its placement, the cone
  *  word \`dagWanted\` keeps for \`dagMask\` (\`coneWgsl.ts\`). */
 fn liveBase()->u32{return views[0u].queueCap+2u*views[0u].candCap;}
@@ -50,10 +49,7 @@ fn liveGroups()->u32{return liveCounter()+1u;}
 fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].candCap);}
 /** \`entry\` is the candidate's, view included, read by placement \`w\`, its cone word \`cone\`. */
 fn liveAppend(entry:u32,w:u32,cone:u32){
- let s=atomicAdd(&work[liveCounter()],1u);
- if(s>=views[0u].candCap){dropWork(LIST_DROPPED);return;}
- setFlag(liveBase()+3u*s,entry);setFlag(liveBase()+3u*s+1u,w);setFlag(liveBase()+3u*s+2u,cone);
- if(s%WORKGROUP_THREADS==0u){openSlice(liveGroups(),s/WORKGROUP_THREADS);}
+ listAppend(liveCounter(),liveGroups(),liveBase(),3u,views[0u].candCap,LIST_DROPPED,entry,1u,w,cone);
 }
 fn liveAt(s:u32)->u32{return flagAt(liveBase()+3u*s);}
 fn liveWorld(s:u32)->u32{return flagAt(liveBase()+3u*s+1u);}

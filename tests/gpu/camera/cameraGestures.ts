@@ -6,6 +6,10 @@
 // the pose a gesture starts from kept, what differs once the gesture is undone counted.
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
+import {
+  worldControls,
+  type WorldControls,
+} from '../../../packages/sdk-browser/src/world/core/worldCamera.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { settle } from '../world/proofWorld.ts'
 
@@ -54,7 +58,7 @@ export function key(type: 'keydown' | 'keyup', code: string) {
 
 /** A controller as the proof drives it: its pivot when it has one, its change events, its step. */
 type Controls = {
-  target?: { x: number; y: number; z: number }
+  target?: { x: number; y: number; z: number; set(x: number, y: number, z: number): unknown }
   minDistance?: number
   maxDistance?: number
   addEventListener(type: 'change', listener: () => void): void
@@ -63,8 +67,9 @@ type Controls = {
 }
 
 /**
- * One manual world on `manifestUrl`, 240 × 160 at a ratio of one, whose controller is swapped per
- * gesture: `begin(kind)` mounts it and keeps the image of the pose it starts from, `step(seconds)`
+ * One manual world on `manifestUrl`, 240 × 160 at a ratio of one, whose controller — the world's
+ * own maker, `worldControls` — is swapped per gesture: `begin(kind)` mounts it, a pivot on the
+ * session's home target, and keeps the image of the pose it starts from, `step(seconds)`
  * integrates it as a host's frame loop would, `end()` counts the pixels that differ from that image.
  */
 export async function openCameraProbe(manifestUrl: string) {
@@ -98,17 +103,11 @@ export async function openCameraProbe(manifestUrl: string) {
     world,
     canvas,
     pose,
-    async begin(
-      kind:
-        | 'controls'
-        | 'trackballControls'
-        | 'panZoomControls'
-        | 'flyControls'
-        | 'firstPersonControls',
-    ) {
+    async begin(kind: Exclude<WorldControls, 'character' | 'vehicle' | 'none'>) {
       controls?.dispose()
-      controls = (world[kind] as () => Controls)()
+      controls = worldControls(kind, world.camera, canvas) as Controls
       if (controls.target) {
+        controls.target.set(...world.homePose().target)
         controls.minDistance = 0.2
         controls.maxDistance = 40
         controls.update()

@@ -21,13 +21,13 @@ export function createGpuPagePins(context: GpuPageContext) {
       emit?.('gpu-page-pin', 'GPU page pinned', () => ({
         version: 1,
         key,
-        slot: page.slot,
+        offset: page.offset,
         generation: page.generation,
         changed: true,
         pinned: eviction.pinnedCount,
       }))
     },
-    /** Places a load can take now: the free slots and quarters, then the pages the published
+    /** Places a load can take now: the free ones (`placement.ts`), then the pages the published
      *  order still gives — its old head alone for a page of a lower tier (`eviction.ts`). */
     room: (lower = false) => placesFor(context, lower),
     /** Whether the page `key` is pinned. */

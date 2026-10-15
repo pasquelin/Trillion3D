@@ -1,22 +1,15 @@
 // The projection's tiles under test (`projectionTiles.test.ts`, `projectionTileBox.test.ts`): the
 // shipped module, generated tiles and lights, and what `shaderRun` needs to run the kernel's pieces.
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { builtins } from '../texture/shaderRunBuiltins.fixture.ts'
-import {
-  VSM_LIGHT_KIND_DIRECTIONAL,
-  VSM_LIGHT_KIND_POINT,
-  VSM_LIGHT_KIND_RECT,
-  VSM_LIGHT_KIND_SPOT,
-} from './constants.ts'
+import {} from './constants.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { unitF32 } from '../../../math/src/vector/unitF32.fixture.ts'
 
 export const PROJECTION_CODE = vsmProjectionWgsl(
   vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
-  {
-    subgroups: false,
-  },
 )
 export type V3 = [number, number, number]
 export interface Light {
@@ -51,18 +44,18 @@ export type Result = { shadowFactor: number; rayCount: number }
 export function lightsOf(rand: () => number, count: number, edge: V3[], corner?: V3): Light[] {
   return Array.from({ length: count }, (_, k) => {
     const kind = [
-      VSM_LIGHT_KIND_DIRECTIONAL,
-      VSM_LIGHT_KIND_POINT,
-      VSM_LIGHT_KIND_SPOT,
-      VSM_LIGHT_KIND_RECT,
-      VSM_LIGHT_KIND_POINT,
-      VSM_LIGHT_KIND_SPOT,
+      LIGHT_KIND.directional,
+      LIGHT_KIND.point,
+      LIGHT_KIND.spot,
+      LIGHT_KIND.rect,
+      LIGHT_KIND.point,
+      LIGHT_KIND.spot,
     ][Math.floor(rand() * 6)]
     let at: V3 = [0, 1, 2].map(() => Math.fround((rand() - 0.5) * 40)) as V3
     if (corner && rand() < 0.5)
       at = corner.map((c) => Math.fround(c - (0.1 + rand()) * (0.5 + rand() * 8))) as V3
     let radius = 0.5 + rand() * 20
-    if (kind !== VSM_LIGHT_KIND_DIRECTIONAL && rand() < (corner ? 0.6 : 0.3)) {
+    if (kind !== LIGHT_KIND.directional && rand() < (corner ? 0.6 : 0.3)) {
       // Its sphere through a pixel of the tile, give or take a few units in the last place.
       const p = corner ?? edge[Math.floor(rand() * edge.length)]
       const d = Math.hypot(at[0] - p[0], at[1] - p[1], at[2] - p[2])
@@ -74,7 +67,7 @@ export function lightsOf(rand: () => number, count: number, edge: V3[], corner?:
       radius: Math.fround(radius),
       direction: unitF32([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
       sourceRadius: Math.fround(rand() * 0.5),
-      cosCone: kind === VSM_LIGHT_KIND_SPOT ? cosCone : -2,
+      cosCone: kind === LIGHT_KIND.spot ? cosCone : -2,
       mapId: k,
       kind,
     }

@@ -16,12 +16,14 @@
  *                           the mark (`+ 3`)
  *   nodes    rgba32uint     the cut's nodes (`../gpu/dag/nodeTable.ts`): the root's box
  */
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
+import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import { CARRIED_BOX_WGSL } from './gpuComposeDerivedWgsl.ts'
 import { NODE_MAX, NODE_MIN } from '../gpu/dag/nodeLayout.ts'
-import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
+import { markReachWgsl, reachUnboundedWgsl } from '../deformation/halfFloat.ts'
 import { nodeTableWgsl } from '../gpu/dag/nodeTable.ts'
 import { dAdd, dSub } from '../../../math/src/wgsl/double.ts'
-import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
+import { LISTED_ROOTS_WGSL } from './listedRootsWgsl.ts'
 import { frameTableWgsl, MARK_WORD, ROOT_WORD } from '../gpu/dag/frameTable.ts'
 import { fromF32 } from '../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -34,20 +36,18 @@ export const TREE_LEAVES_FRAMES_BINDING = 4,
 
 /** The pass's text: one thread a placement, each writing its leaf (`writeLeaf`). */
 export const TREE_LEAVES_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,listed:u32,whole:u32,pad:u32,}
-@group(0) @binding(0) var<uniform> params:Params;
-@group(0) @binding(1) var<storage,read> worlds:array<vec2u>;
+  `@group(0) @binding(1) var<storage,read> worlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> members:array<vec2u>;
 @group(0) @binding(3) var<storage,read> ranks:array<u32>;
 fn writeLeaf(w:u32){
  let root=framesWord(w,${ROOT_WORD}u);
  if(root==${NO_INDEX}u){return;}
- var world:array<vec2u,16>;
- for(var k=0u;k<16u;k++){world[k]=worlds[w*16u+k];}
+ var world:array<vec2u,${MATRIX_VALUES}>;
+ for(var k=0u;k<${MATRIX_VALUES}u;k++){world[k]=worlds[w*${MATRIX_VALUES}u+k];}
  // The reach its mark carries (its frame row's mark word), none past every finite one.
  let mark=framesWord(w,${MARK_WORD}u);
  var reach=vec2u(0u,0u);
- if((mark>>16u)<${REACH_UNBOUNDED}u){reach=fromF32(bitcast<u32>(unpack2x16float(mark).y));}
+ if(!reachUnbounded(mark)){reach=fromF32(bitcast<u32>(markReach(mark)));}
  var lo:array<vec2u,3>;
  var hi:array<vec2u,3>;
  for(var a=0u;a<3u;a++){
@@ -55,19 +55,17 @@ fn writeLeaf(w:u32){
   hi[a]=dAdd(fromF32(nodesWord(root,${NODE_MAX}u+a)),reach);
  }
  let box=carriedBox(world,lo,hi);
- for(var k=0u;k<6u;k++){members[w*6u+k]=box[k];}
+ for(var k=0u;k<${BOX_VALUES}u;k++){members[w*${BOX_VALUES}u+k]=box[k];}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
- var w=j;
- if(params.whole==0u){w=ranks[j];}
- if(w>=params.rootCount){return;}
- writeLeaf(w);
+ let w=listedRank(g,n);
+ if(w!=NO_INDEX){writeLeaf(w);}
 }`,
   [
-    FLAT_INDEX_WGSL,
-    WORKGROUP_THREADS_WGSL,
+    LISTED_ROOTS_WGSL,
     fromF32,
+    markReachWgsl,
+    reachUnboundedWgsl,
     dAdd,
     dSub,
     CARRIED_BOX_WGSL,

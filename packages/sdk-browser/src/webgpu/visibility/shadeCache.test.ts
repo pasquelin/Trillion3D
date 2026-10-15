@@ -13,7 +13,6 @@ import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { createUsageScope } from '../../../../../tests/kit/gpu/scopeRules.ts'
 import { createShadeCache, type ShadeCacheInputs } from './shadeCache.ts'
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
-import { createWebgpuShadePipelines } from './shadePipelines.ts'
 import {
   ROW_MARK_WORDS,
   ROW_RECORD_WORDS,
@@ -53,7 +52,6 @@ test('the cache is laid for the rows and the image, its passes over them in rows
     limits: { maxComputeWorkgroupsPerDimension: 2 },
   })
   const cache = await createShadeCache(device)
-  assert.deepEqual(cache.constants, { SHADE_CACHE: 1 })
   const first = cache.buffer,
     rows = 5 * WORKGROUP_THREADS
   // Each row at most 12 triangles: 3840, under the 3900 a 26 × 6300 image holds in its texels.
@@ -165,24 +163,4 @@ test('the pass runs the marks, the rows, then the triangles over the row table, 
   assert.equal(bindGroups.length, 2, 'two groups, made once')
   cache.encode({ pass }, inputs)
   assert.equal(bindGroups.length, 2, 'kept while the inputs do not move')
-})
-
-test('every class pipeline reads what the cache composes, single or tiled', async () => {
-  const { device, renderPipelines } = fakeDevice()
-  const cache = await createShadeCache(device)
-  const module = {} as GPUShaderModule
-  for (const classes of [[3], [3, 5]])
-    await createWebgpuShadePipelines(
-      device,
-      module,
-      classes,
-      undefined,
-      true,
-      undefined,
-      true,
-      cache.constants,
-    )
-  assert.ok(renderPipelines.length >= 3)
-  for (const { fragment } of renderPipelines)
-    assert.equal(fragment?.constants?.SHADE_CACHE, 1, 'the pixel reads its frame and triangle')
 })

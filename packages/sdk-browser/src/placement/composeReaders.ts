@@ -24,10 +24,9 @@ type RowReader = {
   parent: object
   rows: PlacementRows
   readonly index: number
-  /** The row's local matrix as linked: a copy, never the owner's view. */
+  /** The row's local matrix as linked: a copy, never the owner's view. A new one moves the slot's
+   *  version (`settleSlot`): a view reading it composes again. */
   readonly local: Float64Array
-  /** Bumped at each change of its local matrix or its rows: a view reading it composes again. */
-  changes: number
 }
 
 /** The readers of each slot. */
@@ -61,13 +60,12 @@ export function holdReaders(
   for (const { rows, index, local } of links) {
     const k = atOf(rows).get(index)
     if (k === undefined) {
-      const reader = { parent, rows, index, local: Float64Array.from(local), changes: 0 }
+      const reader = { parent, rows, index, local: Float64Array.from(local) }
       atOf(rows).set(index, held.push(reader) - 1)
       ;(joining.get(rows) ?? joining.set(rows, new Set()).get(rows)!).add(index)
       continue
     }
     held[k].parent = parent
-    held[k].changes++
     held[k].local.set(local)
   }
   if (joining.size) leaveOtherSlots(readers, slot, joining)
@@ -86,26 +84,23 @@ function leaveOtherSlots(readers: Readers, slot: number, joining: Map<PlacementR
 }
 
 /** A growth replaced the rows `from` by `to`, larger, with the same rows in place: the readers
- *  that held `from` hold `to`, composed again at their next read. */
+ *  that held `from` hold `to`. What they compose — the parent's world times their local — reads no
+ *  row: it holds. */
 export function rebindReaders(readers: Readers, from: PlacementRows, to: PlacementRows) {
   for (const held of readers.values())
-    for (const reader of held)
-      if (reader.rows === from) {
-        reader.rows = to
-        reader.changes++
-      }
+    for (const reader of held) if (reader.rows === from) reader.rows = to
 }
 
 /** `view` reads `reader`'s row composed under slot `slot` of `at`, the first time it is read since
- *  the slot's composition or the reader moved (`composeOnRead`): each view composes into its own
- *  array. One composed for another reader — its row having changed parent — reads through this one
- *  from now on. Both counters only grow: their sum moves whenever either does. */
+ *  the slot's version moved — its parent, a link or a reader's local (`settleSlot`) —
+ *  (`composeOnRead`): each view composes into its own array. One composed for another reader — its
+ *  row having changed parent — reads through this one from now on. */
 function readThrough(view: MatrixElements, reader: RowReader, slot: number, at: Composition) {
   const from = slot * MATRIX_VALUES
   composeOnRead(
     view,
     reader,
-    () => at.slotVersions[slot] + reader.changes,
+    () => at.slotVersions[slot],
     (out) => multiplyMatrix4(out, at.worlds.subarray(from, from + MATRIX_VALUES), reader.local),
   )
 }

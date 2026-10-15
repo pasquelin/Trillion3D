@@ -1,15 +1,10 @@
 import type { BlendGpuItem } from './state.ts'
-import {
-  layerSlot,
-  physicalSampledFlag,
-  sampledFlag,
-  type GeometryBlock,
-  type MaterialLayers,
-} from '../row/pageRowMaterial.ts'
-import type { MaterialTable } from '../material/materialTable.ts'
+import type { GeometryBlock, MaterialLayers } from '../row/pageRowMaterial.ts'
+import { rowFlags } from '../row/surfaceRow.ts'
+import { WATER_RANK_SHIFT } from '../water/rank.ts'
+import { materialWord, type MaterialTable } from '../material/materialTable.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import type { HostAttributes } from '../../host/resources.ts'
-import type { PageSurface } from '../../page/surface.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -53,9 +48,13 @@ export const BLEND_ITEM_WORLD = ITEM.world
  *  pool's blocks, which say whether a pooled geometry carries a second UV set. */
 type BlendAtlasTables = MaterialLayers & {
   deformation?: Pick<SessionDeformation, 'wordOfWorld'>
-  materialTable?: Pick<MaterialTable, 'word'>
+  materialTable: Pick<MaterialTable, 'surface'>
   geometryBlocks?: ReadonlyMap<HostAttributes, GeometryBlock>
 }
+
+/** The flag bits below an item's water rank: a page row's flags of its surface and its geometry
+ *  (`rowFlags`), the bits above them — model, fog, sprite, line — being its record's to read. */
+const ROW_BITS = (1 << WATER_RANK_SHIFT) - 1
 
 /** Whether the floats `item` reads carry a second UV set where `vertUv1` finds it: its own normal
  *  atlas's tail (`buffers.ts`), or the float pool's for a pooled or a paged unquantized geometry. A
@@ -81,7 +80,10 @@ export function writeBlendItemRecord(
   // carries only what belongs to the item — its indices, first vertex, flags.
   ints[base + ITEM.indexCount] = item.count
   ints[base + ITEM.vertexBase] = item.vertexBase ?? 0
-  ints[base + ITEM.flags] = item.flags | itemSampledFlag(mat, tables, lobed)
+  // What the table holds of its surface, written first where it moved: its record and summary.
+  const seen = tables.materialTable.surface(mat, tables)
+  ints[base + ITEM.flags] =
+    item.flags | (rowFlags(seen.row, item.geometry, tables.textures).flags & ROW_BITS)
   // The deformation record of its placement (`PageInfo.deform`): a paged item reads the float
   // pool that holds it; an unpaged one reads buffers of its own, and none.
   ints[base + ITEM.deformInput] = item.deformInput ?? 0
@@ -89,27 +91,8 @@ export function writeBlendItemRecord(
   ints[base + ITEM.deform] =
     item.paged || item.deformOutput ? (tables.deformation?.wordOfWorld(item.matrix) ?? 0) : 0
   // Its surface's record (`../material/materialTable.ts`), the opaque rows' table.
-  ints[base + ITEM.material] =
-    tables.materialTable?.word(mat, tables, floatSecondUv(item, tables.geometryBlocks)) ?? 0
+  ints[base + ITEM.material] = materialWord(seen.rank, floatSecondUv(item, tables.geometryBlocks))
   return lobed
-}
-
-/** `FLAG_SAMPLED` where one of the item's surface's maps takes its filter rule, its lobes' maps
- *  where it carries one: the flag that compiles or skips the filtered read. */
-function itemSampledFlag(mat: PageSurface, tables: BlendAtlasTables, lobed: boolean) {
-  const { mapLayer, dataLayer } = tables
-  return (
-    sampledFlag(
-      tables.textures,
-      layerSlot(mapLayer, mat.map),
-      layerSlot(mapLayer, mat.emissiveMap),
-      layerSlot(dataLayer, mat.roughnessMap),
-      layerSlot(dataLayer, mat.metalnessMap),
-      layerSlot(dataLayer, mat.normalMap),
-      layerSlot(dataLayer, mat.aoMap),
-      layerSlot(mapLayer, mat.subsurfaceMap),
-    ) | (lobed ? physicalSampledFlag(mat, tables) : 0)
-  )
 }
 
 /** WGSL declaration of the record, made of its table (`BLEND_ITEM_FIELDS`). */

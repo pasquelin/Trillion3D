@@ -76,12 +76,24 @@ export const clampToExtent = wgslFn(
   'fn clampToExtent(p:vec2i,size:vec2i)->vec2i{return clamp(p,vec2i(0),size-vec2i(1));}',
 )
 
-/** The depth step of a surface across one texel at depth `z`, from its two neighbours on one axis
- *  (`before`, `after`): the smaller of the two one-sided differences, so a silhouette on one side
- *  does not count. A bound of the depth's error where a sample moved by up to a texel: the temporal
- *  history widens its depth test by it, the guides by it times the jitter. */
-export const depthStep = wgslFn(
-  'depthStep',
+/**
+ * The slope of a surface along one axis of a depth image, in depth per texel, from the depth `z`
+ * a texel holds and the two before it and after it (`before`, `after`, then `farBefore`,
+ * `farAfter`): read on a side whose two texels continue the surface — the step into the texel
+ * differs from the step beyond it by less than that step: a plane makes them equal, where a
+ * silhouette makes the first a jump that the background beyond does not continue —; of two such
+ * sides, the straighter; none when neither side continues (a wire, a bar, a far part one texel
+ * wide). The one rule of every reader of a depth's slope: the plane the depth pyramid keeps at each
+ * pixel, the temporal history's depth slack, the guides' jitter slack.
+ */
+export const surfaceSlopeOf = wgslFn(
+  'surfaceSlopeOf',
   [],
-  'fn depthStep(z:f32,before:f32,after:f32)->f32{return min(abs(before-z),abs(after-z));}',
+  `fn surfaceSlopeOf(z:f32,before:f32,after:f32,farBefore:f32,farAfter:f32)->f32{
+ let into=vec2f(z-before,after-z);
+ let beyond=vec2f(before-farBefore,farAfter-after);
+ let bend=abs(into-beyond);let continues=bend<abs(beyond);
+ if(continues.x&&(!continues.y||bend.x<=bend.y)){return into.x;}
+ return select(0.0,into.y,continues.y);
+}`,
 )

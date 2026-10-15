@@ -23,7 +23,7 @@ function start(
     width = 4,
     height = 4,
     pixelRatio = 1,
-    config = { ownControls: false, pixelRatio: 1 },
+    config = { pixelRatio: 1 },
   }: {
     width?: number
     height?: number
@@ -79,11 +79,7 @@ test('a frame that throws after the first stops the loop and says so on the cons
   }
   // Reported as an uncaught error is, the page's own watcher names it.
   const reportError = (error: unknown) => void reported.push(error)
-  start(
-    explorer,
-    { ...queued(frames), reportError },
-    { config: { ownControls: false, pixelRatio: 1, onFrame() {} } },
-  )
+  start(explorer, { ...queued(frames), reportError }, { config: { pixelRatio: 1, onFrame() {} } })
   assert.ok(frames.run())
   assert.equal(drawn, 2)
   assert.equal(frames.size, 0, 'no frame after it')
@@ -120,7 +116,7 @@ test('a canvas whose box grows after start is resized and scheduled a frame', (t
   const { canvas } = start(
     { render: () => ({}), resize: (w: number, h: number) => sizes.push([w, h]) },
     queued(frames),
-    { width: 488, height: 20, pixelRatio: 2, config: { ownControls: false, interactive: true } },
+    { width: 488, height: 20, pixelRatio: 2, config: { interactive: true } },
   )
   assert.ok(frames.run())
   canvas.clientHeight = 300

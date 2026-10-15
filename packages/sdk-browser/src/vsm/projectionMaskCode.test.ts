@@ -26,9 +26,7 @@ const halfOf = (x: number) => {
   const d = q - r
   return (d > 0.5 || (d === 0.5 && r % 2 === 1) ? r + 1 : r) * step
 }
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
-  subgroups: false,
-})
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
 type Result = { shadowFactor: number; rayCount: number }
 const { vsmMaskCode } = shaderRun<{ vsmMaskCode: (r: Result) => number }>(CODE, ['vsmMaskCode'], {})
 const { vsmMaskDecode } = shaderRun<{ vsmMaskDecode: (c: number) => number }>(
@@ -39,14 +37,14 @@ const { vsmMaskDecode } = shaderRun<{ vsmMaskDecode: (c: number) => number }>(
 /** Every result a trace gives: no ray traced (factor 1), or k of n rays missed. */
 function* results() {
   yield { shadowFactor: 1, rayCount: 0 }
-  const most = Math.max(K.VSM_TRACE_RAYS_SUN, K.VSM_TRACE_RAYS_LOCAL, 8)
+  const most = Math.max(K.VSM_TRACE_RAYS, 8)
   for (let n = 1; n <= most; n++)
     for (let k = 0; k <= n; k++)
       yield { shadowFactor: Math.fround(Math.fround(k) / Math.fround(n)), rayCount: n }
 }
 
 test('a lane holds four bits of rays: every ray count the traces use fits', () => {
-  assert.ok(Math.max(K.VSM_TRACE_RAYS_SUN, K.VSM_TRACE_RAYS_LOCAL) <= 15)
+  assert.ok(K.VSM_TRACE_RAYS <= 15)
 })
 
 test('the decode computes a factor by the very expression the traces store, as a half float', () => {

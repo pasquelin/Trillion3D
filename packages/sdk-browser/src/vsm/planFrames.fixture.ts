@@ -107,15 +107,14 @@ export function planFrames() {
     const boxes = world.boxes
     const changed = vsmCastBoxes(state.cache, { count: boxes.length, read: (b) => boxes[b] })
     const maps = vsmCastMaps(state.cache, changed, casts)
-    const prevSlots = state.cache.prevFrame?.mapSlotCount ?? 0
+    const prevSlots = state.cache.prevFrame?.mapCount ?? 0
     const camera = { view, projection, eye, perspective: true }
     const lights = world.lights.map((light) => ({ light }))
     const plan = planVirtualShadowFrame(state, lights, camera, { width: 800, height: 600 })
     if (plan.overflow) throw new Error('planFrames: the tables overflowed')
     encodeCastInvalidation(encoder, res, device, prevSlots, maps, changed, casts)
     marking.encode(encoder.beginComputePass(), {
-      fullMapCount: plan.fullMapCount,
-      singlePageMapCount: plan.singlePageMapCount,
+      mapCount: plan.projectionCount,
       perspective: true,
       perPage: vsmCachePerPageBins(state.cache, perPage),
     })

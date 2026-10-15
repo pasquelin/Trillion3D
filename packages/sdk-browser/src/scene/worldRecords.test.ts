@@ -20,7 +20,7 @@ import { rootWorldBox } from '../page/selection/rootWorld.ts'
 function dag() {
   const { clusters, groups, culling } = worldRootsDag()
   return worldRootDag(
-    { clusters, groups, culling, payload: { url: 'world-roots.bin' }, pinned: 1 },
+    { clusters, groups, culling, url: 'world-roots.bin', pinned: 1 },
     worldRootPages,
   )!
 }

@@ -11,7 +11,6 @@
 //! simplification error (`attributes.rs`), and the cook refuses a DAG whose error drops from a
 //! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
 use crate::perf::{Phase, Timer};
-use crate::qem::simplify_with_locked_vertices;
 use crate::{invalid, Result};
 use rayon::prelude::*;
 use trillion3d_page_codec::hash::{word_map, WordMap, WordSet};
@@ -91,7 +90,7 @@ struct GroupReduction {
     source_rank: u32,
     /// Reduction had to lock additional triangles to preserve border.
     relocked: bool,
-    /// The vertices a solved reduction placed (`solved.rs`); `None` for an endpoint reduction.
+    /// The vertices the reduction placed (`solved.rs`); `None` once `grown` has taken them.
     placed: Option<grown::Placed>,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
@@ -154,7 +153,6 @@ mod tally;
 #[cfg(test)]
 mod tests;
 mod texture;
-pub(crate) mod tight;
 pub(crate) mod vanished;
 mod welds;
 
@@ -166,3 +164,4 @@ use groups::*;
 pub use grown::Grown;
 use reduce::*;
 pub use tally::{DagStall, GroupOutcome, GroupTally, StallCause};
+use trillion3d_page_codec::min_ball::point_sphere;

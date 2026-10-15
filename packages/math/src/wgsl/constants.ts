@@ -1,6 +1,6 @@
 import { wgslConst } from './decl.ts'
 import { wgslF32 } from './number.ts'
-import { SINGULAR_DETERMINANT as SINGULAR } from '../matrix/singular.ts'
+import { DIVISOR_FLOOR as TINY } from '../matrix/singular.ts'
 import {
   FAR_VALUE as FAR,
   FINITE_SENTINEL as FINITE,
@@ -41,13 +41,6 @@ export const INVERSE_TWO_PI = wgslConst(
   'INVERSE_TWO_PI',
   [],
   `const INVERSE_TWO_PI:f32=${wgslF32(1 / TAU)};`,
-)
-
-/** The threshold on the normalised determinant under which a 3×3 is singular. */
-export const SINGULAR_DETERMINANT = wgslConst(
-  'SINGULAR_DETERMINANT',
-  [],
-  `const SINGULAR_DETERMINANT:f32=${wgslF32(SINGULAR)};`,
 )
 
 /** The greatest finite `f32`: an empty range's low bound, a miss's distance. */
@@ -128,12 +121,14 @@ export const HALF_OVERFLOW = wgslConst(
   `const HALF_OVERFLOW:f32=${wgslF32(HALF_PAST)};`,
 )
 
-/** 1e-20, the floor a divisor or a root's argument is held to: under every square a scene's
- *  derivatives, densities or angles give, over the `f32` underflow, so the quotient stays finite. */
+/** The floor a divisor or a root's argument is held to: under every square a scene's
+ *  derivatives, densities or angles give, over the `f32` underflow, so the quotient stays finite —
+ *  and the threshold on a normalised determinant under which a 3×3 is singular: the engine's one
+ *  tiny number, 1e-20 (`../matrix/singular.ts`). */
 export const DIVISOR_FLOOR = wgslConst(
   'DIVISOR_FLOOR',
   [],
-  `const DIVISOR_FLOOR:f32=${wgslF32(1e-20)};`,
+  `const DIVISOR_FLOOR:f32=${wgslF32(TINY)};`,
 )
 
 /** 1e9, a bound past any colour or depth a history range holds: an empty range starts at

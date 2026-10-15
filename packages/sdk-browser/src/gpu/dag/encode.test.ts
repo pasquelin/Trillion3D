@@ -107,8 +107,8 @@ test('the camera cut sorts its requests once, then lists its evictions over the 
   const witness = witnessEncoder()
   encodeDagKernels(witness.encoder, cutResources())
   const { dispatches } = witness.read()
-  // The pool sort's group stages run over the list's own count, armed by the host with the list
-  // (`poolSortArming`), never over its cap; its ranks, offsets and staged slots in one workgroup
+  // The pool sort's group stages run over the list's own count, armed by `dagPrepare`
+  // (`armPoolSort`), never over its cap; its ranks, offsets and staged slots in one workgroup
   // (`../pool/sortWgsl.ts`).
   assert.deepEqual(dispatches.slice(-8), [
     { kernel: 'dagSortRequests', groups: 1 },

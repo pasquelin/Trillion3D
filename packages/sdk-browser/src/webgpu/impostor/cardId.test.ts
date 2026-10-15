@@ -32,12 +32,10 @@ test('the surface stage reads the identifier and compares no depth; the visibili
     body('cardKept'),
     /textureLoad\(cardIds,vec2i\(in\.clip\.xy\),0\)\.r==cardId\(in\.card\)/,
   )
-  for (const entry of ['card_fs', 'card_feedback_fs']) {
-    const surface = body(entry)
-    assert.match(surface, /if\(!cardKept\(in\)\)\{discard;\}/, entry)
-    assert.doesNotMatch(surface, /px\.depth/, entry)
-  }
-  assert.doesNotMatch(wgsl, /struct Card(Fed)?Out\{[^}]*frag_depth/)
+  const surface = body('card_fs')
+  assert.match(surface, /if\(!cardKept\(in\)\)\{discard;\}/)
+  assert.doesNotMatch(surface, /px\.depth/)
+  assert.doesNotMatch(wgsl, /struct CardOut\{[^}]*frag_depth/)
   for (const entry of ['card_vis_fs', 'card_vis_hiz_fs'])
     assert.match(body(entry), /cardId\(in\.card\)/, entry)
 })

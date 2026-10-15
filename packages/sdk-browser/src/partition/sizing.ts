@@ -18,7 +18,7 @@
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { Stretch } from './boxes.ts'
-import { KEEP } from './plan.ts'
+import { keepRadius } from './plan.ts'
 import { SQRT3 } from '../../../math/src/constants.ts'
 
 /** The rounding a recomposed world matrix carries, far above a double's and far below any scale a
@@ -29,7 +29,7 @@ const SLACK = 2 ** -20
  *  root's frame, can hold under it, the widest cell's diagonal `cube` and each parent's `stretch`
  *  given; `Infinity` under a flattened parent. */
 export function heldSide(reach: number, cube: number, stretch: ReadonlyMap<number, Stretch>) {
-  const keep = reach * (1 + KEEP)
+  const keep = keepRadius(reach)
   let side = 2 * keep
   for (const [least, most] of stretch.values()) {
     const low = least * (1 - SLACK),

@@ -26,6 +26,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { CAST_EMIT_WGSL } from '../webgpu/shadow/castChangesWgsl.ts'
+import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 
 /** The growth of a box's half extent past the rounding of the sphere's radius plus its centre's
  *  low single: three single-precision steps, each within `2⁻²⁴` of its result. */
@@ -44,9 +45,9 @@ export const ROW_CAST_WGSL = wgslBlock(
   `
 const CAST_GROWTH:f32=${wgslF32(CAST_GROWTH)};
 const CAST_DRIFT:f32=${wgslF32(CAST_DRIFT)};
-fn rowSphere(row:u32)->array<f32,8>{
- var s:array<f32,8>;
- for(var k=0u;k<8u;k++){s[k]=spheres[row*8u+k];}
+fn rowSphere(row:u32)->array<f32,${CLUSTER_SPHERE_FLOATS}>{
+ var s:array<f32,${CLUSTER_SPHERE_FLOATS}>;
+ for(var k=0u;k<${CLUSTER_SPHERE_FLOATS}u;k++){s[k]=spheres[row*${CLUSTER_SPHERE_FLOATS}u+k];}
  return s;
 }
 fn castCode(row:u32)->f32{
@@ -57,15 +58,15 @@ fn castCode(row:u32)->f32{
  return f32(1u+moving+shadowless);
 }
 fn castState(code:f32)->u32{return u32(code)-1u;}
-fn emitSphere(s:array<f32,8>,moving:bool){
+fn emitSphere(s:array<f32,${CLUSTER_SPHERE_FLOATS}>,moving:bool){
  let centre=vec3f(s[0],s[1],s[2]);
  let far=abs(centre);
  let reach=max(far.x,max(far.y,far.z))+s[3];
  emitCast(centre,(s[3]+length(vec3f(s[4],s[5],s[6])))*CAST_GROWTH+reach*CAST_DRIFT,moving);
 }
-fn castRow(row:u32,was:array<f32,8>,worldSame:bool,has:bool){
+fn castRow(row:u32,was:array<f32,${CLUSTER_SPHERE_FLOATS}>,worldSame:bool,has:bool){
  if(was[7]==0.0){return;}
- var now:array<f32,8>;
+ var now:array<f32,${CLUSTER_SPHERE_FLOATS}>;
  var sphereSame=has;
  if(has){
   now=rowSphere(row);

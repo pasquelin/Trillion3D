@@ -16,6 +16,18 @@ export type DrawnDeformation = {
 export const deforms = (g: Geometry) =>
   !!g.morphAttributes.position?.length || Object.keys(g.attributes).some(isSkinIndex)
 
+/** How far morph target `t` of `g` moves component `c` of source vertex `vertex`: its position's
+ *  delta, or its normal's (`normal`) — 0 for a target without normals —, read as `g` stores its
+ *  targets, relative or absolute (`morphTargetsRelative`). The one read of a target's delta: the
+ *  drawn triangles' and a whole copy's inputs (`deformation/wholeInputs.ts`) both take it. */
+export function morphDelta(g: Geometry, t: number, vertex: number, c: number, normal: boolean) {
+  const target = (normal ? g.morphAttributes.normal : g.morphAttributes.position)?.[t]
+  if (!target) return 0
+  const base = normal ? g.attributes.normal : g.attributes.position
+  const rest = g.morphTargetsRelative || !base ? 0 : readComponent(g, base, vertex, c)
+  return readComponent(g, target, vertex, c) - rest
+}
+
 /** Setup-time extraction only: animation uploads palettes and weights, never these vertices. */
 export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
   if (!drawn) return null
@@ -30,22 +42,14 @@ export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
         result[v * skin.width + c] = skin.read(source(v), c, weight)
     return result
   }
-  const targets = (g.morphAttributes.position ?? []).map((position, target) => {
+  const targets = (g.morphAttributes.position ?? []).map((_, target) => {
     const positions = new Float32Array(count * 3),
-      normals = new Float32Array(count * 3),
-      normal = g.morphAttributes.normal?.[target]
+      normals = new Float32Array(count * 3)
     for (let v = 0; v < count; v++) {
       const vertex = source(v)
       for (let c = 0; c < 3; c++) {
-        positions[v * 3 + c] =
-          readComponent(g, position, vertex, c) -
-          (g.morphTargetsRelative ? 0 : readComponent(g, g.attributes.position, vertex, c))
-        if (normal)
-          normals[v * 3 + c] =
-            readComponent(g, normal, vertex, c) -
-            (g.morphTargetsRelative || !g.attributes.normal
-              ? 0
-              : readComponent(g, g.attributes.normal, vertex, c))
+        positions[v * 3 + c] = morphDelta(g, target, vertex, c, false)
+        normals[v * 3 + c] = morphDelta(g, target, vertex, c, true)
       }
     }
     return { positions, normals }

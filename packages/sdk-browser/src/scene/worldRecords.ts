@@ -24,8 +24,6 @@
 import { drawsBlended } from '../page/selection/collectBlend.ts'
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
 import type { PageSurface } from '../page/surface.ts'
-import { cullingBounds } from '../page/cut/bounds.ts'
-import { cullingLinks } from '../page/cut/links.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import type { worldRootDag } from './worldSuperRoots.ts'
@@ -93,19 +91,22 @@ export function worldSelectionRoot(
   order: number,
   pose?: PlacementRows,
 ): (ClusterRoot<PageRec> & WorldHeld) | undefined {
-  let fallback: WorldWearer | undefined
-  for (const { primitive } of dag.pages)
-    if ((fallback = primitive === null ? undefined : wear(primitive))) break
+  // Each cluster's wearer, asked once; the first found dresses those without one.
+  const wearers = dag.pages.map(({ primitive }) =>
+    primitive === null ? undefined : wear(primitive),
+  )
+  const fallback = wearers.find((wearer) => wearer !== undefined)
   if (!fallback) return undefined
   const pages = dag.pages.map((page, rank) => {
-    const wearer = page.primitive === null ? undefined : wear(page.primitive)
+    const wearer = wearers[rank]
     // No wearer: a record without a page, worn as any other only to stay a record.
     return worldRecord(wearer ? page : { ...page, url: '' }, rank, wearer ?? fallback, order)
   })
   // The local box: the root node's of the cook's hierarchy, as a primitive's; its world box its own.
-  const nodes = dag.culling
-  if (!nodes) throw new Error('WORLD_CULLING_MISSING')
-  const localBox = nodes.nodes.slice(0, BOX_VALUES),
+  // The hierarchy, its bounds and links as the DAG made them (`worldRootDag`).
+  const culling = dag.culling
+  if (!culling) throw new Error('WORLD_CULLING_MISSING')
+  const localBox = culling.nodes.slice(0, BOX_VALUES),
     held = new Map<number, PageRec[]>()
   // The roots each bundle holds for its cell, those with a page alone: a record without one is
   // not a page, never held nor covered.
@@ -119,12 +120,7 @@ export function worldSelectionRoot(
     ...(placement && { placement, parked: rowParked(placement) }),
     pages,
     structure: dag.structure,
-    culling: {
-      nodes: nodes.nodes,
-      stride: nodes.stride,
-      bounds: cullingBounds(nodes, pages),
-      links: cullingLinks(nodes, pages.length),
-    },
+    culling,
     worldBox: localBox.slice(),
     localBox,
     boxes: true,

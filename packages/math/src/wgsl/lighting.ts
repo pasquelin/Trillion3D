@@ -1,12 +1,10 @@
 import { wgslConst, wgslFn } from './decl.ts'
-import { INVERSE_PI, PI } from './constants.ts'
-import { wgslF32 } from './number.ts'
+import { INVERSE_PI } from './constants.ts'
 
 /**
- * The standard material's terms, as the lights, the mirror and the area lights compute them.
- * Where two shaders write one term in two operation orders — the diffuse albedo divided by π or
- * multiplied by 1/π, α² as `(r·r)·(r·r)` or `((r·r)·r)·r`, N·V floored or clamped — each order
- * rounds its own way and is its own declaration. The paired α² `(r·r)·(r·r)` stays in its shaders
+ * The standard material's terms, as the lights, the mirror and the area lights compute them: one
+ * declaration a term, one operation order — the diffuse albedo times 1/π (`lambertAlbedoMul`), N·V
+ * clamped (`ndotvClamped`). The paired α² `(r·r)·(r·r)` stays in its shaders
  * (`standardLighting.ts`, `reflections/field.ts`, `reflections/footprint.ts`): each one sums its last product
  * there (`1 − α²`, `α² − 1`, `1 + α²`), a sum the compiler may fuse with it, and a call returning
  * α² would round it apart.
@@ -32,40 +30,26 @@ export const f0Of = wgslFn(
   'fn f0Of(rgb:vec3f,metal:f32)->vec3f{return mix(DIELECTRIC_F0,rgb,metal);}',
 )
 
-/** Divided by π. */
-export const lambertAlbedo = wgslFn(
-  'lambertAlbedo',
-  [PI],
-  'fn lambertAlbedo(rgb:vec3f,metal:f32)->vec3f{return rgb*(1.0-metal)/PI;}',
-)
-
-/** The 1/π of bounced light, read by the bounce application and the bounce surface cache, one ulp
- *  above `INVERSE_PI` by design: merged, every bounced pixel would move by that ulp, an image
- *  change, never a refactor. Its value is the f32 the literal `0.31830989` names, written by the
- *  one number writer. */
-export const INVERSE_PI_BOUNCE = wgslConst(
-  'INVERSE_PI_BOUNCE',
-  [],
-  `const INVERSE_PI_BOUNCE:f32=${wgslF32(0.31830989)};`,
-)
-
-/** Times 1/π. */
+/** The Lambert diffuse albedo: times 1/π. */
 export const lambertAlbedoMul = wgslFn(
   'lambertAlbedoMul',
   [INVERSE_PI],
   'fn lambertAlbedoMul(rgb:vec3f,metal:f32)->vec3f{return rgb*(1.0-metal)*INVERSE_PI;}',
 )
 
+/** The radiance a Lambert surface returns of an `irradiance`, occluded by `ao`: the one diffuse of
+ *  every irradiance — a light's, the environment's, the bounce's, a thin surface's back, a proxy
+ *  hit's. */
+export const lambertDiffuse = wgslFn(
+  'lambertDiffuse',
+  [lambertAlbedoMul],
+  'fn lambertDiffuse(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{return lambertAlbedoMul(rgb,metal)*irradiance*ao;}',
+)
+
 export const splitSumTerm = wgslFn(
   'splitSumTerm',
   [],
   'fn splitSumTerm(f0:vec3f,t:vec4f)->vec3f{return f0*t.x+(vec3f(1.0)-f0)*t.y;}',
-)
-
-export const ndotvFloor = wgslFn(
-  'ndotvFloor',
-  [],
-  'fn ndotvFloor(N:vec3f,V:vec3f)->f32{return max(dot(N,V),1e-4);}',
 )
 
 export const ndotvClamped = wgslFn(

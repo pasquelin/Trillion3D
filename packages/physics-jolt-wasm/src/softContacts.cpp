@@ -70,7 +70,7 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
     if (t.engine == ~0u) continue;
     // The pairs are only read during the step: a touch the soft pairs already hold is stamped
     // again when the records are replayed (`replayContacts`), a new one sends its enter then.
-    if (world().softPairs.count(pairKey(ia, t.engine))) {
+    if (world().pairs.isSoft(pairKey(ia, t.engine))) {
       deferContact({ContactRecord::SOFT, ia, t.engine, 0.0f, Float3(0, 0, 0), 0});
       continue;
     }
@@ -87,11 +87,13 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
       Vec3 normal = com.Multiply3x3(t.normal).NormalizedOr(Vec3::sZero());
       Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(point));
       Vec3 arm = Vec3(RVec3(point) - b.GetCenterOfMassPosition()).Cross(normal);
-      float inverse = 1.0f / t.mass + inverseMass(b) + arm.Dot(inverseInertia(b).Multiply3x3(arm));
+      // Jolt's soft solver bounces past `2 g` times its substep (`SoftBodyMotionProperties`), as
+      // the rigid one past its own restitution speed.
+      const float k[MANIFOLD_POINTS][MANIFOLD_POINTS] = {{1.0f / t.mass + inverseMassAlong(b, arm)}};
       float restitution = world().system->GetCombineRestitution()(soft, SubShapeID(), b, SubShapeID());
-      float substep = world().dt / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
-      float speed = bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep);
-      impulse = inverse > 0 ? std::max(0.0f, speed) / inverse : 0.0f;
+      float substep = world().fixedStep / float(static_cast<const SoftBodyMotionProperties *>(soft.GetMotionProperties())->GetNumIterations());
+      const float speed[MANIFOLD_POINTS] = {bounced(relative.Dot(normal), restitution, 2 * world().system->GetGravity().Length() * substep)};
+      impulse = normalImpulse(1, speed, k);
     }
     Float3 at;
     point.StoreFloat3(&at);
@@ -106,19 +108,20 @@ void leaveSoft() {
     return bodies.IsActive(w.slots[engine & INDEX_MASK].id) ||
            std::find(w.deactivated.begin(), w.deactivated.end(), engine) != w.deactivated.end();
   };
-  for (auto at = w.softPairs.begin(); at != w.softPairs.end();) {
+  // A pair ended here, or in `leaveAll` when a body of it leaves, is unlisted: the last soft pair
+  // moves into its place.
+  const std::vector<uint64_t> &soft = w.pairs.softPairs();
+  for (size_t i = 0; i < soft.size();) {
+    uint64_t key = soft[i];
+    auto pair = w.pairs.find(key);
     // Touched this step, or both asleep through it: kept, as a rigid pair keeps its own. A body
     // that moved while the soft body slept left it: overlapping it, it would have woken it.
-    if (at->second == w.step || !(stepped(uint32_t(at->first)) || stepped(uint32_t(at->first >> 32)))) {
-      ++at;
+    if (pair->second.touched == w.step || !(stepped(uint32_t(key)) || stepped(uint32_t(key >> 32)))) {
+      ++i;
       continue;
     }
-    // Both maps hold a soft pair until it ends: here, or in `leaveAll` when a body of it leaves.
-    if (auto pair = w.pairs.find(at->first); pair != w.pairs.end()) {
-      if (pair->second.count & ENTERED) pushLeave(pair->first);
-      w.pairs.erase(pair);
-    }
-    at = w.softPairs.erase(at);
+    if (pair->second.count & ENTERED) pushLeave(key);
+    w.pairs.erase(pair);
   }
 }
 

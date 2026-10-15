@@ -55,9 +55,6 @@ export type GpuFrameMs = number | null
   /** Draw calls of this frame, as the engine counted them. `null` when it has not counted
    *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null
-  /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them.
-   *  `null` when the engine has not counted them: a zero would read as an empty frame. */
-  triangles: number | null
   /** Clusters drawn. */ clusters: number | null
   /** Triangles the cut selected. */ selectedTriangles: number | null
   /** Pages held in memory. */ residentPages: number | null
@@ -119,7 +116,7 @@ export type GpuFrameMs = number | null
    * pixels are those of the original frame, bit-exact.
    *
    * What the held frame DID is published as-is, never copied from the last complete render:
-   * `drawCalls`, `triangles`, `submittedTriangles` and `totalSubmittedTriangles` count only
+   * `drawCalls`, `submittedTriangles` and `totalSubmittedTriangles` count only
    * present, and per-stage CPU and GPU durations are zero when the stage did not
    * run, `null` when nothing timed it.
    *

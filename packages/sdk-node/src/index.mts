@@ -1,13 +1,13 @@
-import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises'
+import { writeFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { runCompiler } from './compiler/process.mts'
 export { CANCEL_GRACE_MS } from './compiler/process.mts'
 export { resolveCompilerExecutable } from './compiler/executable.mts'
 export { COMPILER_LINE_LIMIT } from './compiler/lines.mts'
 export { getSdkProvenance } from './compiler/provenance.mts'
 import { DEFAULT_SCOPE } from '../../sdk-core/src/contracts/base.ts'
-import { readPagedManifest } from '../../sdk-core/src/manifest/paged.ts'
+import { readCompiledManifest } from './compiler/manifest.mts'
 import type { AssetScope } from '../../sdk-core/src/contracts/base.ts'
 import type {
   BatchJob,
@@ -93,9 +93,7 @@ export async function prepare(
   if (pointer.status !== 'ready')
     throw compilerError(pointer.code ?? 'COMPILER_NOT_READY', pointer.message)
   const path = join(output, 'native', pointer.scope, pointer.url)
-  const root = JSON.parse(await readFile(path, 'utf8')) as Record<string, unknown>
-  const read = (page: { url: string }) => readFile(join(dirname(path), page.url))
-  const manifest = (await readPagedManifest(root, read)) as unknown as CompilationResult
+  const manifest = (await readCompiledManifest(path)) as unknown as CompilationResult
   return {
     ...manifest,
     // What the run measured of itself is on the pointer alone: the manifest on disk describes the

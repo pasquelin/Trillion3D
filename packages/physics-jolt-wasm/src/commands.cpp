@@ -126,11 +126,11 @@ bool runCommands(const uint32_t *w, uint32_t count) {
     }
     if (op == VIEW) {
       setView({vec3(w + 1), vec3(w + 4).NormalizedOr(Vec3(0, 0, -1)), f32(w + 7), f32(w + 8)});
-      w += 9;
+      w += VIEW_WORDS;
       continue;
     }
     uint32_t index = w[1];
-    if (op < REMOVE || op > MATERIAL || op == VIEW) return (world.error = BAD_COMMAND, false);
+    if (op < REMOVE || op > MATERIAL) return (world.error = BAD_COMMAND, false);
     if (index >= world.slots.size()) return (world.error = UNKNOWN_BODY, false);
     Slot &slot = world.slots[index];
     // Commands the page wrote before it heard of a refused shape.
@@ -153,9 +153,10 @@ bool runCommands(const uint32_t *w, uint32_t count) {
         if (slot.soft) teleportSoft(slot, vec3(w + 2), quat(w + 5));
         else bodies.SetPositionAndRotation(slot.id, RVec3(vec3(w + 2)), quat(w + 5), EActivation::Activate);
         break;
+      // Driven there over one of the page's fixed steps, the only step a body is ever moved by;
+      // in a run without a step it gets there over the next one.
       case MOVE_KINEMATIC:
-        if (world.dt > 0) bodies.MoveKinematic(slot.id, RVec3(vec3(w + 2)), quat(w + 5), world.dt);
-        else bodies.SetPositionAndRotation(slot.id, RVec3(vec3(w + 2)), quat(w + 5), EActivation::DontActivate);
+        bodies.MoveKinematic(slot.id, RVec3(vec3(w + 2)), quat(w + 5), world.fixedStep);
         break;
       case VELOCITY:
         bodies.SetLinearVelocity(slot.id, vec3(w + 2));

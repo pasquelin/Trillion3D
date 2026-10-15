@@ -4,12 +4,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  SINGULAR_DETERMINANT,
+  DIVISOR_FLOOR,
   adjugateFactor,
   linearPartScale,
   normalizedLinearDeterminant,
 } from './singular.ts'
-import { SINGULAR_DETERMINANT as SINGULAR_DETERMINANT_DECL } from '../wgsl/constants.ts'
+import { DIVISOR_FLOOR as DIVISOR_FLOOR_DECL } from '../wgsl/constants.ts'
 
 /** A column-major 4×4 from its three linear-part columns. */
 const linear = (a: number[], b: number[], c: number[]) =>
@@ -37,10 +37,7 @@ test('a non-zero raw determinant of degenerate shape is declared singular', () =
   const m = linear([1, 0, 0], [1, 1e-19, 0], [0, 0, 1])
   const brut = 1e-19
   assert.notEqual(brut, 0, 'the raw determinant is not zero')
-  assert.ok(
-    Math.abs(normalizedLinearDeterminant(m)) <= SINGULAR_DETERMINANT,
-    'normalised under threshold',
-  )
+  assert.ok(Math.abs(normalizedLinearDeterminant(m)) <= DIVISOR_FLOOR, 'normalised under threshold')
   assert.equal(adjugateFactor(m, brut), 1, 'singular factor: the adjugate as-is')
 })
 
@@ -58,7 +55,7 @@ test('a raw determinant cancelled by compensation yields the adjugate, even on a
   // the adjugate alone. The GPU, which divides by the
   // normalised determinant, does not have this case.
   const m = scaleUniform(1)
-  assert.ok(Math.abs(normalizedLinearDeterminant(m)) > SINGULAR_DETERMINANT, 'the shape is regular')
+  assert.ok(Math.abs(normalizedLinearDeterminant(m)) > DIVISOR_FLOOR, 'the shape is regular')
   assert.equal(adjugateFactor(m, 0), 1, 'zero raw determinant: the adjugate alone')
 })
 
@@ -80,7 +77,7 @@ test('scale is the sum of the nine absolute values of the 3×3 block, translatio
 })
 
 test('the WGSL threshold is the constant written by the number writer, not a second number', () => {
-  const literal = /^const SINGULAR_DETERMINANT:f32=([^;]+);$/.exec(SINGULAR_DETERMINANT_DECL.text)
+  const literal = /^const DIVISOR_FLOOR:f32=([^;]+);$/.exec(DIVISOR_FLOOR_DECL.text)
   assert.ok(literal)
-  assert.equal(Math.fround(Number(literal[1])), Math.fround(SINGULAR_DETERMINANT))
+  assert.equal(Math.fround(Number(literal[1])), Math.fround(DIVISOR_FLOOR))
 })

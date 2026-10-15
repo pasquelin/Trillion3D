@@ -1,25 +1,25 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { taaShader } from './shaderWgsl.ts'
-import { TAA_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
+import { taaResolveShader } from './resolveWgsl.ts'
 import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
-import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
-import { TAA_WEIGHTS } from './filterWeights.ts'
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
-/** The reprojection fragment as the resolve assembled it: from `placementOf` to `previousUv`. */
+/** The resolve with an as-is share, the frame's usual one. */
+const TAA_SHADER = taaResolveShader(true)
+
+/** The reprojection fragment as the resolve assembled it: from `placementOf` to `previousProjected`. */
 const TAA_REPROJECT_WGSL = TAA_SHADER.slice(
   TAA_SHADER.indexOf('fn placementOf('),
-  TAA_SHADER.indexOf('\n}', TAA_SHADER.indexOf('fn previousUv(')) + 2,
+  TAA_SHADER.indexOf('\n}', TAA_SHADER.indexOf('fn previousProjected(')) + 2,
 )
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
 test('the temporal shader assembles each fragment once, on the shared page record', () => {
-  for (const fragment of [wgslSource(YCOCG_WGSL), 'fn placementOf(', 'fn previousUv('])
+  for (const fragment of [wgslSource(YCOCG_WGSL), 'fn placementOf(', 'fn previousProjected('])
     assert.equal(occurrences(TAA_SHADER, fragment), 1)
   assert.match(TAA_SHADER, /@vertex fn fullscreen\(/)
   assert.match(TAA_SHADER, /@fragment fn resolve\(/)
@@ -46,21 +46,18 @@ test('shader bindings are those of the layout, and the uniform has the declared 
   // The filtered resolve declares every binding, the display layers' four last.
   for (const [name, binding] of Object.entries(TAA_BINDINGS))
     assert.match(
-      taaShader(true, false, true),
+      taaResolveShader(true, false, true),
       new RegExp(`@binding\\(${binding}\\) var(<[a-z,]+>)? ${name}:`),
       `binding ${name}`,
     )
-  // Two matrices, viewport and params, the nine weights in three quadruplets, render grid,
-  // jitter, eye, exposure, the camera's parallax and the flicker rates.
-  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4 + 6 * 16)
+  // Two matrices, viewport and params, render grid, jitter, eye, exposure, the camera's parallax
+  // and the flicker rates: no filter weights, the window is evaluated where it is read.
+  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + 6 * 16)
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,\}/,
   )
-  // No cosine per pixel: weights come from the uniform, neighbour by neighbour. Only a deformed
-  // pixel's waves take one (`deformWgsl.ts`).
-  assert.doesNotMatch(TAA_SHADER.replace(TAA_DEFORM_WGSL.text, ''), /cos\(/)
-  assert.match(TAA_SHADER, /view\.weights\[k>>2u\]\[k&3u\]/)
+  assert.doesNotMatch(TAA_SHADER, /view\.weights/)
 })
 
 test('the background, at zero depth, reprojects as a direction and not as a point', () => {
@@ -86,11 +83,11 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
 // is otherwise the same text — the colour and the geometry line for line —, reading neither flags
 // nor the as-is share history.
 test('the flagless resolve is the flag-reading one without its share, written as 0', () => {
-  const flagless = taaShader(false)
+  const flagless = taaResolveShader(false)
   assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|sharePast|shareLo|keptShare/)
   const outputs = (text: string) => [
     ...text.matchAll(
-      /TaaOut\((.*),vec4f\((.*),gradient\*[\d.]+\+[\d.]+,0\.0,historyCount\/16\.0\),geometry,moire\);\}?$/gm,
+      /TaaOut\((.*),vec4f\((.*),gradient\*[\d.]+\+[\d.]+,0\.0,sqrt\(.*\)\),geometry,moire\);\}?$/gm,
     ),
   ]
   const kept = outputs(TAA_SHADER),
@@ -107,17 +104,8 @@ test('the flagless resolve is the flag-reading one without its share, written as
   for (const line of own)
     assert.match(
       line,
-      /TaaOut\(.*,vec4f\(0\.0,gradient\*[\d.]+\+[\d.]+,0\.0,historyCount\/16\.0\),geometry,moire\);\}?$/,
+      /TaaOut\(.*,vec4f\(0\.0,gradient\*[\d.]+\+[\d.]+,0\.0,sqrt\(.*\)\),geometry,moire\);\}?$/,
     )
   const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line))
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)
-})
-
-// `previousUv` takes the identifier its caller read once, never the texel to read it at.
-test('every reprojection hands previousUv the identifier it read', () => {
-  const calls = [...TAA_SHADER.matchAll(/previous(?:Uv|Sample)\(([^()]*(?:\([^()]*\))?[^()]*)\)/g)]
-    .map((call) => call[1].split(',').at(-1))
-    .filter((last) => last !== 'id:u32')
-  assert.ok(calls.length > 0)
-  for (const last of calls) assert.equal(last, 'id')
 })

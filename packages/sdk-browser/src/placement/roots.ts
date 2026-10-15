@@ -1,5 +1,5 @@
 import type { MatrixElements } from '../host/matrixElements.ts'
-import { placementWorld, type PlacementOf, type PlacementRows } from './rows.ts'
+import { placementWorld, rowParked, type PlacementOf, type PlacementRows } from './rows.ts'
 
 /** One place a collected mesh is drawn at: its world, whether it is parked, and its row. */
 export type Placed = { world: MatrixElements; parked: boolean; placement?: PlacementOf }
@@ -17,11 +17,9 @@ export function placementsOf(
   const rows = association?.placements
   if (!rows) return [{ world: ownWorld(), parked: false }]
   const placed: Placed[] = new Array(rows.capacity)
-  for (let index = 0; index < rows.capacity; index++)
-    placed[index] = {
-      world: placementWorld(rows, index),
-      parked: rows.live[index] === 0,
-      placement: { rows, index },
-    }
+  for (let index = 0; index < rows.capacity; index++) {
+    const placement = { rows, index }
+    placed[index] = { world: placementWorld(rows, index), parked: rowParked(placement), placement }
+  }
   return placed
 }

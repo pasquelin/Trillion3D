@@ -107,13 +107,13 @@ test('indirect groups follow buffer changes inside the same draw owner', () => {
   const draw = { instanceBuffer: {}, slotOffsetsBuffer: {} }
   Object.assign(rt.vis, { gpuDraw: draw })
   ensure()
-  const first = visGroupFor(rt, device, 0, false)
-  assert.equal(visGroupFor(rt, device, 0, false), first)
+  const first = visGroupFor(rt, device, 0)
+  assert.equal(visGroupFor(rt, device, 0), first)
   draw.instanceBuffer = {}
   ensure()
-  const second = visGroupFor(rt, device, 0, false)
+  const second = visGroupFor(rt, device, 0)
   assert.notEqual(second, first)
   draw.slotOffsetsBuffer = {}
   ensure()
-  assert.notEqual(visGroupFor(rt, device, 0, false), second)
+  assert.notEqual(visGroupFor(rt, device, 0), second)
 })

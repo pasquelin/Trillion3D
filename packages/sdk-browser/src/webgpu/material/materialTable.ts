@@ -40,11 +40,6 @@ export function createMaterialTable() {
     get view() {
       return p.records?.view
     },
-    /** The word a row or an item names `mat` by: its record's rank, `MATERIAL_SECOND_UV` set where
-     *  its geometry is read as floats and carries a second UV set (`vertUv1`). The record is
-     *  written first where the surface's version or the atlases' slots moved since. */
-    word: (mat: MaterialSurface, layers: MaterialLayers, floatSecondUv = false) =>
-      materialWord(recordOf(p, mat, layers).rank, floatSecondUv),
     /** What the table holds of `mat` (`SurfaceSeen`): its record's rank, and what it brings to each
      *  of its rows (`row`), which a row write reads instead of its maps — written first, with its
      *  record, where its version or the atlases' slots moved since. */

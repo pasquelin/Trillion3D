@@ -33,6 +33,8 @@ fn staged() -> SceneProxy {
         g: &g,
         shown: &BTreeSet::from([1, 2, 3]),
         mesh_map: &BTreeMap::from([(0, 0), (2, 1)]),
+        mesh_scales: &crate::proxy::placement::mesh_scales(&g, &BTreeSet::from([1, 2, 3]))
+            .expect("scales"),
         primitives: &primitives,
         cuts: &[plate(), plate(), Vec::new()],
         thresholds: &[0.05, 0.05, 0.05],

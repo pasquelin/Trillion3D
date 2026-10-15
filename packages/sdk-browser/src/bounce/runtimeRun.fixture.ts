@@ -3,7 +3,7 @@
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
-import { runtimeProbeRayWgsl } from './probeRayWgsl.ts'
+import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 import type { world } from './runtimeScene.fixture.ts'
 import type { Hit } from './runtimeOracle.fixture.ts'
 import { RAY_WORK } from './runtimeLayout.ts'
@@ -13,8 +13,8 @@ import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 const FUNCTIONS = [
   'rtBegin',
   'rtRadiance',
+  'rtLayers',
   'rtSurfaceOf',
-  'rtSeen',
   'rtFacing',
   'rtScene',
   'rtEnter',
@@ -41,7 +41,6 @@ const FUNCTIONS = [
   'rtTreeLow',
   'rtTreeHigh',
   'rtBlocked',
-  'rtLit',
   'rtProbeRay',
 ]
 /** The proxy's bindings the run declares. */
@@ -55,7 +54,7 @@ fn testTests()->u32{return rtTests;}
 /** The shipped program over `w`; its rays' budget the whole one, `RAY_WORK`, unless one is given. */
 export function runOver(w: ReturnType<typeof world>) {
   const { header } = w
-  const text = wgslModule(runtimeProbeRayWgsl(BINDINGS)) + HELPERS
+  const text = wgslModule(runtimeRadianceWgsl(BINDINGS)) + HELPERS
   const run = shaderRun<{
     rtScene: (o: Vec3, d: Vec3, limit: number) => Hit
     rtRadiance: (

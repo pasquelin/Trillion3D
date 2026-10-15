@@ -1,5 +1,4 @@
 import type { SelectionUniforms } from '../core/selection.ts'
-import { levelCountsWord } from './readoutWords.ts'
 import { MAIN_VIEW, noteWhole, stampMatches } from './swap.ts'
 import { recutMain, type DagRuntimeState } from './runtimeState.ts'
 import { readDagSlot } from './readbackSlot.ts'
@@ -75,7 +74,6 @@ export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy
       drawnWordOffset: outputBytes / 4,
       listCap,
       scratch: scratch[cut.reads++ % scratch.length],
-      levelsWord: levelCountsWord(listCap),
     },
     {
       limits: device.limits,

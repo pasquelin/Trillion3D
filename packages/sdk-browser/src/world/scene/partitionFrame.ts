@@ -14,8 +14,7 @@ import type { Engine } from '../../engine/types.ts'
 import type { FrameBudget } from '../../page/integration/frameBudget.ts'
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
-import { cellReach } from '../../partition/plan.ts'
-import { lensSlope } from '../../partition/superRoots.ts'
+import { cellReach, lensSlope } from '../../partition/plan.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { patientTask } from '../../page/work/host.ts'
 import { cellRows, type CellRows } from '../../partition/cellDecode.ts'
@@ -23,20 +22,21 @@ import { createViewAsks } from './viewAsks.ts'
 import type { PageBody } from '../../partition/cellIndex.ts'
 
 /** Where a camera's eye stands in the world, and its reach there: the frustum its world matrix
- *  poses, which a scaled camera — or one under a scaled rig — stretches by up to its largest
- *  singular value (`maxStretch`). */
-function viewOf(camera: HostCamera) {
+ *  poses, on its diagonal of `slope` (`lensSlope`), which a scaled camera — or one under a scaled
+ *  rig — stretches by up to its largest singular value (`maxStretch`). */
+function viewOf(camera: HostCamera, slope = lensSlope(camera)) {
   const elements = resolveCameraWorld(camera).matrixWorld.elements
   return {
     eye: [elements[12], elements[13], elements[14]],
-    reach: cellReach(camera) * maxStretch(elements),
+    reach: cellReach(camera, slope) * maxStretch(elements),
   }
 }
 
-/** The cut's lens `backend` projects with while it packs the world DAG, else none (#1332). */
-function lensOf(backend: Engine, camera: HostCamera, cells: PartitionCells) {
+/** The cut's lens `backend` projects with while it packs the world DAG, on the frustum's diagonal
+ *  `slope` the frame read once (`lensSlope`), else none (#1332). */
+function lensOf(backend: Engine, cells: PartitionCells, slope: number) {
   const cut = backend.worldCut(cells.world)
-  return cut && { ...cut, slope: lensSlope(camera) }
+  return cut && { ...cut, slope }
 }
 
 /** The file of the partition at `url` read by the page worker pool, off the main thread (#575): `cells`,
@@ -58,8 +58,9 @@ async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
 
 /**
  * Sizes the rows for `camera`'s view — for every node when no owner can open the session again
- * (`owned` false) —, then reads the pages of the index on its way and places the cells it reaches,
- * each through the streamer at the head of its queue and the page worker pool; the bytes read.
+ * (`owned` false) —, then runs each partition's frame to completion (`PartitionCells.prime`), its
+ * reads through the streamer at the head of its queue, its decodes on the page worker pool; the
+ * bytes read.
  */
 export async function primePartitions(
   partitions: readonly PartitionCells[],
@@ -74,6 +75,7 @@ export async function primePartitions(
     decode: decodeCell,
     decodePage,
     admit: streamer.admit,
+    forget: streamer.forget,
   }
   const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, reach, io, owned)))
   return bytes.reduce((sum, value) => sum + value, 0)
@@ -124,30 +126,32 @@ export function createPartitionFrame(inputs: Inputs) {
     await Promise.all([...asked, ...turned])
     return later || turned.length > 0
   }
-  const io = (cells: PartitionCells): Parameters<PartitionCells['frame']>[2] => ({
+  const update = (...range: Parameters<Engine['updatePlacements']>) =>
+    backend.updatePlacements(...range)
+  const io = (cells: PartitionCells, slope: number): Parameters<PartitionCells['frame']>[2] => ({
     bytes: (url: string) => streamer.getBytes(url),
     decode: decodeCell,
     decodePage,
     failed: (url: string) => streamer.failed(url),
     request,
-    pin: streamer.pin,
-    unpin: streamer.unpin,
     admit: streamer.admit,
     forget: streamer.forget,
-    update: (...range: Parameters<Engine['updatePlacements']>) =>
-      backend.updatePlacements(...range),
+    update,
     grow: backend,
     compose: (parent, world, links, whole) =>
       backend.composePlacements(parent, world, links, whole),
     outgrown: renew,
     // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
-    lens: lensOf(backend, camera, cells),
+    lens: lensOf(backend, cells, slope),
   })
   const step = () => {
     if (!partitions.length) return
-    const { eye, reach } = viewOf(camera)
+    // The frustum's diagonal, read once a frame: the reach and every lens take it.
+    const slope = lensSlope(camera),
+      { eye, reach } = viewOf(camera, slope)
     later = false
-    for (const cells of partitions) later = cells.frame(eye, reach, io(cells), budget) || later
+    for (const cells of partitions)
+      later = cells.frame(eye, reach, io(cells, slope), budget) || later
     asks.end()
   }
   return Object.assign(step, {
@@ -162,7 +166,7 @@ export function createPartitionFrame(inputs: Inputs) {
         const at = partitions.indexOf(one)
         if (at < 0) continue
         partitions.splice(at, 1)
-        one.close(io(one))
+        one.close({ update })
       }
       asks.end()
     },

@@ -12,7 +12,7 @@
  */
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE, type WebgpuTileFeedback } from './feedback.ts'
+import { feedbackStrideOf, type WebgpuTileFeedback } from './feedback.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { GATHER_WGSL, REDUCE_WGSL, REDUCE_WORKGROUP } from './reduceWgsl.ts'
 import { started } from '../../lighting/deferred/fullscreen.ts'
@@ -136,9 +136,9 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
       words[3] = feedback.capacity
       words[4] = stamp.clock
       device.queue.writeBuffer(uniform, 0, words)
-      const every = (phaseWord & FEEDBACK_EVERY) !== 0
-      const cols = every ? size[0] : ceilDiv(size[0], FEEDBACK_STRIDE),
-        rows = every ? size[1] : ceilDiv(size[1], FEEDBACK_STRIDE)
+      const stride = feedbackStrideOf(phaseWord)
+      const cols = ceilDiv(size[0], stride),
+        rows = ceilDiv(size[1], stride)
       const pass = encoder.beginComputePass({ label: TEXTURE_FEEDBACK_REDUCE_PASS })
       pass.setPipeline(pipeline.get())
       pass.setBindGroup(0, group!)

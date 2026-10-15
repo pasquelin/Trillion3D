@@ -1,19 +1,17 @@
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import {
-  VSM_LIGHT_KIND_POINT,
-  VSM_LIGHT_KIND_SPOT,
   VSM_LOCAL_NEAR_PLANE,
   VSM_MIPS,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
   VSM_LOCAL_LEVEL_BIAS,
-  VSM_LOCAL_LEVEL_BIAS_MOVING,
   VSM_UNIT_PER_CM,
   VSM_LEVEL0_TEXELS,
   vsmLocalMipLevel,
-  vsmMovingBias,
 } from './constants.ts'
-import { vsmShadowUvMatrix, vsmShadowUvNormalMatrix } from './projectionData.ts'
+import { vsmShadowMatrices } from './projectionData.ts'
+import { vsmMapsOf } from './mapViews.ts'
 import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
@@ -83,8 +81,6 @@ export function vsmLocalViewData(camera: VsmCameraInput, viewport: VsmViewport):
 export interface VsmLocalLightSetup {
   cacheEntry: VsmLightCache
   finestMip: number
-  /** Whether the light renders a virtual shadow map. */
-  drawsThisFrame: boolean
 }
 
 /** Declared: the widest half angle a spot's one perspective map takes, 88.9°: its 1 / tan, the
@@ -166,13 +162,13 @@ const X_AXIS = [1, 0, 0],
   preShadow: [number, number, number] = [0, 0, 0],
   shape: [number, number, number] = [0, 0, 0],
   worldToLight = new Float64Array(16),
-  localKey = { worldToLight, lightOriginShift: preShadow, isCachedFarLight: false, shape },
+  localKey = { worldToLight, lightOriginShift: preShadow, shape },
   spotView = new Float64Array(16),
   spotCentre = new Float64Array(3),
   viewToClip = new Float64Array(16)
 
 /**
- * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level and the distant-light state, and
+ * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level, and
  * refreshes the cached projection data of each of its maps. The setup returned is the one the
  * entry keeps (`VsmLightCache.localSetup`): the next frame of the same light rewrites it.
  */
@@ -180,16 +176,12 @@ export function addVsmLocalLightShadow(
   cache: VsmCacheManager,
   light: VsmLocalLightInput,
   views: readonly VsmLocalViewData[],
-  movingShare: number,
 ): VsmLocalLightSetup {
   const isSpot = light.kind === 'spot'
   const radius = light.range
   const origin = light.position
   for (let k = 0; k < 3; k++) preShadow[k] = -origin[k]
-  const localLevelBias = Math.fround(
-    vsmMovingBias(VSM_LOCAL_LEVEL_BIAS, VSM_LOCAL_LEVEL_BIAS_MOVING, movingShare) +
-      (light.levelBias ?? 0),
-  )
+  const localLevelBias = Math.fround(VSM_LOCAL_LEVEL_BIAS + (light.levelBias ?? 0))
 
   // Light rotation (the world-to-light rotation, no translation): a spot's X axis is its direction; a
   // point light's faces are world-aligned and its rotation is the identity.
@@ -257,22 +249,15 @@ export function addVsmLocalLightShadow(
       ),
     )
 
-  const isCachedFarLight = finestMip === VSM_MIPS - 1
-
-  const numMaps = isSpot ? 1 : 6
+  const numMaps = vsmMapsOf(light.kind)
   const cacheEntry = cache.lightEntryFor(light.id, numMaps)
 
   const forceInvalidate = !cache.cacheEnabled
 
-  localKey.isCachedFarLight = isCachedFarLight
   shape[0] = isSpot ? 1 : 0
   shape[1] = radius
   shape[2] = outerCone
   cacheEntry.updateLocal(localKey, forceInvalidate)
-  if (isCachedFarLight && cacheEntry.scheduledFrame === (cache.frameStamp | 0))
-    cacheEntry.invalidate()
-
-  const drawsThisFrame = !cacheEntry.isFullyCached()
 
   let flags = cacheEntry.isUncached ? VSM_MAP_UNCACHED : 0
   flags |= cacheEntry.useCover ? VSM_MAP_COVERAGE : 0
@@ -289,8 +274,7 @@ export function addVsmLocalLightShadow(
       // The local light's projection matrices.
       const shiftedToView = isSpot ? spotView : POINT_FACE_VIEWS[index]
       data.lightViewToClip.set(viewToClip)
-      vsmShadowUvMatrix(data.shiftedToMapUv, shiftedToView, viewToClip)
-      vsmShadowUvNormalMatrix(data.planesToMapUv, shiftedToView, viewToClip)
+      vsmShadowMatrices(data, shiftedToView, viewToClip)
       for (let k = 0; k < 3; k++) {
         data.originShift[k] = preShadow[k]
         data.lightDirection[k] = 0
@@ -298,7 +282,7 @@ export function addVsmLocalLightShadow(
       data.mapLevel = 0
       data.levelsLeft = -1
     }
-    data.lightKind = isSpot ? VSM_LIGHT_KIND_SPOT : VSM_LIGHT_KIND_POINT
+    data.lightKind = isSpot ? LIGHT_KIND.spot : LIGHT_KIND.point
     data.emitterSize = light.sourceRadius ?? 0
     data.lightRange = radius
     data.ditherTexels = light.ditherTexels ?? 1
@@ -307,8 +291,7 @@ export function addVsmLocalLightShadow(
     data.finestMip = finestMip
   }
 
-  const setup = (cacheEntry.localSetup ??= { cacheEntry, finestMip, drawsThisFrame })
+  const setup = (cacheEntry.localSetup ??= { cacheEntry, finestMip })
   setup.finestMip = finestMip
-  setup.drawsThisFrame = drawsThisFrame
   return setup
 }

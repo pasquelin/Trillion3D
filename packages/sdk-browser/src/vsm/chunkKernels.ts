@@ -1,9 +1,9 @@
 /**
  * THE KERNELS OF A CHUNKED RASTER OVER CASTER ROWS (`renderCullWgsl.ts`): the cull, the expand and
  * their arguments — the opaque raster's, and the transmission's with its own cull —, what a pass
- * holds of its chunks, and the chunk a frame's rows take.
+ * holds of its chunks.
  */
-import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import type { UniformSlots } from '../residency/pools.ts'
 import type { VsmLayout } from './layout.ts'
@@ -13,21 +13,15 @@ import type { VsmListName } from './chunkSizing.ts'
 import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
 import { VSM_RENDER_ARGS_WGSL } from './renderParamsWgsl.ts'
 import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
-import {
-  createVsmRowBound,
-  vsmBoundChunk,
-  vsmWorstChunk,
-  type VsmBoundLight,
-  type VsmChunk,
-  type VsmRowBound,
-  type VsmRowSpheres,
-  type VsmWorst,
-} from './rowPageBound.ts'
+import { VSM_RENDER_VIEWS_SPECS, vsmRenderViewsWgsl } from './renderViewsWgsl.ts'
+import { createVsmRowBound, type VsmRowBound } from './rowPageBound.ts'
 import { vsmChunkParamSlots, vsmRenderParamsEntry } from './chunkParams.ts'
 
 /** The cull, expand and argument kernels of a raster over caster rows (`renderCullWgsl.ts`):
  *  the opaque raster's, and the transmission atlas's with its own cull. */
 export interface VsmChunkKernels {
+  /** The views with pages to draw, listed on the GPU (`renderViewsWgsl.ts`). */
+  views: VsmComputePipe
   cull: VsmComputePipe
   expand: VsmComputePipe
   /** One source, one group layout: each pipe's `groups[0]` is the same entries. */
@@ -44,7 +38,6 @@ export function vsmChunkKernels(
   label: string,
   cullCode: string,
 ): VsmChunkKernels {
-  const C = GPUShaderStage.COMPUTE
   const P = vsmRenderParamsEntry
   const pipe = (
     name: string,
@@ -52,32 +45,37 @@ export function vsmChunkKernels(
     entryPoint: string,
     groups: GPUBindGroupLayoutEntry[][],
   ) => vsmComputePipe(device, `${label}.${name}`, code, entryPoint, groups)
+  const views = pipe('views', vsmRenderViewsWgsl(layout), 'vsmRenderViews', [
+    vsmBindGroupLayoutEntries(VSM_RENDER_VIEWS_SPECS, layout, COMPUTE),
+    [P(0), computeBufferEntry(1, 'storage', COMPUTE), computeBufferEntry(2, 'storage', COMPUTE)],
+  ])
   const cull = pipe('cull', cullCode, 'vsmRenderCull', [
-    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, C),
+    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, layout, COMPUTE),
     [
       P(0),
-      computeBufferEntry(1, 'read-only-storage', C),
-      computeBufferEntry(2, 'read-only-storage', C),
-      computeBufferEntry(3, 'storage', C),
-      computeBufferEntry(4, 'storage', C),
+      computeBufferEntry(1, 'read-only-storage', COMPUTE),
+      computeBufferEntry(2, 'read-only-storage', COMPUTE),
+      computeBufferEntry(3, 'storage', COMPUTE),
+      computeBufferEntry(4, 'storage', COMPUTE),
     ],
   ])
   const expand = pipe('expand', vsmRenderExpandWgsl(layout), 'vsmRenderExpand', [
-    vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, C),
+    vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, COMPUTE),
     [
       P(0),
-      computeBufferEntry(1, 'read-only-storage', C),
-      computeBufferEntry(2, 'storage', C),
-      computeBufferEntry(3, 'storage', C),
+      computeBufferEntry(1, 'read-only-storage', COMPUTE),
+      computeBufferEntry(2, 'storage', COMPUTE),
+      computeBufferEntry(3, 'storage', COMPUTE),
     ],
   ])
   const argsEntries = [
     P(0),
-    computeBufferEntry(1, 'storage', C),
-    computeBufferEntry(2, 'storage', C),
+    computeBufferEntry(1, 'storage', COMPUTE),
+    computeBufferEntry(2, 'storage', COMPUTE),
   ]
   const args = (entryPoint: string) => pipe('args', VSM_RENDER_ARGS_WGSL, entryPoint, [argsEntries])
   return {
+    views,
     cull,
     expand,
     args: {
@@ -141,21 +139,4 @@ function vsmChunkPasses(prefix: string, slots: UniformSlots) {
         offset: slots.offset(c),
       }),
   }
-}
-
-/**
- * The chunk of the rows `[first, end)`: by where they are (`vsmBoundChunk`), or, when the bound
- * cannot speak, the worst case.
- */
-export function vsmChunkRows(
-  bound: VsmRowBound,
-  spheres: VsmRowSpheres,
-  range: { first: number; end: number; candidates: number },
-  lights: readonly VsmBoundLight[],
-  worst: VsmWorst,
-): VsmChunk {
-  return (
-    vsmBoundChunk(bound, spheres, range, lights, worst) ||
-    vsmWorstChunk(bound.worst, worst.rows, worst.cmdsPerRow, worst.pages)
-  )
 }

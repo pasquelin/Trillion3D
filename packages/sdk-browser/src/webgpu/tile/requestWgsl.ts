@@ -1,5 +1,11 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts'
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE_MASK, PICK_SHIFT } from './feedback.ts'
+import {
+  FEEDBACK_EVERY,
+  FEEDBACK_STRIDE,
+  FEEDBACK_STRIDE_BITS,
+  FEEDBACK_STRIDE_MASK,
+  PICK_SHIFT,
+} from './feedback.ts'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
 import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
 import { TILE_POOL_WGSL } from './wgsl.ts'
@@ -64,6 +70,21 @@ const tileRequestIndexWgsl = (k: string) =>
   )
 
 /**
+ * THE ONE STRIDE RULE of the feedback: the pixels that speak an image are one per square of
+ * `feedbackStride(word)` pixels, at `feedbackOffset(word)` in it — `FEEDBACK_STRIDE` squares at the
+ * image's phase, or squares of one pixel, every pixel, during a convergence (`FEEDBACK_EVERY`).
+ * The request reads it (`feedbackPhase`), the reduction walks it (`reduceWgsl.ts`) and the CPU
+ * sizes the reduction by it (`feedbackStrideOf`).
+ */
+export const FEEDBACK_STRIDE_WGSL = wgslBlock(
+  'FEEDBACK_STRIDE_WGSL',
+  [],
+  `fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
+fn feedbackStride(word:u32)->u32{return select(${FEEDBACK_STRIDE}u,1u,feedbackEvery(word));}
+fn feedbackOffset(word:u32)->vec2u{return select(vec2u(word&${FEEDBACK_STRIDE_MASK}u,(word>>${FEEDBACK_STRIDE_BITS}u)&${FEEDBACK_STRIDE_MASK}u),vec2u(0u),feedbackEvery(word));}`,
+)
+
+/**
  * Whether a pixel speaks this image (`feedbackPhase`) and what it names: the rule every pass that
  * asks for tiles shares. An ordinary image names ONE pick (`requestPick`), its position shifted by
  * the image's pick turn. A convergence image (`feedbackEvery`) runs through all of a pixel's picks
@@ -80,14 +101,15 @@ const tileRequestIndexWgsl = (k: string) =>
  */
 export const FEEDBACK_RULE_WGSL = wgslBlock(
   'FEEDBACK_RULE_WGSL',
-  [],
+  [FEEDBACK_STRIDE_WGSL],
   `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
-fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
+/** The pipeline writes the feedback target: false, folded at pipeline creation, every request is
+ *  zero and none of its code is reached — one module serves the pipelines with the target and
+ *  without it, whose targets leave the request's location empty. */
+override FEEDBACK:bool=true;
 fn feedbackMissing(p:vec2f,word:u32)->bool{return feedbackEvery(word)&&((u32(p.y)+word)&1u)==0u;}
-fn feedbackPhase(p:vec2f,word:u32)->bool{
- if(feedbackEvery(word)){return true;}
- return ((u32(p.x)&${FEEDBACK_STRIDE_MASK}u)|((u32(p.y)&${FEEDBACK_STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
-}
+/** The pixel speaks this image: it is its square's speaking pixel (\`feedbackStride\`). */
+fn feedbackPhase(p:vec2f,word:u32)->bool{return all((vec2u(p)&vec2u(feedbackStride(word)-1u))==feedbackOffset(word));}
 struct RequestPick{sel:u32,next:bool,along:u32,}
 fn pickOf(px:u32,choices:u32)->RequestPick{
  return RequestPick(px%choices,((px/choices)&${PICK_BLENDS - 1}u)==1u,(px/choices/${PICK_BLENDS}u)%${PICK_TAPS}u);
@@ -96,6 +118,43 @@ fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{return pickOf(u32(po
 /** Pick \`turn\` of a pixel: \`choices*PICK_TURNS\` turns in a row name each of them once. */
 fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`,
 )
+
+/** The pipeline constants of a fragment stage writing the feedback target or not (`FEEDBACK`): the
+ *  one switch of every pass that asks tiles — opaque resolve, blends, water surfaces, cards. */
+export const feedbackConstants = (feedback: boolean) => ({ FEEDBACK: feedback ? 1 : 0 })
+
+/** What a surface's request loop is made of (`requestLoopWgsl`): its function's head, the pixel
+ *  position and feedback word it speaks by, the lines a surface runs before its phase (`before`) and those a
+ *  speaking pixel needs (`setup`), its count of picks, and its pick's call on a pick and `missing`. */
+type RequestLoop = {
+  head: string
+  pos: string
+  word: string
+  before?: string
+  setup?: string
+  choices: string
+  pick: (pick: string, missing: string) => string
+}
+
+/**
+ * THE REQUEST LOOP of every surface that asks tiles, under `FEEDBACK_RULE_WGSL`: a pixel out of its
+ * phase asks nothing; on a convergence's asking rows it names the first of its picks whose tile is
+ * missing (`everyPick`, `PICK_TURNS` per choice); else its own pick (`requestPick`). Each surface
+ * brings only its choices and its pick; the loop is this one text.
+ */
+export const requestLoopWgsl = ({ head, pos, word, before, setup, choices, pick }: RequestLoop) =>
+  `${head}{
+ if(!FEEDBACK){return 0u;}
+${before ? ` ${before}\n` : ''} if(!feedbackPhase(${pos},${word})){return 0u;}
+${setup ? ` ${setup}\n` : ''} let choices=${choices};
+ if(feedbackMissing(${pos},${word})){
+  for(var turn=0u;turn<choices*PICK_TURNS;turn++){
+   let rank=${pick(`everyPick(${pos},choices,turn)`, 'true')};
+   if(rank!=0u){return rank;}
+  }
+ }
+ return ${pick(`requestPick(${pos},choices,${word})`, 'false')};
+}`
 
 const m = WRAP_MAP
 /**

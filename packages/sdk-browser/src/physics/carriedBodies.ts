@@ -1,5 +1,6 @@
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import { sameRange } from '../../../math/src/matrix/matrixElements.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 
 /** A kinematic body a dynamic body's subtree holds: the node it follows, and the world pose,
@@ -24,9 +25,7 @@ export function driveCarried(
   slot: number,
 ) {
   const { position, quaternion } = worldPoseOf(node)
-  let same = true
-  for (let i = 0; i < 7 && same; i++) same = last[i] === (i < 3 ? position[i] : quaternion[i - 3])
-  if (same) return
+  if (sameRange(last, position, 3) && sameRange(last, quaternion, 4, 3)) return
   last.set(position)
   last.set(quaternion, 3)
   writer.moveKinematic(slot, position, quaternion)

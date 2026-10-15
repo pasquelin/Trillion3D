@@ -4,11 +4,9 @@
 use super::cut::store_shape;
 use super::mass::solid_mass;
 use super::{refused, taken};
-use crate::compiler_accessor_create::accessor;
-use crate::compiler_validate::{item, required_index, values};
+use crate::compiler_validate::{item, values};
 use crate::compiler_world::Mat4;
-use crate::dag::clusters::weld_positions;
-use crate::qem::compact_region;
+use crate::qem::welded_region;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use trillion3d_math::matrix::transform_point;
@@ -41,21 +39,7 @@ fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u
         .filter(|p| p.get("mode").is_none_or(|m| m == 4))
     {
         let base = (pos.len() / 3) as u32;
-        let positions = accessor(
-            g,
-            bin,
-            required_index(p.pointer("/attributes/POSITION"), "POSITION")?,
-            None,
-        )?;
-        let local: Vec<u32> = match p.get("indices") {
-            Some(index) => {
-                accessor(g, bin, required_index(Some(index), "indices")?, None)?.collect_u32()?
-            }
-            None => (0..positions.count as u32).collect(),
-        };
-        if local.iter().any(|&i| i as usize >= positions.count) {
-            return Err(refused(format!("Mesh {mesh} indexes a vertex it lacks.")));
-        }
+        let (positions, local, _) = crate::compiler_primitive::triangles::read(g, bin, p, None)?;
         pos.extend(positions.collect_f32()?);
         triangles.extend(local.iter().map(|i| i + base));
     }
@@ -110,9 +94,8 @@ pub(super) fn cooked_hull(
         }
     }
     // One point per position: seam copies neither split an edge nor add a hull point.
-    let weld = weld_positions(&pos, &triangles);
-    let welded: Vec<u32> = triangles.iter().map(|&i| weld[i as usize]).collect();
-    let shape = cooked_shape(o, &compact_region(&pos, &welded).0)?;
+    let (points, _, welded) = welded_region(&pos, &triangles);
+    let shape = cooked_shape(o, &points)?;
     Ok(Hull {
         mesh,
         pos,

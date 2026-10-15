@@ -11,7 +11,6 @@ import { pagedQuad, FIRST, SECOND, type PagedQuad } from '../pages/pagedQuad.fix
 import { createWebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ensurePageTable } from '../pages/render/pageTable.ts'
 import { disposeWebgpuPages } from '../pages/io/metrics.ts'
-import { FLAG_CLUSTER_PAGE, FLAG_HAS_TANGENT } from '../../visibility/types.ts'
 import { prepareWebgpuPages } from '../pages/prepare/preparePages.ts'
 import type { PageSurface } from '../../page/surface.ts'
 
@@ -55,8 +54,8 @@ test('a paged transparent item owns no host buffer and draws each cluster from i
       [item.position, item.index, item.uv, item.normal],
       [undefined, undefined, undefined, undefined],
     )
-    assert.equal(item.flags & FLAG_CLUSTER_PAGE, FLAG_CLUSTER_PAGE, 'the shader decodes its pages')
-    assert.equal(item.flags & FLAG_HAS_TANGENT, 0, 'a page stores no tangent')
+    assert.equal(item.geometry.quantized, true, 'the shader decodes its pages')
+    assert.equal(item.geometry.hasTangent, false, 'a page stores no tangent')
     assert.equal(rt.vis.geometryBlocks.has(mesh.geometry.attributes), false, 'no float geometry')
     // Once resident, each cluster's span is its slot and the corners its page declares.
     ensurePageTable(rt, device)
@@ -84,8 +83,8 @@ test('shared-blend and transmissive meshes keep their host buffers', async () =>
       assert.equal(!!item.paged, false, pass)
       for (const buffer of [item.position, item.index, item.uv, item.normal])
         assert.ok(buffer, `${pass} reads its own buffers`)
-      assert.equal(item.flags & FLAG_CLUSTER_PAGE, 0)
-      assert.equal(item.flags & FLAG_HAS_TANGENT, FLAG_HAS_TANGENT, 'its tangents are read')
+      assert.equal(item.geometry.quantized, false)
+      assert.equal(item.geometry.hasTangent, true, 'its tangents are read')
     } finally {
       await release(rt, fixture)
     }

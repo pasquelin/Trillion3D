@@ -5,7 +5,7 @@ import { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { Intersection } from '../query/types.ts'
 import { helperRoots } from './helperMark.ts'
-import { drawnAspect } from './worldCamera.ts'
+import { drawnAspect } from '../api/viewportApi.ts'
 import { asksPhysics, physicsRaycast, type PhysicsRaycastOptions } from '../../physics/raycast.ts'
 import type { PhysicsSession } from '../../physics/session/session.ts'
 

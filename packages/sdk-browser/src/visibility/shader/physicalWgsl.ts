@@ -120,8 +120,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
    let m=physicalUvMatrix(r.maps.w);
    frame=cotangentFrame(coatBase,e1,e2,m*c.d1,m*c.d2);
   }
-  let f=screenFace*coatFace;
-  coatN=bendNormal(coatBase,frame.T,frame.B,vec3f(f*n.x*r.coatNormalScale.x,f*n.y*r.coatNormalScale.y,n.z));
+  coatN=bendNormal(coatBase,frame.T,frame.B,screenFace*coatFace,vec3f(n.x*r.coatNormalScale.x,n.y*r.coatNormalScale.y,n.z));
  }
  return PhysicalLobes(direction,coatN,strength,coat,coatRough);
 }

@@ -31,7 +31,7 @@ import { VSM_RENDER_OVERLAP_WGSL } from './renderOverlapWgsl.ts'
  *   their world sphere (split double), corner count, cache-as-dynamic bit (engine mobility,
  *   `webgpu/shadow/mobility.ts`) and deforming bit (`vsmRenderCandidateFlags`).
  * - `vsmRenderCull` (per candidate × map view): the per-page draw commands:
- *   distance cull, static-layer test, small-caster test, frustum (the box frustum test with
+ *   distance cull, static-layer test, frustum (the box frustum test with
  *   the dynamic depth cull range), then per mip: screen rect, fine caster, stale rect
  *   clip, overlap with any valid page (page-mark pyramid + receiver cover), and one command (row,
  *   mip view, static, page rect, flag mask, dirty flags).
@@ -75,7 +75,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
 @compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lane:u32){
  let local=wid.x*WORKGROUP_THREADS+lane;
  let k=params.chunkFirst+local;
- if(local>=params.chunkRows||k>=atomicLoad(&counts[0])||wid.y>=params.viewCount){return;}
+ if(local>=params.chunkRows||k>=atomicLoad(&counts[0])||wid.y>=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount)){return;}
  let cand=candidates[k];
  let view=views[wid.y];
  let h=vsmHandleFromId(view.x);
@@ -99,18 +99,9 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
  // The receiver cover and the mark mask depend on the cache state.
  let useCover=pd.useCover&&!staticLayer;
  let markMask=select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,staticLayer);
- // The small-caster cull on uncached maps, an
- // instance test: the whole object's radius, not the cluster's, so a small part of a large object
- // is never dropped alone. Its centre is not kept per row: the distance is the cluster's less the
- // object's radius, nearer than the object's centre can be — it never drops what the object's own test keeps.
- if(pd.uncached){
-  let objectRadius=bitcast<f32>(cand.objectRadius);
-  let d=(cand.c.xyz-params.eyeHigh)+(cand.l-params.eyeLow);
-  if(objectRadius>0.0){
-   let near=max(length(d)-objectRadius,0.0);
-   if(objectRadius*objectRadius<params.smallCasterSq*near*near){return;}
-  }else if(radius*radius<params.smallCasterSq*dot(d,d)){return;}
- }
+ // One caster rule for every map, cached or not: a caster's size is judged in the map's own
+ // pixels alone (\`vsmIsFineCaster\`, per mip below), never by its distance to the eye, which a
+ // cached page would hold from the frame it was drawn.
  // Frustum cull; non-static geometry also within the depth range (0, the largest float).
  let extent=vec3f(radius);
  let boxPoint=vsmBoxCullPoint(center,extent,isOrtho,nearClip);
@@ -120,11 +111,12 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
   visible=cull.clipHigh.z>0.0&&cull.clipLow.z<FLOAT32_MAX;
  }
  if(!visible){return;}
- var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS);
  let deformsNow=(cand.flags&VSM_RENDER_CAND_DEFORMING)!=0u;
  ${marksDirty ? 'let dirtyFlags=vsmRasterMarkBits(staticLayer,deformsNow);' : 'let dirtyFlags=0u;'}
  let mips=min(view.y,VSM_MIPS);
- for(var mipLevel=0u;mipLevel<mips;mipLevel++){
+ // The map's mips from its finest on: its table holds no finer one (\`vsmTableLevelOrigin\`).
+ var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS>>pd.finestMip);
+ for(var mipLevel=pd.finestMip;mipLevel<mips;mipLevel++){
   let levelTexels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
   var pixels=vsmRectPixels(vec4i(0,0,levelTexels,levelTexels),cull);
   let fineCaster=vsmIsFineCaster(staticLayer,pixelRadius);

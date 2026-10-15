@@ -25,7 +25,7 @@ function hold(probe: Probe, code: string) {
 
 /** Each gesture moves the camera and answers the pose it reached, then undoes itself. */
 const GESTURES: Record<Kind, (probe: Probe) => number[]> = {
-  controls: (probe) => {
+  orbit: (probe) => {
     drag(probe.canvas, CENTRE, 120, 0)
     wheel(probe.canvas, CENTRE, 300)
     drag(probe.canvas, CENTRE, 60, 0, 2)
@@ -35,7 +35,7 @@ const GESTURES: Record<Kind, (probe: Probe) => number[]> = {
     drag(probe.canvas, CENTRE, -120, 0)
     return moved
   },
-  trackballControls: (probe) => {
+  trackball: (probe) => {
     drag(probe.canvas, CENTRE, 90, 0)
     wheel(probe.canvas, CENTRE, 200)
     const moved = probe.step(0)
@@ -43,7 +43,7 @@ const GESTURES: Record<Kind, (probe: Probe) => number[]> = {
     drag(probe.canvas, CENTRE, -90, 0)
     return moved
   },
-  panZoomControls: (probe) => {
+  panZoom: (probe) => {
     drag(probe.canvas, CENTRE, 70, 30)
     wheel(probe.canvas, CENTRE, -200)
     const moved = probe.step(0)
@@ -51,7 +51,7 @@ const GESTURES: Record<Kind, (probe: Probe) => number[]> = {
     drag(probe.canvas, CENTRE, -70, -30)
     return moved
   },
-  flyControls: (probe) => {
+  fly: (probe) => {
     hold(probe, 'KeyW')
     const moved = probe.step(0)
     hold(probe, 'KeyS')
@@ -61,7 +61,7 @@ const GESTURES: Record<Kind, (probe: Probe) => number[]> = {
     probe.step(0)
     return moved
   },
-  firstPersonControls: (probe) => {
+  firstPerson: (probe) => {
     drag(probe.canvas, CENTRE, 80, 0)
     const moved = probe.step(0)
     drag(probe.canvas, CENTRE, -80, 0)

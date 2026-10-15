@@ -16,15 +16,6 @@ type Inputs = {
 }
 
 /**
- * Addresses that a request already gone will send again later. Same addresses and same add
- * order as a hand-deduped array: membership is that of the structure, where an `includes`
- * rewalked the whole list for every address, frame after frame.
- */
-export function pushPending(pending: Set<string>, urls: readonly string[]) {
-  for (const url of urls) pending.add(url)
-}
-
-/**
  * One frame of the engine: it draws and presents its own surface, then the pages it still lacks
  * are asked for, the ones it reads are retained, and the host tables its view sized are reserved
  * off the page cache. The engine times its own passes; a frame whose visible pages exceed the
@@ -36,28 +27,16 @@ export function createDrawFrame(inputs: Inputs) {
     engine.render(camera)
     const renderEnd = cpuNow()
     const missing = engine.pendingUrls()
-    if (missing.length > 0) {
-      streaming.queueCached(missing)
-      // Per-frame budget on requests too: on a cold cache the missing list counts the pages
-      // of the whole city, and making each frame a filtered array then a promise per address
-      // cost more than the render. The list is ordered by priority — the most costly miss
-      // first — so the head is enough; the rest leaves on the next frame, shorter by what
-      // just arrived. The walk, for its part, goes to the end: a failed address does not
-      // consume the batch and therefore never blocks those that follow.
-      const needFetch: string[] = []
-      for (let i = 0; i < missing.length && needFetch.length < PAGE_REQUEST_BATCH; i++) {
-        if (streaming.unasked(missing[i])) needFetch.push(missing[i])
-      }
-      if (needFetch.length > 0) {
-        if (!streaming.promise) streaming.startFetch(needFetch)
-        else {
-          pushPending(streaming.queuedFetch, needFetch)
-          streaming.backgroundFetchController?.abort(
-            new DOMException('Camera request superseded', 'AbortError'),
-          )
-        }
-      }
-    }
+    streaming.queueCached(missing)
+    // Per-frame budget on requests too: on a cold cache the missing list counts the pages of the
+    // whole city. The list is ordered by priority — the most costly miss first — so the head is
+    // enough; the rest leaves on the next frame, shorter by what just arrived. A page held or failed
+    // for good does not consume the batch and therefore never blocks those that follow. One asker
+    // holds the reads (`streaming.ask`): a page still lacked keeps its read, never re-asked.
+    const head: string[] = []
+    for (let i = 0; i < missing.length && head.length < PAGE_REQUEST_BATCH; i++)
+      if (!streamer.has(missing[i]) && !streamer.failed(missing[i])) head.push(missing[i])
+    streaming.ask(head)
     const pendingEnd = cpuNow()
     // The pages the view reads pinned through its request-rank difference.
     streamer.retainRanks(engine.retainedRanks())

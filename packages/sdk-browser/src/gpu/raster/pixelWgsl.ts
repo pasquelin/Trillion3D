@@ -7,6 +7,7 @@ import { maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts'
 import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
 import { VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { FLAG_MASK } from '../../visibility/types.ts'
 
 /** The pixels of the frame the raster writes: the work buffer holds their depths, then their
  *  identifiers one frame further. */
@@ -114,7 +115,7 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  // The far plane is infinite: depth falls toward far without ever reaching it.
  if(depth<=${wgslF32(DEPTH_CLEAR)}||depth>${wgslF32(DEPTH_NEAR)}){return;}
  let page=pages[t.row];
- if((page.flags&128u)!=0u){
+ if((page.flags&${FLAG_MASK}u)!=0u){
   let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
   let tc=(t.ua*(wa/t.ca.w)+nb*(wb/qb.w)+nc*(wc/qc.w))/inv;
   let gradients=uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,vec3f(1.0/t.ca.w,1.0/qb.w,1.0/qc.w));

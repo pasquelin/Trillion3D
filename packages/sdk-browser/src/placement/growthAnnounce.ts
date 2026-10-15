@@ -1,4 +1,5 @@
 import { noteWorldMoved } from '../webgpu/pages/render/movedWorlds.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -30,7 +31,8 @@ export type GrownRoots = readonly { readonly world: { readonly elements: ArrayLi
  *  — the cut that takes them packed them so —: a send before their next pose compares them as the
  *  cut holds them, never as zeros. O(roots added). */
 export function holdGrownWorlds(worlds: Float32Array, added: GrownRoots, first: number) {
-  for (let k = 0; k < added.length; k++) worlds.set(added[k].world.elements, (first + k) * 16)
+  for (let k = 0; k < added.length; k++)
+    worlds.set(added[k].world.elements, (first + k) * MATRIX_VALUES)
 }
 
 /**

@@ -1,7 +1,7 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
-import { receiverLayoutEntries } from '../../webgpu/visibility/receiver.ts'
+import { receiverLayoutEntry } from '../../webgpu/visibility/receiver.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
   CONTRACT_TRACE_BINDINGS,
@@ -69,14 +69,14 @@ function contractLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
 }
 
 /**
- * The receiver offset's reads, subsurface, lobes, the mask's transmission, table and tiles: only
+ * The receiver target, subsurface, lobes, the mask's transmission, table and tiles: only
  * the opaque resolve. The subsurface, the lobes and the mask's table, three targets read by load
  * alone, are read-only storage textures: the widest program, with bounce, stays within the sixteen
  * sampled textures WebGPU guarantees a stage.
  */
 function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
-    ...receiverLayoutEntries(DEFERRED_BINDINGS.receiver, fragment),
+    receiverLayoutEntry(DEFERRED_BINDINGS.receiver, fragment),
     SUBSURFACE_TARGET.layoutEntry(),
     // The anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.layoutEntry(),

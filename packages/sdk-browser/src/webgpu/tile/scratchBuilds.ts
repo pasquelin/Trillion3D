@@ -4,119 +4,134 @@ import { generateMaterialMips } from '../../texture/mipBatch.ts'
 import type { TileCounters } from './counters.ts'
 import { rgbaBytes } from '../../texture/imageExtent.ts'
 
-/** The working texture of host texture `slot` of `atlas`, built now, its mips not yet; its picture
- *  in `encoder` when given (`TileScratch.settle` once submitted). */
+/** The working texture of host texture `slot` of `atlas`, built now — its picture up on the queue
+ *  —, its mips and any turn of its raw texels with its first reduction (`TileScratch.settle` once
+ *  submitted). */
 export function buildHostScratch(
   device: GPUDevice,
   counters: TileCounters,
   atlas: WebgpuTileAtlas,
   slot: number,
-  encoder?: GPUCommandEncoder,
 ) {
   const { layout, source } = atlas.textures[slot]
   if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST')
-  const scratch = createTileScratch(
-    device,
-    {
-      map: source.map,
-      width: layout.width,
-      height: layout.height,
-      format: atlas.poolOf(slot).texture.format,
-      errorCode:
-        atlas.kind === 'color'
-          ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
-          : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
-      coverage: source.coverage,
-    },
-    encoder,
-  )
+  const scratch = createTileScratch(device, {
+    map: source.map,
+    width: layout.width,
+    height: layout.height,
+    format: atlas.poolOf(slot).texture.format,
+    errorCode:
+      atlas.kind === 'color'
+        ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
+        : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
+    coverage: source.coverage,
+  })
   counters.scratches++
   counters.uploadedBytes += rgbaBytes(layout.width, layout.height)
   return scratch
 }
 
-/** Working textures held at most per pass — the whole source each; tiles of a third texture wait
- *  for a pass with room. They live until the pass is submitted: an encoded copy names its
- *  texture, which cannot be destroyed before. */
+/** Working textures built off the frame, held at most per pass — the whole source each; tiles of a
+ *  third texture wait for a pass with room. They live until the pass is submitted: an encoded copy
+ *  names its texture, which cannot be destroyed before. A live texture's is not counted. */
 const MAX_SCRATCHES = 2
 
-/** A working texture asked, with the feedback frame it was asked at. */
-type Asked = { atlas: WebgpuTileAtlas; slot: number; frame: number }
-/** Builds host texture `slot`'s working texture, its picture in `encoder` when given. */
-export type Build = (
-  atlas: WebgpuTileAtlas,
-  slot: number,
-  encoder?: GPUCommandEncoder,
-) => TileScratch
+/** Builds host texture `slot`'s working texture (`buildHostScratch`). */
+export type Build = (atlas: WebgpuTileAtlas, slot: number) => TileScratch
+/** What the cache holds of an id, in one state: asked for the tiles of a feedback frame and not yet
+ *  built; built off the frame, and whether a copy of this pass read it; or live (`refresh`). */
+type Entry =
+  | { state: 'asked'; atlas: WebgpuTileAtlas; slot: number; frame: number }
+  | { state: 'built'; scratch: TileScratch; frame: number; read: boolean }
+  | { state: 'live'; scratch: TileScratch }
 
-/** Every picture `asked` and their mips in one encoder, one submit, each one built kept in `built`
- *  with the frame it was asked at; `asked` emptied. */
+/** Every entry asked, its picture and their mips in one encoder, one submit, each one built kept
+ *  at its id with the frame it was asked at; an entry whose build fails is let go. */
 function buildAsked(
   device: GPUDevice,
-  asked: Map<number, Asked>,
-  built: Map<number, { scratch: TileScratch; frame: number }>,
+  entries: Map<number, Entry>,
   build: Build,
   onFailure: (phase: string, error: unknown) => void,
 ) {
   const encoder = device.createCommandEncoder({ label: 'Trillion3D texture scratch' }),
     made: TileScratch[] = []
-  for (const [id, { atlas, slot, frame }] of asked)
+  let lost = 0
+  for (const [id, entry] of entries) {
+    if (entry.state !== 'asked') continue
     try {
-      const scratch = build(atlas, slot, encoder)
-      built.set(id, { scratch, frame })
+      const scratch = build(entry.atlas, entry.slot)
+      entries.set(id, { state: 'built', scratch, frame: entry.frame, read: false })
       made.push(scratch)
     } catch (error) {
+      entries.delete(id)
+      lost++
       onFailure('texture-tile-failed', error)
     }
-  asked.clear()
-  if (!made.length) return
-  generateMaterialMips(
-    device,
-    made.map((scratch) => scratch.chain()),
-    encoder,
-  )
-  device.queue.submit([encoder.finish()])
-  for (const scratch of made) scratch.settle()
+  }
+  if (made.length) {
+    generateMaterialMips(
+      device,
+      made.map((scratch) => scratch.chain()),
+      encoder,
+    )
+    device.queue.submit([encoder.finish()])
+    for (const scratch of made) scratch.settle()
+  }
+  return lost
 }
 
 /**
- * The working textures tiles asked for, built off the frame: built inside the pass,
- * the whole source uploaded and reduced is a spike its budget never counted. A task after the frame
- * builds what was asked, their mips in one batch, and holds each until a pass copies from
- * it, or until feedback newer than its ask passes it over (`drop`): a pass run without that
- * feedback would free it unread.
+ * THE WORKING TEXTURES OF THE HOST TEXTURES, one map under one key (`scratchId`, `sources.ts`), an
+ * id in one state at a time (`Entry`): a texture whose picture moves turns LIVE (`refresh`, #362)
+ * and keeps its working texture, refilled in place, from pass to pass; any other's is ASKED for the
+ * tiles that need it, then BUILT off the frame — built inside the pass, the whole source uploaded
+ * and reduced is a spike its budget never counted —, a task after the frame building what was
+ * asked, their mips in one batch, and held until a pass copies from it, or until feedback newer than
+ * its ask passes it over (`drop`): a pass run without that feedback would free it unread. At most
+ * `MAX_SCRATCHES` entries not live, counted as they change state.
  */
-export function createScratchBuilds(
+export function createScratches(
   device: GPUDevice,
   build: Build,
   onFailure: (phase: string, error: unknown) => void,
 ) {
-  /** Working textures asked or built, each with the feedback frame it was asked at; and those a
-   *  copy read this pass. */
-  const asked = new Map<number, Asked>(),
-    built = new Map<number, { scratch: TileScratch; frame: number }>(),
-    copied = new Set<number>()
-  let building: Promise<void> | undefined
+  const entries = new Map<number, Entry>()
+  let building: Promise<void> | undefined,
+    liveBytes = 0,
+    // Entries asked or built: the ones a pass's room counts.
+    passing = 0
+  /** `id`'s entry let go, its texture freed. */
+  const release = (id: number) => {
+    const entry = entries.get(id)
+    if (!entry) return
+    if (entry.state === 'live') liveBytes -= entry.scratch.bytes
+    else passing--
+    if (entry.state !== 'asked') entry.scratch.destroy()
+    entries.delete(id)
+  }
   return {
-    release(id: number) {
-      asked.delete(id)
-      built.get(id)?.scratch.destroy()
-      built.delete(id)
-      copied.delete(id)
+    release,
+    /** The working texture held for `id`, built or live, if one is. */
+    get(id: number) {
+      const entry = entries.get(id)
+      return entry && entry.state !== 'asked' ? entry.scratch : undefined
     },
-    /** The working texture built for `id`, if it is. */
-    get: (id: number) => built.get(id)?.scratch,
-    /** A copy of this pass reads `id`'s working texture: it is freed at the pass's end. */
-    read: (id: number) => void copied.add(id),
-    /** Asks `id`'s working texture for the tiles of feedback `frame`, if a pass has room. */
+    /** A copy of this pass reads `id`'s working texture: one not live is freed at the pass's end. */
+    read(id: number) {
+      const entry = entries.get(id)
+      if (entry?.state === 'built') entry.read = true
+    },
+    /** Asks `id`'s working texture for the tiles of feedback `frame`, if a pass has room and the id
+     *  holds nothing yet. */
     ask(id: number, frame: number, atlas: WebgpuTileAtlas, slot: number) {
-      if (built.size + asked.size >= MAX_SCRATCHES) return
-      asked.set(id, { atlas, slot, frame })
+      if (entries.has(id) || passing >= MAX_SCRATCHES) return
+      entries.set(id, { state: 'asked', atlas, slot, frame })
+      passing++
       building ??= new Promise<void>((done) =>
         setTimeout(() => {
           building = undefined
           try {
-            buildAsked(device, asked, built, build, onFailure)
+            passing -= buildAsked(device, entries, build, onFailure)
           } catch (error) {
             onFailure('texture-tile-failed', error)
           } finally {
@@ -125,23 +140,49 @@ export function createScratchBuilds(
         }),
       )
     },
-    /** End of pass `frame`: frees the working textures a copy read, or that feedback newer than
-     *  their ask passed over; every one without a frame. */
+    /** A new picture of host texture `slot` of `atlas`, its working texture `id` refilled — or
+     *  built, the texture turning live, whatever state it was in —, then `copy` encoded: its
+     *  turn, its mips and its copies one submit; its raw texels kept for its next picture. */
+    refresh(
+      atlas: WebgpuTileAtlas,
+      slot: number,
+      id: number,
+      copy: (encoder: GPUCommandEncoder, texture: GPUTexture) => void,
+    ) {
+      const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' })
+      const held = entries.get(id)
+      let scratch: TileScratch
+      if (held && held.state !== 'asked') {
+        scratch = held.scratch
+        scratch.fill(encoder)
+      } else {
+        scratch = build(atlas, slot)
+        scratch.reduce(encoder)
+      }
+      if (held?.state !== 'live') {
+        if (held) passing--
+        liveBytes += scratch.bytes
+        entries.set(id, { state: 'live', scratch })
+      }
+      copy(encoder, scratch.texture)
+      device.queue.submit([encoder.finish()])
+    },
+    /** Bytes the live textures' working textures hold, mips included. */
+    get liveBytes() {
+      return liveBytes
+    },
+    /** End of pass `frame`: frees the built working textures a copy read, or that feedback newer
+     *  than their ask passed over; every built one without a frame. */
     drop(frame = Infinity) {
-      for (const [id, { scratch, frame: askedAt }] of built)
-        if (copied.has(id) || askedAt < frame) {
-          scratch.destroy()
-          built.delete(id)
-        }
-      copied.clear()
+      for (const [id, entry] of entries)
+        if (entry.state === 'built' && (entry.read || entry.frame < frame)) release(id)
     },
     get building() {
       return building
     },
-    /** Nothing asked is built, and what was built is freed. */
+    /** Every entry let go, the live ones too. */
     destroy() {
-      asked.clear()
-      this.drop()
+      for (const id of [...entries.keys()]) release(id)
     },
   }
 }

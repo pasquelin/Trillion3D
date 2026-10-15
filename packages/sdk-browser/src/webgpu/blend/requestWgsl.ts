@@ -1,13 +1,13 @@
 import { FLAG_SAMPLED } from '../../visibility/types.ts'
-import { FEEDBACK_RULE_WGSL, TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts'
+import { FEEDBACK_RULE_WGSL, TILE_REQUEST_WGSL, requestLoopWgsl } from '../tile/requestWgsl.ts'
 import { BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * Tile rank a transparent pixel requests from the virtual textures, stored in the second
  * target of the blend pass, the one the opaque resolve opened. The rule — phase, map chosen
- * by position, every pick during a convergence, fallback to the base — is `TILE_REQUEST_WGSL`,
- * the same as the opaque path; only the slot source is the item's. The host shader declares
+ * by position, every pick during a convergence, fallback to the base — is `TILE_REQUEST_WGSL`
+ * and its loop `requestLoopWgsl`, the same as the opaque path; only the slot source is the item's. The host shader declares
  * `VSOut` and `uni.feedback`.
  *
  * With `lobes`, a lobed program's: a fragment whose item names a physical record (`physicalOn`,
@@ -17,25 +17,22 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const blendRequestWgsl = (lobes: boolean) => {
   const sampled = `(in.ids.y&${FLAG_SAMPLED}u)!=0u`
-  const own = lobes ? 'select(0u,1u,in.emissive.w!=0.0)' : ''
   return wgslBlock(
     `blendRequestWgsl(${lobes})`,
     [TILE_REQUEST_WGSL, FEEDBACK_RULE_WGSL, ...(lobes ? [BLEND_PHYSICAL_RECORD_WGSL] : [])],
-    `fn blendPick(in:VSOut,p:RequestPick,missing:bool,gradX:vec2f,gradY:vec2f)->u32{
- ${lobes ? `if(physicalOn&&p.sel>=MAP_CHOICES+${own}){return physicalRequest(p,missing,p.sel-MAP_CHOICES-${own});}\n ` : ''}if(p.sel==MAP_CHOICES){return colorRequestIndex(u32(in.emissive.w),in.uv.xy,gradX,gradY,p.next,1u,false,${sampled},missing);}
+    `/** The subsurface map's choice: one where the item's surface has the map, after the others. */
+fn blendSubsurfaceChoices(in:VSOut)->u32{return select(0u,1u,in.emissive.w!=0.0);}
+fn blendPick(in:VSOut,p:RequestPick,missing:bool,gradX:vec2f,gradY:vec2f)->u32{
+ ${lobes ? `let first=MAP_CHOICES+blendSubsurfaceChoices(in);if(physicalOn&&p.sel>=first){return physicalRequest(p,missing,p.sel-first);}\n ` : ''}if(p.sel==MAP_CHOICES){return colorRequestIndex(u32(in.emissive.w),in.uv.xy,gradX,gradY,p.next,1u,false,${sampled},missing);}
  return mapRequest(p,missing,vec2u(in.ids.x,in.ids.z),in.maps,in.uv.xy,gradX,gradY,${sampled});
 }
-fn blendRequest(in:VSOut,gradX:vec2f,gradY:vec2f)->u32{
- if(!feedbackPhase(in.position.xy,uni.feedback)){return 0u;}
- let choices=MAP_CHOICES+select(0u,1u,in.emissive.w!=0.0)${lobes ? '+select(0u,4u,physicalOn)' : ''};
- if(feedbackMissing(in.position.xy,uni.feedback)){
-  for(var turn=0u;turn<choices*PICK_TURNS;turn++){
-   let rank=blendPick(in,everyPick(in.position.xy,choices,turn),true,gradX,gradY);
-   if(rank!=0u){return rank;}
-  }
- }
- return blendPick(in,requestPick(in.position.xy,choices,uni.feedback),false,gradX,gradY);
-}
+${requestLoopWgsl({
+  head: 'fn blendRequest(in:VSOut,gradX:vec2f,gradY:vec2f)->u32',
+  pos: 'in.position.xy',
+  word: 'uni.feedback',
+  choices: `MAP_CHOICES+blendSubsurfaceChoices(in)${lobes ? '+select(0u,4u,physicalOn)' : ''}`,
+  pick: (p, missing) => `blendPick(in,${p},${missing},gradX,gradY)`,
+})}
 `,
   )
 }

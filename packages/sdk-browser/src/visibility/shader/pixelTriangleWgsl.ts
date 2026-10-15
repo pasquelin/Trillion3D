@@ -11,9 +11,9 @@ import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
 import { FLAG_BACK } from '../types.ts'
 /**
- * How the surface resolve places a pixel on its triangle, shared by the resolve (`shadeWgsl.ts`)
- * and the shadow receiver offset its readers recompute (`receiverOffsetWgsl.ts`): one text,
- * so the offset follows the very point and normals the resolve shaded.
+ * How the surface resolve places a pixel on its triangle (`shadeWgsl.ts`): the shadow receiver it
+ * stores (`receiverOffsetWgsl.ts`, `receiverTargetWgsl.ts`) follows the very point and normals it
+ * shaded.
  */
 
 /** The surface resolve's uniform: its camera, viewport and page count. */
@@ -49,8 +49,7 @@ const VERTEX_NORMALS_WGSL = wgslBlock(
  * a sprite's quad turned to the camera), its normal in the world turned to the row's side
  * (`n0..n2`), its texture coordinate (`uva..uvc`) and its clip `1/w` (`iw`, the perspective of
  * the barycentrics and of the texture derivatives), a sprite's or a line's at its row's `shape`.
- * `decodeCorners` decodes all of it but the texture coordinates (zero), which the shadow receiver
- * (`receiverOffsetWgsl.ts`) binds none of; `decodeTriangle` adds them, as every pixel decoded it; the frame cache stores what it returns for a triangle two
+ * `decodeCorners` decodes all of it but the texture coordinates (zero); `decodeTriangle` adds them, as every pixel decoded it; the frame cache stores what it returns for a triangle two
  * pixels or more read (`shadeCacheWgsl.ts`), and those pixels read the words instead. Requires the
  * page geometry, its screen and normals; it lists the rest.
  */

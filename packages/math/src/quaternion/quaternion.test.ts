@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  multiplyQuaternionVectorFirst,
   conjugateQuaternion,
   dotQuaternion,
   lengthQuaternion,
@@ -78,13 +77,4 @@ test('quaternionAngle: a quarter turn apart is π/2, q against −q is 0', () =>
     ),
     0,
   )
-})
-
-test('the vector-first product is the Hamilton product, aliasing allowed', () => {
-  const a = Float64Array.of(1, 2, 3, 4)
-  assert.deepEqual(
-    [...multiplyQuaternionVectorFirst(new Float64Array(4), a, [5, 6, 7, 8])],
-    [24, 48, 48, -6],
-  )
-  assert.deepEqual([...multiplyQuaternionVectorFirst(a, a, [5, 6, 7, 8])], [24, 48, 48, -6])
 })

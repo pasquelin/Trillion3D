@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeformationSkip } from './screen.ts'
 import { receiveSoftSource, type SoftSource } from './softSource.ts'
-import { markReach } from './halfFloat.ts'
+import { rootMark } from './halfFloat.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
@@ -105,7 +105,7 @@ test('a soft body reach is the hypot3 one as a float32 and as its mark half floa
     const old = Math.max(0, hypot3(moved[0] - r[0], moved[1] - r[1], moved[2] - r[2]))
     if (old !== source.reach) parted++
     assertSameFloat32(old, source.reach, label)
-    assert.equal(markReach(0, source.reach), markReach(0, old), `${label} mark`)
+    assert.equal(rootMark({ mark: 0, reach: source.reach }), rootMark({ mark: 0, reach: old }), `${label} mark`)
   }
   for (let i = 1; i <= HALTON_SWEEP; i++) {
     const rest = [haltonSpan(i, 2, -50, 50), haltonSpan(i, 3, -50, 50), haltonSpan(i, 5, -50, 50)]

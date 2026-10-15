@@ -87,10 +87,9 @@ function banc(capturing = false) {
       rows: { watchTouched: () => {}, pageIndexOf: () => undefined },
     },
   } as unknown as WebgpuPagesCore
-  /** The two lower tiers, and every list handed to the tier ahead. */
+  /** The lower tier, and every list handed to it. */
   const aheadOffers: number[][] = []
   const tiers = {
-    shadow: { hostBytes: 0 },
     ahead: {
       hostBytes: 0,
       offerIds: (ids: ArrayLike<number>) => aheadOffers.push(Array.from(ids)),
@@ -100,7 +99,7 @@ function banc(capturing = false) {
     rt,
     residencySets,
     createGroupClosure([], { baseOfRoot: new Int32Array(0), packedCount: 0 }, packedPages),
-    { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
+    tiers.ahead,
   )
   /** The view adopts `asked` and `drawn`, as its readback; the same object again for `same`. */
   const adopt = (asked: number[], drawn: number[], same = false) => {
@@ -121,13 +120,12 @@ function banc(capturing = false) {
   }
 }
 
-test('both lower tiers count in the host tables', () => {
+test('the lower tier counts in the host tables', () => {
   const { publication, tiers } = banc()
   const before = publication.hostTableBytes()
   assert.ok(Number.isFinite(before), `every table reads a size (${before})`)
-  tiers.shadow.hostBytes = 64
   tiers.ahead.hostBytes = 32
-  assert.equal(publication.hostTableBytes(), before + 96)
+  assert.equal(publication.hostTableBytes(), before + 32)
 })
 
 test('a view ages its lists once per readback, and publishes its cut', () => {

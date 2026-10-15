@@ -75,14 +75,16 @@ export function createCameraFrames(
         entries: dagGroupEntries({ ...group, frames: f.rows.view, worlds: f.worlds.view }),
       }),
     /** The host rows of placements `[from, to)` — every one by default — to their records. */
-    writeRows: (from = 0, to = Infinity) => writeRows(f, from, to),
+    writeRows: (from = 0, to = Infinity) =>
+      writeSpan(f, f.rows, 'Row', f.frameData, FRAME_ROW_WORDS, from, to),
     /** The world matrices in `next` of placements `[from, to)` — every one by default —, to
      *  their records. */
-    writeWorlds: (next: Float32Array, from = 0, to = Infinity) => writeWorlds(f, next, from, to),
+    writeWorlds: (next: Float32Array, from = 0, to = Infinity) =>
+      writeSpan(f, f.worlds, 'Matrix', next, 16, from, to),
     /** The world matrices in `next` of the `count` increasing placements of `named`: the ones a
      *  call moved, each run to its records (`writeRanges`). */
     writeNamedWorlds: (next: Float32Array, named: Int32Array, count: number) =>
-      writeNamedWorlds(f, next, named, count),
+      writeNamedRuns(f, f.worlds, 'Matrix', next, 16, named, count),
     /** Word `slot` of placement `w`'s frame words, set in the host's row; its record receives the
      *  row at the next `flushWords`. */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
@@ -114,40 +116,36 @@ type Frames = {
   writes: number
 }
 
-/** The host rows of the `count` increasing placements of `named`, each run to its records. */
-function writeNamed(f: Frames, named: Int32Array, count: number) {
+/** The `count` increasing placements of `named` of `data`, `stride` words each, to field
+ *  `field` of `table`, each run to its records (`writeRanges`). */
+function writeNamedRuns(
+  f: Frames,
+  table: RecordTexture,
+  field: string,
+  data: Float32Array,
+  stride: number,
+  named: Int32Array,
+  count: number,
+) {
   if (count) f.writes++
-  const source = { data: f.frameData, sourceBase: 0, targetBase: 0, stride: FRAME_ROW_WORDS }
-  writeRanges(f.rows.target('Row'), named, count, source)
+  writeRanges(table.target(field), named, count, { data, sourceBase: 0, targetBase: 0, stride })
 }
 
-function writeRows(f: Frames, from: number, to: number) {
-  const rows = Math.min(to, f.worldCount) - from
-  if (rows <= 0) return
+/** Placements `[from, to)` of `data`, `stride` words each, to field `field` of `table`: one
+ *  write, within the placements and the words `data` holds. */
+function writeSpan(
+  f: Frames,
+  table: RecordTexture,
+  field: string,
+  data: Float32Array,
+  stride: number,
+  from: number,
+  to: number,
+) {
+  const count = Math.min(to, f.worldCount, data.length / stride) - from
+  if (count <= 0) return
   f.writes++
-  const { frameData } = f
-  f.rows.write(
-    'Row',
-    from,
-    rows,
-    frameData.buffer,
-    frameData.byteOffset + primitiveWordAt(from) * 4,
-  )
-}
-
-function writeWorlds(f: Frames, next: Float32Array, from: number, to: number) {
-  const worlds = Math.min(to, f.worldCount, next.length / 16) - from
-  if (worlds <= 0) return
-  f.writes++
-  f.worlds.write('Matrix', from, worlds, next.buffer as ArrayBuffer, next.byteOffset + from * 64)
-}
-
-/** The world matrices in `next` of the `count` increasing placements of `named`, each run to its
- *  records (`writeRanges`). */
-function writeNamedWorlds(f: Frames, next: Float32Array, named: Int32Array, count: number) {
-  if (count) f.writes++
-  const source = { data: next, sourceBase: 0, targetBase: 0, stride: 16 }
-  writeRanges(f.worlds.target('Matrix'), named, count, source)
+  table.write(field, from, count, data.buffer as ArrayBuffer, data.byteOffset + from * stride * 4)
 }
 
 /** A word staged counts as a write from now: it goes up at the next flush, before any cut reads it. */
@@ -160,7 +158,7 @@ function writeWord(f: Frames, w: number, slot: number, value: number) {
 function flushWords(f: Frames) {
   if (!f.pending.count) return
   const named = f.pending.take()
-  writeNamed(f, named, named.length)
+  writeNamedRuns(f, f.rows, 'Row', f.frameData, FRAME_ROW_WORDS, named, named.length)
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>
 /** A cut's group without the record tables it binds (`dagGroupEntries`). */

@@ -14,12 +14,7 @@ test('the ensurer hears each camera page it lands, never a lower tier page', asy
   const cache = orderedPool(4)
   await cache.load('a')
   let landed = 0
-  const ensure = tierEnsurer(
-    tracking,
-    cache,
-    () => [],
-    () => [pages[3]],
-  )
+  const ensure = tierEnsurer(tracking, cache, () => [pages[3]])
   await ensure(
     camera,
     1,
@@ -36,9 +31,8 @@ type Ensure = Parameters<typeof createWebgpuResidencyQueue>[0]['ensureResident']
 const queueOf = (pass: (...args: Parameters<Ensure>) => ReturnType<Ensure>) =>
   createWebgpuResidencyQueue({
     tracking: createWebgpuPageTracking([]),
-    sets: { desiredCount: 0, followDesired() {} } as never,
+    sets: { desiredCount: 0, setRoom() {}, lift() {}, orderQueue() {} } as never,
     closure: {} as never,
-    recordOf: () => undefined,
     room: () => 0,
     getCache: () => undefined,
     getFrame: () => 0,

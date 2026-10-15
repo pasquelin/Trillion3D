@@ -79,27 +79,26 @@ pub(super) fn build_dag_primitive(
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
     let (dag_report, warnings) =
         compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, &quality);
-    // Pages follow the culling order so every hierarchy node owns a contiguous page range.
-    let (order, culling) = {
-        let _t = perf::Timer::new(perf::Phase::Culling);
-        build_culling_bvh(&crate::dag::bounds::culling_clusters(pos, &dag))
-    };
-    laps.lap("cullingMs");
-    let mut page_of = vec![0usize; dag.len()];
-    for (rank, &slot) in order.iter().enumerate() {
-        page_of[slot] = rank;
-    }
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
         blended,
         tile_log2,
     );
+    let snapped = grown.as_ref().map(|grown| grown.snapped(position_exponent));
+    let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
+    // One box per cluster, over the drawn positions, for the hierarchy and the page record alike.
+    let clusters = crate::dag::bounds::culling_clusters(pos, &dag);
+    let culled = perf::Timer::new(perf::Phase::Culling);
+    let (order, culling) = build_culling_bvh(&clusters);
+    drop(culled);
+    laps.lap("cullingMs");
+    // Pages follow the culling order so every hierarchy node owns a contiguous page range.
+    let mut page_of = vec![0usize; dag.len()];
+    (order.iter().enumerate()).for_each(|(rank, &slot)| page_of[slot] = rank);
     // The collider and the pages read the same DAG and neither reads what the other writes: they
     // run side by side on the compiler's pool, each result kept in its own place, so every byte is
     // the serial cook's, and the cook's error still comes first.
-    let snapped = grown.as_ref().map(|grown| grown.snapped(position_exponent));
-    let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
     let (collision, paged) = laps.join(
         ("physicsMs", || {
             crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)
@@ -111,7 +110,7 @@ pub(super) fn build_dag_primitive(
                 .map_or(&[][..], |grown| grown.origin.as_slice());
             let store =
                 |slice: &[u32]| store_packed(slice, pos, carried, origin, position_exponent);
-            bundle_dag_pages(o, &dag, &groups, &order, pos, &store)
+            bundle_dag_pages(o, (&dag, &groups, &clusters), &order, pos, &store)
         }),
     );
     let collision = collision?;

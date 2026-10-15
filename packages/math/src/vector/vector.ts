@@ -76,9 +76,9 @@ export function transformAffinePoint<T extends NumberSink>(
   z: number,
   outOffset = 0,
 ) {
-  out[outOffset] = m[0] * x + m[4] * y + m[8] * z + m[12]
-  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z + m[13]
-  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z + m[14]
+  out[outOffset] = transformPointRow(m, 0, x, y, z)
+  out[outOffset + 1] = transformPointRow(m, 1, x, y, z)
+  out[outOffset + 2] = transformPointRow(m, 2, x, y, z)
   return out
 }
 
@@ -96,7 +96,7 @@ export function transformHomogeneousPoint<T extends NumberSink>(
   outOffset = 0,
 ) {
   transformAffinePoint(out, m, x, y, z, outOffset)
-  out[outOffset + 3] = m[3] * x + m[7] * y + m[11] * z + m[15]
+  out[outOffset + 3] = transformPointRow(m, 3, x, y, z)
   return out
 }
 
@@ -407,18 +407,15 @@ export function transformDirectionVector3<T extends NumberSink>(
   outOffset = 0,
 ) {
   // Each product is stored as it is made, before the next row of `m` is read, so an `out` sharing
-  // memory with `m` reads the same entries. A double sink holds the products exactly: they are
-  // normalised from the locals, not read back. Any other sink (a `Float32Array`, an integer array)
-  // normalises what it rounded on writing. `out` holds the three components.
-  const px = m[0] * x + m[4] * y + m[8] * z
+  // memory with `m` reads the same entries. The products are normalised from the locals, in
+  // doubles, whatever the sink: a single-precision one rounds once, at the last store.
+  const px = transformDirectionRow(m, 0, x, y, z)
   out[outOffset] = px
-  const py = m[1] * x + m[5] * y + m[9] * z
+  const py = transformDirectionRow(m, 1, x, y, z)
   out[outOffset + 1] = py
-  const pz = m[2] * x + m[6] * y + m[10] * z
+  const pz = transformDirectionRow(m, 2, x, y, z)
   out[outOffset + 2] = pz
-  if (out instanceof Float64Array || Array.isArray(out))
-    writeNormalizedVector3(out, outOffset, px, py, pz)
-  else normalizeVector3(out, outOffset)
+  writeNormalizedVector3(out, outOffset, px, py, pz)
   return out
 }
 

@@ -13,7 +13,7 @@ test('only the program with lobes reads them and lights through them', () => {
   for (const bounce of [false, true]) {
     const plain = contractLightingShader(bounce, { lobeless: true })
     const lobes = contractLightingShader(bounce, {})
-    for (const call of ['lobeLight(', 'lobeRectLight(', 'textureLoad(physicalLobes'])
+    for (const call of ['anisotropicLobe(', 'lobes.coatSurface', 'textureLoad(physicalLobes'])
       assert.ok(!plain.includes(call) && lobes.includes(call), call)
     // The lobeless program calls the same names, its stand-ins reading nothing and weighing by one.
     for (const stub of [wgslSource(LOBELESS_LIGHTING_WGSL), wgslSource(LOBELESS_TARGET_WGSL)])

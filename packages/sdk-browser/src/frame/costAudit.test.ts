@@ -25,7 +25,7 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     assert.equal(gpuFrameCostSnapshot({} as WebgpuPagesRuntime), undefined)
     await Promise.resolve()
     assert.equal(output.length, 0)
-    setSearch('?trillion3dFrameAudit=1')
+    setSearch('?profile')
     const item = {
       bounds: [10, 0, 0, 11, 1, 1],
       surface: surfaceOf(G.basicSurface({ side: G.DOUBLE_SIDE })),
@@ -64,7 +64,7 @@ test('gpuFrameCostSnapshot: the published pose is the engine camera’s (run.gat
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location')
   Object.defineProperty(globalThis, 'location', {
     configurable: true,
-    value: { search: '?trillion3dFrameAudit=1' },
+    value: { search: '?profile' },
   })
   try {
     // Two-level rig nobody else walks: the local host camera stays trivial, only the rig carries

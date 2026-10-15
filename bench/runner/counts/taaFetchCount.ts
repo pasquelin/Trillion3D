@@ -38,7 +38,7 @@ export function countTaaFetches(
     // Every texel shows placement 0, identity 1 in the geometry history: identity 2 was another.
     tags: () => [fromUnorm8(uncovered ? 2 : 1), 0, 0, 1],
   }
-  const run = upscaleRun(frame, asIs, false, scale === 1)
+  const run = upscaleRun(frame, asIs, false)
   let fetches = 0
   for (let y = 0; y < DISPLAY; y++) for (let x = 0; x < DISPLAY; x++) fetches += run(x, y).fetches
   return { fetches: fetches / (DISPLAY * DISPLAY), ids: ids / (DISPLAY * DISPLAY) }

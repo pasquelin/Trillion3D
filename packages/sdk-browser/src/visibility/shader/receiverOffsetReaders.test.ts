@@ -1,73 +1,46 @@
-// The lighting recomputes the shadow receiver offset from the visibility buffer with one
-// shared text; the resolve writes it once, packed in 8 bytes, for the
-// virtual shadow maps' projection alone (`receiverTargetWgsl.ts`).
+// The resolve writes each pixel's shadow receiver once, packed in 8 bytes (`receiverTargetWgsl.ts`);
+// the virtual shadow maps' projection and the deferred lighting read it there.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { PIXEL_CORNERS_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
-import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
-import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
-test('the lighting calls one shared offset function and binds no offset target', () => {
-  const readers: [string, string][] = []
+test('the lighting reads the receiver the resolve wrote: one decode, no triangle decoded again', () => {
   for (const bounce of [false, true])
     for (const narrow of [false, true])
-      for (const shadowed of [false, true])
-        readers.push([
-          `lighting ${bounce} ${narrow} ${shadowed}`,
-          contractLightingShader(bounce, { narrow, unshadowed: !shadowed, lobeless: true }),
-        ])
-  for (const [name, text] of readers) {
-    // The shared text, from the reader's first receiver binding: the visibility buffer's.
-    const first = Number(/@binding\((\d+)\) var vis:/.exec(text)?.[1])
-    assert.equal(
-      text.split(receiverOffsetWgsl(first).text).length,
-      2,
-      `${name}: the shared text, once`,
-    )
-    assert.equal(text.match(/\bfn shadowReceiver\(/g)?.length, 1, `${name}: one offset function`)
-    assert.equal(text.match(/\bshadowReceiver\(pixel/g)?.length, 2, `${name}: and its one call`)
-    assert.doesNotMatch(text, /shadingOffset/, `${name}: no offset target read`)
-  }
-  // The resolve writes the receiver once for the projection (`receiverTargetWgsl.ts`), with the
-  // very offset function the readers call.
+      for (const shadowed of [false, true]) {
+        const name = `lighting ${bounce} ${narrow} ${shadowed}`
+        const text = contractLightingShader(bounce, {
+          narrow,
+          unshadowed: !shadowed,
+          lobeless: true,
+        })
+        const first = Number(/@binding\((\d+)\) var receiverTarget:/.exec(text)?.[1])
+        assert.equal(
+          text.split(receiverTargetReadWgsl(0, first).text).length,
+          2,
+          `${name}: the target's reader, once`,
+        )
+        assert.equal(text.match(/\bfn shadowReceiver\(/g)?.length, 1, `${name}: one read`)
+        assert.doesNotMatch(text, /var vis:/, `${name}: no visibility buffer re-decoded`)
+      }
+  // The resolve finds the receiver once and stores it (`receiverTargetWgsl.ts`).
   assert.match(SHADE_SHADER, /=shadowReceiverOfTriangle\(bary,/, 'the resolve finds the receiver')
   assert.equal(
     SHADE_SHADER.match(/\bfn shadowReceiverOfTriangle\(/g)?.length,
     1,
-    'by the one function the readers call',
+    'by the one function',
   )
   assert.match(
     SHADE_SHADER,
     /storeReceiver\(pos\.xy,rcvOffset,rcvPlane\)/,
     'and stores it (`storageOnce.test.ts`)',
   )
-  // The resolve places its pixel with the very functions the offset calls: they cannot drift.
-  const shared = wgslModule(receiverOffsetWgsl(0))
-  for (const text of [
-    PIXEL_CORNERS_WGSL.text,
-    perspectiveBarycentric.text,
-    'fn transformedNormals(',
-    'fn framebuffer(',
-    wgslSource(SHADE_UNI_WGSL),
-  ]) {
-    assert.ok(SHADE_SHADER.includes(text) && shared.includes(text), 'one shared placement text')
-  }
-  // With its corners' 1/w, read with its triangle (`decodeTriangle`).
-  assert.match(
-    SHADE_SHADER,
-    /=perspectiveBarycentric\(/,
-    'the resolve calls the shared barycentrics',
-  )
-  // The resolve hands them its row's normal matrix (`shadeCacheWgsl.ts`): the shared transform.
-  assert.match(SHADE_SHADER, /=transformedNormals\(/, 'the resolve calls the shared normals')
   assert.equal('shadingOffset' in SHADE_BINDINGS, false, 'the resolve binds no offset target')
 })
 

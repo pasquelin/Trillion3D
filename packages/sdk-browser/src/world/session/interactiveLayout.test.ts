@@ -56,7 +56,7 @@ function startOn(
     },
   }
   const events = { emit() {}, diagnose() {} }
-  const config = { ownControls: false, interactive: true }
+  const config = { interactive: true }
   startInteractiveExplorer(explorer as never, runtime as never, config as never, events as never)
   return { resized, dispose: () => ownedControls.forEach((one) => one.dispose()) }
 }

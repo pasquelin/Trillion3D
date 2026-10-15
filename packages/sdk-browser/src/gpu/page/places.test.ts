@@ -1,7 +1,7 @@
-// A page that fits a quarter of a slot takes a quarter: a pool of slots sized for the largest
-// cluster holds four small pages a slot (`places.ts`), each at its own offset, under the same
-// eviction and the same pins. A pool with no place to give still refuses by name, and a resize
-// keeps what it held.
+// A page that fits a quarter of the widest takes a quarter grain: a pool sized for the largest
+// cluster holds four small pages in the bytes of one (`placement.ts`), each at its own offset,
+// under the same eviction and the same pins. A pool with no place to give still refuses by name,
+// and a resize keeps what it held.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
@@ -38,18 +38,18 @@ test('small pages take quarters: four a slot, each at its own offset, pinned as 
   await assert.rejects(cache.load('small 8'), /POOL_FULL/, 'every listed page pinned')
 })
 
-test('a whole page takes the slot of small pages the order gives up, every one of them', async () => {
+test('a whole page takes the grain of small pages the order gives up, every one of them', async () => {
   const { cache } = pool(2)
   const small = ['small 0', 'small 1', 'small 2', 'small 3']
   for (const key of small) await cache.load(key)
   await cache.load('big 0')
-  // `small 3` is in use: the order leaves it out, and its slot stays.
+  // `small 3` is in use: the order leaves it out, and its grain stays.
   cache.evictInOrder(orderOf(small.slice(0, 3), cache.arrivals))
   await assert.rejects(cache.load('big 1'), /POOL_FULL/)
   cache.evictInOrder(orderOf([...small, 'big 0'], cache.arrivals))
   cache.pin('big 0')
   cache.pin('small 0')
-  // Slot 0 holds four small pages, one pinned; slot 1 the pinned big page: no slot can be freed.
+  // The first grain holds four small pages, one pinned; the second the pinned big page: none frees.
   await assert.rejects(cache.load('big 1'), /POOL_FULL/)
   cache.unpin('small 0')
   await cache.load('big 1')
@@ -64,7 +64,7 @@ test('a resize lays the quarters out again: what it keeps keeps its bytes, the r
   cache.pin('big 1')
   cache.pin('small 2')
   const evicted = await cache.resize(1)
-  // One slot: the covering big page first; the covering small page has no quarter left, nor the rest.
+  // One grain: the covering big page first; the covering small page has no quarter left, nor the rest.
   assert.ok(cache.get('big 1'))
   assert.equal(cache.get('big 1')!.offset, 0)
   assert.deepEqual(evicted.sort(), ['big 0', 'small 0', 'small 1', 'small 2'])
@@ -72,7 +72,7 @@ test('a resize lays the quarters out again: what it keeps keeps its bytes, the r
     copies.some((copy) => copy.size === 64),
     'the kept page copied whole',
   )
-  // Grown again, small pages share one slot.
+  // Grown again, small pages share one grain.
   await cache.resize(2)
   for (const key of ['small 0', 'small 1']) await cache.load(key)
   assert.equal(

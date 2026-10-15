@@ -1,8 +1,7 @@
-import { HALF_PI } from '../../../../math/src/constants.ts'
 import { createChangeGate, createControlBase } from './base.ts'
 import { ADVANCE_KEYS, axisOf, STRAFE_KEYS, trackKeys, type KeyAxis } from './input.ts'
 import { controlPose } from './pose.ts'
-import { moveLocal, orbitOrientation } from './math.ts'
+import { yawWalk } from './math.ts'
 import { createHead, HEAD_DEFAULTS, headLock, type PersonHead } from './look.ts'
 import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
@@ -29,8 +28,7 @@ export function createFirstPersonCameraControls(
     base = createControlBase()
   const position = new Float64Array(3),
     orientation = new Float64Array(4),
-    walk = new Float64Array(4),
-    angles = new Float64Array(3),
+    walk = new Float64Array(2),
     moved = new Float64Array(7)
   const gate = createChangeGate(base, 7)
   const api: FirstPersonCameraControls = {
@@ -42,16 +40,16 @@ export function createFirstPersonCameraControls(
     update(delta = 0) {
       const dt = delta > 0 ? delta : 0
       pose.readPosition(position)
-      angles[1] = head.turn(orientation)
-      angles[2] = HALF_PI
       const step = api.movementSpeed * dt
-      moveLocal(
-        position,
-        orbitOrientation(walk, angles),
-        axisOf(keys, ...STRAFE_KEYS) * step,
-        axisOf(keys, ...RISE) * step,
-        axisOf(keys, ...ADVANCE_KEYS) * step,
+      yawWalk(
+        walk,
+        head.turn(orientation),
+        axisOf(keys, ...STRAFE_KEYS),
+        axisOf(keys, ...ADVANCE_KEYS),
       )
+      position[0] += walk[0] * step
+      position[1] += axisOf(keys, ...RISE) * step
+      position[2] += walk[1] * step
       pose.write(position, orientation)
       moved.set(position)
       moved.set(orientation, 3)

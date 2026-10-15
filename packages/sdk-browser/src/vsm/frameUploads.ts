@@ -2,7 +2,7 @@
  * THE PLAN'S UPLOADS (`frameSetup.ts`): the projection data the page marking reads, by id, and the
  * next-map data the page address update reads, by previous id — each where it changed alone.
  */
-import { VSM_SINGLE_PAGE_MAP_SLOTS, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
+import { VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
 import { writeVsmProjectionData } from './projectionData.ts'
 import { writeChanged, writeChangedRecords } from '../gpu/core/writeChanged.ts'
 import { wordViews } from '../gpu/core/wordViews.ts'
@@ -10,9 +10,8 @@ import { uniqueSortedInPlace } from '../../../math/src/scalar/integers.ts'
 import { VSM_NEXT_MAP_BYTES, type VsmMapIds } from './mapIds.ts'
 import type { VsmFrameState } from './frameState.ts'
 
-/** The marking pass's input: every cache entry's projection data at its id, the single-page
- *  maps' records then the full maps', where they changed alone (`writeChanged`): a still view
- *  and still lights send nothing. */
+/** The marking pass's input: every cache entry's projection data at its id, where it changed alone
+ *  (`writeChanged`): a still view and still lights send nothing. */
 export function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
   const { cache, resources, device } = state,
     image = state.projectionImage
@@ -21,16 +20,13 @@ export function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
     for (let index = 0; index < maps.length; index++)
       writeVsmProjectionData(image, entry.mapId + index, maps[index].projectionData)
   }
-  const words = wordViews(image).u,
-    record = VSM_PROJECTION_RECORD_BYTES / 4,
-    full = VSM_SINGLE_PAGE_MAP_SLOTS * record
-  writeChanged(device, resources.current.projectionData, words, 0, ids.singlePageMapCount * record)
+  const words = wordViews(image).u
   writeChanged(
     device,
     resources.current.projectionData,
     words,
-    full,
-    full + ids.fullMapCount * record,
+    0,
+    (ids.mapCount * VSM_PROJECTION_RECORD_BYTES) / 4,
   )
 }
 
@@ -39,8 +35,7 @@ let touchedIds = new Int32Array(64)
 
 /** The page address update: the next-map data by previous id. The image drops the last frame's
  *  records and takes this frame's: below the count, the words a whole write would send; those that
- *  changed go up. Only the records of the ids dropped or taken can change — the full maps' ids
- *  start past the single-page slots, so the table is wide and those few —: they alone are compared
+ *  changed go up. Only the records of the ids dropped or taken can change: they alone are compared
  *  (`writeChangedRecords`). */
 export function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
   const { u, i } = wordViews(state.nextMapsImage),

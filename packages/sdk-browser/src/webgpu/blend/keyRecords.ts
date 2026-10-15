@@ -7,10 +7,8 @@ const RECORD_DOUBLES = KEY_RECORD_WORDS / 2
 
 /**
  * WHAT THE KERNELS KNOW OF AN ITEM (`keyLayout.ts`): the six doubles of its world box, or the three
- * of its world origin when it has none, then its flags — a box, drawn —, its own rank — the rank of
- * its CPU key in the frame data when it draws its own slot (`runs.ts`), `NO_INDEX` otherwise — and
- * its water rank. The doubles are copied bit for bit: the order and the frustum verdict compute on
- * the CPU's numbers.
+ * of its world origin when it has none, then its flags — a box, drawn — and its water rank. The
+ * doubles are copied bit for bit: the order and the frustum verdict compute on the CPU's numbers.
  */
 function writeKeyRecord(blendState: WebgpuBlendState, i: number) {
   const item = blendState.blendGpu[i],
@@ -27,7 +25,6 @@ function writeKeyRecord(blendState: WebgpuBlendState, i: number) {
   }
   const flags = (box ? KEY_HAS_BOX : 0) | (notDrawn(item) ? 0 : KEY_DRAWN)
   words[i * KEY_RECORD_WORDS + KEY_WORD.flags] = flags
-  words[i * KEY_RECORD_WORDS + KEY_WORD.own] = blendState.ownRanks[i]
   words[i * KEY_RECORD_WORDS + KEY_WORD.water] = waterRankOf(item.flags)
 }
 

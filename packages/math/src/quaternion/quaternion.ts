@@ -2,7 +2,7 @@
  * Unit quaternions on flat numbers, `(x, y, z, w)`: the rotation arithmetic the camera
  * controllers and the scene objects share. No allocation beyond the caller's buffers.
  */
-import { hypot4 } from '../float/hypot.ts'
+import { hypot4, squares4 } from '../float/hypot.ts'
 import { fdlibmAcos, fdlibmSin } from '../float/trig.ts'
 import { HALF_PI } from '../constants.ts'
 import type { NumberSink } from '../matrix/matrix4.ts'
@@ -51,30 +51,6 @@ export function multiplyQuaternion(out: Float64Array, a: ArrayLike<number>, b: A
   out[0] = aw * bx + ax * bw + ay * bz - az * by
   out[1] = aw * by - ax * bz + ay * bw + az * bx
   out[2] = aw * bz + ax * by - ay * bx + az * bw
-  out[3] = aw * bw - ax * bx - ay * by - az * bz
-  return out
-}
-
-/** `a ⊗ b` like `multiplyQuaternion`, its sums in the other order: the vector part
- *  `a.xyz·b.w + a.w·b.xyz + a.xyz × b.xyz`, the scalar `a.w·b.w − a.xyz·b.xyz`, each left to right.
- *  x and w round as `multiplyQuaternion`'s, y and z can differ in the last bit: `lookAtNode`'s aim
- *  is held to this order. `out` may alias `a` or `b`. */
-export function multiplyQuaternionVectorFirst(
-  out: Float64Array,
-  a: ArrayLike<number>,
-  b: ArrayLike<number>,
-) {
-  const ax = a[0],
-    ay = a[1],
-    az = a[2],
-    aw = a[3],
-    bx = b[0],
-    by = b[1],
-    bz = b[2],
-    bw = b[3]
-  out[0] = ax * bw + aw * bx + ay * bz - az * by
-  out[1] = ay * bw + aw * by + az * bx - ax * bz
-  out[2] = az * bw + aw * bz + ax * by - ay * bx
   out[3] = aw * bw - ax * bx - ay * by - az * bz
   return out
 }
@@ -159,11 +135,7 @@ export function normalizeQuaternionAt(
   z: number,
   w: number,
 ) {
-  const sum = x * x + y * y,
-    compensation = sum - x * x - y * y,
-    summand = z * z - compensation,
-    third = sum + summand,
-    squared = third + (w * w - (third - sum - summand))
+  const squared = squares4(x, y, z, w)
   const length =
     squared >= SQUARED_MIN && squared <= SQUARED_MAX ? Math.sqrt(squared) : hypot4(x, y, z, w) || 1
   out[at] = x / length
@@ -216,44 +188,6 @@ export function turnByAngularVelocity(
     c * tz + k * (wz * tw + wx * ty - wy * tx),
     c * tw - k * (wx * tx + wy * ty + wz * tz),
   )
-}
-
-/**
- * The angular velocity that turns the quaternion at `a[ai]` into the one at `b[bi]` in the time
- * `time`, about one axis at one rate along their shorter arc (`arc[arcAt]`, their `slerpArc`),
- * into `out` at `outAt`: the axis of `b ⊗ a⁻¹` at the rate `2A / time`, `A` the arc's angle — the
- * velocity `turnByAngularVelocity` goes on along that arc with, as `slerpOnArc` past its end. Where
- * the arc is a line (its sine under 1e-6, `slerpOnArc`'s threshold), its limit `2 (b ⊗ a⁻¹)_xyz /
- * time`.
- */
-export function arcAngularVelocity(
-  out: Float64Array,
-  outAt: number,
-  a: ArrayLike<number>,
-  ai: number,
-  b: ArrayLike<number>,
-  bi: number,
-  arc: ArrayLike<number>,
-  arcAt: number,
-  time: number,
-) {
-  const ax = a[ai],
-    ay = a[ai + 1],
-    az = a[ai + 2],
-    aw = a[ai + 3],
-    bx = b[bi],
-    by = b[bi + 1],
-    bz = b[bi + 2],
-    bw = b[bi + 3]
-  const sign = arc[arcAt],
-    angle = arc[arcAt + 1],
-    sin = arc[arcAt + 2],
-    scale = (sign * (sin < 1e-6 ? 2 : (2 * angle) / sin)) / time
-  // The vector part of b ⊗ conj(a): the turn's axis times sin A, signed to the shorter arc.
-  out[outAt] = (aw * bx - bw * ax - (by * az - bz * ay)) * scale
-  out[outAt + 1] = (aw * by - bw * ay - (bz * ax - bx * az)) * scale
-  out[outAt + 2] = (aw * bz - bw * az - (bx * ay - by * ax)) * scale
-  return out
 }
 
 /** The arc `slerpQuaternion` follows, rewritten per call. */

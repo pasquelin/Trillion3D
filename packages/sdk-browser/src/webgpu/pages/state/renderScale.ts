@@ -16,7 +16,7 @@ function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
     { bounds } = rt.scale
   const reconstructed =
     !!gpu.temporal && run.diagnostic === 'beauty' && !rt.context.diagnosticGpuVariant
-  return reconstructed && bounds.min < 1 && gpu.temporal!.upscales() ? bounds : undefined
+  return reconstructed && bounds.min < 1 ? bounds : undefined
 }
 
 /** Render pixels per CSS pixel: the host's ratio times the render-to-display one, so a line drawn

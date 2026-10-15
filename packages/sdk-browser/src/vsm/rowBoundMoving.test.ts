@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { commitMotion } from '../gpu/shadow/rowMotion.ts'
-import { createVsmRowBound, vsmBoundChunk, type VsmRowBound } from './rowPageBound.ts'
+import { createVsmRowBound, vsmChunkRows, type VsmRowBound } from './rowPageBound.ts'
 import { bruteForce, PAGES, scene, sunAt, worstOf, type SceneRows } from './rowPageBound.fixture.ts'
 import { landBins, topSums } from './rowBins.fixture.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
@@ -16,7 +16,7 @@ const N = 1600
 /** This frame's chunk, every K above the brute force of the rows where they are now. */
 function above(rows: SceneRows, sun: Sun, bound: VsmRowBound) {
   const range = { first: 0, end: N, candidates: N }
-  const chunk = vsmBoundChunk(bound, rows.spheres, range, [sun.light], worstOf())
+  const chunk = vsmChunkRows(bound, rows.spheres, range, [sun.light], worstOf())
   assert.ok(chunk, 'the histogram bounds the rows')
   const truth = bruteForce(rows, sun.light, PAGES)
   const pairs = topSums(truth.pairs),

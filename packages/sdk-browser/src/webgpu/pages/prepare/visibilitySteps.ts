@@ -8,7 +8,7 @@ import {
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'
 import { createShadeCache } from '../../visibility/shadeCache.ts'
 import { depthLayerUnits } from '../../../../../sdk-core/src/lod/depthLayer.ts'
-import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
+import { ensurePageTable } from '../render/pageTable.ts'
 import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../../scene/surfaceBuffer.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { isCancelled } from '../../../engine/common.ts'
@@ -77,9 +77,6 @@ export async function prepareRasterPipelines(
     visPipelineBack: vis.visPipelineBack,
     visPipelineNone: vis.visPipelineNone,
     visPipelineFront: vis.visPipelineFront,
-    visHizRestBack: vis.visHizRestBack,
-    visHizRestNone: vis.visHizRestNone,
-    visHizRestFront: vis.visHizRestFront,
   } = rasterPipelines)
 }
 
@@ -147,7 +144,7 @@ export async function prepareShadeClasses(
 ) {
   const { vis, diag } = rt
   const classes = vis.shadeCensus!.keys
-  // The frame's cache first: its passes decide what the class pipelines read of it.
+  // The frame's cache first: the class pipelines' group binds its buffer.
   vis.shadeCache ??= await createShadeCache(gpuDevice)
   ;({
     shadeBindGroupLayout: vis.shadeBindGroupLayout,
@@ -161,7 +158,6 @@ export async function prepareShadeClasses(
     vis.writesFeedback,
     undefined,
     vis.writesEmissiveAo,
-    vis.shadeCache.constants,
   ))
   diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
     classes: classes.length,
@@ -179,14 +175,11 @@ export async function bindShade(
   classes: Awaited<ReturnType<typeof prepareShadeClasses>>,
 ) {
   const { vis, diag } = rt
-  if (!vis.pageTable)
-    vis.pageTable = gpuDevice.createBuffer({
-      size: PAGE_INFO_STRIDE,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    })
+  // The row table at its one size, made by its one maker: the shade group binds it.
+  ensurePageTable(rt, gpuDevice)
   ensureWebgpuShadeBindings(rt, gpuDevice)
-  const ab = shaders.shadeWithoutFeedback && (await families.diagnostics.load()) // a view's
-  if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeWithoutFeedback!, classes)
+  const ab = rt.context.feedbackTargetAB === true && (await families.diagnostics.load()) // a view's
+  if (ab) await ab.prepareFeedbackAb(rt, gpuDevice, shaders.shadeModule, classes)
   // The engine draws through the visibility pass alone (#1483): without it nothing draws.
   if (!vis.visTexture || !vis.shadeBindGroup || !vis.shadeClasses || !vis.visPipelineBack)
     throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE')

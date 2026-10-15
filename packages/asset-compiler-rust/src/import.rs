@@ -21,7 +21,7 @@ use std::{
 const PROGRESS_INTERVAL_BYTES: u64 = 8 * 1024 * 1024;
 fn import_error(error: &ufbx::Error) -> CompilerError {
     if error.type_ == ufbx::ErrorType::Cancelled {
-        return CompilerError::new(crate::CANCELLED, "Import cancelled");
+        return crate::plugins::scene::cancel::refusal();
     }
     let code = match error.type_ {
         ufbx::ErrorType::UnsupportedVersion => "IMPORT_UNSUPPORTED_VERSION",
@@ -38,9 +38,8 @@ fn import_error(error: &ufbx::Error) -> CompilerError {
 }
 
 /// Values of a corner — position, normal, uv, colour, and on a deformed mesh the file's vertex:
-/// thirteen words, zero when the attribute is missing. Two corners with the same bits are one vertex, whatever
-/// index the file gives them. Hashing walks word by word: the key has neither a
-/// length to hash nor bytes to walk.
+/// thirteen words, zero when the attribute is missing. Two corners with the same bits are one
+/// vertex, whatever index the file gives them (`plugins::scene::corners`).
 const CORNER_VALUES: usize = 13;
 const CORNER_POSITION: std::ops::Range<usize> = 0..3;
 const CORNER_NORMAL: std::ops::Range<usize> = 3..6;
@@ -48,16 +47,6 @@ const CORNER_UV: std::ops::Range<usize> = 6..8;
 const CORNER_COLOR: std::ops::Range<usize> = 8..12;
 /// The file's own vertex, on a deformed mesh: its bones and shape offsets are the vertex's.
 const CORNER_VERTEX: usize = 12;
-#[derive(PartialEq, Eq)]
-struct CornerKey([u32; CORNER_VALUES]);
-impl std::hash::Hash for CornerKey {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        for word in self.0 {
-            state.write_u32(word);
-        }
-    }
-}
-type CornerMap = trillion3d_page_codec::hash::WordMap<CornerKey, u32>;
 /// Binary of an intermediate scene under construction, shared with scene drivers
 /// that write their own glTF: one view per byte block, aligned to four.
 #[derive(Default)]
@@ -127,24 +116,11 @@ pub(crate) fn normalise(path: &Path) -> PathBuf {
     out
 }
 struct Importer<'a> {
-    nodes: Vec<Value>,
-    meshes: Vec<Value>,
-    mesh_triangles: Vec<usize>,
-    materials: Vec<Value>,
-    accessors: Vec<Value>,
-    images: Vec<Value>,
-    samplers: Vec<Value>,
-    textures: Vec<Value>,
-    sampler_ids: HashMap<(u32, u32), usize>,
-    lights: Vec<Value>,
+    /// The glTF tables every driver fills, its cache key and the files it read.
+    scene: SceneTables,
     /// The skins and clips of the scene (`motion.rs`).
     skins: Vec<Value>,
     animations: Vec<Value>,
-    bin: Bin,
-    report: Report,
-    triangles: usize,
-    mesh_nodes: usize,
-    files: Vec<Value>,
     /// Files opened besides the claimed inputs: they enter the cache key.
     externals: external::Externals,
     cancelled: &'a AtomicBool,
@@ -154,14 +130,14 @@ struct Importer<'a> {
 mod external;
 pub(crate) mod light;
 mod lighting;
-mod materials;
+pub(crate) mod materials;
 pub(crate) mod mesh;
 mod motion;
 pub(crate) mod opacity;
 mod primitive;
 mod runner;
 mod scene;
-mod tables;
+pub(crate) mod tables;
 mod textures;
 mod write;
 

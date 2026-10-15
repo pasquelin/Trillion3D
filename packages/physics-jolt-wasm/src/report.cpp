@@ -27,21 +27,16 @@ struct Placement {
 };
 
 /// Whether a body `radius` around a centre `to` from the eye (`distance` away) reaches into the
-/// view cone: `acos(cos angle) - asin(radius / distance) <= halfCone`. Decided without inverse
-/// trigonometry, `cos angle >= cos(halfCone + asin(r / d))`, away from the cone's edge; within
-/// `EDGE` of it (in cosine, hence at least as much in angle), by the exact formula, so that every
-/// answer is the one the exact formula gives.
+/// view cone: its angle off `facing` less `asin(radius / distance)` at most `halfCone`, that is
+/// `cos angle >= cos(halfCone + asin(r / d))` while that sum stays within [0, pi], where the cosine
+/// decreases; past pi (a cone wider than a right angle, a body wide enough) every direction is in.
+/// `EDGE` bounds the float rounding of the cosines: a body that close to the edge counts as seen.
 bool inCone(const View &v, Vec3 to, float radius, float distance) {
   constexpr float EDGE = 1e-4f;
   float c = std::clamp(to.Dot(v.facing) / distance, -1.0f, 1.0f);
   float s = std::min(1.0f, radius / distance);
-  // Below a right angle, halfCone + asin(s) stays within [0, pi], where the cosine decreases.
-  if (v.halfCone < 0.5f * JPH_PI) {
-    float margin = c - (v.cosHalf * std::sqrt(std::max(0.0f, 1.0f - s * s)) - v.sinHalf * s);
-    if (margin > EDGE) return true;
-    if (margin < -EDGE) return false;
-  }
-  return std::acos(c) - std::asin(s) <= v.halfCone;
+  if (v.halfCone >= 0.5f * JPH_PI && s >= v.sinHalf) return true;
+  return c - (v.cosHalf * std::sqrt(std::max(0.0f, 1.0f - s * s)) - v.sinHalf * s) >= -EDGE;
 }
 
 Placement place(const World &w, const Slot &slot, const Body &body) {
@@ -52,11 +47,14 @@ Placement place(const World &w, const Slot &slot, const Body &body) {
   float radius = bounds.GetExtent().Length(), distance = to.Length();
   // A body gone non-finite is placed nowhere: seen, so its pose is checked and it leaves (`put`).
   if (!std::isfinite(distance - radius)) return {false, true};
-  bool far = v.range > 0 && distance - radius > v.range;
+  // In range by its box's distance to the eye, the rule the page's tiles are wanted by
+  // (`tilePlace.ts` `nearness`); the cone below takes the sphere about the box.
+  float gap = std::sqrt(bounds.GetSqDistanceTo(v.eye));
+  bool far = v.range > 0 && gap > v.range;
   // The cone is measured only when it decides something: not for a body far or hidden.
   bool seen = !far && !(slot.flags & HIDDEN) &&
               (v.halfCone <= 0 || distance <= radius || inCone(v, to, radius, distance));
-  double slack = double(distance - radius - v.range) - 1e-3 - 1e-5 * double(distance + radius + v.range);
+  double slack = double(gap - v.range) - 1e-3 - 1e-5 * double(distance + radius + v.range);
   return {far, seen, far ? slack : -1.0};
 }
 
@@ -116,8 +114,11 @@ uint32_t writePoses() {
     slot.waiting = true;
     w.waiting.push_back(index);
   };
+  // Fed by the activity Jolt reports — its active bodies, and those it put to sleep this step —,
+  // a body's one rest gate (`Slot::rests`): written while it moves and once as it falls asleep.
   auto emit = [&](uint32_t index, const Body &body, bool asleep) {
     Slot &slot = w.slots[index];
+    if (slot.rests(!asleep, 1)) return;
     // Awake is not frozen, even when a contact woke a frozen body.
     if (!asleep) slot.frozen = false;
     Placement at = place(w, slot, body);

@@ -14,9 +14,7 @@ import { vsmLayout } from './layout.ts'
 import { VSM_PROJECTION_HEADER_WORDS } from './projectionView.ts'
 import { projectionKit } from './projectionKit.fixture.ts'
 
-const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }), {
-  subgroups: false,
-})
+const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
 
 test('one store a layer the tile holds a light of, under bounds the view gives: the votes stay in uniform flow', () => {
   // The bench's `// @cut` lines (`bench/dawn/shaderCuts.ts`) are comments for it, not code.
@@ -33,7 +31,6 @@ test('one store a layer the tile holds a light of, under bounds the view gives: 
     entry,
     /textureStore\(vsmShadowMaskTiles,groupId\.xy,vec4u\(vsmTileLayers\(tile\),0u,0u,0u\)\);/,
   )
-  assert.match(entry, /let lightCount=select\(vsmView\.lightCount,1u,VSM_PROJECTION_ONE_LIGHT\);/)
   // The trace loops are bounded by the uniform count and skip on the uniform tile words alone.
   assert.match(tile, /for\(var layer=0u;layer<ceilDiv\(lightCount,4u\);layer\+\+\)\{/)
   assert.match(tile, /if\(held==0u\)\{continue;\}/)
@@ -78,39 +75,15 @@ test('nine lights: one vsm.projection pass, each light at its offset of the view
     assert.equal(u[o + 9], 8192 + 6 * k, `light ${k}'s map`)
     assert.equal(f[o] + 0, k, `light ${k}'s position, the eye at the origin`)
   }
-  // Nine lights loop over the view's count; one light alone, over one the compiler knows. Each pass
-  // is compiled with its lights' kinds (`projectionKinds.test.ts`): lamps 2, a sun 1, both 3.
-  const asked = [lights.slice(0, 1), [sun], [sun, lights[0]]]
-  // Each is asked once, off the frame, then served by its own pipeline (`pipelineFor`).
-  let served = 0
-  for (const round of [0, 1]) {
-    if (round) {
-      served = constants().length
-      await new Promise(setImmediate)
-    }
-    for (const [at, pass] of asked.entries())
-      encodeVirtualShadowProjection(
-        encoder,
-        res,
-        {
-          ...inputs,
-          width: 8,
-          height: 8,
-          camera,
-          frameIndex: 2 + at + 3 * round,
-          subgroups: false,
-        },
-        pass,
-      )
-  }
-  assert.deepEqual(
-    constants(served).map((c) => [c.VSM_PROJECTION_ONE_LIGHT, c.VSM_PROJECTION_KINDS]),
-    [
-      [1, 2],
-      [1, 1],
-      [0, 3],
-    ],
-  )
+  // One pipeline for every mix of lights: one light, a sun, both.
+  for (const [at, pass] of [lights.slice(0, 1), [sun], [sun, lights[0]]].entries())
+    encodeVirtualShadowProjection(
+      encoder,
+      res,
+      { ...inputs, width: 8, height: 8, camera, frameIndex: 2 + at },
+      pass,
+    )
+  assert.equal(new Set(constants().map((c) => JSON.stringify(c ?? {}))).size, 1)
   const tooMany = Array.from({ length: VSM_PROJECTION_MAX_PASS_LIGHTS + 1 }, () => lights[0])
   assert.throws(() => encodeVirtualShadowProjection(encoder, res, {} as never, tooMany))
 })

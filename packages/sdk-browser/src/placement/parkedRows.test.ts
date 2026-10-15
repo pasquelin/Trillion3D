@@ -33,10 +33,7 @@ test('a parked caster written again within a float32 step stales no page, frame 
   const asked = () => {
     const words = rt.rowWords
     if (!words) return 0
-    const count = words.roots.length
-    for (const rank of words.roots) words.rootListed[rank] = 0
-    words.roots.length = 0
-    return count
+    return words.roots.take().length
   }
   // Its first move: it turns moving, its rows' change asked.
   write(40.001)

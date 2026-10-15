@@ -76,7 +76,9 @@ pub(crate) fn store_shape(o: &Options, bytes: &[u8]) -> Result<Value> {
     if object_intact(&target, &digest)?.is_none() {
         store_object(&target, bytes)?;
     }
-    Ok(json!({"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":bytes.len()}))
+    Ok(
+        json!({"url":crate::compiler_storage::object_url(&digest),"sha256":digest,"bytes":bytes.len()}),
+    )
 }
 
 /// One tile: its triangles gathered, their vertices compacted, cooked and stored.
@@ -147,7 +149,7 @@ pub(crate) fn collision_cut(
     let level0 = hausdorff::Level0::new(pos, source);
     let measure = |threshold: f64| {
         let tiles = cut_tiles(dag, order, culling, threshold);
-        let hausdorff = level0.distance(&tiles.concat());
+        let hausdorff = level0.distance(&tiles.concat(), 0.0);
         (tiles, hausdorff)
     };
     let (mut held, mut failed) = (0, thresholds.len() - 1);

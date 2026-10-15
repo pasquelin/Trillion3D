@@ -1,5 +1,9 @@
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
-import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts'
+import {
+  BLEND_EQUATIONS,
+  composesWithBackground,
+  weighsByAlpha,
+} from '../../scene/materialBlending.ts'
 
 /**
  * WebGPU's variants of the one blend table (`../../scene/materialBlending.ts`), which they leave
@@ -21,9 +25,11 @@ export const COVERAGE_EQUATIONS = {
   multiply: { color: MULTIPLY, alpha: KEEP },
 } satisfies Record<Blending, GPUBlendState | undefined>
 
-/** A mode that filters what is behind it, in display value: through the display filter. */
+/** A mode that filters what is behind it, in display value: through the display filter. It
+ *  composes with the background and does not weigh its colour by its alpha (subtractive,
+ *  multiply), as the one classification of the modes says (`../../scene/materialBlending.ts`). */
 export const filtersDisplay = (blending: Blending) =>
-  blending === 'subtractive' || blending === 'multiply'
+  composesWithBackground(blending) && !weighsByAlpha(blending)
 
 /** How a pipeline of a filtered image routes its colour (`DISPLAY_ROUTE`, `displayFilter.ts`):
  *  a normal or additive layer goes to the display layers where a filter covers the pixel, a

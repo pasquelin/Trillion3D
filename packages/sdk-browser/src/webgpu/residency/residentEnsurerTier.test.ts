@@ -116,13 +116,12 @@ test('a camera cut queued during a long caster load is served before the tier en
     const { cache, order } = slowCache(8)
     const queue = createWebgpuResidencyQueue({
       tracking,
-      sets: { desiredCount: 0, followDesired() {} } as never,
+      sets: { desiredCount: 0, setRoom() {}, lift() {}, orderQueue() {} } as never,
       room: () => 8,
       getCache: () => cache as never,
       getFrame: () => 0,
       updatePins() {},
       closure: {} as never,
-      recordOf: () => undefined,
       ensureResident: tierEnsurer(tracking, cache, () => casters),
       markLost() {},
       traceEnabled: false,

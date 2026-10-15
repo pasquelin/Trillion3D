@@ -151,7 +151,7 @@ pub(crate) fn write_scene(
     manifest["unsupported"] = json!(report.unsupported);
     manifest["notes"] = json!(report.notes);
     atomic(
-        &directory.join("manifest.json"),
+        &directory.join(crate::MANIFEST_POINTER),
         &serde_json::to_vec_pretty(&manifest)?,
     )
 }

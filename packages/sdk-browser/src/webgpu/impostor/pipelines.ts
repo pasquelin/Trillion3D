@@ -1,5 +1,8 @@
 import { core } from '../../impostor/borrowed.ts'
 import { cardPassWgsl } from './cardWgsl.ts'
+import { feedbackConstants } from '../tile/requestWgsl.ts'
+import { fragmentTargets } from '../../gpu/core/fragmentOutputs.ts'
+import { SURFACE_OUTPUTS } from '../../scene/surfaceOutputs.ts'
 import { IMPOSTOR_PASS, IMPOSTOR_VISIBILITY_PASS } from '../../stage/passLabels.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
@@ -41,31 +44,35 @@ async function makeCardPipelines(device: GPUDevice) {
   const surfaceLayout = device.createPipelineLayout({
     bindGroupLayouts: [imageLayout, tilesLayout, idsLayout],
   })
-  const surfaces = core.SURFACE_FORMATS.map((format): GPUColorTargetState => ({ format }))
+  const surfaces = fragmentTargets(SURFACE_OUTPUTS)
   const make = (
     label: string,
     entryPoint: string,
     targets: GPUColorTargetState[],
     pipelineLayout: GPUPipelineLayout,
     depthStencil?: GPUDepthStencilState,
+    constants?: Record<string, number>,
   ) =>
     core.buildRenderPipeline(device, {
       label,
       layout: pipelineLayout,
       vertex: { module, entryPoint: 'card_vs' },
-      fragment: { module, entryPoint, targets },
+      fragment: { module, entryPoint, targets, constants },
       // Four vertex invocations a card, its two triangles a strip (`card_vs`).
       primitive: { topology: 'triangle-strip', cullMode: 'none' },
       ...(depthStencil && { depthStencil }),
     })
   // Compiled together, off the thread (#1362).
   const [pipeline, fed, ids, hiz] = await Promise.all([
-    make(IMPOSTOR_PASS, 'card_fs', surfaces, surfaceLayout),
+    // One entry: its request folded away without the feedback target (`FEEDBACK`).
+    make(IMPOSTOR_PASS, 'card_fs', surfaces, surfaceLayout, undefined, feedbackConstants(false)),
     make(
       IMPOSTOR_PASS,
-      'card_feedback_fs',
+      'card_fs',
       [...surfaces, { format: core.FEEDBACK_FORMAT }],
       surfaceLayout,
+      undefined,
+      feedbackConstants(true),
     ),
     make(IMPOSTOR_VISIBILITY_PASS, 'card_vis_fs', [core.VIS_TARGETS[0]], layout, core.VIS_DEPTH),
     make(IMPOSTOR_VISIBILITY_PASS, 'card_vis_hiz_fs', core.VIS_TARGETS, layout, core.VIS_DEPTH),

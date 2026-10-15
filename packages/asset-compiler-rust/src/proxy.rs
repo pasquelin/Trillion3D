@@ -6,7 +6,6 @@ use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_math::aabb::{grow_flat, EMPTY_FLAT};
 use trillion3d_math::box_transform::{box_transform, BOX_VALUES};
-use trillion3d_math::linear::longest_column;
 // The proxy's pure geometry — snapping, BVH, wide collapse — and its layout numbers live in the
 // page codec, the crate the browser's one WebAssembly module and the compiler share: one builder.
 use trillion3d_page_codec::proxy::{
@@ -66,6 +65,9 @@ pub struct ProxyInputs<'a> {
     /// The chosen nodes no hidden node hides: the proxy stands in for what is drawn.
     pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
+    /// The largest world scale each source mesh is placed at (`placement::mesh_scales`), the one
+    /// the primitives were cut by.
+    pub mesh_scales: &'a BTreeMap<usize, f64>,
     pub primitives: &'a [Value],
     /// Per compiled primitive: coarse cut vertices, in object space.
     pub cuts: &'a [Vec<f32>],
@@ -96,16 +98,13 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             continue;
         };
         let matrix = &world[*node_id];
-        // The world scale of the placement: the error a cut makes in its own units grows by it.
-        let scale = longest_column(matrix);
+        // The world scale of the mesh: the error a cut makes in its own units grows by it.
+        let scale = inputs.mesh_scales.get(&old_mesh).copied().unwrap_or(0.0);
         for index in indices.iter().copied() {
             let Some(cut) = inputs.cuts.get(index).filter(|cut| !cut.is_empty()) else {
                 continue;
             };
-            let slot = scales.entry(index).or_insert(0.0);
-            if scale > *slot {
-                *slot = scale;
-            }
+            scales.insert(index, scale);
             let mut placed = [0.0; BOX_VALUES];
             box_transform(&mut placed, &bvh::extent(cut), matrix);
             grow_flat(&mut bounds, &placed);

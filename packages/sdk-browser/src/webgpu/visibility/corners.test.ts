@@ -10,6 +10,7 @@ import assert from 'node:assert/strict'
 import { forgetRewrittenRows, createCornerHold } from './corners.ts'
 import { markRootRows, moveRootRows } from '../pages/render/movedRoot.ts'
 import { createChangedRuns } from '../residency/ranges.ts'
+import { worldVersion } from '../../page/selection/rootWorld.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -102,7 +103,11 @@ test('a scattered model whose winding turned writes its own rows, run by run', (
   const { rt, model, forgotten, table, sum } = scatteredScene()
   model.windingCw = true
   assert.equal(moveRootRows(rt, model, 0), MODEL_ROWS.length)
-  assert.equal(model.windingEpoch, undefined, 'its winding is computed again')
+  assert.notEqual(
+    model.windingEpoch,
+    worldVersion(model as { worldAt?: number }),
+    'its winding is computed again',
+  )
   forgetRewrittenRows(rt)
   uploadDirtyRows(rt)
   assert.deepEqual(forgotten, [2, 3, 1], 'three runs, 6 rows of the 995 spanned')

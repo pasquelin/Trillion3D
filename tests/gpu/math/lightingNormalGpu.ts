@@ -1,4 +1,5 @@
-// Lighting normals as the GPU computes them: `NORMAL_TRANSFORM_WGSL` and `STANDARD_LIGHTING_WGSL` —
+// Lighting normals as the GPU computes them: `NORMAL_TRANSFORM_WGSL` and `STANDARD_LIGHTING_WGSL`
+// with its lobeless surface light (`LOBELESS_LIGHTING_WGSL`) —
 // the texts the engine assembles into its shading — run as they are on Dawn. Each case also carries
 // the true world normal, in f64: the same lighting formula is evaluated twice on the GPU, with the
 // rendered normal then with the true one, so the luminance gap rests on no CPU copy of the BRDF.
@@ -7,6 +8,7 @@ import {
   NORMAL_TRANSFORM_WGSL,
   STANDARD_LIGHTING_WGSL,
 } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
+import { LOBELESS_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lobesWgsl.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { unitOrZero } from '../../../packages/math/src/wgsl/inverseTranspose.ts'
@@ -51,13 +53,15 @@ fn probed(N:vec3f)->vec3f{return ${substitution};}
  let N=probed(xformNormal(c.world,c.normal.xyz));
  let V=vec3f(0.0,0.0,1.0);
  let rgb=vec3f(0.8,0.7,0.6);
- let lit=standardLighting(rgb,c.material.x,c.material.y,N,V,c.light);
- let truth=standardLighting(rgb,c.material.x,c.material.y,unitOrZero(c.truth.xyz),V,c.light);
+ let L=vec4f(normalize(c.light.xyz),c.light.w);
+ let lit=surfaceLight(lobeSurface(rgb,c.material.x,c.material.y,N,V),N,V,L);
+ let T=unitOrZero(c.truth.xyz);
+ let truth=surfaceLight(lobeSurface(rgb,c.material.x,c.material.y,T,V),T,V,L);
  out[i*3u]=vec4f(N,0.0);
  out[i*3u+1u]=vec4f(lit,0.0);
  out[i*3u+2u]=vec4f(truth,0.0);
 }`,
-    [NORMAL_TRANSFORM_WGSL, unitOrZero, STANDARD_LIGHTING_WGSL],
+    [NORMAL_TRANSFORM_WGSL, unitOrZero, STANDARD_LIGHTING_WGSL, LOBELESS_LIGHTING_WGSL],
   )
 
 type Input = { shader: string; data: Float32Array<ArrayBuffer>; count: number }

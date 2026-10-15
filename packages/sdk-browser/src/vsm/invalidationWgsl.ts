@@ -1,3 +1,4 @@
+import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
 /**
  * Cache invalidation shaders (step 7): the load-balanced instance-page invalidation, with the
@@ -14,11 +15,7 @@ import { wgslConsts } from '../../../math/src/wgsl/consts.ts'
  */
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import {
-  VSM_HANDLE_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_PAGE_MARKS_GATHER_WGSL,
-} from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -103,12 +100,10 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
   let r=pd.lightRange+boxRadius;
   if(dot(shiftedCenter,shiftedCenter)>r*r){return;}
  }
- // Back to clip space: uvToClip · shiftedToShadowUV.
- let uvToClip=mat4x4f(vec4f(2.0,0.0,0.0,0.0),vec4f(0.0,-2.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(-1.0,1.0,0.0,1.0));
  let isOrtho=sunMap;
  let nearClip=!sunMap;
  // The box to clip space through its local-to-shifted, then the view's shifted-to-clip.
- let toClip=uvToClip*pd.shiftedToMapUv;
+ let toClip=vsmShiftedToClip(pd.shiftedToMapUv);
  let boxPoint=vsmBoxCullPoint(vec3f(0.0),inst.extent,isOrtho,nearClip);
  let cull=vsmBoxInView(toClip*(localToShifted*vec4f(boxPoint,1.0)),toClip*localToShifted[0],toClip*localToShifted[1],toClip*localToShifted[2],
   inst.extent,pd.lightViewToClip,isOrtho,nearClip);
@@ -117,11 +112,6 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  let staticBox=vsmCachesAsStatic(inst,pd.uncached);
  let staleBits=select(VSM_META_DYNAMIC_STALE,VSM_META_STATIC_STALE,staticBox);
  let staleStatic=(staleBits&VSM_META_STATIC_STALE)!=0u;
- if(pd.handle.isSinglePage){
-  // Invalidate the one page (always as static).
-  vsmMarkStale(vsmTableEntryOf(pd.handle,VSM_MIPS-1u,vec2u(0u)),VSM_META_STATIC_STALE);
-  return;
- }
  let mipCount=select(1,i32(VSM_MIPS),pd.levelsLeft<=0);
  for(var mipLevel=i32(pd.finestMip);mipLevel<mipCount;mipLevel++){
   let mip=u32(mipLevel);
@@ -165,6 +155,7 @@ export function vsmInvalidationProgram(
     VSM_CONSTANTS_WGSL,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
+    VSM_TABLE_ORIGIN_WGSL,
     VSM_PROJECTION_DATA_WGSL,
     vsmBindingsWgsl(0, VSM_INVALIDATION_SPECS, layout),
     VSM_PROJECTION_DATA_READ_WGSL,

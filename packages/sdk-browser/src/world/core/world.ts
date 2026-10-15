@@ -3,7 +3,7 @@ import { DEFAULT_EXPOSURE } from '../../../../sdk-core/src/scene/core/environmen
 import { cameraAdopter } from './worldLink.ts'
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts'
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts'
-import { holdWorldDevice, worldRecovered } from './worldDevice.ts'
+import { holdWorldDevice } from './worldDevice.ts'
 import { createWorldFrames } from './worldFrames.ts'
 import { createWorldRuntime } from './worldRuntime.ts'
 import { Scene } from './scene.ts'
@@ -69,9 +69,7 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
     animating: false,
     disposed: false,
   }
-  const device = holdWorldDevice((lostAt) =>
-    worldRecovered(runtime, frames, diagnostic.notices, pools.pageCache, lostAt),
-  )
+  const device = holdWorldDevice((lostAt) => runtime.renew('device-lost', lostAt))
   const loader = worldModelLoader(
     device.ready,
     options.signal,
@@ -141,17 +139,16 @@ function worldRuntimeOf(parts: RuntimeNeeds) {
         gpuDevice: device.gpuDevice, // the world's one device: a session never asks another
         ...switches.held,
         ...sessionPools(pools),
-        clearColor: scene.background?.getHex(), // read at opening; a change is written in place
-        currentClearColor: () => scene.background?.getHex(),
-        beforeFrame: () => (parts.step(), runtime.beforeFrame()),
-        onFrame: (metrics) => {
-          frames.dispatch(metrics)
-          // A clip still playing asks for the next; the last pauses.
-          if (state.animating) parts.invalidate()
-        },
+        // The session's own loop runs the world's frame: its prologue and epilogue, as `render`.
+        beforeFrame: () => runtime.beforeFrame(parts.step),
+        onFrame: (metrics) => runtime.afterDraw(metrics),
       }),
     opened: (explorer) => diagnostic.apply(explorer),
-    frame: frames.dispatch,
+    frame: (metrics) => {
+      frames.dispatch(metrics)
+      // A clip still playing asks for the next; the last pauses.
+      if (state.animating) parts.invalidate()
+    },
     drawn: () => frames.last !== null,
     display: () => ({
       exposure: state.exposure,
@@ -263,7 +260,6 @@ function worldMethods(parts: WorldParts) {
      * `onFrame` hooks. What a hook places — a body on the camera, a cockpit — is drawn in this
      * very frame, never one late. A hook calling `invalidate()` keeps frames coming. */
     beforeFrame: frames.before,
-    /** Another name for `onFrame`. */ loop: frames.add,
     /** Asks the world's own loop for a new frame after a change it could not see; a world its
      *  page leads draws at its next `render()`. */
     invalidate,

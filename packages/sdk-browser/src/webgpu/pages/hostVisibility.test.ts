@@ -100,14 +100,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
   assert.ok(!kept.hidden, 'another node keeps its blend item')
   // The roots named to the rows pass since the last step, taken as its follow takes them: a root
   // is listed once a follow (`deriveRootRows`).
-  const asked = () => {
-    const words = (rt as { rowWords?: { roots: number[]; rootListed: Uint8Array } }).rowWords
-    if (!words) return []
-    const roots = [...words.roots]
-    for (const rank of roots) words.rootListed[rank] = 0
-    words.roots.length = 0
-    return roots
-  }
+  const asked = () => [...(rt.rowWords?.roots.take() ?? [])]
   assert.deepEqual(asked(), [0], 'its rows, derived again, stale its shadow pages')
   assert.deepEqual(changed, [], 'no box declared on the CPU')
   assert.deepEqual(touched, [0], "its rows' words are written anew: the casters skip them")

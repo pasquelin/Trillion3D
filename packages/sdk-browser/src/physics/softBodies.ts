@@ -39,7 +39,7 @@ export function writeSoftBody(
   id: number,
   p: ObjectPhysics,
   matter: { friction: number; restitution: number },
-  pose: Pose & Pick<SoftBodyRecord, 'scale'>,
+  pose: Pose & Pick<SoftBodyRecord, 'scale' | 'carries'>,
   record: SoftBodyRecord['record'],
   flags: number,
 ) {
@@ -60,8 +60,9 @@ const drawers = new WeakMap<Geometry, Mesh>()
 /**
  * Writes the SOFT command of `mesh`, a soft body placed at `pose` and scaled by `size`, simulated
  * in fixed steps of `step` seconds: its slot claimed with its vertices counted against the
- * budget, its vertex map kept in `maps`, its `flags` written. Returns the slot. A geometry
- * another soft body draws itself into is refused.
+ * budget, its vertex map kept in `maps`, its `flags` written; going on from the soft body
+ * `carries` names, made at another scale, when given. Returns the slot. A geometry another soft
+ * body draws itself into is refused.
  */
 export function addSoftBody(
   writer: CommandWriter,
@@ -72,6 +73,7 @@ export function addSoftBody(
   maps: (Uint32Array | null)[],
   flags: number,
   step: number,
+  carries?: number,
 ) {
   const p = mesh.physics,
     other = drawers.get(mesh.geometry)
@@ -87,7 +89,8 @@ export function addSoftBody(
   // Its vertices move every step: uploaded in place, never cut into pages again.
   mesh.geometry.usage = 'dynamic'
   const scale = [size.x, size.y, size.z] as const
-  writeSoftBody(writer, id, p, physicsMatterOf(mesh.material), { ...pose, scale }, record, flags)
+  const placed = { ...pose, scale, carries }
+  writeSoftBody(writer, id, p, physicsMatterOf(mesh.material), placed, record, flags)
   maps[id & BODY_INDEX] = record.map
   return id & BODY_INDEX
 }

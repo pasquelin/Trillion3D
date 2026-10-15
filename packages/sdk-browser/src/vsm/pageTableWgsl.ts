@@ -21,17 +21,20 @@ import { highHalf, lowBits, lowHalf } from '../../../math/src/wgsl/integer.ts'
  *   `vsmPageMarksLoad(index)` / `vsmReceiverCoverLoad(index)`.
  */
 
-/** The shadow map handle: its id and whether it is a single-page map. */
+/** The shadow map handle: its id and where its table lies — the origin and the finest mip its
+ *  record carries (\`tableBlocks.ts\`), read once when the handle is made, through the module's
+ *  \`vsmProjectionData\`, so that no table lookup reads the record again (\`vsmTableLevelOrigin\`). */
 export const VSM_HANDLE_WGSL = wgslBlock(
   'VSM_HANDLE_WGSL',
   [VSM_CONSTANTS_WGSL],
   `
-struct VsmHandle{id:u32,isSinglePage:bool,}
-fn vsmHandleFromId(id:u32)->VsmHandle{return VsmHandle(id,id<VSM_SINGLE_PAGE_MAP_SLOTS);}
-fn vsmHandleFromIdDirectional(id:u32)->VsmHandle{return VsmHandle(id,false);}
-fn vsmHandleInvalid()->VsmHandle{return VsmHandle(0xFFFFFFFFu,false);}
-/** Signed offset; keeps the single-page bit of the source handle . */
-fn vsmHandleOffset(h:VsmHandle,offset:i32)->VsmHandle{return VsmHandle(u32(i32(h.id)+offset),h.isSinglePage);}
+struct VsmHandle{id:u32,tableOrigin:u32,finestMip:u32,}
+fn vsmHandleFromId(id:u32)->VsmHandle{
+ return VsmHandle(id,vsmProjectionData[id].tableOrigin,vsmProjectionData[id].finestMip);
+}
+fn vsmHandleInvalid()->VsmHandle{return VsmHandle(0xFFFFFFFFu,0u,0u);}
+/** The map \`offset\` ids on: a clipmap's next level, a cube's face. */
+fn vsmHandleOffset(h:VsmHandle,offset:i32)->VsmHandle{return vsmHandleFromId(u32(i32(h.id)+offset));}
 fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
 `,
 )
@@ -39,47 +42,32 @@ fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
 /** Page-address arithmetic and the buffer linearisation of the 2D tables. */
 export const VSM_PAGE_ADDRESS_WGSL = wgslBlock(
   'VSM_PAGE_ADDRESS_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_UNIFORMS_WGSL, VSM_HANDLE_WGSL, lowHalf, highHalf, lowBits],
+  [VSM_CONSTANTS_WGSL, VSM_UNIFORMS_WGSL, lowHalf, highHalf, lowBits],
   `
 fn vsmLog2PagesAtLevel(level:u32)->u32{return VSM_LOG2_LEVEL0_PAGES-level;}
 fn vsmPagesAtLevel(level:u32)->u32{return 1u<<vsmLog2PagesAtLevel(level);}
 fn vsmTexelsAtLevel(level:u32)->u32{return VSM_LEVEL0_TEXELS>>level;}
-/** Mip tail packed below level 0 so X wraps with a power of two. */
-fn vsmMipTailOffset(mipLevel:u32)->vec2u{
+/** Where mip \`mipLevel\` of a table whose finest mip is \`finestMip\` lies in it: the finest at its
+ *  origin, a side of S = 128 >> finest entries; the coarser ones in a row below it, each at the
+ *  bits of S − 1 its rank leaves (S/2, S/4, … wide: X wraps with a power of two). */
+fn vsmMipTailOffset(mipLevel:u32,finestMip:u32)->vec2u{
  var r=vec2u(0u,0u);
- if(mipLevel>0u){
-  r.y+=VSM_LEVEL0_PAGES;
-  let maxMask=lowBits(VSM_MIPS-1u);
-  let startBit=VSM_MIPS-mipLevel;
-  r.x+=maxMask&(maxMask<<startBit);
+ let rel=mipLevel-finestMip;
+ if(rel>0u){
+  let side=VSM_LEVEL0_PAGES>>finestMip;
+  r.y=side;
+  let maxMask=side-1u;
+  r.x=maxMask&(maxMask<<(VSM_MIPS-finestMip-rel));
  }
  return r;
 }
-struct VsmTableLevel{isSinglePage:bool,firstCell:vec2u,}
-/** Single-page maps pack into the first 128x128 block; full maps skip it (+1). */
-fn vsmTableLevelOrigin(h:VsmHandle,mipLevel:u32)->VsmTableLevel{
- var r:VsmTableLevel;
- r.isSinglePage=h.isSinglePage;
- if(r.isSinglePage){
-  r.firstCell=vec2u(h.id&VSM_PAGE_TEXEL_MASK,h.id>>VSM_LOG2_PAGE);
- }else{
-  let fullId=(h.id-VSM_SINGLE_PAGE_MAP_SLOTS)+1u;
-  r.firstCell=vec2u((fullId&vsm.pageTableRowMask)*VSM_LEVEL0_PAGES,(fullId>>vsm.pageTableRowShift)*VSM_PAGE_TABLE_BLOCK_HEIGHT);
-  r.firstCell+=vsmMipTailOffset(mipLevel);
- }
- return r;
-}
+struct VsmTableLevel{firstCell:vec2u,}
 /** The texel address of one entry in the global 2D table. */
 struct VsmTableCell{tableXY:vec2u,}
 fn vsmTableCellPack(o:VsmTableCell)->u32{return (o.tableXY.x<<16u)|o.tableXY.y;}
 fn vsmTableCellUnpack(p:u32)->VsmTableCell{return VsmTableCell(vec2u(highHalf(p),lowHalf(p)));}
 fn vsmTableEntryAt(levelOffset:VsmTableLevel,level:u32,pageAddress:vec2u)->VsmTableCell{
- var r=VsmTableCell(levelOffset.firstCell);
- if(!levelOffset.isSinglePage){r.tableXY+=pageAddress;}
- return r;
-}
-fn vsmTableEntryOf(h:VsmHandle,level:u32,pageAddress:vec2u)->VsmTableCell{
- return vsmTableEntryAt(vsmTableLevelOrigin(h,level),level,pageAddress);
+ return VsmTableCell(levelOffset.firstCell+pageAddress);
 }
 fn vsmPageInRange(pageAddress:vec2i,level:u32)->bool{
  return all(pageAddress>=vec2i(0))&&all(pageAddress<vec2i(i32(vsmPagesAtLevel(level))));
@@ -133,10 +121,28 @@ fn vsmCoverInBounds(t:vec2u,m:u32)->bool{return all(t<(vsm.coverSize>>vec2u(m)))
 `,
 )
 
+/**
+ * A map's table in the global one, from its handle's origin and finest mip (`tableBlocks.ts`): mip
+ * `mipLevel`'s first entry, and a page's. A table holds the mips from its finest on.
+ */
+export const VSM_TABLE_ORIGIN_WGSL = wgslBlock(
+  'VSM_TABLE_ORIGIN_WGSL',
+  [VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, lowHalf, highHalf],
+  `
+fn vsmTableLevelOrigin(h:VsmHandle,mipLevel:u32)->VsmTableLevel{
+ let o=h.tableOrigin;
+ return VsmTableLevel(vec2u(lowHalf(o),highHalf(o))+vsmMipTailOffset(mipLevel,h.finestMip));
+}
+fn vsmTableEntryOf(h:VsmHandle,level:u32,pageAddress:vec2u)->VsmTableCell{
+ return vsmTableEntryAt(vsmTableLevelOrigin(h,level),level,pageAddress);
+}
+`,
+)
+
 /** Page lookups, through the module's `vsmPageTableLoad(index:u32)->u32` (`vsmBindingsWgsl`). */
 export const VSM_PAGE_LOOKUP_WGSL = wgslBlock(
   'VSM_PAGE_LOOKUP_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL],
+  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL],
   `
 /** The entry's word, undecoded: what a reader keeps to decode it again. */
 fn vsmTableWord(o:VsmTableCell)->u32{return vsmPageTableLoad(vsmTableIndex(o.tableXY));}
@@ -154,54 +160,13 @@ fn vsmLocalPageAt(h:VsmHandle,mapUvAt:vec2f,finestMip:u32)->VsmLocalPage{
  let e=vsmUnpackTableEntry(vsmTableWord(vsmTableEntryOf(h,finestMip,vPage>>vec2u(finestMip))));
  var r:VsmLocalPage;
  r.valid=e.anyLevelMapped;
- r.coarserLevels=select(e.coarserLevels+finestMip,VSM_MIPS-1u,h.isSinglePage);
+ r.coarserLevels=e.coarserLevels+finestMip;
  r.mapTexelPos=mapUvAt*f32(vsmTexelsAtLevel(r.coarserLevels));
  r.mapTexelXY=vec2u(r.mapTexelPos);
  r.poolTexel=e.physicalAddress*VSM_PAGE_TEXELS+(r.mapTexelXY&vec2u(VSM_PAGE_TEXEL_MASK));
  return r;
 }
 `,
-)
-
-/** A 2x2 gather as `name` over one table (its bounds test, loader and index): the 2x2
- *  texels at hierarchical mip pyramidMip in the order (-,+), (+,+), (+,-), (-,-), out-of-range ones 0. */
-const gatherWgsl = (name: string, inBounds: string, load: string, index: string) =>
-  wgslBlock(
-    `gatherWgsl(${name})`,
-    [VSM_PAGE_ADDRESS_WGSL],
-    `
-fn ${name}(texelCoord:vec2u,pyramidMip:u32)->vec4u{
- let t=texelCoord>>vec2u(pyramidMip);
- var a=array<vec2u,4>(vec2u(t.x,t.y+1u),vec2u(t.x+1u,t.y+1u),vec2u(t.x+1u,t.y),t);
- var r=vec4u(0u);
- for(var k=0u;k<4u;k++){
-  if(${inBounds}(a[k],pyramidMip)){r[k]=${load}(${index}(a[k],pyramidMip));}
- }
- return r;
-}`,
-  )
-
-/**
- * The 2x2 gather over the page marks (out-of-range texels read 0) and a page's own marks word,
- * through the module's `vsmPageMarksLoad(index:u32)->u32`.
- */
-export const VSM_PAGE_MARKS_GATHER_WGSL = wgslBlock(
-  'VSM_PAGE_MARKS_GATHER_WGSL',
-  [
-    VSM_PAGE_ADDRESS_WGSL,
-    gatherWgsl('vsmGatherPageMarks', 'vsmPageMarkInBounds', 'vsmPageMarksLoad', 'vsmPageMarkIndex'),
-  ],
-  `fn vsmPageMarkWord(o:VsmTableCell)->u32{return vsmPageMarksLoad(vsmPageMarkIndex(o.tableXY,0u));}
-`,
-)
-
-/** The same gather over the receiver covers, through the module's
- *  `vsmReceiverCoverLoad(index:u32)->u32`. */
-export const VSM_COVER_GATHER_WGSL = gatherWgsl(
-  'vsmGatherCover',
-  'vsmCoverInBounds',
-  'vsmReceiverCoverLoad',
-  'vsmCoverIndex',
 )
 
 /**

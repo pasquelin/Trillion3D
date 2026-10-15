@@ -23,7 +23,6 @@ export function createGpuPeriodicReadback(
 ) {
   let bytes = 0,
     ready = false,
-    copyEncoded = false,
     disposed = false,
     lastSampledFrame = -READ_EVERY_IMAGES
   const ring = createReadbackRing(device, { ...options, count: 1 }, (mapped) => {
@@ -38,7 +37,9 @@ export function createGpuPeriodicReadback(
     },
     /** True when the interval has elapsed and no sample is still in flight. */
     due(frame: number) {
-      return !copyEncoded && ring.available() && frame - lastSampledFrame >= READ_EVERY_IMAGES
+      return (
+        ring.pending() === 0 && ring.available() && frame - lastSampledFrame >= READ_EVERY_IMAGES
+      )
     },
     /** Notes the sampled frame: the interval runs from it. */
     sampled(frame: number) {
@@ -46,29 +47,27 @@ export function createGpuPeriodicReadback(
     },
     /** True while frame `frame`'s sample is encoded and not yet submitted: its copies join it. */
     open(frame: number) {
-      return copyEncoded && frame === lastSampledFrame
+      return ring.pending() > 0 && frame === lastSampledFrame
     },
     /** Encodes the copy of `size` bytes from `source`, to be mapped once the frame is submitted,
      *  and whether it did. The copies of one sampled frame follow each other in the sample. */
     copy(encoder: GPUCommandEncoder, source: GPUBuffer, offset: number, size: number) {
+      // The copies of one frame follow each other in the buffer its first took.
+      const at = ring.pending() > 0 ? bytes : 0
       const target = ring.take()
       if (!target) return false
-      const at = copyEncoded ? bytes : 0
       encoder.copyBufferToBuffer(source, offset, target, at, size)
       bytes = at + size
-      copyEncoded = true
       return true
     },
     /** Requests mapping of the encoded copy. No effect on a frame that encoded none. */
     submitted() {
-      if (!copyEncoded || disposed) return
-      copyEncoded = false
+      if (disposed) return
       ring.submitted()
     },
     dispose() {
       disposed = true
       ready = false
-      copyEncoded = false
       ring.destroy()
     },
   }

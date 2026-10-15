@@ -1,15 +1,10 @@
 import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import {
-  DIELECTRIC_F0,
-  fresnelScalar,
-  fresnelSchlick,
-  lambertAlbedoMul,
-  ndotvFloor,
-} from '../../../../math/src/wgsl/lighting.ts'
+import { SURFACE_LIGHT_WGSL } from '../standardLighting.ts'
+import { RECT_SURFACE_LIGHT_WGSL } from './rectLightWgsl.ts'
+import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/src/wgsl/lighting.ts'
 
 /**
  * The lighting of the physical material's anisotropic and clear-coat lobes
@@ -35,9 +30,9 @@ import {
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, SURFACE_LIGHT_WGSL],
   `
-struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
+struct Lobes{on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,view:vec2f,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
 /** A pixel's lobes: its lobe axis \`axis\` at its width \`alpha\` (\`lobeAxis\`: the direction kept
  *  orthogonal to the normal the lighting reads and αt along it, or the round lobe), and what its
@@ -50,7 +45,7 @@ fn setLobes(axis:vec4f,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,alpha:
  lobes.coat=coat;lobes.coatRough=coatRough;lobes.coatN=coatN;
  lobes.at=axis.w;lobes.ab=alpha;
  lobes.invAt=1.0/lobes.at;lobes.invAb=1.0/lobes.ab;lobes.dScale=1.0/(PI*lobes.at*lobes.ab);
- lobes.viewLength=length(vec3f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V),ndotvFloor(N,V)));
+ lobes.view=vec2f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V));
  // Without a coat, its surface is never read (every coat term asks \`lobes.coat>0.0\`) and the base
  // goes through whole: 1-0*F is exactly 1.
  if(lobes.coat>0.0){
@@ -58,6 +53,9 @@ fn setLobes(axis:vec4f,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,alpha:
   lobes.coatSurface=lobeSurface(vec3f(0.0),0.0,coatRough,coatN,V);
  }else{lobes.through=1.0;}
 }
+/** The view's length in the stretched frame, finished once a pixel on its surface's N·V
+ *  (\`lobeSurface\`), which the light loop hands it (\`sliceLighting\`): one N·V a pixel. */
+fn lobeView(s:LobeSurface){if(lobes.on){lobes.viewLength=length(vec3f(lobes.view,s.NdotV));}}
 /** What the coat lets through of the base: one without lobes. */
 fn lobeThrough()->f32{return select(1.0,lobes.through,lobes.on);}
 /** The anisotropic lobe of one light past its direction \`L\`, half-vector \`H\` and \`NdotL\` above
@@ -72,59 +70,71 @@ fn anisotropicLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energ
  let gL=s.NdotV*length(vec3f(at*dot(T,L),ab*dot(B,L),NdotL));
  return lobeSum(s,D,gV,gL,max(dot(V,H),0.0),direct);
 }
-/** One light on surface \`s\` (\`lobeSurface\`): \`surfaceLight\` without lobes, else its
- *  anisotropic lobe where it has a strength — the surface the lobes were set for, or the water's
- *  null albedo, a dielectric's (\`declaredLightingPair\`) —, under the coat, and the coat's own lobe
- *  (\`standardLobe\` on the coat's surface). The light's direction and half-vector serve both. */
-fn lobeLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
- if(!lobes.on){return surfaceLight(s,N,V,light);}
- let L=normalize(light.xyz);
- let NdotL=max(dot(N,L),0.0);
- var coatNdotL=0.0;
- if(lobes.coat>0.0){coatNdotL=max(dot(lobes.coatN,L),0.0);}
- // Facing away from the base and the coat, both terms are zeros, which the light's sum keeps as
- // they are: returned before the half-vector is paid, as \`surfaceLight\`.
- if(NdotL==0.0&&coatNdotL==0.0){return vec3f(0.0);}
- let H=normalize(L+V);
- var coat=vec3f(0.0);
- if(coatNdotL>0.0){coat=lobes.coat*standardLobe(lobes.coatSurface,lobes.coatN,V,H,coatNdotL,light.w);}
- var base=vec3f(0.0);
- if(NdotL>0.0){
-  if(lobes.skewed){base=anisotropicLobe(s,N,V,L,H,NdotL,light.w);}
-  else{base=standardLobe(s,N,V,H,NdotL,light.w);}
- }
- return base*lobes.through+coat;
+/** The hooks of the one \`surfaceLight\` and \`rectLight\` (\`../standardLighting.ts\`,
+ *  \`rectLightWgsl.ts\`) on a pixel whose lobes are set: the base's lobe, anisotropic where it is
+ *  skewed — on the surface the lobes were set for, or the water's null albedo, a dielectric's
+ *  (\`declaredLightingPair\`) —, and the coat's own lobe (\`standardLobe\` on the coat's surface) at
+ *  its cosine; a pixel without lobes answers the standard lobe and no coat. The light's direction
+ *  and half-vector serve both. */
+fn coatCosine(L:vec3f)->f32{if(lobes.on&&lobes.coat>0.0){return max(dot(lobes.coatN,L),0.0);}return 0.0;}
+fn baseLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
+ if(lobes.on&&lobes.skewed){return anisotropicLobe(s,N,V,L,H,NdotL,energy);}
+ return standardLobe(s,N,V,H,NdotL,energy);
 }
-/** A rectangle's fitted lobe of reflectance \`f0\` at the normal \`N\` (\`rectLtc\`), its polygon
- *  and the view stretched by the anisotropy (αt along \`T\`) as αt stretches the distribution. */
-fn rectLobe(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
- if(!lobes.skewed){return rectLtc(r,N,V,f0,rough);}
- let T=lobes.T;let k=lobes.ab/lobes.at-1.0;
- let s=RectView(r.a+k*T*dot(T,r.a),r.b+k*T*dot(T,r.b),r.c+k*T*dot(T,r.c),r.d+k*T*dot(T,r.d),r.window);
- return rectLtc(s,N,normalize(V+k*T*dot(T,V)),f0,rough);
-}
-/** A rectangle light on the surface: \`rectLight\` without lobes, or on a diffuse or toon model;
- *  \`f0\` as \`lobeLight\`'s. Its view of the rectangle serves the coat and the base. */
-fn lobeRectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,f0:vec3f)->vec3f{
- if(!lobes.on||surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
- let r=rectView(light,P);
- let tint=light.colorIntensity.rgb;
- var coat=vec3f(0.0);
- if(lobes.coat>0.0&&r.window>0.0){coat=lobes.coat*rectLtc(r,lobes.coatN,V,DIELECTRIC_F0,lobes.coatRough)*light.colorIntensity.w*r.window*tint;}
- let incident=rectIrradianceOf(r,N);
- if(incident.w<=0.0){return coat;}
- let E=light.colorIntensity.w*incident.w;
- let specular=rectLobe(r,N,V,f0,rough)*light.colorIntensity.w*r.window;
- return (lambertAlbedoMul(rgb,metal)*E+specular)*tint*lobes.through+coat;
+fn coatLobe(V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
+ if(NdotL>0.0){return lobes.coat*standardLobe(lobes.coatSurface,lobes.coatN,V,H,NdotL,energy);}
+ return vec3f(0.0);
 }`,
 )
 
-/** A lobeless program's stand-in (`LOBES_LIGHTING_WGSL`'s): no lobe is ever set, so the coat
- *  lets the whole base through, an exact one — every term it weighs keeps its bits. */
+/** A lobed program's hooks of the one \`rectLight\` (\`rectLightWgsl.ts\`), where the image holds a
+ *  rectangle: the base's fitted lobe, its polygon and view stretched by the anisotropy (αt along \`T\`)
+ *  as αt stretches the distribution — the view's stretch a pixel's, so its frame is the pixel's too
+ *  (\`pixelRectFrame\`) —, and the coat's on the coat's normal and roughness, its frame taken once
+ *  a pixel too (\`coatRectFrame\`). */
+export const LOBES_RECT_WGSL = wgslBlock(
+  'LOBES_RECT_WGSL',
+  [LOBES_LIGHTING_WGSL, RECT_SURFACE_LIGHT_WGSL],
+  `
+fn rectBase(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
+ if(!(lobes.on&&lobes.skewed)){return rectLtc(r,pixelRectFrame(N,V,rough),f0);}
+ let T=lobes.T;let k=lobes.ab/lobes.at-1.0;
+ let s=RectView(r.a+k*T*dot(T,r.a),r.b+k*T*dot(T,r.b),r.c+k*T*dot(T,r.c),r.d+k*T*dot(T,r.d),r.window);
+ return rectLtc(s,pixelRectFrame(N,normalize(V+k*T*dot(T,V)),rough),f0);
+}
+var<private> coatFrameHeld:bool=false;
+var<private> coatFrameKept:RectFrame;
+fn coatRectFrame(V:vec3f)->RectFrame{
+ if(!coatFrameHeld){coatFrameKept=rectFrameOf(lobes.coatN,V,lobes.coatRough);coatFrameHeld=true;}
+ return coatFrameKept;
+}
+/** The coat's fitted lobe of a rectangle's view \`r\`, of intensity \`energy\`, before its colour. */
+fn rectCoat(r:RectView,V:vec3f,energy:f32)->vec3f{
+ if(lobes.on&&lobes.coat>0.0&&r.window>0.0){return lobes.coat*rectLtc(r,coatRectFrame(V),DIELECTRIC_F0)*energy*r.window;}
+ return vec3f(0.0);
+}`,
+)
+
+/** A lobeless program's hooks of the one \`surfaceLight\` (\`LOBES_LIGHTING_WGSL\`'s): no lobe is ever
+ *  set, so the base is the standard lobe, the coat lets it through whole, an exact one, and adds an
+ *  exact zero — every term it weighs keeps its bits. What a program that lights a surface without
+ *  a lobe lists: it brings \`surfaceLight\` (\`SURFACE_LIGHT_WGSL\`). */
 export const LOBELESS_LIGHTING_WGSL = wgslBlock(
   'LOBELESS_LIGHTING_WGSL',
-  [],
-  'fn lobeThrough()->f32{return 1.0;}',
+  [SURFACE_LIGHT_WGSL],
+  `fn lobeThrough()->f32{return 1.0;}
+fn lobeView(s:LobeSurface){}
+fn coatCosine(L:vec3f)->f32{return 0.0;}
+fn baseLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return standardLobe(s,N,V,H,NdotL,energy);}
+fn coatLobe(V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return vec3f(0.0);}`,
+)
+
+/** The same of the one \`rectLight\` (\`rectLightWgsl.ts\`): the plain fitted lobe and no coat. */
+export const LOBELESS_RECT_WGSL = wgslBlock(
+  'LOBELESS_RECT_WGSL',
+  [RECT_SURFACE_LIGHT_WGSL],
+  `fn rectBase(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{return rectLtc(r,pixelRectFrame(N,V,rough),f0);}
+fn rectCoat(r:RectView,V:vec3f,energy:f32)->vec3f{return vec3f(0.0);}`,
 )
 
 /** The decode of a texel of the lobes target into a pixel's lobes (`lobesAt`), at its roughness

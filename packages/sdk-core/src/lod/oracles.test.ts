@@ -73,15 +73,15 @@ test('a cluster error projects as the certified screen bound of its sphere', () 
   assert.ok(px(0.5, { radius: 2 }) > px(0.5))
 })
 
-test('maxStretch rejects non-finite matrix elements', () => {
+test('maxStretch refuses non-finite matrix elements with NaN, never a throw', () => {
   const withNaN = [NaN, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0]
-  assert.throws(() => maxStretch(withNaN), /Invalid matrix/)
+  assert.ok(Number.isNaN(maxStretch(withNaN)))
 
   const withInfinityPos = [1, 0, 0, 0, Infinity, 0, 0, 0, 1, 0, 0]
-  assert.throws(() => maxStretch(withInfinityPos), /Invalid matrix/)
+  assert.ok(Number.isNaN(maxStretch(withInfinityPos)))
 
   const withInfinityNeg = [1, 0, 0, 0, 1, 0, 0, 0, -Infinity, 0, 0]
-  assert.throws(() => maxStretch(withInfinityNeg), /Invalid matrix/)
+  assert.ok(Number.isNaN(maxStretch(withInfinityNeg)))
 })
 
 test('maxStretch accepts all finite matrix elements and returns finite positive stretch', () => {
@@ -94,4 +94,13 @@ test('maxStretch accepts all finite matrix elements and returns finite positive 
   const stretch2 = maxStretch(matrix2)
   assert.ok(Number.isFinite(stretch2), 'scale 2 stretch is finite')
   assert.ok(stretch2 > 0, 'scale 2 stretch is positive')
+})
+
+test('maxStretch reads from an offset, and a shear stretches past its longest column', () => {
+  // Column-major [[1, 3, 0], [0, 1, 0], [0, 0, 1]]: σmax = (3 + √13) / 2, longest column √10.
+  const shear = [1, 0, 0, 0, 3, 1, 0, 0, 0, 0, 1, 0]
+  const stretch = maxStretch(shear)
+  assert.ok(Math.abs(stretch - (3 + Math.sqrt(13)) / 2) < 1e-12, String(stretch))
+  assert.ok(stretch > Math.sqrt(10))
+  assert.ok(Object.is(maxStretch([7, 7, ...shear], 2), stretch))
 })

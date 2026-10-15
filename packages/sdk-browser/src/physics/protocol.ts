@@ -108,11 +108,6 @@ export type FromPhysics =
   | { type: 'cast'; id: number; hits: Uint32Array }
   /** The joints a step broke, by id (`JOINT_WORDS`): the module took them out. */
   | { type: 'broken'; joints: number[] }
-  /** The soft bodies a step found diverged on amplitude — their vertices going apart at twice the
-   *  speed of a fall from a hundred times their size for half a second, or spread past three times
-   *  their rest size with an edge pulled past five times its length — and brought back to a good
-   *  state, by engine id: they stay simulated (`soft.cpp`). */
-  | { type: 'recovered'; bodies: number[] }
   | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] }
 
 /** Word where a result buffer's earlier poses start: after one pose per body. Record `r` there
@@ -151,10 +146,6 @@ export interface PhysicsStats {
   /** `enter` events dropped since the physics started, past `budget.physics.contactEvents` in
    *  one step (their `leave` is never sent). */
   droppedEvents: number
-  /** Soft bodies brought back at rest to their last good state (with none, their rest shape) since
-   *  the physics started, each time one diverged on amplitude; they also raise a
-   *  `PHYSICS_DIVERGED` that names them and stops nothing, at most once a second. */
-  softRecoveries: number
 }
 
 /** The stats of a world whose physics holds nothing yet. */
@@ -167,5 +158,4 @@ export const emptyPhysicsStats = (): PhysicsStats => ({
   poses: 0,
   events: 0,
   droppedEvents: 0,
-  softRecoveries: 0,
 })

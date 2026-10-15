@@ -1,9 +1,11 @@
-import { boxEmpty, boxIsEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
+import { boxEmpty, boxesOverlap, boxIsEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
+import { boxPointDistance } from '../../../../math/src/geometry/boxDistance.ts'
 import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts'
 
-/** The tested point, allocated once: `touches` is called per light and per box, every frame. */
-const point = new Float64Array(3)
+/** A residency change's box in the six-value layout, allocated once. */
+const incoming = new Float64Array(6)
+
 /** The read box, allocated once: the scheduler projects it view by view without creating anything. */
 const readMin = new Float64Array(3),
   readMax = new Float64Array(3),
@@ -47,8 +49,8 @@ const readMin = new Float64Array(3),
 export const SHADOW_CHANGE_BOXES = 4096
 
 export function createShadowChanges(capacity: number) {
-  const min = new Float64Array(capacity * 3),
-    max = new Float64Array(capacity * 3),
+  /** The boxes, six values each — minima then maxima —, the layout of the box helpers. */
+  const boxes = new Float64Array(capacity * 6),
     /** The box holds only objects already moving: the static casters under it are unchanged. */
     moving = new Uint8Array(capacity),
     /** The box holds only the released union of representation changes: the pages under it are
@@ -65,11 +67,10 @@ export function createShadowChanges(capacity: number) {
    *  precision a move must cross to count (`observeView`). */
   const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
     viewNow = new Float32Array(VIEW_NUMBERS)
-  const write = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>, merge: boolean) => {
-    for (let axis = 0; axis < 3; axis++) {
-      min[base + axis] = merge ? Math.min(min[base + axis], lo[axis]) : lo[axis]
-      max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis]
-    }
+  /** Box `box` set to `lo…hi`, or grown by it (`boxUnion`). */
+  const write = (box: number, lo: ArrayLike<number>, hi: ArrayLike<number>, merge: boolean) => {
+    if (!merge) boxEmpty(boxes, box * 6)
+    boxUnion(boxes, box * 6, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2])
   }
   /** Box `count` takes the change; past the budget the last box absorbs it (the overflow). */
   const add = (
@@ -80,7 +81,7 @@ export function createShadowChanges(capacity: number) {
   ) => {
     const merge = changes.count === capacity,
       box = merge ? capacity - 1 : changes.count++
-    write(box * 3, lo, hi, merge)
+    write(box, lo, hi, merge)
     moving[box] = movingOnly && (!merge || moving[box]) ? 1 : 0
     detail[box] = detailOnly && (!merge || detail[box]) ? 1 : 0
   }
@@ -113,12 +114,17 @@ export function createShadowChanges(capacity: number) {
      *  merged into the last one when that is a change of detail of the same kind it overlaps — the
      *  clusters a stream brings in together —, never joined to a far one. */
     residencyChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
-      const last = changes.count - 1,
-        base = last * 3
-      let overlaps = last >= 0 && detail[last] === 1 && moving[last] === +movingOnly
-      for (let axis = 0; overlaps && axis < 3; axis++)
-        overlaps = min[base + axis] <= hi[axis] && lo[axis] <= max[base + axis]
-      if (overlaps) write(base, lo, hi, true)
+      const last = changes.count - 1
+      for (let axis = 0; axis < 3; axis++) {
+        incoming[axis] = lo[axis]
+        incoming[axis + 3] = hi[axis]
+      }
+      const overlaps =
+        last >= 0 &&
+        detail[last] === 1 &&
+        moving[last] === +movingOnly &&
+        boxesOverlap(boxes, last * 6, incoming, 0)
+      if (overlaps) write(last, lo, hi, true)
       else add(lo, hi, movingOnly, true)
     },
     /**
@@ -140,27 +146,18 @@ export function createShadowChanges(capacity: number) {
      * so does a box that bounds nothing finite (`NaN`): nothing proves it out of reach.
      */
     touches(box: number, x: number, y: number, z: number, range: number) {
-      const base = box * 3
       if (!(range > 0)) return true
-      let squared = 0
-      point[0] = x
-      point[1] = y
-      point[2] = z
-      for (let axis = 0; axis < 3; axis++) {
-        const gap = Math.max(min[base + axis] - point[axis], point[axis] - max[base + axis], 0)
-        squared += gap * gap
-      }
-      return !(squared > range * range)
+      return !(boxPointDistance(boxes, box * 6, x, y, z) > range)
     },
     /** Box `box` in two reused arrays — its minima, its maxima —, whether it moves alone, and
      *  whether it is a change of detail alone. */
     read(box: number) {
-      const base = box * 3
+      const base = box * 6
       readBox.moving = moving[box] === 1
       readBox.detail = detail[box] === 1
       for (let axis = 0; axis < 3; axis++) {
-        readMin[axis] = min[base + axis]
-        readMax[axis] = max[base + axis]
+        readMin[axis] = boxes[base + axis]
+        readMax[axis] = boxes[base + 3 + axis]
       }
       return readBox
     },

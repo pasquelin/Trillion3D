@@ -120,20 +120,13 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
   held[2]=0u;
   if(blocks>VSM_T_CHAIN){atomicAdd(&build[VSM_TC_FULL],1u);}
   else{
-   // Taken by compare-exchange: a count never moves below what is free, so a group that finds
-   // the pool short leaves it as it was and every group that takes gets its own blocks.
-   var free=atomicLoad(&pool[0]);
-   loop{
-    if(free<blocks){break;}
-    let r=atomicCompareExchangeWeak(&pool[0],free,free-blocks);
-    if(r.exchanged){held[2]=1u;break;}
-    free=r.old_value;
-   }
-   if(held[2]==0u){atomicAdd(&build[VSM_TC_BLOCKSSHORT],blocks);}
-   else{
+   // The pool's one free stack (\`freeStackWgsl\`): a short take leaves it as it was.
+   let first=vsmTBlocksTake(blocks);
+   if(first>=0i){
+    held[2]=1u;
     for(var j=0u;j<VSM_T_CHAIN;j++){
      var b=${NO_INDEX}u;
-     if(j<blocks){b=atomicLoad(&pool[2u+free-blocks+j]);}
+     if(j<blocks){b=vsmTBlocksAt(u32(first)+j);}
      chain[j]=b;
     }
     for(var j=0u;j<blocks;j++){

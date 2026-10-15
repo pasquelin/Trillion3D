@@ -20,7 +20,7 @@ function banc(slots: number, visible: string[], ahead: string[]) {
   const cache = orderedPool(
       slots,
       (url) => tracking.wanted.has(keyOf(url)),
-      (url) => tier.has(keyOf(url)),
+      (url) => tier.pages.some((page) => page.url === url),
     ),
     load = cache.load,
     order: string[] = []
@@ -33,10 +33,10 @@ function banc(slots: number, visible: string[], ahead: string[]) {
   const want = (list: PageRec[]) => {
     for (const page of list) tracking.wanted.add(tracking.keyOf(page), page)
   }
-  // The real tier, with its own `has`: the ensurer reads it as the services give it.
+  // The real tier: the ensurer reads it as the services give it.
   const ensure = createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
-    lowerTiers: () => [tier],
+    lowerTier: () => tier,
   })
   // Readback ids: the camera's pages first, then the ones ahead (`../cut/adoption.ts`).
   const offerAhead = (count: number) =>
@@ -71,7 +71,7 @@ test('the tier ahead holds tables for its last report only', () => {
 test('the jobs between two reports read one merged list, remade only after a report', () => {
   const b = banc(8, [], ['a0', 'a1', 'a2'])
   // The ensurer's lower pass reads its merged list: the tiers it is given, through the keys.
-  const lower = createLowerPass(lowerPassOptions(b.tracking, b.cache, () => [b.tier]))
+  const lower = createLowerPass(lowerPassOptions(b.tracking, b.cache, () => b.tier))
   b.offerAhead(2)
   const first = lower.list()
   assert.deepEqual(
@@ -94,13 +94,12 @@ test('after a stop, the pending set drains to full detail', async () => {
   const b = banc(7, ['v0', 'v1'], ['a0', 'a1', 'a2', 'a3', 'a4', 'a5'])
   const queue = createWebgpuResidencyQueue({
     tracking: b.tracking,
-    sets: { desiredCount: 0, followDesired() {} } as never,
+    sets: { desiredCount: 0, setRoom() {}, lift() {}, orderQueue() {} } as never,
     room: () => 7,
     getCache: () => b.cache as never,
     getFrame: () => 0,
     updatePins() {},
     closure: {} as never,
-    recordOf: () => undefined,
     ensureResident: b.ensure,
     markLost() {},
     traceEnabled: false,

@@ -28,7 +28,8 @@ type Inputs = {
   /** The frame's one integration budget, opened before the cells and the arrivals spend it. */
   frameBudget: FrameClock
   drawFrame: () => void
-  fillMetrics: () => void
+  /** Fills the frame's metrics; returns the queue's numbers it read (`streamer.stats()`). */
+  fillMetrics: () => ReturnType<PageStreaming['stats']>
   metricsScratch: FrameMetrics
   profiler: EngineProfiler
   pageIdByUrl: Map<string, number>
@@ -64,14 +65,10 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     engine.cpuStep('arrivalsMs', msSince(arrivalStart))
     // The engine draws and presents its own surface; an error is the caller's, never hidden.
     drawFrame()
-    fillMetrics()
+    const stream = fillMetrics()
     const frameEnd = cpuNow()
     metricsScratch.cpuFrameMs = frameEnd - start
     engine.frameCpuMs(metricsScratch.cpuFrameMs)
-    // Submitted triangles of this frame: those the engine counted, and only those. `null` when
-    // it has not counted them — a zero published here would read as an empty frame, and that is
-    // what the contract forbids. Draw calls follow the same rule, in `fillMetrics`.
-    metricsScratch.triangles = metricsScratch.totalSubmittedTriangles ?? null
     auditFrame(frameNumber, metricsScratch)
     if (debugMode()) profiler.record(metricsScratch) // the frame report is a debug tool
     const { pageIdByUrl, streamer } = inputs
@@ -83,6 +80,7 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
       metricsScratch,
       pageIdByUrl,
       streamer,
+      stream,
       scope,
       frameNumber,
       diagnose,

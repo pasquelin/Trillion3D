@@ -22,7 +22,7 @@ export function evictResident(
   context.reader.emit?.('gpu-page-eviction', 'Page removed from GPU residency', () => ({
     version: 1,
     key: page.key,
-    slot: page.slot,
+    offset: page.offset,
     generation: page.generation,
     bytes: page.bytes,
     reason,
@@ -36,7 +36,7 @@ export function commitGpuPage(
   context: GpuPageContext,
   key: string,
   bytes: Uint8Array,
-  { slot, offset }: Place,
+  { offset }: Place,
   requestStarted: number,
 ): ResidentPage {
   const { state, resident, device, buffer, reader } = context
@@ -63,7 +63,6 @@ export function commitGpuPage(
   state.uploadedBytes += padded
   const page = {
     key,
-    slot,
     offset,
     bytes: bytes.byteLength,
     generation: ++state.generation,
@@ -74,7 +73,6 @@ export function commitGpuPage(
   emit?.('gpu-page-upload', 'Page written into a GPU slot', () => ({
     version: 1,
     key,
-    slot,
     offset,
     generation: page.generation,
     actualDataBytes: bytes.byteLength,
@@ -86,7 +84,7 @@ export function commitGpuPage(
   emit?.('gpu-page-load-end', 'GPU load finished', () => ({
     version: 1,
     key,
-    slot,
+    offset,
     generation: page.generation,
     actualDataBytes: bytes.byteLength,
     uploadedBytes: padded,

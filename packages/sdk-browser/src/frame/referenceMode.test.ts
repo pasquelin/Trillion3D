@@ -1,11 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { referenceCapture, referenceOptions } from './referenceMode.ts'
+import { referenceOptions } from './referenceMode.ts'
+import { referenceTilePlan, referenceTilesCapture } from './referenceTiles.ts'
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { resolveSupersampled } from './referenceTilePlacement.ts'
 import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts'
 
 const BOSS = { manifestUrl: 'm.json', width: 1728, height: 1117, pixelRatio: 2 }
+/** A session's captureView: a blank image of the size asked. */
+const view = async (width: number, height: number) => new Uint8Array(width * height * 4)
 
 test('outside reference mode, the options are the page’s own, untouched', () => {
   const options = { ...BOSS, renderScale: 'auto' as const }
@@ -28,19 +31,26 @@ test('reference mode switches off every approximation it names, whatever the pag
   // The canvas keeps the display's pixels: the tiles are drawn aside.
   assert.equal(options.pixelRatio, 2)
   // shadowResolution: a shrunk pool refuses the capture by name.
-  const capture = referenceCapture(
-    async () => new Uint8Array(16),
-    reference,
+  const capture = referenceTilesCapture(
+    view,
+    () => {},
+    reference!.tiles,
     () => 1,
   )
   await assert.rejects(capture(), { code: 'REFERENCE_SHADOWS_REDUCED' })
 })
 
 test('shadowResolution: refused while shadows draw coarser than asked, read at each capture', async () => {
-  const { reference } = referenceOptions({ ...BOSS, reference: true })
-  const image = async () => new Uint8Array(16)
+  // The reference capture is the tiles' (`referenceTilesCapture`), on a plan of 4 × 4 pixels.
+  const plan = referenceTilePlan(4, 4, 1)
   /** The reference capture under a frame whose shadows publish `bias`. */
-  const under = (bias: number | null | undefined) => referenceCapture(image, reference, () => bias)
+  const under = (bias: number | null | undefined) =>
+    referenceTilesCapture(
+      view,
+      () => {},
+      plan,
+      () => bias,
+    )
   // `shadowResolutionBias` (`vsmStats.ts`): null while no shadow map runs, 0 at the full pool
   // drawing every page at the level asked — both pass, as the image is the reference's.
   for (const bias of [null, undefined, 0])
@@ -53,13 +63,15 @@ test('shadowResolution: refused while shadows draw coarser than asked, read at e
     })
   // The bias of the frame captured, not of the session's opening: the pool regrown, it passes.
   let bias = 1
-  const capture = referenceCapture(image, reference, () => bias)
+  const capture = referenceTilesCapture(
+    view,
+    () => {},
+    plan,
+    () => bias,
+  )
   await assert.rejects(capture(), { code: 'REFERENCE_SHADOWS_REDUCED' })
   bias = 0
-  assert.equal((await capture()).length, 16)
-  // Outside reference mode, the session's own capture, unguarded.
-  const own = referenceCapture(image, null, () => 1)
-  assert.equal(own, image)
+  assert.equal((await capture()).length, 4 * 4 * 4)
 })
 
 test('the resolved image is the linear-light mean of each block, the same bytes on every run', () => {

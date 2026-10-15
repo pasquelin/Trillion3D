@@ -1,11 +1,12 @@
+import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { bitAt, bitIsSet, lowBits, rectCell } from '../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
-  VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
 } from './pageTableWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -22,6 +23,8 @@ export const VSM_RENDER_EXPAND_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'pageTable', binding: 1 },
   { resource: 'pageMarks', binding: 2 },
   { resource: 'rasterMarks', binding: 3, access: 'read_write' },
+  // Where each map's table lies (`vsmTableLevelOrigin`).
+  { resource: 'projectionData', binding: 4 },
 ]
 
 /**
@@ -108,6 +111,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       vsmBindingsWgsl(0, VSM_RENDER_EXPAND_SPECS, layout),
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PAGE_MARKS_GATHER_WGSL,

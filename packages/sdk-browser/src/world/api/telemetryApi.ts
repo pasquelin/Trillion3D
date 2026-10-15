@@ -1,14 +1,12 @@
 import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
-import type { TelemetryReport } from '../../diagnostic/telemetryTypes.ts'
 
 export function createExplorerTelemetryApi(profiler: EngineProfiler, engine: Engine) {
   return {
+    /** The session's one profiler: its report (`getReport`, `printReport`) and its log
+     *  (`startAutoLog`, `stopAutoLog`). */
     profiler,
-    getReport(): TelemetryReport {
-      return profiler.getReport()
-    },
     /**
      * Per-step profile of the engine: one row per step, p50 and p95, CPU duration and GPU
      * duration kept separate and never added. "Unmeasured" is `null`, never `0`. Empty as long
@@ -34,14 +32,5 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, engine: Eng
      * forgotten. `null` with none yet.
      */
     cpuSteps: () => engine.cpuSteps(),
-    printReport() {
-      profiler.printReport()
-    },
-    enableAutoLog(intervalSeconds = 2) {
-      return profiler.startAutoLog(intervalSeconds)
-    },
-    disableAutoLog() {
-      profiler.stopAutoLog()
-    },
   }
 }

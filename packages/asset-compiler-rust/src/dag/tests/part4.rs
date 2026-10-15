@@ -1,5 +1,4 @@
 use super::*;
-use trillion3d_math::sphere::enclosing_sphere;
 use trillion3d_math::vecn::{length, sub};
 use trillion3d_page_codec::culling::{
     build_culling_bvh, CullingNode, CULLING_BRANCHING, CULLING_LEAF,
@@ -91,21 +90,4 @@ fn the_culling_hierarchy_owns_every_cluster_once_and_bounds_its_subtree() {
             .collect()
     }
     check(&nodes, &order, &dag, &positions, 0);
-}
-
-#[test]
-fn enclosing_sphere_contains_every_input() {
-    let spheres = [
-        [0.0, 0.0, 0.0, 1.0],
-        [5.0, 0.0, 0.0, 2.0],
-        [0.0, -3.0, 1.0, 0.5],
-    ];
-    let result = enclosing_sphere(&spheres);
-    for sphere in spheres {
-        let d = length(sub(
-            [sphere[0], sphere[1], sphere[2]],
-            [result[0], result[1], result[2]],
-        ));
-        assert!(d + sphere[3] <= result[3] + 1e-9);
-    }
 }

@@ -27,6 +27,7 @@ export function projectionKit() {
     flags: view,
     mask: view,
     maskTiles: view,
+    receiver: view,
   }
   const encoder = fake.device.createCommandEncoder()
   const project = (lights: VsmProjectionLight[], frame: Partial<Frame> = {}) =>
@@ -35,7 +36,7 @@ export function projectionKit() {
       res,
       {
         ...inputs,
-        ...{ width: 64, height: 32, camera: PROOF_CAMERA, frameIndex: 1, subgroups: false },
+        ...{ width: 64, height: 32, camera: PROOF_CAMERA, frameIndex: 1 },
         ...frame,
       },
       lights,

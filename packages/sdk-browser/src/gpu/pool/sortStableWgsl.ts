@@ -31,7 +31,7 @@ fn poolGroupRun(g:u32,lane:u32,bound:u32)->vec2u{
  let span=laneRun(lane,POOL_LANES);
  var parts=vec2u(0u,0u);
  for(var k=span.x;k<span.y;k++){
-  let rank=poolSlotRank(g*POOL_LANES+k);poolChunk[k]=rank;
+  let rank=poolRankOf(g*POOL_LANES+k);poolChunk[k]=rank;
   let part=poolSlotPart(rank,bound);
   parts+=vec2u(select(0u,1u,part==1u),select(0u,1u,part==2u));
  }

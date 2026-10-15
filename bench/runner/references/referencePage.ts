@@ -36,9 +36,9 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
     ...explorerPage.explorerOptions(options, factory),
     reference: true,
   })
-  const reference = explorer.reference,
-    captureReference = explorer.captureReference
-  if (!reference || !captureReference) return { error: 'this dist has no reference mode' }
+  explorer.setClearColor(explorerPage.BENCH_BACKGROUND)
+  const reference = explorer.reference
+  if (!reference) return { error: 'this dist has no reference mode' }
   for (const light of options.lights ?? []) explorer.addLight(light)
   explorer.setPose(options.pose)
   for (let i = 0; i < options.warmup; i++) {
@@ -53,7 +53,7 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
   // The image: the engine's own renderer, captured tile by tile (`referenceTiles.ts`). Refused by
   // name while the shadows draw coarser than they ask, their page pool short
   // (`referenceTilesCapture`).
-  const rgba = await captureReference()
+  const rgba = await explorer.capture()
   const response = await measure.posterCapture(options.captureFile, rgba, tiles.width, tiles.height)
   explorer.dispose()
   canvas.remove()

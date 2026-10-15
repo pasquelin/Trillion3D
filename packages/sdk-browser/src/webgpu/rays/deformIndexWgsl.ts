@@ -5,6 +5,7 @@ import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { mixWord } from '../../../../math/src/wgsl/sampling.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { openProbeWgsl } from '../../gpu/dag/shader/probeWgsl.ts'
 
 /**
  * The ray query's parameters, one uniform its two kernels read (`rayQuery.ts`): the rays and where
@@ -43,6 +44,15 @@ export const rayQueryBindingsWgsl = (group: number, atomic: boolean) =>
 @group(${group}) @binding(1) var<storage,read_write> query:array<${atomic ? 'atomic<u32>' : 'u32'}>;`,
   )
 
+/** A step over the deform index from `page`'s slot (`openProbeWgsl`), three words a slot. */
+const deformProbe = (step: string) =>
+  openProbeWgsl({
+    home: 'deformSlot(page)',
+    mask: 'params.hashMask',
+    slotWord: (s) => `params.hashWord+${DEFORM_SLOT_WORDS}u*${s}`,
+    step,
+  })
+
 /** The slot a page's key is first tried at: the engine's word hash (`mixWord`), so a run of pages,
  *  or pages a stride apart, spreads. */
 const DEFORM_SLOT_WGSL = wgslBlock(
@@ -66,14 +76,12 @@ export const DEFORM_INDEX_SHADER = wgslProgram(
 @group(0) @binding(3) var<storage,read> entries:array<u32>;
 @group(0) @binding(4) var<storage,read> spans:array<u32>;
 fn insertDeformed(page:u32,output:u32,base:u32){
- var slot=deformSlot(page);
- for(var probe=0u;probe<=params.hashMask;probe++){
-  let at=params.hashWord+${DEFORM_SLOT_WORDS}u*slot;
-  let held=atomicCompareExchangeWeak(&query[at],0u,page+1u);
-  if(held.exchanged||held.old_value==page+1u){atomicStore(&query[at+1u],output);atomicStore(&query[at+2u],base);return;}
-  // Another page's slot: the next one. A weak exchange that failed on an empty slot tries it again.
-  if(held.old_value!=0u){slot=(slot+1u)&params.hashMask;}
- }
+${deformProbe(`// Another page's slot: the next one. A weak exchange that failed on an empty slot tries it again.
+  loop{
+   let held=atomicCompareExchangeWeak(&query[at],0u,page+1u);
+   if(held.exchanged||held.old_value==page+1u){atomicStore(&query[at+1u],output);atomicStore(&query[at+2u],base);return;}
+   if(held.old_value!=0u){break;}
+  }`)}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn indexDeformed(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(g,n,WORKGROUP_THREADS);
@@ -105,14 +113,9 @@ export const DEFORMED_OF_PAGE_WGSL = wgslBlock(
   'DEFORMED_OF_PAGE_WGSL',
   [DEFORM_SLOT_WGSL],
   `fn deformedOf(page:u32)->vec2u{
- var slot=deformSlot(page);
- for(var probe=0u;probe<=params.hashMask;probe++){
-  let at=params.hashWord+${DEFORM_SLOT_WORDS}u*slot;
-  let key=query[at];
-  if(key==page+1u){return vec2u(query[at+1u],query[at+2u]);}
+${deformProbe(`let key=query[at];
   if(key==0u){return vec2u(0u);}
-  slot=(slot+1u)&params.hashMask;
- }
+  if(key==page+1u){return vec2u(query[at+1u],query[at+2u]);}`)}
  return vec2u(0u);
 }`,
 )

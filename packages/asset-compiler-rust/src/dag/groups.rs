@@ -1,10 +1,18 @@
-use trillion3d_page_codec::split::{bisect_centres, sort_along};
+use trillion3d_page_codec::split::{bisect_least_cost, sort_along};
 
+/// Groups of at most `max` clusters, each cluster given by its bounding sphere: the median split
+/// of every tree over boxed things (`bisect_least_cost`, the spheres' boxes weighed), each cut then
+/// refined along the clusters' shared edges.
 pub fn group_clusters(
-    centres: &[[f64; 3]],
+    spheres: &[[f64; 4]],
     adjacency: &[Vec<(u32, u32)>],
     max: usize,
 ) -> Vec<Vec<usize>> {
+    let centres: Vec<[f64; 3]> = spheres.iter().map(|s| [s[0], s[1], s[2]]).collect();
+    let bounds = |id: usize| {
+        let [x, y, z, r] = spheres[id];
+        ([x - r, y - r, z - r], [x + r, y + r, z + r])
+    };
     let mut groups = Vec::new();
     let mut side = vec![0u8; centres.len()];
     // Single membership table for all cuts: cleared on entry each call.
@@ -21,12 +29,12 @@ pub fn group_clusters(
             continue;
         }
         let slice = &mut members[from..to];
-        let axis = bisect_centres(slice, centres);
         let middle = len / 2;
+        let axis = bisect_least_cost(slice, &centres, bounds, middle);
         // The refinement visits the members in their order on the axis: each half sorted on it,
         // the order a full sort of the group gives.
-        sort_along(&mut slice[..middle], centres, axis);
-        sort_along(&mut slice[middle..], centres, axis);
+        sort_along(&mut slice[..middle], &centres, axis);
+        sort_along(&mut slice[middle..], &centres, axis);
         for (i, &m) in slice.iter().enumerate() {
             side[m] = if i < middle { 0 } else { 1 };
         }

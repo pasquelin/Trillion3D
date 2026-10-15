@@ -16,6 +16,7 @@
  * window of both slices; a reader outside them (`../lighting/direct/shadowWgsl.ts`: blended
  * surfaces, water) every window of the first, which is one (`VSM_FORWARD_LAYOUT`).
  */
+import { vsmProjectionSampleWgsl } from './projectionSampleWgsl.ts'
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
 import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
@@ -23,7 +24,7 @@ import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { writeChangedCopy } from '../gpu/core/writeChanged.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { pendingBuffers } from '../gpu/core/tableGrowth.ts'
-import type { VsmProjectionState } from './projectionPass.ts'
+import type { VsmProjectionState } from './projectionStore.ts'
 import type { VsmRenderContext } from './renderPass.ts'
 import type { VsmPageManagementContext } from './pageManagementPass.ts'
 import type { VsmCastState } from './castStale.ts'
@@ -68,7 +69,7 @@ export interface VsmResources {
   /** Per physical page, the closest depth (the greatest word, read as a float) of each of its
    *  8×8-texel tiles of slice 0 (`VSM_LOG2_TILE_DEPTH_TEXELS`), rebuilt where a page changed
    *  (`vsmTileDepthsBuild`): what the sun's rays prove they miss against
-   *  (`vsmSunRayMisses`). Made with the pool, both zero: a page never written holds 0. */
+   *  (`vsmRayMisses`). Made with the pool, both zero: a page never written holds 0. */
   tileDepths: GPUBuffer
   /** The `VSM_COUNTERS` counters. */
   stats: GPUBuffer
@@ -78,11 +79,9 @@ export interface VsmResources {
   perPageIds: GPUBuffer
   /** 2·poolPages + 1 words per list. */
   pagesToClear: GPUBuffer
-  pagesToMerge: GPUBuffer
   pagesForTiles: GPUBuffer
   /** Indirect dispatch args: 1D, post-process 2×(x,y,z,count), tile depths 2×4. */
   clearArgs: GPUBuffer
-  mergeArgs: GPUBuffer
   tileArgs: GPUBuffer
   /** The pool sort's `POOL_SORT_WORDS` counts and places, zero at creation, then the count of
    *  free pages and the pages, the next one to take last (`freePagesWgsl.ts`). */
@@ -202,11 +201,9 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     feedback: buffer('feedback', once.feedback),
     perPageIds,
     pagesToClear: buffer('pagesToClear', once.pagesToClear),
-    pagesToMerge: buffer('pagesToMerge', once.pagesToMerge),
     pagesForTiles: buffer('pagesForTiles', once.pagesForTiles),
     tileDepths: buffer('tileDepths', once.tileDepths),
     clearArgs: buffer('clearArgs', once.clearArgs, indirect),
-    mergeArgs: buffer('mergeArgs', once.mergeArgs, indirect),
     tileArgs: buffer('tileArgs', once.tileArgs, indirect),
     freePages: buffer('freePages', once.freePages),
     prevFrameKept: false,
@@ -234,10 +231,10 @@ const CARRIED_MEMBERS = [
 ] as const
 
 /**
- * The tables of `res` grown in place to `options` — more full maps, the receiver cover of more
+ * The tables of `res` grown in place to `options` — more table blocks, the receiver cover of more
  * suns —, the pool and every buffer it sizes kept: the same pages, and their cache. The previous
- * frame's members are copied whole into the new ones' prefix: a full map's id (from
- * `VSM_SINGLE_PAGE_MAP_SLOTS` up) keeps its rows, as the page table's width is fixed, and
+ * frame's members are copied whole into the new ones' prefix: a map's record and the rows its
+ * table origin names stay where they were, as the page table's width is fixed, and
  * the pass that reads the previous frame's levels reads them by that frame's own uniforms, carried
  * too (`VSM_INVALIDATION_SPECS`). The shared members, cleared before each read, and the buffers
  * the plan writes every frame are not carried. Only the old tables are freed. `undefined`, and
@@ -303,11 +300,9 @@ type VsmBindingResource =
   | 'feedback'
   | 'perPageIds'
   | 'pagesToClear'
-  | 'pagesToMerge'
   | 'pagesForTiles'
   | 'tileDepths'
   | 'clearArgs'
-  | 'mergeArgs'
   | 'tileArgs'
 
 export interface VsmBindingSpec {
@@ -345,11 +340,9 @@ const U32_TABLES = new Set<VsmBindingResource>([
   'feedback',
   'perPageIds',
   'pagesToClear',
-  'pagesToMerge',
   'pagesForTiles',
   'tileDepths',
   'clearArgs',
-  'mergeArgs',
   'tileArgs',
 ])
 

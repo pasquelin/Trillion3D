@@ -1,7 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { keepCanvasImage, releaseCanvasImage } from '../../gpu/core/canvasHandover.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
-import type { MeasuredWorldOptions } from '../session/options.ts'
 
 /** Why a world's session opens again: a lost device, or an option the engine cannot take in place
  *  (a budget split, a scope). Content never does: every mesh, material, model and partition joins
@@ -14,19 +13,22 @@ type Reopening = { causes: Set<ReopenCause>; start: number; frames: number; tick
 /**
  * THE REOPENS OF A WORLD, KEPT AND JUSTIFIED. Its canvas keeps the image of a session that
  * closes until the next one draws (`canvasHandover.ts`); each reopen is said once that next image
- * is drawn, under `session-reopen`: its causes, its duration, and the display frames it showed no
- * new image through. A session's close ends what waited on it (`ended`): a wait carries on with
+ * is drawn, under `session-reopen`: its causes, its duration — from a device's loss, for one —,
+ * the display frames it showed no new image through, and the pages the world's cache still held
+ * (`kept`), none of which is fetched again. A session's close ends what waited on it (`ended`): a wait carries on with
  * the next session rather than failing with the one that closed.
  */
 export function worldReopens(
   canvas: HTMLCanvasElement,
   notices: Pick<WorldNotices, 'say'>,
   pass: () => void,
+  kept: () => number,
 ) {
   keepCanvasImage(canvas)
   const wanted = new Set<ReopenCause>(),
     ends = new WeakMap<object, { promise: Promise<void>; end: () => void }>()
-  let reopening: Reopening | null = null
+  let reopening: Reopening | null = null,
+    since = Infinity
   const frame = globalThis.requestAnimationFrame?.bind(globalThis)
   const endOf = (session: object) => {
     let known = ends.get(session)
@@ -49,34 +51,36 @@ export function worldReopens(
       drawn,
       durationMs: msSince(by.start),
       framesWithoutImage: by.frames,
+      keptPages: kept(),
     })
   }
-  /** Asks a pass for `cause`, which that pass carries. */
-  const request = (cause: ReopenCause) => {
+  /** Asks a pass for `cause`, which that pass carries; `at`, when the cause began (a device's
+   *  loss), starts the reopen's measure there. */
+  const request = (cause: ReopenCause, at?: number) => {
     wanted.add(cause)
+    if (at !== undefined) since = Math.min(since, at)
     pass()
   }
   /** A session drew: the reopen that led to it is said. */
   const drew = () => settle(true)
   return {
     request,
-    /** A session's options: its frames end the reopen. */
-    options: (given: MeasuredWorldOptions): MeasuredWorldOptions => ({
-      ...given,
-      onFrame: (metrics) => (drew(), given.onFrame?.(metrics)),
-    }),
     /** A pass begins, `previous` the session it closes, if any: that one is a reopen. */
     closing(previous: object | null) {
-      const causes = [...wanted]
+      const causes = [...wanted],
+        start = Math.min(cpuNow(), since)
       wanted.clear()
+      since = Infinity
       if (!previous) return
       endOf(previous).end()
-      if (reopening) for (const cause of causes) reopening.causes.add(cause)
-      else {
+      if (reopening) {
+        for (const cause of causes) reopening.causes.add(cause)
+        reopening.start = Math.min(reopening.start, start)
+      } else {
         // One display-frame counter per reopen, stopped once it is said.
         const by: Reopening = {
           causes: new Set(causes),
-          start: cpuNow(),
+          start,
           frames: 0,
           tick() {
             if (reopening !== by) return

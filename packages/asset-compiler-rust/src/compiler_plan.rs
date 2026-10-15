@@ -17,15 +17,12 @@ pub(super) struct BufferPlan {
 /// an allocation will request, never the stored bytes, and it alone can overflow
 /// an integer.
 fn dense_bytes(acc: &Value) -> Result<usize> {
-    let components = match acc.get("type").and_then(Value::as_str) {
-        Some("SCALAR") => 1,
-        Some("VEC2") => 2,
-        Some("VEC3") => 3,
-        Some("VEC4") | Some("MAT2") => 4,
-        Some("MAT3") => 9,
-        Some("MAT4") => 16,
-        _ => return Err(invalid("Unsupported accessor type")),
-    };
+    let (columns, rows) = acc
+        .get("type")
+        .and_then(Value::as_str)
+        .and_then(crate::gltf_codes::element_shape)
+        .ok_or_else(|| invalid("Unsupported accessor type"))?;
+    let components = columns * rows;
     required_index(acc.get("count"), "accessor.count")?
         .checked_mul(components)
         .and_then(|values| values.checked_mul(4))

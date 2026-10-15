@@ -7,7 +7,7 @@ import type { PageSurface } from '../../page/surface.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import { meshes } from '../../scene/meshes.ts'
 import { drawSourceOf, type DrawRanks, type DrawSource } from '../../page/selection/drawSource.ts'
-import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts'
+import { createPlacementRows, writePlacementRow, type PlacementRows } from '../../placement/rows.ts'
 import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
@@ -67,8 +67,7 @@ class ModelMeshSource implements DrawSource {
   write(world: Float64Array, shown: boolean, matrices = true) {
     const { rows, drawn } = this
     if (matrices) multiplyMatrix4(rows.matrices, world, drawn.matrixWorld.elements)
-    rows.live[0] = shown && rootedUnder(drawn, null, true) ? 1 : 0
-    rows.shadowless[0] = drawn.castShadow ? 0 : 1
+    writePlacementRow(rows, 0, null, shown && rootedUnder(drawn, null, true), drawn.castShadow)
   }
 }
 

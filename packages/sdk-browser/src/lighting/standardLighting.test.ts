@@ -8,35 +8,25 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
 import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'
+import { LOBELESS_LIGHTING_WGSL } from './direct/lobesWgsl.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { dotVector3 } from '../../../math/src/vector/vector.ts'
 import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import { linearToSrgb8 } from '../../../math/src/color/color.ts'
 
-/** The standard lobe as a program holds it, its library declarations included. */
-const STANDARD_LIGHTING = wgslModule(STANDARD_LIGHTING_WGSL)
+/** The standard lobe as a program holds it, its library declarations and lobeless hooks included. */
+const STANDARD_LIGHTING = wgslModule(STANDARD_LIGHTING_WGSL, LOBELESS_LIGHTING_WGSL)
 
 type V3 = number[]
 type T3 = [number, number, number]
-const { standardLighting } = shaderRun<{
-  standardLighting: (rgb: V3, metal: number, rough: number, N: V3, V: V3, light: V3) => V3
-}>(
-  STANDARD_LIGHTING,
-  [
-    'standardLighting',
-    'lobeSurface',
-    'surfaceLight',
-    'standardLobe',
-    'lobeSum',
-    'ggxDistribution',
-    'fresnelScalar',
-    'fresnelSchlick',
-    'ndotvFloor',
-    'f0Of',
-    'lambertAlbedo',
-  ],
-  F32_SCOPE,
+type Run = Record<string, (...args: unknown[]) => V3>
+/** One light on a whole surface, as the loop runs it: its surface (`lobeSurface`), then the light
+ *  (`surfaceLight`), the direction unit as every caller hands it. */
+const lit = (run: Run) => (rgb: V3, metal: number, rough: number, N: V3, V: V3, light: V3) =>
+  run.surfaceLight(run.lobeSurface(rgb, metal, rough, N, V), N, V, light)
+const standardLighting = lit(
+  shaderRun<Run>(STANDARD_LIGHTING, ['lobeSurface', 'surfaceLight'], F32_SCOPE),
 )
 
 const along = (n: V3, side: V3, t: number) =>
@@ -88,23 +78,13 @@ const byte = (x: number) => linearToSrgb8(saturate(x))
 test('the Fresnel fifth power as products displays the bytes pow displayed', () => {
   const shipped = 'let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(1.0-f0)*(x2*x2*x);'
   assert.ok(STANDARD_LIGHTING.includes(shipped))
-  const viaPow = shaderRun<{ standardLighting: typeof standardLighting }>(
-    STANDARD_LIGHTING.replace(shipped, 'return f0+(1.0-f0)*pow(clamp(1.0-cosine,0.0,1.0),5.0);'),
-    [
-      'standardLighting',
-      'lobeSurface',
-      'surfaceLight',
-      'standardLobe',
-      'lobeSum',
-      'ggxDistribution',
-      'fresnelScalar',
-      'fresnelSchlick',
-      'ndotvFloor',
-      'f0Of',
-      'lambertAlbedo',
-    ],
-    F32_SCOPE,
-  ).standardLighting
+  const viaPow = lit(
+    shaderRun<Run>(
+      STANDARD_LIGHTING.replace(shipped, 'return f0+(1.0-f0)*pow(clamp(1.0-cosine,0.0,1.0),5.0);'),
+      ['lobeSurface', 'surfaceLight'],
+      F32_SCOPE,
+    ),
+  )
   const N = unit([0.3, 0.8, 0.52]).map(Math.fround)
   const T = unit([N[1], -N[0], 0])
   const B = [N[1] * T[2] - N[2] * T[1], N[2] * T[0] - N[0] * T[2], N[0] * T[1] - N[1] * T[0]]

@@ -1,5 +1,4 @@
 import { EVICTION_BURST } from '../readoutWords.ts'
-import { ADMISSION_BUCKETS } from '../request.ts'
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { KEPT_RANK_HEAD } from '../keptRanks.ts'
 import { OPEN_SLOT_WORDS } from '../heldOpen.ts'
@@ -8,6 +7,7 @@ import { mixWord } from '../../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots } from '../../../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
+import { openProbeWgsl } from './probeWgsl.ts'
 
 /**
  * THE CUT AS A DIFFERENCE, taken where the cut is: for each rank of a copied snapshot's two lists,
@@ -40,14 +40,20 @@ export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as c
   KEEP_STAGES = ['dagCutKeep0', 'dagCutKeep1'] as const,
   REKEEP_STAGES = ['dagCutRekeep0', 'dagCutRekeep1'] as const
 
+/** A step over a kept list's table from page `i`'s home (`openProbeWgsl`), `mask` its slots less one. */
+const keptProbe = (step: string) =>
+  openProbeWgsl({
+    home: 'keptHome(i)',
+    mask: 'mask',
+    slotWord: (s) => `KEPT_HEAD+${OPEN_SLOT_WORDS}u*${s}`,
+    step,
+  })
+
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
   [FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, mixWord, halfLoadSlots, NO_INDEX],
-  `/** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
- *  burst (\`levelCountsWord\`). */
-fn levelCountAt(b:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+b;}
-/** Word \`k\` of the difference in \`out.pages\`, behind the level counts (\`differenceWord\`). */
-fn differenceAt(k:u32)->u32{return levelCountAt(${ADMISSION_BUCKETS}u+k);}
+  `/** Word \`k\` of the difference in \`out.pages\`, behind the eviction burst (\`differenceWord\`). */
+fn differenceAt(k:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+k;}
 /** List \`l\`'s difference (0 the camera's requests, 1 the drawn pages): the rank each of its pages
  *  held in the kept list. */
 fn fromAt(l:u32,s:u32)->u32{return differenceAt(l*views[0u].listCap+s);}
@@ -80,30 +86,20 @@ fn keptRankOf(l:u32,i:u32)->u32{
  let gen=atomicLoad(&work[KEPT_GEN]);
  if(gen==0u){return NO_INDEX;}
  let mask=keptSlots()-1u;
- var s=keptHome(i);
- for(var k=0u;k<=mask;k++){
-  let at=KEPT_HEAD+${OPEN_SLOT_WORDS}u*s;
-  if(atomicLoad(&work[at])!=gen){return NO_INDEX;}
+${keptProbe(`if(atomicLoad(&work[at])!=gen){return NO_INDEX;}
   let r=atomicLoad(&work[at+2u]);
-  if(atomicLoad(&work[at+1u])==i&&r<out.pages[keptAt(l)]&&out.pages[keptPage(l,r)]==i){return r;}
-  s=(s+1u)&mask;
- }
+  if(atomicLoad(&work[at+1u])==i&&r<out.pages[keptAt(l)]&&out.pages[keptPage(l,r)]==i){return r;}`)}
  return NO_INDEX;
 }
 /** Page \`i\` at rank \`r\` in the table, stamped \`gen\`: the first slot from its home no keep of
  *  \`gen\` holds, taken by exchange — a lookup walks the same slots and stops past it. */
 fn keepRank(i:u32,r:u32,gen:u32){
  let mask=keptSlots()-1u;
- var s=keptHome(i);
- for(var k=0u;k<=mask;k++){
-  let at=KEPT_HEAD+${OPEN_SLOT_WORDS}u*s;
-  loop{
+${keptProbe(`loop{
    let old=atomicLoad(&work[at]);
    if(old==gen){break;}
    if(atomicCompareExchangeWeak(&work[at],old,gen).exchanged){atomicStore(&work[at+1u],i);atomicStore(&work[at+2u],r);return;}
-  }
-  s=(s+1u)&mask;
- }
+  }`)}
 }
 ${[0, 1].map(listKernels).join('')}`,
 )

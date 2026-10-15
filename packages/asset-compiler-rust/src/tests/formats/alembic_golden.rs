@@ -47,7 +47,7 @@ fn an_hdf5_container_and_a_truncated_archive_are_refused_by_name() {
     );
     assert_eq!(
         refused_golden_source(&limits.join("truncated.abc"), "alembic-truncated"),
-        "alembic-file-invalid"
+        "file-invalid"
     );
 }
 
@@ -77,7 +77,7 @@ fn what_the_plugin_leaves_aside_is_counted_and_a_detached_xform_becomes_a_root()
     let (manifest, gltf) = run.prepared("alembic");
     assert_eq!(
         manifest["unsupported"],
-        json!({"alembic-animation-ignored": 1, "alembic-curves-unsupported": 1,
+        json!({"alembic-animation-ignored": 1, "curves-unsupported": 1,
                "alembic-normals-missing": 3, "alembic-subd-as-polygons": 1,
                "alembic-transform-not-inherited": 1})
     );

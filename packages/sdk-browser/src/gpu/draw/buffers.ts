@@ -4,8 +4,8 @@ import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * Compact buffers: they depend only on the row count, the coplanar-layer count and the instances a
- * row takes at most, never on the frame. `slotUsed` starts as one everywhere, so a caller that
- * counts nothing still pays the full compact.
+ * row takes at most, never on the frame. `slotTotals` holds each slot's total between the count
+ * and the prefix of a run, zero otherwise, then where the occluder half's instances end.
  */
 export function createGpuDrawBuffers(
   device: GPUDevice,
@@ -38,8 +38,7 @@ export function createGpuDrawBuffers(
   })
   const groupCounts = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE })
   const groupOffsets = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE })
-  const slotUsedBuf = device.createBuffer({ size: slots * 4, usage: storage })
-  device.queue.writeBuffer(slotUsedBuf, 0, new Uint32Array(slots).fill(1))
+  const slotTotals = device.createBuffer({ size: (slots + 1) * 4, usage: GPUBufferUsage.STORAGE })
   return {
     slots,
     itemsBuf,
@@ -49,7 +48,7 @@ export function createGpuDrawBuffers(
     indirectBuffer,
     groupCounts,
     groupOffsets,
-    slotUsedBuf,
+    slotTotals,
     all: [
       itemsBuf,
       restBuf,
@@ -58,7 +57,7 @@ export function createGpuDrawBuffers(
       indirectBuffer,
       groupCounts,
       groupOffsets,
-      slotUsedBuf,
+      slotTotals,
     ],
   }
 }

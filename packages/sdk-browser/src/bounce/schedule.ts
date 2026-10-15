@@ -2,6 +2,7 @@ import { BOUNCE_PROBES_PER_FRAME, BOUNCE_SETTINGS } from '../../../sdk-core/src/
 import type { BounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import type { BounceOccupancy } from '../../../sdk-core/src/bounce/occupancy.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
+import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
 
 /**
  * Probe scheduler: who works this frame, and how far.
@@ -27,9 +28,14 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
   const rounds = new Uint32Array(levels)
   // The frame ceiling, plus one probe per level: `shareOf` guarantees at least one to each.
   const capacity = BOUNCE_PROBES_PER_FRAME + levels
-  const queue = new Uint32Array(capacity)
+  /** An entry's words (`PROBE_QUEUE_WORDS`): the level's rank `level · probesPerLevel + rank`, then
+   *  the cell that rank carries, its three signed coordinates — computed once here, where the
+   *  occupancy is asked, and read as is by the update (`queuedProbe`). */
+  const queue = new Uint32Array(capacity * PROBE_QUEUE_WORDS)
+  const cells = new Int32Array(queue.buffer)
   const cell = [0, 0, 0]
-  /** True when a level rank holds a cell that deserves a probe. */
+  /** True when a level rank holds a cell that deserves a probe: the inverse of toroidal storage, in
+   *  `[base, base + side)`, into `cell`. */
   const holds = (level: number, index: number) => {
     const base = cascades.levels[level].base
     let rank = index
@@ -63,7 +69,7 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
       rounds.fill(0)
     },
     /**
-     * The frame queue: ranks to update, level by level, within the batch. Returns the number
+     * The frame queue: ranks to update and their cells, level by level, within the batch. Returns the number
      * of groups to dispatch. Each level examines its own probes at most once: the loop is
      * bounded before the frame, like all the others.
      */
@@ -87,7 +93,9 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
             elapsed[level] = 0
           }
           if (!holds(level, index)) continue
-          queue[groups++] = level * cascades.probesPerLevel + index
+          const at = groups++ * PROBE_QUEUE_WORDS
+          queue[at] = level * cascades.probesPerLevel + index
+          cells.set(cell, at + 1)
           taken++
         }
       }

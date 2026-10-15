@@ -1,14 +1,10 @@
-import { residentBase, OUT_SELECTED_TRIANGLES, OUT_TRANSPARENT_TRIANGLES } from './layout.ts'
+import { OUT_SELECTED_TRIANGLES, OUT_TRANSPARENT_TRIANGLES } from './layout.ts'
 
 /**
  * One of the two residency columns returned to the oracle, one word per cluster: what the buffer
  * doubles read in the same cold buffer as the shader, instead of a rank copied on their side.
  */
-export function residentFlags(
-  bits: Uint32Array,
-  pageCount: number,
-  base = residentBase(pageCount),
-) {
+export function residentFlags(bits: Uint32Array, pageCount: number, base = 0) {
   return Uint32Array.from({ length: pageCount }, (_, page) =>
     residentBit(bits, base, page) ? 1 : 0,
   )

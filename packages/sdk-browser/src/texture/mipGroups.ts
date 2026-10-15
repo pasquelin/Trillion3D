@@ -1,6 +1,6 @@
 import { previewLevelSize } from '../../../sdk-core/src/texture/previewLevels.ts'
 import { coverageGroups, LEVEL_BIN_BYTES } from './coverageMips.ts'
-import { levelView, MATERIAL_MIP_FORMAT, materialMipPipeline } from './mips.ts'
+import { levelTurnPipeline, levelView, MATERIAL_MIP_FORMAT, materialMipPipeline } from './mips.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 
@@ -15,6 +15,10 @@ export type MipChain = {
   height: number
   weighted: boolean
   cutoff?: number
+  /** Raw texels to store into level 0 turned by `flags` (`turnLevel`, `mipsWgsl.ts`) before any
+   *  level reads it: what `writeTexture` put in `raw`, an `rgba8unorm` texture of the picture's
+   *  size. */
+  turn?: { raw: GPUTexture; flags: number }
 }
 
 /** A chain of a batch: its texture's rule and size, its levels, its first uniform block, and its
@@ -112,7 +116,20 @@ export function chainGroups(
       previewLevelSize(width, height, level),
     )
   }
-  return { levels, sizes: kept.sizes, pipeline, reduce: kept.reduce, counts: kept.counts }
+  // The turn of level 0, on the reduction's layout: the raw texels its source, level 0 written.
+  const turn = chain.turn && {
+    pipeline: levelTurnPipeline(shared, chain.turn.flags),
+    group: device.createBindGroup({
+      layout,
+      entries: sequentialEntries([
+        chain.turn.raw.createView(),
+        { buffer: uniforms, offset: first * stride, size: 32 },
+        { buffer: bins, offset: 0, size: LEVEL_BIN_BYTES },
+        kept.writes[0],
+      ]),
+    }),
+  }
+  return { levels, sizes: kept.sizes, pipeline, reduce: kept.reduce, counts: kept.counts, turn }
 }
 
 export type ChainGroups = ReturnType<typeof chainGroups>

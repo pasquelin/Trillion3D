@@ -2,7 +2,7 @@
 // never by sending its records up again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createMaterialTable } from './materialTable.ts'
+import { createMaterialTable, materialWord } from './materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_TABLE } from './materialLayout.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { surfaceOf } from '../../page/surface.ts'
@@ -24,12 +24,12 @@ test('the table grows by a GPU copy, no record sent again, the old texture retir
   const l = layers()
   const rowRecords = 1 << MATERIAL_TABLE.rowShift,
     rowTexels = rowRecords * MATERIAL_RECORD_TEXELS
-  table.word({ ...lit(), roughness: 0.5, version: 0 }, l)
+  table.surface({ ...lit(), roughness: 0.5, version: 0 }, l)
   const first = table.viewFor(device),
     old = textures.at(-1)!
   assert.equal(old.height, 1)
   const sent = textureWrites.length
-  for (let i = 1; i < rowRecords * 2 + 1; i++) table.word(lit(), l)
+  for (let i = 1; i < rowRecords * 2 + 1; i++) table.surface(lit(), l)
   assert.notEqual(table.viewFor(device), first)
   // Three rows hold the records; the first record moves on the GPU, the new ones alone are sent.
   const grown = textures.at(-1)!

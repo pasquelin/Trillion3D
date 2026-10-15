@@ -50,7 +50,6 @@ test('an allocation refusal during a grow leaves the pool and every table in pla
       zeroFlags: vis.zeroFlags,
       items: vis.gpuDraw?.itemsBuffer,
       flags: vis.gpuHiz?.flags,
-      work: vis.gpuRestCompact?.work,
       spheres: lights.spheres?.buffer,
       mobility: lights.mobilityRows,
       corners: vis.gpuPartition?.corners,

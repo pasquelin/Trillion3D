@@ -8,9 +8,8 @@
 //! driver receives.
 use super::*;
 
-/// Implicit unit of a USD layer: the centimetre. A layer that declares nothing is not in metres,
-/// and reading it as such enlarges its scene a hundredfold.
-const DEFAULT_METERS_PER_UNIT: f64 = 0.01;
+/// Implicit unit of a USD layer: the centimetre.
+use crate::plugins::scene::axes::CENTIMETRE as DEFAULT_METERS_PER_UNIT;
 
 /// Layer unit, in metres per unit. A missing, zero or non-finite value falls back to the
 /// implicit unit rather than inventing a scale.

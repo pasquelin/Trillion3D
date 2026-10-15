@@ -102,7 +102,7 @@ test('a lost device reopens the session, every frame between shows the last imag
   let release!: () => void
   grant = new Promise((done) => (release = done))
   lost[0]() // the engine withdraws its image as the device goes (`lost.ts`)
-  runtime.renew('device-lost') // then the world, granted another (`worldRecovered`)
+  runtime.renew('device-lost') // then the world reopens on another device (`session-reopen`)
   for (let frame = 0; frame < 3; frame++) {
     frames.run()
     assert.equal(runtime.render(), null, 'no session draws yet')

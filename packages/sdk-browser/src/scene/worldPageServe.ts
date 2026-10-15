@@ -1,31 +1,28 @@
 // The world stream's own code, a family on demand (`../host/families.ts`): the world pages
-// named at their address in the cook's rank, and the server that reads each bundle once for every
-// caller in flight. A scene opens without it; it imports no engine code, so the CDN bundle makes
+// named at their address in the cook's rank, and the server that resolves each page in its
+// bundle's read. A scene opens without it; it imports no engine code, so the CDN bundle makes
 // one chunk of it alone (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's
 // (`worldSuperRoots.ts`).
 //
 // A world page (`world-roots.bin`, docs/FORMAT.md, World super-roots) is a `WGP3` geometry page:
 // its vertices in world space, with the normals, texture coordinates and colour of the objects it
 // stands for. The server is the ONE page source of the world (`PageSource`), read at a page's world
-// address (`worldRootsPageAddress`), in the shape the engine already uploads, binds and draws, no
+// address (`worldPageAddress`), in the shape the engine already uploads, binds and draws, no
 // second draw stack and no second BVH (rule 7): `read` gives the page's own bytes, which a WebGPU
 // page slot holds and its shaders decode in place, as any geometry page's. What stays resident is
 // the caller's (`openWorldRoots`: the pinned top and the bundles the placed cells hold) and the GPU
-// page pool's, never a second cache here. The world matrix stays the identity: the positions are
+// page pool's, never a second cache or a second shared read here. The world matrix stays the identity: the positions are
 // already in world space, never placed by a per-cluster pose.
 import { firstTrue } from '../../../math/src/scalar/search.ts'
-import { waitShared, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import {
   firstPage,
+  worldPageAddress,
+  worldPageLocation,
   type WorldRoots,
   type WorldRootsCluster,
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { PageSource } from '../../../sdk-core/src/contracts/cache.ts'
-
-/** The world address of one page: its binary, its bundle and its byte offset inside that bundle. */
-export const worldRootsPageAddress = (url: string, bundle: number, offset: number) =>
-  `${url}#${bundle}:${offset}`
 
 /**
  * The world clusters of a table in the cook's rank, each the fields the cut projects, the primitive
@@ -66,23 +63,11 @@ export function worldRootPages(
       ...cut,
       lodError: cut.lodError + slack,
       parentError: root ? null : cut.parentError! + slack,
-      url: bundle === null || offset === null ? '' : worldRootsPageAddress(url, bundle, offset),
+      url: bundle === null || offset === null ? '' : worldPageAddress(url, bundle, offset),
       ...(holder !== undefined && { holder }),
     }
   })
   return { roots, held, pages, origins, slack }
-}
-
-/** The bundle and the offset inside it that a world page address names, read off its last `#`
- *  and the `:` after it. */
-function worldRootsPageLocation(address: string): { bundle: number; offset: number } {
-  const hash = address.lastIndexOf('#'),
-    colon = address.indexOf(':', hash)
-  const bundle = Number(address.slice(hash + 1, colon)),
-    offset = Number(address.slice(colon + 1))
-  if (hash < 0 || colon < 0 || !Number.isInteger(bundle) || !Number.isInteger(offset))
-    throw new Error(`WORLD_PAGE_ADDRESS: ${address}`)
-  return { bundle, offset }
 }
 
 /** The rank among bundle `bundle`'s pages of the one at `offset`, its records lying in binary
@@ -96,92 +81,62 @@ function rankAt(table: WorldRoots, bundle: number, offset: number) {
   return table.pages.at(at).offset === offset ? at - first : -1
 }
 
-/** The pages of one bundle of the table, verified, in binary order. */
+/** The pages of one bundle of the table, verified, in binary order: read through the session's
+ *  queue and the bundles' holds (`worldBundles.ts`), which share one read among the callers in
+ *  flight, each waiting with its own signal, and hand them the one page list of that read. */
 type BundlePages = (
   bundle: number,
-  signal: AbortSignal,
+  signal?: AbortSignal,
   priority?: number,
 ) => Promise<WorldRootsPage[]>
 
 /**
- * The page server of `table`, its bundles read through `bundlePages`: a page is resolved at its
- * world address by the pages of its bundle and its rank among them (`rankAt`). A bundle the table
- * does not list, or an offset it does not name, is `WORLD_PAGE_MISSING`. A bundle read lands its
- * other pages too: `landed` is told their addresses while the read is still shared, so a reader
- * that asks them then joins it — the GPU pool takes them there
- * (`../webgpu/pages/prepare/worldRoot.ts`) — and none is read again.
+ * The page server of `table`, its binary at the resolved `url`, its bundles read through
+ * `bundlePages`: a page is resolved at its world address by the pages of its bundle and its rank
+ * among them (`rankAt`). A bundle the table does not list, or an offset it does not name, is
+ * `WORLD_PAGE_MISSING`. A bundle read lands its other pages too: `landed` is told their addresses
+ * once per read — its page list —, so a reader that asks them then joins it — the GPU pool takes
+ * them there (`../webgpu/pages/prepare/worldRoot.ts`) — and none is read again. It keeps no read
+ * and no page of its own: what stays resident is the holder's and the GPU pool's.
  */
 export function worldPageServer(
   table: WorldRoots,
+  url: string,
   bundlePages: BundlePages,
   landed?: (addresses: readonly string[]) => void,
 ) {
-  /** A bundle read once, the callers still on it, and whether its pages were told; its read is
-   *  dropped once its last asker let it go before it landed (`stop`). */
-  type Streamed = SharedRead<WorldRootsPage[]> & {
-    stop: AbortController
-    users: number
-    told: boolean
-  }
-  const streamed = new Map<number, Streamed>()
-  // A bundle's read is shared by every caller in flight, each waiting on it with its own signal:
-  // one caller aborting never fails another's page, and the read is dropped once its last caller
-  // let it go (`waitShared`). It is let go once no caller is on it: what stays resident is the
-  // holder's and the GPU pool's.
+  /** The page lists whose other pages were told: one per bundle read. */
+  const told = new WeakSet<WorldRootsPage[]>()
   /** The other pages of `bundle` than the one at `rank`, told `landed`. */
-  const tellOthers = (address: string, bundle: number, rank: number) => {
-    const at = address.slice(0, address.lastIndexOf('#')),
-      first = firstPage(table, bundle),
+  const tellOthers = (bundle: number, rank: number) => {
+    const first = firstPage(table, bundle),
       others: string[] = []
     for (let k = 0; k < table.bundles[bundle].count; k++)
-      if (k !== rank)
-        others.push(worldRootsPageAddress(at, bundle, table.pages.at(first + k).offset))
+      if (k !== rank) others.push(worldPageAddress(url, bundle, table.pages.at(first + k).offset))
     if (others.length) landed?.(others)
   }
-  /** The page at `address`, its bundle read at the first asker's `priority`. */
+  /** The page at `address`, its bundle read at its asker's `priority`. */
   const serve = async (address: string, signal?: AbortSignal, priority?: number) => {
-    const { bundle, offset } = worldRootsPageLocation(address)
+    const { bundle, offset } = worldPageLocation(address)
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
     // A caller gone already joins nothing.
     signal?.throwIfAborted()
-    let own = streamed.get(bundle)
-    if (!own || own.stop.signal.aborted) {
-      const stop = new AbortController()
-      const fresh: Streamed = {
-        ...{ promise: bundlePages(bundle, stop.signal, priority), askers: 0, stop },
-        ...{ users: 0, told: false },
-      }
-      fresh.promise.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
-      streamed.set(bundle, (own = fresh))
+    const pages = await bundlePages(bundle, signal, priority),
+      index = rankAt(table, bundle, offset)
+    if (!told.has(pages)) {
+      told.add(pages)
+      tellOthers(bundle, index)
     }
-    own.users++
-    try {
-      const shared = own,
-        pages = await waitShared(own, signal, () => shared.stop.abort()),
-        index = rankAt(table, bundle, offset)
-      if (!own.told) {
-        own.told = true
-        tellOthers(address, bundle, index)
-      }
-      signal?.throwIfAborted()
-      if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`)
-      return pages[index]
-    } finally {
-      if (--own.users === 0 && streamed.get(bundle) === own) streamed.delete(bundle)
-    }
+    signal?.throwIfAborted()
+    if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`)
+    return pages[index]
   }
-  /** What every address of its pages starts with: its binary's name (`worldRootPages`). */
-  const prefix = `${table.payload.url}#`
+  /** What every address of its pages starts with: its binary's resolved address
+   *  (`worldRootPages`), so two worlds' servers never claim each other's pages. */
+  const prefix = `${url}#`
   const server = {
     /** Whether `address` names one of its pages: the one test a reader routes a page by. */
     serves: (address: string) => address.startsWith(prefix),
-    /** The bytes of the bundles it reads now past the pinned top that `held` does not hold. */
-    keptBytes(held: { has(bundle: number): boolean }) {
-      let kept = 0
-      for (const bundle of streamed.keys())
-        if (bundle >= table.pinned && !held.has(bundle)) kept += table.bundles[bundle].bytes
-      return kept
-    },
     /** The page at `address`: its geometry page's bytes. */
     page: serve,
     /** The bytes a GPU page slot holds: the page's own, decoded in place as any page's, read at the

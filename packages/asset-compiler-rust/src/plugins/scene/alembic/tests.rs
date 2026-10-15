@@ -96,7 +96,7 @@ fn the_schema_metadata_names_what_each_object_is() {
         ("schema=AbcGeom_FaceSet_v1", Kind::FaceSet),
         (
             "schema=AbcGeom_Curve_v2",
-            Kind::Skipped("alembic-curves-unsupported"),
+            Kind::Skipped(crate::plugins::scene::codes::CURVES_UNSUPPORTED),
         ),
         (
             "schema=AbcGeom_Points_v1",
@@ -108,11 +108,11 @@ fn the_schema_metadata_names_what_each_object_is() {
         ),
         (
             "schema=AbcGeom_Camera_v1",
-            Kind::Skipped("alembic-camera-unsupported"),
+            Kind::Skipped(crate::plugins::scene::codes::CAMERA_UNSUPPORTED),
         ),
         (
             "schema=AbcGeom_Light_v1",
-            Kind::Skipped("alembic-light-unsupported"),
+            Kind::Skipped(crate::plugins::scene::codes::LIGHT_UNSUPPORTED),
         ),
         ("", Kind::Skipped("alembic-object-unsupported")),
         (

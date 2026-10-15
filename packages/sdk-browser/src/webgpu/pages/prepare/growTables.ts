@@ -1,7 +1,6 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { askedTableRows, rowScratch } from './layout.ts'
 import { grownTableRows, rowsAhead, viewRowsFor } from '../../row/tableRows.ts'
-import { pageTableBuffer } from '../render/pageTable.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import { deviceMade } from '../../../gpu/core/errorScope.ts'
 import { pendingAll } from '../../../gpu/core/tableGrowth.ts'
@@ -134,28 +133,13 @@ async function growTables(
 }
 
 /** What reads the grown buffers without owning them follows them: the Hi-Z test the partition's
- *  bounds, the tested half's compaction the draw compact's lists. A page table the first image
- *  made while the growth was granted is made again at the grown size, as that image made it. The
- *  diagnostic compute raster is made again at its next image, at the new capacity; no occluder
- *  history describes the new rows. */
+ *  bounds. The page table, made at preparation (`ensurePageTable`), grew with the others
+ *  (`gpuGrowth`). The diagnostic compute raster is made again at its next image, at the new
+ *  capacity; no occluder history describes the new rows. */
 function follow(rt: WebgpuPagesRuntime) {
   const { vis, run } = rt,
-    { gpuDraw, gpuHiz, gpuPartition } = vis,
-    floats = rt.layout.rows.pageTableFloats
-  if (floats && vis.pageTable && vis.pageTable.size < floats.byteLength && rt.gpu.device) {
-    vis.pageTable.destroy()
-    vis.pageTable = pageTableBuffer(rt.gpu.device, floats.byteLength)
-  }
+    { gpuHiz, gpuPartition } = vis
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state)
-  if (gpuDraw && gpuHiz && gpuPartition)
-    vis.gpuRestCompact?.rebind({
-      state: gpuPartition.state,
-      perRow: gpuDraw.perRow,
-      instances: gpuDraw.instanceBuffer,
-      indirect: gpuDraw.indirectBuffer,
-      slotOffsets: gpuDraw.slotOffsetsBuffer,
-      flags: gpuHiz.flags,
-    })
   vis.gpuRaster?.dispose()
   vis.gpuRaster = undefined
   invalidateOccluderHistory(run)

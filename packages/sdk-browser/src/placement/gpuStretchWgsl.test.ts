@@ -10,18 +10,23 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { STRETCH_WGSL } from './gpuStretchWgsl.ts'
+import { STRETCH_DOUBLE_WGSL, STRETCH_WGSL } from './gpuStretchWgsl.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 
-const run = shaderRun<{ maxStretchBits(m: Pair[]): number }>(
-  wgslProgram('', [STRETCH_WGSL]),
+const run = shaderRun<{
+  maxStretchOf(m: Pair[]): Pair
+  stretchBits(m: Pair[], stretch: Pair): number
+}>(
+  wgslProgram('', [STRETCH_DOUBLE_WGSL, STRETCH_WGSL]),
   [
     ...DOUBLE_HELPERS,
     ...['dDiv', 'dLess', 'dRsqrt', 'dSqrt', 'toF32', 'fromF32', 'chebyshevRoot', 'maxStretchOf'],
-    'maxStretchBits',
+    'stretchBits',
   ],
   {},
 )
+/** The bits the root boxes pass writes of a world: its stretch, solved once, rounded. */
+const maxStretchBits = (m: Pair[]) => run.stretchBits(m, run.maxStretchOf(m))
 
 /** A world's doubles as the shaders hold them, and what the CPU stores for its stretch. */
 const words = (world: ArrayLike<number>) => Array.from(world, (value) => pair(value))
@@ -31,7 +36,7 @@ test('the stretch of a generated world is the CPU’s, word for word', () => {
   const next = lcgRandom(23)
   for (let i = 0; i < 1500; i++) {
     const world = generated(next, [10, 1e4][i % 2])
-    const bits = run.maxStretchBits(words(world)) >>> 0
+    const bits = maxStretchBits(words(world)) >>> 0
     assert.equal(bits, expected(world), `case ${i}: ${Array.from(world)}`)
   }
 })
@@ -70,14 +75,14 @@ test('the exact cases take the branches of the formula: pure scales, turns, the 
     matrix([1e20, 0, 0, 0, 1e10, 0, 0, 0, 1]),
   ]
   for (const [i, world] of cases.entries())
-    assert.equal(run.maxStretchBits(words(world)) >>> 0, expected(world), `case ${i}`)
+    assert.equal(maxStretchBits(words(world)) >>> 0, expected(world), `case ${i}`)
 })
 
 test('a number that is no finite one leaves the stretch as it was: the CPU refuses the matrix', () => {
   const world = generated(lcgRandom(3), 10),
     row = words(world)
   row[5] = pair(Infinity)
-  assert.equal(run.maxStretchBits(row) >>> 0, 0xffffffff)
+  assert.equal(maxStretchBits(row) >>> 0, 0xffffffff)
   row[5] = pair(NaN)
-  assert.equal(run.maxStretchBits(row) >>> 0, 0xffffffff)
+  assert.equal(maxStretchBits(row) >>> 0, 0xffffffff)
 })

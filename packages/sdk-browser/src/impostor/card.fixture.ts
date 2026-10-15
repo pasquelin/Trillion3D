@@ -6,7 +6,7 @@
  * root's world radius `R`, so the card covers the object's projected disc, and it keeps its world
  * size (attenuation on) rather than its screen size, as a distant stand-in must.
  */
-import { spriteAt } from '../visibility/shader/spriteWgsl.ts'
+import { spriteAt } from '../visibility/shader/spriteAt.fixture.ts'
 import { copyMatrix4, IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
 

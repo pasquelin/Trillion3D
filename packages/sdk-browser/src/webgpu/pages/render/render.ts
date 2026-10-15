@@ -2,7 +2,6 @@ import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import type { HostCamera } from '../../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
-import { setWindingEpoch } from './winding.ts'
 import { holdWebgpuFrame } from '../../frame/hold.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
 import { deviceAnswering } from '../../frame/deviceAnswer.ts'
@@ -122,7 +121,6 @@ function drawFrameInputs(
   // Nothing is held by default: only adoption of an already-read readback declares it, and every
   // path that does not go through it — a pending image, a view's first cut — remakes everything.
   run.cutHeld = false
-  setWindingEpoch(rt.layout.rows.tableEpoch)
   // What the previous image's feedback requested becomes resident, under the budgets. The pass
   // times itself on its budget clock — the one bound the textures stage reads —; the marks only
   // keep `worldMs` below to the world step alone.

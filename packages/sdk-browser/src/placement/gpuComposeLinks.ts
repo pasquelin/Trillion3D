@@ -20,6 +20,7 @@ import {
   type ComposeState,
 } from './gpuComposeState.ts'
 import { installComposedWorld, removeComposedWorld } from './gpuComposeWorld.ts'
+import { worldMoved } from '../page/selection/rootWorld.ts'
 import { readerViews, releaseReaderViews } from './composeReaders.ts'
 import type { PlacementLink } from './gpuCompose.ts'
 
@@ -63,21 +64,13 @@ export function linkedRanks(rt: WebgpuPagesRuntime, links: readonly PlacementLin
   return { ranks, rooted, readers }
 }
 
-/** The parent's slot: its own, or a new one at `world`, every per-slot table grown to hold it. */
-export function takeSlot(
-  state: ComposeState,
-  parent: object,
-  p: number | undefined,
-  world: ArrayLike<number>,
-) {
+/** The parent's slot: its own, or a new one, every per-slot table grown to hold it. */
+export function takeSlot(state: ComposeState, parent: object, p: number | undefined) {
   const slot = p ?? state.freeSlots.pop() ?? state.slots++
   if (p !== undefined) return slot
   state.parentIds.set(parent, slot)
   state.ranksOf[slot] = []
-  state.winding[slot] = undefined as unknown as boolean
   state.worlds = resized(state.worlds, state.slots * MATRIX_VALUES)
-  state.previous = resized(state.previous, state.slots * MATRIX_VALUES)
-  state.previous.set(world, slot * MATRIX_VALUES)
   return slot
 }
 
@@ -95,6 +88,9 @@ export function unlinkHeld(
     if (state.parentOf[rank] !== slot || kept.has(rank)) continue
     removeComposedWorld(state, rank)
     state.parentOf[rank] = NO_INDEX
+    // Its world is no longer composed: what derives from it is taken again (`worldMoved`).
+    const root = rt.layout.selectionRoots[rank]
+    if (root) worldMoved(root)
     // Its world is the CPU's again: sent from it, its rows derived from it, the pages they leave
     // and enter staled.
     noteRootWorld(rt, rank)

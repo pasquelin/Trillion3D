@@ -107,9 +107,9 @@ fn the_hausdorff_distance_is_measured() {
     let mut pos = vec![0., 0., 0., 1., 0., 0., 1., 0., 1., 0., 0., 1.];
     pos.extend([0., 0.25, 0., 1., 0.25, 0., 1., 0.25, 1., 0., 0.25, 1.]);
     let (flat, lifted) = ([0u32, 1, 2, 0, 2, 3], [4u32, 5, 6, 4, 6, 7]);
-    let gap = hausdorff::distance(&pos, &flat, &lifted);
+    let gap = hausdorff::reference::distance(&pos, &flat, &lifted);
     assert!((gap - 0.25).abs() < 1e-6, "{gap}");
-    assert!(hausdorff::distance(&pos, &flat, &flat) < 1e-9);
+    assert!(hausdorff::reference::distance(&pos, &flat, &flat) < 1e-9);
 }
 
 // Behaviour: a node matrix splits into the pose a body takes; a sheared one is refused.

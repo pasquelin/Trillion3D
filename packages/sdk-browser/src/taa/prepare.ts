@@ -118,9 +118,9 @@ export async function rigViewTemporal(rt: WebgpuPagesRuntime, view: WebgpuView) 
   rt.run.gate.resourcesChanged()
 }
 
-/** A pass for this session: with the resolves that reconstruct the display when it draws below. */
+/** A pass for this session: its resolves reconstruct the display at every render scale. */
 const createTaa = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
-  createTemporalAntialiasing(device, rt.layout.selectionRoots, rt.scale.bounds.min < 1)
+  createTemporalAntialiasing(device, rt.layout.selectionRoots)
 
 /** The pass leaves the session: capabilities dropped, cause named, image without the pass. */
 function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {

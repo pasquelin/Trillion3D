@@ -1,6 +1,6 @@
 //! Bounding spheres `[x, y, z, radius]` in `f64`, a negative radius for an empty one. The merge is
-//! the recurrence of `sphereUnion` (`packages/math/src/geometry/sphere.ts`): sequential and
-//! not commutative, so `enclosing_sphere` neither reorders nor splits its list.
+//! the recurrence of `sphereUnion` (`packages/math/src/geometry/sphere.ts`): sequential and not
+//! commutative. The smallest sphere of many is the page codec's `ball_of_balls`.
 
 use crate::vecn::{length, sub};
 
@@ -34,19 +34,6 @@ pub fn merge_spheres(left: [f64; 4], right: [f64; 4]) -> [f64; 4] {
         left[2] + delta[2] * t,
         radius,
     ]
-}
-
-/// `spheres` merged in order from the empty sphere; no sphere gives the zero sphere at the origin.
-/// The result encloses every input sphere.
-pub fn enclosing_sphere(spheres: &[[f64; 4]]) -> [f64; 4] {
-    let mut result = [0.0, 0.0, 0.0, -1.0];
-    for &sphere in spheres {
-        result = merge_spheres(result, sphere);
-    }
-    if result[3] < 0.0 {
-        result[3] = 0.0;
-    }
-    result
 }
 
 #[cfg(test)]

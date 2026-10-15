@@ -12,14 +12,12 @@ import { tickModule } from './tickResults.fixture.ts'
 const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 4, contactEvents: 3 }
 
 /** A module whose every step fills the events budget, and moves nothing; `diverged` the bodies
- *  each step leaves non-finite, `recovered` the soft bodies it brings back to a good state. The tick's
- *  results over it, and what they sent. */
-function tickOver(diverged: number[] = [], recovered: number[] = []) {
+ *  each step leaves non-finite. The tick's results over it, and what they sent. */
+function tickOver(diverged: number[] = []) {
   const jolt = tickModule(
     () => new Uint32Array(0),
     () => new Uint32Array(budget.contactEvents * EVENT_WORDS),
     diverged,
-    recovered,
   )
   const buffers = [new ArrayBuffer(resultWords(budget) * 4)]
   const sent: unknown[] = []
@@ -48,15 +46,6 @@ test('a tick steps on only while one more step of events fits its results', () =
     [12, 7],
     'the tick carries its steps total and its slowest step apart',
   )
-})
-
-test('a step that brings soft bodies back to a good state names them to the page, apart from the bodies it takes out', () => {
-  const { results, sent } = tickOver([], [9, 11])
-  results.gather(0, true)
-  assert.deepEqual(sent, [{ type: 'recovered', bodies: [9, 11] }])
-  const none = tickOver()
-  none.results.gather(0, true)
-  assert.deepEqual(none.sent, [], 'none brought back, nothing said')
 })
 
 test('a step that leaves bodies non-finite names them to the page, which takes them out', () => {

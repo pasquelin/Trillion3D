@@ -6,38 +6,28 @@
 //! what merges and what splits.
 use super::*;
 use crate::import::Vertices;
-use crate::plugins::scene::ngon::Ngon;
+use crate::plugins::scene::corners::gltf_uv;
 use trillion3d_math::vec3::normalized_or;
 
 impl Surface {
-    /// Pours a face ring into the cutter and cuts it. Yields `None` when cancellation stops the
-    /// cut, `Some(false)` when the face did not yield all its ears: it then comes out as a fan,
-    /// and the caller counts it.
-    pub(super) fn cut(
-        &self,
-        cutter: &mut Ngon,
-        face: usize,
-        cancelled: &AtomicBool,
-    ) -> Option<bool> {
-        cutter.begin();
-        for vertex in self.loops.get(face).map_or(&[][..], Vec::as_slice) {
-            let point = self.positions.get(*vertex as usize);
-            cutter.corner(point.copied().unwrap_or_default());
-        }
-        cutter.cut(cancelled)
+    /// The point of a face corner, as the cutter reads it.
+    pub(super) fn point(&self, face: usize, rank: usize) -> [f64; 3] {
+        let vertex = self.loops.get(face).and_then(|ring| ring.get(rank));
+        vertex
+            .and_then(|vertex| self.positions.get(*vertex as usize))
+            .copied()
+            .unwrap_or_default()
     }
 
-    /// glTF vertex of a face corner, created on first encounter. Three indices identify it: its
+    /// What identifies a face corner, and the vertex it carries. Three indices identify it: its
     /// position, its texture coordinate and its normal — the place it is read when the file
     /// writes it, its smoothing group when this driver computes it. Two corners that share all
-    /// three are the same vertex.
-    pub(super) fn corner(
+    /// three are the same vertex. `None` when the tables do not carry the corner.
+    pub(super) fn key(
         &self,
-        out: &mut Vertices,
-        unique: &mut HashMap<[u32; 3], u32>,
         (face, rank): (usize, usize),
         textured: bool,
-    ) -> Option<u32> {
+    ) -> Option<([u32; 3], Corner)> {
         let vertex = *self.loops.get(face)?.get(rank)?;
         let uv = textured
             .then(|| self.uv_slots.get(face)?.get(rank).copied())
@@ -60,20 +50,36 @@ impl Surface {
                 .unwrap_or(u32::MAX),
             shared,
         ];
-        if let Some(known) = unique.get(&key) {
-            return Some(*known);
-        }
-        let id = u32::try_from(unique.len()).ok()?;
-        let position = self.positions.get(vertex as usize)?;
-        out.positions.extend(position.map(|axis| axis as f32));
+        let position = self.positions.get(vertex as usize)?.map(|axis| axis as f32);
         let written = self.normals.get(shade).copied().unwrap_or([0.0, 1.0, 0.0]);
-        let normal = normalized_or(written, [0.0, 1.0, 0.0]);
-        out.normals.extend(normal.map(|axis| axis as f32));
-        if textured {
+        let normal = normalized_or(written, [0.0, 1.0, 0.0]).map(|axis| axis as f32);
+        let uv = textured.then(|| {
             let [u, v] = uv.map_or([0.0, 0.0], |slot| self.uvs[slot]);
-            out.uvs.extend([u as f32, 1.0 - v as f32]);
-        }
-        unique.insert(key, id);
-        Some(id)
+            gltf_uv([u as f32, v as f32])
+        });
+        Some((
+            key,
+            Corner {
+                position,
+                normal,
+                uv,
+            },
+        ))
+    }
+}
+
+/// What the vertex of a corner carries.
+pub(super) struct Corner {
+    position: [f32; 3],
+    normal: [f32; 3],
+    uv: Option<[f32; 2]>,
+}
+
+impl Corner {
+    /// Pours the vertex.
+    pub(super) fn write(self, out: &mut Vertices) {
+        out.positions.extend(self.position);
+        out.normals.extend(self.normal);
+        out.uvs.extend(self.uv.into_iter().flatten());
     }
 }

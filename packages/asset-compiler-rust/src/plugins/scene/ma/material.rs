@@ -64,7 +64,7 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
     let packed = (standard && graph.input(shader, &["mt", "metalness"]).is_some())
         || graph.input(shader, &["sr", "specularRoughness"]).is_some();
     if packed {
-        world.refuse(report::TEXTURE_UNSUPPORTED);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
     }
     world.scene.materials.push(out);
     Some(world.scene.materials.len() - 1)
@@ -121,7 +121,7 @@ fn emission(world: &mut World<'_>, shader: usize, standard: bool, out: &mut Valu
         },
     };
     if lit.iter().any(|channel| *channel > 1.0) {
-        world.refuse(report::EMISSION_CLAMPED);
+        world.refuse(crate::plugins::scene::codes::EMISSION_CLAMPED);
     }
     if lit.iter().any(|channel| *channel > 0.0) {
         out["emissiveFactor"] = json!(lit.map(|channel| channel.clamp(0.0, 1.0)));
@@ -183,7 +183,7 @@ fn opacity_texture(world: &mut World<'_>, shader: usize, standard: bool) -> bool
         false => graph.input(shader, &["c", "color"]),
     };
     if base.map(|(node, _)| node) != Some(source) {
-        world.refuse(report::TEXTURE_UNSUPPORTED);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
     }
     true
 }

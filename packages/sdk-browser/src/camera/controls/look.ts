@@ -1,5 +1,5 @@
-import { HALF_PI } from '../../../../math/src/constants.ts'
-import type { ControlBase } from './base.ts'
+import { HALF_PI, PI } from '../../../../math/src/constants.ts'
+import { surfaceHeight, type ControlBase } from './base.ts'
 import { trackPointers } from './input.ts'
 import type { ControlPose } from './pose.ts'
 import { orbitOrientation } from './math.ts'
@@ -19,7 +19,8 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
  * an unlocked drag still turns the head.
  */
 export interface HeadSettings {
-  /** Radians turned per pixel of pointer motion; `null` (the default) is 0.002. */
+  /** Radians turned per pixel of pointer motion; `null` (the default) is half a turn per surface
+   *  height (`trackLook`). */
   lookSpeed: number | null
   /**
    * Lowest the head looks, in radians below the horizon counted negative (0 is the horizon);
@@ -40,8 +41,49 @@ export interface PersonHead extends HeadSettings {
   unlock(): void
 }
 
-/** Radians a head turns per pixel of pointer motion when its `lookSpeed` is `null`. */
-const HEAD_LOOK_SPEED = 0.002
+/**
+ * THE ONE LOOK ACCUMULATOR of every controller the pointer turns: the pixels a drag (`drag()`
+ * true) or a move (`move(event)` true) carries are gathered and emitted; `take` hands them out as
+ * a yaw and a pitch, radians, at `lookSpeed` — by default half a turn per surface height, whatever
+ * the surface's size — and starts again. `down` and `up` hear the pointer as the drag tracker
+ * does.
+ */
+export function trackLook(
+  surface: HTMLElement,
+  base: ControlBase,
+  settings: { lookSpeed: number | null },
+  when: { drag(): boolean; move(event: PointerEvent): boolean; down?(): void; up?(): void },
+) {
+  let x = 0,
+    y = 0
+  const add = (dx: number, dy: number) => {
+    x += dx
+    y += dy
+    base.emit()
+  }
+  trackPointers(surface, base, {
+    down: when.down,
+    up: when.up,
+    drag: (dx, dy) => void (when.drag() && add(dx, dy)),
+  })
+  base.listen<PointerEvent>(surface, 'pointermove', (event) => {
+    if (when.move(event)) add(event.movementX, event.movementY)
+  })
+  return {
+    /** Writes the yaw and the pitch gathered since the last call into `out`, radians; clears. */
+    take(out: Float64Array) {
+      const speed = settings.lookSpeed ?? PI / surfaceHeight(surface)
+      out[0] = -x * speed
+      out[1] = -y * speed
+      x = y = 0
+      return out
+    },
+    /** Drops what was gathered. */
+    clear() {
+      x = y = 0
+    },
+  }
+}
 
 /** A head's defaults: its own look speed, and a pitch range just short of either pole, where the
  *  yaw would lose its meaning. */
@@ -70,11 +112,10 @@ export function createHead(
     written = new Float64Array(4),
     forward = new Float64Array(3),
     turned = new Float64Array(2),
-    angles = new Float64Array(3)
+    angles = new Float64Array(3),
+    looked = new Float64Array(2)
   let pitch = 0,
-    yaw = 0,
-    lookX = 0,
-    lookY = 0
+    yaw = 0
   // The head keeps its own two angles, but a host that re-poses the camera must be obeyed:
   // an orientation that is not the one last written is read back into yaw and pitch.
   const sample = () => {
@@ -100,10 +141,9 @@ export function createHead(
      */
     turn(orientation: Float64Array) {
       sample()
-      const speed = settings.lookSpeed ?? HEAD_LOOK_SPEED
-      yaw -= lookX * speed
-      pitch = clampCompare(pitch - lookY * speed, settings.minPitch, settings.maxPitch)
-      lookX = lookY = 0
+      look.take(looked)
+      yaw += looked[0]
+      pitch = clampCompare(pitch + looked[1], settings.minPitch, settings.maxPitch)
       angles[1] = yaw
       angles[2] = HALF_PI + pitch
       orbitOrientation(orientation, angles)
@@ -111,24 +151,19 @@ export function createHead(
       return yaw
     },
   }
-  trackPointers(surface, base, {
-    down: () => head.lock(),
-    drag: (dx, dy) => {
-      if (head.locked()) return // A locked pointer reports through `pointermove` below.
-      lookX += dx
-      lookY += dy
-      base.emit()
-    },
-  })
   // The first move a browser reports once the lock is granted may carry the cursor's whole jump
-  // to the middle of the screen: it is dropped, never turned into a look.
+  // to the middle of the screen: it is dropped, never turned into a look. A locked pointer
+  // reports through `pointermove`, an unlocked one by its drag.
   let fresh = false
-  base.listen<PointerEvent>(surface, 'pointermove', (event) => {
-    if (!head.locked()) return
-    if (fresh) return void (fresh = false)
-    lookX += event.movementX
-    lookY += event.movementY
-    base.emit()
+  const look = trackLook(surface, base, settings, {
+    down: () => head.lock(),
+    drag: () => !head.locked(),
+    move: () => {
+      if (!head.locked()) return false
+      if (!fresh) return true
+      fresh = false
+      return false
+    },
   })
   base.listen<Event>(owner, 'pointerlockchange', () => {
     fresh = head.locked()
@@ -137,7 +172,7 @@ export function createHead(
   base.undo(() => head.unlock())
   base.onPause(() => {
     head.unlock()
-    lookX = lookY = 0
+    look.clear()
   })
   return head
 }

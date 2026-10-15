@@ -66,6 +66,15 @@ impl<W: Write> Write for Hashing<W> {
     }
 }
 
+/// Where a manifest names a shared object by its fingerprint, relative to the manifest: the one
+/// URL template of every page, geometry, bundle and shape it cites.
+pub(crate) const OBJECT_URL: &str = "../../objects/{sha}.bin";
+
+/// The URL of the shared object whose fingerprint is `sha256` (`OBJECT_URL`).
+pub(crate) fn object_url(sha256: &str) -> String {
+    OBJECT_URL.replace("{sha}", sha256)
+}
+
 /// Where the object named `digest` lives: one spelling for every writer and the proof. The name is
 /// the SHA-256 of the content with the `.bin` extension, which a static server serves as
 /// `application/octet-stream` with no configuration; the manifest names each object in full.

@@ -1,4 +1,5 @@
 import type { CommandWriter } from './commands.ts'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { OP } from './layout.ts'
 import type { SoftRecord, SoftSettings } from './soft.ts'
 import { SOFT_VERTEX_WORDS } from './softLayout.ts'
@@ -23,6 +24,9 @@ export interface SoftBodyRecord {
   restitution: number
   gravityScale: number
   linearDamping: number
+  /** The engine id of the page's soft body this one replaces at another scale, which it goes on
+   *  from (`softLayout.ts` SOFT_WORDS); none by default. */
+  carries?: number
   /** Its compliances; a cooked body's are its settings' own. */
   settings: Pick<SoftSettings, 'stretch' | 'bend'>
   record: SoftRecord | CookedSoftRecord
@@ -35,7 +39,10 @@ export function writeSoft(writer: CommandWriter, body: SoftBodyRecord) {
     'cooked' in record
       ? { vertices: [], indices: [], cooked: record.cooked }
       : { vertices: record.vertices, indices: record.indices, cooked: undefined }
-  const counts = [vertices.length / SOFT_VERTEX_WORDS, indices.length, cooked?.length ?? 0]
+  const counts = [
+    ...[vertices.length / SOFT_VERTEX_WORDS, indices.length, cooked?.length ?? 0],
+    body.carries ?? NO_INDEX,
+  ]
   writer.put(
     [OP.soft, body.id],
     [

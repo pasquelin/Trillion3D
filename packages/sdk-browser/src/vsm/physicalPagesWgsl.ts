@@ -26,7 +26,7 @@ import {
   VSM_COUNT_STATIC_KEPT,
   VSM_PAGE_KEEP_FRAMES,
 } from './constants.ts'
-import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts'
@@ -148,10 +148,12 @@ function carryPages(layout: VsmLayout): VsmPmKernel {
     { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
     { resource: 'nextMaps', binding: 2 },
     { resource: 'pageRequests', binding: 3, prev: true },
+    // The previous frame's records: where its tables lay (\`vsmTableLevelOrigin\`).
+    { resource: 'projectionData', binding: 4, prev: true, name: 'vsmProjectionData' },
   ]
   const body = wgslBlock(
     'carryPages',
-    [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL],
+    [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL],
     `
 @compute @workgroup_size(VSM_GROUP_WIDTH)
 fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
@@ -221,6 +223,7 @@ function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
     ],
     `
@@ -258,10 +261,9 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
      var nextMarks=VSM_PAGE_WANTED;
      let requestFine=requestWord&VSM_PAGE_FINE;
      let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u;
-     let keepDynamic=handle.isSinglePage
-      ||(requestFine==0u&&projection.coarseDynamicCached&&!staticStale);
-     // A single-page map, or a coarse page of a map whose coarse pages keep their dynamic layer,
-     // is not redrawn for a stale bit.
+     let keepDynamic=requestFine==0u&&projection.coarseDynamicCached&&!staticStale;
+     // A coarse page of a map whose coarse pages keep their dynamic layer is not redrawn for a
+     // stale bit.
      if(!keepDynamic){
       if((prevMeta&VSM_META_ANY_STALE)!=0u){
        if((prevMeta&VSM_META_STATIC_STALE)==0u){
@@ -346,6 +348,7 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_PER_PAGE_DISPATCH_WGSL,
     ],
@@ -454,7 +457,7 @@ fn vsmListClears(@builtin(global_invocation_id) id:vec3u){
   if((pageInfo.flags&VSM_META_DYNAMIC_CLEARED)==0u||clearedFlags!=0u){
    pmListClear(poolIndex);
    vsmCount(VSM_COUNT_CLEARED);
-   // Drawn too: its tile depths are rebuilt and its static layer merged.
+   // Drawn too: its tile depths are rebuilt.
    clearedFlags|=VSM_META_DYNAMIC_CLEARED|VSM_META_DYNAMIC_DRAWN;
   }
   vsmPoolPageInfo[poolIndex].flags=pageInfo.flags|clearedFlags;
@@ -559,15 +562,12 @@ fn vsmPoolFeedback(){
 }
 
 /**
- * After the render, a thread a page: folds the dirty flags into the page metadata, then lists the
- * page by those flags (16 groups a listed page each list):
- * - its slice 0 changed this frame — dirty, static or dynamic, referenced, a sun's —: for its tile
- *   depths (`pagesForTiles`, `tileArgs`, `vsmTileDepthsBuild`). The tile depths
- *   are slice 0's, so a dynamic change makes them stale too, not only a static one;
- * - its static slice was written — allocated, referenced, cached for the view —: to merge static
- *   into dynamic (`pagesToMerge`, `mergeArgs`, `vsmMergeStatic`).
- * An unreferenced page is not drawn this frame: its dirty flags are an older frame's. Each list
- * reads the page's own flags as folded: the lists the two kernels made one after the other.
+ * After the render, a thread a page: folds the dirty flags into the page metadata, then lists a
+ * page whose slice 0 changed this frame — dirty, static or dynamic, referenced — for its tile depths
+ * (`pagesForTiles`, `tileArgs`, `vsmTileDepthsBuild`, 16 groups a listed page). Slice 0 is whole
+ * after the raster: a static caster drawing a page's static layer writes slice 0 too
+ * (`renderRasterWgsl.ts`), the page's dynamic layer cleared and drawn again that frame. An
+ * unreferenced page is not drawn this frame: its dirty flags are an older frame's.
  */
 function foldRasterMarks(layout: VsmLayout): VsmPmKernel {
   const specs: VsmBindingSpec[] = [
@@ -576,9 +576,6 @@ function foldRasterMarks(layout: VsmLayout): VsmPmKernel {
     { resource: 'poolPageInfo', binding: 2, access: 'read_write' },
     { resource: 'tileArgs', binding: 3, access: 'atomic' },
     { resource: 'pagesForTiles', binding: 4, access: 'read_write' },
-    { resource: 'projectionData', binding: 5 },
-    { resource: 'mergeArgs', binding: 6, access: 'atomic' },
-    { resource: 'pagesToMerge', binding: 7, access: 'read_write' },
   ]
   const body = wgslBlock(
     'foldRasterMarks',
@@ -613,20 +610,10 @@ fn pmFoldMarks(poolIndex:u32)->u32{
 fn vsmFoldRasterMarks(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=vsm.poolPages){return;}
  let flags=pmFoldMarks(id.x);
- if((flags&VSM_PAGE_WANTED)!=0u&&(flags&VSM_META_ANY_DRAWN)!=0u&&(flags&VSM_META_UNSEEN)==0u
-  // A sun's page only: the clipmap rays alone read tile depths. A page handed to a sun later is
-  // initialised there, dirty then.
-  &&vsmProjectionData[vsmPoolPageInfo[id.x].mapId].lightKind==LIGHT_KIND_DIRECTIONAL){
+ // Every map's rays prove their misses on tile depths (\`vsmRayMisses\`).
+ if((flags&VSM_PAGE_WANTED)!=0u&&(flags&VSM_META_ANY_DRAWN)!=0u&&(flags&VSM_META_UNSEEN)==0u){
   let slot=atomicAdd(&vsmTileArgs[1],1u);
   vsmPagesForTilesStore(slot,id.x);
- }
- // Merging only if the static page was written.
- if((flags&VSM_PAGE_WANTED)!=0u
-  &&(flags&VSM_META_UNSEEN)==0u
-  &&(flags&VSM_META_VIEW_UNCACHED)==0u
-  &&(flags&VSM_META_STATIC_DRAWN)!=0u){
-  let slot=atomicAdd(&vsmMergeArgs[1],1u);
-  vsmPagesToMergeStore(slot,id.x);
  }
 }
 `,
@@ -635,10 +622,10 @@ fn vsmFoldRasterMarks(@builtin(global_invocation_id) id:vec3u){
 }
 
 /**
- * The tile depths of the listed pages, after the merge (a
+ * The tile depths of the listed pages (a
  * group per 32×32 tile, each thread 2×2 texels): each 8×8 tile's greatest slice-0 word whose
  * float is not below 0 or NaN — the closest depth a sample in it can read
- * (`vsmSunRayMisses`). Workgroup memory starts at zero (WebGPU).
+ * (`vsmRayMisses`). Workgroup memory starts at zero (WebGPU).
  */
 function tileDepthsBuild(layout: VsmLayout): VsmPmKernel {
   const specs: VsmBindingSpec[] = [
@@ -678,36 +665,6 @@ fn vsmTileDepthsBuild(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(
   return vsmPmKernel(layout, 'TileDepthsBuild', specs, body)
 }
 
-/** Merges the static pages into the dynamic ones: dynamic = max(dynamic, static). */
-function mergeStatic(layout: VsmLayout): VsmPmKernel {
-  const specs: VsmBindingSpec[] = [
-    { resource: 'uniforms', binding: 0 },
-    { resource: 'pagesToMerge', binding: 1 },
-    { resource: 'pagePool', binding: 2, access: 'read_write' },
-  ]
-  const body = wgslBlock(
-    'mergeStatic',
-    [TILE_WGSL],
-    `
-fn pmMergeTexel(p:vec2u){
- vsmPoolStore(p,0u,max(vsmPoolLoad(p,0u),vsmPoolLoad(p,vsm.staticSlice)));
-}
-@compute @workgroup_size(16,16)
-fn vsmMergeStatic(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workgroup_id) wid:vec3u){
- let groupIndex=pmGroupIndex(wid);
- let setup=pmTileOf(groupIndex,vsmPagesToMergeLoad(groupIndex>>PM_LOG2_TILES));
- // 2x2 texels per thread.
- let firstTexel=pmTileOffset(setup)+(tileThreadId.xy<<vec2u(1u));
- pmMergeTexel(firstTexel+vec2u(0u,0u));
- pmMergeTexel(firstTexel+vec2u(1u,0u));
- pmMergeTexel(firstTexel+vec2u(0u,1u));
- pmMergeTexel(firstTexel+vec2u(1u,1u));
-}
-`,
-  )
-  return vsmPmKernel(layout, 'MergeStatic', specs, body)
-}
-
 /** Every page management kernel for `layout`. */
 export function vsmPhysicalPageKernels(layout: VsmLayout, options: VsmPmKernelOptions = {}) {
   return {
@@ -719,7 +676,6 @@ export function vsmPhysicalPageKernels(layout: VsmLayout, options: VsmPmKernelOp
     clearPages: clearPages(layout),
     poolFeedback: poolFeedback(layout),
     foldRasterMarks: foldRasterMarks(layout),
-    mergeStatic: mergeStatic(layout),
     tileDepthsBuild: tileDepthsBuild(layout),
   }
 }

@@ -6,21 +6,24 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { VSM_F32_BELOW_ONE } from './constants.ts'
-import { VSM_TRACE_COMMON_WGSL, vsmTraceWgsl } from './traceWgsl.ts'
+import { vsmTraceWgsl } from './traceWgsl.ts'
+import { VSM_TRACE_COMMON_WGSL } from './traceCommonWgsl.ts'
 import { vsmBlueNoiseTwo } from './blueNoise.ts'
 import { vsmPoolLoadOf } from './resources.ts'
 import { VSM_PROJECTION_VSM_SPECS } from './projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 /** The projection's trace: its pool and its blue noise's pair. */
-const TRACE = vsmTraceWgsl(
-  vsmPoolLoadOf(
+const TRACE = vsmTraceWgsl({
+  pool: vsmPoolLoadOf(
     0,
     VSM_PROJECTION_VSM_SPECS,
     vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
   ),
-  vsmBlueNoiseTwo(1, 0),
-)
+  noise: vsmBlueNoiseTwo(1, 0),
+  hiz: [1, 7],
+  lone: false,
+})
 /** The literal of `text` that `pattern` captures, as the f32 a shader makes of it. */
 const literal = (text: string, pattern: RegExp) => {
   const found = pattern.exec(text)

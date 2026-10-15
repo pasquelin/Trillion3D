@@ -7,7 +7,7 @@ import { vsmTransmissionContextBytes } from '../../../../vsm/transmissionContext
 import { vsmTransmissionFloorBytes } from '../../../../vsm/transmissionBinPlan.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
-import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'
+import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionStore.ts'
 import { VSM_CAST_PARAMS_BYTES } from '../../../../vsm/castInvalidationWgsl.ts'
 import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
 import {

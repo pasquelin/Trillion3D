@@ -1,5 +1,5 @@
 import type { ImpostorSection } from '../../../../sdk-core/src/contracts/impostor.ts'
-import { markReach } from '../../deformation/halfFloat.ts'
+import { rootMark } from '../../deformation/halfFloat.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import {
@@ -26,7 +26,7 @@ function createWebgpuImpostors(
     release: (hold) => rt.vis.textures?.cards.release(hold),
     // The roots whose card bit moved are handed to the GPU cut (`markWorld`), their reach kept.
     moved: (rank, root) =>
-      rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0)),
+      rt.run.gpuSelection?.markWorld(rank, rootMark(root)),
     // A root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`):
     // it takes no card, which would draw it twice; one the world does not hold — a host mesh, an
     // object outside its table — keeps its card, as the session's cut says now.

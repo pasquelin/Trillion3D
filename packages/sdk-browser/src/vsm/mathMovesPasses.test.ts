@@ -86,6 +86,7 @@ test('the projection view header: every word as the old composition wrote it', (
         flags: texture,
         mask: texture,
         maskTiles: texture,
+        receiver: texture,
         width: 64,
         height: 64,
         frameIndex: 0,

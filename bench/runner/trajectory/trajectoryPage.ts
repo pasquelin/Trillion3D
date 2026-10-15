@@ -2,7 +2,7 @@
 import type * as Sdk from '../../witnesses/measurement.ts'
 import type { MeasureViewOptions } from '../harness/measureOptions.ts'
 import { walkTrajectory } from './trajectoryWalk.ts'
-import { explorerOptions } from '../harness/explorerPage.ts'
+import { BENCH_BACKGROUND, explorerOptions } from '../harness/explorerPage.ts'
 import { collecteDiagnostics, posterCapture } from '../harness/measurePage.ts'
 import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
 
@@ -20,6 +20,7 @@ export async function captureTrajectory(
     ...explorerOptions(options, sdk.webgpuPagesEngine),
     onDiagnostic: diagnostics.onDiagnostic,
   })
+  explorer.setClearColor(BENCH_BACKGROUND)
   // Canvas readback samples the presented frame. The measurement seam's capture() requires
   // flush(), which converges streaming and can redraw internally: unsuitable for arrival frames.
   const surface = new OffscreenCanvas(canvas.width, canvas.height)

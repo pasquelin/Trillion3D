@@ -6,13 +6,14 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
  *
- * Each frame the CPU sends the eye, and the keys and order of the few own entries it orders itself
- * (`order.ts`); everything else is here. A workgroup loads a block of the pass's seeded entries with
- * their keys — computed in emulated doubles (`math/src/wgsl/double.ts`), so they are the CPU's to the bit —
+ * Each frame the CPU sends the eye, and the order of the few own entries it orders itself
+ * (`order.ts`); everything else is here, every key included. A workgroup loads a block of the
+ * pass's seeded entries with their keys — computed in emulated doubles (`math/src/wgsl/double.ts`), so they are the CPU's to the bit —
  * and sorts it in its memory; blocks are then merged by a bitonic network, one dispatch per step too
  * wide for a workgroup, the steps that fit finished in the workgroup again. The last dispatch writes
  * the sorted entries where the expansion kernel reads them and where each seed landed;
@@ -55,19 +56,15 @@ const ORDER_UNI_FIELDS = [
   'step',
   'fresh',
   'last',
-  'ownKeyBase',
 ] as const
-export const ORDER_UNI = Object.fromEntries(
-  ORDER_UNI_FIELDS.map((name, rank) => [name, rank]),
-) as Record<(typeof ORDER_UNI_FIELDS)[number], number>
+const ORDER_UNI_LAYOUT = fieldLayout(
+  'OrderUni',
+  ORDER_UNI_FIELDS.map((name) => [name, 'u32'] as const),
+)
+export const ORDER_UNI = ORDER_UNI_LAYOUT.at
 /** Words of one dispatch's uniform (`OrderUni`), at its dynamic offset: its fields, whole rows. */
-export const ORDER_UNI_WORDS = 4 * ceilDiv(ORDER_UNI_FIELDS.length, 4)
-const orderUniformWgsl = () =>
-  wgslBlock(
-    'orderUniformWgsl',
-    [],
-    `struct OrderUni{${ORDER_UNI_FIELDS.map((name) => `${name}:u32,`).join('')}}`,
-  )
+export const ORDER_UNI_WORDS = 4 * ceilDiv(ORDER_UNI_LAYOUT.words, 4)
+const orderUniformWgsl = () => wgslBlock('orderUniformWgsl', [], ORDER_UNI_LAYOUT.wgsl)
 
 /** Group-0 binding of each buffer the order kernel reads, under its WGSL name. */
 export const ORDER_BINDING = {

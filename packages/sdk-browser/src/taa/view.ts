@@ -8,18 +8,15 @@ import {
 } from '../../../math/src/projection/renderOrigin.ts'
 
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
-import { TAA_SAMPLES } from './jitter.ts'
-import { taaWeightTable } from './weights.ts'
 import { TAA_VIEW, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
+import { historyWeightMax } from './layers.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { stochasticSlot, type TaaFrameState } from './frameState.ts'
 
 const T = TAA_VIEW.at,
   anchored = new Float64Array(16),
-  packed = new Float32Array(TAA_VIEW_BYTES / 4),
-  /** Filter weights for each of the eight native jitter ranks: they depend only on it. */
-  weights = taaWeightTable()
+  packed = new Float32Array(TAA_VIEW_BYTES / 4)
 
 /** Writes `(width, height, 1/width, 1/height)` at `at`. */
 function writeGrid(into: Float32Array, at: number, [width, height]: readonly number[]) {
@@ -48,9 +45,8 @@ function writeReprojection(
 
 /**
  * The pass's uniform for this frame (`TaaView`, `shaderWgsl.ts`): both matrices at the eye, the
- * display grid the history has, the current share and history flags, the native filter weights
- * of this jitter rank, the `render` grid the frame was drawn in, its jitter, whether it moves and
- * its rank among eight (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the
+ * display grid the history has, the history flags, the `render` grid the frame was drawn in, its
+ * jitter, whether it moves and its stochastic slot (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the
  * last image's; `deformed`, a GPU deformation moved; `environment`, the scene's, whose exposure the
  * history's luma and the blend weights are measured in (`shadingHistoryWgsl.ts`); the camera's
  * parallax since the last image, the flicker rates, counted in images, and a render pixel's
@@ -73,13 +69,11 @@ export function writeTaaView(
   // on its texel — re-read to the jitter, it would be resampled bilinearly every image and would
   // soften without end.
   writeReprojection(packed, state.previousViewProjection, cam.viewProjection, cam.eye, display)
-  // Share of the current image at the k-th quiet image: 1/k. A moving image's is its history's
-  // own (`historyCap`, `shadingConfidence`), none here.
-  packed[T.params] = state.stillFrames > 0 ? 1 / state.stillFrames : 0
+  // The most weight a history holds, the frame's own (`historyWeightMax`).
+  packed[T.params] = historyWeightMax(render[0], display[0])
   packed[T.params + 1] = state.hasHistory ? 1 : 0
   packed[T.params + 2] = moved ? 1 : 0
   packed[T.params + 3] = layers ? 1 : 0
-  packed.set(weights[state.sample % TAA_SAMPLES], T.weights)
   writeGrid(packed, T.render, render)
   packed[T.jitter] = state.jitter[0]
   packed[T.jitter + 1] = state.jitter[1]

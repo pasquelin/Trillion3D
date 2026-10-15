@@ -1,5 +1,10 @@
 use super::*;
 
+/// Metallic and roughness factors of a surface whose format declares none (an Alembic face set,
+/// an FBX map without a value), the one default every such driver writes: a dielectric — a
+/// format with no notion of metal describes none — at glTF's default roughness.
+pub(crate) const UNDECLARED_SURFACE: [f64; 2] = [0.0, 1.0];
+
 pub(super) fn map_value(map: &ufbx::MaterialMap, default: f64) -> f64 {
     if map.has_value {
         map.value_vec4.x
@@ -61,7 +66,7 @@ fn unconverted(material: &ufbx::Material, normal: &ufbx::MaterialMap, report: &m
     }
     // glTF sets the index of refraction to 1.5 by default: another index is the only one lost.
     if pbr.specular_ior.has_value && (pbr.specular_ior.value_vec4.x - 1.5).abs() > 1e-6 {
-        report.add("material-specular-ior");
+        report.add(crate::plugins::scene::codes::IOR_UNSUPPORTED);
     }
     let ambient = &fbx.ambient_color;
     let ambient_elsewhere = ambient.texture.is_some()
@@ -97,7 +102,7 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     };
     let opacity = read_opacity(material);
     let alpha = opacity.alpha;
-    let metallic = map_value(&pbr.metalness, 0.0).clamp(0.0, 1.0);
+    let metallic = map_value(&pbr.metalness, UNDECLARED_SURFACE[0]).clamp(0.0, 1.0);
     // The driver derives roughness from a specular exponent in C, and that arithmetic is not
     // bit-identical across platforms (the compiler fuses multiply-adds on some targets). glTF
     // factors are single-precision floats: rounding to f32 keeps the value the driver meant and
@@ -110,7 +115,7 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
             r
         })
     } else {
-        0.6
+        UNDECLARED_SURFACE[1]
     }
     .clamp(0.0, 1.0);
     let emission_factor = map_value(&pbr.emission_factor, 1.0);
@@ -137,7 +142,7 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
             pbr_json["metallicRoughnessTexture"] = json!({"index":t});
         }
     } else if rough_texture.is_some() || metal_texture.is_some() {
-        textures.report.add("material-split-metal-roughness");
+        textures.scene.report.add("material-split-metal-roughness");
     }
     let mut out = json!({"name":&*material.element.name,"pbrMetallicRoughness":pbr_json,"emissiveFactor":[emissive[0].clamp(0.0,1.0),emissive[1].clamp(0.0,1.0),emissive[2].clamp(0.0,1.0)]});
     if let Some(t) = map_texture(&pbr.normal_map, textures) {
@@ -160,12 +165,15 @@ pub(super) fn material_json(material: &ufbx::Material, textures: &mut TextureTab
     if let Some(map) = opacity.texture {
         out["alphaMode"] = json!("BLEND");
         if texture_file(map) != texture_file(&pbr.base_color) {
-            textures.report.add("material-separate-opacity-texture");
+            textures
+                .scene
+                .report
+                .add("material-separate-opacity-texture");
         }
     } else if alpha < 1.0 {
         out["alphaMode"] = json!("BLEND");
     }
-    unconverted(material, &pbr.normal_map, textures.report);
-    map_options(material, textures.report);
+    unconverted(material, &pbr.normal_map, &mut textures.scene.report);
+    map_options(material, &mut textures.scene.report);
     out
 }

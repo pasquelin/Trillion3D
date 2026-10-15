@@ -84,7 +84,7 @@ fn a_layer_without_meters_per_unit_is_read_in_centimetres() {
     let run = compile_layer("unite", &wrap("", QUAD));
     let (_, gltf) = run.prepared("usd");
     let root = scene_root(&gltf);
-    assert_eq!(root["name"], "usd-root");
+    assert_eq!(root["name"], "root");
     assert_eq!(
         root["matrix"],
         json!([0.01, 0., 0., 0., 0., 0.01, 0., 0., 0., 0., 0.01, 0., 0., 0., 0., 1.]),

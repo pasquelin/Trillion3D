@@ -1,13 +1,9 @@
-//! Raw ABI of the page encoder (`encode.rs`) for the pages the engine cuts at run time, and of
-//! the grid rules (`bits/grid.rs`) that set their exponents: byte offsets into `arena_alloc`
-//! reservations, like `wasm_math.rs`. The loader is `packages/sdk-browser/src/page/codec/encode.ts`.
+//! Raw ABI of the page encoder (`encode.rs`) for the pages the engine cuts at run time (their grids
+//! come from `wasm_grid.rs`): byte offsets into `arena_alloc` reservations, like `wasm_math.rs`. The loader is `packages/sdk-browser/src/page/codec/encode.ts`.
 //!
 //! A page is written by `encode_page` from one request block of `REQUEST_WORDS` words and held for
 //! the loader (`held.rs`): its length is known only once written.
 
-use crate::bits::grid::{
-    drawn_uv_grid_exponent, primitive_grid_exponent, tile_log2, uv_grid_exponent,
-};
 use crate::encode::deformation::{Deformation, MorphTarget};
 use crate::encode::{encode_deformed, Attribute};
 use crate::held::hold;
@@ -154,36 +150,4 @@ pub(crate) unsafe fn refuse(meta: u32, code: &str) -> u32 {
     *(meta as *mut u32) = code.len() as u32;
     core::slice::from_raw_parts_mut((meta + 4) as *mut u8, code.len()).copy_from_slice(code);
     1
-}
-
-/// A tile's width as a power of two for a primitive the largest world `scale` places
-/// (`tile_log2`); NaN where the compiler knew none.
-#[no_mangle]
-pub extern "C" fn grid_tile_log2(scale: f64) -> i32 {
-    tile_log2((!scale.is_nan()).then_some(scale))
-}
-
-/// The position grid of a primitive of widest `extent` (`primitive_grid_exponent`): `finest_error`
-/// is NaN where the compiler knew none, `blended` 0 or 1, `tile_log2` from `grid_tile_log2`.
-#[no_mangle]
-pub extern "C" fn grid_position_exponent(
-    extent: f64,
-    finest_error: f64,
-    blended: u32,
-    tile_log2: i32,
-) -> i32 {
-    let known = (!finest_error.is_nan()).then_some(finest_error);
-    primitive_grid_exponent(extent, known, blended != 0, tile_log2)
-}
-
-/// The texture grid of a compiled primitive whose coordinates span `span` (`uv_grid_exponent`).
-#[no_mangle]
-pub extern "C" fn grid_uv_exponent(span: f64, blended: u32) -> i32 {
-    uv_grid_exponent(span, blended != 0)
-}
-
-/// The texture grid of drawn triangles (`drawn_uv_grid_exponent`).
-#[no_mangle]
-pub extern "C" fn grid_drawn_uv_exponent(span: f64, blended: u32) -> i32 {
-    drawn_uv_grid_exponent(span, blended != 0)
 }

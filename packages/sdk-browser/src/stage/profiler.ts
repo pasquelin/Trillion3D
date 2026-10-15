@@ -1,9 +1,9 @@
 import {
   disabledStageProfile,
-  stageQuantiles,
   type GpuTimingMethod,
   type StageProfile,
 } from '../../../sdk-core/src/runtime/stageProfile.ts'
+import { summaryOf } from '../../../math/src/scalar/quantile.ts'
 import { createWorst } from './stageRings.ts'
 import { createStageDeposits } from './stageDeposits.ts'
 
@@ -150,10 +150,10 @@ export function createStageProfiler(options: {
               const ms = filedRows[((first + i) % stepCapacity) * width + c]
               if (Number.isFinite(ms)) column[length++] = ms
             }
-            const measured = column.subarray(0, length).sort(),
-              quantiles = stageQuantiles(measured)
-            steps[names[c]] = quantiles
-              ? { ...quantiles, max: measured[length - 1] }
+            // One sort for the quantiles and the maximum (`summaryOf`).
+            const summary = summaryOf(column.subarray(0, length))
+            steps[names[c]] = summary
+              ? { p50: summary.p50, p95: summary.p95, max: summary.max }
               : { p50: NaN, p95: NaN, max: NaN }
           }
           const summary = { frames, steps, worst: worst.read(names) }

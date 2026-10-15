@@ -60,22 +60,19 @@ export const halfAngleOfFocalScale = (s: number) => Math.atan(1 / Math.abs(s))
  * scale on each axis. Under an orthographic projection, pixels per unit of extent at any depth.
  */
 export function pixelScale<T extends NumberSink>(out: T, p: ArrayLike<number>, w = 1, h = 1) {
-  out[0] = (w * Math.abs(p[0])) / 2
-  out[1] = (h * Math.abs(p[5])) / 2
+  out[0] = axisPixels(w, p[0])
+  out[1] = axisPixels(h, p[5])
   return out
 }
 
-/** The larger of `pixelScale`'s two, `Math.max((w·|p[0]|) / 2, (h·|p[5]|) / 2)`: the focal length
- *  in pixels a screen-space error is measured with. */
-export function focalPixels(p: ArrayLike<number>, w = 1, h = 1) {
-  return Math.max((w * Math.abs(p[0])) / 2, (h * Math.abs(p[5])) / 2)
-}
+/** Pixels per unit on one axis of `size` pixels whose projection scale is `scale`:
+ *  `(size·|scale|) / 2`, `pixelScale`'s term. */
+const axisPixels = (size: number, scale: number) => (size * Math.abs(scale)) / 2
 
-/** The world size of one pixel per unit of view depth under a perspective `p`, or of one pixel
- *  under an orthographic one, `h` pixels high (at least one): `1 / ((max(1, h)·|p[5]|) / 2)`, the
- *  reciprocal of `pixelScale`'s vertical scale. */
-export function pixelFootprint(p: ArrayLike<number>, h: number) {
-  return 1 / ((Math.max(1, h) * Math.abs(p[5])) / 2)
+/** The larger of `pixelScale`'s two (`axisPixels`): the focal length in pixels a screen-space
+ *  error is measured with. */
+export function focalPixels(p: ArrayLike<number>, w = 1, h = 1) {
+  return Math.max(axisPixels(w, p[0]), axisPixels(h, p[5]))
 }
 
 type Box = { left: number; right: number; top: number; bottom: number }

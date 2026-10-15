@@ -10,11 +10,11 @@ pub(super) fn build(world: &mut World<'_>, prim: &usd::Prim, key: &str) -> Optio
     let counts = array(world, prim, "faceVertexCounts", read::integers)?;
     let corners = array(world, prim, "faceVertexIndices", read::integers)?;
     let Some(faces) = spans(&counts, corners.len()) else {
-        world.refuse(world::MESH_INVALID);
+        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     };
     if points.is_empty() || faces.is_empty() {
-        world.refuse(world::MESH_INVALID);
+        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     }
     if scheme(prim, "subdivisionScheme")
@@ -58,7 +58,7 @@ fn emit(
         primitives.push(value);
     }
     if primitives.is_empty() {
-        world.refuse(world::MESH_INVALID);
+        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     }
     let name = prim.path().name().unwrap_or("Mesh").to_string();
@@ -93,7 +93,7 @@ fn array<T>(
     decode: impl Fn(&sdf::Value) -> Option<Vec<T>>,
 ) -> Option<Vec<T>> {
     let Some((value, sampled)) = read::first(&prim.attribute(name)) else {
-        world.refuse(world::MESH_INVALID);
+        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     };
     if sampled {
@@ -102,7 +102,7 @@ fn array<T>(
     match decode(&value) {
         Some(values) => Some(values),
         None => {
-            world.refuse(world::MESH_INVALID);
+            world.refuse(crate::plugins::scene::codes::MESH_INVALID);
             None
         }
     }
@@ -121,7 +121,7 @@ fn holes(world: &mut World<'_>, prim: &usd::Prim, faces: usize) -> BTreeSet<usiz
         world.refuse(world::TIME_SAMPLE);
     }
     let Some(indices) = read::integers(&value) else {
-        world.refuse(world::MESH_INVALID);
+        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
         return out;
     };
     for index in indices {

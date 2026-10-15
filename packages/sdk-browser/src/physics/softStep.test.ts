@@ -1,4 +1,4 @@
-// A soft body's bend floor and calm are reckoned with the page's step (`jolt_init`): at the default
+// A soft body's bend floor is reckoned with the page's step (`jolt_init`): at the default
 // step, bit for bit as the module that had 1/60 s compiled in; at another, the same per second.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -12,15 +12,11 @@ import { clampedCloth, thrownCloth } from './softScenes.fixture.ts'
 import { FLAT } from './records.fixture.ts'
 
 /** Steps `jolt` `seconds` in its own steps, `record`'s soft body in it: a SHA-256 of every step's
- *  soft words, in order, and how many times a soft body was brought back. */
+ *  soft words, in order. */
 function digest({ jolt, record }: { jolt: Module; record: { map: Uint32Array } }, seconds: number) {
   const hash = createHash('sha256')
-  let recovered = 0
-  for (const step of stepped(jolt, record, seconds)) {
-    hash.update(step.words)
-    recovered += step.recovered.length
-  }
-  return { soft: hash.digest('hex'), recovered }
+  for (const step of stepped(jolt, record, seconds)) hash.update(step.words)
+  return { soft: hash.digest('hex') }
 }
 
 /** Taken with the module whose soft step was compiled in (`ENGINE_STEP = 1.0f / 60`, `soft.cpp`),
@@ -28,12 +24,12 @@ function digest({ jolt, record }: { jolt: Module; record: { map: Uint32Array } }
  *  taken again, the module before that change and the one after giving the same. */
 const COMPILED_STEP = {
   thrown: {
+    // Re-pinned once the rollback chain left the module (its calm moved the thrown cloth).
     soft: '47a34bde79c4f2a32dc58338be36ced831c5e882ee11bd198fcc825374e5e847',
-    recovered: 1,
   },
 }
 
-test("at the page's default step, the bend floor and the calm step bit for bit as the step compiled in", async () => {
+test("at the page's default step, the bend floor steps bit for bit as the step compiled in", async () => {
   const thrown = await thrownCloth()
   assert.deepEqual({ thrown: digest(thrown, 3) }, COMPILED_STEP)
 })
@@ -74,35 +70,4 @@ test('at another step, a soft body falls and bends the same per second; a bend i
   const [floored60, floored120, compiled120] = tips.map((vertices) => at(vertices, 5)[2])
   assert.ok(floored60 < -0.27 && floored60 > -0.3, `at 60 Hz: ${floored60}`)
   assert.ok(floored120 > compiled120 + 0.03, `the floor follows: ${floored120}, ${compiled120}`)
-})
-
-/** The thrown cloth (`thrownCloth`) made in a module stepped by `moduleStep` and stepped 3 s at
- *  `step`: the most any vertex falls in one step while it is calmed, from 0.2 s after it is first
- *  brought back to the end of its 2 s calm (`SOFT_CALM`). */
-async function calmedFall(step: number, moduleStep: number) {
-  const { jolt, record } = await thrownCloth(moduleStep)
-  let [brought, fastest, s] = [-1, 0, 0]
-  let last: Float32Array | null = null
-  for (const { vertices, recovered } of stepped(jolt, record, 3, step)) {
-    s++
-    if (recovered.length && brought < 0) brought = s
-    const since = (s - brought) * step
-    if (vertices && last && brought >= 0 && since > 0.2 && since < 2)
-      for (let k = 2; k < vertices.length; k += 3)
-        fastest = Math.max(fastest, last[k] - vertices[k])
-    last = vertices ?? last
-  }
-  assert.ok(brought >= 0, `${step}: brought back`)
-  return fastest
-}
-
-test("brought back, a soft body is calmed at the page's step: at 30 Hz it falls at most half what a calm reckoned at 1/60 s lets it", async () => {
-  // The calm damps by `pull · step / (SOFT_CALM_EDGE · edge)`: reckoned at 1/60 s while the page
-  // steps at 1/30, it damps half as much, and its fall a step at least doubles.
-  const step = 1 / 30
-  const [own, compiled] = await Promise.all([
-    calmedFall(step, step),
-    calmedFall(step, PHYSICS_STEP),
-  ])
-  assert.ok(compiled > 2 * own, `calmed at the page's step: ${own} m a step, ${compiled}`)
 })

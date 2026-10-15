@@ -81,11 +81,9 @@ export function clusterErrorPixels(
   near: number,
   perspective = 1,
 ): number {
-  if (clusterError === 0) return 0
-  if (clusterError === Infinity) return Infinity
-  // No guard on the centre: a NaN or ±infinity in x or y yields a `lateral` that
-  // `clusterErrorAtDepth` rejects with the same message, its two short-circuits already set here.
-  // `vec2::length` of `cut_error.rs` too: the plain root, as the slant.
+  // No guard here: `clusterErrorAtDepth` takes the zero and infinite errors first, then rejects a
+  // NaN or ±infinity in x or y through `lateral`. `vec2::length` of `cut_error.rs` too: the plain
+  // root, as the slant.
   const lateral = plainLength2(centreX, centreY)
   return clusterErrorAtDepth(
     clusterError,

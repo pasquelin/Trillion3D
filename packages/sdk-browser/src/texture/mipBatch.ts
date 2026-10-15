@@ -46,8 +46,9 @@ export function generateMaterialMips(
     binBytes = 0
   for (const chain of chains) {
     const levels = mipLevelCountFor(chain.width, chain.height),
-      cutoff = chain.cutoff ?? 0
-    if (levels === 1) continue
+      // A single level cuts nothing; it takes the batch only for its turn.
+      cutoff = levels > 1 ? (chain.cutoff ?? 0) : 0
+    if (levels === 1 && !chain.turn) continue
     places.push({ chain, levels, first: blocks, bins: cutoff ? binBytes : undefined, cutoff })
     blocks += levels
     if (cutoff) binBytes += levels * LEVEL_BIN_BYTES
@@ -157,6 +158,13 @@ function encodeByLevel(
 ) {
   let top = 0
   for (const { levels } of chains) top = Math.max(top, levels)
+  // Level 0 of the raw texels that ask a turn, before any level reads it.
+  for (const { turn, sizes } of chains)
+    if (turn) {
+      pass.setPipeline(turn.pipeline)
+      pass.setBindGroup(0, turn.group)
+      dispatch(pass, sizes[0])
+    }
   const coverage = picks ? coveragePipelines(device) : undefined
   for (let level = 1; level < top; level++) {
     const cutting = picks ? reaching(picks.levels, level) : 0

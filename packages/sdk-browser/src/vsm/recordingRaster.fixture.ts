@@ -16,6 +16,6 @@ export function recordingRaster(device: GPUDevice, rowCount: number) {
       ...{ focalPixels: 100, near: 0.1, perspective: true, threshold: 1 },
     },
   }
-  const lights = [{ kind: 'directional' as const, firstId: 0, count: 1, shouldRender: true }]
+  const lights = [{ kind: 'directional' as const, firstId: 0, count: 1 }]
   return { encoder: device.createCommandEncoder(), scene, lights }
 }

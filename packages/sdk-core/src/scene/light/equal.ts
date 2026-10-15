@@ -1,14 +1,11 @@
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import type { SceneEnvironment } from '../core/environment.ts'
 import type { SceneLight } from './contracts.ts'
 import { sameSceneFog } from '../core/fog.ts'
 
 /** Two optional contract vectors: both absent, or identical component by component. */
-function sameVector(a: readonly number[] | undefined, b: readonly number[] | undefined) {
-  if (a === b) return true
-  if (!a || !b || a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
-  return true
-}
+const sameVector = (a: readonly number[] | undefined, b: readonly number[] | undefined) =>
+  a === b || (!!a && !!b && sameValues(a, b))
 
 /**
  * True when two validated lights describe exactly the same light — arrays included.

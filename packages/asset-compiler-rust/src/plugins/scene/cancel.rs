@@ -16,7 +16,15 @@ pub(super) fn stopped(cancelled: &AtomicBool, done: usize) -> bool {
     done.is_multiple_of(SLICE) && cancelled.load(Ordering::Relaxed)
 }
 
-/// Refusal that a cancelled compilation carries, the same for every driver.
-pub(super) fn refusal() -> CompilerError {
-    CompilerError::new(crate::CANCELLED, "Import cancelled")
+/// Refusal that a cancelled compilation carries, the same for every stage and driver.
+pub(crate) fn refusal() -> CompilerError {
+    CompilerError::new(crate::CANCELLED, "Compilation cancelled")
+}
+
+/// Refuses as cancelled when the token is raised: the one check of every stage and driver.
+pub(crate) fn check(cancelled: &AtomicBool) -> crate::Result<()> {
+    match cancelled.load(Ordering::Relaxed) {
+        true => Err(refusal()),
+        false => Ok(()),
+    }
 }

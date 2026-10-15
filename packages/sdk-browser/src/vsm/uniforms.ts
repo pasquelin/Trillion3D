@@ -26,8 +26,7 @@ export const VSM_UNIFORMS_WGSL = wgslBlock(
   `
 struct VsmUniforms{
  frameStamp:u32,
- fullMapCount:u32,
- singlePageMapCount:u32,
+ mapCount:u32,
  pressureBias:f32,
  poolPages:u32,
  poolRowShift:u32,
@@ -52,8 +51,8 @@ fn vsmCoverMipOffset(mip:u32)->u32{return vsm.coverMipOffset[mip>>2u][mip&3u];}
 
 /** Per-frame values of the block; the rest comes from the constants and the layout. */
 export interface VsmFrameUniforms {
-  fullMapCount: number
-  singlePageMapCount: number
+  /** The frame's maps: ids [0, mapCount). */
+  mapCount: number
   frameStamp: number
   /** Fed back from the previous frames' free page count. */
   pressureBias: number
@@ -68,13 +67,14 @@ export function writeVsmUniforms(
 ) {
   const { u, f } = wordViews(out, byteOffset)
   u[0] = frame.frameStamp >>> 0
-  u[1] = frame.fullMapCount
-  u[2] = frame.singlePageMapCount
-  f[3] = frame.pressureBias
-  u[4] = layout.poolPages
-  u[5] = layout.poolRowShift
-  u[6] = layout.poolRowMask
-  u[7] = layout.staticSlice
+  u[1] = frame.mapCount
+  f[2] = frame.pressureBias
+  u[3] = layout.poolPages
+  u[4] = layout.poolRowShift
+  u[5] = layout.poolRowMask
+  u[6] = layout.staticSlice
+  // Word 7: the padding WGSL puts before poolPagesXY, a vec2u at an 8-byte boundary.
+  u[7] = 0
   u[8] = layout.poolPagesXY[0]
   u[9] = layout.poolPagesXY[1]
   u[10] = layout.pageTableSize[0]

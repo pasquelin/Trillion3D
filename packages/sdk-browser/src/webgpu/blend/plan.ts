@@ -1,6 +1,6 @@
 import { matrixWindingCw } from '../../../../math/src/matrix/orientation.ts'
 import type { PageSurface } from '../../page/surface.ts'
-import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts'
+import { drawnBlending } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { filtersDisplay } from './equations.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
@@ -16,41 +16,37 @@ import {
   PLAN_VERTEX_CULL_BIT,
   planEntry,
 } from './planEntry.ts'
-import { planCull } from './planCull.ts'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { CULL_RANK, blendingOf, pipelineBase, planCull } from './planCull.ts'
 
-/** The three cull ranks of a pass's pipelines: a plan entry picks them without a test, and the
- *  rank, plus three per blend mode (`BLEND_MODES`), indexes the pipelines of the pass
- *  (`BlendModePipelines`, `draw.ts`). The water surfaces have only the three normal ones. */
-const PIPELINE_NONE = 0,
-  PIPELINE_FRONT = 1,
-  PIPELINE_BACK = 2
+/** The cull ranks of a pass's pipelines (`CULL_RANK`): a plan entry picks them without a test, and
+ *  the rank, plus its blend mode's base (`pipelineBase`), indexes the pipelines of the pass
+ *  (`BlendModePipelines`, `draw.ts`). The water surfaces have only the normal mode's. */
 export const planItem = (entry: number) => entry >>> PLAN_SHIFT
 /** Cull mode the vertex stage applies to the entry's instances: zero when the pipeline culls. */
 const planVertexCull = (entry: number) =>
-  entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : PIPELINE_NONE
+  entry & PLAN_VERTEX_CULL_BIT ? planCull(entry) : CULL_RANK.none
 /** Pipeline the entry sets: its mode's one that culls nothing when the vertex stage culls for it. */
 export const planPipeline = (entry: number) => (entry & PLAN_PIPELINE_MASK) - planVertexCull(entry)
 const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
 /** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
-const modeBase = (surface: PageSurface, transmissive: boolean) =>
-  BLEND_MODES.indexOf(drawnBlending(surface.blending, transmissive)) * 3
+const firstPipeline = (surface: PageSurface, transmissive: boolean) =>
+  pipelineBase(drawnBlending(surface.blending, transmissive))
 
 /** Plan entries of an item: back then face for a double-sided one drawn in two passes, else one. */
 function sidesOf(item: BlendGpuItem) {
   // One determinant, taken once, picks both faces.
   const renverse = matrixWindingCw(item.matrix.elements)
-  const front = renverse ? PIPELINE_FRONT : PIPELINE_BACK,
-    back = renverse ? PIPELINE_BACK : PIPELINE_FRONT
+  const front = renverse ? CULL_RANK.front : CULL_RANK.back,
+    back = renverse ? CULL_RANK.back : CULL_RANK.front
   // The record is read here, as its owner wrote it last: the plan is what must see a side
   // switched in place (see the room reserved above).
   const surface = item.surface
   const side = surface.side,
-    base = modeBase(surface, !!item.transmissive)
+    base = firstPipeline(surface, !!item.transmissive)
   if (side === 'double' && !surface.forceSinglePass) return [base + back, base + front]
   if (side === 'front') return [base + front]
   if (side === 'back') return [base + back]
-  return [base + PIPELINE_NONE]
+  return [base + CULL_RANK.none]
 }
 
 /**
@@ -73,8 +69,9 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
       into = item.transmissive ? transmission : blend
     const sides = sidesOf(item),
       vertexCull = !!item.paged && sides.length === MAX_SIDES
-    filters ||= filtersDisplay(BLEND_MODES[Math.floor(sides[0] / 3)])
-    modes.add(BLEND_MODES[Math.floor(sides[0] / 3)])
+    const mode = blendingOf(sides[0])
+    filters ||= filtersDisplay(mode)
+    modes.add(mode)
     for (const side of sides) {
       into.push(planEntry(i, side, !!item.paged, vertexCull))
       if (item.paged) continue
@@ -99,9 +96,8 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
  * The own entries start in source order, the order the CPU then keeps sorting in place.
  */
 function splitBlendClasses(blendState: WebgpuBlendState) {
-  // An item the GPU keys itself has no own rank.
-  const ranks = blendState.ownRanks.fill(NO_INDEX),
-    owned: number[] = []
+  // The items whose keys the CPU takes each frame, to order their own entries.
+  const owned = new Set<number>()
   for (let pass = 0; pass < EXPAND_PASSES; pass++) {
     const seeds = blendState.seeds[pass],
       shared = new Array<number>(PLAN_PIPELINE_MASK + 1).fill(0)
@@ -115,7 +111,7 @@ function splitBlendClasses(blendState: WebgpuBlendState) {
       if (planShared(entry) && planPipeline(entry) === main) continue
       own.push(seed)
       const item = planItem(entry)
-      if (ranks[item] === NO_INDEX) ranks[item] = owned.push(item) - 1
+      owned.add(item)
       if (own.length === 1 || planItem(seeds[own[own.length - 2]]) !== item) items++
     }
     blendState.mainPipeline[pass] = main
@@ -128,11 +124,10 @@ function splitBlendClasses(blendState: WebgpuBlendState) {
   blendState.ownItems = Uint32Array.from(owned)
 }
 
-/** Where the frame data puts the own keys and seeds, and the order kernel's dispatches. */
+/** Where the frame data puts the own seeds and slots, and the order kernel's dispatches. */
 function planBlendOrder(blendState: WebgpuBlendState) {
   const layout = blendState.frameLayout
-  layout.ownKeys = FRAME_HEAD.words
-  let at = layout.ownKeys + 2 * blendState.ownItems.length
+  let at: number = FRAME_HEAD.words
   let step = 0
   for (let pass = 0; pass < EXPAND_PASSES; pass++) {
     layout.ownSeeds[pass] = at
@@ -148,7 +143,6 @@ function planBlendOrder(blendState: WebgpuBlendState) {
             region: blendState.planRegions[pass],
             ownSeedBase: layout.ownSeeds[pass],
             ownSlotBase: layout.ownSlots[pass],
-            ownKeyBase: layout.ownKeys,
           },
           blendState.orderStepWords,
           step,

@@ -4,19 +4,21 @@
 //! by the same function, through the SDK module (`wasm_cone.rs`), for the pages the world cuts at
 //! run time (`packages/sdk-browser/src/world/page/runtimeCut.ts`). This is the only cone builder.
 //!
-//! Two cones are built and the narrower kept. The mean cone is `triangleCone`
-//! (`tests/kit/reference/cone.ts`), operation for operation in float64:
-//! its axis keeps its bits, `Math.hypot` to the bit (`trillion3d_math::js::hypot`). Its angle cannot: the
-//! JavaScript `Math.acos` bits follow the machine (on arm64, one input in two hundred differs from
-//! fdlibm), so it is fdlibm's (`trillion3d_math::acos`, the same bits everywhere) raised by
-//! [`ANGLE_MARGIN_ULPS`]. The narrowest cone points at the centre of the smallest ball holding the unit normals, its angle
-//! measured and raised the same way. Either bounds every face on any runtime, and a wider cone only
+//! One cone is built: the narrowest, whose axis points at the centre of the smallest ball holding
+//! the unit face normals (`min_ball`). Below a half-turn it is the smallest cap holding them, so
+//! never looser than any other axis's cone, the summed normals' included: the smallest cap of
+//! angle θ* < π/2 sits in a ball of radius sin θ*, so the smallest ball has radius r ≤ sin θ* < 1;
+//! a ball of radius under one cuts the unit sphere in a cap no wider than a hemisphere, whose
+//! circle, of radius sin θ, lies in the ball: sin θ ≤ r ≤ sin θ*, θ ≤ θ*, and the widest normal
+//! about the axis is θ*. At π/2 or more no view can cull the cluster by its cone: it is open. Its angle is measured by fdlibm's arccosine
+//! (`trillion3d_math::acos`, the same bits everywhere; JavaScript's `Math.acos` follows the machine)
+//! and raised by [`ANGLE_MARGIN_ULPS`], so it bounds every face on any runtime; a wider cone only
 //! culls less (`tests/integration/cooked-cones.test.ts`).
 use crate::min_ball::min_ball;
 use trillion3d_math::js::hypot;
 use trillion3d_math::triangle::triangle_cross;
 use trillion3d_math::vec3::{divide, point};
-use trillion3d_math::vecn::{add, dot};
+use trillion3d_math::vecn::dot;
 
 /// How many ulps the angle is raised by. fdlibm and the runtime's arccosine each lie within one ulp
 /// of the true angle, an ulp of which is at most two ulps of fdlibm's result where it crosses a
@@ -32,20 +34,14 @@ fn face_cross(pos: &[f32], triangle: [u32; 3]) -> [f64; 3] {
     triangle_cross(a, b, c)
 }
 
-/// The bounding cone of the normals of `indices`' triangles over `pos`, as `[x, y, z, angle]`:
-/// the narrower of the mean cone and the narrowest cone, never looser than the mean one.
-/// Degenerate faces are skipped; with none left, or normals that cancel out, the cone is open.
+/// The bounding cone of the normals of `indices`' triangles over `pos`, as `[x, y, z, angle]`: the
+/// narrowest (`narrowest_cone`). Degenerate faces are skipped; with none left, a normal that is not
+/// a number, or normals that cancel out, the cone is open.
 pub fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
-    let faces = faces(pos, indices);
-    let mean = mean_cone(&faces);
-    match narrowest_cone(&faces) {
-        Some(narrow) if narrow[3] < mean[3] => narrow,
-        _ => mean,
-    }
+    narrowest_cone(&faces(pos, indices)).unwrap_or(OPEN_CONE)
 }
 
-/// Each non-degenerate face's cross product and its length, once: the same values both passes of
-/// the TypeScript recompute, so the bits do not change.
+/// Each non-degenerate face's cross product and its length, once.
 fn faces(pos: &[f32], indices: &[u32]) -> Vec<([f64; 3], f64)> {
     indices
         .as_chunks::<3>()
@@ -57,22 +53,6 @@ fn faces(pos: &[f32], indices: &[u32]) -> Vec<([f64; 3], f64)> {
             (len > 0.0).then_some((c, len))
         })
         .collect()
-}
-
-/// `triangleCone`'s cone: the axis of the summed face normals, bit for bit, and the widest face
-/// angle from it, the margin up.
-fn mean_cone(faces: &[([f64; 3], f64)]) -> [f64; 4] {
-    if faces.is_empty() {
-        return OPEN_CONE;
-    }
-    let s = faces.iter().fold([0.0f64; 3], |s, (c, _)| add(s, *c));
-    let sl = hypot(s);
-    // `!(sl > 0)` in the TypeScript: a NaN length opens the cone as a zero one does.
-    if sl.is_nan() || sl <= 0.0 {
-        return OPEN_CONE;
-    }
-    let axis = divide(s, sl);
-    raised_cone(faces, axis)
 }
 
 /// The cone on `axis` holding every face: the widest face angle, the margin up.
@@ -87,8 +67,8 @@ fn raised_cone(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> [f64; 4] {
 /// non-increasing — no adjacent pair of floats out of 2.16·10⁹ checked over `[-1, 1]` and around
 /// every branch edge rises —, so it is the same float as the largest of the per-face angles; and
 /// were a pair ever to rise, each lies within one ulp of the true, decreasing angle, which
-/// [`ANGLE_MARGIN_ULPS`] covers. `f64::min` passes over a NaN as the TypeScript's `a > angle`
-/// does; no number at all leaves the angle `0`.
+/// [`ANGLE_MARGIN_ULPS`] covers. `f64::min` passes over a NaN, which never widens the cone;
+/// no number at all leaves the angle `0`.
 fn widest_angle(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> f64 {
     let smallest = faces
         .iter()
@@ -102,9 +82,9 @@ fn widest_angle(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> f64 {
 }
 
 /// The cone whose axis points at the centre of the smallest ball enclosing the unit face normals
-/// (`min_ball`), its angle measured and raised as the mean cone's is (`raised_cone`), so the same
-/// bound holds on any runtime; `None` when a normal is not a number (a face with a non-finite
-/// vertex, which the mean cone leaves open) or the centre is the origin.
+/// (`min_ball`), its angle measured and raised (`raised_cone`), so the same bound holds on any
+/// runtime; open from a quarter-turn up (nothing culls there); `None` when there is no face, a normal is not a number (a face with a non-finite
+/// vertex) or the centre is the origin.
 fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
     let mut normals = Vec::with_capacity(faces.len());
     for &(c, len) in faces {
@@ -119,7 +99,11 @@ fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
     if length.is_nan() || length <= 1e-9 {
         return None;
     }
-    Some(raised_cone(faces, divide(centre, length)))
+    let cone = raised_cone(faces, divide(centre, length));
+    Some(match cone[3] < std::f64::consts::FRAC_PI_2 {
+        true => cone,
+        false => OPEN_CONE,
+    })
 }
 
 /// The cone of each cluster `[start, end)` of `ranges` over `indices`, written as four floats per

@@ -1,4 +1,38 @@
 use super::*;
+
+/// What a simplification kept, in the source numbering: the tests' reading of `solve::Region`.
+pub(super) struct Kept {
+    pub indices: Vec<u32>,
+    pub error_object: f64,
+    pub triangles: usize,
+}
+
+/// `positions` and `indices` simplified towards `target` triangles by the one region simplifier;
+/// what it did not reduce comes back as it was.
+pub(super) fn simplify(
+    positions: &[f32],
+    attributes: &[Attribute],
+    indices: &[u32],
+    target: usize,
+    prune: bool,
+    flags: &dyn Fn(u32) -> u8,
+) -> crate::Result<Kept> {
+    let region = solve::Region::of(positions, attributes, indices)?;
+    Ok(match region.solve(target, prune, true, flags) {
+        Some(solved) => Kept {
+            indices: (solved.indices.iter())
+                .map(|&i| region.remap[i as usize])
+                .collect(),
+            error_object: solved.error_object,
+            triangles: solved.indices.len() / 3,
+        },
+        None => Kept {
+            indices: indices.to_vec(),
+            error_object: 0.0,
+            triangles: indices.len() / 3,
+        },
+    })
+}
 pub(super) const CUBE_POSITIONS: [f32; 24] = [
     0., 0., 0., 1., 0., 0., 1., 1., 0., 0., 1., 0., 0., 0., 1., 1., 0., 1., 1., 1., 1., 0., 1., 1.,
 ];
@@ -8,9 +42,7 @@ pub(super) const CUBE_INDICES: [u32; 36] = [
 ];
 #[test]
 fn free_vertices_reduce_a_closed_cube() {
-    let reduced =
-        simplify_with_locked_vertices(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| 0)
-            .expect("cube");
+    let reduced = simplify(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| 0).expect("cube");
     assert!(
         reduced.triangles < 12,
         "expected a reduction, got {}",
@@ -28,7 +60,7 @@ fn free_vertices_reduce_a_closed_cube() {
 }
 #[test]
 fn locked_vertices_keep_every_triangle() {
-    let kept = simplify_with_locked_vertices(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| {
+    let kept = simplify(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| {
         VERTEX_LOCK
     })
     .expect("cube");
@@ -38,7 +70,7 @@ fn locked_vertices_keep_every_triangle() {
 }
 #[test]
 fn a_mesh_already_below_the_target_is_returned_untouched() {
-    let open = simplify_with_locked_vertices(
+    let open = simplify(
         &[0., 0., 0., 1., 0., 0., 0., 1., 0.],
         &[],
         &[0u32, 1, 2],
@@ -52,10 +84,8 @@ fn a_mesh_already_below_the_target_is_returned_untouched() {
 }
 #[test]
 fn malformed_input_is_rejected() {
-    assert!(
-        simplify_with_locked_vertices(&CUBE_POSITIONS, &[], &[0u32, 1], 1, true, &|_| 0).is_err()
-    );
-    assert!(simplify_with_locked_vertices(&[0., 0.], &[], &CUBE_INDICES, 1, true, &|_| 0).is_err());
+    assert!(simplify(&CUBE_POSITIONS, &[], &[0u32, 1], 1, true, &|_| 0).is_err());
+    assert!(simplify(&[0., 0.], &[], &CUBE_INDICES, 1, true, &|_| 0).is_err());
 }
 #[test]
 fn compact_region_renumbers_each_vertex_once_and_maps_back() {

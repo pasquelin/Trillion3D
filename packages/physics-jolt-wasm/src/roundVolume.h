@@ -1,11 +1,9 @@
-// The part under a plane of a body of revolution Jolt measures by its box: its capsule, cylinder
-// and tapered cylinder (`roundVolume.cpp`).
+// The part under a plane of a body of revolution — a sphere, a capsule, a cylinder, a tapered
+// cylinder —, the round leaves of the one submerged-volume integrator (`submerged.cpp`).
 #pragma once
 
 #include <Jolt/Jolt.h>
 
-#include <Jolt/Geometry/AABox.h>
-#include <Jolt/Geometry/Plane.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 
 namespace trillion {
@@ -21,18 +19,14 @@ struct Round {
   float length() const { return top - bottom + 2 * cap; }
 };
 
-/// The body of revolution `shape` is: a capsule, a cylinder or a tapered cylinder, or one of them
-/// under an `OffsetCenterOfMassShape`, whose frame is then `offset` from the shape's. False for
-/// any other shape.
-bool roundOf(const JPH::Shape &shape, Round &round, JPH::Vec3 &offset);
+/// The body of revolution the leaf `shape` is: a sphere, a capsule, a cylinder or a tapered
+/// cylinder; false for any other shape.
+bool roundOf(const JPH::Shape &shape, Round &round);
 
-/// The bounds, in its own frame, of the part of `round` from `from` to `to` along its axis.
-JPH::AABox roundBounds(const Round &round, float from, float to);
-
-/// The same volume as `Shape::GetSubmergedVolume` gives, exactly, for the part of `round` from `from` to `to`
-/// along its axis placed by `transform` (a rotation and a translation): its volume, the volume
-/// under `surface` (below its plane) and that volume's centre, in `surface`'s space.
-void roundSubmerged(const Round &round, float from, float to, JPH::Mat44Arg transform,
-                    const JPH::Plane &surface, float &total, float &submerged, JPH::Vec3 &centre);
+/// The part of `round` from `from` to `to` along its axis, in its own frame: its volume, the volume
+/// under the plane `normal · x + constant = 0` (`normal` a unit vector, under where it is negative)
+/// and that volume's centre.
+void roundSubmerged(const Round &round, float from, float to, JPH::Vec3 normal, float constant, float &total,
+                    float &submerged, JPH::Vec3 &centre);
 
 }  // namespace trillion

@@ -14,7 +14,7 @@ use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_math::aabb::diagonal;
-use trillion3d_math::linear::{linear_columns, longest_column};
+use trillion3d_math::linear::{linear_columns, max_stretch};
 use trillion3d_math::matrix::transform_point;
 use trillion3d_page_codec::proxy::bvh;
 
@@ -65,7 +65,7 @@ fn hemi(mesh: &Traceable, placements: &[Mat4], floor: f64) -> bool {
                 .iter()
                 .all(|v| v.abs() <= 1e-9 * y[1]);
         let base = transform_point(m, [mesh.centre[0], low, mesh.centre[2]])[1];
-        let texel = 2.0 * mesh.radius * longest_column(m) / PROBE_SIDE as f64;
+        let texel = 2.0 * mesh.radius * max_stretch(m) / PROBE_SIDE as f64;
         upright && base <= floor + texel
     })
 }
@@ -174,7 +174,7 @@ fn stage_impostors(
         };
         let mut entry = entry(o, candidate, || {
             let traceable = Traceable::read(inputs.g, bin, mesh, inputs.previews)?;
-            let scale = placements.iter().map(longest_column).fold(0.0, f64::max);
+            let scale = inputs.mesh_scales.get(&mesh).copied().unwrap_or(0.0);
             let hemi = hemi(&traceable, &placements, b[1]);
             Ok((traceable, scale, hemi))
         })?;

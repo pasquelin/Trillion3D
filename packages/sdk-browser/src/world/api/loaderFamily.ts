@@ -1,27 +1,27 @@
 import { checked } from '../../cluster/checked.ts'
-import { decodeRaw, imageElement } from '../../texture/decode.ts'
+import { fetchDecoded } from '../../texture/decode.ts'
 import { texture } from '../texture/index.ts'
 
-/** The picture at `url`, fetched and decoded by the engine's one decoder. */
-const rawBitmap = async (url: string) => decodeRaw(await (await checked(url)).blob())
+/** The picture at `url`, fetched and decoded by the engine's one decoder (`fetchDecoded`). */
+const rawBitmap = (url: string) => fetchDecoded(url, undefined)
 
 /**
  * The `loader` family: files fetched and turned into what a scene uses. A file is read through
  * the engine's checked fetch (`cluster/checked.ts`), which refuses a failed response by its status;
- * a picture (`texture`, `cubeTexture`) is fetched by an image element, which refuses one by
- * failing to decode.
+ * a picture is decoded by the engine's one decoder: the pixels the file stores, neither
+ * colour-converted nor premultiplied, as every image the engine samples.
  */
 export const loader = {
   /**
    * Fetches a picture and makes a colour texture of it.
    * @param url - Where the picture is.
    */
-  texture: async (url: string) => texture.image(await imageElement(url)),
+  texture: async (url: string) => texture.image(await rawBitmap(url)),
   /**
    * Fetches six pictures and makes a cube texture: faces `+x, -x, +y, -y, +z, -z`.
    * @param urls - Where the six pictures are.
    */
-  cubeTexture: async (urls: string[]) => texture.cube(await Promise.all(urls.map(imageElement))),
+  cubeTexture: async (urls: string[]) => texture.cube(await Promise.all(urls.map(rawBitmap))),
   /**
    * Fetches a picture and decodes it into an `ImageBitmap`, by the engine's one decoder
    * (`texture/decode.ts`): the pixels the file stores, neither colour-converted nor premultiplied.

@@ -68,7 +68,7 @@ export function createTextureLevelReader(
   cache: Pick<PageCache, 'readRange'> & TextureLevelStore,
   signal?: AbortSignal,
 ): TextureLevelReader | undefined {
-  if (!textures || typeof createImageBitmap !== 'function') return undefined
+  if (!textures) return undefined
   const read = async (request: TextureLevelRequest) => {
     const { sha256, atlas, level, format, range } = request
     const own = request.url ?? textureLevelUrl(textures.url, sha256, atlas, level, format)

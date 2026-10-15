@@ -1,7 +1,7 @@
+import { retire } from '../../gpu/core/frameRetire.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { CACHED, cachePasses } from './shadeCachePasses.ts'
-import { heldSwitch } from '../../host/heldSwitch.ts'
+import { cachePasses } from './shadeCachePasses.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { writeChanged } from '../../gpu/core/writeChanged.ts'
 import type { OpenPass } from '../../gpu/core/lazyComputePass.ts'
@@ -17,11 +17,6 @@ import {
 } from '../../visibility/shader/shadeCacheLayout.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
-
-/** The material cache's A/B in the host URL, temporary, each read once at preparation; the same
- *  image every way. `trillion3dShadeNoCache=1`: no pass encoded, every pixel composes and decodes
- *  its own (`SHADE_CACHE` left out). */
-const shadeNoCacheAsked = heldSwitch('trillion3dShadeNoCache')
 
 /** What the frame's passes read beside the cache: the visibility buffer, the page table, the
  *  geometry the pixels decode, the resolve's uniform and the surfaces' records, which a sprite's
@@ -39,10 +34,10 @@ export type ShadeCacheInputs = {
 
 /**
  * The resolve's frame cache (`../../visibility/shader/shadeCacheWgsl.ts`): its buffer, laid each
- * image for the page table's rows, and the passes that fill it before the class draws.
- * `constants` are the resolve pipelines' overrides — the passes run, the pixel reads what they
- * store; passes the device refused leave them out, and each pixel computes its own.
- * The buffer exists either way: the resolve's group binds it. The triangles pass's dispatch is the
+ * image for the page table's rows, and the passes that fill it before the class draws: every pixel
+ * reads what they store. On a device that refused the passes no row is laid (rows word 0), and each
+ * pixel composes and decodes its own with the same text; the resolve's group binds the buffer
+ * either way. The triangles pass's dispatch is the
  * rows pass's (`work`): x and y cleared each image, raised by the rows whose triangles fit.
  *
  * The triangles' capacity is derived, never tuned: no more than the rows hold — each row's
@@ -50,7 +45,7 @@ export type ShadeCacheInputs = {
  * from holds texels, one word each. A row whose triangles do not fit is decoded by its pixels.
  */
 export async function createShadeCache(device: GPUDevice) {
-  const passes = shadeNoCacheAsked() ? undefined : await cachePasses(device)
+  const passes = await cachePasses(device)
   const c: Cache = {
     ...{ device, passes },
     // The header words the host writes, the rows and the capacity; the cursor and the end of the
@@ -61,9 +56,7 @@ export async function createShadeCache(device: GPUDevice) {
     ...{ rowsGroup: undefined, trisGroup: undefined, width: 0, height: 0 },
     bound: createWebgpuBindIdentity(),
   }
-  const constants: Record<string, number> = { ...(passes && CACHED) }
   return {
-    constants,
     get buffer() {
       return c.buffer
     },
@@ -124,7 +117,7 @@ function layFor(
     rows * (ROW_RECORD_WORDS + ROW_MARK_WORDS) +
     capacity * TRIANGLE_WORDS
   if (needed > c.words) {
-    c.buffer.destroy()
+    retire(c.device, c.buffer)
     c.buffer = cacheBuffer(c.device, (c.words = needed))
   }
   c.width = pixelWidth

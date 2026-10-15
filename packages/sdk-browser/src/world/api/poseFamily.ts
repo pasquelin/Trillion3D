@@ -1,4 +1,4 @@
-import { framingFromBounds } from '../../camera/framing.ts'
+import { frameBounds } from '../../camera/framing.ts'
 import { runCameraPath } from '../../camera/path.ts'
 import type { CameraPose as EnginePose } from '../../../../sdk-core/src/contracts/base.ts'
 import type { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
@@ -15,7 +15,7 @@ export type PosedWorld = {
 /** The `pose` family: framing a box, naming a view, replaying a path. */
 export const pose = {
   /**
-   * The view that frames `box` (`framingFromBounds`), from `direction` (the default diagonal).
+   * The view that frames `box` (`frameBounds`), from `direction` (the default diagonal).
    * @param box - The box to frame.
    * @param p - The field of view, the direction to look from, and the picture's shape.
    */
@@ -23,18 +23,12 @@ export const pose = {
     box: Box3,
     p: { fov?: number; direction?: Vec3Input; aspect?: number } = {},
   ): CameraPose {
-    // An empty box frames its origin at no distance, not at the empty sphere's radius of −1.
-    const sphere = box.getBoundingSphere({ center: new Vector3(), radius: 0 })
-    const centre = sphere.center,
-      radius = Math.max(0, sphere.radius)
-    const framing = framingFromBounds(radius, p.aspect ?? 1)
-    const along = p.direction
-      ? new Vector3(...readVec3(p.direction))
-      : new Vector3(...framing.offset)
-    along.setLength(new Vector3(...framing.offset).length())
+    const { min, max } = box
+    const flat = Float64Array.of(min.x, min.y, min.z, max.x, max.y, max.z)
+    const framed = frameBounds(flat, p.aspect ?? 1, p.direction && readVec3(p.direction))
     return {
-      position: centre.clone().add(along).toArray(),
-      target: centre.toArray(),
+      position: framed.position,
+      target: framed.centre,
       fov: p.fov,
     }
   },

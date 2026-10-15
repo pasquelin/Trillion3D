@@ -2,7 +2,7 @@ import { DEFERRED_BINDINGS } from '../../lighting/deferred/bindings.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { WATER_BINDINGS } from './compositeWgsl.ts'
 import { deferredLayoutEntries } from '../../lighting/deferred/layoutEntries.ts'
-import { readOnly } from '../core/bindLayout.ts'
+import { bufferLayout, textureLayout } from '../../gpu/core/computeBindings.ts'
 import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
@@ -36,7 +36,7 @@ const b = WATER_BINDINGS
  *  backdrop and its depth, the blend view, the volumes, the item records whose poses they name
  *  and, for the vertex stage, the verdict its quad reads the rectangle from. */
 const HELD: readonly Held[] = [
-  [b.word, ({ gpu }) => gpu.colorView, { texture: { sampleType: 'unfilterable-float' } }],
+  [b.word, ({ gpu }) => gpu.colorView, textureLayout('unfilterable-float')],
   [b.depth, ({ gpu }) => gpu.backdrop!.waterDepthView],
   [b.view, ({ gpu }) => gpu.deferred?.uniform],
   [b.directLights, ({ lighting }) => lighting.directLights],
@@ -51,16 +51,12 @@ const HELD: readonly Held[] = [
   [b.bounceGrid, ({ lighting }) => lighting.bounceGrid],
   [b.probes, ({ lighting }) => lighting.probes],
   [b.frontTraced, ({ lighting }) => lighting.frontTraced, FRONT_TRACED_LAYOUT],
-  [
-    b.backdrop,
-    ({ gpu }) => gpu.backdrop!.colorView,
-    { texture: { sampleType: 'unfilterable-float' } },
-  ],
-  [b.backdropDepth, ({ gpu }) => gpu.depthView, { texture: { sampleType: 'depth' } }],
-  [b.uniform, ({ uniform }) => uniform, { buffer: { type: 'uniform' } }],
-  [b.volumes, ({ gpu }) => gpu.volumeBuffer, { buffer: readOnly }],
-  [b.items, ({ items }) => items, { buffer: readOnly }],
-  [b.rect, ({ verdict }) => verdict, { buffer: readOnly, vertex: true }],
+  [b.backdrop, ({ gpu }) => gpu.backdrop!.colorView, textureLayout('unfilterable-float')],
+  [b.backdropDepth, ({ gpu }) => gpu.depthView, textureLayout('depth')],
+  [b.uniform, ({ uniform }) => uniform, bufferLayout('uniform')],
+  [b.volumes, ({ gpu }) => gpu.volumeBuffer, bufferLayout('read-only-storage')],
+  [b.items, ({ items }) => items, bufferLayout('read-only-storage')],
+  [b.rect, ({ verdict }) => verdict, { ...bufferLayout('read-only-storage'), vertex: true }],
 ]
 
 /** The material surfaces the composite reads first, on the resolve's numbers. */

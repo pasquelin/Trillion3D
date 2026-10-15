@@ -3,7 +3,7 @@
  * shadow reads) and a local light's (a point's cube faces, a spot's map). A program compiled for one
  * kind holds the other's read in no function: the key of the lit programs says which a scene's
  * lights use (`contractKey`, `../deferred/contractVariants.ts`), as the projection pass is compiled
- * with its lights' kinds (`VSM_PROJECTION_KINDS`).
+ * with its lights' kinds (`VSM_TRACE_KINDS`).
  */
 export type ShadowKinds = { sun: boolean; local: boolean }
 

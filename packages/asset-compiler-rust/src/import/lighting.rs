@@ -3,7 +3,7 @@
 //! imported data.
 use super::*;
 use trillion3d_math::matrix::transform_direction;
-use trillion3d_math::vec3::{cross, normalize, normalized_or};
+use trillion3d_math::vec3::{cross, frame_across, normalized_or};
 
 pub(super) fn matrix_json(m: &ufbx::Matrix) -> Vec<f64> {
     matrix_columns(m).to_vec()
@@ -22,13 +22,8 @@ pub(super) fn matrix_is_finite(m: &[f64]) -> bool {
 pub(super) fn light_matrix(node: &ufbx::Node, direction: ufbx::Vec3) -> Vec<f64> {
     let d = normalized_or([direction.x, direction.y, direction.z], [0.0, 0.0, -1.0]);
     let z = [-d[0], -d[1], -d[2]];
-    let up = if z[1].abs() > 0.99 {
-        [1.0, 0.0, 0.0]
-    } else {
-        [0.0, 1.0, 0.0]
-    };
-    let x = cross(up, z);
-    let x = normalize(x);
+    // FBX gives no roll about the axis: the frame around it (`frame_across`).
+    let x = frame_across(z);
     let y = cross(z, x);
     let n = &node.node_to_world;
     let columns = matrix_columns(n);
@@ -47,13 +42,13 @@ impl Importer<'_> {
             ufbx::LightType::Directional => "directional",
             ufbx::LightType::Spot => "spot",
             _ => {
-                self.report.add("light-area-or-volume");
+                self.scene.report.add("light-area-or-volume");
                 return;
             }
         };
         let matrix = light_matrix(node, light.local_direction);
         if !matrix_is_finite(&matrix) {
-            self.report.add("node-invalid-transform");
+            self.scene.report.add("node-invalid-transform");
             return;
         }
         // FBX carries no photometric unit: its intensity is a percentage, which the
@@ -65,20 +60,21 @@ impl Importer<'_> {
             kind,
             colour: [light.color.x, light.color.y, light.color.z],
             intensity: light.intensity * crate::compiler_lights::fbx_intensity_scale(kind),
+            // The outer half-angle travels as written: `compiler_lights` clamps every cone once.
             cone: (kind == "spot").then(|| {
                 (
                     light.inner_angle.to_radians(),
-                    light.outer_angle.to_radians().max(0.001),
+                    light.outer_angle.to_radians(),
                 )
             }),
             casts_shadow: Some(light.cast_shadows),
             emitter_radius: None,
         };
-        self.lights.push(source.json());
-        self.nodes.push(crate::import::light_node(
+        self.scene.lights.push(source.json());
+        self.scene.nodes.push(crate::import::light_node(
             &node.element.name,
             json!(matrix),
-            self.lights.len() - 1,
+            self.scene.lights.len() - 1,
         ));
     }
 }

@@ -5,10 +5,11 @@ import { PAGE_POINTS_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { CLUSTER_HEADER_WGSL } from '../../cluster/headerWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
+import { CULL_RANK } from './planCull.ts'
 
 /**
- * The cull an entry's pipeline leaves to the vertex stage (plan.ts, VERTEX CULL): mode 1 drops
- * the front faces, mode 2 the back ones, as the pipelines' cullMode would with frontFace ccw.
+ * The cull an entry's pipeline leaves to the vertex stage (plan.ts, VERTEX CULL), by its rank in
+ * `CULL_MODES`: front drops the front faces, back the back ones, as the pipelines' cullMode would with frontFace ccw.
  *
  * The facing is the sign of the clip-space determinant of the triangle's three corners (x, y, w),
  * the sign of its projected area. The rasteriser takes that sign on the corners it snapped to its
@@ -63,9 +64,9 @@ fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec
  let pixels=abs(e1.x*e2.y-e1.y*e2.x);
  let edges=abs(e1.x)+abs(e1.y)+abs(e2.x)+abs(e2.y);
  if(!inside||!(abs(area)>${FACING_TOLERANCE}*bound)||!(pixels>${SNAP_STEP}*(2.0*edges+${8 * SNAP_STEP}))){return cull;}
- if(cull==1u){return select(0u,${FACING_DROP}u,area>=0.0);}
+ if(cull==${CULL_RANK.front}u){return select(0u,${FACING_DROP}u,area>=0.0);}
  return select(0u,${FACING_DROP}u,area<0.0);
 }
-fn facingDiscarded(mode:u32,front:bool)->bool{return (mode==1u&&front)||(mode==2u&&!front);}
+fn facingDiscarded(mode:u32,front:bool)->bool{return (mode==${CULL_RANK.front}u&&front)||(mode==${CULL_RANK.back}u&&!front);}
 `,
 )

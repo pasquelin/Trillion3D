@@ -2,16 +2,12 @@ use super::*;
 
 impl<'a> Importer<'a> {
     pub(super) fn check(&self) -> Result<()> {
-        if self.cancelled.load(Ordering::Relaxed) {
-            return Err(CompilerError::new(crate::CANCELLED, "Import cancelled"));
-        }
-        Ok(())
+        crate::plugins::scene::cancel::check(self.cancelled)
     }
     pub(super) fn load(
         &mut self,
         file: &Path,
         mapped: &[u8],
-        digest: &str,
         index: usize,
         total: usize,
     ) -> Result<()> {
@@ -24,7 +20,6 @@ impl<'a> Importer<'a> {
         // Image URIs written here are relative to this root, under which
         // compiler re-reads bytes to compute previews: single shared rule.
         let source_dir = crate::plugins::scene::image_root(file);
-        let canonical_dir = normalise(&source_dir);
         let progress = self.progress;
         let cancelled = self.cancelled;
         let externals = &self.externals;
@@ -76,12 +71,12 @@ impl<'a> Importer<'a> {
             .iter()
             .any(|w| w.type_ == ufbx::WarningType::MissingExternalFile);
         self.externals
-            .report_since(opened_before, declared, &mut self.report);
+            .report_since(opened_before, declared, &mut self.scene.report);
         for warning in &scene.metadata.warnings {
             if warning.type_ == ufbx::WarningType::MissingExternalFile {
                 continue;
             }
-            self.report.notes.push(format!(
+            self.scene.report.notes.push(format!(
                 "{file_name}: {} (x{})",
                 &*warning.description, warning.count
             ));
@@ -90,19 +85,15 @@ impl<'a> Importer<'a> {
         {
             let mut textures = TextureTable {
                 source_dir: &source_dir,
-                canonical_dir,
-                bin: &mut self.bin,
-                images: &mut self.images,
-                samplers: &mut self.samplers,
-                textures: &mut self.textures,
-                sampler_ids: &mut self.sampler_ids,
-                report: &mut self.report,
+                scene: &mut self.scene,
                 externals: &self.externals,
                 by_element: HashMap::new(),
             };
             for material in &scene.materials {
-                self.materials.push(material_json(material, &mut textures));
-                local_materials.insert(material.element.element_id, self.materials.len() - 1);
+                let json = material_json(material, &mut textures);
+                textures.scene.materials.push(json);
+                let rank = textures.scene.materials.len() - 1;
+                local_materials.insert(material.element.element_id, rank);
             }
         }
         let mut mesh_ids: HashMap<(u32, Vec<Option<usize>>), Option<usize>> = HashMap::new();
@@ -148,14 +139,15 @@ impl<'a> Importer<'a> {
                     let converted = mesh_json(
                         mesh,
                         &key.1,
-                        &mut self.bin,
-                        &mut self.accessors,
-                        &mut self.report,
+                        &mut self.scene.bin,
+                        &mut self.scene.accessors,
+                        &mut self.scene.report,
+                        self.cancelled,
                     );
                     let id = converted.map(|out| {
-                        self.meshes.push(out.mesh);
-                        self.mesh_triangles.push(out.triangles);
-                        self.meshes.len() - 1
+                        self.scene.meshes.push(out.mesh);
+                        self.scene.mesh_triangles.push(out.triangles);
+                        self.scene.meshes.len() - 1
                     });
                     mesh_ids.insert(key, id);
                     if i % 64 == 0 || i + 1 == node_total {
@@ -169,17 +161,18 @@ impl<'a> Importer<'a> {
             let Some(mesh_id) = mesh_id else { continue };
             let matrix = matrix_json(&node.geometry_to_world);
             if !matrix_is_finite(&matrix) {
-                self.report.add("node-invalid-transform");
+                self.scene.report.add("node-invalid-transform");
                 continue;
             }
-            self.nodes
+            self.scene
+                .nodes
                 .push(json!({"name":&*node.element.name,"matrix":matrix,"mesh":mesh_id}));
-            let placed = self.nodes.len() - 1;
+            let placed = self.scene.nodes.len() - 1;
             self.bend(node, mesh, placed, (&mut bones, &mut skins), &mut written);
             file_nodes += 1;
-            file_triangles += self.mesh_triangles[mesh_id];
+            file_triangles += self.scene.mesh_triangles[mesh_id];
         }
-        self.report.add_count("node-hidden", hidden);
+        self.scene.report.add_count("node-hidden", hidden);
         for (&typed, &node) in &bones {
             written.push(Written {
                 typed: typed as usize,
@@ -190,9 +183,14 @@ impl<'a> Importer<'a> {
             });
         }
         self.animate(&scene, &written)?;
-        self.mesh_nodes += file_nodes;
-        self.triangles += file_triangles;
-        self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"originalUnitMeters":scene.settings.original_unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":crate::shared_math::elapsed_ms(started)}));
+        // The runner noted this file (`SceneTables::read_file`, its name, size and digest); what the
+        // read found joins that record.
+        let details = json!({"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"originalUnitMeters":scene.settings.original_unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":crate::shared_math::elapsed_ms(started)});
+        if let (Some(Value::Object(record)), Value::Object(details)) =
+            (self.scene.files.get_mut(index), details)
+        {
+            record.extend(details);
+        }
         Ok(())
     }
 }

@@ -71,8 +71,7 @@ test('the marking records into the pass it is given: its clears, rects and coars
   const bin = { offset: 0, count: 1 },
     none = { offset: 0, count: 0 }
   marking.encode(pass, {
-    fullMapCount: 1,
-    singlePageMapCount: 0,
+    mapCount: 1,
     perspective: true,
     perPage: {
       ids: new Uint32Array(2),
@@ -105,8 +104,7 @@ test('a device aligning at 512 lays the per-page slots 512 bytes apart', () => {
   } as unknown as GPUComputePassEncoder
   const bins = [3, 2, 1, 4].map((count, b) => ({ offset: 2 * b, count }))
   marking.encode(pass, {
-    fullMapCount: 1,
-    singlePageMapCount: 0,
+    mapCount: 1,
     perspective: true,
     perPage: { ids: new Uint32Array(20), all: bins, directionalOnly: bins },
   })

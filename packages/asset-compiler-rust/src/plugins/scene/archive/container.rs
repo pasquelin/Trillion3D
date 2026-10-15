@@ -139,7 +139,7 @@ fn stage_in_place(root: &Path, name: &str, request: &SceneRequest<'_>) -> Result
             cancelled: request.cancelled,
         },
     )?;
-    atomic(&root.join("manifest.json"), &loaded.manifest_bytes)?;
+    atomic(&root.join(crate::MANIFEST_POINTER), &loaded.manifest_bytes)?;
     Ok(PreparedScene::converted(root.to_path_buf(), root))
 }
 

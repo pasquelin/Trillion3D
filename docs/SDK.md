@@ -139,10 +139,10 @@ at the soonest. Frames that need a family wait for it, never draw without it; re
 leave each object its mesh. A page downloads only the renderer it draws with.
 
 **Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, a stats
-overlay, `?profile` in the address) files frames into `world.cpuSteps` and the frame
-report and fetches the measurement's code (`EngineProfiler`, `gpuPassStageOf`, `gpuPassBlockOf`,
-`gpuPassBlockTotals`, also fetched at their first call). Until it arrives, they report nothing
-measured: a page reading them from its first frame turns debug mode on before it.
+overlay, `?profile` in the address) files frames into `world.cpuSteps` and the frame report
+(`EngineProfiler`). The pass mapping (`gpuPassStageOf`, `gpuPassBlockOf`, `gpuPassBlockTotals`)
+is the engine's own, there from the first frame; a page reading the frame report from its first
+frame turns debug mode on before it.
 
 ## API rule
 
@@ -184,8 +184,8 @@ according to what the frame reads:
 | Family       | Members                                                                        | What it does                                                     | Example                                                                                                                                            |
 | ------------ | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `page`       | `createStreamer`, `createCache`, `httpSource`, `decode`                        | geometry in pages                                                | `page.createStreamer({ source: page.httpSource('assets/forest/', { pages, cache: createPageCache() }) })`, passed as `scene.load(url, { stream })` |
-| `budget`     | `memory`, `geometryPool`, `texturePool`                                        | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                                                    |
-| `metric`     | `frame`, `cpuSteps`, `gpuPasses`, `createProfiler`                             | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.createProfiler(world)`                                            |
+| `budget`     | `geometryPool`, `texturePool`                                                  | fixed envelopes, not wishes                                      | `world.budget.geometryPool = 512 * 1024 * 1024`                                                                                                    |
+| `metric`     | `frame`, `gpuPasses`                                                           | what the image cost, never estimated                             | `metrics.selectedTriangles`, `metrics.residentPages` in `world.onFrame`; `metric.gpuPasses(world)`                                                 |
 | `diagnostic` | `createChannel`, `presentationColor`, `partitionAudit`, `transparentOcclusion` | watching the engine work                                         | `world.diagnostic.mode = 'clusters'` (or `'wireframe'`, `'triangles'`, `'beauty'`)                                                                 |
 | `capability` | `detect`, `lighting`                                                           | what the machine grants, before an image is promised             | `(await capability.detect()).webgpu`                                                                                                               |
 | `capture`    | `surface`, `buffer`                                                            | an image aside, at another resolution, without touching the view | `capture.surface(world, { width: 3840, height: 2160 })`                                                                                            |
@@ -197,7 +197,7 @@ totals (`cpuFrameMs`, `pageLoads`, `pageBytesRead`) at zero and every measure `n
 never a zero that would read as an empty frame.
 
 The world is not a family: it carries `scene`, `camera`, `budget`, `diagnostic`, `controls`,
-`onFrame`/`loop`, `render`, `invalidate` and `dispose`. There is no level-of-detail object and no
+`onFrame`, `render`, `invalidate` and `dispose`. There is no level-of-detail object and no
 instanced or batched mesh type: the DAG cut, instancing and draw grouping are native.
 
 In a compiled scene, moving a node or its parent updates its resident lighting proxy (the one
@@ -210,7 +210,7 @@ restore geometry discarded while cooking ([FORMAT.md](FORMAT.md#resident-lightin
 The world owns the loop and stops when the image is stable: after 120 frames with nothing changing
 it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a page
 landed does not count, so a streamed view is drawn to its last page. A still scene costs nothing.
-`onFrame` is the per-frame hook; `loop` is its alias.
+`onFrame` is the per-frame hook.
 
 ```js
 // 1. The world leads; you give it work per frame.
@@ -512,8 +512,8 @@ A Node TypeScript host uses `"module": "NodeNext"`, `"moduleResolution": "NodeNe
 `"types": ["node"]`; NodeNext then selects the Node declarations from the same specifier.
 
 A page without a bundler imports `trillion3d/module`. A bundler takes `trillion3d` as the entry, the
-installed workers (`pageWorker.js`, `pageIntegrationWorker.js`, `physicsWorker.js`,
-`animationWorker.js`) as module-worker entries, and code splitting; copy each installed WebAssembly
+installed workers (`pageWorker.js`, `pageIntegrationWorker.js`, `physicsWorker.js`) as
+module-worker entries, and code splitting; copy each installed WebAssembly
 module (`kernels.wasm`, `joltPhysics.wasm`, `joltPhysicsThreads.wasm`) beside every chunk that
 names it, and serve that output with the compiled scene cache. `pnpm run proof:package -- --browser`
 is the repository's executable esbuild configuration (`-- --bundle` without a browser).
@@ -789,9 +789,9 @@ waiting on a shadow pool or frame targets is held, never drawn without its shado
 
 A lost device is recovered without a reload: the session reopens on a new
 device and rebuilds from the decoded-page cache, fetching nothing it still holds, the canvas keeping
-its last image (`gpu-device-recovered`, `recoveryMs`). Each session reopen is said once as
-`session-reopen`: `cause` (`device-lost` or `option`, nothing else: no change to the scene's content
-opens a session again), `durationMs`, `framesWithoutImage`. A mesh, a material, a model with its
+its last image. Each session reopen, a recovery included, is said once as `session-reopen`:
+`cause` (`device-lost` or `option`, nothing else: no change to the scene's content opens a session
+again), `durationMs` (from the loss, for a lost device), `framesWithoutImage`, `keptPages`. A mesh, a material, a model with its
 cells or a world the scene gains joins the running session in place, and one it loses is parked.
 What the session cannot take in place — a catalogue past its keys (`KEY_PAGE_MAX`), a pool or a pass
 the device refuses, a picture that changed size where the atlas layout is fixed — is said by name,

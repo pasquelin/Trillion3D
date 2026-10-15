@@ -14,9 +14,11 @@ import { reflectionBytes } from '../../../reflections/gpu.ts'
 import { level0LayerBytes } from '../../../gpu/hiz/pyramid.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { FrameSize } from '../state/renderScale.ts'
+import { texelBytesOf } from '../../../gpu/core/textureBytes.ts'
+import { DISPLAY_FORMAT } from '../../../scene/targetFormats.ts'
 
-/** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
-const DISPLAY_BYTES = 4
+/** Bytes per pixel of the display colour. */
+const DISPLAY_BYTES = texelBytesOf(DISPLAY_FORMAT)
 
 /**
  * Whether the scene has blends — water included —, which the front pass draws into the transparents'
@@ -67,9 +69,8 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     PHYSICAL_LOBES_TARGET.texelBytes +
     // The reflection's target and radiance pyramid (`../../../reflections/gpu.ts`).
     reflectionBytes(width, height, sceneBlends(rt)) +
-    // The Hi-Z level 0's front layer, a scene's whose transparents write a front depth, kept once
-    // made (`GpuHiz.holdsFront`): a pyramid made after holds it.
-    (hiz && (sceneBlends(rt) || rt.vis.gpuHiz?.holdsFront) ? level0LayerBytes(width, height) : 0) +
+    // The Hi-Z level 0's front layer, made with every pyramid.
+    (hiz ? level0LayerBytes(width, height) : 0) +
     display * DISPLAY_BYTES
   )
 }

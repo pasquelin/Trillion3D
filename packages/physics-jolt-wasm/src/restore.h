@@ -18,5 +18,11 @@ bool restoreShape(const uint32_t *w);
 void releaseShape(const uint32_t *w);
 /// The restored shape of `handle`, scaled by `scale` when it is not 1; null when unknown.
 JPH::RefConst<JPH::Shape> cookedShape(uint32_t handle, JPH::Vec3 scale);
+/// The primitive `kind` (layout.ts SHAPE) of dimensions `a, b, c`, built once and shared
+/// (`shapes.cpp`): an ADD's body and a sweep's shape are the same shape; null when refused.
+JPH::RefConst<JPH::Shape> primitive(uint32_t kind, float a, float b, float c);
+/// Lets go of the primitives the cache alone holds — no body, compound or sweep uses them any
+/// more —, once per step: the cache holds the live shapes only.
+void prunePrimitives();
 
 }  // namespace trillion

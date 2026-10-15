@@ -8,10 +8,9 @@ const profileAsked = addressFlag((params) => params.has('profile'))
 
 /**
  * The engine's debug mode, a development build's tools against a shipping build: the
- * frames are filed into the CPU step profile (`world.cpuSteps`) and the frame report
- * (`getReport`) only in it, and the measurement's code (`families.measurement`) — the frame
- * report's and the pass table's — is fetched only once it turns on, or by what reads it — a
- * listened diagnostic channel, the frame audit, an A/B layout, the pass mapping. A page that
+ * frames are filed into the CPU step profile and the engine profiler's report only in it, and
+ * the measurement's code (`families.measurement`) is fetched only once it turns on, or by what
+ * reads it — a listened diagnostic channel, the frame audit, an A/B layout. A page that
  * never asks for it — a world's `debug` option or setter, a stats overlay, `?profile` in its
  * address — files no frame into a profile. It is the page's: every world reads it.
  */

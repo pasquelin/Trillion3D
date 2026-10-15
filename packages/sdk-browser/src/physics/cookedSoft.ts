@@ -8,10 +8,14 @@ import { flagsOf } from './bodies.ts'
 import { createOpenings } from './modelOpenings.ts'
 import { fits, rescaledSoft, writeSoftBody } from './softBodies.ts'
 import { holdObjects, letGoAll, type HeldObjects, type CookedParts } from './cookedObjects.ts'
+import { followModel } from './cookedMoved.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
 /** The settings object a cooked soft body is made from. */
 const settingsObject = (soft: CookedSoftBody) => soft.settings
+
+/** A cooked soft body a rescale refused: its entry, the world scale it was at. */
+type Refused = { soft: CookedSoftBody; scale: number[] }
 
 /** A cooked soft body made: its entry, its options, its engine id. */
 export type CookedMade = {
@@ -38,17 +42,21 @@ export function createCookedSoftBodies(parts: CookedParts) {
    *  the signal its model's leaving aborts its reads by. */
   type Opening = {
     made: CookedMade[]
-    refused: CookedSoftBody[]
+    refused: Refused[]
     settings: HeldObjects
     signal: AbortSignal
   }
   const held = createOpenings<Opening>(bodies.release, (opening) =>
     letGoAll(shapes, opening.settings),
   )
-  /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was
-   *  cooked at. */
-  function refuse(opening: Opening, soft: CookedSoftBody) {
-    opening.refused.push(soft)
+  /** Lists `soft` refused in `opening` at world `scale`, and refuses it by name: at another
+   *  scale than it was cooked at. */
+  function refuse(
+    opening: Opening,
+    soft: CookedSoftBody,
+    scale: { x: number; y: number; z: number },
+  ) {
+    opening.refused.push({ soft, scale: [scale.x, scale.y, scale.z] })
     failed(rescaledSoft(`of node ${soft.node}`, soft.scale, { node: soft.node }))
   }
   async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
@@ -56,7 +64,7 @@ export function createCookedSoftBodies(parts: CookedParts) {
     const cooked = await shapes.read(opening.settings.get(soft.settings.url)!).catch(() => null)
     if (!cooked || !held.current(model, opening)) return
     const { position, quaternion, scale } = tilePose({ model, instance: soft })
-    if (!fits(scale, soft.scale)) return refuse(opening, soft)
+    if (!fits(scale, soft.scale)) return refuse(opening, soft, scale)
     const p = new ObjectPhysics(soft.physics)
     const made: CookedMade = { soft, physics: p, id: -1, source: cookedSoftSource(model, soft) }
     made.id = bodies.claim(0, soft.vertices, { model, soft: made })
@@ -86,33 +94,33 @@ export function createCookedSoftBodies(parts: CookedParts) {
     },
     forget: held.forget,
     /** A model moved or hidden: its soft bodies carried where it now is, their simulation kept,
-     *  their flags written again; one rescaled is released and refused by name — the physics module scales no
-     *  soft body once made —, and made again once back at its scale. */
+     *  their flags written again (`followModel`); one rescaled is refused by name until its model
+     *  is back at its cooked scale. */
     moved(model: Model) {
       const opening = held.get(model)
       if (!opening) return
-      // Back at its scale, a refused body is made again. Both lists are compacted in place: a
-      // model moved every frame makes no new list.
-      const { refused, made } = opening
-      let waiting = 0
-      for (const soft of refused)
-        if (fits(tilePose({ model, instance: soft }).scale, soft.scale)) start(model, opening, soft)
-        else refused[waiting++] = soft
-      refused.length = waiting
-      let kept = 0
-      for (const body of made) {
-        const { position, quaternion, scale } = tilePose({ model, instance: body.soft })
-        const slot = body.id & BODY_INDEX
-        if (!fits(scale, body.soft.scale)) {
-          bodies.release(slot)
-          refuse(opening, body.soft)
-          continue
-        }
-        writer.teleport(slot, position, quaternion)
-        writer.flags(slot, flagsOf({ physics: body.physics, visible: model.visible }))
-        made[kept++] = body
-      }
-      made.length = kept
+      followModel<CookedMade, Refused>(model, {
+        ...{ made: opening.made, refused: opening.refused },
+        entry: (one) => one.soft,
+        madeAt: (one) => one.soft.scale,
+        // Its cooked settings cannot be made at another scale: let go of and refused by name,
+        // made again only once its model is back at its cooked scale.
+        remake(one, [x, y, z]) {
+          bodies.release(one.id & BODY_INDEX)
+          refuse(opening, one.soft, { x, y, z })
+          return null
+        },
+        tries: (one, scale) => fits(scale, one.soft.scale),
+        retry(one) {
+          start(model, opening, one.soft)
+          return null
+        },
+        place(one, { position, quaternion }) {
+          const slot = one.id & BODY_INDEX
+          writer.teleport(slot, position, quaternion)
+          writer.flags(slot, flagsOf({ physics: one.physics, visible: model.visible }))
+        },
+      })
     },
     /** The worker refused `soft`, a body of `model`'s (`SlotOwner`): out of its opening, its
      *  slot and soft vertices given back; neither carried nor made again until its model opens

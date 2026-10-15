@@ -127,17 +127,16 @@ export function createTileStreamer(
       const owner = bodies.slots.of(id)
       return owner && 'tile' in owner ? owner.tile.material : -1
     },
-    /** A model moved: its resident tiles and its cooked bodies follow. */
+    /** A node the page moved (`followNode`): a model's resident tiles and cooked bodies follow. */
     moved(node: Object3D) {
-      node.traverse((child) => {
-        if (isModel(child)) declared.moved(child)
-        for (const p of (isModel(child) && models.get(child)?.placed) || []) {
-          locate(p)
-          if (p.id < 0) continue
-          const { position, quaternion } = tilePose(p)
-          writer.teleport(p.id & BODY_INDEX, position, quaternion)
-        }
-      })
+      if (!isModel(node)) return
+      declared.moved(node)
+      for (const p of models.get(node)?.placed ?? []) {
+        locate(p)
+        if (p.id < 0) continue
+        const { position, quaternion } = tilePose(p)
+        writer.teleport(p.id & BODY_INDEX, position, quaternion)
+      }
     },
     /** Every tile and cooked body out (physics turned off). */
     clear() {

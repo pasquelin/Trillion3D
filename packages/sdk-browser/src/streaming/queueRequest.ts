@@ -24,20 +24,15 @@ export function answerFromCache(context: StreamContext, url: string) {
 }
 
 /** The job reading `url`: a new one — queued, or waiting its turn while the wait of its last
- *  failure runs (`failures.ts`) —, or the one already reading it, raised to the urgency of this
- *  request. */
-export function jobFor(
-  context: StreamContext,
-  sync: (url: string) => void,
-  url: string,
-  priority: number,
-): Job {
-  const { state, queue, jobs, emit, catalog, failures } = context
+ *  failure runs (`failures.ts`), its page held in the cache till it ends (`queueEnds.ts`) —, or
+ *  the one already reading it, raised to the urgency of this request. */
+export function jobFor(context: StreamContext, url: string, priority: number): Job {
+  const { state, queue, jobs, emit, catalog, failures, store } = context
   let job = jobs.get(url)
   if (!job) {
     job = createJob(catalog.get(url)!, priority, state.order++)
     jobs.set(url, job)
-    sync(url)
+    store.acquire(url)
     // Refused for good, it was refused before any job: one held back now waits its turn.
     if (failures.blocked(url)) job.state = 'waiting'
     else queue.push(job)

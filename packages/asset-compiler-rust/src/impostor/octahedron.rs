@@ -4,7 +4,7 @@
 //! captured frame, and picks the three frames a view blends. Object space, +Y up, pivot at the
 //! bounding-sphere centre. The runtime card reads the atlas through the same formulas.
 use trillion3d_math::octahedral::octahedral_decode;
-use trillion3d_math::vec3::{cross, unit_or_itself};
+use trillion3d_math::vec3::{cross, frame_across};
 
 /// Direction of frame `(i, j)` of an `n`×`n` grid: the lattice vertex `(i, j) / (n − 1)`.
 pub(crate) fn frame_direction((i, j): (usize, usize), n: usize, hemi: bool) -> [f64; 3] {
@@ -12,15 +12,10 @@ pub(crate) fn frame_direction((i, j): (usize, usize), n: usize, hemi: bool) -> [
     octahedral_decode([i as f64 / last, j as f64 / last], hemi)
 }
 
-/// The capture plane of a frame looking back along `n`: its `x` and `y` axes, as the card's
-/// shader builds them.
+/// The capture plane of a frame looking back along the unit `n`: its `x` axis the first row of the
+/// frame around it (`frame_across`, the card shader's `frameAround(n).x`), `y = n × x`.
 pub(crate) fn basis(n: [f64; 3]) -> ([f64; 3], [f64; 3]) {
-    let up = if n[1].abs() > 0.999 {
-        [0.0, 0.0, 1.0]
-    } else {
-        [0.0, 1.0, 0.0]
-    };
-    let x = unit_or_itself(cross(up, n));
+    let x = frame_across(n);
     (x, cross(n, x))
 }
 

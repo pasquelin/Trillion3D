@@ -60,7 +60,6 @@ test('the packed distribution is self-contained at its declared boundaries', () 
       'package/dist/sdk-browser/src/wasm/kernels.wasm',
       'package/dist/sdk-browser/src/page/work/pageWorker.js',
       'package/dist/sdk-browser/src/page/integration/pageIntegrationWorker.js',
-      'package/dist/sdk-browser/src/animation/animationWorker.js',
       'package/dist/sdk-node/src/cli/cli.mjs',
     ])
       assert.ok(entries.includes(path), `${path} missing from the package`)

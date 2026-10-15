@@ -5,18 +5,17 @@ import type {
 } from '../../../sdk-core/src/physics/cooked.ts'
 import { boxTransform } from '../../../math/src/geometry/box.ts'
 import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
-import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodied.ts'
-import type { NodeMove } from './cookedBodies.ts'
+import type { createBodySlots } from './bodySlots.ts'
 import type { SharedShape, SharedShapes } from './sharedShapes.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import { selectByKey } from '../../../math/src/select.ts'
+import { keepRadius } from '../partition/plan.ts'
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
  *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */
@@ -72,16 +71,12 @@ export const selectNearest = (list: Placed[], count: number, k: number) =>
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
 const LOOKAHEAD_S = 1
-/** How much farther than it came in a resident tile stays, so one at the edge of a reach is not
- *  loaded and released every frame. */
-const HYSTERESIS = 1.5
 
 const place = new Matrix4(),
   local = new Matrix4(),
   position = new Vector3(),
   turn = new Quaternion(),
-  size = new Vector3(),
-  bounds = new Box3()
+  size = new Vector3()
 
 /** The absolute URL of the cooked object `url` names beside `model`'s manifest. */
 export const cookedHref = (model: Model, url: string) => new URL(url, model.record.base).href
@@ -143,28 +138,26 @@ export function locate(p: Placed, tile = p.shape.tile) {
 
 /**
  * Where each moving body wants ground: `x, y, z, reach` per dynamic body — a page's mesh, or a
- * compiled model's body moving its node (`nested`, its `velocity` by slot) —, the reach its half
- * size plus the way it travels in `LOOKAHEAD_S` seconds; written over the front of `out`, whose
- * values it returns the count of.
+ * compiled model's body moving its node (`nested`, its `velocity` by slot) —, the reach the one
+ * its slot cached when it was claimed (`reachOf`) plus the way it travels in `LOOKAHEAD_S`
+ * seconds; written over the front of `out`, whose values it returns the count of.
  */
 export function moversOf(
-  meshes: readonly (Bodied | null)[],
-  nested: ReadonlyMap<number, NodeMove>,
+  slots: Pick<ReturnType<typeof createBodySlots>, 'meshes' | 'nested' | 'at'>,
   velocity: Float32Array,
   out: number[],
 ) {
+  const { meshes, nested } = slots
   let n = 0
-  for (const mesh of meshes) {
-    if (!mesh || mesh.physics.type !== 'dynamic') continue
-    const box = mesh.localBounds()
-    bounds.makeEmpty()
-    if (box) bounds.copy(box).applyMatrix4(mesh.matrixWorld)
-    const half = bounds.isEmpty() ? 0 : bounds.getSize(size).length() / 2
+  for (let i = 0; i < meshes.length; i++) {
+    const mesh = meshes[i],
+      owner = slots.at(i)
+    if (!mesh || mesh.physics.type !== 'dynamic' || !owner || !('mesh' in owner)) continue
     const v = mesh.physics.velocity
     out[n++] = mesh.position.x
     out[n++] = mesh.position.y
     out[n++] = mesh.position.z
-    out[n++] = half + length3(v.x, v.y, v.z) * LOOKAHEAD_S
+    out[n++] = (owner.reach ?? 0) + length3(v.x, v.y, v.z) * LOOKAHEAD_S
   }
   for (const [slot, moves] of nested) {
     const at = worldPoseOf(moves.node).position,
@@ -179,8 +172,9 @@ export function moversOf(
 
 /**
  * How near tile `p` is wanted: 0 within reach of a moving body of the first `count` values of
- * `movers` (`moversOf`), its distance to `eye` within `range`, else `Infinity`; a resident tile
- * `HYSTERESIS` times as far.
+ * `movers` (`moversOf`), its distance to `eye` within `range`, else `Infinity`; a resident tile as
+ * far as the keep sphere of each reach (`keepRadius`), the one rule a streamed cell leaves by, so
+ * one at the edge of a reach is not loaded and released every frame.
  */
 export function nearness(
   p: Placed,
@@ -189,10 +183,10 @@ export function nearness(
   movers: number[],
   count: number,
 ) {
-  const keep = p.id >= 0 ? HYSTERESIS : 1
+  const reach = p.id >= 0 ? keepRadius : (r: number) => r
   for (let m = 0; m < count; m += 4)
-    if (boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= movers[m + 3] * keep)
+    if (boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= reach(movers[m + 3]))
       return 0
   const near = boxPointDistance(p.box, 0, eye[0], eye[1], eye[2])
-  return near <= range * keep ? near : Infinity
+  return near <= reach(range) ? near : Infinity
 }

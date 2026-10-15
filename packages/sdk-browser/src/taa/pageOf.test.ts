@@ -6,8 +6,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { PAGE_OF_WGSL } from './pageIdWgsl.ts'
-import { taaShader } from './shaderWgsl.ts'
-import { taaUpscaleShader } from './upscaleWgsl.ts'
+import { taaResolveShader } from './resolveWgsl.ts'
 import { taaBuiltins } from './taaBuiltins.fixture.ts'
 
 type Page = { placement: number; flags: number; deformOutput: number }
@@ -61,10 +60,9 @@ test('the record is indexed once for the identity and the dynamic test together'
   }
 })
 
-test('each resolve reads the record once, and no function of its own indexes the table again', () => {
+test('the resolve reads the record once, and no function of its own indexes the table again', () => {
   for (const [name, shader, main] of [
-    ['native, fragment', taaShader(false, false, false, true), 'resolve'],
-    ['upscaling, fragment', taaUpscaleShader(false, false, false, true), 'resolve'],
+    ['resolve, fragment', taaResolveShader(false), 'resolve'],
   ] as const) {
     const calls = (text: string, call: string) => text.split(call).length - 1
     assert.equal(calls(functionsOf(shader, ['pageOf']), 'pages['), 1, `${name}: pageOf`)

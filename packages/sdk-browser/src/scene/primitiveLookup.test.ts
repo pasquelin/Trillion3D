@@ -82,3 +82,12 @@ test('several meshes and several primitives per mesh: each pair finds exactly it
   sameResult(primitives, { meshes: 5, primitives: 0 }) // mesh outside catalogue
   sameResult(primitives, { meshes: 0, primitives: 99 }) // primitive outside catalogue
 })
+
+test('one finder per primitives array: every caller shares it, a primitive pushed since is found', () => {
+  const primitives = [prim(6, 0, 'first')]
+  const finder = primitiveFinder(primitives)
+  assert.equal(primitiveFinder(primitives), finder, 'built once')
+  const later = prim(7, 0, 'later')
+  primitives.push(later)
+  assert.equal(finder({ meshes: 7 }), later)
+})

@@ -43,38 +43,29 @@ function storeUnitPlane(
   out[at + 3] = d * reciprocal
 }
 
+/** `frustumPlanesFromMatrix`'s raw planes, held between the build and the normalisation. */
+const RAW_PLANES = /* @__PURE__ */ new Float64Array(FRUSTUM_PLANE_VALUES)
+
 /**
  * The six normalized planes of the frustum of a clip matrix — a view-projection, or a
- * projection alone for planes in view space. Unit normals: `a*x + b*y + c*z + d` is
- * a signed distance. A degenerate matrix yields NaN or infinite planes without throwing.
+ * projection alone for planes in view space: `clipPlanesFromMatrix`'s, each scaled to a unit
+ * normal, so `a*x + b*y + c*z + d` is a signed distance. Under an infinite far plane the z row is
+ * (0, 0, 0, near) and the FAR plane NaN, a plane no point fails. A degenerate matrix yields NaN or
+ * infinite planes without throwing.
  */
 export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: ArrayLike<number>) {
-  // The rows of `m` that give clip x, y, z and w; the digit is the column: `m[4 · column + row]`.
-  // The sixteen are all read before the first store, so `out` may share memory with `m`.
-  const x0 = m[0],
-    x1 = m[4],
-    x2 = m[8],
-    x3 = m[12]
-  const y0 = m[1],
-    y1 = m[5],
-    y2 = m[9],
-    y3 = m[13]
-  const z0 = m[2],
-    z1 = m[6],
-    z2 = m[10],
-    z3 = m[14]
-  const w0 = m[3],
-    w1 = m[7],
-    w2 = m[11],
-    w3 = m[15]
-  storeUnitPlane(out, 0, w0 - x0, w1 - x1, w2 - x2, w3 - x3) // x <= w
-  storeUnitPlane(out, 4, w0 + x0, w1 + x1, w2 + x2, w3 + x3) // -w <= x
-  storeUnitPlane(out, 8, w0 + y0, w1 + y1, w2 + y2, w3 + y3) // -w <= y
-  storeUnitPlane(out, 12, w0 - y0, w1 - y1, w2 - y2, w3 - y3) // y <= w
-  // z >= 0, FAR. Under an infinite far plane the z row is (0, 0, 0, near): the reciprocal is
-  // 1 / 0 = ∞ and the plane 0 · ∞ = NaN and near · ∞, a plane no point fails.
-  storeUnitPlane(out, FAR_PLANE_SLOT * 4, z0, z1, z2, z3)
-  storeUnitPlane(out, 20, w0 - z0, w1 - z1, w2 - z2, w3 - z3) // z <= w, NEAR
+  // The raw planes in doubles first (`clipPlanesFromMatrix`), then each made unit into `out`: a
+  // single-precision `out` rounds once, and `out` may share memory with `m`.
+  clipPlanesFromMatrix(RAW_PLANES, m)
+  for (let at = 0; at < FRUSTUM_PLANE_VALUES; at += 4)
+    storeUnitPlane(
+      out,
+      at,
+      RAW_PLANES[at],
+      RAW_PLANES[at + 1],
+      RAW_PLANES[at + 2],
+      RAW_PLANES[at + 3],
+    )
 }
 
 /**
@@ -83,10 +74,7 @@ export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: Arr
  * the exact clip test, where normalizing would shift rounding.
  */
 export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
-  // The rows of `m`, as `frustumPlanesFromMatrix` reads them, all before the first store: a shared
-  // reader would hand them back through memory, not registers. The six bounds below are its
-  // planes stored raw, without the normalisation: 77.7 % under the shared store it replaced.
-  // jscpd:ignore-start
+  // The rows of `m`, all read before the first store, so `out` may share memory with `m`.
   const x0 = m[0],
     x1 = m[4],
     x2 = m[8],
@@ -103,7 +91,6 @@ export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
     w1 = m[7],
     w2 = m[11],
     w3 = m[15]
-  // jscpd:ignore-end
   out[0] = w0 - x0 // x <= w
   out[1] = w1 - x1
   out[2] = w2 - x2
@@ -169,17 +156,10 @@ function planeDistance(p: ArrayLike<number>, at: number, x: number, y: number, z
   return p[at] * x + p[at + 1] * y + p[at + 2] * z + p[at + 3]
 }
 
-/** True when `(x, y, z)` is on the inner side of all six `planes`, each `planeDistance`, the planes
- *  in their slot order at constant offsets; a NaN, comparing false, keeps the point. */
+/** True when `(x, y, z)` is on the inner side of all six `planes`: the sphere of no radius kept
+ *  (`frustumExcludesSphere`); a NaN, comparing false, keeps the point. */
 export function frustumContainsPoint(planes: ArrayLike<number>, x: number, y: number, z: number) {
-  return !(
-    planeDistance(planes, 0, x, y, z) < 0 ||
-    planeDistance(planes, 4, x, y, z) < 0 ||
-    planeDistance(planes, 8, x, y, z) < 0 ||
-    planeDistance(planes, 12, x, y, z) < 0 ||
-    planeDistance(planes, FAR_PLANE_SLOT * 4, x, y, z) < 0 ||
-    planeDistance(planes, 20, x, y, z) < 0
-  )
+  return !frustumExcludesSphere(planes, x, y, z, 0)
 }
 
 /** True when the sphere of centre `(x, y, z)` and radius `reach` lies wholly behind one of the six

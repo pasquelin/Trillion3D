@@ -6,7 +6,8 @@ import {
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/layout.ts'
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
-import { dotQuaternion, slerpArc } from '../../../math/src/quaternion/quaternion.ts'
+import { slerpArc } from '../../../math/src/quaternion/quaternion.ts'
+import { sameRange } from '../../../math/src/matrix/matrixElements.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Bodied } from './bodied.ts'
 import type { NodeMove } from './cookedBodies.ts'
@@ -63,23 +64,16 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
   let tick = 0
   const placer = createPosePlacer(maxBodies, root)
   const { bound, place, position, quaternion } = placer
-  /** Whether the record at `at` holds the pose slot `index` is drawn at (the turn up to sign). */
-  const unchanged = (index: number, floats: Float32Array, at: number) => {
-    const p = index * 3,
-      q = index * 4
-    const dot = dotQuaternion(quaternion, floats, q, at + 4)
-    return (
-      position[p] === floats[at + 1] &&
-      position[p + 1] === floats[at + 2] &&
-      position[p + 2] === floats[at + 3] &&
-      Math.abs(dot) >= 1 - 1e-6
-    )
-  }
-  /** Whether slot `index`'s newest state is the pose the record at `at` holds. */
-  const holds = (index: number, floats: Float32Array, at: number) => {
-    for (let k = 0; k < 7; k++) if (to[index * 7 + k] !== floats[at + 1 + k]) return false
-    return true
-  }
+  /** Whether the record at `at` holds exactly the pose `places` at `p` and `turns` at `q`: the
+   *  pose a slot is drawn at, or its newest state. */
+  const posedAt = (
+    places: ArrayLike<number>,
+    p: number,
+    turns: ArrayLike<number>,
+    q: number,
+    floats: Float32Array,
+    at: number,
+  ) => sameRange(places, floats, 3, p, at + 1) && sameRange(turns, floats, 4, q, at + 4)
   /** Copies the pose slot `index` is drawn at into `into`, 7 numbers a slot. */
   const drawnInto = (into: Float32Array, index: number) => {
     copyPose(into, index * 7, position, index * 3)
@@ -144,10 +138,14 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
           continue
         }
         // A listed body is on its way: its record is its next state, whatever it holds.
-        if (!steps2.listed(index) && unchanged(index, floats, at)) continue
+        if (
+          !steps2.listed(index) &&
+          posedAt(position, index * 3, quaternion, index * 4, floats, at)
+        )
+          continue
         const o = index * 7,
           before = befores + at,
-          same = steps === 0 && !fresh && holds(index, floats, at),
+          same = steps === 0 && !fresh && posedAt(to, o, to, o + 3, floats, at),
           earlier = steps2.take(index, keptBefore(head, words[before]), fresh, same)
         if (earlier === FROM.kept) continue
         moved++

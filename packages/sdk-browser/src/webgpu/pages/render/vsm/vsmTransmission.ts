@@ -1,7 +1,7 @@
 // The shadow maps' opaque raster, then the coloured light the translucent casters let through.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { encodeVsmRender, type VsmRenderFrame } from '../../../../vsm/renderPass.ts'
-import { vsmRenderViews } from '../../../../vsm/chunkParams.ts'
+import { vsmRenderViewBound } from '../../../../vsm/mapViews.ts'
 import { createVsmTransmission, type VsmTransmission } from '../../../../vsm/transmissionMade.ts'
 import { encodeVsmTransmission } from '../../../../vsm/transmissionPass.ts'
 import { vsmTransmissionFits } from '../../../../vsm/transmissionCaps.ts'
@@ -23,13 +23,13 @@ function transmissionFloor(
   res: VsmResources,
   lights: VsmRenderFrame['lights'],
 ) {
-  const { views, viewMips } = vsmRenderViews(lights)
+  const { views, viewMips } = vsmRenderViewBound(lights)
   const { blendFirst, casterSlots } = rt.layout.rows
   return vsmTransmissionFloorBytes(
     device.limits,
     rt.services.blendCasters.used,
     Math.max(0, casterSlots - blendFirst),
-    views.length,
+    4 * views,
     viewMips,
     res.layout.poolPages,
   )

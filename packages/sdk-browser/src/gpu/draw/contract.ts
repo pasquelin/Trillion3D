@@ -82,19 +82,21 @@ export type GpuDraw = {
    */
   uploadItems(items: Uint32Array, from: number, to: number): void
   /**
-   * Compacts the `count` rows the card holds into one indirect command per slot, as dispatches
-   * of the frame's compute pass.
-   *
-   * Each row's occluder/tested half (`restBits`) and each slot's row count (`slotUsed`) are no
-   * longer uploaded: the GPU partition writes them into these same buffers, by dispatches of the
-   * same pass before these. Without a partition they keep what their creation gave them —
-   * no row in the tested half, every slot compacted.
+   * Compacts the occluder half of the `count` rows the card holds into one indirect command per
+   * slot, as dispatches of the frame's compute pass, and writes the tested slots empty. Each row's
+   * half (`restBits`) is the GPU partition's, written by dispatches of the same pass before these;
+   * without a partition no row is in the tested half.
    */
   encode(
     open: OpenPass,
     count: number,
     selection?: { maskBuffer: GPUBuffer; maskOffset: number },
   ): void
+  /**
+   * Compacts the tested half of the rows `encode` counted, after the Hi-Z test: a row the pyramid
+   * rejected (its `flags` verdict through its page-table row in `pages`) takes no instance.
+   */
+  encodeTested(open: OpenPass, pages: GPUBuffer, flags: GPUBuffer): void
   /** Row buffers for `rows` rows, made now and put in place by `commit` (`../core/tableGrowth.ts`). */
   grow(rows: number): PendingGrowth
   /** Draw records as the GPU holds them: what the GPU partition reads to know each
@@ -102,8 +104,6 @@ export type GpuDraw = {
   itemsBuffer: GPUBuffer
   /** The frame's rest bits, one per row: what the GPU partition writes before the pass. */
   restBitsBuffer: GPUBuffer
-  /** Rows counted per indirect slot: what the GPU partition writes before the pass. */
-  slotUsedBuffer: GPUBuffer
   indirectBuffer: GPUBuffer // slots × 16 bytes
   instanceBuffer: GPUBuffer // slotCap × perRow u32 instance words (row, batch), ordered
   slotOffsetsBuffer: GPUBuffer // the per-slot group offsets locate each slot in instanceBuffer

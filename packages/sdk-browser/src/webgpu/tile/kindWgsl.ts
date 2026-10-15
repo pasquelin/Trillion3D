@@ -78,6 +78,5 @@ fn ${k}Blend(s:TileSlot,uv:vec2f,lod:f32,nearest:bool,finest:bool)->vec4f{
  let a=${k}Level(s,uv,u32(l0),finest,nearest);
  if(t<=0.0||l0>=f32(s.last)){return a;}
  return mix(a,${k}Level(s,uv,u32(l0)+1u,finest,nearest),t);
-}
-fn ${k}SampleAt(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blend(s,uv,lod,nearest,false);}`,
+}`,
   )

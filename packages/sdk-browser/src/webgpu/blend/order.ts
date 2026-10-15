@@ -21,16 +21,16 @@ import type { WebgpuBlendState } from './state.ts'
  * would lose its useful bits far from the origin.
  *
  * WHO RANKS: the GPU ranks every entry of a pass (`orderWgsl.ts`), on these very keys computed in
- * emulated doubles. The CPU ranks only the own entries, the ones it must encode one draw each
- * (`runs.ts`) — none in a pass of one class — and sends the GPU the eye, their keys and their order.
+ * emulated doubles, the CPU's to the bit. The CPU ranks only the own entries, the ones it must
+ * encode one draw each (`runs.ts`) — none in a pass of one class — and sends the GPU the eye and
+ * their order.
  */
 
 /**
  * The frame data the kernels read (`frameLayout`, `frameHead.ts`): the eye, the frustum planes
- * brought to it in single precision (`framePlanes.ts`) and the item count the verdict tests, each
- * own item's key — a NaN as the GPU's one NaN pattern, all ones —, then each pass's own seeds in
- * paint order and their slots. The water pass writes its own words of the head
- * (`../water/frameWords.ts`).
+ * brought to it in single precision (`framePlanes.ts`) and the item count the verdict tests, then
+ * each pass's own seeds in paint order and their slots. The water pass writes its own words of the
+ * head (`../water/frameWords.ts`).
  */
 function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   const { frameDoubles: doubles, frameWords: words, frameLayout: layout } = blendState
@@ -40,14 +40,6 @@ function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   doubles[3] = 0
   writeFramePlanes(words, blendState.blendPlanes, eye)
   words[FRAME_HEAD.items] = blendState.blendGpu.length
-  const own = blendState.ownItems,
-    keys = blendState.orderKeys,
-    first = layout.ownKeys / 2
-  for (let k = 0; k < own.length; k++) {
-    const key = keys[own[k]]
-    doubles[first + k] = key
-    if (key !== key) words.fill(0xffffffff, layout.ownKeys + 2 * k, layout.ownKeys + 2 * k + 2)
-  }
   for (let pass = 0; pass < layout.ownSeeds.length; pass++) {
     words.set(blendState.ownSeeds[pass], layout.ownSeeds[pass])
     words.set(blendState.ownSlots[pass], layout.ownSlots[pass])

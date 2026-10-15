@@ -7,7 +7,7 @@ import type { createDifferenceChain } from './differenceChain.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
 import type { DagResources } from './resources.ts'
 import type { createWorldResidencyMirror } from './residencyMirror.ts'
-import { MAIN_VIEW } from './swap.ts'
+import { MAIN_VIEW, sameCut } from './swap.ts'
 import type { TreeFollower, TreeLeaves } from './treeFollow.ts'
 import type { RecordTexture } from '../core/recordTexture.ts'
 import type { ProxyInstances } from './proxyInstances.ts'
@@ -104,14 +104,23 @@ export async function flushRuntime(
   // or past the device it coarsens (`listCap.ts`): the drain grows them, then cuts again on them,
   // rather than hand back the cut before; a factor that moved back cuts again under it too. It
   // rises √2 at least to its coarsest, and falls only to a factor that did not overflow for the
-  // view as it stands (`coarsening.ts`): the drain ends.
-  const { cuts } = resources.swap
-  const again = () => (state.grow || state.growFlags || state.factorMoved) && !state.dead
-  for (const asked = cuts[MAIN_VIEW - 1]?.uniforms; asked && again();) {
+  // view as it stands (`coarsening.ts`): the drain ends. A turn whose cut the tables held for
+  // their growth (`tablesHeld`) cut nothing: the next turn cuts on the grown ones.
+  const { swap } = resources,
+    { cuts } = swap
+  let held = false
+  const again = (asked: SelectionUniforms) =>
+    !state.dead &&
+    !state.disposed &&
+    (!!state.grow ||
+      !!state.growFlags ||
+      state.factorMoved ||
+      (held && !sameCut(swap, MAIN_VIEW, asked, state)))
+  for (const asked = cuts[MAIN_VIEW - 1]?.uniforms; asked && again(asked);) {
+    const serial = swap.cut
     cut(asked)
     await state.pending
-    cut(asked)
-    await state.pending
+    held = swap.cut === serial
   }
   // The cut submitted on the residency in place, whatever the poses: never `sameCut`.
   const submitted = cuts[MAIN_VIEW - 1]

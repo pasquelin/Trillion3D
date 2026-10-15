@@ -5,7 +5,7 @@ import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
-import { type ContractKey, variantLabel } from './contractCuts.ts'
+import { LOBELESS_KEY, type ContractKey, variantLabel } from './contractCuts.ts'
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts'
 import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
@@ -67,16 +67,14 @@ const contractSurface = (bounce: boolean) => [WORLD_AT_WGSL, contractSurfaceBody
 const BOUNCE_SURFACE_WGSL = wgslBlock(
   'BOUNCE_SURFACE_WGSL',
   [BOUNCE_APPLY_WGSL, FULLSCREEN_VERTEX, ...contractSurface(true)],
-  `fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
- if(!any(thinSubsurface>vec3f(0.0))){return vec3f(0.0);}
- return bounceLighting(thinSubsurface,0.0,-N,P,ao);
-}`,
+  '',
 )
-/** The direct program's surface. */
+/** The direct program's surface: no bounce, which a thin surface's back samples as zero
+ *  (\`thinBack\`). */
 const DIRECT_SURFACE_WGSL = wgslBlock(
   'DIRECT_SURFACE_WGSL',
   [FULLSCREEN_VERTEX, ...contractSurface(false)],
-  '',
+  'fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}',
 )
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
@@ -92,7 +90,7 @@ const DIRECT_SURFACE_WGSL = wgslBlock(
  */
 export const contractLightingProgram = (
   bounce: boolean,
-  key: Partial<ContractKey> = { lobeless: true },
+  key: Partial<ContractKey> = LOBELESS_KEY,
 ) =>
   wgslBlock(
     `contractLightingProgram(${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)})`,

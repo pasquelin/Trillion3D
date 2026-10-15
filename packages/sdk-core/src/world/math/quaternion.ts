@@ -11,6 +11,7 @@ import {
 } from '../../../../math/src/quaternion/quaternion.ts'
 import { writeRotationQuaternion } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { crossVector3, dotVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { frameAcross } from '../../../../math/src/vector/frame.ts'
 import { ObservedComponents } from '../observed.ts'
 import type { EulerLike, XYZLike, XYZWLike } from './likes.ts'
 
@@ -99,10 +100,11 @@ export class Quaternion extends ObservedComponents {
   /** The shortest rotation taking unit vector `a` onto unit vector `b`. */
   setFromUnitVectors(a: XYZLike, b: XYZLike) {
     const r = dotVector3(loadVector(axis, a), loadVector(onto, b)) + 1
-    if (r < 1e-8)
-      return Math.abs(a.x) > Math.abs(a.z)
-        ? this.set(-a.y, a.x, 0, 0).normalize()
-        : this.set(0, -a.z, a.y, 0).normalize()
+    // Opposite vectors: a half turn about an axis across `a` (`frameAcross`).
+    if (r < 1e-8) {
+      frameAcross(other, a.x, a.y, a.z)[3] = 0
+      return this.written(other).normalize()
+    }
     crossVector3(other, axis, onto)
     other[3] = r
     return this.written(other).normalize()

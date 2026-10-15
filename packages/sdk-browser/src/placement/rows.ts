@@ -16,8 +16,9 @@
  */
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
-import { carryCellsMoved } from '../partition/rowCells.ts'
+import type { ChangedRuns } from '../webgpu/residency/ranges.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
+import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
@@ -40,12 +41,15 @@ export type PlacementRows = {
   /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
    *  among the cell's nodes; a column of its own, absent until a cell places one. */
   cells?: ({ cell: number; node: number } | undefined)[]
+  /** The rows whose cell moved since a backend last linked them to the world object they draw
+   *  (`../partition/rowCells.ts`, `takeCellsMoved`): one changed list, kept by a growth. */
+  cellsMoved?: ChangedRuns
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
   const rows = Math.max(1, capacity)
   return {
-    matrices: new Float64Array(rows * 16),
+    matrices: new Float64Array(rows * MATRIX_VALUES),
     live: new Uint8Array(rows),
     shadowless: new Uint8Array(rows),
     capacity: rows,
@@ -63,14 +67,28 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
     rows.live.set(before.live)
     rows.shadowless.set(before.shadowless)
     rows.cells = before.cells?.slice()
-    carryCellsMoved(before, rows)
+    rows.cellsMoved = before.cellsMoved
   }
   return rows
 }
 
+/** Row `row` of `rows` written as its owner writes it: its pose (`null` keeps the one it holds),
+ *  whether it places the resource, whether its mesh casts a shadow. */
+export function writePlacementRow(
+  rows: PlacementRows,
+  row: number,
+  matrix: ArrayLike<number> | null,
+  live: boolean,
+  castShadow: boolean,
+) {
+  if (matrix) rows.matrices.set(matrix, row * MATRIX_VALUES)
+  rows.live[row] = live ? 1 : 0
+  rows.shadowless[row] = castShadow ? 0 : 1
+}
+
 /** The world matrix of row `index`: a view on the buffer, never a copy. */
 export const placementWorld = (rows: PlacementRows, index: number): MatrixElements => ({
-  elements: rows.matrices.subarray(index * 16, index * 16 + 16),
+  elements: rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
 })
 
 /** What a root or a blended copy carries of the row it was collected from: the rows, and its rank

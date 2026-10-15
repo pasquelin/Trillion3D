@@ -11,13 +11,12 @@ import {
   perspectiveDiagonalSlope,
   perspectiveProjection,
   perspectiveSlope,
-  pixelFootprint,
   pixelScale,
 } from './camera.ts'
 import { length3 } from '../vector/vector.ts'
 import { assertSameFloat32, HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
-test('pixelScale, focalPixels, pixelFootprint on a camera whose half picture is 2 units at depth 1', () => {
+test('pixelScale and focalPixels on a camera whose half picture is 2 units at depth 1', () => {
   // Projection scales 0.5 across and −0.25 up (a mirrored picture): half widths 2 and 4 at unit
   // depth, on a 800 × 600 viewport: 200 and 75 pixels per unit.
   const p = new Float64Array(16)
@@ -27,12 +26,9 @@ test('pixelScale, focalPixels, pixelFootprint on a camera whose half picture is 
   assert.deepEqual(pixelScale([0, 0], p), [0.25, 0.125])
   assert.equal(focalPixels(p, 800, 600), 200)
   assert.equal(focalPixels(p), 0.25)
-  assert.equal(pixelFootprint(p, 600), 1 / 75)
-  // Under a pixel high, the footprint of one pixel.
-  assert.equal(pixelFootprint(p, 0.5), 8)
 })
 
-test('pixelScale, focalPixels and pixelFootprint are the bodies they replace, bit for bit', () => {
+test('pixelScale and focalPixels are the bodies they replace, bit for bit', () => {
   const p = new Float64Array(16),
     out = [0, 0]
   for (let i = 1; i <= HALTON_SWEEP; i++) {
@@ -44,8 +40,6 @@ test('pixelScale, focalPixels and pixelFootprint are the bodies they replace, bi
     pixelScale(out, p, width, height)
     assert.ok(Object.is(out[0], old[0]) && Object.is(out[1], old[1]), `scale ${i}`)
     assert.ok(Object.is(focalPixels(p, width, height), Math.max(old[0], old[1])), `focal ${i}`)
-    const footprint = 1 / ((Math.max(1, height) * Math.abs(p[5])) / 2)
-    assert.ok(Object.is(pixelFootprint(p, height), footprint), `footprint ${i}`)
   }
 })
 

@@ -8,6 +8,38 @@ import { deformedOf } from './source.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { createDeformationSkip } from './screen.ts'
+import { rootHasOutputs } from './outputs.ts'
+
+type Capacities = Parameters<typeof placementDeformation>[2]
+
+/** The record `owner` drawing `draw` at `world` takes (`deformedOf`), or `null`. A source drawn at
+ *  rows is moved by the owners of its rows, none by a node of its own. */
+function recordOf(
+  draw: DrawSource | undefined,
+  owner: ClusterRoot<PageRec> | BlendCopy,
+  world: MatrixElements,
+  capacities: Capacities,
+) {
+  const source: DeformedMesh | undefined = draw?.node ?? (draw?.rows?.sources ? {} : undefined)
+  if (!source) return null
+  const { mesh, capacity } = placementDeformation(owner.placement, source, capacities)
+  return deformedOf(mesh, owner, world, capacity)
+}
+
+/**
+ * Whether `roots` and the blended `copies` give the deformation work: a record (`recordOf`) or a
+ * page's results (`rootHasOutputs`). The one rule that loads the stage's code, at the open as at a
+ * growth (`loadDeformationCode`); its compute is made wherever the code is.
+ */
+export function deformsAny(roots: readonly ClusterRoot<PageRec>[], copies: readonly BlendCopy[]) {
+  const capacities: Capacities = new Map()
+  return (
+    roots.some(
+      (root) =>
+        rootHasOutputs(root) || !!recordOf(root.pages[0]?.drawSource, root, root.world, capacities),
+    ) || copies.some((copy) => !!recordOf(copy.userData.drawSource, copy, copy.matrix, capacities))
+  )
+}
 
 /**
  * A session's GPU deformation: one record per deformed root of its cut (`frame.ts`), the
@@ -20,18 +52,7 @@ export function createSessionDeformation(
   roots: readonly ClusterRoot<PageRec>[],
   copies: readonly BlendCopy[] = [],
 ) {
-  const capacities: Parameters<typeof placementDeformation>[2] = new Map()
-  const deformedEntry = (
-    draw: DrawSource | undefined,
-    owner: ClusterRoot<PageRec> | BlendCopy,
-    world: MatrixElements,
-  ) => {
-    // A source drawn at rows is moved by the owners of its rows, none by a node of its own.
-    const source: DeformedMesh | undefined = draw?.node ?? (draw?.rows?.sources ? {} : undefined)
-    if (!source) return null
-    const { mesh, capacity } = placementDeformation(owner.placement, source, capacities)
-    return deformedOf(mesh, owner, world, capacity)
-  }
+  const capacities: Capacities = new Map()
   let base = 0
   const frame = createDeformationFrame()
   /** The record of each root by its rank, and the root each record belongs to (a copy's has none). */
@@ -45,8 +66,10 @@ export function createSessionDeformation(
     addedCopies: readonly BlendCopy[] = [],
   ) => {
     const first = frame.append([
-      ...added.map((root) => deformedEntry(root.pages[0]?.drawSource, root, root.world)),
-      ...addedCopies.map((copy) => deformedEntry(copy.userData.drawSource, copy, copy.matrix)),
+      ...added.map((root) => recordOf(root.pages[0]?.drawSource, root, root.world, capacities)),
+      ...addedCopies.map((copy) =>
+        recordOf(copy.userData.drawSource, copy, copy.matrix, capacities),
+      ),
     ])
     added.forEach((root, k) => {
       rankEntry.push(first + k)

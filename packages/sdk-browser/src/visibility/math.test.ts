@@ -3,10 +3,10 @@
 // so the table carries exactly the same floats as the power formula, reproduced here as-is as
 // an explicit oracle. The expected equality is bit-exact (`Object.is`), with no tolerance.
 import type { WrapMode } from '../../../sdk-core/src/texture/contract.ts'
+import { mapTexel } from './mapTexel.fixture.ts'
 import { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mapTexel } from './math.ts'
 import { sampleLinear, sampleMap } from '../../../../bench/oracles/browser/cpu-image/math.ts'
 import { textureRgba } from './types.ts'
 import { srgbToLinear } from '../../../math/src/color/color.ts'
@@ -15,7 +15,7 @@ import { referenceTextureRgba } from '../../../../bench/oracles/browser/sampled-
 function texelIndex(map: Texture, u: number, v: number) {
   const image = textureRgba(map)
   if (!image) return null
-  return { data: image.data, i: mapTexel(image, map, u, v, false) }
+  return { data: image.data, i: mapTexel(image, map, u, v) }
 }
 
 function referenceSampleMap(map: Texture, u: number, v: number): [number, number, number] {

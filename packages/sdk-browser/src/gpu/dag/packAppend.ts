@@ -3,6 +3,7 @@ import { groupParentBase, keyGroupBase, keyWordBase, recordKeyBase } from './lay
 import { joinPlacementTree, joinStart } from './placementTreePack.ts'
 import { treeNodeCount } from './placementTree.ts'
 import { cullingOf, levelSizesOf, placeRoot, type Packing, type PackShared } from './packRoots.ts'
+import { countRoots } from './packCapacity.ts'
 
 /** The live ranges `appendDagRoots` filled: pages and placements `[from, to)`, the primitive nodes,
  *  records and content keys of the primitives it brought — none of them for placements of a
@@ -104,28 +105,27 @@ function recordsOf(root: DagRoot, shared: PackShared) {
  *  entries and placements — and, for a primitive it does not hold, within the nodes, records and
  *  keys it kept. */
 function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShared) {
-  const live = packed.live!
-  let pages = live.pages,
-    entries = live.entries,
-    nodes = live.nodes,
-    records = shared.records!.count,
+  // The world DAG's links are laid out over every placement at once (`packWorldLinks`): it is
+  // packed with them all, never appended.
+  if (roots.some((root) => root.origins)) return false
+  const live = packed.live!,
+    shift = packed.placementTree?.depth ?? 0,
+    added = countRoots(
+      roots,
+      shared,
+      () => shift,
+      (nodes) => shared.nodeBlocks.has(nodes),
+    )
+  if (added.levels.length > packed.levelSizes.length) return false
+  const pages = live.pages + added.pages,
+    entries = live.entries + added.entries,
+    nodes = live.nodes + added.nodes
+  let records = shared.records!.count,
     keys = shared.keys!.count,
     groups = shared.keys!.groups,
     edges = shared.keys!.edges
-  const brought = new Set<Float64Array>(),
-    arrays = new Set<DagRoot['pages']>()
-  for (const root of roots) {
-    // The world DAG's links are laid out over every placement at once (`packWorldLinks`): it is
-    // packed with them all, never appended.
-    if (root.origins) return false
-    const culling = cullingOf(root),
-      shift = packed.placementTree?.depth ?? 0
-    if (levelSizesOf(culling, shared).length + shift > packed.levelSizes.length) return false
-    const count = culling.nodes.length / culling.stride
-    if (!shared.nodeBlocks.has(culling.nodes) && !brought.has(culling.nodes)) {
-      brought.add(culling.nodes)
-      nodes += count
-    }
+  const arrays = new Set<DagRoot['pages']>()
+  for (const root of roots)
     // The placements of one source share its page array: its records and keys are written once.
     if (!arrays.has(root.pages) && recordsOf(root, shared) < 0) {
       arrays.add(root.pages)
@@ -135,9 +135,6 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
       groups += most.groups
       edges += most.edges
     }
-    pages += root.pages.length
-    entries += count
-  }
   // Its member slots take the batch from a new group on (`joinStart`).
   const tree = packed.placementTree
   if (tree && joinStart(tree) + roots.length > tree.capacity) return false

@@ -1,7 +1,8 @@
 import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { SURFACE_SLOPE_WGSL } from '../../lighting/deferred/footprintWgsl.ts'
+import { surfaceSlopeOf } from '../../../../math/src/wgsl/sampling.ts'
 import { HIZ_TEST_WGSL } from './testWgsl.ts'
+import { TESTED_BOX } from '../partition/contract.ts'
 import {
   HIZ_CULL_FARTHEST,
   HIZ_FOLD_WGSL,
@@ -68,7 +69,7 @@ export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
 export const HIZ_SHADER = wgslProgram(
   `override ${HIZ_NEAREST_BUILD}:bool=false;
 struct Uni{a:u32,b:u32,c:u32,d:u32,upper:u32,counting:u32,front:u32,pad:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
-struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
+${TESTED_BOX.wgsl}
 @group(0) @binding(0) var hizPyramid:texture_storage_2d_array<${HIZ_FORMAT},read_write>;
 @group(0) @binding(1) var level0:texture_2d_array<f32>;
 @group(0) @binding(2) var<uniform> uni:Uni;
@@ -185,5 +186,5 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
  }
 }
 `,
-  [HIZ_TEST_WGSL, HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, SURFACE_SLOPE_WGSL],
+  [HIZ_TEST_WGSL, HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf],
 )

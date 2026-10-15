@@ -10,7 +10,7 @@ import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts
 import { pixelScale } from '../../../../math/src/projection/camera.ts'
 import type { CameraMotion } from '../../camera/motion.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
-import { aheadViewOf, holdAheadView, type AheadView } from './aheadView.ts'
+import { holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
 import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
@@ -69,9 +69,6 @@ export type SelectionResult = {
   /** How many of its first pages are OLD: older than any page the view ahead asks for, the only
    *  ones a page of the view ahead may take the place of. */
   evictOld?: number
-  /** The camera's requests counted by admission bucket (`../dag/readoutWords.ts`,
-   *  `levelCountsWord`): where each level of a list ranked by admission starts. */
-  levelCounts?: Uint32Array
   /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
    *  counter, read as `selected` and `drawn` — and its blend share. The CPU sums none. */
   selectedTriangles: number
@@ -183,7 +180,7 @@ export type GpuSelection = {
   proxyCopies(copies: readonly ProxyCopy[]): void
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
-  /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
+  /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `rootMark`). */
   markWorld(world: number, mark: number): void
   /** Placement `world` places `object` of the world DAG now, or none (`-1`): the world stands in
    *  for it where its object's group suffices (`../dag/worldFollow.ts`); nothing without a world. */
@@ -222,9 +219,6 @@ export type GpuSelection = {
   dispose(): void
 }
 
-const planeScratch = new Float32Array(FRUSTUM_PLANE_VALUES),
-  viewScratch = new Float32Array(16)
-
 /** Uniform block of a cut, allocated once: the frame rewrites it, it does not remake it. */
 export function createSelectionUniforms(): SelectionUniforms {
   return {
@@ -241,45 +235,23 @@ export function cameraSelectionUniforms(
   cam: EngineCamera,
   pixelError: number,
   viewport?: [number, number],
-  into?: SelectionUniforms,
+  /** The block written, in place: the frame's, held from frame to frame; a fresh one by default. */
+  into: SelectionUniforms = createSelectionUniforms(),
   /** The camera's motion: given, a moving camera also sends its view ahead. */
   motion?: CameraMotion,
 ): SelectionUniforms {
-  const planes = into?.planes ?? planeScratch
-  const view = into?.view ?? viewScratch
   // View and planes are those of the RENDER FRAME (`../../camera/renderOrigin.ts`): the kernel composes
   // `view · world` in single precision on world matrices brought back to `cameraWorld`; the absolute
   // view would mix two frames. Single precision only rounds here: everything above is in double.
-  planes.set(cam.planesRelative)
-  view.set(cam.viewRelative)
-  const scale = pixelScale(
-    into?.pixelScale ?? ([1, 1] as [number, number]),
-    cam.projection,
-    viewport?.[0],
-    viewport?.[1],
-  )
-  const cameraWorld: [number, number, number] = into?.cameraWorld ?? [0, 0, 0]
-  for (let axis = 0; axis < 3; axis++) cameraWorld[axis] = cam.eye[axis]
+  into.planes.set(cam.planesRelative)
+  into.view.set(cam.viewRelative)
+  pixelScale(into.pixelScale, cam.projection, viewport?.[0], viewport?.[1])
+  for (let axis = 0; axis < 3; axis++) into.cameraWorld[axis] = cam.eye[axis]
+  into.pixelError = pixelError
+  into.near = cam.near
   // Times each primitive's own stretch, as `selectVisiblePages`; the render frame keeps its bits.
-  const cameraStretch = maxStretch(cam.viewRelative)
-  if (into) {
-    into.pixelError = pixelError
-    into.near = cam.near
-    into.cameraWorld = cameraWorld
-    into.cameraStretch = cameraStretch
-    into.perspective = cam.perspective
-    holdAheadView(into, cam, motion)
-    return into
-  }
-  return {
-    planes: planes.slice(),
-    view: view.slice(),
-    pixelScale: [scale[0], scale[1]],
-    pixelError,
-    near: cam.near,
-    cameraWorld: [cameraWorld[0], cameraWorld[1], cameraWorld[2]],
-    cameraStretch,
-    perspective: cam.perspective,
-    ahead: motion ? aheadViewOf(cam, motion) : null,
-  }
+  into.cameraStretch = maxStretch(cam.viewRelative)
+  into.perspective = cam.perspective
+  holdAheadView(into, cam, motion)
+  return into
 }

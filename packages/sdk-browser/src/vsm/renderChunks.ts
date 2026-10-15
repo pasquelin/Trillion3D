@@ -11,6 +11,7 @@ import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
 } from './renderParamsWgsl.ts'
 import { VSM_RENDER_EXPAND_SPECS } from './renderExpandWgsl.ts'
+import { VSM_RENDER_VIEWS_SPECS } from './renderViewsWgsl.ts'
 import {
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
@@ -93,10 +94,19 @@ export function vsmEncodeChunks(
   args: GPUBuffer,
   rowCount: number,
   chunks: number,
+  mapCount: number,
 ) {
   const opening = ctx.passes.chunk(0),
     first = encoder.beginComputePass(opening.cullPass)
-  encodeVsmCandidates(first, ctx.candidates.pipeline, groups.cand, ctx, groups.chunk.args, rowCount)
+  encodeVsmCandidates(
+    first,
+    ctx.candidates.pipeline,
+    groups.cand,
+    ctx,
+    groups.chunk,
+    rowCount,
+    mapCount,
+  )
   for (let c = 0; c < chunks; c++) {
     const each = ctx.passes.chunk(c)
     const pass = c ? encoder.beginComputePass(each.cullPass) : first
@@ -131,6 +141,11 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
   return {
     cand: groups.cand,
     chunk: {
+      views0: device.createBindGroup({
+        layout: ctx.views.groups[0],
+        entries: vsmBindGroupEntries(res, VSM_RENDER_VIEWS_SPECS),
+      }),
+      views1: groups.views1,
       cull0: device.createBindGroup({
         layout: ctx.cull.groups[0],
         entries: vsmBindGroupEntries(res, VSM_RENDER_CULL_SPECS),

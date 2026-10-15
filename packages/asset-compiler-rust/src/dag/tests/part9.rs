@@ -64,7 +64,8 @@ fn a_thin_cylinder_keeps_its_silhouette_or_leaves_under_its_error() {
             assert!(t >= RADIUS as f64, "the cylinder left at error {t}");
             continue;
         }
-        let distance = crate::physics_cook::hausdorff::distance(&mesh.positions, &source, &cut);
+        let distance =
+            crate::physics_cook::hausdorff::reference::distance(&mesh.positions, &source, &cut);
         assert!(
             distance <= t + 1e-6,
             "at error {t} the cylinder drifts {distance} from its source"

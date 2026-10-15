@@ -21,7 +21,7 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
-  /var transmitted=vec3f\(0\.0\);\n if\(any\(thinSubsurface!=vec3f\(0\.0\)\)\)\{transmitted=(thinSubsurface\*thinTransmission\([^;]*\));\}/
+  /var transmitted=vec3f\(0\.0\);\n if\(thinSurface\(\)\)\{transmitted=(lambertDiffuse\(thinSubsurface,[^;]*\));\}/
 const EARLY = /\n if\(NdotL==0\.0\)\{return vec3f\(0\.0\);\}/
 /** Develop's text: the thin skip, the early zero, or both undone. */
 const UNDO = {
@@ -29,20 +29,7 @@ const UNDO = {
   facing: (text: string) => text.replace(EARLY, ''),
   both: (text: string) => text.replace(GUARDED, 'let transmitted=$1;').replace(EARLY, ''),
 }
-const NAMES = [
-  'sliceLighting',
-  'declaredLight',
-  'directIncidence',
-  'rangeWindow',
-  'isSun',
-  'isSunKind',
-  'isRect',
-  'modelLight',
-  'thinTransmission',
-  'lambertAlbedoMul',
-  // Every function of the standard lobe's text.
-  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
-]
+const NAMES = ['sliceLighting']
 
 test('the skipped thin transmission and back-facing lobes keep every sum, bit for bit, in f32', () => {
   const r = lcgRandom(1564),
@@ -83,7 +70,7 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           surfaceModel: [2, MODEL_FLAG.diffuse, MODEL_FLAG.toon][Math.floor(round / 3) % 3],
           shadowReceiverOffset: [0, 0, 0],
           shadowReceiverPlane: [0, 0, 0],
-          shadowBiasNormal: (normal: number[]) => normal,
+          vsmBiasNormal: (normal: number[]) => normal,
           shadowTransmission: [1, 1, 1],
           shadowFactor: () => 1,
         }

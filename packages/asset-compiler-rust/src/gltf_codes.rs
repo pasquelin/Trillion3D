@@ -21,6 +21,20 @@ pub(crate) const ARRAY_BUFFER: u32 = 34962;
 /// Buffer view `target` of indices.
 pub(crate) const ELEMENT_ARRAY_BUFFER: u32 = 34963;
 
+/// Sampler `wrapS` / `wrapT`: repeat, clamp to the edge texel, mirrored repeat.
+pub(crate) const REPEAT: u32 = 10497;
+pub(crate) const CLAMP_TO_EDGE: u32 = 33071;
+pub(crate) const MIRRORED_REPEAT: u32 = 33648;
+/// Sampler `magFilter` / `minFilter`: nearest, linear, and the four mipmapped minifications.
+pub(crate) const NEAREST: u32 = 9728;
+pub(crate) const LINEAR: u32 = 9729;
+pub(crate) const NEAREST_MIPMAP_NEAREST: u32 = 9984;
+pub(crate) const LINEAR_MIPMAP_NEAREST: u32 = 9985;
+pub(crate) const NEAREST_MIPMAP_LINEAR: u32 = 9986;
+pub(crate) const LINEAR_MIPMAP_LINEAR: u32 = 9987;
+/// The filtering a sampler that names none takes: linear magnification, linear between mipmaps.
+pub(crate) const DEFAULT_FILTER: [u32; 2] = [LINEAR, LINEAR_MIPMAP_LINEAR];
+
 /// Bytes of one component of `component`, `None` for a code glTF does not define.
 pub(crate) fn component_bytes(component: usize) -> Option<usize> {
     match component {
@@ -29,6 +43,21 @@ pub(crate) fn component_bytes(component: usize) -> Option<usize> {
         UNSIGNED_INT | FLOAT => Some(4),
         _ => None,
     }
+}
+
+/// The shape of an accessor `type`, `(columns, rows)` — a vector is one column — or `None` for
+/// a type glTF does not define: the one table every reader takes an element's width from.
+pub(crate) fn element_shape(kind: &str) -> Option<(usize, usize)> {
+    Some(match kind {
+        "SCALAR" => (1, 1),
+        "VEC2" => (1, 2),
+        "VEC3" => (1, 3),
+        "VEC4" => (1, 4),
+        "MAT2" => (2, 2),
+        "MAT3" => (3, 3),
+        "MAT4" => (4, 4),
+        _ => return None,
+    })
 }
 
 /// Bytes of one index of `component`, `None` for a code that is no index type.

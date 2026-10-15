@@ -1,10 +1,12 @@
-//! How placed nodes are grouped into cells: halved along the widest axis of their centres until
-//! a cell's bytes fit one stream unit. Nothing here is a distance: the runtime derives when to
+//! How placed nodes are grouped into cells: halved at the median of their centres, on the axis of
+//! least cost over their boxes (`split::bisect_least_cost`, every tree's split), until a cell's
+//! bytes fit one stream unit. Nothing here is a distance: the runtime derives when to
 //! read a cell from its boxes and its own camera. The halving is kept: the paged cell index is cut
 //! from its tree (`pages.rs`).
 use super::*;
 use std::ops::Range;
-use trillion3d_math::aabb::{aabb_of, centre};
+use trillion3d_math::aabb::centre;
+use trillion3d_page_codec::split::bisect_least_cost;
 
 /// One placed node: its rank in the published scene, its world box, the core rank of its parent
 /// (`None`: a scene root) and its box in that parent's frame, its descriptor as the cell writes
@@ -18,9 +20,9 @@ pub(in crate::compiler_tables) struct Placed {
     pub bytes: usize,
 }
 impl Placed {
-    fn centre(&self, axis: usize) -> f64 {
+    fn corners(&self) -> ([f64; 3], [f64; 3]) {
         let b = &self.bounds;
-        centre([b[0], b[1], b[2]], [b[3], b[4], b[5]])[axis]
+        ([b[0], b[1], b[2]], [b[3], b[4], b[5]])
     }
 }
 
@@ -30,9 +32,9 @@ pub(crate) struct Region {
     pub halves: Option<Box<[Region; 2]>>,
 }
 
-/// Halves `group` along the widest spread of its centres until each part fits the budget; a
-/// single node is a cell whatever its size. Returns the tree of the halving.
-fn halve(mut group: Vec<Placed>, out: &mut Vec<Vec<Placed>>) -> Region {
+/// Halves `group` at the median of its centres on the axis of least cost until each part fits the
+/// budget; a single node is a cell whatever its size. Returns the tree of the halving.
+fn halve(group: Vec<Placed>, out: &mut Vec<Vec<Placed>>) -> Region {
     let first = out.len();
     if group.len() <= 1
         || group.iter().map(|p| p.bytes).sum::<usize>() <= crate::STREAM_BUNDLE_BYTES
@@ -43,13 +45,19 @@ fn halve(mut group: Vec<Placed>, out: &mut Vec<Vec<Placed>>) -> Region {
             halves: None,
         };
     }
-    let (low, high) = aabb_of(group.iter().map(|p| [0, 1, 2].map(|axis| p.centre(axis))));
-    let spread = |axis: usize| high[axis] - low[axis];
-    let axis = (0..3)
-        .max_by(|a, b| spread(*a).total_cmp(&spread(*b)))
-        .unwrap_or(0);
-    group.sort_by(|a, b| a.centre(axis).total_cmp(&b.centre(axis)));
-    let upper = group.split_off(group.len() / 2);
+    let centres: Vec<[f64; 3]> = group
+        .iter()
+        .map(|p| {
+            let (low, high) = p.corners();
+            centre(low, high)
+        })
+        .collect();
+    let mut ids: Vec<usize> = (0..group.len()).collect();
+    let at = group.len() / 2;
+    bisect_least_cost(&mut ids, &centres, |id| group[id].corners(), at);
+    let mut slots: Vec<Option<Placed>> = group.into_iter().map(Some).collect();
+    let mut group: Vec<Placed> = ids.iter().filter_map(|&id| slots[id].take()).collect();
+    let upper = group.split_off(at);
     let halves = [halve(group, out), halve(upper, out)];
     Region {
         cells: first..out.len(),

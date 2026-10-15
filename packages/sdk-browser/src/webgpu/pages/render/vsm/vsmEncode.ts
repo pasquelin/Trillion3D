@@ -48,8 +48,7 @@ const frameScratch = (vsm: EngineVsm) =>
     suns: new Uint32Array(vsm.directionalIds.size / 4),
     projected: [],
     marking: {
-      fullMapCount: 0,
-      singlePageMapCount: 0,
+      mapCount: 0,
       perPage: undefined as never,
       perspective: true,
       view: undefined,
@@ -89,8 +88,8 @@ export function encodeVsmFrame(
   const { res, state } = vsm
   const stats = vsm.stats
   stats.lights = plan.lights.length
-  stats.fullMaps = plan.fullMapCount
-  stats.singlePageMaps = plan.singlePageMapCount
+  stats.maps = plan.projectionCount
+  stats.tableBlocks = plan.tableBlocks
   stats.pressureBiasStat = state.cache.pressureBias
   stats.render = undefined
   stats.projectionPasses = 0
@@ -115,7 +114,6 @@ export function encodeVsmFrame(
   const pmFrame: VsmPageManagementFrame = {
     device,
     mapCount: plan.projectionCount,
-    fullMapCount: plan.fullMapCount,
     perPageBins: perPage.all,
     nextMapCount: plan.nextMapCount,
     options: { stats: vsm.countersOn },
@@ -162,8 +160,7 @@ function encodeVsmMarking(
   const views = gpu.surfaces!.views()
   const tiles = lights.tiles?.buffer
   const markingFrame = scratch.marking
-  markingFrame.fullMapCount = plan.fullMapCount
-  markingFrame.singlePageMapCount = plan.singlePageMapCount
+  markingFrame.mapCount = plan.projectionCount
   markingFrame.perPage = perPage
   markingFrame.perspective = cam.perspective === 1
   if (lights.buffer && tiles) {

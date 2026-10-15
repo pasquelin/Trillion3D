@@ -1,7 +1,6 @@
 // What a root's world decides on the CPU is taken when read (`rootWorld.ts`): a root made or a move
 // no one reads transforms no box and solves no stretch; a read after it is the formula's at the new world, to
-// the bit; a read before it is taken is the box the root leaves; a world a parent composes moves
-// both with its own stamp.
+// the bit; a read before it is taken is the box the root leaves; one version keys both.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxTransform } from '../../../../math/src/geometry/box.ts'
@@ -50,20 +49,13 @@ test('a box read before the move is taken is the one the root leaves', () => {
   assert.deepEqual(Array.from(rootWorldBox(root)!), expectedBox(root))
 })
 
-test('the stretch is the memo of the world’s stamp, a composed world’s own stamp included', () => {
+test('the stretch is the memo of the world’s version: a move taken solves it again', () => {
   const next = lcgRandom(13),
     elements = generated(next, 10),
     root = rootAt(elements)
   assert.equal(worldStretch(root), maxStretch(elements))
   elements.set(generated(next, 10))
   worldMoved(root)
-  assert.equal(worldStretch(root), maxStretch(elements))
-  // A parent composes it: its stamp moves the memo, no `worldMoved` called.
-  let stamp = 1
-  Object.defineProperty(root.world, 'stamp', { configurable: true, get: () => stamp })
-  assert.equal(worldStretch(root), maxStretch(elements))
-  elements.set(generated(next, 10))
-  stamp++
   assert.equal(worldStretch(root), maxStretch(elements))
   assert.deepEqual(Array.from(rootWorldBox(root)!), expectedBox(root))
 })

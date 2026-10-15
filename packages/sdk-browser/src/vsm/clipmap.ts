@@ -11,6 +11,7 @@
  * MATRICES. The matrices are the engine's: column-major, column-vector (`m[column·4 + row]`).
  * `multiplyMatrix4(out, A, B)` is A·B, B applied first; `transformAffinePoint` applies one to a point.
  */
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { forwardOrthographicProjection } from '../../../math/src/projection/forwardZ.ts'
 import {
@@ -26,7 +27,6 @@ import {
   VSM_SUN_DEPTH_SPAN,
   VSM_CM_PER_UNIT,
   VSM_LEVEL0_PAGES,
-  VSM_LIGHT_KIND_DIRECTIONAL,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_COARSE,
   VSM_MAP_UNCACHED,
@@ -35,11 +35,7 @@ import {
   VSM_UNIT_PER_CM,
   VSM_LEVEL0_TEXELS,
 } from './constants.ts'
-import {
-  vsmShadowUvMatrix,
-  vsmShadowUvNormalMatrix,
-  type VsmProjectionDataValues,
-} from './projectionData.ts'
+import { vsmShadowMatrices, type VsmProjectionDataValues } from './projectionData.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 
 /** Level radii a level's footprint spans: its corner offset is half of it. */
@@ -181,7 +177,6 @@ const direction: [number, number, number] = [0, 0, 0],
   worldToLightRotation = new Float64Array(16),
   worldToLightView = new Float64Array(16),
   viewToWorldRotation = new Float64Array(16),
-  cm = new Float64Array(16),
   lastLevelSnap = new Float64Array(3),
   eyeInLight = new Float64Array(3),
   swc = new Float64Array(3),
@@ -327,10 +322,10 @@ export function createVsmClipmap(
     const eyeDepthShift = eyeInLight[2] - levelEntry.clipmap.depthCentre
     depthRadius = levelEntry.clipmap.depthRadius
 
-    // The matrix in centimetres (cm) and its metre twin (same clip values from metres).
+    // The level's view-to-clip from metres; its depth offset 1 − zOffset·zScale is unitless,
+    // taken from the centimetre values themselves: the exact value, no unit round trip.
     const zScale = 0.5 / depthRadius
     const zOffset = depthRadius + eyeDepthShift
-    forwardOrthographicProjection(cm, halfWidthCm, halfWidthCm, zScale, zOffset)
     const viewToClip = forwardOrthographicProjection(
       level.viewToClip,
       halfWidthCm * VSM_UNIT_PER_CM,
@@ -338,7 +333,7 @@ export function createVsmClipmap(
       zScale * VSM_CM_PER_UNIT,
       zOffset * VSM_UNIT_PER_CM,
     )
-    viewToClip[14] = cm[14] // 1 − zOffset·zScale is unitless: keep the exact value
+    viewToClip[14] = 1 - zOffset * zScale
 
     for (let k = 0; k < 3; k++) level.worldCentre[k] = swc[k] * VSM_UNIT_PER_CM
   }
@@ -364,8 +359,7 @@ function vsmClipmapProjectionData(
     out.clipmapOrigin[k] = clipmap.eyeWorld[k] + originShift[k]
   }
   out.lightViewToClip.set(level.viewToClip)
-  vsmShadowUvMatrix(out.shiftedToMapUv, clipmap.lightViewRotation, level.viewToClip)
-  vsmShadowUvNormalMatrix(out.planesToMapUv, clipmap.lightViewRotation, level.viewToClip)
+  vsmShadowMatrices(out, clipmap.lightViewRotation, level.viewToClip)
   out.cornerSteps[0] = level.cornerFromLast[0]
   out.cornerSteps[1] = level.cornerFromLast[1]
   const mapLevel = clipmap.firstLevel + levelIndex
@@ -377,7 +371,7 @@ function vsmClipmapProjectionData(
   }
   flags |= VSM_MAP_COVERAGE
   flags |= VSM_MAP_COARSE_KEEPS_DYNAMIC
-  out.lightKind = VSM_LIGHT_KIND_DIRECTIONAL
+  out.lightKind = LIGHT_KIND.directional
   out.lightRange = 0
   out.levelBias = clipmap.levelBias
   out.emitterSize = 0 // a directional light has no source radius

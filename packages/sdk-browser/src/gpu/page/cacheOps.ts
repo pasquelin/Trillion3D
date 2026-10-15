@@ -1,6 +1,5 @@
 import { evictResident } from './commit.ts'
 import { behind } from '../core/behind.ts'
-import { heldHomes } from './homes.ts'
 import { resizeGpuPages, type GrownPages } from './resize.ts'
 import type { GpuPageContext } from './types.ts'
 
@@ -29,7 +28,7 @@ export function unloadPage(context: GpuPageContext, key: string) {
     emit?.('gpu-page-unload-refused', 'GPU unload refused', () => ({
       version: 1,
       key,
-      slot: page.slot,
+      offset: page.offset,
       generation: page.generation,
       reason: 'pinned',
     }))
@@ -42,9 +41,9 @@ export function unloadPage(context: GpuPageContext, key: string) {
 
 /** The pool's sizes and counters. */
 export function pageCacheStats(context: GpuPageContext) {
-  const { state, pageBytes, slots } = context
+  const { state, slots } = context
   return {
-    allocatedBytes: heldHomes(context.homes, slots)?.bytes ?? pageBytes * slots,
+    allocatedBytes: context.buffer.size,
     slots,
     residentPages: context.resident.size,
     /** Loads in flight: each takes a slot when it lands. */
@@ -53,7 +52,6 @@ export function pageCacheStats(context: GpuPageContext) {
     uploadedBytes: state.uploadedBytes,
     evictions: state.evictions,
     pinned: context.eviction.pinnedCount,
-    physicalVramBytes: null,
   }
 }
 

@@ -1,6 +1,7 @@
 import type { ClusterRoot } from '../page/selection/types.ts'
 import { worldMoved } from '../page/selection/rootWorld.ts'
-import type { PlacementRows } from './rows.ts'
+import { rowShadowless, type PlacementRows } from './rows.ts'
+import { settleRoot } from './hidden.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
 import type { NodeIndex } from '../webgpu/pages/render/movedNode.ts'
 
@@ -85,18 +86,14 @@ export function followPlacementRows<T>(
       entry.owner = seated
       if (owner) owner.rootIndex.revision++
     }
-    const parked = rows.live[index] === 0 || !!root.hidden,
-      flipped = parked !== !!root.parked,
-      cast = markShadowless(root, rows.shadowless[index] === 1)
+    const cast = markShadowless(root, rowShadowless(root.placement!))
     // Its pose alone says whether it moved: a row taken or parked where it stands is shown or
     // hidden, not moved — the primitive is removed or added and its pages invalidated once,
     // without caching it as dynamic (only a transform update does).
     const move = posed ? posed(rank, root.world.elements) : MOVE_PROMOTED,
-      wasParked = !!root.parked
-    if (flipped || cast) {
-      root.parked = parked
-      flip?.(rank, root)
-    }
+      wasParked = !!root.parked,
+      flipped = settleRoot(root, rank, flip, cast),
+      parked = !!root.parked
     follow?.(rank)
     worldMoved(root)
     // Its rows and box follow the row all the same; a root without a box, or parked before and

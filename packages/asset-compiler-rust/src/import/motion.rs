@@ -111,11 +111,11 @@ impl Importer<'_> {
     fn bone(&mut self, bone: &ufbx::Node, bones: &mut HashMap<u32, usize>) -> usize {
         *bones.entry(bone.element.typed_id).or_insert_with(|| {
             let [translation, rotation, scale] = trs(&bone.node_to_world);
-            self.nodes.push(
+            self.scene.nodes.push(
                 json!({"name": &*bone.element.name, "translation": translation,
                 "rotation": rotation, "scale": scale}),
             );
-            self.nodes.len() - 1
+            self.scene.nodes.len() - 1
         })
     }
 
@@ -142,11 +142,11 @@ impl Importer<'_> {
                     .map(|v| *v as f32),
             );
         }
-        let view = self.bin.view(&f32_bytes(&matrices), None);
-        self.accessors.push(
+        let view = self.scene.bin.view(&f32_bytes(&matrices), None);
+        self.scene.accessors.push(
             json!({"bufferView":view,"componentType":FLOAT,"count":joints.len(),"type":"MAT4"}),
         );
-        let accessor = self.accessors.len() - 1;
+        let accessor = self.scene.accessors.len() - 1;
         self.skins
             .push(json!({"joints": joints, "inverseBindMatrices": accessor}));
         skins.insert(skin.element.element_id, self.skins.len() - 1);
@@ -168,7 +168,7 @@ impl Importer<'_> {
             .first()
             .map(|skin| self.skin(skin, bones, skins));
         if let Some(skin) = skinned {
-            self.nodes[placed]["skin"] = json!(skin);
+            self.scene.nodes[placed]["skin"] = json!(skin);
         }
         if skinned.is_none() || !deform.channels.is_empty() {
             let typed = node.element.typed_id as usize;
@@ -185,8 +185,8 @@ impl Importer<'_> {
 
     /// An origin joint leaves unbound vertices where their bind matrix places them.
     fn bone_less(&mut self) -> usize {
-        self.nodes.push(json!({"name": ""}));
-        self.nodes.len() - 1
+        self.scene.nodes.push(json!({"name": ""}));
+        self.scene.nodes.len() - 1
     }
 }
 

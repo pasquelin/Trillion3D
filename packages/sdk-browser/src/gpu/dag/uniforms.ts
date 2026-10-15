@@ -8,17 +8,11 @@ import {
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
 } from './layout.ts'
-import {
-  SELECTION_HEADER_WORDS,
-  evictionWord,
-  readCountedList,
-  readLevelCounts,
-} from './readoutWords.ts'
+import { SELECTION_HEADER_WORDS, evictionWord, readCountedList } from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../core/selection.ts'
 import { WORK_DROPPED } from './shader/viewsWgsl.ts'
 import { viewWord, writeAheadBlock } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
-import { ADMISSION_BUCKETS } from './request.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dagQueueWords } from './flagSections.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
@@ -38,7 +32,6 @@ export type DagOutputScratch = {
   drawable: number[]
   ahead: number[]
   evict: number[]
-  levels: Uint32Array
 }
 export const createDagOutputScratch = (): DagOutputScratch => ({
   result: {
@@ -52,7 +45,6 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
   drawable: [],
   ahead: [],
   evict: [],
-  levels: new Uint32Array(ADMISSION_BUCKETS),
 })
 
 /**
@@ -101,10 +93,8 @@ export function writeDagUniforms(
   ints[W('listCap')] = listCap
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[W('perspective')] = uniforms.perspective ?? 1
-  // One view, the camera's, on buffers sized for one, whose queues hold every placement's every
-  // node: two words an entry, the node then its placement (`shader/levelWgsl.ts`).
-  ints[W('viewCount')] = 1
-  ints[W('viewCapacity')] = 1
+  // The camera's queues hold every placement's every node: two words an entry, the node then its
+  // placement (`shader/levelWgsl.ts`).
   ints[W('queueCap')] = at.queueWords ?? dagQueueWords(packed)
   // The open counts placements hold of their own (`heldOpen.ts`): where in `out.pages`, how many.
   ints[W('heldBase')] = at.base
@@ -135,15 +125,13 @@ export function writeDagUniforms(
   writeAheadBlock(target, ints, uniforms)
 }
 
-/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none;
- *  `levelsWord`: where its admission counts lie (`levelCountsWord`), 0 when it has none. */
+/** `drawnWordOffset`: rank of the compacted-list count in the sample, 0 when there is none. */
 export function parseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,
   byteLength: number,
   drawnWordOffset: number,
   scratch: DagOutputScratch = createDagOutputScratch(),
-  levelsWord = 0,
 ): SelectionResult | null {
   const ints = new Uint32Array(bytes, byteOffset, Math.floor(byteLength / 4))
   const head = SELECTION_HEADER_WORDS,
@@ -181,14 +169,13 @@ export function parseDagOutput(
   // A queue or a list full: the cut was not drawn, and its lists are not the cut's.
   result.dropped = (ints[OUT_FLAGS] ?? 0) & WORK_DROPPED
   result.drawablePageIds = undefined
-  if (levelsWord) result.levelCounts = readLevelCounts(ints, levelsWord, scratch.levels)
   // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
   // one flag per DAG page, only the ranks the GPU kept.
   if (drawnWordOffset) {
     result.drawablePageIds = readCountedList(ints, drawnWordOffset, drawable)
-    // A sample whose counts lie where the eviction queue would carries none (a view's aside).
+    // A sample that ends where the eviction queue would start carries none (a view's aside).
     const evictAt = evictionWord(drawnWordOffset - head)
-    if (levelsWord && levelsWord <= evictAt) evict.length = 0
+    if (evictAt >= ints.length) evict.length = 0
     else readCountedList(ints, evictAt, evict)
     result.evictPageIds = evict
     result.evictOld = Math.min(evict.length, ints[evictAt + 1] ?? 0)

@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 import { RANGE_BOUND } from '../../../math/src/wgsl/constants.ts'
-import { depthStep } from '../../../math/src/wgsl/sampling.ts'
+import { surfaceSlopeOf } from '../../../math/src/wgsl/sampling.ts'
 /** Geometry retained with every display pixel: full placement identity and reversed depth.
  * Four taps bound the slope represented by the historical pixel footprint; `slack`, the current
  * surface's own depth step across one render texel (`closestSurface`), widens it: a frame drawn
@@ -38,13 +38,15 @@ fn geometryUncovered(uv:vec2f,expected:f32,identity:u32,slack:f32)->bool{
 )
 
 /** The nearest of the 3×3 depths `above`, `middle` and `below`, the identifier of its texel among
- *  `aboveIds`, `middleIds` and `belowIds`, and the surface's depth step (`CLOSEST_SURFACE_WGSL`). */
+ *  `aboveIds`, `middleIds` and `belowIds`, and the surface's depth step across one texel, by the one
+ *  slope rule of every depth reader (`surfaceSlopeOf`) on each axis, `far` the texels two away
+ *  (west, east, north, south): the larger of the two axes' (`CLOSEST_SURFACE_WGSL`). */
 const NEAREST_OF_WGSL = wgslBlock(
   'NEAREST_OF_WGSL',
-  [depthStep],
+  [surfaceSlopeOf],
   `
 struct TaaNearest{depth:f32,slope:f32,id:u32}
-fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u,belowIds:vec3u)->TaaNearest{
+fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u,belowIds:vec3u,far:vec4f)->TaaNearest{
  let centre=middle.y;
  var nearDepth=centre;var nearId=middleIds.y;
  for(var dy=-1;dy<=1;dy++){
@@ -55,7 +57,7 @@ fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u
   }
  }
  let west=middle.x;let east=middle.z;let north=above.y;let south=below.y;
- let slope=max(depthStep(centre,west,east),depthStep(centre,north,south));
+ let slope=max(abs(surfaceSlopeOf(centre,west,east,far.x,far.y)),abs(surfaceSlopeOf(centre,north,south,far.z,far.w)));
  return TaaNearest(nearDepth,slope,nearId);
 }`,
 )
@@ -64,7 +66,7 @@ fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u
  * makes the largest depth the foreground; its identity and motion travel together: the identifier
  * of its texel, which the pixel's page record and motion are read by. `slope` is the surface's
  * depth step across one texel, a measure of its depth error: the larger of both axes'
- * `depthStep`.
+ * `surfaceSlopeOf`, which reads four more depths, two texels away.
  *
  * The 3×3 depths come in four gathers, not nine loads, and their identifiers in four more, taken
  * with them: the nearest's identifier waits on no read of its own. Each gathers the 2×2 whose
@@ -97,6 +99,8 @@ fn closestSurface(coord:vec2i,last:vec2i)->TaaNearest{
  let below=vec3f(downLeft.x,downLeft.y,downRight.y);
  let aboveIds=vec3u(idUpLeft.w,idUpLeft.z,idUpRight.z);let middleIds=vec3u(idUpLeft.x,idUpLeft.y,idUpRight.y);
  let belowIds=vec3u(idDownLeft.x,idDownLeft.y,idDownRight.y);
- return nearestOf(above,middle,below,aboveIds,middleIds,belowIds);
+ let far=vec4f(textureLoad(depth,clamp(coord-vec2i(2,0),vec2i(0),last),0),textureLoad(depth,clamp(coord+vec2i(2,0),vec2i(0),last),0),
+  textureLoad(depth,clamp(coord-vec2i(0,2),vec2i(0),last),0),textureLoad(depth,clamp(coord+vec2i(0,2),vec2i(0),last),0));
+ return nearestOf(above,middle,below,aboveIds,middleIds,belowIds,far);
 }`,
 )

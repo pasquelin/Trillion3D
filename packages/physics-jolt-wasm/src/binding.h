@@ -23,8 +23,9 @@
 
 namespace trillion {
 
-/// Object layers: static geometry, moving bodies, decorative bodies (debris: they meet the static
-/// world only).
+/// Standard gravity, m/s²: what brakes and a soft body's least pull are sized on, whatever the world's.
+constexpr float STANDARD_GRAVITY = 9.80665f;
+/// Object layers: static geometry, moving bodies, decorative bodies (debris: meet statics only).
 enum Layer : JPH::ObjectLayer { STATIC = 0, MOVING = 1, DECORATIVE = 2, LAYER_COUNT = 3 };
 
 struct Slot {
@@ -32,15 +33,11 @@ struct Slot {
   /** The engine id the page gave the body (slot and generation). */
   uint32_t engine = 0;
   uint32_t flags = 0;
-  /** The step whose pose buffer holds this body's record: one record per body and step. */
-  uint32_t sent = 0;
-  bool used = false;
-  /** Its shape was refused: commands naming it are skipped until the page removes it. */
-  bool refused = false;
-  /** Listed in `World::waiting`. */
-  bool waiting = false;
-  /** A pose was withheld (out of view): it is sent once the body is seen again. */
-  bool withheld = false;
+  uint32_t sent = 0;  ///< The step whose pose buffer holds its record: one per body and step.
+  /** In use; its shape refused (commands naming it skipped until the page removes it). */
+  bool used = false, refused = false;
+  /** Listed in `World::waiting`; a pose withheld (out of view), sent once it is seen again. */
+  bool waiting = false, withheld = false;
   /** Deactivated beyond the range; its velocities are kept here and given back on return. */
   bool frozen = false;
   /** A soft body (`soft.cpp`): a teleport carries its vertices; it takes no kinematic move,
@@ -48,6 +45,12 @@ struct Slot {
   bool soft = false;
   /** Its place in `soft.cpp`'s list, kept in step with it: a teleport finds it without a scan. */
   uint32_t softAt = 0;
+  /** Writes since it rested: a body's pose, a soft body's vertices, a vehicle's state go while
+   *  it moves and `writes` times at rest; `rests` says when to skip. */
+  uint32_t restWrites = 0;
+  bool rests(bool active, uint32_t writes) {
+    return active ? (restWrites = 0, false) : restWrites >= writes || (++restWrites, false);
+  }
   /** Frozen beyond the range: surely still beyond it while `World::travel` stays below this and
    *  `World::viewEpoch` is `farEpoch` (the eye came no nearer than it travelled; `report.cpp`). */
   double farUntil = -1;
@@ -102,29 +105,24 @@ struct World {
    *  and non-finite eyes. */
   double travel = 0;
   uint32_t viewEpoch = 1;
-  /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told. */
+  /** Touching pairs by engine ids: sub-shape contacts counted, `ENTERED` once the page was told;
+   *  a soft body's with the step that last saw it touch (`softContacts.cpp`). */
   PairIndex pairs;
-  /** The pairs of `pairs` a soft body is in, and the step that last saw each touch (`softContacts.cpp`). */
-  std::unordered_map<uint64_t, uint32_t> softPairs;
   /** Leaves that found the event buffer full: written first at the next step, never lost. */
   std::vector<uint64_t> leaving;
   /** This step's bodies (engine ids) whose shape was refused, whose pose or vertices went
-   *  non-finite (sent nothing, taken out), and the soft bodies that diverged on amplitude and were
-   *  brought back to rest (`soft.cpp`); then its enters the buffer dropped. */
-  std::vector<uint32_t> refused, diverged, recovered;
+   *  non-finite (sent nothing, taken out); then its enters the buffer dropped. */
+  std::vector<uint32_t> refused, diverged;
   uint32_t dropped = 0;
   std::unordered_map<uint64_t, JPH::RefConst<JPH::Shape>> primitives;
   uint32_t *buffers[3] = {nullptr, nullptr, nullptr};
-  uint32_t capacity[3] = {0, 0, 0};
-  uint32_t eventWords = 0;
-  uint32_t error = NONE;
-  /** What the last `PhysicsSystem::Update` could not hold (`EPhysicsUpdateError` bits). */
-  uint32_t updateError = 0;
-  uint32_t step = 0;
-  float dt = 0;
-  /** The page's fixed step, s (`jolt_init`): what a soft body's bend floor and calm are reckoned
-   *  with (`soft.cpp`), whatever a command's own step. */
+  uint32_t capacity[3] = {0, 0, 0}, eventWords = 0, error = NONE;
+  uint32_t updateError = 0, step = 0;  ///< What the last Update could not hold (bits); runs so far.
+  /** The page's fixed step, s (`jolt_init`), the only step the world advances by; and whether
+   *  this run advances by it (`jolt_step`): the seconds it advances, `elapsed`. */
   float fixedStep = 0;
+  bool stepping = false;
+  float elapsed() const { return stepping ? fixedStep : 0.0f; }
 };
 
 World &world();
@@ -167,10 +165,6 @@ void writeCharacter();
 uint32_t jointCommand(const uint32_t *w);
 /// Takes out the joints of the body in slot `index`, before the body is removed.
 void dropJoints(uint32_t index);
-/// Before a step, notes where each path joint's body stands along its path; after it, turns the
-/// body's velocity along the path's bend, its speed kept (`pathCarry.cpp`).
-void notePaths();
-void carryPaths();
 /// After a step of `dt` seconds, takes out the joints pulled past their break force.
 void breakJoints(float dt);
 

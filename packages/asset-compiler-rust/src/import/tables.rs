@@ -7,12 +7,10 @@
 //! Nothing written alongside source.
 use super::*;
 use crate::plugins::scene::{scene_output_fields, SceneOutput};
-mod media;
+pub(crate) mod media;
 pub(crate) use media::readable;
 
-/// Default sampler filtering unless specified: linear magnification,
-/// linear between mipmaps on minification.
-const DEFAULT_FILTER: [u32; 2] = [9729, 9987];
+use crate::gltf_codes::DEFAULT_FILTER;
 
 /// glTF tables being written. Constructed via `new`: key carries driver.
 #[derive(Default)]
@@ -127,17 +125,18 @@ impl SceneTables {
         Some((value, out.indices.len() / 3))
     }
 
-    /// Scene roots: nodes uncited as child by any other.
-    fn roots(&self) -> Vec<usize> {
-        let mut child = vec![false; self.nodes.len()];
-        for node in &self.nodes {
-            for id in node["children"].as_array().map_or(&[][..], Vec::as_slice) {
-                if let Some(id) = id.as_u64() {
-                    child[id as usize] = true;
-                }
-            }
-        }
-        (0..self.nodes.len()).filter(|id| !child[*id]).collect()
+    /// Mesh-carrying nodes and the triangles they draw: a mesh posed twice weighs twice.
+    pub(crate) fn stats(&self) -> (usize, usize) {
+        let meshes = self.nodes.iter().filter_map(|node| node["mesh"].as_u64());
+        let triangles = meshes
+            .clone()
+            .map(|mesh| self.mesh_triangles[mesh as usize]);
+        (meshes.count(), triangles.sum())
+    }
+
+    /// Scene roots: nodes uncited as child by any other (`hierarchy_roots`).
+    pub(crate) fn roots(&self) -> Result<Vec<usize>> {
+        crate::compiler_nodes::hierarchy_roots(&self.nodes)
     }
 }
 
@@ -150,25 +149,14 @@ impl SceneOutput for SceneTables {
         source: &Path,
         started: std::time::Instant,
     ) -> Result<PathBuf> {
-        let triangles: usize = self
-            .nodes
-            .iter()
-            .filter_map(|node| node["mesh"].as_u64())
-            .map(|mesh| self.mesh_triangles[mesh as usize])
-            .sum();
-        let mesh_nodes = self
-            .nodes
-            .iter()
-            .filter(|n| n.get("mesh").is_some())
-            .count();
         Converted {
             tables: borrowed_tables!(self),
-            roots: &self.roots(),
+            roots: &self.roots()?,
             lights: &self.lights,
             report: &self.report,
             counts: &self.counts,
             files: json!(self.files),
-            stats: (mesh_nodes, triangles),
+            stats: self.stats(),
         }
         .write(plugin, directory, source, started)
     }

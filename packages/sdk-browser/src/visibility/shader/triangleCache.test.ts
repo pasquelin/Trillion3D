@@ -105,7 +105,7 @@ test('a row past the capacity is decoded by its pixels, the rows before still ca
   assertPixelsRead(run)
 })
 
-test('without the cache every pixel composes and decodes its own (trillion3dShadeNoCache)', () => {
+test('with no row laid (passes refused) every pixel composes and decodes its own', () => {
   const run = cacheRun(WIDTH, HEIGHT, true)
   run.frame(1 << 20)
   assert.ok([...reads(run).keys()].every((id) => slot(run, id) === NO_INDEX))

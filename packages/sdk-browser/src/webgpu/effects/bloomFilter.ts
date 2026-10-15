@@ -9,6 +9,7 @@
 
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { BLOOM_LEVELS } from './bloomLevels.ts'
+import { mipSize } from '../../../../math/src/scalar/integers.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
@@ -36,30 +37,17 @@ export const BLOOM_DOWN_TAPS: readonly BloomTap[] = [
   [1, -1, 0.125],
 ]
 
-/** The 3×3 tent upsample, offsets in texels of the level read, scaled by the bloom's `radius`. The
- *  programs read it in four bilinear taps at radius 1, the same kernel (`tent4`, `bloomLevel.ts`,
- *  proved against this table in `bloomTent.test.ts`). */
-export const BLOOM_UP_TAPS: readonly BloomTap[] = [
-  [-1, 1, 1 / 16],
-  [0, 1, 2 / 16],
-  [1, 1, 1 / 16],
-  [-1, 0, 2 / 16],
-  [0, 0, 4 / 16],
-  [1, 0, 2 / 16],
-  [-1, -1, 1 / 16],
-  [0, -1, 2 / 16],
-  [1, -1, 1 / 16],
-]
+/** The tent upsample's row: the weights of its taps at −1, 0 and +1 texel of the level read, scaled
+ *  by the bloom's `radius`; the 3×3 tent is its product with itself, which the programs read in
+ *  pairs of texels (`tent`, `bloomLevel.ts`). */
+export const BLOOM_UP_ROW = [1 / 4, 2 / 4, 1 / 4] as const
 
 /** Size of each level for an image, the first half the image. */
 export function bloomLevelSizes(width: number, height: number) {
   const sizes: [number, number][] = []
-  for (let level = 1; level <= BLOOM_LEVELS; level++) {
-    const w = Math.floor(width / 2 ** level),
-      h = Math.floor(height / 2 ** level)
-    if (w < 1 || h < 1) break
-    sizes.push([w, h])
-  }
+  // A level exists while both halvings leave a texel; its size is the mip chain's (`mipSize`).
+  for (let level = 1; level <= BLOOM_LEVELS && width >>> level && height >>> level; level++)
+    sizes.push([mipSize(width, level), mipSize(height, level)])
   return sizes
 }
 

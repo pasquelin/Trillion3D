@@ -18,12 +18,11 @@
 
 import type { DagRoot } from '../gpu/dag/types.ts'
 import type { ClusterGroup, CullingHierarchy } from '../../../sdk-core/src/contracts/geometry.ts'
-import {
-  WORLD_ROOTS_BIN,
-  type WorldRootsCluster,
-} from '../../../sdk-core/src/manifest/worldRoots.ts'
+import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { structureIndex } from '../page/selection/structure.ts'
 import { cullingNodes } from '../page/selection/helpers.ts'
+import { cullingBounds } from '../page/cut/bounds.ts'
+import { cullingLinks } from '../page/cut/links.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import type { worldRootPages } from './worldPageServe.ts'
 
@@ -35,7 +34,9 @@ export type WorldRootsDagTable = {
   clusters?: readonly WorldRootsCluster[]
   groups?: ClusterGroup[]
   culling?: CullingHierarchy
-  payload?: { url: string }
+  /** The binary's resolved address, which every page address starts with: two worlds' pages never
+   *  share one (`worldPageAddress`). */
+  url: string
   pinned: number
 }
 
@@ -45,8 +46,10 @@ type WorldPages = ReturnType<typeof worldRootPages>['pages']
 
 /** The world DAG as the one cut reads it: a `DagRoot` over its pages, the placed object of each
  *  object root, and the roots each bundle past the pinned top holds for its cell. */
-export type WorldDagRoot = Omit<DagRoot, 'pages'> & {
+export type WorldDagRoot = Omit<DagRoot, 'pages' | 'culling'> & {
   pages: WorldPages
+  /** Its hierarchy with the bounds and links made once (`worldRootDag`). */
+  culling?: Required<NonNullable<DagRoot['culling']>>
   origins: Int32Array
   held: ReadonlyMap<number, readonly number[]>
 }
@@ -56,7 +59,7 @@ export type WorldDagRoot = Omit<DagRoot, 'pages'> & {
  * cook rank, a `ClusterStructureIndex` from its groups, and the culling hierarchy the cook built
  * over them, every bound raised by the world's quantization displacement as a primitive's is
  * (`cullingNodes`). A
- * super-root's page is named by `payload.url` and its `bundle`/`offset`; an object root's is left
+ * super-root's page is named by the binary's resolved `url` and its `bundle`/`offset`; an object root's is left
  * to its own stream (the cut reads its residency through the structure, its page through the
  * placement). The clusters nothing replaces are the structure's roots; those of the pinned bundles,
  * the world top, are the cut's fallback as a primitive's root cover is, and the cell super-roots
@@ -71,15 +74,20 @@ export function worldRootDag(
   const { clusters, groups } = table
   if (!clusters?.length || !groups?.length) return undefined
   // The cook writes every world's hierarchy (version 6): a DAG without one is refused when read.
-  const url = table.payload?.url || WORLD_ROOTS_BIN
-  const { roots, held, pages, origins, slack } = pagesOf(clusters, url, table.pinned)
+  const { roots, held, pages, origins, slack } = pagesOf(clusters, table.url, table.pinned)
   const structure = structureIndex({ version: 1, roots, groups }, pages.length, slack)
+  const nodes = cullingNodes(table.culling, pages.length, slack)
   return {
     world: IDENTITY_WORLD,
     pages,
     structure,
-    // Its links are the cut's own, derived once per hierarchy (`linksFor`, `page/cut/links.ts`).
-    culling: cullingNodes(table.culling, pages.length, slack),
+    // Its hierarchy with its bounds and links, made once here as a primitive's template makes its
+    // own (`page/selection/template.ts`): every reader takes them, none derives them again.
+    culling: nodes && {
+      ...nodes,
+      bounds: cullingBounds(nodes, pages),
+      links: cullingLinks(nodes, pages.length),
+    },
     // Each object root's placed object, which its residency mirrors (`gpu/dag/residencyMirror.ts`).
     origins,
     held,

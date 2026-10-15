@@ -10,6 +10,22 @@ pub const OPTIONAL: [(u32, usize); 4] = [
     (FLAG_UV1, 2),
     (FLAG_COLOR, 4),
 ];
+/// Floats per vertex of each attribute rank, `None` for one the page does not carry: position,
+/// `OPTIONAL` in order, skin joints and weights (`influences` each), morph deltas (six per
+/// target). The one walk of a decoded vertex, which `attribute` and `Header::vertex_floats` read.
+pub(crate) fn attribute_widths(
+    flags: u32,
+    influences: usize,
+    targets: usize,
+) -> impl Iterator<Item = Option<usize>> {
+    let deformation = [
+        (FLAG_SKIN, influences),
+        (FLAG_SKIN, influences),
+        (FLAG_MORPH, 6 * targets),
+    ];
+    let ranks = core::iter::once((0, 3)).chain(OPTIONAL).chain(deformation);
+    ranks.map(move |(bit, width)| (flags & bit == bit).then_some(width))
+}
 /// Decoded indices then float attribute bits in one `decoded_bytes` block, shared with JS.
 pub struct DecodedPage {
     pub words: Vec<u32>,
@@ -29,16 +45,9 @@ impl DecodedPage {
     /// Attribute by rank: position, OPTIONAL, skin joints/weights, morph deltas; None if absent.
     pub fn attribute(&self, rank: usize) -> Option<&[f32]> {
         let mut at = self.index_count;
-        let deformation = [
-            (FLAG_SKIN, self.skin_influences),
-            (FLAG_SKIN, self.skin_influences),
-            (FLAG_MORPH, 6 * self.morph_targets),
-        ];
-        let ranks = core::iter::once((0, 3)).chain(OPTIONAL).chain(deformation);
-        for (r, (bit, width)) in ranks.enumerate() {
-            if self.flags & bit != bit {
-                continue;
-            }
+        let widths = attribute_widths(self.flags, self.skin_influences, self.morph_targets);
+        for (r, width) in widths.enumerate() {
+            let Some(width) = width else { continue };
             let run = at..at + self.vertex_count * width;
             if r == rank {
                 return Some(floats(&self.words[run]));

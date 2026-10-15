@@ -3,7 +3,7 @@
  *
  * A cell is read while the camera can draw any of it: until its box is past the frustum's farthest
  * corner — for a perspective camera `far·√(1 + tan²θ)`, `θ` the half diagonal of the field its
- * zoom narrows or widens (`perspectiveSlope`), the same off-axis majorant the certified cluster
+ * zoom narrows or widens (`lensSlope`), the same off-axis majorant the certified cluster
  * error takes (`screenErrorBound.ts`); for an orthographic one the far corner of its zoomed box
  * (`orthographicView`). Nothing coarser stands for a cell that is not read (it has no merged
  * proxy), so its objects are drawn wherever the far plane lets them be, however small they
@@ -22,13 +22,10 @@
  */
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { transformAffinePoint, length3 } from '../../../math/src/vector/vector.ts'
+import { transformAffinePoint, length2, length3 } from '../../../math/src/vector/vector.ts'
 import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
-import {
-  drawnView,
-  frustumCornerDistance,
-  perspectiveSlope,
-} from '../../../math/src/projection/camera.ts'
+import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
+import { drawnView, perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
 import type { CameraOptics } from '../camera/engineCamera.ts'
 import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
@@ -41,6 +38,8 @@ const inverse = new Float64Array(MATRIX_VALUES),
 /** How far past the reach, as a fraction of it, a read cell is kept: past `AHEAD`, so a cell read
  *  ahead is not dropped by the next step. */
 export const KEEP = 0.5
+/** The keep sphere's radius for a frame of `reach`: a held cell past it leaves. */
+export const keepRadius = (reach: number) => reach * (1 + KEEP)
 
 /** What the reach reads of a camera: the optics its projection is composed from. */
 export type PartitionOptics = Pick<
@@ -48,8 +47,17 @@ export type PartitionOptics = Pick<
   'fov' | 'aspect' | 'near' | 'far' | 'zoom' | 'orthographic'
 >
 
-/** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner. */
-export function cellReach(optics: PartitionOptics) {
+/** The slope of the frustum's diagonal `optics` sees — how far off its axis, per unit ahead, a
+ *  corner of its picture lies —; 0 for an orthographic camera, which projects no depth. Read once
+ *  a frame: the reach (`cellReach`) and the super-roots' lens (`superRoots.ts`) both take it. */
+export function lensSlope(optics: PartitionOptics) {
+  if (optics.orthographic) return 0
+  return perspectiveDiagonalSlope(optics.fov, optics.aspect, optics.zoom || 1)
+}
+
+/** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner, for a
+ *  perspective camera `far·length2(1, slope)` on its diagonal of `slope` (`lensSlope`). */
+export function cellReach(optics: PartitionOptics, slope = lensSlope(optics)) {
   const { far, orthographic } = optics,
     zoom = optics.zoom || 1 // a zoom of 0 draws nothing: read as 1, never as an empty reach
   if (orthographic) {
@@ -59,7 +67,7 @@ export function cellReach(optics: PartitionOptics) {
     const depth = Math.max(Math.abs(far), Math.abs(optics.near))
     return length3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height))
   }
-  return frustumCornerDistance(far, perspectiveSlope(optics.fov, zoom), optics.aspect)
+  return far * length2(1, slope)
 }
 
 /**
@@ -70,9 +78,8 @@ export function cellReach(optics: PartitionOptics) {
  * needs; a flattened root, which stretches some distance by 0, reads every cell.
  */
 export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, reach: number) {
-  const [least] = stretchOf(world)
+  const [least] = stretchOf(world, invertMatrix4(inverse, world))
   if (!least) return { eye: [0, 0, 0], reach: Infinity } // flattened: no eye there, every cell
-  invertMatrix4(inverse, world)
   const local = transformAffinePoint([0, 0, 0], inverse, eye[0], eye[1], eye[2])
   return { eye: local, reach: reach / least }
 }
@@ -81,23 +88,17 @@ export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, re
  *  six values each; 0 inside one. */
 export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   let nearest = Infinity
-  for (let at = 0; at < bounds.length; at += 6)
+  for (let at = 0; at < bounds.length; at += BOX_VALUES)
     nearest = Math.min(nearest, boxPointDistance(bounds, at, eye[0], eye[1], eye[2]))
   return nearest
 }
 
-/** The read priority of what `cell` holds, seen from `local` (`cellHolds.ts`, `farCells.ts`):
+/** The read priority of what a cell at `distance` holds in a frame of `reach` (`cellHolds.ts`):
  *  strictly after the view's own pages, read at the band's own value, in the visible priority's
- *  band — the prefetch one's when `ahead`, by default past the reach —, nearer first within each. */
-export function holdPriority(
-  index: Pick<CellIndex, 'distance'>,
-  local: { eye: ArrayLike<number>; reach: number },
-  cell: number,
-  ahead?: boolean,
-) {
-  const distance = index.distance(cell, local.eye)
-  const band = (ahead ?? distance > local.reach) ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
-  return band + (1 + (distance / (distance + local.reach) || 0)) / 2
+ *  band — the prefetch one's when `ahead` —, nearer first within each. */
+export function holdPriority(distance: number, reach: number, ahead: boolean) {
+  const band = ahead ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
+  return band + (1 + (distance / (distance + reach) || 0)) / 2
 }
 
 /**
@@ -117,7 +118,8 @@ export type SuperRootPlan = {
  * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first, found through the cell
  * index (`cellIndex.ts`); the held cells past `reach·(1 + KEEP)`, which leave; and the pages of the
  * index within those spheres not yet opened (`pages`), nearest first, the index closing those past
- * the keep sphere. `reach` is the frame camera's (`cellReach`).
+ * the keep sphere; and the hold priority of each cell it reads, holds far or demotes (`priority`,
+ * `holdPriority`), from the distance its walk found. `reach` is the frame camera's (`cellReach`).
  *
  * Given `superRoots`, `held` holds both kinds of cell and the near/far choice is the cut's: a cell
  * found is `far` — held, drawn by its super-roots, its objects unread — until its super-roots'
@@ -134,10 +136,11 @@ export function planCells(
   superRoots?: SuperRootPlan,
 ) {
   type Found<T> = { item: T; distance: number }
-  const cells: Found<number>[] = [],
+  const visible: Found<number>[] = [],
+    ahead: Found<number>[] = [],
     far: Found<number>[] = [],
     pages: Found<IndexPage>[] = []
-  const keep = reach * (1 + KEEP)
+  const keep = keepRadius(reach)
   const placed = superRoots?.placed ?? held
   /** `cell`'s super-roots' projected error over the target: the cut needs its objects past 1, and
    *  without super-roots always. */
@@ -153,28 +156,42 @@ export function planCells(
       if (superRoots && !held.has(item)) far.push({ item, distance })
       // Past the reach, or its objects wanted only within the prefetch margin: read ahead.
       const ratio = need(item)
-      if (distance <= reach && ratio > 1) cells.push({ item, distance })
-      else if (ratio * (1 + AHEAD) > 1) cells.push({ item, distance: reach + distance })
+      if (distance <= reach && ratio > 1) visible.push({ item, distance })
+      else if (ratio * (1 + AHEAD) > 1) ahead.push({ item, distance })
     },
     (item, distance) => void pages.push({ item, distance }),
   )
-  const leave: number[] = [],
-    demoted: number[] = []
-  for (const cell of held.keys())
-    if (index.distance(cell, eye) > keep) leave.push(cell)
-    else if (superRoots && placed.has(cell) && need(cell) * (1 + KEEP) <= 1) demoted.push(cell)
-  /** The items of `list` within the reach, or past it when `past`, nearest first. */
-  const nearest = <T>(list: Found<T>[], past: boolean) =>
+  const priority = new Map<number, number>()
+  /** The items of `list`, nearest first, each read `early` or not given its priority. */
+  const nearest = (list: Found<number>[], early?: boolean) =>
     list
+      .sort((a, b) => a.distance - b.distance)
+      .map(({ item, distance }) => {
+        priority.set(item, holdPriority(distance, reach, early ?? distance > reach))
+        return item
+      })
+  const leave: number[] = [],
+    demoted: Found<number>[] = []
+  for (const cell of held.keys()) {
+    const distance = index.distance(cell, eye)
+    if (distance > keep) leave.push(cell)
+    else if (superRoots && placed.has(cell) && need(cell) * (1 + KEEP) <= 1)
+      demoted.push({ item: cell, distance })
+  }
+  /** The pages within the reach, or past it when `past`, nearest first. */
+  const pagesNearest = (past: boolean) =>
+    pages
       .filter(({ distance }) => distance > reach === past)
       .sort((a, b) => a.distance - b.distance)
       .map(({ item }) => item)
+  // A cell found far and wanted for its objects is held far first: its far priority is the last.
   return {
-    visible: nearest(cells, false),
-    ahead: nearest(cells, true),
+    visible: nearest(visible, false),
+    ahead: nearest(ahead, true),
     leave,
-    far: far.sort((a, b) => a.distance - b.distance).map(({ item }) => item),
-    demoted,
-    pages: { visible: nearest(pages, false), ahead: nearest(pages, true) },
+    far: nearest(far),
+    demoted: nearest(demoted),
+    pages: { visible: pagesNearest(false), ahead: pagesNearest(true) },
+    priority,
   }
 }

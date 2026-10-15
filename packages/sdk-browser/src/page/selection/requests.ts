@@ -55,13 +55,6 @@ export class RequestStamps {
   begin() {
     this.current++
   }
-  /** True the first time this rank is seen since `begin()`. An unknown rank is never filtered. */
-  first(index: number | undefined) {
-    if (index === undefined || index < 0 || index >= this.stamps.length) return true
-    if (this.stamps[index] === this.current) return false
-    this.stamps[index] = this.current
-    return true
-  }
   /**
    * Append to `into` the request address of each record whose rank has not yet been seen
    * since `begin()`. Dedup and write fit in one loop, on the stamp array read as a field and
@@ -89,7 +82,7 @@ export class RequestStamps {
         if (stamps[index] === current) continue
         stamps[index] = current
       }
-      into[count++] = rec.streamUrl ?? rec.url
+      into[count++] = pageRequestUrl(rec)
     }
     into.length = count
     return into

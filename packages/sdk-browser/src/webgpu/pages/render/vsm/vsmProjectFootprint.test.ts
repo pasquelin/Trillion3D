@@ -4,7 +4,7 @@
 // round trip's residue where `W·P` holds an exact zero. Emulated in f32 on `HALTON_SWEEP` cameras
 // of an open world, temporal accumulation on and off: a pixel's world size
 // (`vsmPixelWorldSize`), so a local light's receiver pixel size and footprint level, its only
-// header input, is the same f32; the sun's ray spread on screen (`vsmSunRaySpread`), which sets
+// header input, is the same f32; the sun's ray spread on screen (`vsmRaySpread`), which sets
 // whether a pixel's rays fall within one pixel, is the same f32 from the same view point, and
 // moves only where the rebuilt point moved one f32 step (`vsmProjectTexel.test.ts`): counted,
 // bounded.
@@ -43,8 +43,8 @@ function across(
   )
 }
 
-/** `vsmSunRaySpread`'s largest stretch σ for light `l`, normal `n`, view point `p`, under header
- *  `h`, in f32 (its two outputs are σ times the light's numbers). */
+/** `vsmRaySpread`'s largest stretch σ for light `l`, normal `n`, view point `p`, under header
+ *  `h`, in f32. */
 function stretch(h: Float32Array, l: number[], n: number[], p: number[]) {
   const nl = dot(n, l),
     clip = transform(h.subarray(32, 48), p[0], p[1], p[2], 1)

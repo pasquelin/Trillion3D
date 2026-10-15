@@ -1,6 +1,4 @@
-use super::ordered::ordered;
-use super::spatial::spatial;
-use super::Caps;
+use super::{cluster, Caps};
 use crate::fixtures::{grid, soup};
 
 const CAPS: Caps = Caps {
@@ -38,14 +36,14 @@ fn assert_partition(indices: &[u32], out: &[u32], ends: &[usize]) {
 }
 
 #[test]
-fn the_spatial_rule_partitions_every_family_within_the_caps() {
+fn the_free_clusters_partition_every_family_within_the_caps() {
     for (positions, indices) in [
         grid(40, false),
         grid(40, true),
         soup(3000, 7),
         grid(1, false),
     ] {
-        let built = spatial(&positions, &indices, CAPS);
+        let built = cluster(&positions, &indices, CAPS, false);
         assert_partition(&indices, &built.indices, &built.ends);
     }
 }
@@ -56,7 +54,7 @@ fn the_spatial_rule_partitions_every_family_within_the_caps() {
 fn a_grid_by_columns_clusters_as_compactly_as_by_rows() {
     for by_columns in [false, true] {
         let (positions, indices) = grid(64, by_columns);
-        let built = spatial(&positions, &indices, CAPS);
+        let built = cluster(&positions, &indices, CAPS, false);
         let floor = (indices.len() / 3).div_ceil(CAPS.triangles);
         assert!(
             built.ends.len() <= floor + floor / 8,
@@ -85,21 +83,18 @@ fn a_grid_by_columns_clusters_as_compactly_as_by_rows() {
 #[test]
 fn a_soup_is_cut_by_its_vertices() {
     let (positions, indices) = soup(1000, 3);
-    let built = spatial(&positions, &indices, CAPS);
+    let built = cluster(&positions, &indices, CAPS, false);
     assert_partition(&indices, &built.indices, &built.ends);
     assert!(built.ends.len() >= 1000usize.div_ceil(85));
 }
 
-/// The ordered rule keeps the source order: its ranges tile the indices, and a grid listed by rows
-/// cut into runs of at most 128 triangles.
+/// Held to the source order, the clusters tile it: runs of consecutive triangles in order, every
+/// family within the caps.
 #[test]
-fn the_ordered_rule_tiles_the_source_order() {
-    let (positions, indices) = grid(30, false);
-    for compact in [None, Some(positions.as_slice())] {
-        let ranges = ordered(&indices, positions.len() / 3, compact, CAPS);
-        let ends: Vec<usize> = ranges.iter().map(|r| r[1]).collect();
-        assert_eq!(ranges[0][0], 0);
-        ranges.windows(2).for_each(|w| assert_eq!(w[0][1], w[1][0]));
-        assert_partition(&indices, &indices, &ends);
+fn ordered_clusters_tile_the_source_order() {
+    for (positions, indices) in [grid(30, false), grid(40, true), soup(3000, 7)] {
+        let built = cluster(&positions, &indices, CAPS, true);
+        assert_eq!(built.indices, indices, "the source order");
+        assert_partition(&indices, &built.indices, &built.ends);
     }
 }

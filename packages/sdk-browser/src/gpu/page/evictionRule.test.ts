@@ -17,7 +17,7 @@ function pool() {
     eviction = createEviction(resident)
   let generation = 0
   const arrive = (key: string) =>
-    resident.set(key, { key, slot: 0, offset: 0, bytes: 4, generation: ++generation })
+    resident.set(key, { key, offset: 0, bytes: 4, generation: ++generation })
   return { resident, eviction, arrive, generation: () => generation }
 }
 

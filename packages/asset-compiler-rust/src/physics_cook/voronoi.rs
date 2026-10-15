@@ -3,8 +3,11 @@
 //! is a box clipped by its bisectors then the solid's planes; an edge's crossing is computed from
 //! its two ends in one order, so neighbouring faces meet to the bit, and each cut is capped along
 //! the edges no touched face walks back: every cell comes out a closed mesh.
+use crate::import::Vertices;
+use crate::plugins::scene::corners::Corners;
 use rayon::prelude::*;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
+use std::sync::atomic::AtomicBool;
 use trillion3d_math::aabb::{centre, corner};
 use trillion3d_math::triangle::triangle_cross;
 use trillion3d_math::vec3::{point, triple, unit};
@@ -114,24 +117,20 @@ fn cuboid(low: Point, high: Point) -> Faces {
         .collect()
 }
 
-/// `faces` as one closed mesh: positions welded by bits, each polygon a fan.
+/// `faces` as one closed mesh, through the one corner builder: positions welded by bits, each
+/// convex polygon cut by ears, which on a convex face is its fan. The cook around the cells
+/// rereads cancellation; a cell's faces are few, so this cut never stops.
 pub(super) fn welded(faces: &[Vec<Point>]) -> (Vec<f32>, Vec<u32>) {
-    let (mut index, mut pos, mut triangles) = (HashMap::new(), Vec::new(), Vec::new());
-    for face in faces {
-        let ids: Vec<u32> = face
-            .iter()
-            .map(|p| {
-                *index.entry(key(p)).or_insert_with(|| {
-                    pos.extend(p.map(|v| v as f32));
-                    (pos.len() / 3 - 1) as u32
-                })
-            })
-            .collect();
-        for k in 1..ids.len() - 1 {
-            triangles.extend([ids[0], ids[k], ids[k + 1]]);
+    static NEVER: AtomicBool = AtomicBool::new(false);
+    let mut corners: Corners<[u64; 3]> = Corners::new(Vertices::default());
+    for face in faces.iter().filter(|face| face.len() >= 3) {
+        corners.begin();
+        for p in face {
+            corners.corner(key(p), *p, |out| out.positions.extend(p.map(|v| v as f32)));
         }
+        corners.cut(&NEVER, false);
     }
-    (pos, triangles)
+    (corners.vertices.positions, corners.vertices.indices)
 }
 
 /// The half-space of seed `own` against `other`: the points nearer `own`, bounded at their

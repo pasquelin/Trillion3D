@@ -1,12 +1,11 @@
-// The display layers, tint and added value, follow the colour through the temporal resolve —
-// the native one and the upscaling one, run from their shipped text (`upscaleRun.fixture.ts`):
+// The display layers, tint and added value, follow the colour through the temporal resolve, run
+// from its shipped text (`upscaleRun.fixture.ts`):
 // weighed as the colour, clamped to their own 3×3 box, mixed with their history by the colour's
 // weights once that history holds the last image's, and never read before.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts'
 import { owed } from './upscaleOwed.fixture.ts'
-import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** Within the uniform's 32-bit weights, whose sum is 1 to 1e-9. */
@@ -19,26 +18,14 @@ const checker = (x: number, y: number) => new Array<number>(4).fill((x + y) % 2 
 const flat = [0.3, 0.3, 0.3, 1]
 const JITTER: [number, number] = [0.3, -0.2]
 
-/** The native resolve's 3×3 of `layer` at `(px, py)`, weighed by the jitter's table. */
-function weighed(layer: typeof checker, px: number, py: number, size: number) {
-  const weights = taaWeights(...JITTER, new Float32Array(TAA_WEIGHTS), 0),
-    sum = [0, 0, 0, 0],
-    inGrid = (v: number) => clamp(v, 0, size - 1)
-  for (let k = 0; k < 9; k++) {
-    const value = layer(inGrid(px + (k % 3) - 1), inGrid(py + Math.floor(k / 3) - 1))
-    value.forEach((v, c) => (sum[c] += v * weights[k]))
-  }
-  return sum
-}
-
 const clampBox = (v: number) => clamp(v, 0.2, 0.6)
 const mixed = (now: number[], history: number) =>
   now.map((v) => 0.25 * v + 0.75 * clampBox(history))
 
 /** The four resolves of `frame`: no history, a colour history only, and one whose layers' history
  *  holds the last image's, of value `held.kept`. */
-function resolves(frame: UpscaleFrame, native: boolean, held: { kept: number }) {
-  const run = (more: Partial<UpscaleFrame>) => upscaleRun({ ...frame, ...more }, true, true, native)
+function resolves(frame: UpscaleFrame, held: { kept: number }) {
+  const run = (more: Partial<UpscaleFrame>) => upscaleRun({ ...frame, ...more }, true, true)
   return {
     first: run({}),
     unwritten: run({ history: () => flat }),
@@ -47,13 +34,9 @@ function resolves(frame: UpscaleFrame, native: boolean, held: { kept: number }) 
 }
 
 /** Each resolve of `frame` at `pixels` against `now`, the layers the current image owes there. */
-function assertLayers(
-  frame: UpscaleFrame,
-  native: boolean,
-  now: (x: number, y: number) => number[],
-) {
+function assertLayers(frame: UpscaleFrame, now: (x: number, y: number) => number[]) {
   const held = { kept: 0 },
-    { first, unwritten, written } = resolves(frame, native, held)
+    { first, unwritten, written } = resolves(frame, held)
   for (const [x, y] of [
     [0, 0],
     [2, 3],
@@ -71,17 +54,6 @@ function assertLayers(
   }
 }
 
-test('the native resolve weighs the layers as the colour, and mixes their written history', () => {
-  const frame: UpscaleFrame = {
-    render: [6, 6],
-    display: [6, 6],
-    jitter: JITTER,
-    color: () => flat,
-    layer: checker,
-  }
-  assertLayers(frame, true, (x, y) => weighed(checker, x, y, 6))
-})
-
 test('the upscaling resolve clamps the layers to their box and mixes their written history', () => {
   const frame: UpscaleFrame = {
     render: [4, 4],
@@ -94,7 +66,7 @@ test('the upscaling resolve clamps the layers to their box and mixes their writt
     moving: true,
     reactive: () => 0.25,
   }
-  assertLayers(frame, false, (x, y) => owed({ ...frame, color: checker }, x, y, 'box'))
+  assertLayers(frame, (x, y) => owed({ ...frame, color: checker }, x, y, 'box'))
 })
 
 // Where no filtering surface covers the pixel its layers are (1, 0) all round: a box of one value,
@@ -103,19 +75,19 @@ test('a layer whose box is one value reads none of its history', () => {
   const unread = () => {
     throw new Error('a layer history read')
   }
-  for (const native of [false, true]) {
+  for (const ratioOne of [false, true]) {
     const frame: UpscaleFrame = {
-      render: native ? [6, 6] : [4, 4],
+      render: ratioOne ? [6, 6] : [4, 4],
       display: [6, 6],
       jitter: JITTER,
       color: () => flat,
       layer: () => [0.4, 0.4, 0.4, 1],
-      moving: !native,
+      moving: !ratioOne,
       reactive: () => 0.25,
       history: () => flat,
       layerHistory: unread,
     }
-    for (const layer of upscaleRun(frame, true, true, native)(2, 3).layers)
+    for (const layer of upscaleRun(frame, true, true)(2, 3).layers)
       near(layer, [0.4, 0.4, 0.4, 1], 'the one value')
   }
 })

@@ -1,6 +1,6 @@
 // What the lighting and the other shadow reads take from this frame's shadow maps, or nothing.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
-import { vsmProjectionShared } from '../../../../vsm/projectionPass.ts'
+import { vsmProjectionShared } from '../../../../vsm/projectionStore.ts'
 
 const consumer = {} as {
   pageTable: GPUBuffer

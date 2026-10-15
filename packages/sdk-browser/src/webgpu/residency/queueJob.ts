@@ -10,14 +10,13 @@ import type { GroupClosure } from '../../page/cut/groupClosure.ts'
 export type QueueOptions = {
   tracking: WebgpuPageTracking
   sets: WebgpuResidencySets
-  /** A packed rank's record: admission reads a request's level there. */
-  recordOf: (id: number) => PageRec | undefined
   /** Slots the queue can ask beyond root coverage, read every cut. */
   room: () => number
   getCache: () => GpuPageCache | undefined
   getFrame: () => number
   updatePins: () => void
-  /** The groups the cut closes over: what admission walks (`requestAdmission.ts`). */
+  /** The groups the cut closes over: what admission walks of a drawn capture's cut
+   *  (`requestAdmission.ts`). */
   closure: Pick<GroupClosure, 'closeOver'>
   /** A pass over the queue (`residentEnsurer.ts`): true when it left nothing to do, which stands
    *  while neither the queue nor its `revision` moves. */
@@ -136,6 +135,8 @@ async function runJob(q: QueueRun, at: { jobFrame: number; jobId: number; queued
         cache = getCache()
       // The job yields its caster tier to a cut queued meanwhile, and runs again for it.
       const scheduled = () => q.scheduled
+      // The queue by rank, coarsest first, between two passes: none walks it while it moves.
+      q.options.sets.orderQueue()
       const done = await ensureResident(q.items, jobFrame, jobId, scheduled, q.landing.landed)
       q.settledAt = done === true ? from : NaN
       q.settledCache = cache

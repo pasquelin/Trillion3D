@@ -2,6 +2,7 @@ import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { HostCamera } from '../../camera/world.ts'
+import { drawnAspect } from '../api/viewportApi.ts'
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts'
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts'
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts'
@@ -9,6 +10,7 @@ import { createCharacterCameraControls } from '../../camera/controls/characterCo
 import { createVehicleCameraControls } from '../../camera/controls/vehicleControls.ts'
 import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts'
 import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts'
+import type { ControlCamera } from '../../camera/controls/types.ts'
 
 /**
  * The ways a page can steer the camera with the mouse and keyboard, or `'none'`. `'firstPerson'`
@@ -22,9 +24,6 @@ export type WorldControls =
 const position = new Vector3(),
   rotation = new Quaternion(),
   scale = new Vector3()
-
-/** The shape a frame is drawn at: the canvas's drawing buffer, its width over its height. */
-export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.max(1, canvas.height)
 
 /**
  * Puts the world's camera on the one a session draws from: its world pose, ancestors resolved,
@@ -56,33 +55,8 @@ export const followPageCamera =
   (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
     copyWorldCamera(camera(), into, drawnAspect(canvas))
 
-/**
- * The CSS box a session draws at. A session's own loop tracks it; a world the page leads has
- * the world bring the drawing buffer — and with it the camera's aspect — to the box before
- * every frame it is asked for, whenever the box changed, the first frame included.
- */
-export function createCanvasFit(canvas: HTMLCanvasElement, led: boolean) {
-  let sizedWidth = 0,
-    sizedHeight = 0
-  return {
-    apply(session: { resize(width: number, height: number): void }) {
-      const width = Math.floor(canvas.clientWidth),
-        height = Math.floor(canvas.clientHeight)
-      if (!led || width < 1 || height < 1) return
-      if (width === sizedWidth && height === sizedHeight) return
-      sizedWidth = width
-      sizedHeight = height
-      session.resize(width, height)
-    },
-    /** A new session starts from its own default buffer: the next frame fits it again. */
-    reset() {
-      sizedWidth = sizedHeight = 0
-    },
-  }
-}
-
 /** The controller a world drives its camera with, `none` for a page that poses it itself. */
-export function worldControls(kind: WorldControls, camera: Camera, surface: HTMLElement) {
+export function worldControls(kind: WorldControls, camera: ControlCamera, surface: HTMLElement) {
   switch (kind) {
     case 'orbit':
       return createOrbitCameraControls(camera, surface)

@@ -36,6 +36,27 @@ export const preparedComputeStage = (
   label?: string,
 ) => preparedComputePipeline(device, computeStage(layout, module, entryPoint, constants, label))
 
+/** The stage `entryPoint` of `module` on the bind-group layouts `layouts`, group by group, its
+ *  overrides `constants`, labelled `label`, built now: every built compute stage of the engine. */
+export const buildComputeStage = (
+  device: GPUDevice,
+  layouts: readonly GPUBindGroupLayout[],
+  module: GPUShaderModule,
+  entryPoint: string,
+  constants?: Record<string, number>,
+  label?: string,
+) =>
+  buildComputePipeline(
+    device,
+    computeStage(
+      device.createPipelineLayout({ bindGroupLayouts: layouts }),
+      module,
+      entryPoint,
+      constants,
+      label,
+    ),
+  )
+
 /** The compute stages of one module on one layout, by entry point, compiled together off the
  *  thread: prepare never builds its pipelines one after another. The pipeline layout is made of
  *  the bind-group layouts `layouts`, group by group. */
@@ -48,11 +69,10 @@ export async function buildComputeStages<E extends string>(
   /** Told of each pipeline as the device hands it back, with the ms since all were asked. */
   handed?: (entryPoint: E, ms: number) => void,
 ) {
-  const layout = device.createPipelineLayout({ bindGroupLayouts: layouts })
   const asked = cpuNow()
   const built = await Promise.all(
     entryPoints.map((entryPoint) =>
-      buildComputePipeline(device, computeStage(layout, module, entryPoint, constants)).then(
+      buildComputeStage(device, layouts, module, entryPoint, constants).then(
         (pipeline) => (handed?.(entryPoint, msSince(asked)), pipeline),
       ),
     ),

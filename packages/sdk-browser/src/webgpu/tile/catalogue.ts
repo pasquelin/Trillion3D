@@ -31,9 +31,7 @@ export function previewsByAtlas(previews: readonly TexturePreview[]) {
  * reader comes with the cache and not with an option, so a whole chain wins whatever the host
  * asked of the loader and no level the compiler baked is regenerated. The host texture is the
  * source only where the cache carries no whole chain — an image the cook skipped, texels the
- * page itself built — or on a runtime with no `createImageBitmap` to read a level with, where
- * the loader opens the source images for that very reason (`resolveTextureSource`), so the
- * texture has one; then in the lossless lane, the only one a host image can fill. Slot 0 is a
+ * page itself built —; then in the lossless lane, the only one a host image can fill. Slot 0 is a
  * white texel, what a material without a map reads. A hosted texture every reader of which takes
  * its alpha for coverage (`coverage`, the colour census's readers) reduces its mips weighted by
  * alpha, as the compiler bakes its chain.

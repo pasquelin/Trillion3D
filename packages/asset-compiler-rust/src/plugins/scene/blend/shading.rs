@@ -36,7 +36,7 @@ pub(super) fn factor(
         return default;
     };
     if tree.source(&socket).is_some() {
-        out.report.add("blend-shader-input-unconverted");
+        out.scene.report.add("blend-shader-input-unconverted");
     }
     value(&socket, default)[0]
 }
@@ -69,7 +69,9 @@ pub(super) fn emission(
             .collect(),
     };
     if scaled.iter().any(|part| *part > 1.0) {
-        out.report.add("blend-emission-clamped");
+        out.scene
+            .report
+            .add(crate::plugins::scene::codes::EMISSION_CLAMPED);
     }
     if scaled.iter().any(|part| *part > 0.0) {
         gltf["emissiveFactor"] = json!(scaled
@@ -96,7 +98,7 @@ pub(super) fn normal_texture(
         return Ok(None);
     };
     if source.text("idname") != NORMAL_MAP {
-        out.report.add("blend-shader-input-unconverted");
+        out.scene.report.add("blend-shader-input-unconverted");
         return Ok(None);
     }
     socket(&source, "Color").map_or(Ok(None), |color| texture(&color, tree, root, images, out))
@@ -114,7 +116,7 @@ pub(super) fn texture(
         return Ok(None);
     };
     if source.text("idname") != TEX_IMAGE {
-        out.report.add("blend-shader-input-unconverted");
+        out.scene.report.add("blend-shader-input-unconverted");
         return Ok(None);
     }
     source

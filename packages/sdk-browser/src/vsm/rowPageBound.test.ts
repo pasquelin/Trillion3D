@@ -7,8 +7,7 @@ import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { commitMotion } from '../gpu/shadow/rowMotion.ts'
-import { createVsmRowBound, vsmBoundChunk, type VsmRowBound } from './rowPageBound.ts'
-import { vsmChunkRows } from './chunkKernels.ts'
+import { createVsmRowBound, vsmChunkRows, type VsmRowBound } from './rowPageBound.ts'
 import {
   bruteForce,
   emptyRowSpheres,
@@ -26,7 +25,7 @@ const n = (rows: SceneRows) => rows.packed.length / 8
 /** One frame: the bound of `rows` under `sun`, then the histogram it asks, landed at once. */
 function frame(rows: SceneRows, sun: Sun, bound: VsmRowBound, cap = 1 << 21, bin = true) {
   const range = { first: 0, end: n(rows), candidates: n(rows) }
-  const chunk = vsmBoundChunk(bound, rows.spheres, range, [sun.light], worstOf(cap))
+  const chunk = vsmChunkRows(bound, rows.spheres, range, [sun.light], worstOf(cap))
   if (bin) landBins(bound, rows, range, [sun.light])
   return chunk
 }
@@ -109,7 +108,7 @@ test('rows past the range the histogram binned are counted whole', () => {
     bound = createVsmRowBound()
   const ask = (end: number, bin = false) => {
     const range = { first: 0, end, candidates: end }
-    const chunk = vsmBoundChunk(bound, rows.spheres, range, [sun.light], worstOf())
+    const chunk = vsmChunkRows(bound, rows.spheres, range, [sun.light], worstOf())
     if (bin) landBins(bound, rows, range, [sun.light])
     return chunk
   }

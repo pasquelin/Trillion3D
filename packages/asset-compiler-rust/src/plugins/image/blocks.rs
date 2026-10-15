@@ -12,13 +12,96 @@ use super::DecodedImage;
 /// Signature of a block decoder: the level's bytes, its dimensions, the returned pixels.
 pub(super) type BlockDecode = fn(&[u8], usize, usize, &mut [u32]) -> Result<(), &'static str>;
 
+/// How a level's bytes become pixels: a codec's only description, whichever driver names it
+/// (`dds::codec`, `ktx2::format`). A level's weight and its reconstruction both derive from it.
+#[derive(Clone, Copy)]
+pub(super) enum Layout {
+    /// 4 × 4 pixel blocks: a block's bytes and the decoder that expands them.
+    Blocks { bytes: usize, decode: BlockDecode },
+    /// An uncompressed surface, four bytes per pixel in the named order.
+    Pixels(Order),
+}
+
+/// Order of the four bytes of an uncompressed pixel.
+#[derive(Clone, Copy)]
+pub(super) enum Order {
+    /// R, G, B, A: already the contract order.
+    Rgba,
+    /// B, G, R, A.
+    Bgra,
+    /// B, G, R then a byte ignored by the specification: the surface is opaque.
+    Bgrx,
+}
+
+impl Layout {
+    /// Bytes occupied by a level of this size.
+    pub(super) fn level_bytes(self, width: u32, height: u32) -> u64 {
+        match self {
+            Layout::Blocks { bytes, .. } => surface_bytes(width, height, bytes as u64),
+            Layout::Pixels(_) => rgba8_bytes(width, height),
+        }
+    }
+
+    /// Level 0, `width` × `height`, in contract order; `truncated` is the driver's reason when
+    /// the bytes do not fill it.
+    pub(super) fn rgba8(
+        self,
+        level: &[u8],
+        width: usize,
+        height: usize,
+        truncated: &'static str,
+    ) -> std::result::Result<Vec<u8>, &'static str> {
+        match self {
+            Layout::Blocks { bytes, decode } => {
+                to_rgba8(decode, bytes, level, width, height, truncated)
+            }
+            Layout::Pixels(order) => from_pixels(order, level, width * height, truncated),
+        }
+    }
+}
+
+/// An uncompressed surface, four bytes per pixel. In `Rgba` the bytes are already the contract's;
+/// otherwise red and blue swap in place, and `Bgrx`, with no alpha channel, is opaque.
+fn from_pixels(
+    order: Order,
+    level: &[u8],
+    pixels: usize,
+    truncated: &'static str,
+) -> std::result::Result<Vec<u8>, &'static str> {
+    let mut rgba = level
+        .get(..pixels.saturating_mul(4))
+        .ok_or(truncated)?
+        .to_vec();
+    let opaque = match order {
+        Order::Rgba => return Ok(rgba),
+        Order::Bgra => false,
+        Order::Bgrx => true,
+    };
+    for pixel in rgba.as_chunks_mut::<4>().0 {
+        pixel.swap(0, 2);
+        if opaque {
+            pixel[3] = 255;
+        }
+    }
+    Ok(rgba)
+}
+
 /// Bytes of a `width` × `height` surface of 4 × 4 blocks of `block_bytes` each. Blocks always cover
 /// multiples of four pixels: a 1 × 1 level still weighs a whole block. The count saturates rather
 /// than overflowing: absurd dimensions give an absurd need, hence a refusal.
 pub(crate) fn surface_bytes(width: u32, height: u32, block_bytes: u64) -> u64 {
-    u64::from(width.div_ceil(4))
-        .saturating_mul(u64::from(height.div_ceil(4)))
+    let (across, down) = blocks_of(width, height);
+    u64::from(across)
+        .saturating_mul(u64::from(down))
         .saturating_mul(block_bytes)
+}
+
+/// Texels along a block's side.
+pub(crate) const BLOCK_SIDE: u32 = 4;
+
+/// Blocks across and down a `width` × `height` level: a partial block at an edge is a whole one.
+pub(crate) fn blocks_of(width: u32, height: u32) -> (u32, u32) {
+    (width.div_ceil(BLOCK_SIDE), height.div_ceil(BLOCK_SIDE))
 }
 
 /// Bytes of a `width` × `height` surface of uncompressed pixels, four bytes each; saturating, as

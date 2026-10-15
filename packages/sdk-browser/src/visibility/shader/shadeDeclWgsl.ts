@@ -1,6 +1,8 @@
 import { FULLSCREEN_X, FULLSCREEN_Y } from '../../gpu/shader/fullscreenTriangle.ts'
 import { PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { fragmentMembers } from '../../gpu/core/fragmentOutputs.ts'
+import { REQUEST_OUTPUT, SURFACE_OUTPUTS } from '../../scene/surfaceOutputs.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/cotangentFrameWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
@@ -94,7 +96,7 @@ ${tileDeclarations(SHADE_BINDINGS.color, 'color')}
 ${tileDeclarations(SHADE_BINDINGS.data, 'data')}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
 // feedback target that transparents complete and that a compute pass reduces into counters.
-struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}
+struct SurfaceOut{${fragmentMembers([...SURFACE_OUTPUTS, REQUEST_OUTPUT])}}
 /** A surface with nothing to light and nothing to ask: a triangle index past its page. The
  *  cutout is the raster's alone (maskKeep), never tested again here. */
 fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,0u);}

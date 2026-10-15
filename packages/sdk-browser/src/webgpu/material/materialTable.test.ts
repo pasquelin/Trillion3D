@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
-import { createMaterialTable } from './materialTable.ts'
+import { createMaterialTable, materialWord } from './materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { surfaceOf } from '../../page/surface.ts'
@@ -29,13 +29,13 @@ test('every surface takes a rank; a lobed one names its lobe extension, three to
   const { device, textureWrites } = fakeDevice()
   const table = createMaterialTable()
   const l = layers()
-  assert.equal(table.word(lit(), l), 0)
+  assert.equal(materialWord(table.surface(lit(), l).rank, false), 0)
   const coated = { ...lit(), clearcoat: 1 },
     brushed = { ...lit(), anisotropy: 0.5 }
   // The coat's record is rank 1, its extensions' place rank 2: the next record is rank 3.
-  assert.equal(table.word(coated, l), 1)
-  assert.equal(table.word(brushed, l), 3)
-  assert.equal(table.word(coated, l), 1, 'a surface keeps its record')
+  assert.equal(materialWord(table.surface(coated, l).rank, false), 1)
+  assert.equal(materialWord(table.surface(brushed, l).rank, false), 3)
+  assert.equal(materialWord(table.surface(coated, l).rank, false), 1, 'a surface keeps its record')
   table.viewFor(device)
   const words = sentWords(textureWrites)
   const lobes = (rank: number) => words[rank * MATERIAL_RECORD_WORDS + F.lobes]
@@ -62,7 +62,7 @@ test('a record holds the factors, the cut, both normal factors, the slots and th
     ...{ ior: 1.5, attenuationColor: [1, 0.5, 0] as [number, number, number] },
     ...{ attenuationDistance: 2, transmission: 1, fog: false, model: 3 },
   }
-  table.word(surface, l)
+  table.surface(surface, l)
   table.viewFor(device)
   const words = sentWords(textureWrites),
     floats = new Float32Array(words.buffer)
@@ -83,7 +83,7 @@ test('a surface whose version and atlas held is not written again; a new one is'
   const table = createMaterialTable()
   const l = layers()
   const surface = { ...lit(), version: 3 }
-  table.word(surface, l)
+  table.surface(surface, l)
   table.viewFor(device)
   // A field written without its version moving is not read: the version says what is current.
   surface.roughness = 0.5
@@ -93,10 +93,10 @@ test('a surface whose version and atlas held is not written again; a new one is'
     table.viewFor(device)
     return textureWrites.length - before
   }
-  table.word(surface, l)
+  table.surface(surface, l)
   assert.equal(sent(), 0)
   surface.version = 4
-  table.word(surface, l)
+  table.surface(surface, l)
   assert.equal(sent(), 1)
   assert.equal(new Float32Array(textureWrites.at(-1)!.data.buffer)[F.roughness], 0.5)
   // A slot that moved under the same count is read again once the atlas says so (`forget`).
@@ -104,13 +104,13 @@ test('a surface whose version and atlas held is not written again; a new one is'
   surface.map = map
   surface.version = 5
   l.mapLayer.set(map, 5)
-  table.word(surface, l)
+  table.surface(surface, l)
   table.viewFor(device)
   l.mapLayer.set(map, 2)
-  table.word(surface, l)
+  table.surface(surface, l)
   assert.equal(sent(), 0)
   table.forget()
-  table.word(surface, l)
+  table.surface(surface, l)
   table.viewFor(device)
   assert.equal(sentWords(textureWrites)[F.mapIndex], 2)
 })
@@ -120,7 +120,7 @@ test('an upload sends the records written since, neighbours in one write, not th
   const table = createMaterialTable()
   const l = layers()
   const surfaces = Array.from({ length: 5 }, (_, i) => ({ ...lit(), version: i }))
-  for (const surface of surfaces) table.word(surface, l)
+  for (const surface of surfaces) table.surface(surface, l)
   table.viewFor(device)
   for (const [i, version] of [
     [2, 10],
@@ -128,7 +128,7 @@ test('an upload sends the records written since, neighbours in one write, not th
   ]) {
     surfaces[i].roughness = 0.5
     surfaces[i].version = version
-    table.word(surfaces[i], l)
+    table.surface(surfaces[i], l)
   }
   table.viewFor(device)
   const sent = textureWrites.at(-1)!
@@ -146,12 +146,12 @@ test('a surface that loses its lobe gives its extension to the next lobed one', 
   const table = createMaterialTable()
   const l = layers()
   const coated = { ...lit(), clearcoat: 1, version: 0 }
-  table.word(coated, l)
+  table.surface(coated, l)
   coated.clearcoat = 0
   coated.version = 1
-  table.word(coated, l)
+  table.surface(coated, l)
   const brushed = { ...lit(), anisotropy: 1 }
-  assert.equal(table.word(brushed, l), 2)
+  assert.equal(materialWord(table.surface(brushed, l).rank, false), 2)
   table.viewFor(device)
   const words = sentWords(textureWrites)
   assert.equal(words[F.lobes], 0)
@@ -163,20 +163,20 @@ test('the rank of a surface the collector took goes to the next surface', async 
   if (!collect) return t.skip('no collector to call')
   const table = createMaterialTable()
   const l = layers()
-  assert.equal(table.word(lit(), l), 0)
+  assert.equal(materialWord(table.surface(lit(), l).rank, false), 0)
   // Every later surface stays held to the end: the first is the only one the collector may take,
   // so each round's rank is the next one or the first's.
   const held = [lit()]
-  assert.equal(table.word(held[0], l), 1)
+  assert.equal(materialWord(table.surface(held[0], l).rank, false), 1)
   let taken = false
   for (let round = 0; round < 10 && !taken; round++) {
     collect()
     await new Promise((settled) => setTimeout(settled, 0))
     held.push(lit())
-    const word = table.word(held.at(-1)!, l)
+    const word = materialWord(table.surface(held.at(-1)!, l).rank, false)
     taken = word === 0
     if (!taken) assert.equal(word, 2 + round)
   }
   assert.ok(taken, 'the first surface was never collected')
-  assert.equal(table.word(held[0], l), 1)
+  assert.equal(materialWord(table.surface(held[0], l).rank, false), 1)
 })

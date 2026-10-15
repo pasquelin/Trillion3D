@@ -4,40 +4,25 @@ use crate::gltf_codes::{
 };
 
 impl Accessor<'_> {
-    pub(super) fn bytes_at(&self, i: usize, c: usize) -> Result<&[u8]> {
-        if i >= self.count || c >= self.width {
+    /// Every element's bytes, `width × bytes` from `base + i·stride`, the range checked once:
+    /// the one walk the collectors and the content digest read, tightly packed or interleaved.
+    pub(super) fn elements(&self) -> Result<impl Iterator<Item = &[u8]> + '_> {
+        let element = self.width * self.bytes;
+        let end = match self.count.checked_sub(1) {
+            None => self.base,
+            Some(last) => last
+                .checked_mul(self.stride)
+                .and_then(|offset| offset.checked_add(self.base))
+                .and_then(|offset| offset.checked_add(element))
+                .ok_or_else(|| invalid("Accessor offset overflow"))?,
+        };
+        if end > self.bin.len() {
             return Err(CompilerError::new(
-                "INDEX_OUT_OF_BOUNDS",
-                "Accessor element is out of bounds",
+                "BUFFER_OUT_OF_BOUNDS",
+                "Accessor exceeds binary buffer",
             ));
         }
-        if !self.has_buffer_view {
-            return Ok(&[0u8; 4][..self.bytes]);
-        }
-        let o = self
-            .base
-            .checked_add(
-                i.checked_mul(self.stride)
-                    .ok_or_else(|| invalid("Accessor offset overflow"))?,
-            )
-            .and_then(|value| value.checked_add(c * self.bytes))
-            .ok_or_else(|| invalid("Accessor offset overflow"))?;
-        self.bin.get(o..o + self.bytes).ok_or_else(|| {
-            CompilerError::new("BUFFER_OUT_OF_BOUNDS", "Accessor exceeds binary buffer")
-        })
-    }
-    /// The tightly packed bytes of `elements` values of `size` bytes each, from the accessor's base.
-    fn packed_bytes(&self, elements: usize, size: usize) -> Result<&[u8]> {
-        let nbytes = elements
-            .checked_mul(size)
-            .ok_or_else(|| invalid("Accessor offset overflow"))?;
-        let end = self
-            .base
-            .checked_add(nbytes)
-            .ok_or_else(|| invalid("Accessor offset overflow"))?;
-        self.bin.get(self.base..end).ok_or_else(|| {
-            CompilerError::new("BUFFER_OUT_OF_BOUNDS", "Accessor exceeds binary buffer")
-        })
+        Ok((0..self.count).map(move |i| &self.bin[self.base + i * self.stride..][..element]))
     }
     pub(super) fn decoded_value(&self, b: &[u8]) -> Result<f64> {
         let raw = match self.component {
@@ -61,39 +46,6 @@ impl Accessor<'_> {
             _ => return Err(invalid("Unsupported normalized component")),
         })
     }
-    pub(super) fn value(&self, i: usize, c: usize) -> Result<f64> {
-        self.decoded_value(self.bytes_at(i, c)?)
-    }
-    pub(super) fn u32_at(&self, i: usize) -> Result<u32> {
-        let b = self.bytes_at(i, 0)?;
-        if let Some(value) = index_value(self.component, b) {
-            return Ok(value);
-        }
-        match self.component {
-            FLOAT => {
-                let value = f32::from_le_bytes([b[0], b[1], b[2], b[3]]);
-                if !value.is_finite()
-                    || value.fract() != 0.
-                    || value < 0.
-                    || value > u32::MAX as f32
-                {
-                    return Err(invalid("Index is not an unsigned 32-bit integer"));
-                }
-                Ok(value as u32)
-            }
-            _ => Err(invalid("Unsupported component")),
-        }
-    }
-    pub(super) fn f32_at(&self, i: usize, c: usize) -> Result<f32> {
-        let value = self.value(i, c)? as f32;
-        if !value.is_finite() {
-            return Err(CompilerError::new(
-                "NONFINITE_POSITION",
-                "Position is not finite",
-            ));
-        }
-        Ok(value)
-    }
     pub(super) fn collect_u32(&self) -> Result<Vec<u32>> {
         if self.normalized || !INDEX_COMPONENTS.contains(&self.component) {
             return Err(invalid("Indices require an unsigned integer accessor"));
@@ -101,16 +53,13 @@ impl Accessor<'_> {
         let mut out = reserve(self.count)?;
         if !self.has_buffer_view {
             out.resize(self.count, 0);
-        } else if self.width == 1 && self.stride == self.bytes && self.component != FLOAT {
-            let slice = self.packed_bytes(self.count, self.bytes)?;
-            out.extend(
-                slice
-                    .chunks_exact(self.bytes)
-                    .filter_map(|chunk| index_value(self.component, chunk)),
-            );
         } else {
-            for i in 0..self.count {
-                out.push(self.u32_at(i)?);
+            // An index accessor is SCALAR: `index_value` reads the element's one component.
+            for element in self.elements()? {
+                out.push(
+                    index_value(self.component, element)
+                        .ok_or_else(|| invalid("Unsupported component"))?,
+                );
             }
         }
         if let Some(sparse) = &self.sparse {
@@ -136,22 +85,17 @@ impl Accessor<'_> {
         let mut out = reserve(n)?;
         if !self.has_buffer_view {
             out.resize(n, 0.0);
-        } else if self.component == FLOAT && self.stride == self.width * self.bytes {
-            let slice = self.packed_bytes(n, 4)?;
-            for chunk in slice.as_chunks::<4>().0 {
-                let value = f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-                if !value.is_finite() {
-                    return Err(CompilerError::new(
-                        "NONFINITE_POSITION",
-                        "Position is not finite",
-                    ));
-                }
-                out.push(value);
-            }
         } else {
-            for i in 0..self.count {
-                for c in 0..self.width {
-                    out.push(self.f32_at(i, c)?);
+            for element in self.elements()? {
+                for component in element.chunks_exact(self.bytes) {
+                    let value = self.decoded_value(component)? as f32;
+                    if !value.is_finite() {
+                        return Err(CompilerError::new(
+                            "NONFINITE_POSITION",
+                            "Position is not finite",
+                        ));
+                    }
+                    out.push(value);
                 }
             }
         }

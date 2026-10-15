@@ -1,3 +1,4 @@
+import { vsmProjectionSampleWgsl } from '../../vsm/projectionSampleWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../../vsm/constants.ts'
 import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
 import {
@@ -9,7 +10,6 @@ import {
 import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
-  vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionReadWgsl.ts'
 import { VSM_NORMAL_OFFSET_WGSL } from '../../vsm/receiverTraceWgsl.ts'
@@ -74,7 +74,7 @@ fn vsmLocate(id:u32,directional:bool,fromEye:vec3f)->VsmLocated{
  let shiftHigh=-shadowCamera;let shiftLow=vec3f(0.0);
  ${byShadowKind(
    kinds,
-   `  let h=vsmHandleFromIdDirectional(id);
+   `  let h=vsmHandleFromId(id);
   let base=vsmProjectionOf(h);
   let d2=vsmDistanceSqToOrigin(base,fromEye,shiftHigh,shiftLow);
   let level=i32(floor(vsmSampledLevel(base,d2)));

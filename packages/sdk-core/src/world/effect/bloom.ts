@@ -13,8 +13,8 @@ export interface BloomOptions {
  * are the page's to change.
  *
  * - radius 1, derived: the factor on the tent's own width, the taps one texel of the level read
- *   apart, so the glow's reach is the level chain's alone (`BLOOM_LEVELS`); and the one spread the
- *   four-tap form of the same kernel serves, four reads instead of nine (`tent4`, `bloomLevel.ts`,
+ *   apart, so the glow's reach is the level chain's alone (`BLOOM_LEVELS`); up to it the tent's
+ *   middle tap folds into its neighbours, four reads instead of nine (`tent`, `bloomLevel.ts`,
  *   proved in `bloomTent.test.ts`).
  * - intensity 0.04, declared: stands for the share of every pixel's light shown as glow, a look
  *   and not a measure of a lens. Sensitivity: linear, the image keeps `1 − intensity` of its

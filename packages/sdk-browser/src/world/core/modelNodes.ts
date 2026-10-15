@@ -8,16 +8,6 @@ type Weighted = { morphTargetInfluences?: number[] }
 /** The graph node each scene node of a loaded model stands for. */
 const sources = new WeakMap<Object3D, Object3D>()
 
-/** The first graph node named `name` from `graph` down, depth first: a scene walk's order. */
-export function findGraphNode(graph: Object3D, name: string): Object3D | undefined {
-  if (graph.name === name) return graph
-  for (const child of graph.children) {
-    const found = findGraphNode(child, name)
-    if (found) return found
-  }
-  return undefined
-}
-
 /**
  * One scene node standing for a graph node of a loaded model, named and posed as it, without
  * children: a model builds one only for a node a page looks up, and for its ancestors

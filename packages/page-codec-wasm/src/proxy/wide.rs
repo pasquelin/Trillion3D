@@ -1,9 +1,9 @@
-//! From binary BVH to wide BVH: four children per node, 8-bit quantized boxes.
+//! The 4-wide BVH (`bvh.rs`) as the GPU reads it: four children per node, 8-bit quantized boxes.
 //!
-//! Binary tree descends ray one step per node visited: on city proxy,
-//! traversal bound exhausts before leaf, ray gives up. Four-child node
-//! tests four boxes at once, keeps closest for next step, stacks others,
-//! so same bound covers four times more tree and first hit triangle
+//! A binary tree descends a ray one step per node visited: on a city proxy, the
+//! traversal bound exhausts before a leaf and the ray gives up. A four-child node
+//! tests four boxes at once, keeps the closest for the next step, stacks the others,
+//! so the same bound covers four times more tree and the first hit triangle
 //! prunes almost all remaining.
 //!
 //! Child boxes written in 8 bits in parent bounds, rounded outwards:
@@ -11,7 +11,10 @@
 //! disappears from ray. Wide node weighs 18 words for 4 children where
 //! 4 binary nodes weighed 36.
 use super::bvh::Node;
-use super::{PROXY_CHILDREN, PROXY_CHILD_WORDS, PROXY_NODE_FLOATS};
+use super::{
+    PROXY_CHILDREN, PROXY_CHILD_COUNT_SHIFT, PROXY_CHILD_VALID_BIT, PROXY_CHILD_WORDS,
+    PROXY_NODE_FLOATS,
+};
 
 /// What wide node retains of child: box, and next read offset.
 struct Child {
@@ -21,30 +24,6 @@ struct Child {
     offset: u32,
     /// Leaf triangles; zero for internal node.
     count: u32,
-}
-
-/// Four children of binary node, opened to four: at each step, internal child
-/// with largest box yields to its two children. Choice making
-/// tree shortest where surface area to sort is largest.
-fn gather(nodes: &[Node], at: usize) -> Vec<usize> {
-    if nodes[at].leaf() {
-        return vec![at];
-    }
-    let mut kids = Vec::with_capacity(PROXY_CHILDREN);
-    kids.extend([at + 1, nodes[at].right]);
-    while kids.len() < PROXY_CHILDREN {
-        let pick = kids
-            .iter()
-            .enumerate()
-            .filter(|(_, index)| !nodes[**index].leaf())
-            .max_by(|a, b| nodes[*a.1].area().total_cmp(&nodes[*b.1].area()))
-            .map(|(slot, _)| slot);
-        let Some(slot) = pick else { break };
-        let parent = kids[slot];
-        kids[slot] = parent + 1;
-        kids.push(nodes[parent].right);
-    }
-    kids
 }
 
 /// Writes wide node and recursively internal children. Returns index.
@@ -57,9 +36,14 @@ fn emit(nodes: &[Node], at: usize, bounds: &mut Vec<f32>, children: &mut Vec<u32
     let (low, high) = (nodes[at].low, nodes[at].high);
     // Internal child writes own node further in `children`; words at this
     // location already reserved, so each child places as soon as link known.
-    for (index, kid) in gather(nodes, at).into_iter().enumerate() {
+    // A root that is a leaf is its own one child.
+    let kids = match nodes[at].children.as_slice() {
+        [] => std::slice::from_ref(&at),
+        kids => kids,
+    };
+    for (index, &kid) in kids.iter().enumerate() {
         let node = &nodes[kid];
-        let (offset, count) = if node.leaf() {
+        let (offset, count) = if node.children.is_empty() {
             (node.first as u32, node.count as u32)
         } else {
             (emit(nodes, kid, bounds, children), 0)
@@ -96,13 +80,16 @@ fn pack(child: &Child, low: [f32; 3], high: [f32; 3]) -> [u32; PROXY_CHILD_WORDS
     }
     [
         quantised[0][0] | quantised[0][1] << 8 | quantised[0][2] << 16 | quantised[1][0] << 24,
-        quantised[1][1] | quantised[1][2] << 8 | child.count << 16 | 1 << 24,
+        quantised[1][1]
+            | quantised[1][2] << 8
+            | child.count << PROXY_CHILD_COUNT_SHIFT
+            | 1 << PROXY_CHILD_VALID_BIT,
         child.offset,
     ]
 }
 
 /// Two cache node columns: node exact bounds, then four children.
-pub fn collapse(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
+pub fn encode(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
     if nodes.is_empty() {
         return (Vec::new(), Vec::new());
     }

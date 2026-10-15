@@ -154,7 +154,7 @@ function rootSwitch(table: SwitchTable, rank: number, root: ImpostorRoot, byMesh
   const world = root.world.elements,
     at = rank * LINEAR_SPAN
   if (!sameLinearPart(table.linear, world, at)) {
-    // Taken before the copy: a world `maxStretch` refuses throws again on the next frame, as it did.
+    // A world `maxStretch` refuses gives a NaN radius: NaN depths, which never switch to a card.
     table.radius[rank] = impostorRadius(entry.objectRadius as number, maxStretch(world))
     for (const k of LINEAR_PART) table.linear[at + k] = world[k]
     depthsOf(table, rank, entry)

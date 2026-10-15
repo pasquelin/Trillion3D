@@ -5,6 +5,7 @@ import {
   yawPitchQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import { perspectiveSlope } from '../../../../math/src/projection/camera.ts'
+import { length2 } from '../../../../math/src/vector/vector.ts'
 /**
  * The arithmetic every camera controller shares, on flat numbers alone: no DOM, no host
  * vector, no allocation beyond the buffers the caller owns. `math.test.ts`
@@ -43,10 +44,26 @@ export function clampAzimuth(theta: number, min: number, max: number) {
   return past - span < turn - past ? max : min
 }
 
-/** World units a pixel is worth at `distance`, for a camera of vertical field `fov` degrees
- *  zoomed by `zoom`: a zoomed camera sees less, so a pixel spans less. */
-export function pixelWorldScale(distance: number, fov: number, height: number, zoom = 1) {
-  return (2 * distance * perspectiveSlope(fov, zoom)) / Math.max(1, height)
+/** The optics a screen length is measured through: a perspective field of `fov` degrees, or an
+ *  orthographic box's `top` and `bottom`; `zoom` 1 when the camera has none. */
+export type ScreenLens = {
+  projection?: string
+  fov: number
+  zoom?: number
+  top?: number
+  bottom?: number
+}
+
+/**
+ * THE WORLD LENGTH THAT SPANS `share` OF THE PICTURE'S HEIGHT at view `depth`, as `lens` draws it:
+ * a perspective view's grows with the depth, an orthographic one's is its box's height, whatever
+ * the depth; a zoomed camera sees less, so a share spans less. A pan's pixel (`share` one over the
+ * surface's height) and a handle's screen size both read it.
+ */
+export function screenWorldLength(lens: ScreenLens, depth: number, share: number) {
+  const zoom = lens.zoom ?? 1
+  if (lens.projection === 'orthographic') return ((lens.top! - lens.bottom!) / zoom) * share
+  return 2 * depth * perspectiveSlope(lens.fov, zoom) * share
 }
 
 /**
@@ -74,9 +91,13 @@ export function panOffset(
 /** Scratch axis of the two helpers below; neither is reentrant. */
 const SCRATCH_AXIS = new Float64Array(3)
 
-/** Distance after `steps` notches of a wheel or a pinch; a notch is 5 % at speed one. */
+/** What one wheel notch leaves of the distance at speed one: 5 % nearer. A pinch counts in the
+ *  same notches (`pivot.ts`). */
+export const WHEEL_STEP = 0.95
+
+/** Distance after `steps` notches of a wheel or a pinch (`WHEEL_STEP`). */
 export function dollyDistance(distance: number, steps: number, speed: number) {
-  return distance * Math.pow(0.95, steps * speed)
+  return distance * Math.pow(WHEEL_STEP, steps * speed)
 }
 
 /**
@@ -95,4 +116,18 @@ export function moveLocal(
   position[0] += moved[0]
   position[1] += moved[1]
   position[2] += moved[2]
+}
+
+/**
+ * THE WALK OF THE KEYS: the `strafe` and `advance` axes turned by the head's `yaw` about world up
+ * into a horizontal direction `out` = (x, z), a diagonal as long as a straight step — the first
+ * person's walk and the character's wish both read it, so neither walks a diagonal √2 faster.
+ */
+export function yawWalk(out: Float64Array, yaw: number, strafe: number, advance: number) {
+  const sin = Math.sin(yaw),
+    cos = Math.cos(yaw),
+    length = length2(strafe, advance) || 1
+  out[0] = (cos * strafe - sin * advance) / length
+  out[1] = (-sin * strafe - cos * advance) / length
+  return out
 }

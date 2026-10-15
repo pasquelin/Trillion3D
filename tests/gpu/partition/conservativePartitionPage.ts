@@ -46,12 +46,12 @@ export async function auditPoses(options: AuditOptions) {
     maxResidentPages: options.maxPages,
     preload: 'visible',
     interactive: false,
-    clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
     onDiagnostic: (event) => {
       if (/error|fallback|failed|lost/.test(event.phase)) events.push(event)
     },
   })
+  world.setClearColor(0x2a303c)
   const total = emptyTotals(),
     occlusion = emptyOcclusionTotals()
   const occlusionViolations = [],

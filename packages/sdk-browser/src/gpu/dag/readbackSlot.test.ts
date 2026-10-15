@@ -20,7 +20,6 @@ const read = (range: ArrayBuffer, full = false, coarse = createCoarsening()) =>
       drawnWordOffset: 8,
       listCap: 4,
       scratch: createDagOutputScratch(),
-      levelsWord: 0,
     },
     {
       limits: {},

@@ -5,7 +5,7 @@
 //! ceiling, the decompression buffer against that ceiling and against the length the index
 //! announces. A supercompression that would return something other than that length is a
 //! refusal, not a half-filled buffer.
-use super::format::{self, Layout};
+use super::format;
 use super::header::{self, Surface};
 use super::{DATA_TRUNCATED, FORMAT_UNSUPPORTED, TOO_LARGE};
 use crate::plugins::image::blocks;
@@ -25,15 +25,7 @@ pub(super) fn decode(
     let needed = layout.level_bytes(width, height);
     let level = plain(surface, bytes, needed, max_alloc)?;
     let (width, height) = (width as usize, height as usize);
-    let rgba = match layout {
-        Layout::Blocks { bytes, decode } => {
-            blocks::to_rgba8(decode, bytes, &level, width, height, DATA_TRUNCATED)?
-        }
-        Layout::Rgba8 => level
-            .get(..width * height * 4)
-            .ok_or(DATA_TRUNCATED)?
-            .to_vec(),
-    };
+    let rgba = layout.rgba8(&level, width, height, DATA_TRUNCATED)?;
     blocks::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
 }
 

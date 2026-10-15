@@ -77,11 +77,10 @@ function tables(copies: number) {
     sets,
     tracking,
     closure,
-    (id) => packed[id],
   )(1 << 20, {
     cuts: [{ uniforms: {}, result: { pageIds: cut.wantedPacked.slice(0, cut.wanted.length) } }],
     first: null,
-  })
+  } as never)
   const pending = createCutPending(
     packed,
     closure.delta,

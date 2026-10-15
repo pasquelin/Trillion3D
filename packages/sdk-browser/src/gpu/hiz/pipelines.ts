@@ -1,6 +1,6 @@
 import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
 import { HIZ_TEST_ARGS_ENTRIES, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './bindEntries.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../core/computeStages.ts'
 import { validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
@@ -23,10 +23,7 @@ export const createHizPipelines = oncePerDevice((device) =>
     const pagesLayout = device.createBindGroupLayout({ entries: HIZ_TEST_PAGES_ENTRIES })
     const argsLayout = device.createBindGroupLayout({ entries: HIZ_TEST_ARGS_ENTRIES })
     const stage = (entryPoint: string, groups = [layout], constants?: Record<string, number>) =>
-      buildComputePipeline(device, {
-        layout: device.createPipelineLayout({ bindGroupLayouts: groups }),
-        compute: { module, entryPoint, ...(constants && { constants }) },
-      })
+      buildComputeStage(device, groups, module, entryPoint, constants)
     const [buildPipeline, nearestPipeline, testPipeline, argsPipeline] = await Promise.all([
       stage('buildHiz'),
       stage('buildHiz', [layout], { [HIZ_NEAREST_BUILD]: 1 }),

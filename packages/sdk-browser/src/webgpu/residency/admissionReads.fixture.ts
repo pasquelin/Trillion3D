@@ -27,7 +27,7 @@ export function world(seed: number) {
     slots: Math.floor(random() * (count + 2)),
     resident: pick(0.2),
     camera: pick(0.4),
-    tiers: [pick(0.3), pick(0.3)],
+    tier: pick(0.3),
   }
 }
 
@@ -57,12 +57,10 @@ export async function run(
     ...ensurerOptions(tracking, cache),
     hasBytes: scene.hasBytes,
     parentsOf: scene.parentsOf,
-    lowerTiers: () =>
-      scene.tiers.map((pages) => ({
-        pages,
-        has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
-        revision: 0,
-      })),
+    lowerTier: () => ({
+      pages: scene.tier,
+      revision: 0,
+    }),
     prefetch: readAhead
       ? (page, signal) => {
           log.push(`read ${page.url}`)

@@ -133,7 +133,7 @@ test('a model of N rows moved in a scene of M rows writes no row: its world is n
   assert.deepEqual([...rt.rootWorlds!.moved.take()], [7], 'its world alone goes up')
   assert.equal(rows.tableEpoch, 1, 'the table keeps its age')
   assert.deepEqual(rows.pageTableFloats, before, 'no word of the table written')
-  assert.equal(moving.windingEpoch, 1, 'its winding held')
+  assert.equal(moving.windingEpoch, moving.worldAt, 'its winding held, at its new version')
   assert.equal(rt.blendState.occlusionEpoch, 1, 'no transparent cluster moved')
 })
 
@@ -144,7 +144,8 @@ test('a mirrored model writes its own rows again, its winding computed again', (
   ;(moving.world.elements as Float64Array)[0] = -1
   assert.equal(moveRootRows(rt, moving, 0), model)
   assert.deepEqual(runsOf(rows.forEachDirtyRun), [[terrain, terrain + model - 1]])
-  assert.equal(moving.windingEpoch, undefined)
+  assert.equal(moving.windingCw, true, 'its winding taken again')
+  assert.equal(moving.windingEpoch, moving.worldAt, 'at its new world version')
 })
 
 test('a transparent model claims no row: its corners are sent again, no row is', () => {

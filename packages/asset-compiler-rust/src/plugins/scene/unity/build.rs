@@ -79,7 +79,10 @@ impl Builder<'_, '_> {
         depth: usize,
     ) -> Option<usize> {
         if depth > MAX_DEPTH {
-            self.world.scene.report.add("unity-hierarchy-too-deep");
+            self.world
+                .scene
+                .report
+                .add(crate::plugins::scene::codes::HIERARCHY_TOO_DEEP);
             return None;
         }
         self.world.check()?;

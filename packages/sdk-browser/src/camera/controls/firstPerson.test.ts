@@ -111,14 +111,15 @@ test('a steering key keeps its default action from the page, unless typed into a
   assert.deepEqual(at(camera), [0, 0, 0])
 })
 
-test('first person turns 0.002 radians per pixel until `lookSpeed` is set', () => {
+test('first person turns half a turn per surface height until `lookSpeed` is set', () => {
   const { camera, surface, controls } = steered(createFirstPersonCameraControls)
   assert.equal(controls.lookSpeed, null)
   controls.update(0)
   surface.fire('pointerdown', { pointerId: 1, button: 0, clientX: 0, clientY: 0 })
   surface.fire('pointermove', { pointerId: 1, movementX: 100, movementY: 0 })
   controls.update(0)
-  assert.equal(round(Math.atan2(facing(camera)[0], -facing(camera)[2])), round(0.2))
+  // 100 pixels of a 400-pixel surface: a quarter of half a turn, π/4.
+  assert.equal(round(Math.atan2(facing(camera)[0], -facing(camera)[2])), round(Math.PI / 4))
 })
 
 test('first person reads back a host pose off unit length at its pitch, near the zenith too', () => {

@@ -79,12 +79,12 @@ fn vsmTraceFactor(channel:u32,P:vec3f,N:vec3f)->f32{
  var r:VsmPixel;
  r.pos=vsmTracePixel;
  r.inRect=true;
- r.info=VsmSurfaceInfo(true,any(thinSubsurface>vec3f(0.0)),n,n);
+ r.info=VsmSurfaceInfo(true,thinSurface(),n,n);
  r.shifted=(P+vsmView.originShiftHigh)+vsmView.originShiftLow;
  r.sceneDepth=(vsmView.shiftedToView*vec4f(r.shifted,1.0)).z;
  r.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayShare*r.sceneDepth)+vsmView.screenRayScale.zw).y;
  r.noise=vsmNoiseOne(r.pos,vsmView.frameIndex);
- return vsmProjectLight(channel,r,true,false).shadowFactor;
+ return vsmProjectLight(channel,r,true).shadowFactor;
 }`,
   )
 
@@ -108,18 +108,20 @@ fn vsmMaskDecode(code:u32)->f32{
 var<private> vsmMaskPixel:vec2i=vec2i(-1);
 /** The layer last loaded at \`vsmMaskPixel\` and its word: every light of a layer shares one load
  *  (\`vsmMaskFactor\`). \`vsmMaskAt\` drops it. */
-var<private> vsmMaskLayer:u32=0xffffffffu;
+var<private> vsmMaskLayer:u32=VSM_MASK_NO_LAYER;
 var<private> vsmMaskWord:u32=0u;
 /** The layers the projection stored in the pixel's tile, bit L for layer L (its tile word,
  *  \`vsm/projectionWgsl.ts\`): those holding a light it traced there, each a layer of the mask; every
  *  lane of another is 0. None before \`vsmMaskAt\`; \`VSM_MASK_TILE_UNREAD\` after it, until the
  *  pixel's first light that reads the mask loads it (\`vsmMaskFactor\`). */
 var<private> vsmMaskTile:u32=0u;
+/** No layer loaded yet: no layer has this rank. */
+const VSM_MASK_NO_LAYER:u32=0xffffffffu;
 /** No tile word: its sixteen layers' bits never set the high ones. */
 const VSM_MASK_TILE_UNREAD:u32=0xffffffffu;
 /** The pixel the mask is read at (\`shadowSetup\`): its tile's word is loaded when a light reads it. */
 fn vsmMaskAt(coord:vec2i){
- vsmMaskPixel=coord;vsmMaskLayer=0xffffffffu;vsmMaskTile=VSM_MASK_TILE_UNREAD;
+ vsmMaskPixel=coord;vsmMaskLayer=VSM_MASK_NO_LAYER;vsmMaskTile=VSM_MASK_TILE_UNREAD;
 }
 /** Light \`channel\`'s factor: its 8-bit lane of layer channel / 4 (\`vsmMaskCode\`), decoded — 1, the
  *  decode of a lane 0, where its tile stored no such layer, which is then not read. The layer's

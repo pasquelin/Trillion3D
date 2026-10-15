@@ -32,7 +32,7 @@ export function encodeFrontPass(
   const outputs = blendState.frontOutputs
   const set = vis.blendPipelines.front(outputs)
   if (!set.ready) return set.ask()
-  const hizFront = hiz.front(encoder, true)
+  const hizFront = hiz.front(true)
   if (!hizFront) return
   const { front } = reflection
   encoder.copyTextureToTexture({ texture: gpu.depthTexture }, { texture: front.depth }, [

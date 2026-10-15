@@ -23,13 +23,14 @@ function lightLoop(rect: boolean) {
     lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
   }>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
     directLights,
-    RANGE_REJECT: 1.0001,
     isRect: () => rect,
+    lightReaches: () => true,
     isSun: () => false,
     isSunKind: () => false,
     // No world lists: every light, the loop's fallback (`bounceLightSlice`).
     TILE_NO_SLICE,
     bounceLightSlice: () => [0xffffffff, directLights.count],
+    listedLight: (_slice: number[], index: number) => index,
     tileLights: [],
     rectIrradiance: () => [0, 0, 0, 1],
     directIncidence: () => [0, 1, 0, 1],

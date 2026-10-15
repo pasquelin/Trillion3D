@@ -1,6 +1,24 @@
 import { oncePerDevice } from './oncePerDevice.ts'
 import { sizedBuffer } from './sizedBuffer.ts'
 
+/** How long a hold keeps what no use took: a burst of uses (an A/B proof, rounds until a cut
+ *  lands) shares one; a use now and then holds nothing between. Every idle hold's time. */
+export const HOLD_IDLE_MS = 1000
+
+/** THE idle timer of every hold: `restart(onIdle)` runs `onIdle` once nothing restarted it for
+ *  `ms`; `stop()` cancels it. A host process never waits on it. */
+export function holdIdle(ms = HOLD_IDLE_MS) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  return {
+    restart(onIdle: () => void) {
+      clearTimeout(timer)
+      timer = setTimeout(onIdle, ms)
+      ;(timer as { unref?: () => void }).unref?.()
+    },
+    stop: () => clearTimeout(timer),
+  }
+}
+
 /**
  * Buffers a device holds between the uses that take them, one a slot, so a burst of uses
  * allocates once instead of a buffer made and destroyed each. Each holder keeps its own slots per
@@ -19,18 +37,15 @@ import { sizedBuffer } from './sizedBuffer.ts'
 export function heldBuffers(idleMs?: number) {
   const holdOf = oncePerDevice(() => ({
     held: new Map<string, GPUBuffer>(),
-    idle: undefined as ReturnType<typeof setTimeout> | undefined,
+    idle: holdIdle(idleMs),
   }))
   /** Restarts the hold's idle time: everything it holds is destroyed once it runs out. */
   const rest = (hold: ReturnType<typeof holdOf>) => {
     if (idleMs === undefined) return
-    clearTimeout(hold.idle)
-    hold.idle = setTimeout(() => {
+    hold.idle.restart(() => {
       for (const buffer of hold.held.values()) buffer.destroy()
       hold.held.clear()
-    }, idleMs)
-    // A host process never waits on the hold.
-    ;(hold.idle as { unref?: () => void }).unref?.()
+    })
   }
   return {
     /** The buffer held under `slot` when it holds `size` bytes (exactly `size` under `exact`),

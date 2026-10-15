@@ -13,13 +13,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
-import {
-  LIGHT_LOOP_SHARED,
-  randomLampScope,
-  same,
-  type Pair,
-  type Sum,
-} from '../blend/shadedLightScope.fixture.ts'
+import { randomLampScope, same, type Pair, type Sum } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -28,21 +22,6 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 const WATER = waterCompositeShader({ lobeless: true })
 const SINGLE = wgslModule(declaredLightingWgsl({ transmittance: 18 }), STANDARD_LIGHTING_WGSL)
 const K = wgslConstants(WATER)
-const SHADING = [
-  'lobeSurface',
-  'surfaceLight',
-  'standardLobe',
-  'lobeSum',
-  'fresnelSchlick',
-  'ggxDistribution',
-  'modelLight',
-  'lambertAlbedoMul',
-  'thinTransmission',
-  // The maths library's, which the lobe calls.
-  'ndotvFloor',
-  'f0Of',
-  'lambertAlbedo',
-]
 
 test('one walk of the lights gives the two sums of two walks, bit for bit', () => {
   const r = lcgRandom(1563),
@@ -55,14 +34,10 @@ test('one walk of the lights gives the two sums of two walks, bit for bit', () =
     const scope = { ...shared, shadowTransmission: [0.9, 0.7, 0.5] }
     const { sliceLightingPair } = shaderRun<{ sliceLightingPair: Pair }>(
       WATER,
-      ['sliceLightingPair', 'declaredLightPair', ...LIGHT_LOOP_SHARED, ...SHADING],
+      ['sliceLightingPair'],
       { ...scope, LightPair: (a: number[], b: number[]) => ({ lit: a, specular: b }) },
     )
-    const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(
-      SINGLE,
-      ['sliceLighting', 'declaredLight', ...LIGHT_LOOP_SHARED, ...SHADING],
-      scope,
-    )
+    const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(SINGLE, ['sliceLighting'], scope)
     const [rgb, metal, rough] = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1)]
     for (const slice of [
       [2, scope.tileLights.length - 2],

@@ -1,17 +1,17 @@
-import { COARSE_MS, GRID_TOLERANCE } from '../../frame/refreshClock.ts'
-import { snap } from '../../../../math/src/scalar/reals.ts'
-
-/** Intervals in a row that must sit on the display's grid before a frame's time is put on it: one
- *  interval landing there by chance — a variable-refresh display presenting whenever a frame is
- *  ready — puts nothing on it. */
-const RECENT = 3
+import {
+  COARSE_MS,
+  onGrid,
+  resolutionAfter,
+  samePeriod,
+  slack,
+  SUPPORT,
+} from '../../frame/refreshClock.ts'
 
 /**
  * THE WORLD'S TIME ON THE DISPLAY'S GRID. A frame's timestamp is when its display frame began, the
  * rAF timestamp the refresh clock measures the display on (`frameStart`), and an image is shown a
  * whole number of refreshes after the one before: motion advanced by the timestamps' own interval
- * carries their jitter into the image, and a delta that never repeats takes no animation sample
- * ahead (`animationAhead.ts`). So, while the display's refresh is known, a frame's time is
+ * carries their jitter into the image. So, while the display's refresh is known, a frame's time is
  * `t_n = start + round((now − start) / period) · period` and its delta `t_n − t_{n−1}`, a whole
  * number of periods computed as such — one period on time, two for a frame the display dropped —,
  * the same number bit for bit from frame to frame.
@@ -19,10 +19,11 @@ const RECENT = 3
  * The grid is trusted only where the display keeps it. `period` is the display's refresh the scale
  * control measured (`ScaleControl.refreshMs`, `refreshed`), never the budget's slower cadence: a
  * frame the GPU held two refreshes is two periods. A frame's time is put on the grid only while
- * that refresh is known, the last `RECENT` intervals were each a whole number of periods, and the
- * timestamp itself lies on the grid — each within the refresh clock's own tolerance
- * (`GRID_TOLERANCE` of the period, a millisecond on a rounded timer), the one that found the
- * period: what it counted as on the grid is on it here. That tolerance is far below what a
+ * that refresh is known, the last `SUPPORT` intervals were each a whole number of periods — one
+ * interval landing there by chance, a variable-refresh display presenting whenever a frame is
+ * ready, puts nothing on it —, and the timestamp itself lies on the grid — each by the refresh
+ * clock's own test (`onGrid`, its `slack`: `GRID_TOLERANCE` of the period, a millisecond on a
+ * rounded timer), the one that found the period: what it counted as on the grid is on it here. That tolerance is far below what a
  * variable-refresh display presenting off the grid strays (an interval of 1.2 to 1.8 periods, a
  * cadence between two refreshes), and above the timestamps' own jitter, a few microseconds where
  * the timer is fine. Otherwise a frame takes its own timestamp, its delta the time since the last
@@ -47,7 +48,7 @@ export function createFrameGrid() {
     steps: 0,
     seen: Number.NaN,
     run: 0,
-    fine: false,
+    resolution: COARSE_MS,
   }
   const grid = {
     /** The last frame's time, ms: on the grid while `snapped`, else its own timestamp. NaN
@@ -92,8 +93,8 @@ type GridState = {
   seen: number
   /** Intervals in a row on the grid. */
   run: number
-  /** Whether a timestamp showed a fraction: the timer is not rounded to milliseconds. */
-  fine: boolean
+  /** The timer's rounding, ms (`resolutionAfter`). */
+  resolution: number
 }
 
 /** What a grid publishes of the last frame (`createFrameGrid`). */
@@ -112,14 +113,14 @@ function refreshed(s: GridState, ms: number | null | undefined) {
   if (!(s.refresh > 0)) {
     s.period = Number.NaN
     s.run = 0
-  } else if (!(s.period > 0) || Math.abs(s.refresh - s.period) > GRID_TOLERANCE * s.period) {
+  } else if (!(s.period > 0) || !samePeriod(s.refresh, s.period)) {
     s.period = s.refresh
     s.run = 0
   }
 }
 
 function frame(s: GridState, grid: GridTime, now: number) {
-  if (now % 1 !== 0) s.fine = true
+  s.resolution = resolutionAfter(now, s.resolution)
   const last = grid.time,
     period = s.period
   if (Number.isNaN(last)) {
@@ -128,16 +129,16 @@ function frame(s: GridState, grid: GridTime, now: number) {
     return
   }
   if (period > 0) {
-    const tolerance = Math.max(GRID_TOLERANCE * period, s.fine ? 0 : COARSE_MS),
+    const tolerance = slack(period, s.resolution),
       gap = now - s.seen
     // The display frame read again: no time elapsed.
     if (Math.abs(gap) <= tolerance) {
       grid.delta = 0
       return
     }
-    s.run = Math.abs(gap - snap(gap, period)) <= tolerance ? s.run + 1 : 0
+    s.run = onGrid(gap, period, tolerance) ? s.run + 1 : 0
     s.seen = now
-    if (s.run >= RECENT) {
+    if (s.run >= SUPPORT) {
       const k = Math.round((now - s.start) / period),
         on = s.start + k * period
       if (k > s.steps && Math.abs(now - on) <= tolerance) {

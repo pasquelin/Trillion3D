@@ -19,48 +19,39 @@ import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 import { bilinearRead } from '../texture/bilinear.fixture.ts'
 
-type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number }
+type Share = { currentShare: (share: number, rho: number, fresh: boolean) => number }
 const { currentShare } = shaderRun<Share>(wgslSource(CURRENT_SHARE_WGSL), ['currentShare'], {})
 const MOVING = 1 / 8
 
 test('a pixel with no history takes the current sample whole', () => {
-  for (const [reach, rho] of [
-    [1, 0],
+  for (const [share, rho] of [
+    [MOVING, 0],
     [0, 0],
     [0.3, 0.95],
   ])
-    assert.equal(currentShare(MOVING, reach, rho, true), 1, `reach ${reach}, reactive ${rho}`)
+    assert.equal(currentShare(share, rho, true), 1, `share ${share}, reactive ${rho}`)
 })
 
 test('a reactive value raises the current share to at least itself, never above 0.9', () => {
   assert.equal(REACTIVE_MAX, 0.9)
-  assert.equal(currentShare(MOVING, 1, 0, false), MOVING, 'no reactive: today’s share')
-  assert.equal(currentShare(MOVING, 1, 0.05, false), MOVING, 'below the share: nothing')
-  for (const rho of [0.3, 0.5, 0.9]) assert.equal(currentShare(MOVING, 1, rho, false), rho)
-  for (const rho of [0.95, 1]) assert.equal(currentShare(MOVING, 1, rho, false), REACTIVE_MAX)
-  assert.equal(currentShare(MOVING, 0, 0.4, false), 0.4, 'even for a far sample')
+  assert.equal(currentShare(MOVING, 0, false), MOVING, 'no reactive: the accumulation’s share')
+  assert.equal(currentShare(MOVING, 0.05, false), MOVING, 'below the share: nothing')
+  for (const rho of [0.3, 0.5, 0.9]) assert.equal(currentShare(MOVING, rho, false), rho)
+  for (const rho of [0.95, 1]) assert.equal(currentShare(MOVING, rho, false), REACTIVE_MAX)
+  assert.equal(currentShare(0, 0.4, false), 0.4, 'even for a sample of no weight')
 })
 
-test('a sample far from its display pixel lowers its weight', () => {
-  const shares = [1, 0.6, 0.2, 0].map((reach) => currentShare(MOVING, reach, 0, false))
-  assert.deepEqual(shares, [MOVING, MOVING * 0.6, MOVING * 0.2, 0])
-})
-
-type Cap = { historyCap: (uv: number[], coord: number[], now: number, kept: number) => number }
-const { historyCap } = shaderRun<Cap>(wgslSource(HISTORY_CAP_WGSL), ['historyCap'], {
-  view: { viewport: [64, 64, 1 / 64, 1 / 64] },
-})
-/** The history read `pixels` away along x from display pixel 10,10. */
-const away = (pixels: number) => [(10.5 + pixels) / 64, 10.5 / 64]
+type Cap = { historyCap: (speed: number, now: number, kept: number) => number }
+const { historyCap } = shaderRun<Cap>(wgslSource(HISTORY_CAP_WGSL), ['historyCap'], {})
 
 test('a moving history keeps four samples beside the current one at a pixel a frame', () => {
-  assert.ok(historyCap(away(0), [10, 10], 0.5, 0.5) >= 16, 'still: the full sixteen')
-  assert.equal(historyCap(away(1), [10, 10], 0.5, 0.5), 5, 'a display pixel a frame: 4 + 1')
-  assert.equal(historyCap(away(3), [10, 10], 0.5, 0.5), 5, 'faster: no fewer')
-  assert.equal(historyCap(away(0.5), [10, 10], 0.5, 0.5), 11, 'linear below: 10 + 1 at half')
+  assert.ok(historyCap(0, 0.5, 0.5) >= 16, 'still: the full sixteen')
+  assert.equal(historyCap(1, 0.5, 0.5), 5, 'a display pixel a frame: 4 + 1')
+  assert.equal(historyCap(3, 0.5, 0.5), 5, 'faster: no fewer')
+  assert.equal(historyCap(0.5, 0.5, 0.5), 11, 'linear below: 10 + 1 at half')
   // A high-contrast edge keeps that share of the full history: |dL| / max(L).
-  assert.ok(Math.abs(historyCap(away(1), [10, 10], 1, 0.2) - (1 + 16 * 0.8)) < 1e-9)
-  assert.equal(historyCap(away(1), [10, 10], 0, 0), 5, 'black: no contrast')
+  assert.ok(Math.abs(historyCap(1, 1, 0.2) - (1 + 16 * 0.8)) < 1e-9)
+  assert.equal(historyCap(1, 0, 0), 5, 'black: no contrast')
 })
 
 /** A history of 8×8 texels read bilinearly, clamped to its edge: a step from 0 to 1 at column 4,
@@ -169,16 +160,11 @@ test('an as-is share whose box is one value reads no share history but a still w
     [true, 0.25, 0.25],
   ] as const
   for (const [blended, flag, share] of cases)
-    for (const [native, moving] of [
-      [true, false],
-      [true, true],
-      [false, true],
-    ]) {
-      const size = native ? 6 : 4
+    for (const size of [6, 4]) {
       const frame: UpscaleFrame = {
         render: [size, size],
         display: [6, 6],
-        moving,
+        moving: true,
         color,
         history: color,
         tags,
@@ -187,8 +173,7 @@ test('an as-is share whose box is one value reads no share history but a still w
         historyGeometry: () => [1, 0.4],
         flag: () => flag,
       }
-      const resolved = upscaleRun(frame, true, false, native, { blended })(2, 3)
-      // Within the uniform's 32-bit weights, whose sum is 1 to 1e-8.
-      assert.ok(Math.abs(resolved.share - share) < 1e-6, `${blended} ${native} ${moving}`)
+      const resolved = upscaleRun(frame, true, false, { blended })(2, 3)
+      assert.ok(Math.abs(resolved.share - share) < 1e-6, `${blended} ${size}`)
     }
 })

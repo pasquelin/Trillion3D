@@ -8,13 +8,8 @@ use super::*;
 
 /// Copies the model's tables into the scene. `prefix` is the path of the model's directory,
 /// relative to the served directory: the model's images are named there.
-pub(super) fn merge(
-    gltf: &Value,
-    buffers: &[Vec<u8>],
-    prefix: &str,
-    scene: &mut SceneTables,
-) -> Parts {
-    let views = merge_views(gltf, buffers, scene);
+pub(super) fn merge(gltf: &Value, bin: &[u8], prefix: &str, scene: &mut SceneTables) -> Parts {
+    let views = merge_views(gltf, bin, scene);
     let accessors = merge_table(
         gltf,
         "accessors",
@@ -52,16 +47,13 @@ pub(super) fn index(value: &Value, map: &[usize]) -> Option<usize> {
     map.get(value.as_u64()? as usize).copied()
 }
 
-fn merge_views(gltf: &Value, buffers: &[Vec<u8>], scene: &mut SceneTables) -> Vec<usize> {
+/// Copies the model's views: `bin` is its one binary, every view on it (`flat_document`).
+fn merge_views(gltf: &Value, bin: &[u8], scene: &mut SceneTables) -> Vec<usize> {
     let mut map = Vec::new();
     for view in array(gltf, "bufferViews") {
-        let buffer = view["buffer"].as_u64().unwrap_or(0) as usize;
         let offset = view["byteOffset"].as_u64().unwrap_or(0) as usize;
         let length = view["byteLength"].as_u64().unwrap_or(0) as usize;
-        let bytes = buffers
-            .get(buffer)
-            .and_then(|data| data.get(offset..offset + length))
-            .unwrap_or(&[]);
+        let bytes = bin.get(offset..offset + length).unwrap_or(&[]);
         let target = view["target"].as_u64().map(|value| value as u32);
         let id = scene.bin.view(bytes, target);
         if let Some(stride) = view.get("byteStride") {

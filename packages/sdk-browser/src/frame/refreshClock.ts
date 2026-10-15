@@ -3,10 +3,10 @@ import { SECOND_MS } from './scaleTargets.ts'
  *  period no interval of the last second stands for is gone (a window moved, a browser that slowed the
  *  page). */
 const REFRESH_WINDOW = 120
-/** An interval longer than this is a pause on the vsync grid, not a frame of it (under 10 fps): the
- *  clock reads no period from it, and the GPU timeline publishes no idle across it
- *  (`../gpu/timing/timeline.ts`). Not the render scale's pause (`INTERVAL_PAUSE_MS`): a slow frame
- *  under it is still a miss the scale must answer. */
+/** An interval longer than this says nothing of the vsync grid (under 10 fps): any period divides
+ *  it within the tolerance by chance, so the clock reads no period from it, and the GPU timeline
+ *  publishes no idle across it (`../gpu/timing/timeline.ts`). Not the loop's pause
+ *  (`loopPace.ts`): a slow frame of a running loop is still a miss the scale must answer. */
 export const PAUSE_MS = 100
 /** Share of the period an interval may stray from a whole number of periods (timer jitter), and
  *  the shortest period sought: no display refreshes faster than 500 Hz. */
@@ -24,7 +24,17 @@ const ON_GRID = 0.9
 
 /** How far an interval may stray from a whole number of `period`s, a timer rounded to
  *  `resolution` ms. */
-const slack = (period: number, resolution: number) => Math.max(GRID_TOLERANCE * period, resolution)
+export const slack = (period: number, resolution: number) =>
+  Math.max(GRID_TOLERANCE * period, resolution)
+/** The timer's rounding once a timestamp `now` was read: whole milliseconds (`COARSE_MS`) until a
+ *  timestamp shows a fraction, none after. */
+export const resolutionAfter = (now: number, resolution: number) => (now % 1 !== 0 ? 0 : resolution)
+/** Whether `gap` is a whole number of `period`s, one at least, within `tolerance`. */
+export const onGrid = (gap: number, period: number, tolerance: number) =>
+  Math.abs(gap - Math.max(1, Math.round(gap / period)) * period) <= tolerance
+/** Whether `period` is `reference`'s, within the share of it a timer strays (`GRID_TOLERANCE`). */
+export const samePeriod = (period: number, reference: number) =>
+  Math.abs(period - reference) <= GRID_TOLERANCE * reference
 
 /**
  * The period the first `length` ascending `gaps` hold, near `period`: where nine in ten of them are
@@ -38,10 +48,9 @@ function fit(gaps: Float64Array, length: number, period: number, resolution: num
     time = 0,
     refreshes = 0
   for (let i = 0; i < length; i++) {
-    const n = Math.max(1, Math.round(gaps[i] / period))
-    if (Math.abs(gaps[i] - n * period) <= tolerance) {
+    if (onGrid(gaps[i], period, tolerance)) {
       time += gaps[i]
-      refreshes += n
+      refreshes += Math.max(1, Math.round(gaps[i] / period))
     } else if (--misses < 0) return Number.NaN
   }
   return time / refreshes
@@ -126,7 +135,7 @@ export function createRefreshClock(fallback: number) {
     tick(now: number) {
       const gap = (clock.gap = now - at.last)
       at.last = now
-      if (now % 1 !== 0) at.resolution = 0
+      at.resolution = resolutionAfter(now, at.resolution)
       if (!(gap > 0 && gap < PAUSE_MS)) return
       // Out: the intervals that ended a second ago or more, then, the window full, the oldest.
       let n = 0,

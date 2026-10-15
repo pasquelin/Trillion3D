@@ -5,7 +5,7 @@ import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
 export type GpuCapabilities = {
   /** `'full'` with GPU timestamps, `'degraded'` without them, `'unavailable'` with no adapter. */
   tier: 'full' | 'degraded' | 'unavailable'
-  /** The optional features the adapter offers. */
+  /** The features offered: the drawing device's once one is granted or handed in. */
   extensions: string[]
   /** One sentence saying what was granted, or why nothing was. */
   reason: string
@@ -65,10 +65,15 @@ export async function detectCapabilities(
   }
 }
 
-/** The capabilities of a device the host handed in: no adapter is asked for. */
-export const deviceCapabilities = (device: GPUDevice): GpuCapabilities => ({
+/** THE PUBLISHED CAPABILITIES: those of the device the session draws with — granted from
+ *  `adapter`, or handed in by the host (no adapter) —, never the adapter's, which may offer what
+ *  the device was not granted. */
+export const deviceCapabilities = (
+  device: GPUDevice,
+  adapter: GPUAdapter | null = null,
+): GpuCapabilities => ({
   tier: tierOf(device.features),
   extensions: [...device.features],
-  reason: 'WebGPU device handed in by the host',
-  adapter: null,
+  reason: adapter ? 'WebGPU device granted' : 'WebGPU device handed in by the host',
+  adapter,
 })

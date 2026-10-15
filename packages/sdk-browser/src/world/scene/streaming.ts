@@ -1,10 +1,11 @@
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
-import { ARRIVAL_QUEUE_BATCH } from '../../engine/common.ts'
+import { ARRIVAL_QUEUE_BATCH, ARRIVAL_QUEUE_BYTES } from '../../engine/common.ts'
 import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
+import { createViewAsks } from './viewAsks.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { SessionState } from '../render/sessionState.ts'
-import type { ExplorerSession } from '../session/session.ts'
+import { sayFatal, type ExplorerSession } from '../session/session.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
 type Inputs = {
@@ -27,29 +28,11 @@ export function streamFailed(
   const { scope, emit, diagnose } = session
   const coverageReady = engine?.metrics().coverageReady
   const recovered = coverageReady === true
-  emit(
-    recovered
-      ? {
-          eventVersion: 1,
-          type: 'degraded',
-          audience: 'diagnostic',
-          recovered: true,
-          code: 'PAGE_STREAM_FAILED',
-          detail,
-        }
-      : {
-          eventVersion: 1,
-          type: 'fatal',
-          audience: 'blocking',
-          recovered: false,
-          code: 'PAGE_STREAM_FAILED',
-          detail,
-        },
-  )
-  diagnose(
-    'coverage-streaming-failed',
-    'Page load failed; the coarse cover already resident is kept if whole',
-    {
+  const code = 'PAGE_STREAM_FAILED'
+  const record = {
+    phase: 'coverage-streaming-failed',
+    message: 'Page load failed; the coarse cover already resident is kept if whole',
+    context: {
       kind: 'error',
       version: 1,
       error: detail,
@@ -58,7 +41,12 @@ export function streamFailed(
       recovered,
       scope,
     },
-  )
+  }
+  // A fatal is said by the one builder of a fatal (`sayFatal`); a recovered failure is a
+  // diagnostic event of its own type.
+  if (!recovered) return sayFatal(session, code, detail, record)
+  emit({ eventVersion: 1, type: 'degraded', audience: 'diagnostic', recovered, code, detail })
+  diagnose(record.phase, record.message, record.context)
 }
 
 /**
@@ -86,63 +74,51 @@ function cachedQueue(
   }
 }
 
+/**
+ * The session's page reads: the engine's missing pages asked by the view's one asker
+ * (`createViewAsks`) — a page the next frame still lacks keeps its read, one it no longer lacks is
+ * let go —, each landing queued into the arrivals the moment it lands, and the cached ones queued
+ * by the frame (`queueCached`).
+ */
 export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs) {
   const { signal } = session
   const { streamer, engine, state, budget } = inputs
   let streamingError: string | null = null,
-    streamingPromise: Promise<void> | null = null,
-    backgroundFetchController: AbortController | undefined
-  // A `Set`: insertion order kept, membership without a walk, a duplicate dropped by the structure.
-  const queuedFetch = new Set<string>()
+    reads: Promise<void>[] = []
   // Arrivals are stacked and drained, bounded, at the head of `render()`, before the next
   // frame's selection. The ceiling is TIME, the frame's one integration budget (`frameBudget`);
-  // 512 KiB of index and 64 pages double it, never replace it: a packet's cluster count is
-  // unknown in advance, so no byte count bounds the duration.
-  const arrivals = createArrivalQueue(512 * 1024, 64, budget)
+  // the byte and page ceilings double it, never replace it: a packet's cluster count is unknown in
+  // advance, so no byte count bounds the duration.
+  const arrivals = createArrivalQueue(ARRIVAL_QUEUE_BYTES, ARRIVAL_QUEUE_BATCH, budget)
   const queueCached = cachedQueue(streamer, arrivals, engine)
-  const unasked = (url: string) =>
-    !streamer.has(url) && !streamer.loading(url) && !streamer.failed(url)
-  const startFetch = (urls: string[]) => {
-    if (!urls.length) return
-    const controller = new AbortController()
-    backgroundFetchController = controller
-    // Each page is queued the moment IT lands, while the others still travel, not once the whole
-    // batch has: waiting for the slowest page held every page of the batch behind it (#982).
-    const land = (url: string) => {
+  const asks = createViewAsks(streamer)
+  // Each page is queued the moment IT lands, while the others still travel (#982). A failure
+  // reached the host already, once, from the read layer (`onStalled`, `streamFailed`): it is only
+  // kept for the owner to read.
+  const heard = {
+    land(url: string) {
       const array = streamer.get(url)
       if (array) arrivals.queue(engine, url, array)
-    }
-    streamingPromise = streamer
-      .request(urls, { signal: controller.signal, priority: PRIORITY_VISIBLE, onPage: land })
-      .catch((error) => {
-        // The page's failure reached the host already, once, from the read layer (`onStalled`,
-        // `streamFailed`): the batch only keeps it for its owner to read.
-        if (state.disposed || signal?.aborted || controller.signal.aborted) return
-        streamingError = String(error)
-      })
-      .finally(() => {
-        if (backgroundFetchController === controller) backgroundFetchController = undefined
-        streamingPromise = null
-        if (!queuedFetch.size) return
-        const pending = [...queuedFetch]
-        queuedFetch.clear()
-        startFetch(pending.filter(unasked))
-      })
+    },
+    fail(error: unknown) {
+      if (!state.disposed && !signal?.aborted) streamingError = String(error)
+    },
   }
   return {
     arrivals,
     queueCached,
-    unasked,
-    startFetch,
-    queuedFetch,
+    /** The frame's asks: `urls`, the head of what the engine lacks that no read holds or failed
+     *  for good; what the last frame asked and this one does not is let go. */
+    ask(urls: readonly string[]) {
+      reads = asks.ask(urls, PRIORITY_VISIBLE, heard)
+      asks.end()
+    },
+    /** Settles once the reads the last frame asked have, either way; none when it asked none. */
+    pending: () => (reads.length ? Promise.all(reads) : undefined),
+    /** Every read let go: the session closed. */
+    stop: () => asks.drop(new DOMException('The session closed', 'AbortError')),
     get error() {
       return streamingError
-    },
-    get promise() {
-      return streamingPromise
-    },
-    get backgroundFetchController() {
-      return backgroundFetchController
     },
   }
 }

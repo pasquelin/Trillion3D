@@ -35,10 +35,13 @@ export const worldPools = (): Pools => ({ pageCache: createPageCache(DEFAULT_CAC
  *  holds (`defaultGpuBudget`): its frame at full resolution funded before the pools. */
 const gpuOf = (pools: Pools, canvas = pools.canvas, active = pools.activeGpu) =>
   pools.gpu ?? defaultGpuBudget(canvas, active)
-/** The split of the totals as asked, the defaults for those not set. */
-const splitOf = (pools: Pools, gpu = gpuOf(pools), canvas = pools.canvas) =>
-  splitMemoryBudget(gpu, pools.cpu ?? DEFAULT_CACHED_BYTES, canvas, pools.activeGpu)
-
+/** The one call of the split rule: the totals as asked, defaults for those not set, `at`'s values
+ *  (a write, an admission) in place of the pools' own. */
+const splitOf = (pools: Pools, at: Partial<Pools> & { active?: ActiveGpuMemory } = {}) => {
+  const { canvas = pools.canvas, active = pools.activeGpu } = at
+  const gpu = at.gpu ?? gpuOf(pools, canvas, active)
+  return splitMemoryBudget(gpu, at.cpu ?? pools.cpu ?? DEFAULT_CACHED_BYTES, canvas, active)
+}
 /**
  * What a session opens with: the pools as asked, and the world's page cache. Its admission
  * (`admitGpuMemory`) splits the total beside what the session holds, read anew from this session's
@@ -58,12 +61,7 @@ export function sessionPools(pools: Pools) {
     pageCache: pools.pageCache,
     admitGpuMemory: Object.assign(
       (active: ActiveGpuMemory) => {
-        const split = splitMemoryBudget(
-          gpuOf(pools, pools.canvas, active),
-          pools.cpu ?? DEFAULT_CACHED_BYTES,
-          pools.canvas,
-          active,
-        )
+        const split = splitOf(pools, { active })
         pools.activeGpu = { ...active }
         // A ceiling over the pool asked, never grown past it: prepare's tables are its (768 KiB on
         // memory-on-a-budget), and growing it refused the frame targets. The grant held is
@@ -126,13 +124,12 @@ export function worldBudget(
   const split = () => splitOf(pools)
   /** What the GPU total leaves a pool beside the fixed shares and the other pool as asked. */
   const room = (other: 'geometryPool' | 'texturePool', ceiling: number) => {
-    const { shadowPool, bounceProbes, effectTargets, frameTargets = 0, ...shares } = split()
-    const left = gpuOf(pools) - shadowPool - bounceProbes - effectTargets - frameTargets
-    return clamp(left - (pools[other] ?? shares[other]), 1, ceiling)
+    const shares = split()
+    return clamp(gpuOf(pools) - shares.fixed - (pools[other] ?? shares[other]), 1, ceiling)
   }
   /** Redraws both pools by the split of `gpu` on `canvas`; a refused total changes nothing. */
   const redraw = (gpu: number, canvas = pools.canvas) => {
-    const shares = splitOf(pools, gpu, canvas)
+    const shares = splitOf(pools, { gpu, canvas })
     pools.geometryPool = shares.geometryPool
     pools.texturePool = shares.texturePool
     rebalance()
@@ -175,7 +172,7 @@ export function worldBudget(
       return pools.cpu ?? DEFAULT_CACHED_BYTES
     },
     set cpu(bytes: number) {
-      const { pageCache } = splitMemoryBudget(gpuOf(pools), bytes, pools.canvas)
+      const { pageCache } = splitOf(pools, { cpu: bytes })
       pools.cpu = bytes
       pools.pageCache.resize(pageCache)
     },

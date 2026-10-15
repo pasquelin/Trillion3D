@@ -88,14 +88,11 @@ pub(super) fn grouped(n: usize) -> Grouped {
         cluster_triangles(&positions, &indices, DAG_CLUSTER_TRIANGLES).expect("clusters");
     let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
     let adjacency = cluster_adjacency(&lists);
-    let centres: Vec<[f64; 3]> = clusters
+    let spheres: Vec<[f64; 4]> = clusters
         .iter()
-        .map(|c| {
-            let s = bounding_sphere(&positions, c);
-            [s[0], s[1], s[2]]
-        })
+        .map(|c| point_sphere(&positions, c))
         .collect();
-    let groups = group_clusters(&centres, &adjacency, DAG_GROUP_MAX);
+    let groups = group_clusters(&spheres, &adjacency, DAG_GROUP_MAX);
     Grouped {
         positions,
         indices,
@@ -126,6 +123,7 @@ mod part14;
 mod part15;
 mod part16;
 mod part17;
+mod part18;
 mod part2;
 mod part3;
 mod part4;

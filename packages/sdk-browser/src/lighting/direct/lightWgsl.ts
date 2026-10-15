@@ -8,33 +8,13 @@ import {
 import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
-import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { isKind, localLightReaches, rangeWindow } from './lightReachWgsl.ts'
 
 /** Words of a cell record of the light grid: its count — the high bit set when a light of
- *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
+ *  its list holds a shadow slot, the cell's one fact the resolve reads before its lights —, then
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
-
-/**
- * Whether a local light may light a point at `offset` from it (its centre minus the point): the
- * shadow passes' test, at their own points, of where the lighting gives it energy — `directIncidence`
- * and `rectView`, zero past its `range` (`rangeWindow`), at or outside a spot's cone of cosine
- * `cosEdge` around `forward` (its fade), and on a rectangle's (`rect`) back, `forward` the direction
- * it emits along. No divide: the range on the squared distance, the cone against the distance
- * scaled by its cosine, tested only for a light that has one — `cosEdge` is −2 for any other, which
- * no cosine reaches. A point no comparison orders (NaN) is reached, left to the lighting.
- */
-export const localLightReaches = wgslFn(
-  'localLightReaches',
-  [],
-  `fn localLightReaches(offset:vec3f,range:f32,cosEdge:f32,forward:vec3f,rect:bool)->bool{
- let lengthSquared=dot(offset,offset);
- if(lengthSquared>range*range){return false;}
- if(rect){return !(dot(offset,forward)>=0.0);}
- if(cosEdge<-1.0){return true;}
- return !(dot(-offset,forward)<=cosEdge*sqrt(lengthSquared));
-}`,
-)
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -46,7 +26,7 @@ export const localLightReaches = wgslFn(
 export const directLightWgsl = (slots?: number) =>
   wgslBlock(
     `directLightWgsl(${slots ?? ''})`,
-    [RECT_LIGHT_WGSL],
+    [RECT_LIGHT_WGSL, localLightReaches, rangeWindow, isKind],
     `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** The light grid: cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
@@ -56,7 +36,7 @@ const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
  *  every light of the scene (\`cellSlice\`). */
 const GRID_SLICES:u32=${LIGHT_SETTINGS.gridSlices}u;
 const SLICES_PER_OCTAVE:f32=${LIGHT_SETTINGS.gridSlicesPerOctave}.0;
-/** A list's length past which a moving image sums it in full, and the lights of a narrow scene. */
+/** The lights of a narrow scene (the length its light array is compiled at). */
 ${wgslConsts({
   TILE_LIGHTS: LIGHT_SETTINGS.tileLights,
   TILE_STRIDE: TILE_STRIDE_WORDS,
@@ -85,29 +65,39 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  a rectangle is integrated with, written once (\`ltcTable.ts\`); then every light, as many as
  *  the scene holds. */
 struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
-/** The type rank is a float in the buffer: a single place knows how to reread it. */
-fn isSunKind(kind:f32)->bool{return abs(kind-KIND_SUN)<0.5;}
+/** Each kind's test reads the rank through \`isKind\` (\`isRect\` too, \`rectLightWgsl.ts\`). */
+fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
 fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}
-/** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
-fn rangeWindow(distance:f32,range:f32)->f32{
- let ratio=distance/range;
- return pow(clamp(1.0-ratio*ratio*ratio*ratio,0.0,1.0),2.0);
+fn isSpot(light:DirectLight)->bool{return isKind(light.params.x,KIND_SPOT);}
+/** Whether light \`rank\` may give \`P\` energy: the first statement of the one light term, which
+ *  reads the light's kind and sphere alone, and its direction and cone only for a spot or a
+ *  rectangle, before the rest of its record. A sun always; a local light by \`localLightReaches\`,
+ *  the shadows' test too — its sphere, a spot's real cone, a rectangle's face. */
+fn lightReaches(rank:u32,P:vec3f)->bool{
+ let kind=directLights.items[rank].params.x;
+ if(isSunKind(kind)){return true;}
+ let sphere=directLights.items[rank].positionRange;
+ let spot=isKind(kind,KIND_SPOT);let rect=isKind(kind,KIND_RECT);
+ var cone=vec4f(0.0,0.0,0.0,-2.0);
+ if(spot||rect){cone=directLights.items[rank].directionCone;cone.w=select(-2.0,cone.w,spot);}
+ return localLightReaches(sphere.xyz-P,sphere.w,cone.w,cone.xyz,rect);
 }
-/** Normalized direction toward the light and attenuation; w at zero when the point is out of
- *  range. A punctual light's: a rectangle has no one direction (\`rectIrradiance\`). */
+/** Unit direction toward the light and attenuation, of a light \`lightReaches\` let through (its
+ *  window is zero at and past its range, its fade outside its cone). A punctual light's: a
+ *  rectangle has no one direction (\`rectIrradiance\`). The direction is unit as it comes — the
+ *  sun's by its contract, a lamp's by its distance —: no term normalises it again. */
 fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  // A directional light has neither position nor range: the same irradiance at every point, never
  // attenuated by distance. Its direction is that of propagation, so incidence is the opposite.
  // The contract has already normalized it.
  if(isSun(light)){return vec4f(-light.directionCone.xyz,1.0);}
  let offset=light.positionRange.xyz-P;
- let distance=length(offset);
  let range=light.positionRange.w;
- if(distance>=range){return vec4f(0.0);}
+ let distance=length(offset);
  let L=offset/max(distance,1e-6);
  // Physical inverse square, windowed by range: energy cancels exactly at range.
  var attenuation=rangeWindow(distance,range)/max(distance*distance,1e-4);
- if(abs(light.params.x-KIND_SPOT)<0.5){
+ if(isSpot(light)){
   let cosine=dot(-L,light.directionCone.xyz);
   let edge=light.directionCone.w;
   // A declared penumbra widens the fade inward to its inner cone; never narrower than the edge.
@@ -115,10 +105,6 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  }
  return vec4f(L,attenuation);
 }
-/** The unshadowed resolve's range reject (\`sliceLightingWgsl\`): a light is skipped past
- *  this many times its squared range, far above the f32 roundings of \`length\`, so
- *  \`directIncidence\` and \`rectView\` would have given it zero there. */
-const RANGE_REJECT:f32=1.0001;
 `,
   )
 export const DIRECT_LIGHT_WGSL = directLightWgsl()

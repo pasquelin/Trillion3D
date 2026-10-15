@@ -16,13 +16,11 @@ const image = (extra: Partial<UpscaleFrame> = {}): UpscaleFrame => ({
 })
 
 test('another surface of the same placement revealing itself rejects the old depth', () => {
-  for (const native of [false, true]) {
-    const frame = image({ historyGeometry: () => [1, 0.8] })
-    const fresh = upscaleRun({ ...frame, history: undefined }, false, false, native)(3, 3)
-    const rejected = upscaleRun(frame, false, false, native)(3, 3).color
-    rejected.forEach((value, i) => assert.ok(Math.abs(value - fresh.color[i]) < 1e-12))
-    assert.notDeepEqual(upscaleRun(image(), false, false, native)(3, 3).color, fresh.color)
-  }
+  const frame = image({ historyGeometry: () => [1, 0.8] })
+  const fresh = upscaleRun({ ...frame, history: undefined })(3, 3)
+  const rejected = upscaleRun(frame)(3, 3).color
+  rejected.forEach((value, i) => assert.ok(Math.abs(value - fresh.color[i]) < 1e-12))
+  assert.notDeepEqual(upscaleRun(image())(3, 3).color, fresh.color)
 })
 
 // An uncovered pixel takes the current image whole, its history weighing nothing: it keeps none
@@ -34,23 +32,23 @@ test('an uncovered pixel keeps none of its history', () => {
     throw new Error('a history read')
   }
   const nothing = () => [NaN, NaN, NaN, NaN]
-  for (const native of [false, true])
-    for (const [asIs, filtered] of [
-      [false, false],
-      [true, true],
-    ]) {
-      const frame = image({
-        historyGeometry: () => [2, 0.4],
-        history: nothing,
-        tags: nothing,
-        moire: nothing,
-        layerHistory: unread,
-        reactive: () => NaN,
-      })
-      const { color, count } = upscaleRun(frame, asIs, filtered, native)(3, 3)
-      assert.ok(color.every(Number.isFinite))
-      assert.equal(count, 1 / 16, 'one sample: the current one')
-    }
+  for (const [asIs, filtered] of [
+    [false, false],
+    [true, true],
+  ]) {
+    const frame = image({
+      historyGeometry: () => [2, 0.4],
+      history: nothing,
+      tags: nothing,
+      moire: nothing,
+      layerHistory: unread,
+      reactive: () => NaN,
+    })
+    const { color, count } = upscaleRun(frame, asIs, filtered)(3, 3)
+    assert.ok(color.every(Number.isFinite))
+    const fresh = upscaleRun({ ...frame, history: undefined }, asIs, filtered)(3, 3)
+    assert.equal(count, fresh.count, 'one sample: the current one')
+  }
 })
 
 test('a full placement collision rejects history even with identical depths', () => {
@@ -59,14 +57,14 @@ test('a full placement collision rejects history even with identical depths', ()
   assert.deepEqual(upscaleRun(frame)(3, 3).color, fresh)
 })
 
-test('native and upscaled silhouettes carry the closest surface identity together', () => {
-  for (const native of [false, true]) {
+test('silhouettes at the display size and upscaled carry the closest surface identity together', () => {
+  for (const ratioOne of [false, true]) {
     const frame = image({
-      display: native ? [8, 8] : [16, 16],
+      display: ratioOne ? [8, 8] : [16, 16],
       depth: (x) => (x === 4 ? 0.8 : 0.2),
       id: (x) => (x === 4 ? 256 : 0),
     })
-    assert.equal(upscaleRun(frame, false, false, native)(native ? 3 : 6, 3).tag, 1)
+    assert.equal(upscaleRun(frame)(ratioOne ? 3 : 6, 3).tag, 1)
   }
 })
 

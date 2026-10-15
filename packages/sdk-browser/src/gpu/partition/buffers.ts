@@ -4,14 +4,14 @@ import {
   PARTITION_KERNEL_BINDINGS,
   ROW_DATA_U32,
   STATE_WORDS,
-  TESTED_U32,
-  UNIFORM_U32,
+  TESTED_BOX,
+  PARTITION_UNI,
 } from './contract.ts'
 import { computeBufferEntry, computeTextureEntry } from '../core/computeBindings.ts'
 
 /**
  * Buffers the GPU partition owns: they depend only on the drawable-row count, never on the frame.
- * Rest bits and per-slot counts are NOT here — they belong to the draw compact, which the
+ * The rest bits are NOT here — they belong to the draw compact, which the
  * partition writes in their place.
  */
 export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
@@ -24,7 +24,7 @@ export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
   })
   const uniforms = device.createBuffer({
     label: 'Trillion3D partition uniform v1',
-    size: UNIFORM_U32 * 4,
+    size: PARTITION_UNI.words * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   return { ...rows, state, uniforms, all: [...rows.all, state, uniforms] }
@@ -46,7 +46,7 @@ export function createGpuPartitionRows(device: GPUDevice, slotCap: number) {
   })
   const tested = device.createBuffer({
     label: 'Trillion3D partition tested bounds v1',
-    size: rows * TESTED_U32 * 4,
+    size: rows * TESTED_BOX.words * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   })
   return { rows, corners, rowData, tested, all: [corners, rowData, tested] }
@@ -65,9 +65,9 @@ const BINDING_TYPE: Record<Exclude<Binding, 'pyramid'>, GPUBufferBindingType> = 
   rowData: 'storage',
   tested: 'storage',
   restBits: 'storage',
-  slotUsed: 'storage',
   state: 'storage',
   uniforms: 'uniform',
+  hizLevels: 'uniform',
 }
 /** The bind layout of one kernel: its resources alone, at the module's binding numbers — its
  *  buffers, and the pyramid texture whose farthest layer it reads. */

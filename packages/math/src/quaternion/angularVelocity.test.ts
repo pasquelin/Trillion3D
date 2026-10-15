@@ -1,16 +1,12 @@
 // quaternion.ts turnByAngularVelocity: the exact turn of a constant ω, `(ω̂ sin θ, cos θ) ⊗ q` —
 // a quarter turn in one step, many steps the one, the axis-angle turn itself —, and under its small
-// angle the explicit step of `q̇ = ½ (ω, 0) ⊗ q` bit for bit. arcAngularVelocity: the rate an arc
-// turns at, which the turn goes on along exactly as `slerpOnArc` does past the arc's end.
+// angle the explicit step of `q̇ = ½ (ω, 0) ⊗ q` bit for bit.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
-  arcAngularVelocity,
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternionAt,
-  slerpArc,
-  slerpOnArc,
   turnByAngularVelocity,
 } from './quaternion.ts'
 import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
@@ -85,33 +81,5 @@ test('turnByAngularVelocity is the axis-angle turn, and many steps are the one',
       assert.ok(Math.abs(one[k] - exact[k]) <= 1e-14, `${i}.${k}: ${one[k]} ${exact[k]}`)
       assert.ok(Math.abs(many[k] - one[k]) <= 1e-13, `${i}.${k}: ${many[k]} ${one[k]}`)
     }
-  }
-})
-
-test('the turn at the arc rate goes on along the arc as slerpOnArc does past its end', () => {
-  const arc = new Float64Array(3),
-    w = new Float64Array(3),
-    along = new Float64Array(4),
-    turned = new Float64Array(4)
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const a = unit(i, [2, 3, 5, 7]),
-      b = unit(i, [11, 13, 17, 19])
-    slerpArc(arc, 0, a, 0, b, 0)
-    const step = haltonSpan(i, 23, 0.001, 0.05),
-      t = haltonSpan(i, 29, 1, 3)
-    arcAngularVelocity(w, 0, a, 0, b, 0, arc, 0, step)
-    slerpOnArc(along, 0, a, 0, b, 0, t, arc, 0)
-    normalizeQuaternionAt(along, 0, along[0], along[1], along[2], along[3])
-    turnByAngularVelocity(turned, 0, b, 0, w, 0, ((t - 1) * step) / 2)
-    // The same rotation: the quaternion, or its opposite.
-    const sign =
-      along[0] * turned[0] + along[1] * turned[1] + along[2] * turned[2] + along[3] * turned[3] < 0
-        ? -1
-        : 1
-    for (let k = 0; k < 4; k++)
-      assert.ok(
-        Math.abs(sign * turned[k] - along[k]) <= 1e-12,
-        `${i}.${k}: ${turned[k]} ${along[k]}`,
-      )
   }
 })

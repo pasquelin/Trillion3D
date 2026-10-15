@@ -26,7 +26,7 @@ function runtime(scale: RenderScale | undefined, allocated = DISPLAY, apart = tr
     context: {},
     scale: createScaleControl(scale),
     gpu: {
-      temporal: { upscales: () => true },
+      temporal: {},
       temporalWanted: true,
       targetSize: [...allocated],
       allocatedSize: [...allocated],
@@ -76,7 +76,6 @@ test('the frame is drawn below the display only when the temporal resolve recons
     ['a diagnostic view', (view) => (view.run.diagnostic = 'normals' as never)],
     ['no pass: a capture view', (view) => (view.gpu.temporal = undefined)],
     ['a GPU variant', (view) => (view.context.diagnosticGpuVariant = 'raster-compute' as never)],
-    ['resolves compiling', (view) => Object.assign(view.gpu.temporal!, { upscales: () => false })],
   ]
   for (const [what, change] of changes) {
     const { rt } = runtime(0.5)

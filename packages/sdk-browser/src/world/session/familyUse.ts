@@ -1,4 +1,4 @@
-import { frameCostAuditEnabled } from '../../frame/costAudit.ts'
+import { debugMode } from '../../host/debugMode.ts'
 import { familiesArriving } from '../../host/families.ts'
 import { frameFamilies, type Held } from './frameFamilies.ts'
 import type { MeasuredWorldOptions } from './options.ts'
@@ -14,10 +14,10 @@ export const frameWaits = (held: Held) => familiesArriving(frameFamilies(held))
 /**
  * The families a session opening on `options` loads with its scene (`prepare.ts`): those its
  * first frame draws with, and the measurement's provenance when a diagnostic channel listens or
- * the frame audit is on. Started at once, awaited before the session opens.
+ * debug mode (the frame audit among its tools) is on. Started at once, awaited before the session opens.
  */
 export function sessionFamilies(options: MeasuredWorldOptions, listened: boolean) {
   const names = [...frameFamilies(options)]
-  if (listened || frameCostAuditEnabled()) names.push('measurement')
+  if (listened || debugMode()) names.push('measurement')
   return familiesArriving(names)
 }

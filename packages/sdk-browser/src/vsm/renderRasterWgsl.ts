@@ -4,20 +4,21 @@
  * 16384-wide viewport without a 16384² attachment, so the vertex shader maps the pair's virtual
  * page onto the whole viewport (the same pixel centres as a virtual raster: page offsets are whole
  * pixels) and the fragment adds the physical page origin (flat varying) before the 32-bit
- * `atomicMax` into `pool[physical texel, slice]`. A triangle over four pages is drawn four times,
+ * `atomicMax` into `pool[physical texel, slice]` — a static caster's into slice 0 as well. A
+ * triangle over four pages is drawn four times,
  * once per pair. The page clip (clip distances to the uncached rect) is the pair's page itself.
  *
  * One non-indexed `drawIndirect` per chunk (vertex pulling): `vertex_index` is the corner of the
  * row (`PageInfo.indexCount`, the chunk's draw counts the largest), `instance_index` the pair;
  * corners past a row's own and culled triangles output a NaN position.
  *
- * Face culling: the mesh's cull mode is applied for VSM (two-sided → none, VSM never reverses).
- * Here it is decided per triangle in the vertex shader, in world space, the camera's convention: a
- * triangle is front when its counter-clockwise normal (flipped by a mirroring placement, the main
- * raster's `windingCw`) faces the light — toward −light-direction for an orthographic view (the
- * reversed-Z clip z gradient), toward the light position (the shifted origin) for a
- * perspective one. Double-sided rows (`FLAG_DOUBLE`) cull nothing, back-side rows (`FLAG_BACK`)
- * cull the front.
+ * Face culling: the mesh's cull mode, by the rasterizer (`cullMode: 'back'`, `frontFace: 'ccw'`): each
+ * vertex emits its triangle in the winding that makes a face toward the light counter-clockwise on
+ * the framebuffer (`vsmRenderEmitsSwapped`): a counter-clockwise world normal, turned by a mirroring
+ * placement (the main raster's `windingCw`) and by a back-side row (`FLAG_BACK`, which keeps its back
+ * faces), against the map's own handedness. A two-sided row (`FLAG_DOUBLE`) draws its corners twice,
+ * the second time swapped: one of the two copies faces the light. A vertex decodes its own corner
+ * alone.
  *
  * Emitter envelope: a local light that declares an emitter radius (`emitterSize`, the
  * scene light's `emitterRadius`) accepts no depth from inside that sphere — the bulb, the glass or
@@ -33,9 +34,8 @@
  * less flags / uniform / instances / slot offsets). Group 1: 0 pairs (vertex), 1 projection
  * data (vertex), 2.. pool slices × parts (fragment, atomic).
  */
+import { VSM_CASTER_PROJECTION_WGSL } from './renderCasterWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { bitAt, bitIsSet, byteOf } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
@@ -47,7 +47,7 @@ import {
   SHADOW_TILE_POOL_WGSL,
   materialDeclarations,
 } from '../webgpu/tile/wgsl.ts'
-import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -61,44 +61,6 @@ export const VSM_RENDER_RASTER_FRAGMENT_SPECS: readonly VsmBindingSpec[] = [
 ]
 /** The dummy attachment: one page. */
 export const VSM_RENDER_TARGET_FORMAT: GPUTextureFormat = 'depth16unorm'
-
-/**
- * What the opaque raster and the transmission bin share of a caster corner's projection on a VSM
- * view: the world position of a row's vertex, composed as the shadow depth pass composes it; the
- * translated world; the clip position, a sun level's corner in front of its near plane flattened
- * onto it (the greatest depth an f32 holds below 1, 1 − 2^-24, the nearest the clip volume keeps
- * strictly inside, so that no rounding of the clip test drops it; every receiver of the level lies
- * at a depth of at most 1 behind it); and whether a triangle faces the light — toward
- * −light-direction for an orthographic view (the reversed-Z clip z gradient), toward the light
- * position (the shifted origin) for a perspective one — its counter-clockwise normal flipped by a
- * mirroring placement, the main raster's \`windingCw\`.
- */
-export const VSM_CASTER_PROJECTION_WGSL = wgslBlock(
-  'VSM_CASTER_PROJECTION_WGSL',
-  [PAGE_INFO_WGSL, PAGE_GEOMETRY_WGSL, VSM_PROJECTION_DATA_WGSL, matrixWindingCw, faceNormal],
-  `
-/** World position of a row's vertex, composed as the shadow depth pass composes it. */
-fn vsmRenderWorld(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{return (page.world*vec4f(pagePosition(page,h,vertex),1.0)).xyz;}
-/** The world position in the VSM view's translated world. */
-fn vsmRenderShifted(raw:VsmProjectionRecord,world:vec3f)->vec3f{return (world+raw.originShiftHigh)+raw.originShiftLow;}
-/** The clip position of a translated world point; \`flatten\` sends a point in front of the near plane onto it. */
-fn vsmRenderClip(raw:VsmProjectionRecord,shifted:vec3f,flatten:bool)->vec4f{
- let m=raw.shiftedToMapUv*vec4f(shifted,1.0);
- return select(m,vec4f(m.xy,${VSM_F32_BELOW_ONE},1.0),flatten&&m.z>m.w);
-}
-/** Whether the counter-clockwise triangle (a,b,c) of the row faces the VSM view \`raw\`; \`twA\` is \`a\` translated. */
-fn vsmRenderFacesLight(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec3f,twA:vec3f)->bool{
- let mirrored=matrixWindingCw(page.world);
- var n=faceNormal(a,b,c);
- if(mirrored){n=-n;}
- let uv=raw.shiftedToMapUv;
- let isOrtho=raw.lightViewToClip[3][3]>=1.0;
- // Toward the light: the clip z gradient (reversed Z, nearer = larger) for an orthographic view,
- // the shifted origin (originShift = −light position) for a perspective one.
- let toLight=select(-twA,vec3f(uv[0].z,uv[1].z,uv[2].z),isOrtho);
- return dot(n,toLight)>0.0;
-}`,
-)
 
 export const vsmRenderRasterWgsl = (layout: VsmLayout) =>
   wgslProgram(
@@ -122,12 +84,22 @@ struct VsmRenderOut{
 /** A dropped corner: every corner of a dropped triangle lands on this one point outside the
  *  viewport, a zero-area triangle no rasterizer covers (a NaN constant does not compile in Tint). */
 fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
-/** Whether the mesh cull mode keeps triangle (a,b,c) seen from the VSM view \`raw\`. */
-fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec3f,twA:vec3f)->bool{
- if((page.flags&${FLAG_DOUBLE}u)!=0u){return true;}
- let front=vsmRenderFacesLight(page,raw,a,b,c,twA);
- let back=(page.flags&${FLAG_BACK}u)!=0u;
- return select(front,!front,back);
+/**
+ * Whether a vertex emits its triangle with corners 1 and 2 swapped, so that a face toward the light
+ * is counter-clockwise on the framebuffer. A triangle's projected winding is its facing times the
+ * sign of D: for a perspective map, D = −det of the UV matrix's u, v, w rows (the light at the
+ * shifted origin, those rows linear), for an orthographic one det of its u, v, z rows (z toward the
+ * light, reversed Z); the page's NDC y and the framebuffer's y each turn it once. Swapped where D < 0,
+ * where a mirroring placement turns the counter-clockwise normal, where a back-side row keeps its back
+ * faces, and for a two-sided row's second copy.
+ */
+fn vsmRenderEmitsSwapped(page:PageInfo,raw:VsmProjectionRecord,second:bool)->bool{
+ let m=raw.shiftedToMapUv;
+ let ortho=raw.lightViewToClip[3][3]>=1.0;
+ let r3=select(vec3f(m[0].w,m[1].w,m[2].w),vec3f(m[0].z,m[1].z,m[2].z),ortho);
+ let d=dot(vec3f(m[0].x,m[1].x,m[2].x),cross(vec3f(m[0].y,m[1].y,m[2].y),r3));
+ let negative=select(d>0.0,d<0.0,ortho);
+ return negative!=(matrixWindingCw(page.world)!=(((page.flags&${FLAG_BACK}u)!=0u)!=second));
 }
 @vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VsmRenderOut{
  let pair=vsmRenderPairs[instanceIndex];
@@ -135,17 +107,17 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  out.row=pair.x;out.uv=vec2f(0.0);out.dest=vec2u(pair.w,bitAt(pair.y,21u));out.fromEmitter=vec4f(0.0);
  let page=pages[pair.x];
  out.masked=page.flags&${FLAG_MASK}u;
- if(vertexIndex>=page.indexCount){out.position=vsmRenderNan();return out;}
+ let n=page.indexCount;
+ let second=vertexIndex>=n;
+ if(vertexIndex>=select(n,2u*n,(page.flags&${FLAG_DOUBLE}u)!=0u)){out.position=vsmRenderNan();return out;}
+ let v=select(vertexIndex,vertexIndex-n,second);
  let raw=vsmProjectionData[pair.y&0xFFFFu];
  let h=pageHeaderFor(page,pageSurfaceRead(page));
- let tri=pageTriangle(page,h,vertexIndex/3u);
- let corner=vertexIndex%3u;
- let a=vsmRenderWorld(page,h,tri.x);
- let b=vsmRenderWorld(page,h,tri.y);
- let c=vsmRenderWorld(page,h,tri.z);
- if(!vsmRenderFaceKept(page,raw,a,b,c,vsmRenderShifted(raw,a))){out.position=vsmRenderNan();return out;}
+ let tri=pageTriangle(page,h,v/3u);
+ var corner=v%3u;
+ if(corner!=0u&&vsmRenderEmitsSwapped(page,raw,second)){corner=3u-corner;}
  let id=select(select(tri.z,tri.y,corner==1u),tri.x,corner==0u);
- let world=select(select(c,b,corner==1u),a,corner==0u);
+ let world=vsmRenderWorld(page,h,id);
  // Translated world of the VSM view, then its clip.
  let shifted=vsmRenderShifted(raw,world);
  let isOrthoView=raw.lightViewToClip[3][3]>=1.0;
@@ -170,7 +142,12 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  if(onEmitter||(in.masked!=0u&&!maskKeep(pages[in.row],in.uv,1.0,gx,gy))){discard;}
  let physical=vec2u(in.dest.x&0x3FFu,(in.dest.x>>10u)&0x3FFu);
  let texel=physical*VSM_PAGE_TEXELS+min(vec2u(in.position.xy),vec2u(VSM_PAGE_TEXEL_MASK));
- vsmPoolAtomicMax(texel,in.dest.y,bitcast<u32>(clamp(in.position.z,0.0,1.0)));
+ let depth=bitcast<u32>(clamp(in.position.z,0.0,1.0));
+ vsmPoolAtomicMax(texel,in.dest.y,depth);
+ // A static caster draws a page whose static layer is drawn again this frame, whose dynamic layer
+ // (slice 0, what every reader samples) was cleared with it: it joins slice 0 too, which holds
+ // then both layers once the dynamic casters drew theirs — no merge after the raster.
+ if(in.dest.y!=0u){vsmPoolAtomicMax(texel,0u,depth);}
 }
 `,
     [

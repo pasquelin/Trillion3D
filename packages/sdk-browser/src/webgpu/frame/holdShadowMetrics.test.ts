@@ -6,7 +6,7 @@ import { holdWebgpuFrame } from './hold.ts'
 import { metricsOf } from '../pages/io/metrics.ts'
 import { heldFrame } from './holdMetrics.fixture.ts'
 import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
-import { VSM_PROJECTION_PASS } from '../../vsm/projectionPass.ts'
+import { VSM_PROJECTION_PASS } from '../../vsm/projectionPipelines.ts'
 
 test('a cut page waiting for its bytes forbids holding the frame', () => {
   const { rt, device } = heldFrame()
@@ -29,8 +29,8 @@ test("the shadow counters of a frame are the virtual shadow maps', under their p
     countersOn: true,
     stats: {
       lights: 2,
-      fullMaps: 16,
-      singlePageMaps: 1,
+      maps: 17,
+      tableBlocks: 16,
       requestedPages: 211,
       allocatedPages: 64,
       cachedPages: 147,

@@ -4,7 +4,6 @@
  * their edges, the rows it cannot place at the worst case, and the most rows whose bound holds
  * within `cap`. The answer is held while nothing it reads moved: a still frame measures nothing.
  */
-import { lastTrue } from '../../../math/src/scalar/search.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { dotVector3Xyz, length3 } from '../../../math/src/vector/vector.ts'
 import { VSM_MIPS } from './constants.ts'
@@ -12,6 +11,7 @@ import { BIN_SPAN, MEET_EDGES, PAIR_EDGES, ROOM, SIDE } from './rowBins.ts'
 import type { RowBinsLanded } from './rowBinsRecord.ts'
 import { Ascending, Heaviest, sunWeights, Unplaced, type Top } from './rowBoundWeights.ts'
 import type { VsmChunk, VsmRowBound, VsmWorst } from './rowPageBound.ts'
+import { fit } from './rowBoundFit.ts'
 
 /** What a frame adds to the histogram: pairs and commands every row makes beside the bins (the
  *  single-page maps', the full maps' the bins do not hold), whether the joint bins hold the full
@@ -130,23 +130,7 @@ function measure(
     pairs.most = worst.pages
     sc.tops.push(pairs, meets)
   }
-  const [placePairs, placeCmds] = sc.unplaced
-  placePairs.rows = placeCmds.rows = frame.unplaced
-  placePairs.weight = worst.pages
-  placeCmds.weight = worst.cmdsPerRow
-  sc.tops.push(placePairs, placeCmds)
-  Object.assign(sc, {
-    perPairs: frame.pairs,
-    perCmds: frame.cmds,
-    mostPairs: worst.pages,
-    mostCmds: worst.cmdsPerRow,
-  })
-  const { chunk } = sc
-  chunk.rows = lastTrue(
-    worst.rows,
-    Math.max(worst.rows, candidates),
-    (mid) => chunk.pairs(mid) <= worst.cap && chunk.cmds(mid) <= worst.cap,
-  )
+  const chunk = fit(sc, worst, candidates, frame)
   // The joint bins alone fill the worst case's chunk and one row more: they cannot beat it.
   const k = worst.rows + 1
   const hopeless =

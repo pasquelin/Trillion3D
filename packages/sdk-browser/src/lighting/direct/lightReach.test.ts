@@ -10,7 +10,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
-import { localLightReaches } from './lightWgsl.ts'
+import { localLightReaches } from './lightReachWgsl.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts'
 import { vsmPixelPageMarkingWgsl } from '../../vsm/markingWgsl.ts'

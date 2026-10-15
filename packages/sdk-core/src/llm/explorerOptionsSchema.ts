@@ -1,4 +1,6 @@
 import type { JsonSchemaObject } from './types.ts'
+import { ASSET_SCOPES, DEFAULT_SCOPE } from '../contracts/base.ts'
+import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
@@ -29,9 +31,9 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     scope: {
       type: 'string',
-      enum: ['slice', 'full'],
-      default: 'slice',
-      description: "Asset scope: 'slice' (default) or 'full'.",
+      enum: ASSET_SCOPES,
+      default: DEFAULT_SCOPE,
+      description: `Asset scope, one of the enum: '${DEFAULT_SCOPE}' by default.`,
     },
     geometryPoolBytes: {
       type: 'integer',
@@ -81,11 +83,10 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     bounceBudgetMs: {
       type: 'number',
-      default: 2,
+      default: BOUNCE_SETTINGS.budgetMs,
       minimum: 0.1,
       maximum: 8.0,
-      description:
-        'Target GPU budget in milliseconds for every proxy ray of a frame: reflections first, bounce probes the rest. Default 2 ms.',
+      description: `Target GPU budget in milliseconds for every proxy ray of a frame: reflections first, bounce probes the rest. Default ${BOUNCE_SETTINGS.budgetMs} ms.`,
     },
     importedLights: {
       type: 'boolean',

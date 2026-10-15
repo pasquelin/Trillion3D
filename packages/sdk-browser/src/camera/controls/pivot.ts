@@ -1,7 +1,7 @@
-import { createChangeGate, createControlBase, type ControlBase } from './base.ts'
+import { createChangeGate, createControlBase, surfaceHeight, type ControlBase } from './base.ts'
 import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts'
 import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
-import { dollyDistance, panOffset, pixelWorldScale } from './math.ts'
+import { dollyDistance, panOffset, WHEEL_STEP } from './math.ts'
 import { RADIUS_EPSILON } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
@@ -9,17 +9,18 @@ import type { ControlCamera, PivotCameraControls } from './types.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 
 /**
- * THE PIVOT CORE, shared by the trackball and the planar pan-zoom: a camera, a point it keeps
+ * THE PIVOT CORE, shared by the orbit, the trackball and the planar pan-zoom: a camera, a point it keeps
  * at a bounded distance, and the two gestures that do not depend on how the camera turns —
  * panning the pivot across the view plane, and dollying towards it.
  *
- * It differs from the orbit controller on purpose: orbit REBUILDS the orientation from its two
- * angles, which is what makes it a turntable, whereas here the orientation is whatever the
- * camera carries — the trackball rotates it, the pan-zoom never touches it. Both read the pose
- * back before every gesture, so a host that moves the camera itself is obeyed.
+ * The orbit is built on it too, and REBUILDS the orientation from its two angles before `apply`,
+ * which is what makes it a turntable; elsewhere the orientation is whatever the camera carries —
+ * the trackball rotates it, the pan-zoom never touches it. Each reads the pose back before every
+ * gesture, so a host that moves the camera itself is obeyed.
  */
 export interface PivotCore {
   base: ControlBase
+  pose: ControlPose
   api: PivotCameraControls
   /** Eye, pivot, eye-to-pivot offset and orientation, refreshed by `sample`. */
   position: Float64Array
@@ -44,7 +45,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   // Eye, pivot AND orientation: a trackball seen from its pivot's axis turns the view without
   // moving a single point, and that spin is a change the host must redraw.
   const gate = createChangeGate(base, 10)
-  const height = () => surface.clientHeight || 1
+  const height = () => surfaceHeight(surface)
   const sample = () => {
     pose.readPosition(position)
     pose.readOrientation(orientation)
@@ -73,6 +74,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   })
   return {
     base,
+    pose,
     api,
     position,
     center,
@@ -121,7 +123,7 @@ export function panCenter(
   dx: number,
   dy: number,
 ) {
-  panOffset(pan, orientation, dx, dy, pixelWorldScale(distance, pose.fov(), height, pose.zoom()))
+  panOffset(pan, orientation, dx, dy, pose.worldLength(distance, 1 / Math.max(1, height)))
   for (let i = 0; i < 3; i++) center[i] += pan[i]
 }
 
@@ -179,5 +181,5 @@ export function trackPivotGestures(
 
 /** Notches a pinch is worth: fingers apart zoom in, exactly as a wheel turned backwards. */
 function pinchSteps(ratio: number) {
-  return ratio > 0 ? -Math.log(ratio) / Math.log(0.95) : 0
+  return ratio > 0 ? -Math.log(ratio) / Math.log(WHEEL_STEP) : 0
 }

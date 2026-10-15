@@ -1,3 +1,5 @@
+import { CULL_CHILD_COUNT, CULL_FIRST_CHILD } from './types.ts'
+
 /**
  * Node count of each hierarchy level, root at level zero. Its length is the depth,
  * i.e. the number of passes descent needs to exhaust it.
@@ -28,8 +30,8 @@ export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
     const next: number[] = []
     for (const node of frontier) {
       const base = node * stride,
-        children = nodes[base + 12]
-      for (let c = 0; c < children; c++) next.push(nodes[base + 11] + c)
+        children = nodes[base + CULL_CHILD_COUNT]
+      for (let c = 0; c < children; c++) next.push(nodes[base + CULL_FIRST_CHILD] + c)
     }
     if (next.length > count) throw new Error('Inconsistent culling hierarchy')
     frontier = next

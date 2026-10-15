@@ -155,7 +155,7 @@ fn a_face_citing_the_lowest_edge_index_is_refused_by_name() {
     );
     let (manifest, _) = run.prepared("ma");
     assert_eq!(
-        manifest["unsupported"]["ma-mesh-invalid"], 1,
+        manifest["unsupported"]["mesh-invalid"], 1,
         "the out-of-table edge is counted under its name"
     );
 }

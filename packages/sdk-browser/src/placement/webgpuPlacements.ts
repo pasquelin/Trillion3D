@@ -5,12 +5,13 @@ import { deriveRootRows } from './rowWords.ts'
 import { takeCellsMoved } from '../partition/rowCells.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
 import { linkWorldObject } from '../webgpu/pages/prepare/worldRoot.ts'
+import { rootMark } from '../deformation/halfFloat.ts'
 
 /** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
 export const flipWorld =
-  (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number }) => {
+  (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number; reach?: number }) => {
     rt.run.gpuSelection?.parkWorld(rank, !!root.parked)
-    rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0)
+    rt.run.gpuSelection?.markWorld(rank, rootMark(root))
     // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them,
     // and its rows, derived again, stale the pages it left or entered (`rowCastWgsl.ts`).
     rt.lights.mobility.touch(rank)

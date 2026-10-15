@@ -38,7 +38,7 @@ fn a_textured_occlusion_reaches_the_occlusion_texture_through_its_red_channel() 
     let (_, gltf) = run.prepared("usd");
     assert_eq!(material(&gltf)["occlusionTexture"]["index"], 0);
     assert_eq!(
-        unsupported(&run)["usd-texture-channel-unsupported"],
+        unsupported(&run)["texture-channel-unsupported"],
         Value::Null
     );
 
@@ -48,7 +48,7 @@ fn a_textured_occlusion_reaches_the_occlusion_texture_through_its_red_channel() 
         &layer(other, &texture("T", "checker.png", "")),
         &["checker.png"],
     );
-    assert_eq!(unsupported(&run)["usd-texture-channel-unsupported"], 1);
+    assert_eq!(unsupported(&run)["texture-channel-unsupported"], 1);
     let (_, gltf) = run.prepared("usd");
     assert_eq!(
         material(&gltf)["occlusionTexture"]["index"],
@@ -74,7 +74,7 @@ fn what_gltf_has_no_place_for_in_a_preview_surface_is_counted_by_its_name() {
         json!({
             "usd-specular-workflow-unsupported": 1,
             "usd-clearcoat-unsupported": 1,
-            "usd-ior-unsupported": 1,
+            "ior-unsupported": 1,
             "usd-normal-value-unsupported": 1,
         }),
         "the report of what glTF does not carry has moved"

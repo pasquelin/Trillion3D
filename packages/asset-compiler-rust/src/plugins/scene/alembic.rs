@@ -17,6 +17,7 @@
 //! read —, faces claimed by two face sets, degenerate faces, inconsistent geometry parameters, and
 //! `.arbGeomParams`, which carries whatever the exporter chose to put there.
 use super::*;
+use crate::plugins::scene::codes::{FILE_INVALID, SIZE_UNSUPPORTED};
 use crate::{hash_file, CompilerError};
 use serde_json::json;
 use std::time::Instant;
@@ -51,10 +52,6 @@ pub(super) const HDF5_UNSUPPORTED: &str = "alembic-hdf5-unsupported";
 pub(super) const NOT_FROZEN: &str = "alembic-archive-unfrozen";
 /// The header declares a format version this reader does not read.
 pub(super) const VERSION_UNSUPPORTED: &str = "alembic-version-unsupported";
-/// The file structure does not hold: missing header, truncated block, pointer outside the file.
-pub(super) const FILE_INVALID: &str = "alembic-file-invalid";
-/// A block declares more bytes or children than the driver's allocation ceiling admits.
-pub(super) const SIZE_UNSUPPORTED: &str = "alembic-size-unsupported";
 /// A transform does not compose: unknown operation, or not enough values.
 pub(super) const VALUES_INVALID: &str = "alembic-values-invalid";
 /// A mesh's topology contradicts itself: corners outside the position table, faces beyond the

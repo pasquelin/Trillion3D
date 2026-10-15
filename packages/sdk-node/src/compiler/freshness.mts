@@ -77,11 +77,14 @@ function readStored(binary: string): Stored | undefined {
   }
 }
 
-/** The folders a binary that cannot list its inputs was built from. One that predates
- *  `--build-inputs` was built from the crates beside the compiler's, the page codec and the math
- *  crate, which the compiler's manifest links by path; an older build's listing, when kept, is
- *  the better witness of them. */
-const LINKED_FOLDERS = ['.', '../page-codec-wasm', '../math/rust']
+/** The folders a binary that cannot list its inputs was built from: the crate and every crate its
+ *  manifest links by path (`{ path = "…" }`), read from its `Cargo.toml`, the one place they are
+ *  named. An older build's listing, when kept, is the better witness of them. */
+function linkedFolders(crate: string) {
+  const manifest = readFileSync(join(crate, 'Cargo.toml'), 'utf8')
+  const linked = [...manifest.matchAll(/\{\s*path\s*=\s*"([^"]+)"/g)].map((match) => match[1])
+  return ['.', ...new Set(linked)]
+}
 
 /** The binary's answer by binary and build time: asked once per build, not on every launch nor
  *  in every process — in memory, then on disk beside the binary. A binary that could not answer
@@ -127,7 +130,7 @@ function listOf(
  * current binary costs one directory walk. A newer file there may be test code, which the build
  * leaves out: the binary's list of what it hashed then decides, so a launch calls it stale exactly
  * when its hash would move. A binary that cannot tell — built before `--build-inputs`, or not answering — still has its
- * linked crate folders walked (see LINKED_FOLDERS): any newer file there makes it stale.
+ * linked crate folders walked (`linkedFolders`): any newer file there makes it stale.
  */
 export function sourceNewerThan(
   binary: string,
@@ -138,7 +141,7 @@ export function sourceNewerThan(
   if (!built || !modified(join(crate, 'Cargo.toml'))) return null
   const { listing: read, lastGood } = listOf(binary, built.mtimeMs, ask)
   const known = read ?? lastGood
-  const folders = known?.folders ?? LINKED_FOLDERS
+  const folders = known?.folders ?? linkedFolders(crate)
   // The inputs outside every crate folder — the catalogue, and of the hashed files the cargo
   // configuration and the physics cook's sources — are in no walk: each, newer, is enough.
   const inside = (file: string) =>

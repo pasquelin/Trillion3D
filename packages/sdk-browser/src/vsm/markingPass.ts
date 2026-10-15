@@ -16,10 +16,9 @@
  * Pipelines are cached per device and per shader text; bind groups once per frame set (`res.current`,
  * the two in turn), the pixel pass's view group again only when a resource of the view moved.
  */
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import {
   VSM_GROUP_WIDTH,
-  VSM_LIGHT_KIND_DIRECTIONAL,
-  VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_MIPS,
   VSM_MARK_STRIDE_X,
   VSM_MARK_STRIDE_Y,
@@ -73,14 +72,8 @@ import { clamp } from '../../../math/src/scalar/reals.ts'
 const VSM_PER_PAGE_BIN_GRID = [8, 4, 1, 0] as const
 export const VSM_PER_PAGE_BIN_COUNT = 4
 
-/** Whether the map is a single-page map. */
-function vsmIsSinglePage(id: number) {
-  return id < VSM_SINGLE_PAGE_MAP_SLOTS
-}
-
-/** The bin of a map by its id and minimum mip level. */
-function vsmPerPageBin(mapId: number, finestMip: number) {
-  if (vsmIsSinglePage(mapId)) return VSM_PER_PAGE_BIN_COUNT - 1
+/** The bin of a map by its finest mip: the pages its walk covers. */
+function vsmPerPageBin(finestMip: number) {
   if (finestMip < 6) return Math.floor(finestMip / 2)
   return VSM_PER_PAGE_BIN_COUNT - 1
 }
@@ -117,7 +110,7 @@ function countingSort(
   for (const bin of bins) bin.count = 0
   for (let k = 0; k < count; k++) {
     const e = entries[k]
-    if (!directionalOnly || e.directional) bins[vsmPerPageBin(e.id, e.finestMip)].count++
+    if (!directionalOnly || e.directional) bins[vsmPerPageBin(e.finestMip)].count++
   }
   let offset = base
   for (const bin of bins) {
@@ -128,7 +121,7 @@ function countingSort(
   for (let k = 0; k < count; k++) {
     const e = entries[k]
     if (directionalOnly && !e.directional) continue
-    const bin = bins[vsmPerPageBin(e.id, e.finestMip)]
+    const bin = bins[vsmPerPageBin(e.finestMip)]
     ids[bin.offset + bin.count++] = e.id
   }
 }
@@ -164,7 +157,7 @@ export function vsmCachePerPageBins(cache: VsmCacheManager, frame: VsmPerPageFra
         to = (entries[count] ??= { id: 0, finestMip: 0, directional: false })
       to.id = entry.mapId + index
       to.finestMip = data.finestMip
-      to.directional = data.lightKind === VSM_LIGHT_KIND_DIRECTIONAL
+      to.directional = data.lightKind === LIGHT_KIND.directional
       if (to.directional) directional++
     }
   }
@@ -244,8 +237,8 @@ export interface VsmMarkingView {
 }
 
 export interface VsmMarkingFrame {
-  fullMapCount: number
-  singlePageMapCount: number
+  /** The frame's maps: ids [0, mapCount). */
+  mapCount: number
   perPage: VsmPerPageBins
   /** The camera's kind as the engine knows it, never a matrix test (`projectionPass.ts`). */
   perspective: boolean
@@ -394,7 +387,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       u[23] = v.sunMapCount
     }
     // The number of page rects to clear.
-    u[27] = (frame.fullMapCount + frame.singlePageMapCount) * VSM_MIPS
+    u[27] = frame.mapCount * VSM_MIPS
     writeChanged(device, params, paramU32, 0, paramU32.length)
   }
 
@@ -516,7 +509,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
 
   return {
     encode(pass, frame) {
-      const mapCount = frame.fullMapCount + frame.singlePageMapCount
+      const mapCount = frame.mapCount
       // No shadow map: nothing to mark.
       if (mapCount === 0) return
       writeParams(frame)

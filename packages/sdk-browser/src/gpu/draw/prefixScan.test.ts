@@ -28,7 +28,7 @@ test('the shipped prefix kernel scans each slot over the 64 threads in workgroup
     const kernel = prefixKernel(shader)
     assert.match(kernel, new RegExp(`for\\(var slot=0u;slot<${slotCount(k)}u;slot\\+\\+\\)`))
     assert.match(kernel, /let span=laneRun\(lane,uni\.groupCount\);/, 'each lane owns a run')
-    assert.match(kernel, /if\(slotUsed\[slot\]==0u\)\{/, 'an unused slot skips the scan')
+    assert.match(kernel, /if\(total==0u\|\|overflow\)\{/, 'an empty slot skips the scan')
     assert.match(
       kernel,
       /var cursor=start\+laneScan\(lane,sum\)-sum;/,

@@ -63,7 +63,7 @@ function holdPages(
  *  held — its session's handle swept included —, every later call the same one. */
 function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
   const { scope, diagnosticChannel, diagnose } = session
-  const { state, profiler, ownedControls, streaming, streamer, engine } = inputs
+  const { state, profiler, ownedControls, streaming } = inputs
   let released: Promise<void> | void
   return () => {
     if (state.disposed) return released
@@ -79,17 +79,42 @@ function sessionDisposal(session: ExplorerSession, inputs: Inputs) {
       }
     })
     // A read cut short says why (#837), never "aborted without reason".
-    streaming.backgroundFetchController?.abort(new DOMException('The session closed', 'AbortError'))
-    streamer.dispose()
-    releasePageWorkers()
-    releasePageIntegration()
-    released = engine.dispose()
-    releaseOwned(session, inputs)
-    diagnose('dispose-complete', 'MeasuredWorld disposal completed', { kind: 'lifecycle', scope })
-    diagnosticChannel.flushSync()
-    diagnosticChannel.close()
+    streaming.stop()
+    released = releaseHeld(session, inputs, () =>
+      diagnose('dispose-complete', 'MeasuredWorld disposal completed', {
+        kind: 'lifecycle',
+        scope,
+      }),
+    )
     return released
   }
+}
+
+/**
+ * THE ONE RELEASE OF WHAT A SESSION HOLDS — by its disposal, or by an opening that failed with what
+ * it had made: its reads, the page workers and integration lane the opening configured, its
+ * engine, what it owns, then its channel, `done` heard just before it closes. It returns the
+ * engine's release.
+ */
+export function releaseHeld(
+  session: ExplorerSession,
+  held: {
+    streamer?: { dispose(): void }
+    engine?: { dispose(): Promise<void> | void }
+    source?: EngineContext['source']
+    gpuDevice?: GPUDevice
+  },
+  done?: () => void,
+) {
+  held.streamer?.dispose()
+  releasePageWorkers()
+  releasePageIntegration()
+  const released = held.engine?.dispose()
+  releaseOwned(session, held)
+  done?.()
+  session.diagnosticChannel.flushSync()
+  session.diagnosticChannel.close()
+  return released
 }
 
 /** The pages the view reads, made resident; `image: false` takes no picture of them.
@@ -118,7 +143,7 @@ function pageAwaiter(inputs: Inputs) {
     const read = streamer.watch(() => report())
     try {
       check()
-      if (streaming.promise) await streaming.promise
+      await streaming.pending()
       const load = async (missing: string[]) => {
         holdPages(engine, streamer, missing, read.hold)
         // `load` hears the cut even when it lacks nothing; an empty batch is not asked.
@@ -134,8 +159,9 @@ function pageAwaiter(inputs: Inputs) {
     } finally {
       read.stop()
     }
-    state.loaded = streamer.stats().loaded
-    state.pageBytesRead = streamer.stats().bytesRead
+    const { loaded, bytesRead } = streamer.stats()
+    state.loaded = loaded
+    state.pageBytesRead = bytesRead
   }
 }
 
@@ -143,7 +169,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
   const { check, streaming, engine } = inputs
   const flush = async () => {
     check()
-    if (streaming.promise) await streaming.promise
+    await streaming.pending()
     await engine.flush()
     await session.diagnosticChannel.flush()
   }

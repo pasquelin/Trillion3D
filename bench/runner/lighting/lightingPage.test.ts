@@ -128,11 +128,11 @@ test('the engine opens at the pixel ratio the bench asks', async () => {
 })
 
 test('measureView keeps an explicit `null` in metrics instead of erasing it', async () => {
-  const { metrics } = await mesurer({ triangles: null, frameHeld: null, drawCalls: 3 })
-  assert.equal(metrics.triangles, null, '`null` must stay, not disappear from the reading')
+  const { metrics } = await mesurer({ selectedTriangles: null, frameHeld: null, drawCalls: 3 })
+  assert.equal(metrics.selectedTriangles, null, '`null` must stay, not disappear from the reading')
   assert.equal(metrics.frameHeld, null)
   assert.equal(metrics.drawCalls, 3, 'a measured number always passes')
-  assert.ok('triangles' in metrics, 'the key itself must be present, not only `undefined`')
+  assert.ok('selectedTriangles' in metrics, 'the key itself must be present, not only `undefined`')
 })
 
 test('measureView keeps an explicit `false`, distinct from an absent counter', async () => {
@@ -143,13 +143,13 @@ test('measureView keeps an explicit `false`, distinct from an absent counter', a
 
 test('measureView keeps a table of numbers — bytes per label — and filters the rest', async () => {
   const { metrics } = await mesurer({
-    triangles: 500,
+    selectedTriangles: 500,
     gpuAllocatedByLabel: { 'Trillion3D display color': 4, unlabelled: 8 },
     scene: { nested: { deep: 1 } },
     pending: [1, 'two'],
     absent: undefined,
   })
-  assert.equal(metrics.triangles, 500)
+  assert.equal(metrics.selectedTriangles, 500)
   assert.deepEqual(metrics.gpuAllocatedByLabel, { 'Trillion3D display color': 4, unlabelled: 8 })
   assert.equal('scene' in metrics, false, 'an object with a non-number value does not pass')
   assert.equal('pending' in metrics, false, 'an array neither')

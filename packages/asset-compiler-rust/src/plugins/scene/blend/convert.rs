@@ -6,11 +6,7 @@
 //! matrix. A root node carries the axis conversion, Blender working Z-up and glTF Y-up: one
 //! exact matrix, rather than retouching every vertex.
 use super::*;
-
-/// Axis conversion, column by column: x stays x, y becomes z, z becomes -y.
-const Z_UP_TO_Y_UP: [f32; 16] = [
-    1.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-];
+use crate::import::SceneTables;
 
 /// Reads the file and writes its conversion into the cache. Nothing is written next to the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
@@ -28,8 +24,8 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let root = image_root(request.source);
     let mut scene = walker::Scene {
         out: Out {
+            scene: SceneTables::new(plugin),
             room: request.ram_budget.saturating_sub(file.held()),
-            ..Out::default()
         },
         images: Images::default(),
         materials: HashMap::new(),
@@ -37,14 +33,17 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         root: &root,
         cancelled: request.cancelled,
     };
-    scene.out.nodes.push(json!({
-        "name": name_of(source), "matrix": Z_UP_TO_Y_UP, "children": [],
+    scene.out.scene.nodes.push(json!({
+        "name": name_of(source), "matrix": crate::plugins::scene::axes::root(1.0, true), "children": [],
     }));
-    scene.out.roots.push(0);
     let scenes = file.of(*b"SC\0\0").count();
     if scenes > 1 {
-        scene.out.count("scenes", scenes);
-        scene.out.report.add_count("blend-extra-scenes", scenes - 1);
+        scene.out.scene.count("scenes", scenes);
+        scene
+            .out
+            .scene
+            .report
+            .add_count("blend-extra-scenes", scenes - 1);
     }
     let active = active::objects(&file);
     let mut outside = 0;
@@ -70,10 +69,12 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         .add_count("blend-object-outside-scene", outside);
     // The key holds the digest of the file read: an unchanged file is rewritten identically, at
     // the same place.
-    scene.out.key_material = format!("{}:{}\n{digest}", plugin.name(), plugin.version());
-    scene.out.files = json!([{"file": name_of(source), "bytes": raw.len(), "sha256": digest}]);
+    scene
+        .out
+        .scene
+        .read_file(&name_of(source), raw.len(), &digest);
     super::finish(
-        scene.out,
+        scene.out.scene,
         request,
         plugin,
         source,

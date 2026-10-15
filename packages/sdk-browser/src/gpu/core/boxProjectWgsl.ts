@@ -2,7 +2,7 @@ import { DEPTH_LAYER_BIAS_UNITS, MAX_DEPTH_LAYER } from '../../../../sdk-core/sr
 import { PROJECTION_SLACK_WGSL } from './projectionSlackWgsl.ts'
 import { DEPTH_GROW, SCREEN_SLACK_K } from '../partition/margins.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
-import { CORNER_VALUES, FLAG_CLIP } from '../partition/contract.ts'
+import { CORNER_VALUES, FLAG_CLIP, PARTITION_UNI } from '../partition/contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FAR_VALUE, INFINITE_THRESHOLD } from '../../../../math/src/wgsl/constants.ts'
 import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
@@ -13,25 +13,10 @@ const SLACK = wgslF32(SCREEN_SLACK_K),
 /**
  * Uniform that ALL projection kernels share, byte for byte: the partition writes it once per frame
  * (`../partition/uniform.ts`) and the transparent occlusion test reads the SAME buffer. Two boxes
- * of the same frame therefore enter the same arithmetic, with the same anchor, the same matrices
- * and the same mip table — no conservative rule can diverge.
+ * of the same frame therefore enter the same arithmetic, with the same anchor and the same
+ * matrices — no conservative rule can diverge. Its layout is the one table `PARTITION_UNI`.
  */
-export const PARTITION_UNI_WGSL = wgslBlock(
-  'PARTITION_UNI_WGSL',
-  [],
-  `struct Uni{
- view:mat4x4f,
- viewProj:mat4x4f,
- anchorHigh:vec3f,near:f32,
- anchorLow:vec3f,pad1:f32,
- rows:u32,width:u32,height:u32,levels:u32,
- layerTop:u32,hasRest:u32,viewMoved:u32,counting:u32,
- pad3:u32,pad4:u32,pad5:u32,pad6:u32,
- levelOffset:array<vec4u,4>,
- levelWidth:array<vec4u,4>,
-}
-`,
-)
+export const PARTITION_UNI_WGSL = wgslBlock('PARTITION_UNI_WGSL', [], PARTITION_UNI.wgsl)
 
 /**
  * Projection of a world box into a screen rectangle and a depth bound, done by the GPU in single
@@ -53,8 +38,8 @@ export const PARTITION_UNI_WGSL = wgslBlock(
  *  2. a box that touches or crosses the near plane — or whose denominator is not surely positive —
  *     carries the clip flag, and a box that carries it is never rejected;
  *  3. nearest depth RISES by each corner's slack, then by two integer ulps before the layer bias:
- *     engine depth being reversed, it is RAISING it that makes rejection safe, exactly as
- *     `hizNearestBound` guarantees in double precision.
+ *     engine depth being reversed, it is RAISING it that makes rejection safe (the double-
+ *     precision oracle of this bound lives with the tests, `hiz/nearestBound.fixture.ts`).
  */
 export const BOX_PROJECT_WGSL = wgslBlock(
   'BOX_PROJECT_WGSL',

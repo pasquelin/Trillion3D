@@ -2,7 +2,6 @@ import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
@@ -12,16 +11,20 @@ import {
   type VsmConsumerBindings,
   type VsmTraceBindings,
   vsmBindingsLabel,
+  vsmTraceBindingsLabel,
 } from './shadowBindings.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
+import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { FOG_WGSL } from '../fogShader.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
+  LOBELESS_RECT_WGSL,
   LOBELESS_TARGET_WGSL,
   LOBES_LIGHTING_WGSL,
+  LOBES_RECT_WGSL,
   LOBES_TARGET_WGSL,
 } from './lobesWgsl.ts'
 
@@ -32,10 +35,19 @@ export const TILE_SLICE_WGSL = wgslBlock(
   [],
   `
 /** Where the lights of the cell whose record starts at \`base\` start in the view's pool, and how
- *  many (#1369). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
+ *  many (#1369). The one rule of a missing list, for every reader: \`TILE_NO_SLICE\` — no grid this
+ *  image, a pixel past it, or a cell the pool had no room for — walks every declared light of the
+ *  scene, a light no list holds reaching no point of the cell, so the sum is the listed one. */
 fn cellSlice(base:u32)->vec2u{
+ if(base==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
  let first=tileLights[base+1u];
  return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
+}
+/** The rank of a slice's \`index\`th light: the list's word, or, from \`TILE_NO_SLICE\`, every light in
+ *  turn. */
+fn listedLight(slice:vec2u,index:u32)->u32{
+ if(slice.x==TILE_NO_SLICE){return index;}
+ return tileLights[slice.x+index];
 }`,
 )
 /**
@@ -48,15 +60,13 @@ export const pixelCellWgsl = (shadowed = true) =>
     `pixelCellWgsl(${shadowed})`,
     [],
     `
-/** The record of the pixel's cell at depth \`z\`, \`TILE_NO_SLICE\` with no list: no light, or past
- *  the grid. The surface reads it once, for its shadow setup and its lighting. */
-fn pixelCell(pixel:vec2f,z:f32)->u32{
- if(u32(view.lightParams.x)==0u){return TILE_NO_SLICE;}
- return gridCell(pixel,z,vec2u(view.lightParams.yz));
-}
+/** The record of the pixel's cell at depth \`z\` on the deferred view's grid, \`TILE_NO_SLICE\` with
+ *  no list (\`cellSlice\`): the view's columns are zero on an image whose lists were not encoded.
+ *  The surface reads it once, for its shadow setup and its lighting. */
+fn pixelCell(pixel:vec2f,z:f32)->u32{return gridCell(pixel,z,vec2u(view.lightParams.yz));}
 /** Whether a shadow is read in the cell: its list holds a light with a shadow slot, the high bit
- *  of its count. */
-fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`,
+ *  of its count; with no list, every light is walked, so the shadow is set up. */
+fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell==TILE_NO_SLICE||(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`,
   )
 /**
  * The **ranks** of the bindings a lighting program reads, which the layouts number differently:
@@ -79,7 +89,7 @@ export const bindingsLabel = ({
   resolveTransmission,
   trace,
 }: LightingBindings) =>
-  `${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}, ${trace ? Object.values(trace).join(' ') : null}`
+  `${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -92,15 +102,15 @@ export const lightingBase = (
   bindings: LightingBindings,
   key: Partial<ContractKey>,
   { narrow = false, pair = false } = {},
-) => {
-  const shadowed = !key.unshadowed
-  return wgslBlock(
+) =>
+  wgslBlock(
     `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}, ${pair})`,
     [
       SURFACE_MODEL_LIGHT_WGSL,
-      RECT_SHADING_WGSL,
       ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL] : [LOBES_LIGHTING_WGSL]),
-      INVERSE_PI,
+      // A rectless program compiles no rectangle shading at all.
+      ...(key.rectless ? [] : [key.lobeless ? LOBELESS_RECT_WGSL : LOBES_RECT_WGSL]),
+      lambertDiffuse,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
       directShadowWgsl(bindings.transmittance, {
         resolveTransmission: bindings.resolveTransmission ?? null,
@@ -111,31 +121,37 @@ export const lightingBase = (
       FOG_WGSL,
       declaredLightWgsl(key, { pair }),
       TILE_SLICE_WGSL,
-      sliceLightingWgsl(!shadowed, pair),
+      sliceLightingWgsl(pair),
     ],
     `
 var<private> thinSubsurface:vec3f=vec3f(0.0);
-/** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
- * A Lambert lobe on the back side: the light that reaches the surface from behind, as the two-sided foliage contract asks. */
-fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*INVERSE_PI;}
-/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
+/** Whether the surface is thin and two-sided, the one test every term of its back reads. */
+fn thinSurface()->bool{return any(thinSubsurface!=vec3f(0.0));}
+/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`):
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
-fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
+fn environmentIrradiance(N:vec3f)->vec3f{
  let e=directLights.environment;
- let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
- return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*INVERSE_PI;
+ return max(${irradianceShader((k) => `e[${k}].rgb`, 'N')},vec3f(0.0));
+}
+/** The environment's diffuse light on a surface (\`lambertDiffuse\`). */
+fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{return lambertDiffuse(rgb,metal,environmentIrradiance(N),ao);}
+/** A thin two-sided surface's back, the one sum of it: the bounce and the environment lit from
+ *  \`-N\` on its subsurface colour (\`lambertDiffuse\`); a pass with no bounce samples none
+ *  (its \`sampleBounce\` answers zero). Zero on any other surface. */
+fn thinBack(N:vec3f,P:vec3f,ao:f32)->vec3f{
+ if(!thinSurface()){return vec3f(0.0);}
+ return lambertDiffuse(thinSubsurface,0.0,sampleBounce(P,-N)+environmentIrradiance(-N),ao);
 }
 /** The lit surface, one sum for every pass that lights one (the opaque resolve, the blended
  *  surfaces, the water): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
- *  (\`lobeThrough\`), the \`reflection\` and what it \`emissive\`ly gives, added in this order. A pass
- *  with no bounce gives zero. A thin two-sided surface adds its back, \`bounce+environment\` lit
- *  from \`-N\`, after. */
-fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emissive:vec3f)->vec3f{
- return lights+bounce*lobeThrough()+environment*lobeThrough()+reflection+emissive;
+ *  (\`lobeThrough\`), the \`reflection\` and what it \`emissive\`ly gives, added in this order, then a
+ *  thin two-sided surface's back (\`thinBack\`) at the point \`P\` of normal \`N\`. A pass with no
+ *  bounce gives zero. */
+fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emissive:vec3f,N:vec3f,P:vec3f,ao:f32)->vec3f{
+ return lights+bounce*lobeThrough()+environment*lobeThrough()+reflection+emissive+thinBack(N,P,ao);
 }
 `,
   )
-}
 
 /** The opaque resolve's bindings (`lightingBase`). */
 const DIRECT_BINDINGS: LightingBindings = {
@@ -161,7 +177,7 @@ const DIRECT_BINDINGS: LightingBindings = {
  * The program `key` names (`ContractKey`, `LOBELESS_KEY` unless given). `narrow`, the resolve of a
  * scene of at most `TILE_LIGHTS` lights (#849): its light array is that long. `unshadowed`, the
  * resolve of a scene no light of which holds a shadow slot: the same sums with no shadow code
- * compiled in (`declaredLightWgsl`, #1249) and the range reject in its loop (`sliceLightingWgsl`).
+ * compiled in (`declaredLightWgsl`, #1249).
  * `rectless`, the resolve of a scene that holds no rectangle light: the same sums with no rectangle
  * code in the light loop (`declaredLightWgsl`, #1369). Without `lobeless`, the resolve of an image
  * that holds an anisotropic or clear-coat surface (`lobesWgsl.ts`).
@@ -175,10 +191,9 @@ export const directLightingWgsl = (key: Partial<ContractKey> = LOBELESS_KEY) =>
       pixelCellWgsl(!key.unshadowed),
     ],
     `
-/** Contribution of the contract lights to the pixel, light by light of its cell's list: the full
- *  sum, moving or still. */
+/** Contribution of the contract lights to the pixel, light by light of its cell's list (every light
+ *  with none, \`cellSlice\`): the full sum, moving or still. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,cell:u32)->vec3f{
- if(cell==TILE_NO_SLICE){return vec3f(0.0);}
  return sliceLighting(rgb,metal,rough,N,V,P,ao,cellSlice(cell));
 }`,
   )

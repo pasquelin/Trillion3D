@@ -85,26 +85,64 @@ pub fn primitive_grid_exponent(
     }
 }
 
-/// The texture grid of a primitive whose texture coordinates span `span` at most: the format's,
-/// or for a `blended` one the finest grid that span fits, never coarser than the format's.
+/// The texture grid of a primitive whose pages may hold a texture-coordinate span of `span`: the
+/// one rule of both cuts. Never coarser than the format's 2^`UV_EXPONENT`: a `blended` primitive
+/// takes the finest grid that span fits, one grid however it is cut, finer than the format's when
+/// the span allows; any other the format's. A page whose own span would not fit its field takes
+/// the coarser grid that holds it, alone (`page_uv_exponent`): no primitive pays for one page.
 pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
-    if blended && span > 0.0 {
-        finest_exponent(span).min(UV_EXPONENT)
-    } else {
-        UV_EXPONENT
+    match blended && span > 0.0 {
+        true => finest_exponent(span).min(UV_EXPONENT),
+        false => UV_EXPONENT,
     }
 }
 
-/// The texture grid of drawn triangles, whose widest page's coordinates span `span`: the run-time
-/// cut's rule alone, no compiled primitive takes it. A `blended` primitive takes the finest grid
-/// that span fits; any other the format's, coarser only where the span would not fit a page's
-/// field; no span, the format's.
-pub fn drawn_uv_grid_exponent(span: f64, blended: bool) -> i32 {
-    match (span > 0.0, blended) {
-        (false, _) => UV_EXPONENT,
-        (true, true) => finest_exponent(span),
-        (true, false) => finest_exponent(span).max(UV_EXPONENT),
+/// The texture grid one page is written on: the primitive's `grid`, coarser only when the page's
+/// own coordinates (`values`, two floats a vertex) span more than its field holds there. Each page
+/// carries its exponent and its minimum, so only that page's precision moves.
+pub fn page_uv_exponent(grid: i32, values: &[f32]) -> i32 {
+    let span = widest_uv_span(values, &[], &[]);
+    match span > 0.0 {
+        true => grid.max(finest_exponent(span)),
+        false => grid,
     }
+}
+
+/// The longest side of the box of `positions` (three floats a vertex): the extent a primitive's
+/// position grid is set by, measured the same way by both cuts.
+pub fn positions_extent(positions: &[f32]) -> f64 {
+    let b = crate::proxy::bvh::extent(positions);
+    trillion3d_math::aabb::longest_side([b[0], b[1], b[2]], [b[3], b[4], b[5]])
+}
+
+/// The widest range of either texture coordinate a page holds: over the corners of each of
+/// `ranges` (ranks into `corners`), or over every vertex of `uvs` when `ranges` is empty — a
+/// primitive whose DAG pages may hold it whole. The span `uv_grid_exponent` reads, measured the
+/// same way by both cuts.
+pub fn widest_uv_span(uvs: &[f32], corners: &[u32], ranges: &[[u32; 2]]) -> f64 {
+    let pairs = uvs.as_chunks::<2>().0;
+    let span = |vertices: &mut dyn Iterator<Item = usize>| {
+        let (mut low, mut high) = ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]);
+        for uv in vertices.filter_map(|v| pairs.get(v)) {
+            for axis in 0..2 {
+                low[axis] = low[axis].min(f64::from(uv[axis]));
+                high[axis] = high[axis].max(f64::from(uv[axis]));
+            }
+        }
+        (0..2)
+            .map(|axis| high[axis] - low[axis])
+            .fold(0.0, f64::max)
+    };
+    if ranges.is_empty() {
+        return span(&mut (0..pairs.len()));
+    }
+    ranges
+        .iter()
+        .map(|&[start, end]| {
+            let corners = corners.get(start as usize..end as usize).unwrap_or(&[]);
+            span(&mut corners.iter().map(|&v| v as usize))
+        })
+        .fold(0.0, f64::max)
 }
 
 #[cfg(test)]

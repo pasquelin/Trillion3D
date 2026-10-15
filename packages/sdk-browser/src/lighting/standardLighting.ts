@@ -1,7 +1,12 @@
 import { PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
-import { f0Of, fresnelSchlick, lambertAlbedo, ndotvFloor } from '../../../math/src/wgsl/lighting.ts'
+import {
+  f0Of,
+  fresnelSchlick,
+  lambertAlbedoMul,
+  ndotvClamped,
+} from '../../../math/src/wgsl/lighting.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 
 /**
@@ -35,35 +40,24 @@ fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
  *  What a pixel's lights share of its surface — its reflectance, its diffuse albedo, α², 1 − α²,
  *  N·V and the view's half of the visibility — is taken once a pixel (\`lobeSurface\`), before its
  *  light loop (\`sliceLighting\`), never once a light: the very operations in the very order, so
- *  every light's term keeps its bits. \`surfaceLight\` is one light on such a surface,
- *  \`standardLighting\` the same on a surface given whole. \`standardLobe\` is the light's term
+ *  every light's term keeps its bits; one light on such a surface is \`surfaceLight\`
+ *  (\`SURFACE_LIGHT_WGSL\`). \`standardLobe\` is the light's term
  *  past its direction \`L\`, the half-vector \`H\` and \`NdotL\` above zero: what a clear coat
  *  (\`direct/lobesWgsl.ts\`) runs on its own normal with the base's \`L\` and \`H\`. */
 export const STANDARD_LIGHTING_WGSL = wgslBlock(
   'STANDARD_LIGHTING_WGSL',
-  [fresnelSchlick, f0Of, lambertAlbedo, ndotvFloor, GGX_DISTRIBUTION_WGSL],
+  [fresnelSchlick, f0Of, lambertAlbedoMul, ndotvClamped, GGX_DISTRIBUTION_WGSL],
   `struct LobeSurface{f0:vec3f,diffuse:vec3f,alpha2:f32,rest:f32,NdotV:f32,viewG:f32,}
 fn lobeSurface(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->LobeSurface{
  var s:LobeSurface;
  let alpha=rough*rough;
  s.alpha2=alpha*alpha;
  s.rest=1.0-s.alpha2;
- s.NdotV=ndotvFloor(N,V);
+ s.NdotV=ndotvClamped(N,V);
  s.viewG=sqrt(s.NdotV*s.NdotV*s.rest+s.alpha2);
  s.f0=f0Of(rgb,metal);
- s.diffuse=lambertAlbedo(rgb,metal);
+ s.diffuse=lambertAlbedoMul(rgb,metal);
  return s;
-}
-fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->vec3f{
- return surfaceLight(lobeSurface(rgb,metal,rough,N,V),N,V,light);
-}
-fn surfaceLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
- let L=normalize(light.xyz);
- let NdotL=max(dot(N,L),0.0);
- // Facing away, both lobes are finite numbers times direct = light.w·0: a zero, which the light's
- // sum keeps as it is. Returned before the half-vector, the distribution and Fresnel are paid.
- if(NdotL==0.0){return vec3f(0.0);}
- return standardLobe(s,N,V,normalize(L+V),NdotL,light.w);
 }
 fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
  let direct=energy*NdotL;
@@ -86,6 +80,30 @@ fn lobeSum(s:LobeSurface,D:f32,gV:f32,gL:f32,VdotH:f32,direct:f32)->vec3f{
 }`,
 )
 
+/** One light on a surface, the one light of every surface (\`surfaceLight\`), its direction \`light.xyz\`
+ *  unit as every caller hands it (\`directIncidence\`): the standard block's lobe under the pixel's lobe hooks
+ *  — \`baseLobe\`, \`lobeThrough\`, \`coatLobe\`, \`coatCosine\` —, which the hook blocks that list
+ *  this one declare (\`direct/lobesWgsl.ts\`: the lobed one, and the lobeless one's standard lobe,
+ *  one and zero). */
+export const SURFACE_LIGHT_WGSL = wgslBlock(
+  'SURFACE_LIGHT_WGSL',
+  [STANDARD_LIGHTING_WGSL],
+  `
+fn surfaceLight(s:LobeSurface,N:vec3f,V:vec3f,light:vec4f)->vec3f{
+ let L=light.xyz;
+ let NdotL=max(dot(N,L),0.0);
+ let coatNdotL=coatCosine(L);
+ // Facing away from the base and the coat, every lobe is a finite number times direct = light.w·0:
+ // a zero, which the light's sum keeps as it is. Returned before the half-vector, the distribution
+ // and Fresnel are paid.
+ if(NdotL==0.0&&coatNdotL==0.0){return vec3f(0.0);}
+ let H=normalize(L+V);
+ var base=vec3f(0.0);
+ if(NdotL>0.0){base=baseLobe(s,N,V,L,H,NdotL,light.w);}
+ return base*lobeThrough()+coatLobe(V,H,coatNdotL,light.w);
+}`,
+)
+
 /**
  * WORLD normal of a local normal under a world pose: the inverse-transpose of the 3×3 when
  * it is regular, the transformed face normal when the pose flattens the primitive onto a
@@ -99,7 +117,7 @@ export const NORMAL_TRANSFORM_WGSL = wgslBlock(
   'NORMAL_TRANSFORM_WGSL',
   [worldMatrix3, inverseTranspose3, unitOrZero],
   `
-fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return unitOrZero(inverseTranspose3(worldMatrix3(world),n));
-}`,
+fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{return linearNormal(worldMatrix3(world),n);}
+/** The same under a pose's linear part \`m\`, which a caller holding it hands as it is. */
+fn linearNormal(m:mat3x3f,n:vec3f)->vec3f{return unitOrZero(inverseTranspose3(m,n));}`,
 )

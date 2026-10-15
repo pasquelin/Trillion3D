@@ -1,13 +1,8 @@
 import { judgeCadence, resetCadence, type Cadence } from './cadence.ts'
-import { GRID_TOLERANCE, SUPPORT, type createRefreshClock } from './refreshClock.ts'
-import {
-  displayMoved,
-  HISTORY,
-  INTERVAL_PAUSE_MS,
-  PERIOD,
-  SECOND_MS,
-  type createTargetCap,
-} from './scaleTargets.ts'
+import { samePeriod, SUPPORT, type createRefreshClock } from './refreshClock.ts'
+import { displayMoved, HISTORY, PERIOD, SECOND_MS } from './scaleTargets.ts'
+import type { createLoopPace } from './loopPace.ts'
+import type { createScaleMemory } from './scaleMemory.ts'
 import {
   clearCosts,
   fitScale,
@@ -20,13 +15,15 @@ import {
 } from './scaleWindow.ts'
 
 /** What a tick reads and moves: the controller's state, the display's clock and size, the
- *  render targets' memory cap, and the steady cadence (`cadence.ts`). */
+ *  render targets' memory cap, the steady cadence (`cadence.ts`) and the loop's pause rule
+ *  (`loopPace.ts`). */
 export interface ScaleParts {
   w: ScaleWindow
   refresh: ReturnType<typeof createRefreshClock>
   display: { width: number; height: number; ratio: number }
-  targets: ReturnType<typeof createTargetCap>
+  memory: ReturnType<typeof createScaleMemory>
   cadence: Cadence
+  pace: ReturnType<typeof createLoopPace>
 }
 
 /** The last image drawn, as the controller was told (`drew`). */
@@ -42,7 +39,7 @@ export interface DrawnImage {
 function readHeldInterval(w: ScaleWindow, refresh: ScaleParts['refresh']) {
   const gap = refresh.gap,
     free = w.holding && !w.fresh,
-    agrees = Math.abs(gap - w.heldGap) <= GRID_TOLERANCE * w.heldGap
+    agrees = samePeriod(gap, w.heldGap)
   w.agreeing = !free ? 0 : agrees ? w.agreeing + 1 : 1
   w.heldGap = free ? gap : Number.NaN
   if (w.agreeing >= SUPPORT) w.measured = true
@@ -80,12 +77,12 @@ function countFrame(p: ScaleParts, image: DrawnImage, fresh: boolean) {
     gap = refresh.gap,
     period = refresh.display,
     auto = w.bounds.auto
-  if (refresh.settled && !(Math.abs(period - w.at) <= GRID_TOLERANCE * w.at)) {
+  if (refresh.settled && !samePeriod(period, w.at)) {
     w.at = period
     forgetThreshold(w, period)
     resetCadence(cadence)
   }
-  const measured = fresh && (image.steered || !auto) && refresh.settled && gap < INTERVAL_PAUSE_MS
+  const measured = fresh && (image.steered || !auto) && refresh.settled && !p.pace.paused
   if (measured && auto && !w.timed) sampleCost(w, w.s * w.s)
   // A still image's interval is no verdict: the loop draws it when its feedback lands
   // (`frameScheduler.ts`), not at the GPU's pace.
@@ -108,13 +105,14 @@ export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: 
     gpu = timed && w.images - w.timedAt < HISTORY,
     moved = displayMoved(p.display)
   if (moved) {
-    p.targets.lift()
-    w.max = w.bounds.max
+    p.memory.uncap()
     refresh.reset()
     resetCadence(p.cadence)
   }
   refresh.tick(now)
   const gap = refresh.gap
+  // A pause is no frame (`loopPace.ts`): neither a miss nor an interval the loop ran.
+  p.pace.ran(p.pace.read(gap))
   if (gap > 0) readHeldInterval(w, refresh)
   if (moved) {
     w.timed = gpu

@@ -1,11 +1,7 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../engine/common.ts'
-import {
-  assertFullShadowPool,
-  referenceTilePlan,
-  type ReferenceTilePlan,
-} from './referenceTiles.ts'
+import { DEFAULT_HEIGHT, DEFAULT_WIDTH, pixelRatioOf } from '../engine/common.ts'
+import { referenceTilePlan, type ReferenceTilePlan } from './referenceTiles.ts'
 import type { MeasuredWorldOptions } from '../world/session/options.ts'
 import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts'
 
@@ -54,7 +50,7 @@ export function referenceOptions(options: MeasuredWorldOptions): {
   const tiles = referenceTilePlan(
     options.width ?? DEFAULT_WIDTH,
     options.height ?? DEFAULT_HEIGHT,
-    options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
+    pixelRatioOf(options),
   )
   return {
     options: {
@@ -64,23 +60,5 @@ export function referenceOptions(options: MeasuredWorldOptions): {
       bounceBudgetMs: REFERENCE_BOUNCE_BUDGET_MS,
     },
     reference: { factor: tiles.factor, approximations: REFERENCE_APPROXIMATIONS, tiles },
-  }
-}
-
-/**
- * The session's `capture` in reference mode: the drawn frame, refused while the shadows draw
- * coarser than they ask, their page pool short (`assertFullShadowPool`). The canvas is at the
- * display — the tiles are drawn aside — so nothing is resolved here. Outside reference mode,
- * `capture` itself.
- */
-export function referenceCapture(
-  capture: () => Promise<Uint8Array>,
-  reference: ReferenceMode | null,
-  shadowBias: () => number | null | undefined,
-) {
-  if (!reference) return capture
-  return async () => {
-    assertFullShadowPool(shadowBias())
-    return capture()
   }
 }

@@ -1,17 +1,8 @@
-//! Region simplification for the cluster DAG: an adapter around the `meshopt` crate's simplifier,
-//! which ranks the collapses and measures the error; this module compacts the region, sets the vertex
-//! flags and attribute weights, and clamps the error to the region's extent.
-use crate::{invalid, Result};
-use meshopt::{SimplifyOptions, VertexDataAdapter};
+//! What the region simplifier (`solve`, the one, `qem_solve.rs`) is handed: a region compacted from
+//! the level's vertices, its vertex flags and its weighed attributes.
 use trillion3d_page_codec::hash::word_map;
-pub struct SimplifiedMesh {
-    pub indices: Vec<u32>,
-    pub error_object: f64,
-    pub triangles: usize,
-}
-/// Region-local vertex buffer plus the table that maps a local index back to its source index.
-/// The dense table is used whenever it is not much larger than the index list; a hash map covers
-/// the case of a small region inside a very large vertex buffer.
+/// Region-local vertex buffer plus the table that maps a local index back to its source index,
+/// renumbered through one hash map sized by the region's corners, whatever the mesh around it.
 pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, Vec<u32>, Vec<u32>) {
     let vertex_count = positions.len() / 3;
     // Region cannot renumber more vertices than corners or mesh
@@ -29,42 +20,31 @@ pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, V
         }
         remap.push(source);
     };
-    if indices.len() * 4 >= vertex_count {
-        let mut table = vec![u32::MAX; vertex_count];
-        for &source in indices {
-            let slot = table.get_mut(source as usize);
-            let id = match slot {
-                Some(entry) if *entry != u32::MAX => *entry,
-                Some(entry) => {
-                    let id = remap.len() as u32;
-                    *entry = id;
-                    push(source, &mut compact_pos, &mut remap);
-                    id
-                }
-                None => {
-                    let id = remap.len() as u32;
-                    push(source, &mut compact_pos, &mut remap);
-                    id
-                }
-            };
-            compact_idx.push(id);
-        }
-    } else {
-        let mut map = word_map(indices.len());
-        for &source in indices {
-            let id = match map.get(&source) {
-                Some(&id) => id,
-                None => {
-                    let id = remap.len() as u32;
-                    map.insert(source, id);
-                    push(source, &mut compact_pos, &mut remap);
-                    id
-                }
-            };
-            compact_idx.push(id);
-        }
+    let mut map = word_map(indices.len());
+    for &source in indices {
+        let id = match map.get(&source) {
+            Some(&id) => id,
+            None => {
+                let id = remap.len() as u32;
+                map.insert(source, id);
+                push(source, &mut compact_pos, &mut remap);
+                id
+            }
+        };
+        compact_idx.push(id);
     }
     (compact_pos, compact_idx, remap)
+}
+/// The region of `corners` with each position welded to its first copy by bits
+/// (`weld_positions`), then compacted: its positions, its corners renumbered, and its corners
+/// welded in the source numbering. The one sequence a soft body's page ids, its simulation
+/// vertices and a convex hull read, so the page and the simulation name the same vertices by
+/// construction.
+pub(crate) fn welded_region(positions: &[f32], corners: &[u32]) -> (Vec<f32>, Vec<u32>, Vec<u32>) {
+    let canonical = crate::dag::clusters::weld_positions(positions, corners);
+    let welded: Vec<u32> = corners.iter().map(|&i| canonical[i as usize]).collect();
+    let (xyz, local, _) = compact_region(positions, &welded);
+    (xyz, local, welded)
 }
 /// The simplifier's per-vertex flags: the vertex does not move.
 pub const VERTEX_LOCK: u8 = 1;
@@ -78,93 +58,6 @@ pub struct Attribute<'a> {
     pub values: &'a [f32],
     pub width: usize,
     pub weight: f32,
-}
-
-/// Simplify a region with an explicit per-vertex flag table instead of a blanket border lock.
-/// `flags` is queried with source vertex indices and answers `VERTEX_LOCK` and `VERTEX_PROTECT`.
-/// A vertex that no other region shares stays free, so the open boundary of a primitive keeps
-/// simplifying instead of pinning the whole region.
-///
-/// The options: the error is absolute, `attributes`
-/// count in it, and permissive mode lets a collapse cross an attribute discontinuity — a hard
-/// edge — unless the vertex is protected. `prune` also removes the disconnected parts that fall
-/// under the error; it ignores locks, so a caller that must keep a locked vertex turns it off.
-/// The error is clamped to the region's extent: the attribute share never outweighs the geometry
-/// it sits on.
-pub fn simplify_with_locked_vertices(
-    positions: &[f32],
-    attributes: &[Attribute],
-    indices: &[u32],
-    target_triangles: usize,
-    prune: bool,
-    flags: &dyn Fn(u32) -> u8,
-) -> Result<SimplifiedMesh> {
-    if indices.len() < 3 || !indices.len().is_multiple_of(3) {
-        return Err(invalid("Index count must be a positive multiple of three"));
-    }
-    if !positions.len().is_multiple_of(3) {
-        return Err(invalid("POSITION count must be a multiple of three"));
-    }
-    let current = indices.len() / 3;
-    if current <= target_triangles.max(1) {
-        return Ok(SimplifiedMesh {
-            indices: indices.to_vec(),
-            error_object: 0.0,
-            triangles: current,
-        });
-    }
-    let (compact_pos, compact_idx, remap) = compact_region(positions, indices);
-    let flags: Vec<u8> = remap.iter().map(|&source| flags(source)).collect();
-    let (values, weights) = compact_attributes(attributes, &remap);
-    let mut options = SimplifyOptions::ErrorAbsolute | SimplifyOptions::Permissive;
-    if prune {
-        options |= SimplifyOptions::Prune;
-    }
-    let mut out = vec![0u32; compact_idx.len()];
-    let mut result_error = 0.0_f32;
-    // The crate's wrapper takes the flags as `bool`, which cannot carry `VERTEX_PROTECT`.
-    let count = unsafe {
-        meshopt::ffi::meshopt_simplifyWithAttributes(
-            out.as_mut_ptr(),
-            compact_idx.as_ptr(),
-            compact_idx.len(),
-            compact_pos.as_ptr(),
-            remap.len(),
-            12,
-            values.as_ptr(),
-            weights.len() * 4,
-            weights.as_ptr(),
-            weights.len(),
-            flags.as_ptr(),
-            target_triangles.max(1) * 3,
-            f32::MAX,
-            options.bits(),
-            &mut result_error,
-        )
-    };
-    out.truncate(count);
-    let triangles = out.len() / 3;
-    if triangles >= current || out.is_empty() {
-        return Ok(SimplifiedMesh {
-            indices: indices.to_vec(),
-            triangles: current,
-            error_object: 0.0,
-        });
-    }
-    let extent = region_extent(&compact_pos)?;
-    Ok(SimplifiedMesh {
-        indices: out.into_iter().map(|i| remap[i as usize]).collect(),
-        triangles,
-        error_object: (result_error as f64).min(extent),
-    })
-}
-
-/// The extent the simplifier normalises a region's positions by, the clamp of its error.
-pub(crate) fn region_extent(positions: &[f32]) -> Result<f64> {
-    let bytes =
-        unsafe { std::slice::from_raw_parts(positions.as_ptr() as *const u8, positions.len() * 4) };
-    let vertices = VertexDataAdapter::new(bytes, 12, 0).map_err(|_| invalid("POSITION adapter"))?;
-    Ok(meshopt::simplify::simplify_scale(&vertices) as f64)
 }
 
 /// Vertex `source`'s `width` values of `values`, appended to `out`: the one compaction of an
@@ -192,7 +85,7 @@ pub(crate) fn compact_attributes(attributes: &[Attribute], remap: &[u32]) -> (Ve
 #[cfg(test)]
 #[path = "qem_attribute_tests.rs"]
 mod attribute_tests;
-/// The variant that solves what it keeps, for seam-locked groups.
+/// The region simplifier.
 #[path = "qem_solve.rs"]
 pub(crate) mod solve;
 #[cfg(test)]

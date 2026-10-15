@@ -90,7 +90,7 @@ fn converted(lamps: &[[f32; 12]], names: &[&str]) -> (Vec<Value>, Out) {
         let view = file.view(block).expect("the lamp's view");
         light::build(Some(view), (*name).to_string(), SCALE, &mut out);
     }
-    (out.lights.clone(), out)
+    (out.scene.lights.clone(), out)
 }
 
 // Behaviour: the four lamp types Blender writes become glTF lights, each field being asked for
@@ -133,7 +133,7 @@ fn the_four_blender_lamp_types_become_gltf_lights_with_their_native_emitter_radi
         "lamps converted from the SDNA have changed"
     );
     assert!(
-        out.report.unsupported.is_empty(),
+        out.scene.report.unsupported.is_empty(),
         "nothing was expected to be refused"
     );
 }
@@ -146,7 +146,10 @@ fn a_lamp_type_this_driver_does_not_convert_is_counted_by_its_name() {
     let (lights, out) = converted(&[hemi], &["Hemi"]);
     assert!(lights.is_empty(), "no lamp was expected to come out");
     assert_eq!(
-        out.report.unsupported.get("blend-light-type-unsupported"),
+        out.scene
+            .report
+            .unsupported
+            .get("blend-light-type-unsupported"),
         Some(&1)
     );
 }

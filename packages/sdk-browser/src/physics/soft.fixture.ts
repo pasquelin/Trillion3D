@@ -163,6 +163,6 @@ export function* stepped(
       vertices = new Float32Array(record.map.length * 3)
       record.map.forEach((v, i) => vertices!.set(floats.subarray(v * 3, v * 3 + 3), i * 3))
     }
-    yield { vertices, recovered: jolt.recovered(), diverged: jolt.diverged(), words }
+    yield { vertices, diverged: jolt.diverged(), words }
   }
 }

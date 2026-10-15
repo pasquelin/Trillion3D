@@ -1,8 +1,9 @@
+import { VSM_COVER_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { lowBits } from '../../../math/src/wgsl/integer.ts'
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import { VSM_COVER_GATHER_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 
 /** The page-overlap and static-caching pieces the command cull reads (`renderCullWgsl.ts`): its
  *  host declares the stale rects it clips to (`vsmStaleRects`, `VSM_RENDER_CULL_SPECS`). */
@@ -12,6 +13,7 @@ export const VSM_RENDER_OVERLAP_WGSL = wgslBlock(
     VSM_CONSTANTS_WGSL,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
+    VSM_TABLE_ORIGIN_WGSL,
     VSM_COVER_GATHER_WGSL,
     VSM_BOX_CULL_WGSL,
     lowBits,
@@ -66,16 +68,6 @@ fn vsmRasterMarkBits(staticLayer:bool,staleAfter:bool)->u32{
  var flags=select(1u,2u,staticLayer);
  if(staleAfter){flags|=select(4u,8u,staticLayer);}
  return flags;
-}
-/** The shifted-to-clip matrix of a VSM view, from the stored shiftedToShadowUV
- *  (the clip-to-UV scale and bias inverted: x = 2u − w, y = w − 2v, z and w kept). */
-fn vsmShiftedToClip(uv:mat4x4f)->mat4x4f{
- var m:mat4x4f;
- for(var k=0u;k<4u;k++){
-  let c=uv[k];
-  m[k]=vec4f(2.0*c.x-c.w,c.w-2.0*c.y,c.z,c.w);
- }
- return m;
 }
 `,
 )

@@ -1,9 +1,9 @@
 /**
  * The engine's one image decoder: every image it samples — a source image of a prepared scene, a
  * lossless baked level, a picture the loader reads as data — is decoded by `decodeRaw`, so the
- * bytes that reach the atlas by one path are those that reach it by another. A platform without
- * `createImageBitmap` decodes through an image element (`imageElement`). An image at an address is
- * fetched and decoded by `fetchDecoded`, the one path of both.
+ * bytes that reach the atlas by one path are those that reach it by another. An image at an
+ * address is fetched and decoded by `fetchDecoded`, the one path of both. The engine needs
+ * `createImageBitmap`, which every browser that runs WebGPU has: no other decoder stands in.
  */
 import { type ByteMeter, unmetered } from '../cluster/byteMeter.ts'
 import { checked } from '../cluster/checked.ts'
@@ -29,14 +29,4 @@ export async function fetchDecoded(
 ) {
   const response = await checked(url, signal, attempts)
   return decodeRaw(await meter.read(response, url).blob())
-}
-
-/** An image element holding `url`, decoded: fetched across origins anonymously, unless the
- *  address carries its own bytes (`data:`). */
-export async function imageElement(url: string) {
-  const image = new Image()
-  if (!url.startsWith('data:')) image.crossOrigin = 'anonymous'
-  image.src = url
-  await image.decode()
-  return image
 }

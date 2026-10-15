@@ -13,8 +13,10 @@ export const VSM_RENDER_ARGS_STRIDE_WORDS = 12
 export const VSM_RENDER_ARGS_CULL = 0
 export const VSM_RENDER_ARGS_EXPAND = 3
 export const VSM_RENDER_ARGS_DRAW = 6
-/** Counter words: [0] candidates, then 4 per chunk from word 4: commands, pairs, max corners, pad. */
+/** Counter words: [0] candidates, [1] the views the GPU listed (`renderViewsWgsl.ts`), then 4 per
+ *  chunk from word 4: commands, pairs, max corners, pad. */
 export const VSM_RENDER_COUNTS_HEAD = 4
+export const VSM_RENDER_COUNT_VIEWS = 1
 /** Map view flag: directional (clipmap level, 1 mip, clamp to near plane — the near-plane clamp). */
 export const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
@@ -35,7 +37,6 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['viewRow2', 'vec4f'],
   ['near', 'f32'],
   ['threshold', 'f32'],
-  ['smallCasterSq', 'f32'],
   ['rowCount', 'u32'],
   ['viewCount', 'u32'],
   ['chunk', 'u32'],
@@ -44,7 +45,6 @@ export const VSM_RENDER_PARAMS = fieldLayout('VsmRenderParams', [
   ['chunkCount', 'u32'],
   ['cmdCapacity', 'u32'],
   ['pairCapacity', 'u32'],
-  ['pad', 'u32'],
 ] as const)
 const VSM_RENDER_PARAMS_STRUCT_WGSL = wgslBlock(
   'VSM_RENDER_PARAMS_STRUCT_WGSL',
@@ -56,14 +56,14 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
   [VSM_RENDER_PARAMS_STRUCT_WGSL],
   `
 /** A caster row the camera's cut selects: world sphere (centre high + radius, centre low), its row,
- *  corners, flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws), and the radius of
- *  its whole object (f32 bits, 0 when unknown: the row's sphere stands in). */
-struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,objectRadius:u32,pad1:u32,}
+ *  corners and flags (bit 0 cache as dynamic, bit 1 deforming: it invalidates the pages it draws). */
+struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
 ${wgslConsts({
   VSM_RENDER_VIEW_DIRECTIONAL,
   VSM_RENDER_COUNTS_HEAD,
+  VSM_RENDER_COUNT_VIEWS,
 })}
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*4u+k;}
 `,
@@ -87,7 +87,7 @@ fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRID
   let n=select(0u,min(total-first,params.chunkRows),total>first);
   let at=vsmRenderArgsAt(c,${VSM_RENDER_ARGS_CULL}u);
   args[at]=ceilDiv(n,WORKGROUP_THREADS);
-  args[at+1u]=select(0u,params.viewCount,n>0u);
+  args[at+1u]=select(0u,min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount),n>0u);
   args[at+2u]=1u;
  }
 }

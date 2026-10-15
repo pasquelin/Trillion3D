@@ -11,7 +11,7 @@ import {
 } from '../../../../sdk-core/src/collision/characterSettings.ts'
 import { createRestingBody } from './restingBody.ts'
 import type { CameraControlBase, ControlCamera } from './types.ts'
-import { length2 } from '../../../../math/src/vector/vector.ts'
+import { yawWalk } from './math.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
@@ -62,7 +62,8 @@ export function createCharacterCameraControls(
     orientation = new Float64Array(4),
     moved = new Float64Array(7)
   const gate = createChangeGate(base, 7)
-  const input = { wishX: 0, wishZ: 0, sprint: false }
+  const input = { wishX: 0, wishZ: 0, sprint: false },
+    wish = new Float64Array(2)
   let physics: CharacterBodyFactory | null = null
   const api: CharacterCameraControls = {
     ...base.api,
@@ -87,11 +88,9 @@ export function createCharacterCameraControls(
       const yaw = head.turn(orientation)
       const strafe = axisOf(keys, ...STRAFE_ARROW_KEYS),
         advance = axisOf(keys, ...ADVANCE_ARROW_KEYS)
-      const sin = Math.sin(yaw),
-        cos = Math.cos(yaw),
-        length = length2(strafe, advance) || 1
-      input.wishX = (cos * strafe - sin * advance) / length
-      input.wishZ = (-sin * strafe - cos * advance) / length
+      yawWalk(wish, yaw, strafe, advance)
+      input.wishX = wish[0]
+      input.wishZ = wish[1]
       input.sprint = SPRINT.some((code) => keys.has(code))
       const feet = body.advance(delta, input, events)
       written.set(feet)

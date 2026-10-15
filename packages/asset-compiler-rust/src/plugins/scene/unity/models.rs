@@ -5,6 +5,7 @@
 //! imported only once, whatever the number of instances that cite it, and a model that would
 //! itself be a Unity scene is refused: a driver does not call itself.
 use super::*;
+use crate::import::tables::media::relative_under;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -90,9 +91,9 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     if let Some(manifest) = &manifest {
         carry_report(manifest, &name, world.scene);
     }
-    let (gltf, buffers) = match load_gltf(&directory, &file) {
-        Some(loaded) => loaded,
-        None => {
+    let (gltf, binary) = match crate::compiler_source::flat_document(&directory.join(&file)) {
+        Ok(loaded) => loaded,
+        Err(_) => {
             world.scene.report.add("unity-model-buffer-unreadable");
             return None;
         }
@@ -101,9 +102,10 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     // the root given to the compiler, so they must be prefixed with that path.
     let prefix = asset
         .parent()
-        .and_then(|parent| world.project.relative_uri(parent))
+        .and_then(|parent| relative_under(&world.project.source_dir, parent))
+        .map(|relative| crate::uri::encode_relative(Path::new(&relative)))
         .unwrap_or_default();
-    let parts = merge::merge(&gltf, &buffers, &prefix, world.scene);
+    let parts = merge::merge(&gltf, binary.bytes(), &prefix, world.scene);
     world.scene.read_model(&name, plugin.name(), &key);
     world.scene.count("models", 1);
     Some(scaled(parts, meta.scale(unit)))
@@ -111,7 +113,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
 
 /// Manifest a scene driver wrote beside its conversion.
 fn read_manifest(directory: &Path) -> Option<Value> {
-    let bytes = fs::read(directory.join("manifest.json")).ok()?;
+    let bytes = fs::read(directory.join(crate::MANIFEST_POINTER)).ok()?;
     serde_json::from_slice(&bytes).ok()
 }
 
@@ -175,24 +177,4 @@ fn scaled(parts: Parts, scale: f64) -> Parts {
         })
         .collect();
     Parts { nodes }
-}
-
-/// glTF of a model and its binaries. A `data:` buffer is not read: the driver counts it in the
-/// report rather than decoding its content blindly.
-fn load_gltf(directory: &Path, file: &str) -> Option<(Value, Vec<Vec<u8>>)> {
-    let bytes = fs::read(directory.join(file)).ok()?;
-    if crate::is_glb(&bytes) {
-        let (gltf, binary) = crate::parse_glb(&bytes).ok()?;
-        return Some((gltf, vec![binary]));
-    }
-    let gltf: Value = serde_json::from_slice(&bytes).ok()?;
-    let mut buffers = Vec::new();
-    for buffer in gltf["buffers"].as_array().map_or(&[][..], Vec::as_slice) {
-        let uri = buffer["uri"].as_str()?;
-        if uri.starts_with("data:") || !crate::is_safe_source_name(uri) {
-            return None;
-        }
-        buffers.push(fs::read(directory.join(uri)).ok()?);
-    }
-    Some((gltf, buffers))
 }

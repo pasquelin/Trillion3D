@@ -2,12 +2,8 @@ import { materialTextures } from '../../scene/meshes.ts'
 import { families } from '../../host/families.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import { SCENE_FILE } from '../../scene/tables.ts'
-import {
-  DEFAULT_HEIGHT,
-  DEFAULT_PAGE_WORKERS,
-  DEFAULT_WIDTH,
-  devicePixels,
-} from '../../engine/common.ts'
+import { DEFAULT_HEIGHT, DEFAULT_PAGE_WORKERS, DEFAULT_WIDTH } from '../../engine/common.ts'
+import { sizeDrawingBuffer } from '../api/viewportApi.ts'
 import type { EngineContext } from '../../engine/types.ts'
 import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
@@ -23,8 +19,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
   const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session
   const { manifestUrl, metadataUrl, base, draws, pageSources } = inputs
   const { pages } = pageSources
-  canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio)
-  canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio)
+  const { width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT, pixelRatio } = options
+  sizeDrawingBuffer(canvas, width, height, pixelRatio)
   // The provenance table, a family loaded with the scene when a channel listens (`familyUse.ts`);
   // unheard, the record is dropped unread and nothing loads it.
   const sdk = diagnosticChannel.enabled

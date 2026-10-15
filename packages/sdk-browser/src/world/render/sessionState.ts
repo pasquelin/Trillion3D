@@ -1,6 +1,21 @@
 import type { CameraPose } from '../../../../sdk-core/src/contracts/base.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { PreparedExplorer } from '../session/prepare.ts'
+import type { HostCamera } from '../../camera/world.ts'
+import type { ControlVector } from '../../camera/controls/types.ts'
+
+/** Puts `camera` on `pose`: its position, optics and aim (`target`, written with the pose's
+ *  point), its matrices composed. The one way a session's camera, or a view of its own, takes a
+ *  pose. */
+export function poseCamera(camera: HostCamera, pose: CameraPose, target: ControlVector) {
+  camera.position.fromArray(pose.position)
+  camera.fov = pose.fov
+  camera.near = pose.near
+  camera.far = pose.far
+  camera.lookAt(target.fromArray(pose.target))
+  camera.updateProjectionMatrix()
+  camera.updateMatrixWorld()
+}
 
 /** The mutable state of one session; every service reads and writes this same object. */
 export type SessionState = {
@@ -34,14 +49,6 @@ export function createSessionState(prepared: PreparedExplorer, signal?: AbortSig
     if (state.capturingSurface) throw new Error('SURFACE_CAPTURE_BUSY')
     signal?.throwIfAborted()
   }
-  const setPose = (pose: CameraPose) => {
-    camera.position.fromArray(pose.position)
-    camera.fov = pose.fov
-    camera.near = pose.near
-    camera.far = pose.far
-    camera.lookAt(lookAtTarget.fromArray(pose.target))
-    camera.updateProjectionMatrix()
-    camera.updateMatrixWorld()
-  }
+  const setPose = (pose: CameraPose) => poseCamera(camera, pose, lookAtTarget)
   return { state, ownedControls, lookAtTarget, check, setPose }
 }

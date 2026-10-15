@@ -1,4 +1,4 @@
-// The sun's ray spread (`vsmSunRaySpread`, `traceWgsl.ts`) is the largest stretch of a
+// A light's ray spread (`vsmRaySpread`, `traceSpreadWgsl.ts`) is the largest stretch of a
 // displacement across the light, carried along it onto the receiver's plane, then onto the screen:
 // over generated receivers (planes facing the light from straight on to nearly edge-on, points
 // across a perspective view's frustum, near and far), no direction across the light lands farther
@@ -35,9 +35,9 @@ const VIEW_TO_CLIP = new Mat([
   0,
 ])
 
-const { vsmSunRaySpread } = shaderRun<{
-  vsmSunRaySpread: (...a: unknown[]) => number[]
-}>(CODE, ['vsmSunRaySpread', 'vsmAcrossLightOnScreen', 'frameAround', 'perspectiveDivide'], {
+const { vsmRaySpread } = shaderRun<{
+  vsmRaySpread: (...a: unknown[]) => number
+}>(CODE, ['vsmRaySpread', 'vsmAcrossLightOnScreen', 'frameAround', 'perspectiveDivide'], {
   ...constructors(CODE),
   vsmView: {
     viewToClip: VIEW_TO_CLIP,
@@ -64,9 +64,7 @@ test('no displacement across the light lands farther on screen than the spread s
       n = l.map((x, i) => x * Math.cos(angle) + side[i] * Math.sin(angle)) as V3
     const z = 0.5 + 60 * r(8),
       v = [(r(9) - 0.5) * 1.6 * z, (r(10) - 0.5) * 0.9 * z, z]
-    const [perDepth, dither] = vsmSunRaySpread(l, 0.0047, n, v, 3e-4, 0.25)
-    const sigma = perDepth / (2 * 0.0047)
-    assert.ok(Math.abs(dither / (sigma * Math.SQRT2 * (3e-4 / 0.25)) - 1) < 1e-5)
+    const sigma = vsmRaySpread(l, n, v)
     const a = unit(cross(l, side)),
       b = cross(l, a),
       eps = 1e-5 * z,
@@ -91,8 +89,5 @@ test('a receiver facing away from the light or edge-on spreads without bound', (
     [1, 0, 0],
   ])
     // f32's greatest value, as the GPU stores the literal.
-    assert.deepEqual(vsmSunRaySpread([0, 0, 1], 0.0047, n, [0, 0, 5], 1e-4, 1).map(Math.fround), [
-      FLOAT32_MAX,
-      FLOAT32_MAX,
-    ])
+    assert.equal(Math.fround(vsmRaySpread([0, 0, 1], n, [0, 0, 5])), FLOAT32_MAX)
 })

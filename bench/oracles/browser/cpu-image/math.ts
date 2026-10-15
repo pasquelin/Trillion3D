@@ -6,7 +6,7 @@ import { signedArea, type Projected } from './projection.ts'
 import { textureRgba } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 
 /** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it: the rule
- *  the GPU texel turn applies in integers (`webgpu/tile/texelTurn.ts`). */
+ *  the GPU turn of raw texels applies in integers (`turnLevel`, `texture/mipsWgsl.ts`). */
 export const premultipliedByte = (byte: number, alpha: number) => Math.round((byte * alpha) / 255)
 
 // The CPU image's reads of a page: the oracle's, not the engine's. The colour of a pixel is the

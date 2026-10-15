@@ -45,17 +45,17 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -
     let shader = world.stage.prim(target.prim_path()).ok()?;
     let id = read::first(&shader.attribute("info:id")).and_then(|(value, _)| read::text(&value));
     if id.as_deref() != Some(UV_TEXTURE) {
-        world.refuse(world::TEXTURE_UNSUPPORTED);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
     let (value, _) = read::first(&shader.attribute("inputs:file"))?;
     let file = read::asset(&value)?;
     if file.as_str().contains(UDIM) {
-        world.refuse(world::TEXTURE_UNSUPPORTED);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
     if uv_set(world, &shader).as_deref().unwrap_or(UV_SET) != UV_SET {
-        world.refuse(world::TEXTURE_UNSUPPORTED);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
     }
     let index = image(world, file)?;
     sampling::colour_space(world, &shader, colour);
@@ -69,11 +69,11 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -
 /// Rank of the image, poured on first request, or `None` when the file does not read.
 fn image(world: &mut World<'_>, file: &sdf::AssetPath) -> Option<usize> {
     let Some(relative) = under_root(world, file) else {
-        world.refuse(world::TEXTURE_MISSING);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_MISSING);
         return None;
     };
     let Some(mime) = crate::import::readable(world.images, &relative) else {
-        world.refuse(world::TEXTURE_MISSING);
+        world.refuse(crate::plugins::scene::codes::TEXTURE_MISSING);
         world.scene.image_unreadable(&relative);
         return None;
     };

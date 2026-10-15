@@ -62,7 +62,7 @@ fn surface<'a>(graph: &At<'a>, tree: &shading::Tree<'a>, out: &mut Out) -> Optio
         .and_then(|socket| tree.source(&socket))
         .filter(|node| node.text("idname") == PRINCIPLED);
     if found.is_none() {
-        out.report.add(SURFACE_UNSUPPORTED);
+        out.scene.report.add(SURFACE_UNSUPPORTED);
     }
     found
 }

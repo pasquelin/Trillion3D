@@ -70,8 +70,7 @@ test('a scene that wears no texture makes no feedback target, reduces nothing, a
     assert.deepEqual(seen.lastPass?.length, 4)
     assert.ok(!seen.lastPass?.includes('r32uint'))
     assert.ok(seen.shade.length > 0)
-    for (const pipeline of seen.shade)
-      assert.deepEqual(pipeline, { entry: 'shade_fsWithoutFeedback', r32: false })
+    for (const pipeline of seen.shade) assert.deepEqual(pipeline, { entry: 'shade_fs', r32: false })
     assert.equal(seen.reduced, false, 'no reduction is encoded')
   } finally {
     disposeQuadRun(backend, fixture)

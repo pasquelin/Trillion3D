@@ -89,7 +89,8 @@ test('a mover reach on length3 decides every tile nearness the old one decided',
       position: { x: 0, y: 0, z: 0 },
     } as unknown as Bodied
     const nested = new Map([[0, { node, reach: 0.5 }]])
-    const count = moversOf([mesh], nested as never, velocity, movers)
+    const slots = { meshes: [mesh], nested, at: () => ({ mesh, reach: 0 }) }
+    const count = moversOf(slots as never, velocity, movers)
     // The old reaches: half size 0, then 0.5, plus the speed over `LOOKAHEAD_S`, 1 s.
     const speed = hypot3(velocity[0], velocity[1], velocity[2]) * 1
     const old = [0, 0, 0, 0 + speed, 0, 0, 0, 0.5 + speed]

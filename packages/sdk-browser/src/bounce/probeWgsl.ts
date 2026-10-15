@@ -2,9 +2,11 @@ import { WORKGROUP_THREADS_WGSL, WORKGROUP_THREADS } from '../gpu/dispatch/grid.
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
 import { BOUNCE_GRID_WGSL, bounceBindingsWgsl } from './gridWgsl.ts'
-import { runtimeProbeRayWgsl } from './probeRayWgsl.ts'
+import { runtimeRadianceWgsl } from './runtimeRadianceWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { ACCUMULATION_WGSL } from '../taa/accumulationWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from './atlas.ts'
@@ -29,8 +31,8 @@ import { PROBE_GROUP_WGSL } from './probeGroupWgsl.ts'
  * ray, until a light changes or it changes cell. That is the requested placement —
  * measured by the probe itself, never guessed by a rule on the scene.
  *
- * Damping is adaptive: a probe whose estimate jumps converges fast, a stable probe barely
- * moves. Nothing allocates, nothing loops unbounded, and a scene without a declared light
+ * Damping is the engine's one accumulation law (`ACCUMULATION_WGSL`): a probe whose estimate
+ * jumps restarts and converges fast, a stable probe barely moves. Nothing allocates, nothing loops unbounded, and a scene without a declared light
  * writes exactly zero. The grid is read from a snapshot frozen before the update and
  * written elsewhere: an update never sees a neighbour half-written, and the steady-state
  * frame does not depend on the order in which the GPU scheduled its threads. The snapshot then
@@ -42,8 +44,11 @@ export const BOUNCE_PROBE_SHADER = wgslProgram(
 @group(0) @binding(${PROBE_BINDINGS.queue}) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(${PROBE_BINDINGS.probes}) var probesOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
 @group(0) @binding(${PROBE_BINDINGS.lists}) var<storage,read> tileLights:array<u32>;
-const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
-const BLEND_MOVING:f32=${BOUNCE_SETTINGS.blendMoving};
+/** The updates a probe's estimate averages (\`ACCUMULATION_WGSL\`): one over the stable blend. */
+const PROBE_SAMPLES:f32=${wgslF32(1 / BOUNCE_SETTINGS.blendStable)};
+/** The weight a probe whose estimate jumps keeps of its history: the law then takes the moving blend
+ *  of the fresh estimate, \`1/(held + 1)\`. */
+const PROBE_JUMP_HELD:f32=${wgslF32(1 / BOUNCE_SETTINGS.blendMoving - 1)};
 const MOVING_RESIDUAL:f32=${BOUNCE_SETTINGS.movingResidual};
 const BOUNCE_BURIED:f32=${BOUNCE_SETTINGS.buriedFraction};
 const BOUNCE_SKY:f32=${BOUNCE_SETTINGS.skyFraction};
@@ -118,13 +123,15 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let previous=select(vec3f(0.0),probeAt(probe,0u).xyz,held);
  let fresh=sums[0]*scale;
  let change=length(fresh-previous)/(length(fresh)+length(previous)+1e-4);
- // Adaptive hysteresis. A new probe, or one that just changed cell, takes everything; a
- // stable probe follows a running average, which smooths Monte-Carlo noise without freezing the frame;
- // a probe whose estimate jumps takes almost everything and restarts from a low count.
- var blend=max(1.0/(updates+1.0),BLEND_STABLE);
- var count=updates+1.0;
- if(change>MOVING_RESIDUAL){blend=BLEND_MOVING;count=1.0;}
- if(updates<0.5){blend=1.0;count=1.0;}
+ // The engine's one accumulation law (\`ACCUMULATION_WGSL\`): a stable probe follows a running
+ // average of \`PROBE_SAMPLES\` updates, which smooths Monte-Carlo noise without freezing the frame;
+ // a new probe or one that just changed cell (nothing held) takes the fresh estimate whole; one whose
+ // estimate jumps keeps less of its history the more it jumps — a continuous weight, from all of it
+ // at the residual to the little a jump keeps (\`PROBE_JUMP_HELD\`, the moving blend) at twice it.
+ let jump=saturate(change/MOVING_RESIDUAL-1.0);
+ let restart=mix(updates,min(updates,PROBE_JUMP_HELD),jump);
+ let blend=accumulationShare(restart,1.0,PROBE_SAMPLES);
+ let count=accumulationCount(restart,1.0,PROBE_SAMPLES);
  // A texel is stored whole: each coefficient with the state its w lane carries, zero elsewhere.
  var state=array<f32,9>();
  state[0]=count;state[PROBE_VALID]=usable;
@@ -142,7 +149,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
 }`,
   [
-    runtimeProbeRayWgsl(PROBE_PROXY),
+    runtimeRadianceWgsl(PROBE_PROXY),
     DIRECT_LIGHT_WGSL,
     bounceBindingsWgsl(0, PROBE_BINDINGS.grid, PROBE_BINDINGS.snapshot),
     BOUNCE_GRID_WGSL,
@@ -150,6 +157,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     PROBE_GROUP_WGSL,
     TWO_PI,
     hashUnit,
+    ACCUMULATION_WGSL,
   ],
 )
 

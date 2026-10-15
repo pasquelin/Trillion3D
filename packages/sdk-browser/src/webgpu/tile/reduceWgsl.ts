@@ -1,6 +1,6 @@
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE, FEEDBACK_STRIDE_MASK } from './feedback.ts'
+import { FEEDBACK_STRIDE_WGSL } from './requestWgsl.ts'
 import { TILE_STAMP_WGSL } from './stampWgsl.ts'
 
 /** Phase pixels on one side of a workgroup of the reduction (`reduce.ts`). */
@@ -22,8 +22,8 @@ export const REDUCE_WGSL = wgslProgram(
 @group(0) @binding(6) var<storage,read_write> colorUse:array<atomic<u32>>;
 @group(0) @binding(7) var<storage,read_write> dataUse:array<atomic<u32>>;
 @compute @workgroup_size(${REDUCE_WORKGROUP},${REDUCE_WORKGROUP}) fn reduce(@builtin(global_invocation_id) id:vec3u){
- var p=id.xy;
- if((uni.feedback&${FEEDBACK_EVERY}u)==0u){p=p*${FEEDBACK_STRIDE}u+vec2u(uni.feedback&${FEEDBACK_STRIDE_MASK}u,(uni.feedback>>2u)&${FEEDBACK_STRIDE_MASK}u);}
+ // The image's speaking pixels (\`FEEDBACK_STRIDE_WGSL\`), one a thread.
+ let p=id.xy*feedbackStride(uni.feedback)+feedbackOffset(uni.feedback);
  if(p.x>=uni.size.x||p.y>=uni.size.y){return;}
  let request=textureLoad(requests,p,0).r;
  if(request==0u){return;}
@@ -33,7 +33,7 @@ export const REDUCE_WGSL = wgslProgram(
  let at=atomicAdd(&hits[0],1u);
  if(at<uni.cap){atomicStore(&hits[1u+at],rank);}else{atomicStore(&tileFeedback[rank],0u);}
 }`,
-  [TILE_STAMP_WGSL],
+  [TILE_STAMP_WGSL, FEEDBACK_STRIDE_WGSL],
 )
 
 /** The gather: each listed tile's count into the list's weights, its counter zeroed for the next

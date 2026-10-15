@@ -1,5 +1,6 @@
 import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { workgroupTallyWgsl } from '../../core/workgroupTallyWgsl.ts'
 
 /**
  * Triangle totals of a frame, held BY THE GPU.
@@ -19,33 +20,19 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  *
  * THE SUM HAPPENS IN THE WORKGROUP FIRST. Unique words added by EVERY live cluster serialize the
  * whole GPU on a few addresses: that is the classic atomic hotspot, and it grows with the scene.
- * Each group of 64 threads therefore sums in its own shared memory — a workgroup atomic, with no
- * memory traffic — then two of its threads pour the subtotal into the frame words. The GPU goes
- * from two global adds per cluster to two per group, sixty-four times fewer contests, for exactly
- * the same numbers.
+ * Each group of 64 threads therefore sums in its own shared memory, then two of its threads pour
+ * the subtotal into the frame words (`workgroupTallyWgsl`, the engine's one such reduction): two
+ * global adds per group instead of per cluster, for exactly the same numbers.
  */
+const POUR = `if(lane==0u){atomicAdd(&out.selectedTriangles,n);}else{atomicAdd(&out.transparentTriangles,n);}`
 export const DAG_TOTALS_WGSL = wgslBlock(
   'DAG_TOTALS_WGSL',
-  [],
-  `var<workgroup> totauxGroupe:array<atomic<u32>,2>;
-fn ouvreTotaux(lid:u32){
- if(lid<2u){atomicStore(&totauxGroupe[lid],0u);}
- workgroupBarrier();
-}
-fn noteImage(r:u32,flags:u32,drawn:bool){
+  [workgroupTallyWgsl('DAG_TALLY_WGSL', 2, 'true', POUR)],
+  `fn tallyDrawn(r:u32,flags:u32,drawn:bool){
  if(!drawn){return;}
  let tri=trianglesOf(r);
- atomicAdd(&totauxGroupe[0],tri);
- if((flags&${CLUSTER_TRANSPARENT}u)!=0u){atomicAdd(&totauxGroupe[1],tri);}
-}
-/** Two threads, one counter each: the group pours nothing when it counted nothing. The barrier
- *  is crossed by EVERY thread in the group, including those that had no cluster. */
-fn verseTotaux(lid:u32){
- workgroupBarrier();
- if(lid>=2u){return;}
- let v=atomicLoad(&totauxGroupe[lid]);
- if(v==0u){return;}
- if(lid==0u){atomicAdd(&out.selectedTriangles,v);}else{atomicAdd(&out.transparentTriangles,v);}
+ tallyAdd(0u,tri);
+ if((flags&${CLUSTER_TRANSPARENT}u)!=0u){tallyAdd(1u,tri);}
 }
 fn resetTotaux(){
  atomicStore(&out.selectedTriangles,0u);atomicStore(&out.transparentTriangles,0u);

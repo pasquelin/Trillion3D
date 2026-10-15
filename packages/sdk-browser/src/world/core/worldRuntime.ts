@@ -5,10 +5,11 @@ import { createWorldLink } from './worldLink.ts'
 import { createWorldBackground } from './worldBackground.ts'
 import { watchFirstFrame } from '../session/openWatch.ts'
 import { worldReopens } from './worldReopen.ts'
-import { createCanvasFit, followPageCamera } from './worldCamera.ts'
+import { followPageCamera } from './worldCamera.ts'
 import { namedMove } from './worldSceneMethods.ts'
 import type { WorldRuntimeInputs } from './worldRuntimeInputs.ts'
 import { askedFrame } from './worldAskedFrame.ts'
+import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import {
   worldApply,
   worldOpening,
@@ -27,11 +28,14 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
     lights = createWorldLights(scene),
     background = createWorldBackground(scene)
   const placeCamera = followPageCamera(camera, canvas)
-  const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request())
+  const track = worldReopens(
+    canvas,
+    inputs.diagnostic.notices,
+    () => reopens.request(),
+    () => inputs.options().pageCache?.pageCount ?? 0,
+  )
   const state: WorldRuntimeState = {
     explorer: null,
-    resolving: null,
-    structureChanged: false,
     seatWanted: false,
     lightsChanged: true,
     disposed: false,
@@ -41,14 +45,18 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   // A move by name through the session (#972), and the one the world offers its page.
   const moveNamed = namedMove(scene, contents.poses, invalidate)
   const relight = () => ((state.lightsChanged = true), invalidate())
-  const fit = createCanvasFit(canvas, inputs.options().interactive === false)
+  // A world its page leads follows its canvas before each frame; a session's own loop, itself.
+  const led = inputs.options().interactive === false
   const parts: WorldRuntimeParts = {
-    ...{ inputs, state, contents, lights, background, track, fit, placeCamera, moveNamed },
+    ...{ inputs, state, contents, lights, background, track, led, placeCamera, moveNamed },
+    // The scene's resolutions: one pass at a time, a burst one pass (`worldResolution`).
+    resolves: createRequestLoop(() => resolution()),
     invalidate,
   }
   const reopens = createRequestLoop(worldOpening(parts))
   const apply = worldApply(parts, reopens)
-  const schedule = worldResolve(parts, reopens, apply)
+  const resolution = worldResolution(parts, reopens, apply)
+  const schedule = () => parts.resolves.request()
   const frame = worldFrame(parts, apply)
   // A scene holding something that has drawn nothing says why, once (`openWatch.ts`).
   watchFirstFrame(() => {
@@ -61,17 +69,19 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
   return runtimeHandle(parts, reopens, frame, relight)
 }
 
-/** Changes before the grant or during a resolution fold into the next; a throw ends the burst. */
-function worldResolve(parts: WorldRuntimeParts, reopens: WorldReopens, apply: () => void) {
+/** A pass of the scene's resolution, once the device is granted: what changed is resolved, and
+ *  again while some is stale; a change made meanwhile asks the next pass; a throw ends the pass. */
+function worldResolution(parts: WorldRuntimeParts, reopens: WorldReopens, apply: () => void) {
   const { inputs, state, contents, invalidate } = parts
-  const resolve = async () => {
+  return async () => {
+    await inputs.ready().catch(() => {})
     try {
-      while ((state.structureChanged || contents.staleCount) && !state.disposed) {
-        state.structureChanged = false
+      while (!state.disposed) {
         if (await contents.resolve()) state.lightsChanged = true
         state.seatWanted = true
         if (!state.explorer && !reopens.running) apply()
         invalidate()
+        if (!contents.staleCount) break
       }
     } catch (error) {
       state.closed = 'the scene could not be resolved'
@@ -79,53 +89,55 @@ function worldResolve(parts: WorldRuntimeParts, reopens: WorldReopens, apply: ()
       if (!state.disposed)
         inputs.diagnostic.failed(new Error('World scene resolution failed', { cause: error }))
     }
-    state.resolving = null
-  }
-  return () => {
-    state.structureChanged = true
-    state.resolving ??= inputs.ready().then(resolve, resolve)
   }
 }
 
-/** Before a frame, every change applied and the canvas and camera followed; and the frame
- *  `render` draws: `ahead` steps, every change since the last frame is applied. */
+/** THE WORLD'S FRAME, whoever leads it: `beforeFrame` steps (`ahead`), applies every change since
+ *  the last frame and follows the canvas and camera; `afterDraw` hands the metrics on — the
+ *  dynamic uploads told, a reopen said, the world's hooks run. The session's own loop calls both
+ *  around its draw; `draw`, the frame `render` asks, calls them around its own. */
 function worldFrame(parts: WorldRuntimeParts, apply: () => void) {
-  const { inputs, state, contents, track, fit, placeCamera } = parts
-  const beforeFrame = () => {
+  const { inputs, state, contents, track, led, placeCamera } = parts
+  const beforeFrame = (ahead?: () => void) => {
+    ahead?.()
     apply()
     if (!state.explorer) return
-    fit.apply(state.explorer)
+    if (led) state.explorer.followCanvas()
     placeCamera(state.explorer.camera)
   }
-  const draw = (ahead?: () => void) => {
-    if (!state.explorer) return null
-    ahead?.()
-    beforeFrame() // what it applies may close the session: that frame has no image
-    if (!state.explorer) return null
-    const metrics = state.explorer.render()
+  const afterDraw = (metrics: FrameMetrics) => {
     contents.cuts.dynamic.drew(metrics)
     track.drew()
     inputs.frame(metrics)
+  }
+  const draw = (ahead?: () => void) => {
+    if (!state.explorer) return null
+    beforeFrame(ahead) // what it applies may close the session: that frame has no image
+    if (!state.explorer) return null
+    const metrics = state.explorer.render()
+    afterDraw(metrics)
     return metrics
   }
-  return { beforeFrame, draw }
+  return { beforeFrame, afterDraw, draw }
 }
 
 /** What a world reads of its runtime. */
 function runtimeHandle(
   parts: WorldRuntimeParts,
   reopens: WorldReopens,
-  { beforeFrame, draw }: ReturnType<typeof worldFrame>,
+  { beforeFrame, afterDraw, draw }: ReturnType<typeof worldFrame>,
   relight: () => void,
 ) {
   const { inputs, state, contents, track } = parts
   const { canvas, scene } = inputs
   return {
     beforeFrame,
+    afterDraw,
     invalidate: parts.invalidate,
     /** A move by name the world offers its page (`world.setTransform`, #972). */
     moveNamed: parts.moveNamed,
-    /** A session option changed, or the device was lost: the next opening takes it. */
+    /** A session option changed, or the device was lost (`at` the loss): the next opening takes
+     *  it, and its notice measures from `at`. */
     renew: track.request,
     /** Whether a session is open or opening. */
     get holdsSession() {
@@ -140,15 +152,18 @@ function runtimeHandle(
     },
     /** Settles once the session reflects every change made so far. */
     async settled() {
-      while (state.resolving || reopens.running || contents.joining)
-        await (state.resolving ?? reopens.running ?? contents.joining)
+      const { resolves } = parts
+      while (resolves.running || reopens.running || contents.joining)
+        await (resolves.running ?? reopens.running ?? contents.joining)
       await state.explorer?.familiesPending() // a family on its way: a change not drawn yet
     },
     /** A frame, `ahead` stepping first: drawn now, or once the world can (`worldAskedFrame.ts`). */
     render: askedFrame({
       // The session opening, or the families the frame draws with on their way (`familyUse.ts`).
       waits: () =>
-        state.explorer ? state.explorer.familiesPending() : (state.resolving ?? reopens.running),
+        state.explorer
+          ? state.explorer.familiesPending()
+          : (parts.resolves.running ?? reopens.running),
       draw,
       closed: () => state.disposed,
       // Drawn past the page's call: said, and reported as an uncaught error is (`interactive.ts`).

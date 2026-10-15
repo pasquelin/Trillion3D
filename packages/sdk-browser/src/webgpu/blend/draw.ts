@@ -150,7 +150,7 @@ export function drawBlendPass(
         storeOp: 'store',
       },
       // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
-      ...(rt.vis.writesFeedback ? [feedbackAttachment(rt)] : []),
+      rt.vis.writesFeedback ? feedbackAttachment(rt) : null,
       // The share a debug view or the temporal pass reads; an empty slot otherwise.
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).

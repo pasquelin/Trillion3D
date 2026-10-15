@@ -7,11 +7,10 @@
  * world differs writes `previous · current⁻¹` and takes it; any other writes identity.
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
+import { LISTED_ROOTS_WGSL } from './listedRootsWgsl.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { isNanWord } from '../../../math/src/wgsl/integer.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
@@ -40,9 +39,7 @@ export const COMPOSE_MOTION_ENTRY = 'composeMotion'
 /** One thread per root a parent composes (`ranks`, the composition's dense list of them): its
  *  motion and, on a restart or a compared move, its reference world. */
 export const COMPOSE_MOTION_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,listed:u32,pad0:u32,pad1:u32,}
-struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
-@group(0) @binding(0) var<uniform> params:Params;
+  `struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read> parentOf:array<u32>;
 @group(0) @binding(3) var<storage,read_write> motion:array<u32>;
@@ -50,10 +47,8 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(5) var<storage,read_write> previous:array<u32>;
 @group(0) @binding(6) var<storage,read> ranks:array<u32>;
 @compute @workgroup_size(WORKGROUP_THREADS) fn composeMotion(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
- let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
- let rank=ranks[j];
- if(rank>=params.rootCount){return;}
- if(parentOf[rank]==NO_INDEX){return;}
+ let rank=listedRank(g,n);
+ if(rank==NO_INDEX||parentOf[rank]==NO_INDEX){return;}
  let mode=motionMode.mode;
  var words=array<u32,16>(0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u,0u,0u,0u,0u,0x3f800000u);
  // An image whose poses are not compared writes identity and reads neither world.
@@ -79,5 +74,5 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<${MATRIX_VALUES}u;k++){motion[rank*${MATRIX_VALUES}u+k]=words[k];}
 }`,
-  [toF32, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, NO_INDEX, SAME_WORD_WGSL, MOTION_WGSL],
+  [toF32, LISTED_ROOTS_WGSL, SAME_WORD_WGSL, MOTION_WGSL],
 )

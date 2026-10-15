@@ -108,7 +108,7 @@ export const cameraViewProj = (zoom: number) =>
     ),
   )
 /** The camera vertex stages and what they call beside the decode, and the scope they read. */
-export const VIS_VS_NAMES = ['vis_vs', 'vis_hiz_vs', 'drawBatch', 'instanceRow'].concat(
+export const VIS_VS_NAMES = ['vis_vs', 'drawBatch', 'instanceRow'].concat(
   ['instanceCorner', 'hardwareIdle', 'hardwareCorner', 'pageClip', 'computeTakes', 'screen'],
   ['ndcToPixel', 'perspectiveDivide'],
   ['screenBox', 'boxOf', 'pageLine', 'lineClip', 'pageShape'],

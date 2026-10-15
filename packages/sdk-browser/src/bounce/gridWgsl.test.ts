@@ -1,11 +1,10 @@
 // Shared formulas: the Lambert 1/π constant and the order-2 spherical-harmonics basis are
 // written once, and every shader that needs them carries that one text.
-import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { functionBody } from '../texture/shaderRule.fixture.ts'
-import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
+import { INVERSE_PI } from '../../../math/src/wgsl/constants.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
 import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
@@ -20,18 +19,9 @@ import { unit } from '../../../math/src/vector/vectorTuple.ts'
 const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
-test('INVERSE_PI_BOUNCE declares the 1/π the bounce passes always read, one ulp above 1/π', () => {
-  const literal = /^const INVERSE_PI_BOUNCE:f32=([^;]+);$/.exec(INVERSE_PI_BOUNCE.text)?.[1]
-  assert.ok(literal, INVERSE_PI_BOUNCE.text)
-  // The f32 the passes' literal `0.31830989` named before the library wrote it, to the bit.
-  assert.ok(Object.is(Math.fround(Number(literal)), Math.fround(0.31830989)))
-  const words = [Number(literal), 1 / Math.PI].map(f32Bits)
-  assert.equal(words[0] - words[1], 1)
-})
-
-test('INVERSE_PI_BOUNCE appears once in the application and once in the surface a ray lights', () => {
-  assert.equal(occurrences(wgslModule(BOUNCE_APPLY_WGSL), INVERSE_PI_BOUNCE.text), 1)
-  assert.equal(occurrences(wgslModule(SURFACE_RAY_WGSL), INVERSE_PI_BOUNCE.text), 1)
+test('the bounce passes read the one Lambert 1/π of the direct term', () => {
+  assert.equal(occurrences(wgslModule(BOUNCE_APPLY_WGSL), INVERSE_PI.text), 1)
+  assert.equal(occurrences(wgslModule(SURFACE_RAY_WGSL), INVERSE_PI.text), 1)
 })
 
 test('every probe shader projects and evaluates the one order-2 basis', () => {

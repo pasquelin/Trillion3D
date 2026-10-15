@@ -26,6 +26,7 @@ import {
   computeBufferEntry,
   computeSamplerEntry,
   computeTextureEntry,
+  COMPUTE,
 } from '../core/computeBindings.ts'
 
 /**
@@ -110,7 +111,7 @@ function rasterBuffers(device: GPUDevice, width: number, height: number, capacit
 
 function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number) {
   const b = SMALL_BINDINGS
-  const compute = GPUShaderStage.COMPUTE
+  const compute = COMPUTE
   const computeLayout = device.createBindGroupLayout({
     entries: [
       computeBufferEntry(b.indices, 'read-only-storage', compute),

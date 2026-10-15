@@ -55,12 +55,9 @@ export const sessionOptions = (
 ): MeasuredWorldOptions => ({
   manifestUrl: '',
   interactive: options.interactive !== false,
-  // A world the page leads draws at the screen's density too: the session's own loop, which
-  // follows the density as it changes, is the only one that may leave it unset.
-  pixelRatio:
-    options.pixelRatio ?? (options.interactive === false ? globalThis.devicePixelRatio : undefined),
+  // Unset, the screen's density, followed as it changes whoever leads (`canvasFollower`).
+  pixelRatio: options.pixelRatio,
   signal: options.signal,
   importedLights: false,
-  ownControls: false,
   ...held,
 })

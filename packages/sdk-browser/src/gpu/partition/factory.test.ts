@@ -67,7 +67,7 @@ test('the projection rebinds the pyramid when its identity changes, and only the
     items: buffer('items'),
     flags: buffer('flags'),
     restBits: buffer('rest'),
-    slotUsed: buffer('slots'),
+    hizLevels: buffer('levels'),
     pyramid: () => pyramid,
   })
   assert.ok(partition)
@@ -91,7 +91,7 @@ test('rows rewritten since the last image are cleared run by run, once', async (
     items: buffer('items'),
     flags: buffer('flags'),
     restBits: buffer('rest'),
-    slotUsed: buffer('slots'),
+    hizLevels: buffer('levels'),
     pyramid: () => view('pyramid'),
   })
   assert.ok(partition)
@@ -128,7 +128,7 @@ test('no pyramid, no partition: the frame then draws in one pass rather than rea
     items: buffer('items'),
     flags: buffer('flags'),
     restBits: buffer('rest'),
-    slotUsed: buffer('slots'),
+    hizLevels: buffer('levels'),
     pyramid: () => undefined,
   })
   assert.equal(partition, undefined)

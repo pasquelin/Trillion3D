@@ -4,6 +4,7 @@ import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../pool/sortWgsl.ts'
 import { EVICTION_BURST } from '../readoutWords.ts'
 import { LEVEL_QUEUES } from './levelWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * The geometry pool's victim queue behind the drawn list (`evictionWord`, `../readoutWords.ts`): a
@@ -20,7 +21,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_EVICT_WGSL = wgslBlock(
   'DAG_EVICT_WGSL',
-  [POOL_SORT_WGSL, poolSortWordsWgsl('work', (i) => `poolSortAt(${i})`)],
+  [ceilDivWgsl, POOL_SORT_WGSL, poolSortWordsWgsl('work', (i) => `poolSortAt(${i})`)],
   `const KEY_PAGE:u32=${(1 << KEY_PAGE_BITS) - 1}u;
 /** Word \`k\` of the eviction queue in \`out.pages\`: 0 its count, 1 its old head's, \`HEAD+j\` its
  *  entry \`j\`. */
@@ -28,6 +29,9 @@ fn evictAt(k:u32)->u32{return 2u*views[0u].listCap+HEAD+k;}
 /** Content key of the pool list's entry \`j\`. */
 fn poolKey(j:u32)->u32{return coldAt(poolBase()+1u+j);}
 fn poolSlotCount()->u32{return coldAt(poolBase());}
+/** The pool sort's group stages armed for the slots its list holds (\`listGroups(6)\`): none for an
+ *  empty list, no workgroup past its count (\`dagPrepare\`). */
+fn armPoolSort(){armGroups(listGroups(6u),ceilDiv(poolSlotCount(),POOL_LANES));}
 fn poolSlotAge(j:u32)->u32{return useClock()-atomicLoad(&work[lastUseAt(groupOfKey(poolKey(j)))]);}
 fn poolSlotTier(j:u32)->u32{return keyWordOf(poolKey(j))>>${KEY_PAGE_BITS}u;}
 fn poolInUse()->u32{return ${EVICT_IN_USE}u;}

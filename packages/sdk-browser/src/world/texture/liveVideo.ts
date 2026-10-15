@@ -1,4 +1,5 @@
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { nextFrame } from '../../frame/scheduling.ts'
 
 /** What a live video texture needs of its element: a frame clock, or its play state. */
 type VideoClock = Pick<HTMLVideoElement, 'paused' | 'ended' | 'addEventListener'> & {
@@ -16,7 +17,7 @@ type VideoClock = Pick<HTMLVideoElement, 'paused' | 'ended' | 'addEventListener'
 export function followVideoFrames(
   texture: Texture,
   video: VideoClock,
-  nextFrame: (callback: () => void) => unknown = (callback) => requestAnimationFrame(callback),
+  frameWait: (callback: () => void) => unknown = (callback) => void nextFrame().then(callback),
 ) {
   const held = new WeakRef(texture)
   let waiting = false
@@ -34,7 +35,7 @@ export function followVideoFrames(
       video.requestVideoFrameCallback(frame)
     } else if (!video.paused && !video.ended) {
       waiting = true
-      nextFrame(frame)
+      frameWait(frame)
     }
   }
   video.addEventListener('play', watch)

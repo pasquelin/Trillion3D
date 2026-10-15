@@ -32,16 +32,22 @@ export type DagCapacity = {
 /** The least primitive nodes, records and keys a growth's room (`DagCapacity.ahead`) keeps past the
  *  live ones: a few primitives joining a large world pack nothing again. */
 const AHEAD_MIN = 64
-export const roomAhead = (held: number) => Math.max(grownLength(held, held + 1), held + AHEAD_MIN)
+const roomAhead = (held: number) => Math.max(grownLength(held, held + 1), held + AHEAD_MIN)
+
+/** Slots a packing keeps for `held` live ones: the room's absolute count, and its growth's room
+ *  past them when `room.ahead`, whichever is larger. */
+export const roomFor = (held: number, absolute: number | undefined, room?: DagCapacity) =>
+  Math.max(held, absolute ?? 0, room?.ahead ? roomAhead(held) : 0)
 
 /** The live counts of `roots` — pages, queue entries (a placement's node each), and nodes, each
- *  primitive's once —, their levels summed level by level: pass `L`'s queue only holds entries of
- *  level `L`, so this total upper-bounds it, and the pass launches flat. Placement `w`'s levels lie
- *  `shift(w)` below the placement tree's (`placementTree.ts`). */
-function countRoots(
+ *  primitive's once and none a packing already `holds` —, their levels summed level by level: pass
+ *  `L`'s queue only holds entries of level `L`, so this total upper-bounds it, and the pass launches
+ *  flat. Placement `w`'s levels lie `shift(w)` below the placement tree's (`placementTree.ts`). */
+export function countRoots(
   roots: readonly DagRoot[],
   shared: PackShared,
   shift: (w: number) => number = () => 0,
+  holds: (nodes: Float64Array) => boolean = () => false,
 ) {
   let pages = 0,
     entries = 0,
@@ -55,7 +61,7 @@ function countRoots(
       count = culling.nodes.length / culling.stride
     pages += root.pages.length
     entries += count
-    if (!seen.has(culling.nodes)) nodes += count
+    if (!seen.has(culling.nodes) && !holds(culling.nodes)) nodes += count
     seen.add(culling.nodes)
     for (let level = 0; level < sizes.length; level++)
       levels[level + below] = (levels[level + below] ?? 0) + sizes[level]
@@ -84,11 +90,7 @@ export function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity
     members = worlds - (world >= 0 ? 1 : 0)
   // The tree's nodes follow the primitives' shared ones: an append adds none of either.
   const first = countRoots(roots, shared)
-  const primitiveNodes = Math.max(
-    first.nodes,
-    room?.primitiveNodes ?? 0,
-    room?.ahead ? roomAhead(first.nodes) : 0,
-  )
+  const primitiveNodes = roomFor(first.nodes, room?.primitiveNodes, room)
   const tree = placementTreeShape(roots, world, { members, worlds }, primitiveNodes)
   const shift = tree?.depth ?? 0
   const counted = shift ? countRoots(roots, shared, (w) => (w === world ? 0 : shift)) : first

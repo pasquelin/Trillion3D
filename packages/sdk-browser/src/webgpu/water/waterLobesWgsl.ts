@@ -11,7 +11,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * opaque resolve's lobes, or an earlier image's — and where that texel holds one; its coat normal is
  * turned with the normal the composite lights (`faceForward`, `waterColorWgsl.ts`).
  *
- * Under the coat, as on a blend: each light (`lobeLight`, a dielectric's reflectance on the
+ * Under the coat, as on a blend: each light (`surfaceLight` through the lobe hooks, a dielectric's reflectance on the
  * specular's null albedo), the environment, the bounce and the transmitted backdrop, by what the
  * coat lets through (`lobeThrough`).
  */

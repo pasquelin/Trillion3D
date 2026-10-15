@@ -29,11 +29,9 @@ pub(super) fn decode(
     };
     let scalar = component_bytes(component)
         .ok_or_else(|| invalid("Draco attribute type cannot be represented in glTF"))?;
-    let width = match accessor.get("type").and_then(Value::as_str) {
-        Some("SCALAR") => 1,
-        Some("VEC2") => 2,
-        Some("VEC3") => 3,
-        Some("VEC4") => 4,
+    let shape = accessor.get("type").and_then(Value::as_str);
+    let width = match shape.and_then(crate::gltf_codes::element_shape) {
+        Some((1, rows)) => rows,
         _ => return Err(invalid("Invalid Draco accessor type")),
     };
     if required_index(accessor.get("componentType"), "accessor.componentType")? != component

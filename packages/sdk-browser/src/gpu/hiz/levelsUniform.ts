@@ -3,8 +3,9 @@ import { HIZ_NEAREST, HIZ_WHOLE_FARTHEST, hizRoute } from './pyramidTexture.ts'
 
 /** Words of the levels uniform (`HizLevels`): per level the first index of its nearest bound, its
  *  width and height, and the first index of its finished depth's farthest bound (`hizRoute`);
- *  then the count of levels, and whether this image wrote level 0's front layer
- *  (`HIZ_LEVELS_FRONT_WORD`, `HIZ_FOLD_WGSL`). */
+ *  then the count of levels, whether this image wrote level 0's front layer
+ *  (`HIZ_LEVELS_FRONT_WORD`, `HIZ_FOLD_WGSL`), and `upper`, by which a coarser level's bounds of
+ *  two layers lie apart: the culling layer's lies one `upper` before the nearest's (`hizMip`). */
 export const HIZ_LEVELS_WORDS = HIZ_MAX_LEVELS * 4 + 4
 /** The word of the levels uniform that says this image wrote level 0's front layer. */
 export const HIZ_LEVELS_FRONT_WORD = HIZ_MAX_LEVELS * 4 + 1
@@ -28,5 +29,6 @@ export function hizLevelWords(
       level * 4,
     )
   words[HIZ_MAX_LEVELS * 4] = count
+  words[HIZ_MAX_LEVELS * 4 + 2] = layout.upper
   return words
 }

@@ -1,7 +1,8 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
-import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
+import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
+import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
 
 /**
  * The contribution of one declared light at the point, its shadow included — the engine's only
@@ -33,7 +34,7 @@ import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contra
  * code of the loop: left out, every punctual light of the loop runs without the registers it holds.
  *
  * Without `lobeless`, the program of an image that holds an anisotropic or clear-coat surface
- * (`lobesWgsl.ts`): a light goes through `lobeLight` and `lobeRectLight`, which run the very same
+ * (`lobesWgsl.ts`): the same `surfaceLight` and `rectLight`, whose lobe hooks run the very same
  * terms on a pixel without lobes.
  *
  * `shading` is what the pixel's lights share of its surface (`lobeSurface`), taken once before the
@@ -44,23 +45,22 @@ export const declaredLightWgsl = (
   { pair = false, term = 'surface' }: { pair?: boolean; term?: LightTerm } = {},
 ) => {
   const shadowed = !key.unshadowed,
-    lobes = !key.lobeless,
     surface = term === 'surface'
   return wgslBlock(
     `declaredLightWgsl(${variantLabel(key)}, ${pair}, ${term})`,
-    [...(pair ? [LIGHT_PAIR_WGSL] : []), ...(key.rectless || !surface ? [] : [INVERSE_PI])],
+    [...(pair ? [LIGHT_PAIR_WGSL] : []), ...(surface ? [lambertDiffuse] : [])],
     surface
-      ? `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranch(pair, lobes)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
+      ? `fn declaredLight${pair ? 'Pair' : ''}(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${REACH(zero(pair))}${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
  let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
- // the light's sum as it is (\`exactZeros.test.ts\`).
+ // the light's sum as it is (\`exactZeros.test.ts\`). Its back takes the light's cosine from behind.
  var transmitted=vec3f(0.0);
- if(any(thinSubsurface!=vec3f(0.0))){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
+ if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(max(-dot(N,incidence.xyz),0.0)*energy),1.0);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${terms(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
- return ${terms(pair, (_rgb, _metal, shading) => `(${lobes ? 'lobeLight' : 'surfaceLight'}(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
+ return ${terms(pair, (_rgb, _metal, shading) => `(surfaceLight(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
 }`
-      : `fn declaredIrradiance(light:DirectLight,P:vec3f,N:vec3f,reach:f32)->vec3f{${irradianceTerm(key.rectless)}
+      : `fn declaredIrradiance(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
 }`,
   )
 }
@@ -68,47 +68,6 @@ export const declaredLightWgsl = (
 /** What a light gives (`declaredLightWgsl`): a pixel's radiance through the maps, or a point's
  *  irradiance through the proxy. */
 export type LightTerm = 'surface' | 'irradiance'
-
-/** The light's incidence at \`P\`, and its exact zero out of its range or its cone. */
-const INCIDENCE = (zeroTerm: string) => `
- let incidence=directIncidence(light,P);
- if(incidence.w<=0.0){return ${zeroTerm};}`
-
-/**
- * A light's irradiance through the proxy, one rule for every kind: what it adds at the point — a
- * punctual light's cosine, a rectangle's form factor (\`rectIrradiance\`), its exact zero out of
- * range —, then, where it adds light and casts a shadow, one ray toward it through the resident
- * proxy, which keeps a closed door closed for the bounce as for the direct term. Every
- * shadow-casting light that adds light at the point is tested: one left untested would shine
- * through the wall. A sun's ray reaches \`reach\`, a lamp's the lamp, a rectangle's its centre. A
- * rectangle casts no shadow by its contract (\`validateRect\`, \`packages/sdk-core/src/scene/light/validate.ts\`),
- * in the direct term as here: its flag is never set, and the rule tests it as any light's.
- */
-const irradianceTerm = (rectless = false) => `
- var lit=vec3f(0.0);
- var toward=vec3f(0.0);${
-   rectless
-     ? PUNCTUAL_IRRADIANCE
-     : `
- if(isRect(light)){
-  lit=light.colorIntensity.rgb*light.colorIntensity.w*rectIrradiance(light,P,N).w;
-  toward=normalize(light.positionRange.xyz-P);
- }else{${PUNCTUAL_IRRADIANCE}
- }`
- }
- if(all(lit==vec3f(0.0))){return lit;}
- if(light.params.z>0.5){
-  let span=select(length(light.positionRange.xyz-P),reach,isSun(light));
-  if(rtBlocked(P+N*1e-3,toward,span)){return vec3f(0.0);}
- }
- return lit;`
-
-/** A punctual light's irradiance before its shadow: its incidence, then its cosine. */
-const PUNCTUAL_IRRADIANCE = `${INCIDENCE('vec3f(0.0)')}
- let cosine=dot(N,incidence.xyz);
- if(cosine<=0.0){return vec3f(0.0);}
- lit=light.colorIntensity.rgb*light.colorIntensity.w*incidence.w*cosine;
- toward=incidence.xyz;`
 
 /**
  * With `pair`, the light's two terms from one walk (`declaredLightPair`): on the surface, and on a
@@ -129,105 +88,69 @@ const terms = (pair: boolean, of: (rgb: string, metal: string, shading: string) 
     ? `LightPair(${of('rgb', 'metal', 'shading')},${of('vec3f(0.0)', '0.0', 'dielectric')})`
     : of('rgb', 'metal', 'shading')
 
-/** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. */
-const rectBranch = (pair: boolean, lobes: boolean) => `
+/** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. Its
+ *  view from the point serves its front and, on a thin surface, its back (the Lambert diffuse of the
+ *  back's irradiance, as a punctual light's). */
+const rectBranch = (pair: boolean) => `
  if(isRect(light)){
+  let r=rectView(light,P);
   var transmitted=vec3f(0.0);
-  if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*INVERSE_PI*light.colorIntensity.rgb*light.colorIntensity.w;}
-  return ${terms(pair, (rgb, metal, shading) => `${lobes ? 'lobeRectLight' : 'rectLight'}(light,${rgb},${metal},rough,N,V,P,ao${lobes ? `,${shading}.f0` : ''})+transmitted`)};
+  if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(rectIrradianceOf(r,-N).w*light.colorIntensity.w),1.0)*light.colorIntensity.rgb;}
+  return ${terms(pair, (rgb, metal, shading) => `rectLight(light,r,${shading},${rgb},${metal},rough,N,V,ao)+transmitted`)};
  }`
 
 const shadeStatement = (pair: boolean) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the shadow's
- // trace is skipped (\`shadowFactor\`). Toon bands light it.
- let toward=normalize(incidence.xyz);
- let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
- let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,toward),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
- let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,shadowBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
+ // trace is skipped (\`shadowFactor\`). Toon bands light it. The direction is unit as it comes.
+ let cosine=dot(N,incidence.xyz);
+ let back=thinSurface()&&cosine<0.0;
+ let facing=back||surfaceModel==${MODEL_FLAG.toon}u||cosine>0.0;
+ let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,vsmBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
  if(shade<=0.0){return ${zero(pair)};}`
 
 /**
  * The one loop that walks a point's lights: a pixel's in full (\`sliceLighting\`), the lights of a
- * cell's list (\`cellSlice\`) — or, from \`TILE_NO_SLICE\`, every light of the scene — in increasing
- * rank; a bounce point's irradiance (\`lightsIrradiance\`, \`term\` \`irradiance\`), every light of
- * the scene, which no list of the view's grid holds (its cells are the view's own).
- *
- * With \`reject\`, a light is first rejected on its sphere alone, before its record is read in full,
- * where it lies past its range by a ten-thousandth of its squared range (\`RANGE_REJECT\`): there
- * \`directIncidence\` — and a rectangle's range window — would have returned zero before any
- * shading, so the sum loses an exact zero only. The kind is read alone (\`isSunKind\`), not through
- * \`isSun\`, which takes the whole record. Timed on the resolve (64 lamps, a million pixels), it
- * takes 30 % off a light out of range for 13 % on one in range: in the resolve program with shadow
- * code that 13 % is not repaid (42.3 → 47.9 ps a light in range), so that program runs the loop
- * without the reject (#1249). The irradiance always rejects: a light in range there costs a ray
- * through the proxy, which the sphere test's few words do not weigh.
+ * cell's list (\`cellSlice\`, \`listedLight\`) in increasing rank; a bounce point's irradiance
+ * (\`lightsIrradiance\`, \`term\` \`irradiance\`), the lights of its cell of the world grid
+ * (\`bounceLightSlice\`). Every walk hands the light's RANK to its term, whose first statement is the
+ * one reach test (\`REACH\`, \`lightReaches\`) on the light's kind and sphere: a light out of reach
+ * costs those words and a compare, in every program, before the rest of its record is read.
  */
-export const sliceLightingWgsl = (reject: boolean, pair = false, term: LightTerm = 'surface') =>
+export const sliceLightingWgsl = (pair = false, term: LightTerm = 'surface') =>
   wgslBlock(
-    `sliceLightingWgsl(${reject}, ${pair}, ${term})`,
+    `sliceLightingWgsl(${pair}, ${term})`,
     [],
     term === 'surface'
-      ? lightLoop(
-          `sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}`,
-          `
+      ? `
+fn sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}{
  var result=${zero(pair)};
- let shading=lobeSurface(rgb,metal,rough,N,V);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}`,
-          'slice.y',
-          LISTED_PICK,
-          reject,
-          pair
-            ? PAIR_SUM
-            : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading);',
-        )
-      : lightLoop(
-          'lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f',
-          `
- let slice=bounceLightSlice(P);
- var result=vec3f(0.0);`,
-          'slice.y',
-          LISTED_PICK,
-          reject,
-          'result+=declaredIrradiance(directLights.items[light],P,N,reach);',
-        ),
-  )
-
-/** The loop's text: \`head\` its signature, \`start\` its result and what its lights share, \`count\`
- *  its lights, \`pick\` the rank a light is read at, \`sum\` what a light adds. */
-const lightLoop = (
-  head: string,
-  start: string,
-  count: string,
-  pick: string,
-  reject: boolean,
-  sum: string,
-) => `
-fn ${head}{${start}
- for(var index=0u;index<${count};index++){
-  ${pick}${reject ? RANGE_REJECT_TEST : ''}
-  ${sum}
+ let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}
+ for(var index=0u;index<slice.y;index++){
+  ${pair ? PAIR_SUM : 'result+=declaredLight(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);'}
  }
  return result;
 }`
-
-/** A listed light's rank: the list's word, or, from \`TILE_NO_SLICE\`, every light in turn. */
-const LISTED_PICK = 'var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}'
+      : `
+fn lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
+ let slice=bounceLightSlice(P);
+ var result=vec3f(0.0);
+ for(var index=0u;index<slice.y;index++){
+  result+=declaredIrradiance(listedLight(slice,index),P,N,reach);
+ }
+ return result;
+}`,
+  )
 
 /** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
-const PAIR_SUM = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);
+const PAIR_SUM = `let term=declaredLightPair(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading,dielectric);
   result.lit+=term.lit;result.specular+=term.specular;`
 
-const RANGE_REJECT_TEST = `
-  let sphere=directLights.items[light].positionRange;
-  let offset=sphere.xyz-P;
-  if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}`
-
 /**
- * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, with the range
- * reject, over the lights of the point's cell of the world light grid (\`bounceLightSlice\`,
+ * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, over the lights of the point's cell of the world light grid (\`bounceLightSlice\`,
  * \`../../bounce/lightCellWgsl.ts\`, which its module lists with the light grid's buffer).
  */
 export const LIGHTS_IRRADIANCE_WGSL = wgslBlock(
   'LIGHTS_IRRADIANCE_WGSL',
-  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl(true, false, 'irradiance')],
+  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl(false, 'irradiance')],
   '',
 )

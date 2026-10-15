@@ -11,26 +11,12 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
 import { randomLampScope, type Sum } from './shadedLightScope.fixture.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
-const LOOP = [
-  'sliceLighting',
-  'declaredLight',
-  'directIncidence',
-  'rangeWindow',
-  'isSun',
-  'isSunKind',
-  'isRect',
-  'modelLight',
-  'lambertAlbedoMul',
-  'thinTransmission',
-  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
-]
-const LOBED = [...LOOP, 'lobeLight', 'anisotropicLobe']
+const LOOP = ['sliceLighting']
+const LOBED = LOOP
 /** Lobes off, and on with nothing: no skew, no coat, a coat that lets everything through. */
 const OFF = { on: false }
 const NOTHING = { on: true, skewed: false, coat: 0, coatRough: 0.5, coatN: [0, 0, 1], through: 1 }

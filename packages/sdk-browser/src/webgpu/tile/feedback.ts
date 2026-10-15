@@ -24,8 +24,13 @@ import { TILE_QUEUE_BYTES, type TileQueueCut } from './queueCut.ts'
  *  every image carries its pick turn (`PICK_CYCLE`). */
 export const FEEDBACK_STRIDE = 4
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE
-/** The bits of a coordinate inside a `FEEDBACK_STRIDE` square. */
+/** The bits of a coordinate inside a `FEEDBACK_STRIDE` square, and their count: the shift of the
+ *  phase word's row field. */
 export const FEEDBACK_STRIDE_MASK = FEEDBACK_STRIDE - 1
+export const FEEDBACK_STRIDE_BITS = floorLog2(FEEDBACK_STRIDE)
+/** The side of the square of pixels one speaking pixel stands for under phase word `word`: the
+ *  CPU's read of the one stride rule (`FEEDBACK_STRIDE_WGSL`, `requestWgsl.ts`). */
+export const feedbackStrideOf = (word: number) => (word & FEEDBACK_EVERY ? 1 : FEEDBACK_STRIDE)
 /** First bit above the phase and the `FEEDBACK_EVERY` bit. */
 export const PICK_SHIFT = floorLog2(FEEDBACK_EVERY) + 1
 

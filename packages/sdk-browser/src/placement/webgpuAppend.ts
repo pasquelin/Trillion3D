@@ -36,7 +36,7 @@ import {
 import { growWebgpuPagePool } from '../webgpu/pages/io/memory.ts'
 import { grantDepthLayers } from '../webgpu/pages/prepare/layerGrowth.ts'
 import { blendRefusal, prepareBlendGrowth } from '../webgpu/blend/growth.ts'
-import { deformsContent, prepareDeformationGrowth } from '../deformation/growth.ts'
+import { prepareDeformationGrowth } from '../deformation/growth.ts'
 import { byRenderOrder, pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
 
 /** The textures `surface` reads, colour then data, as the open's census takes them
@@ -105,8 +105,8 @@ export async function addWebgpuPlacements(
   const blend = drawsBlended(primitive, surface) && blendRefusal(rt)
   if (blend) return blend
   if (!held) {
+    // Pushed on the manifest array the collector's finder indexes: found at its next look.
     context.metadata.primitives.push(primitive)
-    collector.primitiveOf.add(primitive)
     context.admitPages?.(primitivePages(primitive))
   }
   setup.texturePools?.coverage.read(surface)
@@ -127,8 +127,7 @@ export async function addWebgpuPlacements(
     return 'the device refused the transparent pass'
   if (closed(rt)) return CLOSED
   // The deformation stage, and the float geometries its pages read, for what moves or is rewritten.
-  const deforms = deformsContent(source, primitive, into.allPages)
-  if (!(await prepareDeformationGrowth(rt, gpu.device, deforms, into.allPages)))
+  if (!(await prepareDeformationGrowth(rt, gpu.device, into.roots, copies, into.allPages)))
     return 'the deformation stage or the float pool was refused'
   if (closed(rt)) return CLOSED
   return joinCatalogued(rt, into, copies)

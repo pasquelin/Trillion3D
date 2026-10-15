@@ -2,7 +2,7 @@ import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
-import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts'
+import { receiverTargetReadWgsl } from '../../visibility/shader/receiverTargetWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
 import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -21,8 +21,8 @@ const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(r
  * The mask carries the opaque shadow from the receiver the projection read
  * (`vsm/projectionWgsl.ts`): without translucent casters nothing reads the rest, so a pixel loads
  * no receiver offset.
- * Set only where the pixel's cell lists a shadowed light (`cellShadowed`): nothing else reads
- * it.
+ * Set only where the pixel's cell lists a shadowed light, or has no list and walks every light
+ * (`cellShadowed`): nothing else reads it.
  */
 const SHADOW_SETUP_WGSL = wgslBlock(
   'SHADOW_SETUP_WGSL',
@@ -41,10 +41,9 @@ const SHADOW_SETUP_WGSL = wgslBlock(
 const SURFACE_TERMS = {
   bounce: {
     bounce: 'bounceLighting(base.rgb,base.a,N,P,emissive.a)',
-    thin: 'thinBounce(N,P,emissive.a)+',
     diagnostic: 'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
   },
-  direct: { bounce: 'vec3f(0.0)', thin: '', diagnostic: '' },
+  direct: { bounce: 'vec3f(0.0)', diagnostic: '' },
 }
 
 /** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes
@@ -53,10 +52,14 @@ const SURFACE_TERMS = {
  *  in a lobeless program, or on a pixel without lobes, a call that reads nothing and a
  *  multiplication by one, which changes no bit. */
 export const contractSurfaceBody = (bounce: boolean) => {
-  const { bounce: bounced, thin, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
+  const { bounce: bounced, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
   return wgslBlock(
     `contractSurfaceBody(${bounce})`,
-    [receiverOffsetWgsl(DEFERRED_BINDINGS.receiver), SURFACE_EMISSIVE_AO_WGSL, SHADOW_SETUP_WGSL],
+    [
+      receiverTargetReadWgsl(0, DEFERRED_BINDINGS.receiver),
+      SURFACE_EMISSIVE_AO_WGSL,
+      SHADOW_SETUP_WGSL,
+    ],
     `${LIGHT_SURFACE_ENTRY}
  let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  if(flag==0u){return vec4f(0.0);}
@@ -77,8 +80,7 @@ export const contractSurfaceBody = (bounce: boolean) => {
  ${readLobesStatement(PHYSICAL_SURFACE_FLAG)}
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,cell);
- var rgb=litSurface(lit,${bounced},environmentLighting(base.rgb,base.a,N,emissive.a),resolvedReflection(coord),emissive.rgb);
- if(any(thinSubsurface>vec3f(0.0))){rgb+=${thin}environmentLighting(thinSubsurface,0.0,-N,emissive.a);}${CAMERA_FOG}
+ var rgb=litSurface(lit,${bounced},environmentLighting(base.rgb,base.a,N,emissive.a),resolvedReflection(coord),emissive.rgb,N,P,emissive.a);${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )

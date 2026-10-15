@@ -79,7 +79,7 @@ test('a switched root draws its card in visibility and surfaces once its tiles r
   assert.equal(attachments[4]?.loadOp, 'load', 'the resolve’s requests kept')
   const [surface] = drawsOf(1)
   assert.equal(surface.pipeline.vertex?.entryPoint, 'card_vs')
-  assert.equal(surface.pipeline.fragment?.entryPoint, 'card_feedback_fs')
+  assert.equal(surface.pipeline.fragment?.entryPoint, 'card_fs')
   assert.equal([...(surface.pipeline.fragment?.targets ?? [])].at(-1)?.format, 'r32uint')
   assert.equal(surface.pipeline.depthStencil, undefined, 'no depth, written or compared')
   assert.ok(surface.groups[2], 'the identifiers the visibility stage kept')

@@ -73,7 +73,7 @@ export { hslToRgb, linearToSrgb, srgbToLinear } from '../../math/src/color/color
 export { invertMatrix4 } from '../../math/src/matrix/matrix4Inverse.ts'
 export {
   linearPartScale,
-  SINGULAR_DETERMINANT,
+  DIVISOR_FLOOR,
   adjugateFactor,
   normalizedLinearDeterminant,
 } from '../../math/src/matrix/singular.ts'

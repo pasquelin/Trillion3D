@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuLog } from './gpuLog.ts'
 import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
-import { VSM_PROJECTION_PASS } from '../../../vsm/projectionPass.ts'
+import { VSM_PROJECTION_PASS } from '../../../vsm/projectionPipelines.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 const device = {
@@ -55,10 +55,7 @@ test('silent without the flag', () => {
 test('the device once, then a line every 60 images: passes, sizes, the dispatch', () => {
   const lines = logged('?trillion3dGpuLog=1', [12, 24, 72, 84, 133])
   assert.equal(lines.length, 4)
-  assert.match(
-    lines[0],
-    /^\[T3D-GPU\] subgroups yes \(sizes 4-64\), projection vote: subgroup \(workgroup counters where a half spans subgroups\)$/,
-  )
+  assert.match(lines[0], /^\[T3D-GPU\] subgroups yes \(sizes 4-64\)$/)
   assert.equal(
     lines[1],
     '[T3D-GPU] frame 12 gpu 15.25 ms pairs valid 3 unwritten 0 invalid 0 drawn 1440x900 display 2880x1800 projection 180x113 groups' +

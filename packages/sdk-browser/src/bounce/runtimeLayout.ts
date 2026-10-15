@@ -47,7 +47,7 @@ export const RUNTIME_WORLD_WORDS = 16
 /** One placement's instance, the `Instance` texel of its record (`gpu/dag/worldTable.ts`): its
  *  cut's first node and first triangle in the arena (`NO_INDEX` where it draws no proxy), the
  *  surface it wears, and its frame word — the mark with the deformation's reach above it
- *  (`markReach`). */
+ *  (`rootMark`). */
 export const INSTANCE = { node: 0, triangle: 1, surface: 2, mark: 3 } as const
 export const INSTANCE_WORDS = Object.keys(INSTANCE).length
 

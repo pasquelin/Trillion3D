@@ -1,5 +1,6 @@
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
-import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts'
+import { PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts'
+import { PLAN_CULL_WGSL } from './planCull.ts'
 import { INSTANCE_CULL_SHIFT } from './runs.ts'
 import { RUN_WORDS } from './planLayout.ts'
 import { expandUniformWgsl } from './expandUniform.ts'
@@ -110,9 +111,8 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
  if(held==0u){return;}
  let entry=plan[uni.orderBase+i];
  let item=entry>>${PLAN_SHIFT}u;
- // The cull mode the vertex stage applies, above the item rank, as instanceWord packs it: the
- // pipeline's rank among the three of its blend mode (planCull).
- let word=item|select(0u,((entry&${PLAN_PIPELINE_MASK}u)%3u)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
+ // The cull mode the vertex stage applies, above the item rank, as instanceWord packs it.
+ let word=item|select(0u,planCull(entry)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
  let d=draws[item];
  if(d.x==${NO_INDEX}u){
   for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,j*d.w);}
@@ -149,5 +149,13 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  args[o+3u]=0u;
 }
 `,
-  [expandUniformWgsl(), LANE_SCAN_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, bitWord, bitIsSet],
+  [
+    expandUniformWgsl(),
+    LANE_SCAN_WGSL,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    bitWord,
+    bitIsSet,
+    PLAN_CULL_WGSL,
+  ],
 )

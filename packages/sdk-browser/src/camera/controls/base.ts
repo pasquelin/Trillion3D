@@ -94,3 +94,7 @@ export function createChangeGate(base: ControlBase, size: number) {
     return true
   }
 }
+
+/** The height of the surface a controller reads its drags against, in CSS pixels; 1 for a surface
+ *  laid out at none, so a drag never divides by zero. */
+export const surfaceHeight = (surface: HTMLElement) => surface.clientHeight || 1

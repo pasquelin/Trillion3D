@@ -12,13 +12,12 @@
 import type { readCellPage, TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { TableSlot } from '../../../sdk-core/src/scene/core/tablePages.ts'
 import type { StreamPage } from '../streaming/types.ts'
+import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import { boxed, type Boxed, type CellBoxes, type Declared } from './boxes.ts'
 import { boxDistance } from './plan.ts'
 
 /** A page of the index: its file, its boxes, and once opened the pages it lists or its cells. */
 export type IndexPage = Declared & {
-  /** Its number among the pages the index made, for the plan's pins (`planPins.ts`). */
-  id: number
   slot: StreamPage
   body: { pages: IndexPage[] } | { cells: number[] } | null
 }
@@ -31,14 +30,12 @@ export type PageBody = ReturnType<typeof readCellPage>
 export function createCellIndex(slots: readonly TableSlot[], base: string, boxes: CellBoxes) {
   const cells = new Map<number, Cell>()
   let opened = 0,
-    made = 0,
     forgotten: string[] = []
   const pageOf = ({ page, bounds, parents }: TableSlot): IndexPage => ({
-    id: made++,
     slot: { ...page, url: new URL(page.url, base).href },
     declared: bounds,
     parents,
-    box: new Float64Array(6),
+    box: new Float64Array(BOX_VALUES),
     written: -1,
     body: null,
   })

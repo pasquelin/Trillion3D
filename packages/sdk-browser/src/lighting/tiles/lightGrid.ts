@@ -9,7 +9,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { createTileLightPool } from './pool.ts'
-import { buildComputePipeline } from '../deferred/fullscreen.ts'
+import { buildComputeStage } from '../../gpu/core/computeStages.ts'
 import { BOUNCE_LIGHT_LISTS_PASS, LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
 
 /** The pass's uniform: the inverse matrix, the viewport and columns, the origin, two depth rows,
@@ -53,10 +53,7 @@ export async function createGrid(
     lightTilesShader(kind),
     kind === 'view' ? 'LIGHT_TILES_SHADER' : 'LIGHT_TILES_WORLD_SHADER',
   )
-  const pipeline = await buildComputePipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module, entryPoint: 'lightTiles' },
-  })
+  const pipeline = await buildComputeStage(device, [layout], module, 'lightTiles')
   const packed = new Float32Array(UNIFORM_FLOATS)
   const grid: Grid = {
     kind,

@@ -98,7 +98,7 @@ pub(super) fn prune_cache(
 ) -> Result<Value> {
     let native = o.cache.join("native");
     let mut removed_keys = 0usize;
-    for scope in ["slice", "full"] {
+    for scope in crate::shared_math::abi::SCOPES {
         let dir = native.join(scope);
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
@@ -107,7 +107,7 @@ pub(super) fn prune_cache(
         let current = if scope == o.scope {
             Some(key.to_string())
         } else {
-            fs::read(dir.join("manifest.json"))
+            fs::read(dir.join(crate::MANIFEST_POINTER))
                 .ok()
                 .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
                 .and_then(|p| p["key"].as_str().map(str::to_owned))

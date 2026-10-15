@@ -7,22 +7,28 @@ import { HALF_PI } from '../constants.ts'
  * Largest factor by which a 3x3 linear map can stretch a distance: its largest singular value,
  * obtained in closed form from the symmetric matrix A^T A. A rotation reports exactly 1.
  *
- * The cluster cut projects every screen error through this exact stretch, so a rotated instance is
- * refined against the pixel budget it actually asks for.
+ * THE ONE STRETCH every screen error, reach and level of detail goes through: exact for a rotation
+ * and a scale, still the stretch under a shear, where a column's length falls below it. NaN for a
+ * matrix with a non-finite number or too short, which each caller refuses — never a throw on a
+ * frame path. Same formula and same refusal as the GPU's `maxStretchOf` (doubles, all-ones bits)
+ * and the Rust core's `linear::max_stretch` (fdlibm's arc cosine and sine there: the last bits may
+ * differ).
  *
- * `elements` is a column-major 4x4 as stored by a 3D library: indices 0,1,2 / 4,5,6 / 8,9,10.
+ * `elements` is a column-major 4x4 as stored by a 3D library, read from `at`: indices 0,1,2 /
+ * 4,5,6 / 8,9,10. A row-major 3×4 gives the same value: a matrix and its transpose share their
+ * singular values.
  */
-export function maxStretch(elements: ArrayLike<number>): number {
-  if (elements.length < 11) throw new Error('Matrice invalide')
-  const a = elements[0],
-    b = elements[4],
-    c = elements[8]
-  const d = elements[1],
-    e = elements[5],
-    f = elements[9]
-  const g = elements[2],
-    h = elements[6],
-    i = elements[10]
+export function maxStretch(elements: ArrayLike<number>, at = 0): number {
+  if (elements.length < at + 11) return NaN
+  const a = elements[at],
+    b = elements[at + 4],
+    c = elements[at + 8]
+  const d = elements[at + 1],
+    e = elements[at + 5],
+    f = elements[at + 9]
+  const g = elements[at + 2],
+    h = elements[at + 6],
+    i = elements[at + 10]
   if (
     !Number.isFinite(a) ||
     !Number.isFinite(b) ||
@@ -34,7 +40,7 @@ export function maxStretch(elements: ArrayLike<number>): number {
     !Number.isFinite(h) ||
     !Number.isFinite(i)
   )
-    throw new Error('Invalid matrix')
+    return NaN
   const m00 = a * a + d * d + g * g,
     m11 = b * b + e * e + h * h,
     m22 = c * c + f * f + i * i

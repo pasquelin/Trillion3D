@@ -72,7 +72,7 @@ export function composeWebgpuPlacements(
   const p = state.parentIds.get(parent)
   if (p === undefined && !links.length) return
   const { ranks, rooted, readers } = linkedRanks(rt, links)
-  const slot = takeSlot(state, parent, p, world)
+  const slot = takeSlot(state, parent, p)
   let views: ReaderViews | undefined
   const viewsOf = () => (views ??= readerViews(rt.blendState.blendGpu))
   if (whole) {
@@ -87,13 +87,15 @@ export function composeWebgpuPlacements(
     return
   }
   linkRanks(rt, state, { slot, ranks, links: rooted, whole })
-  const relinked = ranks.length > 0 || whole
-  settleSlot(rt, state, { slot, p, world, relinked })
+  // A reader's new local moves the slot's version too: its views read that version alone.
+  const relinked = ranks.length > 0 || readers.length > 0 || whole
+  const moved = settleSlot(rt, state, { slot, p, world, relinked })
   // Its readers' views read their rows composed: a move composes none until one is read.
   if (readers.length || whole)
     readThroughViews(state.readers, slot, viewsOf(), state, rt.layout.selectionRoots)
-  // Poses moved and no node entered or left: the frame hears it as any engine pose write.
-  rt.run.gate.engineMovedInPlace()
+  // Poses moved and no node entered or left: the frame hears it as any engine pose write. A still
+  // world sent again — every slot a frame sends (`partition/follow.ts`) — moves nothing.
+  if (moved || relinked) rt.run.gate.engineMovedInPlace()
 }
 
 /** The roots and the blended items of a growth read views on their new rows (`growth.ts`): the

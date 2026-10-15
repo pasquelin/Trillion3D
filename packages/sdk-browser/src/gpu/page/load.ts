@@ -147,7 +147,7 @@ function residentHit({ resident, reader }: GpuPageContext, key: string) {
   reader.emit?.('gpu-page-cache-hit', 'GPU page already resident', () => ({
     version: 1,
     key,
-    slot: existing.slot,
+    offset: existing.offset,
     generation: existing.generation,
     source: 'resident-cache',
   }))

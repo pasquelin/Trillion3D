@@ -144,19 +144,9 @@ fn element_digest(g: &Value, bin: &[u8], id: usize) -> Option<String> {
     let a = accessor(g, bin, id, None)
         .ok()
         .filter(|a| a.has_buffer_view)?;
-    let size = a.width.checked_mul(a.bytes)?;
     let mut sha = Sha256::new();
-    if a.stride == size {
-        // Tightly packed: the elements are one run of bytes, hashed in one update.
-        sha.update(
-            a.bin
-                .get(a.base..a.base.checked_add(a.count.checked_mul(size)?)?)?,
-        );
-    } else {
-        for i in 0..a.count {
-            let at = a.base.checked_add(i.checked_mul(a.stride)?)?;
-            sha.update(a.bin.get(at..at.checked_add(size)?)?);
-        }
+    for element in a.elements().ok()? {
+        sha.update(element);
     }
     Some(hex_of(sha.finalize()))
 }

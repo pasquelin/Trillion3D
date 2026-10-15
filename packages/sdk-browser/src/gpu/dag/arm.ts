@@ -1,4 +1,4 @@
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../core/computeStages.ts'
 import { computeBufferEntry } from '../core/computeBindings.ts'
 import { DAG_ARM_BINDING } from './shader/armWgsl.ts'
 
@@ -30,18 +30,11 @@ export const buildDagArm = (
   layout: GPUBindGroupLayout,
   words: DagArmWords,
 ) =>
-  buildComputePipeline(device, {
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: {
-      module,
-      entryPoint: 'dagArm',
-      constants: {
-        DRAWN_GROUPS: words.drawnGroups,
-        CAND_GROUPS: words.candGroups,
-        LIVE_GROUPS: words.liveGroups,
-        LIST_GROUPS: words.listGroups,
-      },
-    },
+  buildComputeStage(device, [layout], module, 'dagArm', {
+    DRAWN_GROUPS: words.drawnGroups,
+    CAND_GROUPS: words.candGroups,
+    LIVE_GROUPS: words.liveGroups,
+    LIST_GROUPS: words.listGroups,
   })
 
 /** The arming kernel's one group, over the cut's `work` and its arguments `args`. */

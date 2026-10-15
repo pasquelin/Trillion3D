@@ -14,7 +14,7 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
  * temporal resolve and the composition that tone-maps. Each pass writes a full-size
  * `rgba16float` target the next one reads, two in turn at most; each kind keeps its own resources.
  * Nothing exists before the first frame with a pass: the targets are made then, at the image's
- * size, and follow it — one fewer when the composition takes the last pass's blend over (`fuse`);
+ * size, and follow it — one fewer, as the composition takes the last pass's blend over;
  * a kind's programs compile in the background at its first pass, and until
  * every kind of the chain is ready the image is drawn without the chain (`loading`), which its
  * caller draws again once they arrive (`settled`) rather than hold. `fail` is called when one
@@ -99,6 +99,9 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     get loading() {
       return pending.size > 0
     },
+    /** Whether every kind `passes` needs is compiled; the compile of those that are not starts
+     *  here, so a frame that draws nothing yet still brings them. */
+    ready: (passes: readonly EffectPass[]) => readyFor(passes),
     /** Resolves once every program in compilation has arrived or failed. */
     settled: () => Promise.all(pending.values()),
     /** Bytes of every target the chain holds: the pass targets and each kind's own. */
@@ -117,15 +120,15 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
       return blend
     },
     /** Encodes `passes` over `input`, an image of `w` × `h`, and returns what composition reads:
-     *  `input` itself when there is nothing to draw. With `fuse`, the last pass leaves its blend
-     *  to the composition (`blend`) and writes no target. */
+     *  `input` itself when there is nothing to draw. A last pass whose kind has a blend leaves it
+     *  to the composition (`blend`) and writes no target: the one blend of the chain's last bloom
+     *  is the composition's (`BLOOM_COMPOSE_WGSL`); a pass before it writes the next one's input. */
     encode(
       encoder: GPUCommandEncoder,
       passes: readonly EffectPass[],
       input: GPUTextureView,
       w: number,
       h: number,
-      fuse = false,
     ) {
       draws = 0
       blend = undefined
@@ -134,7 +137,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
         return input
       }
       if (!readyFor(passes)) return input
-      const fuses = fuse && 'blend' in made[passes[passes.length - 1].kind]!
+      const fuses = 'blend' in made[passes[passes.length - 1].kind]!
       const last = passes.length - (fuses ? 1 : 0)
       ensure(effectPassTargets(last), w, h)
       let view = input,

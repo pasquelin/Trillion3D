@@ -10,19 +10,25 @@
  * The marks are storage-buffer writes (`vsm*Store` / `vsm*Or` from the binding builder); a texel
  * out of range is skipped by an explicit bounds test.
  *
- * Pixel inputs are the engine's own (the shadow demand pass's, `webgpu/shadow/demandWgsl.ts`):
- * depth, normals, surface flags, the deferred `View` and `worldAt`, and the light grid
+ * Pixel inputs are the engine's own: depth, normals, surface flags, the deferred `View` and
+ * `worldAt`, and the light grid
  * (`pixelCell`, `cellSlice`, `tileLights`).
  * What the engine's view uniform lacks (the +z-forward view-to-clip matrix, the depth-from-device-Z
  * coefficients, the origin shift, the view rect) comes in `VsmMarkingParams` (`markingPass.ts`).
  */
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
-import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
+import {
+  VSM_HANDLE_WGSL,
+  VSM_PAGE_ADDRESS_WGSL,
+  VSM_STRUCTS_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
+} from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
-import { DIRECT_LIGHT_WGSL, localLightReaches } from '../lighting/direct/lightWgsl.ts'
+import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
+import { localLightReaches } from '../lighting/direct/lightReachWgsl.ts'
 import { TILE_SLICE_WGSL, pixelCellWgsl } from '../lighting/direct/lightingWgsl.ts'
 import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
@@ -136,14 +142,9 @@ fn vsmMapWalkOf(dispatchThreadId:vec3u,numWorkgroups:vec3u)->VsmMapWalk{
   s.walkStep=vsmPerPage.gridWidth;
  }
  s.valid=true;
- if(s.handle.isSinglePage){
-  s.firstMip=VSM_MIPS-1u;
-  s.endMip=VSM_MIPS;
- }else{
-  let pd=vsmProjectionData[s.handle.id];
-  s.firstMip=pd.finestMip;
-  s.endMip=select(VSM_MIPS,1u,pd.lightKind==LIGHT_KIND_DIRECTIONAL);
- }
+ let pd=vsmProjectionData[s.handle.id];
+ s.firstMip=pd.finestMip;
+ s.endMip=select(VSM_MIPS,1u,pd.lightKind==LIGHT_KIND_DIRECTIONAL);
  return s;
 }
 fn vsmPagesAcross(mipLevel:u32)->u32{return VSM_LEVEL0_PAGES>>mipLevel;}
@@ -216,6 +217,7 @@ ${tables.map((t) => t.body).join('\n')}
     [
       VSM_UNIFORMS_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       vsmBindingsWgsl(0, VSM_CLEAR_SPECS, layout),
       VSM_PER_PAGE_DISPATCH_WGSL,
     ],
@@ -237,14 +239,9 @@ export const vsmPageRectInitWgsl = (layout: VsmLayout) =>
 @compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let index=flatIndex(id,n,256u);
  if(index<vsmMarking.rectsToClear){
-  var rectOffset=index;
-  // The full shadow maps are offset to a distant part of the ID range.
-  if(index>=vsm.singlePageMapCount*VSM_MIPS){
-   rectOffset+=VSM_SINGLE_PAGE_MAP_SLOTS*VSM_MIPS-vsm.singlePageMapCount*VSM_MIPS;
-  }
   let empty=vec4u(VSM_LEVEL0_PAGES,VSM_LEVEL0_PAGES,0u,0u);
-  vsmStaleRects[rectOffset]=empty;
-  vsmMappedRects[rectOffset]=empty;
+  vsmStaleRects[index]=empty;
+  vsmMappedRects[index]=empty;
  }
 }
 `,
@@ -301,14 +298,9 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
   wgslProgram(
     `@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
 @compute @workgroup_size(${256}) fn vsmMarkCoarse(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- // Thread k: the full maps first (ids from VSM_SINGLE_PAGE_MAP_SLOTS), then the single-page ones.
- var mapId=flatIndex(id,n,256u);
- if(mapId<vsm.fullMapCount){
-  mapId+=VSM_SINGLE_PAGE_MAP_SLOTS;
- }else{
-  mapId-=vsm.fullMapCount;
-  if(mapId>=vsm.singlePageMapCount){return;}
- }
+ // Thread k: map k.
+ let mapId=flatIndex(id,n,256u);
+ if(mapId>=vsm.mapCount){return;}
  let handle=vsmHandleFromId(mapId);
  let pd=vsmProjectionOf(handle);
  // A coarse page is asked for without the fine bit.
@@ -339,7 +331,7 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
    }
   }
  }else{
-  // A single-page map, or a local map (a far receiver always finds one), asks for its last mip's page.
+  // A local map (a far receiver always finds one) asks for its last mip's page.
   let entryCell=vsmTableEntryOf(handle,VSM_MIPS-1u,vec2u(0u,0u));
   vsmRequestPage(entryCell,flags);
   if(pd.useCover){vsmFillCover(entryCell);}
@@ -350,6 +342,7 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
       VSM_MARKING_PARAMS_WGSL,
       vsmBindingsWgsl(0, VSM_COARSE_SPECS, layout),
       VSM_PROJECTION_DATA_READ_WGSL,
@@ -380,6 +373,7 @@ const VSM_PAGE_MARKING_WGSL = wgslBlock(
     perspectiveDivide,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
+    VSM_TABLE_ORIGIN_WGSL,
     VSM_STRUCTS_WGSL,
     VSM_PROJECTION_DATA_WGSL,
     VSM_PROJECTION_DATA_READ_WGSL,
@@ -397,7 +391,8 @@ fn vsmMarkLocalMipLevel(pd:VsmProjectionData,shiftedPosition:vec3f,sceneDepth:f3
  let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmMarking.originShiftHigh,vsmMarking.originShiftLow);
  let pointInMap=shiftedPosition+toMapShift;
  let footprint=vsmLocalPixelFootprint(pd,pointInMap,sceneDepth,vsmMarking.viewToClip,vec2f(vsmMarking.viewSize));
- return vsmLocalMipLevel(footprint,pd.levelBias,vsm.pressureBias,0.0);
+ // A map's table holds its mips from its finest on (\`vsmTableLevelOrigin\`).
+ return max(vsmLocalMipLevel(footprint,pd.levelBias,vsm.pressureBias,0.0),pd.finestMip);
 }
 /** Marks the receiver cover: one bit of the page's 8x8 cells, atomic OR. */
 fn vsmMarkCover(entryCell:VsmTableCell,mapTexelAt:vec2u){
@@ -516,8 +511,8 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  let marginSide=vec2f(select(-1.0,1.0,(groupIndex&1u)!=0u),select(-1.0,1.0,(groupIndex&2u)!=0u));
  // Directional lights.
  {
-  let hasMargin=VSM_MARK_SUN_MARGIN>0.0;
-  let marginOffset=VSM_MARK_SUN_MARGIN*marginSide;
+  let hasMargin=VSM_MARK_MARGIN>0.0;
+  let marginOffset=VSM_MARK_MARGIN*marginSide;
   for(var index=0u;index<vsmMarking.sunMapCount;index++){
    let handle=vsmHandleFromId(vsmDirectionalLightIds[index]);
    let pd=vsmProjectionOf(handle);
@@ -526,20 +521,18 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
    if(facesSun){vsmMarkPageDirectional(handle,shiftedPosition,hasMargin,marginOffset);}
   }
  }
- // Local lights, over the engine's light grid cell: lights without a VSM, single-page "distant"
- // lights and directional lights are skipped in the walk.
+ // Local lights, over the engine's light grid cell: lights without a VSM and directional lights
+ // are skipped in the walk.
  {
-  let hasMargin=VSM_MARK_LOCAL_MARGIN>0.0;
-  let marginOffset=VSM_MARK_LOCAL_MARGIN*marginSide;
+  let hasMargin=VSM_MARK_MARGIN>0.0;
+  let marginOffset=VSM_MARK_MARGIN*marginSide;
   let localPosition=pixelPos-vsmMarking.viewRectMin;
-  let cell=pixelCell(vec2f(localPosition)+0.5,deviceZ);
-  if(cell==TILE_NO_SLICE){return;}
-  let slice=cellSlice(cell);
+  // The lighting's one rule of a missing list (\`cellSlice\`): every light, as the resolve walks.
+  let slice=cellSlice(pixelCell(vec2f(localPosition)+0.5,deviceZ));
   for(var index=0u;index<slice.y;index++){
-   var lightIndex=index;
-   if(slice.x!=TILE_NO_SLICE){lightIndex=tileLights[slice.x+index];}
+   let lightIndex=listedLight(slice,index);
    let handle=vsmHandleFromId(bitcast<u32>(vsmLightIds[lightIndex]));
-   if(!vsmHandleIsValid(handle)||handle.isSinglePage){continue;}
+   if(!vsmHandleIsValid(handle)){continue;}
    let light=directLights.items[lightIndex];
    if(isSun(light)){continue;}
    let lightShiftedPosition=vsmLightShiftedPosition(light);
@@ -549,8 +542,7 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
    // The source radius: a point/spot's emitter radius, a rect's half width.
    let sourceRadius=select(light.shape.x,length(light.shape.xyz),rect);
    if(backfaceCull&&vsmFacesAwayFromLocal(d,worldNormal,sourceRadius)){continue;}
-   let spot=abs(light.params.x-KIND_SPOT)<0.5;
-   vsmMarkPageLocal(lightShiftedPosition,!spot,handle,shiftedPosition,sceneDepth,hasMargin,marginOffset);
+   vsmMarkPageLocal(lightShiftedPosition,!isSpot(light),handle,shiftedPosition,sceneDepth,hasMargin,marginOffset);
   }
  }
 }

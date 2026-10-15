@@ -6,7 +6,7 @@ import { Color } from '../../../sdk-core/src/world/math/color.ts'
 import { createSurfaceBuffer } from './surfaceAllocation.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { directLightingWgsl } from '../lighting/direct/lightingWgsl.ts'
-import { shaderFunctions } from '../texture/shaderRule.fixture.ts'
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import { hostSurface, repaintHostSurface } from '../world/core/worldSurface.ts'
@@ -66,14 +66,18 @@ test('enabled transmission allocates exactly eight bytes per pixel, without anot
 })
 
 test('shipped thin diffuse transmission integrates to its color, dark front and shadow included', () => {
-  const { thinTransmission } = shaderFunctions<{
-    thinTransmission: (cosine: number, energy: number) => number
-  }>(DIRECT_LIGHTING_WGSL, ['thinTransmission'])
-  assert.equal(thinTransmission(0.5, 8), 0)
-  assert.equal(thinTransmission(-0.5, 0), 0)
-  assert.ok(Math.abs(thinTransmission(-0.5, 8) - 4 / Math.PI) < 1e-6)
+  // The back of a thin surface is the Lambert diffuse of the light's cosine from behind
+  // (`lambertDiffuse`, `declaredLight`), on a white subsurface colour.
+  const { lambertDiffuse } = shaderRun<{
+    lambertDiffuse: (rgb: number[], metal: number, irradiance: number[], ao: number) => number[]
+  }>(DIRECT_LIGHTING_WGSL, ['lambertDiffuse'], {})
+  const back = (cosine: number, energy: number) =>
+    lambertDiffuse([1, 1, 1], 0, Array(3).fill(Math.max(-cosine, 0) * energy), 1)[0]
+  assert.equal(back(0.5, 8), 0)
+  assert.equal(back(-0.5, 0), 0)
+  assert.ok(Math.abs(back(-0.5, 8) - 4 / Math.PI) < 1e-6)
   let integral = 0
-  for (let i = 0; i < 1024; i++) integral += (thinTransmission(-(i + 0.5) / 1024, 1) * TAU) / 1024
+  for (let i = 0; i < 1024; i++) integral += (back(-(i + 0.5) / 1024, 1) * TAU) / 1024
   assert.ok(Math.abs(integral - 1) < 1e-6)
 })
 

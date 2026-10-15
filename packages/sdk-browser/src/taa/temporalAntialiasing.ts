@@ -16,16 +16,11 @@ const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as
  * Temporal antialiasing pass: two histories in ping-pong, each a colour, its share target, its
  * geometry and its flicker measure (`historyTargets.ts`), one read and the other
  * written each frame, and composition reads the one just written. Targets follow the display size
- * (`resize`); bind groups are rebuilt when an input changes identity, never per frame. With
- * `upscale`, the resolves that reconstruct a frame drawn below the display are compiled at once
- * (`upscales`). The resolve is a fullscreen draw into the targets.
+ * (`resize`); bind groups are rebuilt when an input changes identity, never per frame. The resolve
+ * is a fullscreen draw into the targets, one program for every render scale (`resolveWgsl.ts`).
  */
-export async function createTemporalAntialiasing(
-  device: GPUDevice,
-  roots: readonly MotionRoot[],
-  upscale = false,
-) {
-  const resolves = await createTaaResolves(device, upscale)
+export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
+  const resolves = await createTaaResolves(device)
   const motion = createPlacementMotion(device, roots)
   const filterHistory = createTaaFilterHistory(device, resolveTargetUsage())
   const uniform = device.createBuffer({
@@ -77,8 +72,6 @@ export async function createTemporalAntialiasing(
     uniform,
     motion,
     filterHistory,
-    /** Whether the upscaling resolves are compiled; the first ask compiles them (`resolve.ts`). */
-    upscales: () => !!resolves.upscaled(),
     /** Bytes of the two targets as allocated: what a capture must count beside its own. */
     get historyBytes() {
       return history.bytes + filterHistory.bytes
@@ -111,15 +104,11 @@ export async function createTemporalAntialiasing(
      *  other target, then swaps roles. Returns the written colour, share and display layers. */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING')
-      const set = inputs.upscale ? resolves.upscaled() : resolves
-      if (!set) throw new Error('TAA_UPSCALE_MISSING')
       const kind = inputs.share ? 'blended' : inputs.flags ? 'asIs' : 'flagless'
-      const twin = inputs.filter && resolves.filtered(kind, !!inputs.upscale)
-      // Until its twin is compiled, the image resolves no layer: composition reads the raw ones.
-      if (!twin) inputs.filter = undefined
-      // Without a reactive value, the resolve that reads none once compiled: the same words.
-      const quiet = !twin && !inputs.reactive && resolves.unreactive(kind, !!inputs.upscale)
-      const resolve = twin || quiet || set[kind]
+      const layered = inputs.filter && resolves.filtered(kind)
+      // Until the layered resolve is compiled, the image resolves no layer: composition reads the raw ones.
+      if (!layered) inputs.filter = undefined
+      const resolve = layered || resolves[kind]
       filterHistory.follow(inputs.filter, history.width, history.height)
       const { layout } = resolve
       const { next } = identity

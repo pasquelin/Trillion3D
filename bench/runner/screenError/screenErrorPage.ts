@@ -37,9 +37,9 @@ export async function holdAndCapture(o: HoldOptions) {
     lodAdaptive: false,
     preload: 'visible',
     engine: sdk.webgpuPagesEngine,
-    clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
   })
+  explorer.setClearColor(0x2a303c)
   const backend = explorer.engine as SdkBrowser.Engine
   const rows = []
   for (const { view, pose } of o.poses) {

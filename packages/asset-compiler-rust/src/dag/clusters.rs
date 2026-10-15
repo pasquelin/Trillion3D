@@ -1,10 +1,10 @@
 use super::*;
 use trillion3d_math::triangle::edge_key;
-use trillion3d_page_codec::clusters::{spatial::spatial, Caps};
+use trillion3d_page_codec::clusters::{cluster, Caps};
 
 /// The clusters of `indices` over `positions`, at most `max_triangles` triangles and
 /// `DAG_CLUSTER_VERTICES` vertices each, by the one clusterer (`trillion3d_page_codec::clusters`,
-/// the spatial rule): the run-time cut's too. Each cluster's triangles keep their source order.
+/// free to reorder): the run-time cut's too. Each cluster's triangles keep their source order.
 pub fn cluster_triangles(
     positions: &[f32],
     indices: &[u32],
@@ -22,7 +22,7 @@ pub fn cluster_triangles(
         triangles: max_triangles,
         vertices: DAG_CLUSTER_VERTICES,
     };
-    let built = spatial(positions, indices, caps);
+    let built = cluster(positions, indices, caps, false);
     let mut start = 0;
     let clusters = built.ends.iter().map(|&end| {
         let cluster = built.indices[start..end].to_vec();
@@ -107,18 +107,11 @@ pub fn weld_positions(positions: &[f32], indices: &[u32]) -> Vec<u32> {
 }
 /// Canonical vertex per (position, every texture coordinate): copies that differ only by their
 /// normal or their colour are one point, those on a texture seam of any set stay two. It names
-/// the seams a reduction protects and the normal copies a coarse corner picks from. The key
-/// allocates nothing: three position words, then two per set of the two a page can carry.
+/// the seams a reduction protects and the normal copies a coarse corner picks from. The key is the
+/// one vertex key (`attributes::key`) over the texture sets.
 pub fn weld_positions_and_uv(positions: &[f32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec<u32> {
     weld_by(positions.len() / 3, indices, |id| {
-        let mut key = [0u32; 7];
-        key[..3].copy_from_slice(&position_key(positions, id));
-        for (set, uvs) in uv_sets.iter().enumerate() {
-            let i = id as usize * 2;
-            key[3 + 2 * set] = normalized_bits(uvs[i]);
-            key[4 + 2 * set] = normalized_bits(uvs[i + 1]);
-        }
-        key
+        super::attributes::key(positions, id as usize, uv_sets.iter().map(|uvs| (*uvs, 2)))
     })
 }
 pub(super) fn weld_by<K: std::hash::Hash + Eq>(

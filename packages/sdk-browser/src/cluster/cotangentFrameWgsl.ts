@@ -20,6 +20,8 @@ fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFra
  let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),DIVISOR_FLOOR));
  return CotangentFrame(T*scale,B*scale);
 }
-/** The normal N bent by a tangent-space map value m over the frame T, B: unit, or zero. */
-fn bendNormal(N:vec3f,T:vec3f,B:vec3f,m:vec3f)->vec3f{return unitOrZero(T*m.x+B*m.y+N*m.z);}`,
+/** The normal N bent by a tangent-space map value m over the frame T, B, the frame turned by
+ *  \`flip\` (±1) — the face a two-sided surface is seen from, the one rule of every pass that
+ *  bends a normal map (opaque resolve, blends, clear coat): unit, or zero. */
+fn bendNormal(N:vec3f,T:vec3f,B:vec3f,flip:f32,m:vec3f)->vec3f{return unitOrZero((T*m.x+B*m.y)*flip+N*m.z);}`,
 )

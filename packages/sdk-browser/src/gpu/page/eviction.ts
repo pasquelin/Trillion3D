@@ -35,7 +35,7 @@ const endOf = <K>(order: EvictionOrder<K>, lower: boolean) =>
   lower ? (order.old ?? order.count) : order.count
 
 /**
- * Which resident page an arrival takes the slot of, in a pool of fixed slots: the next page of the
+ * Which resident page an arrival takes the place of: the next page of the
  * order the pool's GPU sort published (`../pool/sortWgsl.ts`), which alone knows when each page was
  * last used by any view, and holds a page's parents as long as the page. Each entry is passed once;
  * one pinned or refused when passed waits in `held` for its unpin, and is offered before the
@@ -105,7 +105,8 @@ export function createEviction<K = string, V extends Held = ResidentPage>(
       return Math.max(0, endOf(order, lower) - at) + held.length
     },
     /** Whether `key`'s page may leave with a victim — the order lists it, in its old head for
-     *  `lower` —: what a slot split in quarters asks of every page it holds (`placement.ts`). */
+     *  `lower` —: what the allocator asks of every page beside a victim whose bytes an arrival
+     *  needs too (`placement.ts`). */
     evictable(key: K, lower = false) {
       const rank = rankOf(key)
       if (rank === undefined || !opened(order) || pins.has(key)) return false

@@ -10,7 +10,7 @@
 //! a face corner becomes is read in `corner`.
 use super::*;
 use crate::import::Vertices;
-use crate::plugins::scene::ngon::Ngon;
+use crate::plugins::scene::corners::Corners;
 
 /// A material part: its glTF material, and the faces it carries.
 struct Part {
@@ -30,7 +30,7 @@ pub(super) fn emit(world: &mut World<'_>, node: usize, surface: &Surface) -> Opt
         primitives.push(value);
     }
     if primitives.is_empty() {
-        world.refuse(report::MESH_EMPTY);
+        world.refuse(crate::plugins::scene::codes::MESH_EMPTY);
         return None;
     }
     let name = world.document.nodes[node].name.clone();
@@ -104,33 +104,34 @@ fn build(world: &mut World<'_>, surface: &Surface, part: &Part) -> Option<(Value
     let carried = |face: &usize| surface.uv_slots.get(*face).is_some_and(|uv| !uv.is_empty());
     let textured = !surface.uvs.is_empty() && part.faces.iter().all(carried);
     if !textured && !surface.uvs.is_empty() {
-        world.refuse(report::UV_DROPPED);
+        world.refuse(crate::plugins::scene::codes::UV_DROPPED);
     }
-    let mut out = Vertices::default();
-    let mut unique: HashMap<[u32; 3], u32> = HashMap::new();
-    let mut cutter = Ngon::default();
+    let mut out: Corners<[u32; 3]> = Corners::new(Vertices::default());
     let cancelled = world.cancelled;
     for face in &part.faces {
         let ring = surface.loops.get(*face).map_or(0, Vec::len);
-        if ring < 3 {
-            continue;
-        }
-        let corners: Vec<u32> = (0..ring)
-            .filter_map(|rank| surface.corner(&mut out, &mut unique, (*face, rank), textured))
+        let keys: Option<Vec<_>> = (0..ring)
+            .map(|rank| surface.key((*face, rank), textured))
             .collect();
-        if corners.len() != ring {
+        let Some(keys) = keys.filter(|_| ring >= 3) else {
             continue;
+        };
+        out.begin();
+        for (rank, (key, corner)) in keys.into_iter().enumerate() {
+            out.corner(key, surface.point(*face, rank), |vertices| {
+                corner.write(vertices)
+            });
         }
         // The cutter rereads the token per face slice: a single huge mesh stops too. What is
         // already placed stays, and `convert` then refuses the whole scene.
-        match surface.cut(&mut cutter, *face, cancelled) {
-            None => break,
-            Some(false) => world.refuse(report::NGON_UNCUT),
-            Some(true) => {}
+        let uncut = out.uncut;
+        if out.cut(cancelled, false).is_none() {
+            break;
         }
-        for [a, b, c] in cutter.triangles() {
-            out.indices.extend([corners[*a], corners[*b], corners[*c]]);
+        if out.uncut != uncut {
+            world.refuse(crate::plugins::scene::codes::NGON_UNCUT);
         }
     }
+    let out = out.vertices;
     world.scene.part_primitive(&out, part.material)
 }

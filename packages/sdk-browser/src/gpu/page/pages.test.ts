@@ -29,12 +29,12 @@ test('a reused GPU slot receives only the bytes of its page, padded to what the 
   giveUp(cache, 'small')
   const pages = [large, small, await cache.load('odd')]
   const envois = writes.map((write) => [...written(write)]),
-    slot = pages[0].slot
+    offset = pages[0].offset
   assert.deepEqual(envois, [octets.large, octets.small, octets.odd.slice(0, 4), [17, 0, 0, 0]])
-  assert.deepEqual([pages[1].slot, pages[2].slot], [slot, slot])
+  assert.deepEqual([pages[1].offset, pages[2].offset], [offset, offset])
   assert.deepEqual(
     writes.map((write) => write.offset),
-    [slot * 8, slot * 8, slot * 8, slot * 8 + 4],
+    [offset, offset, offset, offset + 4],
   )
   assert.deepEqual([pages[0].bytes, pages[1].bytes, pages[2].bytes], [8, 4, 5])
   assert.equal(cache.stats().uploadedBytes, 8 + 4 + 8)

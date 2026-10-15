@@ -54,7 +54,7 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
   if (!hiz) return
   // An image whose front pass drew none, a scene that lost its last transparent: the word down, so no
   // reader folds the last glass.
-  hiz.front(encoder, reflection?.front.drawn === frontStamp(run.frame))
+  hiz.front(reflection?.front.drawn === frontStamp(run.frame))
   // The pass is the view's reflection's, made with the surfaces every lit image draws.
   if (!run.depthDrawn || !reflection) return
   hiz.encodeNearest(reflection.depthPass.begin(encoder))

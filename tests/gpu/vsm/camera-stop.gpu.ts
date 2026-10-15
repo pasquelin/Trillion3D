@@ -25,10 +25,8 @@ const START = 6,
   STEPS = 24
 
 async function stopOnTheStreet() {
-  const world = await openBenchWorld('facade-7', [WIDTH, HEIGHT], {
-    pixelError: PIXEL_ERROR,
-    clearColor: 0x2a303c,
-  })
+  const world = await openBenchWorld('facade-7', [WIDTH, HEIGHT], { pixelError: PIXEL_ERROR })
+  world.setClearColor(0x2a303c)
   try {
     world.addLight({ ...SUN, castsShadow: true })
     await world.awaitPages()

@@ -1,8 +1,7 @@
 import type { WaterSpec } from '../../../../sdk-core/src/fluids/buoyancy.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { hasBody } from '../bodied.ts'
-import { followMove } from '../nodePose.ts'
-import { placeBodies } from '../placeBodies.ts'
+import { followNode } from '../followNode.ts'
 import type { SessionParts } from './sessionParts.ts'
 import { engineIdOf } from '../simulatedIds.ts'
 import { drawnBySoft } from '../softVertices.ts'
@@ -39,9 +38,7 @@ export function createSessionControls(c: SessionParts) {
     },
     /** The page moved or hid a node: its bodies go where the page put them; hidden, no pose. */
     pose(node: Object3D) {
-      s.dirty = placeBodies(node, bodies, writer, c.failed) || s.dirty
-      tiles.moved(node)
-      followMove(node, bodies.nested, writer, c.poses.follow)
+      followNode(node, bodies, writer, tiles, c.poses.follow, c.failed)
     },
     /** Scene queries (`CAST_WORDS` each), answered after the frame's commands: hits in order. */
     async cast(queries: Uint32Array) {

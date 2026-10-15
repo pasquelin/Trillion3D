@@ -5,7 +5,8 @@ import {
   selectionListCap,
   stagedOutputBytes,
 } from './layout.ts'
-import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
+import { listWords, SELECTION_HEADER_WORDS } from './readoutWords.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { heldOpenSlots } from './heldOpen.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
 import type { CameraFrames } from './cameraFrames.ts'
@@ -32,8 +33,9 @@ export function cutHeldSlots(limits: Limits, pageCount: number, rows: number) {
 /**
  * THE CAP A TRUNCATED READOUT GROWS TO. The list is sized for a wide cut, not for every cut: a
  * view that keeps more asks `needed` ranks — the camera's own: the view ahead has its own counter
- * and never grows the list (`shader/snapshotWgsl.ts`) —, and the list doubles past it, within the
- * catalogue and what one binding holds.
+ * and never grows the list (`shader/snapshotWgsl.ts`) —, and the list grows by the one growth rule
+ * (`grownLength`: those ranks, twice its cap at least), within the catalogue and what one binding
+ * holds.
  * `undefined` when even that cannot hold the cut: the cut coarsens instead (`coarsening.ts`); the GPU
  * cut is the engine's one.
  */
@@ -44,7 +46,7 @@ export function grownListCap(
   needed: number,
   heldSlots = 0,
 ) {
-  const next = Math.min(pageCount, deviceListCap(limits, heldSlots), 2 * Math.max(cap, needed))
+  const next = Math.min(pageCount, deviceListCap(limits, heldSlots), grownLength(cap, needed))
   return next > cap && next >= Math.min(needed, pageCount) ? next : undefined
 }
 
@@ -66,7 +68,7 @@ export function createDagList(
   regions = 0,
   heldSlots = 0,
 ) {
-  const outputBytes = (SELECTION_HEADER_WORDS + listCap) * 4,
+  const outputBytes = listWords(listCap) * 4,
     // The requests, the drawn list and one burst of the eviction queue (`EVICTION_BURST`).
     readbackBytes = residentReadbackBytes(listCap)
   // Behind the eviction queue, the requests wait for their sort, outside what the frame copies

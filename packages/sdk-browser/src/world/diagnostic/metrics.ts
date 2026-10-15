@@ -32,7 +32,6 @@ export const UNMEASURED: FrameMetrics = {
   cpuSelectNodesTested: null,
   cpuSubmitMs: null,
   drawCalls: null,
-  triangles: null,
   clusters: null,
   selectedTriangles: null,
   residentPages: null,
@@ -138,6 +137,8 @@ export function createExplorerMetrics(
     const integration = pageIntegrationStats()
     metricsScratch.pagesPlannedOffThread = integration.offThread
     metricsScratch.pagePlanMs = integration.planMs
+    // The queue's numbers this frame, read once: the trace reads them from here.
+    return stream
   }
   return { metricsScratch, profiler, fillMetrics }
 }

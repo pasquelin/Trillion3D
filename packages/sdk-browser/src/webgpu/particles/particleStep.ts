@@ -2,7 +2,7 @@
 // entries compiled.
 import { hasSubgroups } from '../../gpu/core/subgroups.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../../gpu/core/computeStages.ts'
 import { computeBufferEntries } from '../../gpu/core/computeBindings.ts'
 import { particlesWgsl } from './particlesWgsl.ts'
 import { PARTICLES_PASS } from '../../stage/passLabels.ts'
@@ -36,11 +36,14 @@ export async function compileStep(
     'PARTICLES',
   )
   const build = (entryPoint: string, bindGroupLayout: GPUBindGroupLayout) =>
-    buildComputePipeline(device, {
-      label: `${PARTICLES_PASS} ${entryPoint}`,
-      layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
-      compute: { module, entryPoint },
-    })
+    buildComputeStage(
+      device,
+      [bindGroupLayout],
+      module,
+      entryPoint,
+      undefined,
+      `${PARTICLES_PASS} ${entryPoint}`,
+    )
   const [main, emit, bound] = await Promise.all([
     build('main', layout),
     build('emit', layout),

@@ -13,13 +13,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
-import {
-  LIGHT_LOOP_SHARED,
-  randomLampScope,
-  same,
-  type Pair,
-  type Sum,
-} from '../blend/shadedLightScope.fixture.ts'
+import { randomLampScope, same, type Pair, type Sum } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -33,15 +27,7 @@ const SINGLE = wgslModule(
   STANDARD_LIGHTING_WGSL,
 )
 const K = wgslConstants(LOBED)
-const SHARED = [
-  ...LIGHT_LOOP_SHARED,
-  'modelLight',
-  'lambertAlbedoMul',
-  'thinTransmission',
-  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
-]
-const LOBE = ['lobeLight', 'anisotropicLobe']
-const PAIR = ['sliceLightingPair', 'declaredLightPair', ...SHARED]
+const PAIR = ['sliceLightingPair']
 
 /** A pixel's lobes as `setLobes` leaves them: a strength along a direction across `N`, a coat. */
 function lobesOf(u: (lo: number, hi: number) => number, r: () => number, N: number[], V: number[]) {
@@ -109,21 +95,17 @@ test('the lobed pair gives the two sums of two lobed walks, its specular on a di
     const pairOf = (text: string, lobes: object, names: string[]) =>
       shaderRun<{ sliceLightingPair: Pair }>(text, names, { ...scope, lobes }).sliceLightingPair
     const singleOf = (lobes: object) =>
-      shaderRun<{ sliceLighting: Sum }>(
-        SINGLE,
-        ['sliceLighting', 'declaredLight', ...SHARED, ...LOBE],
-        {
-          ...scope,
-          lobes,
-        },
-      ).sliceLighting
-    const ours = pairOf(LOBED, lobes, [...PAIR, ...LOBE])
+      shaderRun<{ sliceLighting: Sum }>(SINGLE, ['sliceLighting'], {
+        ...scope,
+        lobes,
+      }).sliceLighting
+    const ours = pairOf(LOBED, lobes, PAIR)
     const plain = pairOf(PLAIN, {}, PAIR)
-    const off = pairOf(LOBED, { on: false }, [...PAIR, ...LOBE])
+    const off = pairOf(LOBED, { on: false }, PAIR)
     const nothing = pairOf(
       LOBED,
       { on: true, skewed: false, coat: 0, coatRough: 0.5, coatN: N, through: 1 },
-      [...PAIR, ...LOBE],
+      PAIR,
     )
     for (const slice of [
       [2, scope.tileLights.length - 2],

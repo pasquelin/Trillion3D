@@ -17,6 +17,7 @@ import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { createBlendOrderState } from './orderState.ts'
 import { planState, planTotals } from './planState.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import type { GeometryBlock } from '../row/pageRowMaterial.ts'
 import type { FloatAtlas } from '../core/floatAtlas.ts'
 import type { NodeIndex } from '../pages/render/movedNode.ts'
 import type { FrontOutputs } from '../../reflections/frontLayer.ts'
@@ -61,8 +62,12 @@ export type BlendGpuItem = {
    *  Absent, the item never has a box; present, `bounds` points at it or is `undefined` because
    *  the bounds obtained were not usable (`worlds.ts`). */
   worldBox?: Float64Array
-  /** Material flags (`../../visibility/types.ts`) in the low sixteen bits; above them the one-based water
-   *  rank of a transmissive item, zero for a blend (`../water/surfaceWgsl.ts`). */
+  /** What its geometry brings to its flags, as a page row's block does (`rowFlags`, written with
+   *  its record, `items.ts`): normals, tangents (none read from pages), colours, UVs, quantized. */
+  geometry: GeometryBlock
+  /** The flags the item alone decides — paged, transmissive — in the low sixteen bits, above them
+   *  the one-based water rank of a transmissive item, zero for a blend (`../water/surfaceWgsl.ts`);
+   *  its surface's and geometry's join them in its record (`items.ts`). */
   flags: number
   /** Its own bind group, by the slot of the identity it names (`identity`). */
   groups?: (GPUBindGroup | undefined)[]

@@ -1,10 +1,6 @@
 import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import { CPU_STEP } from './cpuStepTable.ts'
-import {
-  frameCostAuditEnabled,
-  gpuFrameCostSnapshot,
-  logFrameCostAudit,
-} from '../../../frame/costAudit.ts'
+import { gpuFrameCostSnapshot, logFrameCostAudit } from '../../../frame/costAudit.ts'
 import type { HostCpuStep } from '../../../host/cpuProfile.ts'
 import { debugMode } from '../../../host/debugMode.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -73,7 +69,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
 function publishCpuProfile(rt: WebgpuPagesRuntime) {
   const { timing, run, diag } = rt
   if (
-    (diag.traceEnabled && !frameCostAuditEnabled()) ||
+    (diag.traceEnabled && !debugMode()) ||
     !timing.cpuSample ||
     run.frame === timing.lastCpuLogFrame
   )
@@ -108,7 +104,7 @@ export function endCpuFrame(rt: WebgpuPagesRuntime) {
   if (!timing.rowFilled) return
   timing.rowFilled = false
   const { profiler } = timing
-  if (!(profiler.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return
+  if (!(profiler.stages || rt.diag.listened || debugMode())) return
   profiler.record(run.frame, profiler.row[CPU_STEP.totalMs])
   recordStages(rt)
   publishCpuProfile(rt)

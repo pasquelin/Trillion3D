@@ -87,7 +87,7 @@ pub(super) fn read(mesh: &At<'_>, name: &str, room: usize) -> Result<Geometry> {
         .any(|vertex| *vertex < 0 || *vertex as usize >= vertices)
     {
         return Err(refused(
-            "blend-mesh-invalid",
+            crate::plugins::scene::codes::MESH_INVALID,
             format!("blend: mesh {name} has a corner pointing outside its vertices"),
         ));
     }

@@ -95,6 +95,7 @@ export const opened = (
       decode: decodeHere,
       decodePage: async (read, url) => readCellPage(read, url),
       admit() {},
+      forget() {},
     },
     owned,
   )
@@ -132,8 +133,6 @@ export function io(bytes: (url: string) => Uint8Array) {
     updates: [PlacementRows, number, number][] = [],
     admitted: StreamPage[] = [],
     forgotten: string[] = []
-  /** The owners each file has: what the plan pins and has not unpinned. */
-  const pinned = new Map<string, number>()
   const held = new Set<string>(),
     outgrown = { count: 0 }
   const page = (url: string) => url.includes('/scene-page-')
@@ -144,8 +143,6 @@ export function io(bytes: (url: string) => Uint8Array) {
     decodePage: async (read, url) => readCellPage(read, url),
     failed: () => false,
     request: (urls) => void asked.push(...urls),
-    pin: (url) => void pinned.set(url, (pinned.get(url) ?? 0) + 1),
-    unpin: (url) => void pinned.set(url, pinned.get(url)! - 1),
     admit: (pages) => void admitted.push(...pages),
     forget: (urls) => void forgotten.push(...urls),
     update: (rows, from, to) => updates.push([rows, from, to]),
@@ -160,7 +157,6 @@ export function io(bytes: (url: string) => Uint8Array) {
     admitted,
     forgotten,
     outgrown,
-    pinned,
     rebind: compose.rebind,
   }
 }

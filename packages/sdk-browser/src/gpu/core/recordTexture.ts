@@ -1,3 +1,4 @@
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { arrayView } from './textureViews.ts'
 import { texelBytesOf } from './textureBytes.ts'
 import { grownByCopy } from './tableGrowth.ts'
@@ -129,7 +130,7 @@ export function createRecordTexture(
       if (wanted <= table.capacity) return true
       const old = table
       try {
-        table = made(Math.max(wanted, 2 * old.capacity), old.texture)
+        table = made(grownLength(old.capacity, wanted), old.texture)
       } catch {
         return false
       }

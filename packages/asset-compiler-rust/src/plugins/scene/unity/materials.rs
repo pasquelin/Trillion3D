@@ -98,7 +98,9 @@ fn emission(
         return;
     }
     if color[..3].iter().any(|value| *value > 1.0) {
-        scene.report.add("unity-emission-clamped");
+        scene
+            .report
+            .add(crate::plugins::scene::codes::EMISSION_CLAMPED);
     }
     if color[..3].iter().any(|value| *value > 0.0) {
         out["emissiveFactor"] = json!([

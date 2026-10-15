@@ -1,5 +1,6 @@
 // World creation, collision layers, and the exported entry points.
 #include "binding.h"
+#include "restore.h"
 
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Core/JobSystemSingleThreaded.h>
@@ -158,27 +159,27 @@ uint32_t *jolt_buffer(uint32_t which, uint32_t words) {
   return w.buffers[which];
 }
 
-/// Runs `commandWords` words of commands, then advances by `dt` seconds in one collision step (none
-/// when `dt` is 0). Returns the pose count, or 0xFFFFFFFF on failure (`jolt_error`).
+/// Runs `commandWords` words of commands, then, when `dt` is above 0, advances by one fixed step
+/// (`jolt_init`'s, the only one the page steps by) in one collision step. Returns the pose count,
+/// or 0xFFFFFFFF on failure (`jolt_error`).
 uint32_t jolt_step(uint32_t commandWords, float dt) {
   trillion::World &w = world();
   w.eventWords = w.dropped = w.updateError = 0;
   w.refused.clear();
   w.diverged.clear();
-  w.recovered.clear();
-  w.dt = dt;
+  w.stepping = dt > 0;
+  dt = w.elapsed();
   ++w.step;
   trillion::sendOwedLeaves();
+  trillion::prunePrimitives();
   if (!trillion::runCommands(w.buffers[0], commandWords)) return 0xFFFFFFFFu;
   // A body removed awake was put to sleep by its removal: not a body of this step.
   w.deactivated.clear();
   trillion::moveCharacter(dt);
   trillion::driveVehicles(dt);
   if (dt > 0) {
-    trillion::notePaths();
     w.updateError = uint32_t(w.system->Update(dt, 1, w.temp, w.jobs));
     trillion::replayContacts();
-    trillion::carryPaths();
     trillion::leaveSoft();
   }
   trillion::breakJoints(dt);
@@ -211,10 +212,6 @@ uint32_t jolt_refused(uint32_t i) { return world().refused[i]; }
 /// The last step's bodies whose pose or vertices went non-finite, taken out: count, engine ids.
 uint32_t jolt_diverged_count() { return uint32_t(world().diverged.size()); }
 uint32_t jolt_diverged(uint32_t i) { return world().diverged[i]; }
-/// The last step's soft bodies that diverged on amplitude and were brought back to rest, kept in
-/// the simulation (`soft.cpp`): count, engine ids.
-uint32_t jolt_recovered_count() { return uint32_t(world().recovered.size()); }
-uint32_t jolt_recovered(uint32_t i) { return world().recovered[i]; }
 uint32_t jolt_error() { return world().error; }
 /// Leaves still owed from a step whose event buffer was full: the next step writes them first.
 uint32_t jolt_owed_leaves() { return uint32_t(world().leaving.size()); }

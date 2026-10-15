@@ -51,11 +51,10 @@ fn testHizArgs(){
 }
 fn testBox(i:u32){
  let b=bounds[i];
- let row=b.rowAndClip>>1u;
- // A tested row the pyramid cannot judge stays drawn: kept, never an occluder — the compute
- // raster draws occluders in its other mode. A row with no verdict slot (never culled) is not
- // judged either: no reject is counted for a row that draws.
- if(pages[row].hizSlot==NO_INDEX||(b.rowAndClip&1u)!=0u||b.maxX<b.minX||b.maxY<b.minY){flags[row]=${VERDICT_KEPT}u;return;}
+ let row=b.row;
+ // A row with no verdict slot (never culled) is not judged: kept, and no reject is counted for a
+ // row that draws. Every box the partition packed is a found pick (\`classifyRows\`).
+ if(pages[row].hizSlot==NO_INDEX){flags[row]=${VERDICT_KEPT}u;return;}
  // Reverse-Z: a box is rejected when its NEAREST point stays behind the pyramid's farthest,
  // hence when it is SMALLER. The coarse mip the partition packed is read first (\`pyramidHides\`).
  let reject=select(0u,1u,pyramidHides(b.minX,b.minY,b.maxX,b.maxY,b.fineOffset,b.fineWidth,b.nearest,b.coarseOffset,b.coarseWidth,b.coarseShift));

@@ -61,7 +61,7 @@ impl Default for Document {
             by_name: HashMap::new(),
             links: Vec::new(),
             instances: Vec::new(),
-            meters_per_unit: 0.01,
+            meters_per_unit: crate::plugins::scene::axes::CENTIMETRE,
             degrees_per_unit: 1.0,
             report: Report::default(),
             current: None,

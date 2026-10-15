@@ -1,4 +1,4 @@
-// The scene of the animation benches (`animation-sampler.perf.ts`, `animation-worker.perf.ts`): 400
+// The scene of the animation bench (`animation-sampler.perf.ts`): 400
 // rigs of 25 bones, each bone a position and a rotation track of 31 linear keys, one clip played by
 // every rig on both sides, so a frame samples, blends and writes 20 000 tracks on 10 000 nodes.
 import * as THREE from 'three'

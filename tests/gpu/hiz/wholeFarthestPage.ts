@@ -19,7 +19,7 @@ import {
   HIZ_WHOLE_FARTHEST,
   hizTextureSize,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
-import { SURFACE_SLOPE_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/footprintWgsl.ts'
+import { surfaceSlopeOf } from '../../../packages/math/src/wgsl/sampling.ts'
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { readTexture } from '../kit/computeReadback.ts'
@@ -40,7 +40,7 @@ const { surfaceSlopeOf: slopeOf } = shaderRun<{
     farBefore: number,
     farAfter: number,
   ) => number
-}>(SURFACE_SLOPE_WGSL, ['surfaceSlopeOf'], {})
+}>(surfaceSlopeOf, ['surfaceSlopeOf'], {})
 
 /** The farthest corner of each pixel's plane (`hizPlaneCorners`): the depth less half the sum of
  *  its slopes, the slopes relative to the depth and held in half floats, as the build holds them. */

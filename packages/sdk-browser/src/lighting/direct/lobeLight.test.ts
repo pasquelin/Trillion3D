@@ -1,5 +1,5 @@
-// A lobed pixel's light (`lobeLight`, `lobesWgsl.ts`) tests the base's and the coat's facing before
-// it pays the half-vector, as `surfaceLight` does: a light behind both returns its zero before
+// A lobed pixel's light (`surfaceLight` through the lobe hooks, `lobesWgsl.ts`) tests the base's and
+// the coat's facing before it pays the half-vector: a light behind both returns its zero before
 // `H`, the coat's facing is read only under a coat. The same operations in the same order on every
 // light that reaches the pixel: run in f32 (`shaderRun`, `F32_SCOPE`) beside the order it replaced,
 // on random lights, in front and behind, lobes with and without strength and coat, the sums are the
@@ -22,20 +22,15 @@ import { unitF32 } from '../../../../math/src/vector/unitF32.fixture.ts'
 import { linearToSrgb8 } from '../../../../math/src/color/color.ts'
 
 type Light = (...args: unknown[]) => number[]
-const NAMES = [
-  'lobeLight',
-  'anisotropicLobe',
-  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
-]
+const NAMES = ['lobeSurface', 'surfaceLight']
 const shipped = wgslModule(STANDARD_LIGHTING_WGSL, LOBES_LIGHTING_WGSL)
 /** The order it replaced: the half-vector and the coat's facing first, whatever faces. */
 const before = shipped.replace(
-  /(surfaceLight\(s,N,V,light\);\}\n let L=normalize\(light\.xyz\);)[\s\S]*?(var base=vec3f\(0\.0\);)/,
-  `$1let H=normalize(L+V);
- var coat=vec3f(0.0);
- let coatNdotL=max(dot(lobes.coatN,L),0.0);
- if(lobes.coat>0.0&&coatNdotL>0.0){coat=lobes.coat*standardLobe(lobes.coatSurface,lobes.coatN,V,H,coatNdotL,light.w);}
+  /(light:vec4f\)->vec3f\{\n let L=normalize\(light\.xyz\);)[\s\S]*?(var base=vec3f\(0\.0\);)/,
+  `$1
+ let H=normalize(L+V);
  let NdotL=max(dot(N,L),0.0);
+ let coatNdotL=coatCosine(L);
  $2`,
 )
 
@@ -77,7 +72,7 @@ test('a lobed light pays the half-vector only where the base or the coat faces i
     const surface = lobeSurface([u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, V)
     const args = [surface, N, V, [u(-1, 1), u(-1, 1), u(-1, 1), u(0, 20)]]
     const run = (text: string) =>
-      shaderRun<Record<string, Light>>(text, NAMES, { ...F32_SCOPE, lobes }).lobeLight(...args)
+      shaderRun<Record<string, Light>>(text, NAMES, { ...F32_SCOPE, lobes }).surfaceLight(...args)
     const ours = run(shipped),
       theirs = run(before)
     assert.ok(
@@ -160,8 +155,8 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
     const toward = unitF32([u(-1, 1), u(-1, 1), u(-1, 1)]),
       L = fdot(N, toward) < 0 ? toward.map((x) => -x) : toward
     const args = [surface, N, V, [...L, u(0.1, 20)]]
-    const a = ours.lobeLight(...args),
-      b = theirs.lobeLight(...args)
+    const a = ours.surfaceLight(...args),
+      b = theirs.surfaceLight(...args)
     if (a.some((v) => v !== 0)) lit++
     if (!a.every((v, i) => Object.is(v, b[i]))) moved++
     assert.deepEqual(bytes(a), bytes(b), `round ${round}: ${a} against ${b}`)

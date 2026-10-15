@@ -17,12 +17,12 @@ import type { RowRunVisitor } from '../webgpu/row/dirty.ts'
 import { createRowInputs, ensureRowInputs, sendRowFlags, sendRowInputs } from './rowInputs.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
 import { takeMoved } from './rootMoves.ts'
-import { followComposedRun } from './composedRows.ts'
+import { followComposedRun, rootRows } from './composedRows.ts'
 import { commitRowMotion } from '../webgpu/shadow/rowTravel.ts'
 import type { RowWordsGpu } from './rowWordsGpu.ts'
 import { ROW_EMITS, ROW_STALES } from './rowWordsWgsl.ts'
 import { deriveEveryRow, target } from './rowTargets.ts'
-import { resized } from '../../../math/src/sequence/resized.ts'
+import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 
 function createRowWords() {
   return {
@@ -48,9 +48,8 @@ function createRowWords() {
     staled: new Uint32Array(0),
     staledCount: 0,
     /** The roots whose rows the next follow names, their shadow changes asked (`deriveRootRows`),
-     *  each once: 1 at the rank of a root listed. */
-    roots: [] as number[],
-    rootListed: new Uint8Array(0),
+     *  each once. */
+    roots: createChangedRuns(),
     /** The pass's GPU side (`rowWordsPass.ts`), made at its first run. */
     gpu: undefined as RowWordsGpu | undefined,
     /** Rows named this frame for another reason than a root's move: written, made ready, every
@@ -72,13 +71,8 @@ export const nameCastRow = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>, row: numbe
 /** Root `rank`'s rows derived at the next pass, their shadow changes asked: it moved — a node's
  *  move, a row posed past what its shadows hold, a parent let go —, or its casting or its mobility
  *  changed where it stands (`flipWorld`, `../webgpu/shadow/mobility.ts`'s settle). */
-export function deriveRootRows(rt: Pick<WebgpuPagesRuntime, 'rowWords'>, rank: number) {
-  const state = rowWordsOf(rt)
-  state.rootListed = resized(state.rootListed, rank + 1)
-  if (state.rootListed[rank]) return
-  state.rootListed[rank] = 1
-  state.roots.push(rank)
-}
+export const deriveRootRows = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>, rank: number) =>
+  rowWordsOf(rt).roots.mark(rank)
 
 /** A run of rows the table declared dirty: their inputs sent and their words derived again, the
  *  composed rows' list following them. */
@@ -90,24 +84,10 @@ const dirtyRun: RowRunVisitor<WebgpuPagesRuntime> = (rt, from, to) => {
   followComposedRun(rt, from, to)
 }
 
-/** The rows of root `rank`'s resident pages derived again — its world was sent —, their shadow
- *  changes asked when `emits`. A row the cache gave back may name another page since: only a row
- *  that is this page's. */
-function targetRootRows(rt: WebgpuPagesRuntime, state: RowWords, rank: number, emits: boolean) {
-  const { rows, selectionRoots } = rt.layout,
-    root = selectionRoots[rank],
-    base = root?.packedBase ?? -1
-  if (!root || base < 0) return
-  for (let page = 0; page < root.pages.length; page++) {
-    const index = base + page,
-      transparent = !!root.pages[page].transparent
-    // A blended cluster moves its caster row (`../webgpu/row/blendCasters.ts`), which is its own.
-    const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
-    if (row < 0 || row >= rows.casterSlots) continue
-    if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
-    target(state, row, emits ? ROW_EMITS : 0)
-  }
-}
+/** The rows of root `rank`'s resident pages derived again (`rootRows`) — its world was sent —,
+ *  their shadow changes asked when `emits`. */
+const targetRootRows = (rt: WebgpuPagesRuntime, state: RowWords, rank: number, emits: boolean) =>
+  rootRows(rt, rank, (row) => target(state, row, emits ? ROW_EMITS : 0))
 
 /**
  * Brings the rows pass's inputs and its rows level with the table and the worlds, before the rows
@@ -141,15 +121,15 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     target(state, ready[k])
     state.derived++
   }
-  // A root listed for its shadow change too is walked once, by that list: its rows' asks are joined.
+  // A root listed for its shadow change too is walked once, by that list: its rows' asks are
+  // joined. Both lists increase: one walk skips the moved roots the asked list holds.
+  const asked = state.roots.take()
   if (moved)
-    for (let k = 0; k < moved.length; k++)
-      if (!state.rootListed[moved[k]]) targetRootRows(rt, state, moved[k], false)
-  for (const rank of state.roots) {
-    state.rootListed[rank] = 0
-    targetRootRows(rt, state, rank, true)
-  }
-  state.roots.length = 0
+    for (let k = 0, j = 0; k < moved.length; k++) {
+      while (j < asked.length && asked[j] < moved[k]) j++
+      if (asked[j] !== moved[k]) targetRootRows(rt, state, moved[k], false)
+    }
+  for (const rank of asked) targetRootRows(rt, state, rank, true)
   // The rows a moving root's travel carries are counted by how far it went, the others whole.
   commitRowMotion(rt, state.derived)
   state.derived = 0

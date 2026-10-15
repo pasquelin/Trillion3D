@@ -23,8 +23,6 @@ const SOLID: i64 = 0;
 const CLIP: i64 = 3;
 /// Opacity taken from an image the base colour does not hold, or from a computation.
 const ALPHA_TEXTURE: &str = "blend-alpha-texture-unsupported";
-/// Opacity taken from a channel of that image that glTF does not read at this place.
-const TEXTURE_CHANNEL: &str = "blend-texture-channel-unsupported";
 
 /// What the `Alpha` input gave: the factor that enters `baseColorFactor`, and whether an image's
 /// alpha still modulates it.
@@ -60,11 +58,13 @@ pub(super) fn of(
         .and_then(|socket| tree.link(socket))
         .is_some_and(|colour| colour.node.old == link.node.old);
     if !same || !coloured {
-        out.report.add(ALPHA_TEXTURE);
+        out.scene.report.add(ALPHA_TEXTURE);
         return declared;
     }
     if link.socket != ALPHA_CHANNEL {
-        out.report.add(TEXTURE_CHANNEL);
+        out.scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
         return declared;
     }
     Alpha {

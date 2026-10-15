@@ -1,10 +1,11 @@
 /**
  * The engine's one HTTP loader (`checked`) and its policy: one retry on what may pass, a capped
  * `Retry-After`, abort through the caller's signal, and one refusal code, `RESOURCE_HTTP_ERROR`,
- * naming the address. It imports nothing else, so a worker loads it alone.
+ * naming the address. It imports nothing that touches the page, so a worker loads it alone.
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { RETRY_AFTER_CAP_MS } from './retryCap.ts'
+import { waited } from '../../../sdk-core/src/runtime/sharedRead.ts'
 /** Whether a failure of HTTP `status` a second request may not meet: the network (`null`), a
  *  timeout (408), a rate limit (429) or a server error (5xx). Any other 4xx would meet it again. */
 const retriable = (status: number | null) =>
@@ -15,14 +16,13 @@ const retryAfter = (response: Response) => {
   const ms = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now()
   return ms > 0 ? Math.min(ms, RETRY_AFTER_CAP_MS) : 0
 }
-/** Waits `ms`, or rejects with the reason of `signal` once it aborts. */
-export const pause = (ms: number, signal?: AbortSignal) =>
-  new Promise<void>((resolve, reject) => {
-    const stop = () => (clearTimeout(timer), reject(signal?.reason))
-    if (signal?.aborted) return reject(signal.reason)
-    const timer = setTimeout(() => resolve(signal?.removeEventListener('abort', stop)), ms)
-    signal?.addEventListener('abort', stop, { once: true })
-  })
+/** Waits `ms`, or rejects with the reason of `signal` once it aborts, its timer cleared: the one
+ *  abortable wait (`waited`). */
+export const pause = (ms: number, signal?: AbortSignal) => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const elapsed = new Promise<void>((resolve) => (timer = setTimeout(resolve, ms)))
+  return waited(elapsed, signal, () => clearTimeout(timer))
+}
 /** The HTTP status `error` was refused with (`checked`), `null` for none: the network, or an
  *  error of another kind — one whose details carry the status of an answer taken (a JSON that
  *  does not parse) is no refusal. */

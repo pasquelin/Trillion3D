@@ -1,3 +1,9 @@
+import {
+  CULL_CHILD_COUNT,
+  CULL_FIRST_CHILD,
+  CULL_FIRST_PAGE,
+  CULL_PAGE_COUNT,
+} from '../../gpu/dag/types.ts'
 import type { ClusterStructureIndex } from '../selection/types.ts'
 
 /** Per DAG: how many of each node's clusters a group produced — its open count with nothing
@@ -34,14 +40,14 @@ export function cullingLinks(
     leafOfPage = new Int32Array(pages).fill(-1)
   for (let node = 0; node < count; node++) {
     const base = node * stride,
-      children = nodes[base + 12]
+      children = nodes[base + CULL_CHILD_COUNT]
     if (children > 0) {
-      const first = nodes[base + 11]
+      const first = nodes[base + CULL_FIRST_CHILD]
       for (let child = 0; child < children; child++) parents[first + child] = node
       continue
     }
-    const firstPage = nodes[base + 13],
-      pageCount = nodes[base + 14]
+    const firstPage = nodes[base + CULL_FIRST_PAGE],
+      pageCount = nodes[base + CULL_PAGE_COUNT]
     for (let i = 0; i < pageCount; i++) leafOfPage[firstPage + i] = node
   }
   return { parents, leafOfPage }

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DEFAULT_SCOPE } from '../../../sdk-core/src/contracts/base.ts'
 import { previewLevelSize } from '../../../sdk-core/src/texture/previewLevels.ts'
-import { readPagedManifest } from '../../../sdk-core/src/manifest/paged.ts'
+import { readCompiledManifest } from '../compiler/manifest.mts'
 
 /**
  * The thumbnails a compile already ships, read back for whoever asks the cutout questions.
@@ -36,9 +36,8 @@ async function keyDirectory(cache: string, scope: string): Promise<string | null
 async function manifestOf(cache: string, scope: string) {
   const directory = await keyDirectory(cache, scope)
   if (!directory) return null
-  const root = JSON.parse(await readFile(join(directory, 'clusters.json'), 'utf8')) as object
   // The previews live in the head page's columns alone: no mesh page is read.
-  return readPagedManifest({ ...root, pages: [] }, (page) => readFile(join(directory, page.url)))
+  return readCompiledManifest(join(directory, 'clusters.json'), true)
 }
 
 /**

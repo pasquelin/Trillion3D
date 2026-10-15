@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
-import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts'
+import { featuresOffIn, grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts'
 import { waterSurfaceTargets } from '../../webgpu/water/surfaceTargets.ts'
 import type { ExplorerSession } from './session.ts'
 import { colorBytesPerSample } from '../../gpu/core/colorBytes.fixture.ts'
@@ -33,7 +33,10 @@ const OFFERED = [
 
 test('the device asks exactly the optional features the adapter offers, and publishes them', async () => {
   const { adapter, asked } = adapterOffering(OFFERED)
-  const device = await requestExplorerDevice(adapter, '?other=1')
+  const device = await requestExplorerDevice(
+    adapter,
+    featuresOffIn(new URLSearchParams('?other=1')),
+  )
   // `float32-filterable` is offered but used by no kernel: it is not asked for.
   assert.deepEqual(asked, [
     ['subgroups', 'shader-f16', 'depth-clip-control', 'texture-compression-bc'],
@@ -44,7 +47,7 @@ test('the device asks exactly the optional features the adapter offers, and publ
 test('a feature the URL forces off is neither asked for nor published', async () => {
   const { adapter, asked } = adapterOffering(OFFERED)
   const off = '?trillion3dGpuFeaturesOff=subgroups,%20shader-f16'
-  const device = await requestExplorerDevice(adapter, off)
+  const device = await requestExplorerDevice(adapter, featuresOffIn(new URLSearchParams(off)))
   assert.deepEqual(asked, [['depth-clip-control', 'texture-compression-bc']])
   assert.deepEqual(grantedGpuFeatures(device), ['depth-clip-control', 'texture-compression-bc'])
 })
@@ -57,7 +60,7 @@ test("the device asks the adapter's own colour bytes per sample, above or below 
     const { adapter, limitsAsked } = adapterOffering([], {
       maxColorAttachmentBytesPerSample: offered,
     })
-    await requestExplorerDevice(adapter, '')
+    await requestExplorerDevice(adapter, [])
     assert.equal(limitsAsked[0].maxColorAttachmentBytesPerSample, offered)
   }
 })
@@ -72,7 +75,7 @@ test('the device asks the sampled textures a stage binds: the guaranteed 16, wha
       maxSampledTexturesPerShaderStage: offered,
       maxTextureDimension2D: 16384,
     })
-    await requestExplorerDevice(adapter, '')
+    await requestExplorerDevice(adapter, [])
     assert.equal(limitsAsked[0].maxSampledTexturesPerShaderStage, 16)
     assert.equal(limitsAsked[0].maxTextureDimension2D, 16384, 'an uncapped limit: all offered')
   }

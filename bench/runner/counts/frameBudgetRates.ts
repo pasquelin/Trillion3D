@@ -29,9 +29,9 @@ export const FRAME_RATES = {
  *  row, its triangle's three indices, positions, normals and texture coordinates, its three maps
  *  (base, normal, metal-roughness), its five targets (four surfaces and the texture request). */
 export const SURFACE_ACCESSES = { visibility: 1, page: 1, vertex: 12, maps: 3, targets: 5 }
-/** A shadow setup's texels: eight neighbour depths and the receiver offset's visibility texel,
- *  triangle indices and positions (`shadowSetup`, `receiverOffsetWgsl.ts`). */
-export const SETUP_TEXELS = 8 + 7
+/** A shadow setup's texels: eight neighbour depths and the receiver target's texel
+ *  (`shadowSetup`, `receiverTargetWgsl.ts`). */
+export const SETUP_TEXELS = 8 + 1
 /** The texels a shadow read of the opaque resolve takes: the light's lane of the projection's mask
  *  (`vsmMaskFactor`); the trace itself is the projection pass's. */
 export const MASK_TEXELS = 1

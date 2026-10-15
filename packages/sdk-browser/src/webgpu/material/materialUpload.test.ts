@@ -19,7 +19,7 @@ test('two records far apart are sent apart, never the records between them', () 
   const table = createMaterialTable()
   const l = layers()
   const surfaces = Array.from({ length: 10 }, (_, i) => ({ ...lit(), version: i }))
-  for (const surface of surfaces) table.word(surface, l)
+  for (const surface of surfaces) table.surface(surface, l)
   table.viewFor(device)
   const before = textureWrites.length
   for (const [i, version] of [
@@ -28,7 +28,7 @@ test('two records far apart are sent apart, never the records between them', () 
   ]) {
     surfaces[i].roughness = 0.5
     surfaces[i].version = version
-    table.word(surfaces[i], l)
+    table.surface(surfaces[i], l)
   }
   table.viewFor(device)
   assert.deepEqual(

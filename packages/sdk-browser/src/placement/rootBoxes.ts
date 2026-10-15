@@ -65,7 +65,7 @@ export function encodeRootBoxes(
   const held = rt.rootWorlds
   if (!held?.worlds || !frames) return
   const listedComposed = composed ? (rt.compose?.rankList.set.count ?? 0) : 0
-  if (!held.roots.whole && !held.roots.count && !listedComposed) return
+  if (!held.roots.whole && !held.roots.ranks.count && !listedComposed) return
   const named = takeMoved(held.roots),
     listed = named ? named.length : held.held
   const composedToo = named && listedComposed

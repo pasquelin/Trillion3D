@@ -35,6 +35,11 @@ const SCENE_LIGHTS_FILE: &str = "lights.json";
 /// Version of the `SceneLight` contract fulfilled by this product (`packages/sdk-core/sceneLightContracts`).
 const SCENE_LIGHT_CONTRACT: u32 = 2;
 const QUARTER_PI: f64 = std::f64::consts::FRAC_PI_4;
+/// The open interval of a spot's half-angle the `SceneLight` contract accepts, the one clamp
+/// every importer's cone goes through (`fields::cone_of`): a milliradian off a point and off a
+/// half-space.
+const SPOT_CONE_MIN: f64 = 1e-3;
+const SPOT_CONE_MAX: f64 = std::f64::consts::FRAC_PI_2 - SPOT_CONE_MIN;
 /// What one FBX intensity unit is worth in glTF's photometric unit — the only
 /// place this setting is taken. FBX has no unit: its `Intensity` is a percentage,
 /// which ufbx yields as a fraction. A punctual or spot takes the 1000 lm bulb in

@@ -17,14 +17,12 @@ function slots() {
   const pipeline = (name: string) => ({ name }) as unknown as GPURenderPipeline
   const vis = Object.assign(createWebgpuVisState(), {
     ...{ visPipelineBack: pipeline('back'), visPipelineNone: pipeline('none') },
-    ...{ visPipelineFront: pipeline('front'), visHizRestBack: pipeline('tested back') },
-    ...{ visHizRestNone: pipeline('tested none'), visHizRestFront: pipeline('tested front') },
+    visPipelineFront: pipeline('front'),
     visBindGroupLayout: {} as GPUBindGroupLayout,
     zeroFlags: {} as GPUBuffer,
-    gpuHiz: { flags: {} },
     gpuDraw: { indirectBuffer: {} },
   })
-  vis.visSlotGroups.fill({} as GPUBindGroup, 0, 2 * BASE_SLOTS)
+  vis.visSlotGroups.fill({} as GPUBindGroup, 0, BASE_SLOTS)
   const rt = { vis, run: { gpuDrawCalls: 0 } } as unknown as WebgpuPagesRuntime
   const offsets: number[] = []
   const pass = {
@@ -33,7 +31,7 @@ function slots() {
     drawIndirect: (_: GPUBuffer, offset: number) => void offsets.push(offset),
     executeBundles: (list: GPURenderBundle[]): void => replayBundles(pass, list),
   } as unknown as GPURenderPassEncoder
-  const draw = (rest: boolean, compacted = false) => drawVis(rt, device, pass, rest, compacted)
+  const draw = (rest: boolean) => drawVis(rt, device, pass, rest)
   return { rt, vis, bundles, offsets, draw }
 }
 
@@ -53,7 +51,7 @@ test('an image over the same slots replays the bundle its first image recorded',
   )
 })
 
-test('voided slot groups record the half again; the tested half holds both its keys', () => {
+test('voided slot groups record the half again; each half holds its own bundle', () => {
   const { vis, bundles, draw } = slots()
   draw(false)
   // A held frame walks no slot: what it compares is the revision the groups are voided under.
@@ -63,15 +61,15 @@ test('voided slot groups record the half again; the tested half holds both its k
   vis.visGroupsRevision++
   draw(false)
   assert.equal(bundles.length, 2, 'voided: the half is walked and recorded again')
-  // Compacted or not, the tested half alternates pipelines: each recorded once, then replayed.
-  for (const compacted of [true, false, true, false]) draw(true, compacted)
-  assert.equal(bundles.length, 4)
+  // The tested half records its own bundle once, then replays it.
+  for (let image = 0; image < 3; image++) draw(true)
+  assert.equal(bundles.length, 3)
 })
 
 test('a half walked before a slot group could be made is walked again until it is', () => {
   const { rt, vis, bundles, offsets, draw } = slots()
-  // Slot 1's occluder group (`slot · 2 + tested`).
-  vis.visSlotGroups[2] = undefined
+  // Slot 1's group.
+  vis.visSlotGroups[1] = undefined
   vis.visBindGroupLayout = undefined as never
   draw(false)
   assert.deepEqual([bundles.length, offsets.length], [1, 0], 'no layout: nothing binds, held')
@@ -83,7 +81,7 @@ test('a half walked before a slot group could be made is walked again until it i
   draw(false)
   draw(false)
   assert.equal(bundles.length, 3, 'incomplete: walked again')
-  vis.visSlotGroups[2] = {} as GPUBindGroup
+  vis.visSlotGroups[1] = {} as GPUBindGroup
   draw(false)
   draw(false)
   assert.equal(bundles.length, 4, 'complete: held from then on')

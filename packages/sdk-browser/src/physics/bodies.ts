@@ -1,5 +1,11 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { BODY_INDEX, FLAG, LAYER, MOTION } from '../../../sdk-core/src/physics/layout.ts'
+import {
+  BODY_INDEX,
+  FLAG,
+  GENERATION_SHIFT,
+  LAYER,
+  MOTION,
+} from '../../../sdk-core/src/physics/layout.ts'
 import type { ObjectPhysics, PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
 import { isSoftType } from '../../../sdk-core/src/physics/soft.ts'
@@ -7,9 +13,9 @@ import { resolveShape } from '../../../sdk-core/src/physics/shape.ts'
 import { TRIANGLE_BYTES, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { worldPoseOf, worldScaleOf } from './bodyFrame.ts'
+import { reachOf, worldPoseOf } from './bodyFrame.ts'
 import { hasBody, type Bodied } from './bodied.ts'
-import { addSoftBody, fits } from './softBodies.ts'
+import { addSoftBody } from './softBodies.ts'
 import { createBodyLedger } from './bodyLedger.ts'
 import { createBodySlots, type SlotOwner } from './bodySlots.ts'
 
@@ -43,15 +49,12 @@ export function createPhysicsBodies(
   const ledger = createBodyLedger(budget)
   const { count } = ledger
   const softMaps: (Uint32Array | null)[] = []
-  /** Bodies taken out: asleep decorative or refused ones (`null`), their mesh left where it came
-   *  to rest; soft ones placed at another scale than the one they were made at, kept. */
-  const retired = new WeakMap<Bodied['physics'], readonly number[] | null>()
-  /** Whether `mesh`'s soft body, taken out at another scale, is back at the one it was made at. */
-  const back = (mesh: Bodied) => {
-    const scale = retired.get(mesh.physics)
-    return !!scale && fits(worldScaleOf(mesh), scale)
-  }
-  const add = (mesh: Bodied) => {
+  /** Bodies taken out: asleep decorative or refused ones, their mesh left where it came to rest,
+   *  until their `physics` is set again. */
+  const retired = new WeakSet<Bodied['physics']>()
+  /** Makes `mesh`'s body where the page puts it, at its world scale, recorded on its slot (the
+   *  scale it is made at: `followNode`); a soft one going on from the one `carries` names. */
+  const add = (mesh: Bodied, carries?: number) => {
     const p = mesh.physics
     if (p._host) return
     if (p.type !== 'static' && p.type !== 'kinematic' && mesh.parent !== root)
@@ -65,33 +68,29 @@ export function createPhysicsBodies(
     ledger.admit(owner, 0, 0)
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
-      size = worldScaleOf(mesh)
+      size = pose.scale
+    owner.scale = [size.x, size.y, size.z]
     if (isSoftType(p.type)) {
-      owner.scale = [size.x, size.y, size.z]
       const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)
-      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flagsOf(mesh), step))
+      const flags = flagsOf(mesh)
+      return hold(mesh, addSoftBody(writer, mesh, pose, size, take, softMaps, flags, step, carries))
     }
+    if (p.type === 'dynamic') owner.reach = reachOf(mesh, size)
     const matter = physicsMatterOf(mesh.material)
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name)
     const id = claim(shape.triangles * TRIANGLE_BYTES, 0, owner)
+    const { position, quaternion } = pose
+    const layer =
+      p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving
     writer.add({
-      id,
-      motion: MOTION[p.type],
-      layer: p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving,
-      shape: shape.shape,
-      flags: flagsOf(mesh),
-      position: pose.position,
-      quaternion: pose.quaternion,
-      size: shape.size,
-      mass: p.mass ?? 0,
-      density: matter.density,
-      friction: p.friction ?? matter.friction,
-      restitution: p.restitution ?? matter.restitution,
-      gravityScale: p.gravityScale,
-      damping: [p.damping.linear, p.damping.angular],
-      vertices: shape.vertices,
-      indices: shape.indices,
-      parts: shape.parts,
+      ...{ id, motion: MOTION[p.type], layer, flags: flagsOf(mesh), position, quaternion },
+      ...{ shape: shape.shape, size: shape.size, mass: p.mass ?? 0, density: matter.density },
+      ...{
+        friction: p.friction ?? matter.friction,
+        restitution: p.restitution ?? matter.restitution,
+      },
+      ...{ gravityScale: p.gravityScale, damping: [p.damping.linear, p.damping.angular] },
+      ...{ vertices: shape.vertices, indices: shape.indices, parts: shape.parts },
     })
     hold(mesh, id & BODY_INDEX)
   }
@@ -146,14 +145,32 @@ export function createPhysicsBodies(
     /** A body no mesh holds (a cooked tile or soft body): its slot, then its removal. */
     claim,
     release,
+    /** The body in slot `index`, placed off the scale it was made at, made again at its new one
+     *  before it leaves (its REMOVE after the new body's command): a soft one goes on from it, its
+     *  simulation carried and scaled (`softPlacement.h`). Throws, the old body out, when the new
+     *  one is refused. */
+    remake(index: number) {
+      const p = physicsAt(index),
+        mesh = meshes[index]
+      if (!p || !mesh) return
+      const carries = isSoftType(p.type)
+        ? index | (slots.generation[index] << GENERATION_SHIFT)
+        : undefined
+      if (p.decorative) count.decorative--
+      p._detach()
+      try {
+        add(mesh, carries)
+      } finally {
+        release(index)
+      }
+    },
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
-     *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */
-    retire(index: number, scale: readonly number[] | null = null) {
+     *  is set again. */
+    retire(index: number) {
       const p = physicsAt(index)
       removeAt(index)
-      if (p) retired.set(p, scale)
+      if (p) retired.add(p)
     },
-    back,
     /**
      * Brings the bodies in line with the scene, once per frame that changed it: a body whose mesh
      * left the scene, whose `physics` was replaced or whose shape or matter changed (`stale`) is
@@ -167,8 +184,7 @@ export function createPhysicsBodies(
       }
       root.traverse((node) => {
         if (!hasBody(node) || node.physics._host) return
-        if (retired.has(node.physics) && !back(node)) return
-        retired.delete(node.physics)
+        if (retired.has(node.physics)) return
         try {
           add(node)
         } catch (error) {

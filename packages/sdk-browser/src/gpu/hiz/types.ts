@@ -21,11 +21,11 @@ export type GpuHiz = {
   attach(bounds: GPUBuffer, state: GPUBuffer): void
   /** Verdict flags for `rows` rows, made now and put in place by `commit`: the pyramids stay. */
   growFlags(rows: number): PendingGrowth
-  /** Pyramid mips, offset and width: what the partition reads to express a screen
-   *  rectangle in texels of the mip that covers it exactly. */
-  levels(): Array<{ offset: number; width: number }>
+  /** The levels uniform (`hizLevelWords`): the one mip table, which the partition's cull and
+   *  packing and the transparent occlusion test bind (`hizMip`) as the depth readers do. */
+  readonly levelTable: GPUBuffer
   /** The pyramid texture's view, whose farthest layer the partition's cull and the transparent
-   *  occlusion test walk with the `levels()` table. It changes identity on every target resize. */
+   *  occlusion test walk with the `levelTable`. It changes identity on every target resize. */
   pyramidView(): GPUTextureView | undefined
   /** What a reader of the whole depth binds (`hizDepthEntries`, `hizDepthWgsl`): level 0 — the
    *  opaque depth, and the front depth once asked (`front`) —, the pyramid and its levels uniform, in
@@ -33,14 +33,10 @@ export type GpuHiz = {
   depth(): HizDepth | undefined
   /** Level 0's front layer, which the transparents' front pass writes (`reflections/frontLayer.ts`):
    *  zero where no transparent surface lies; none unless `wanted` — an image whose transparents'
-   *  fold writes it. Made in `encoder` at the first ask, then kept (`holdFrontLayer`): the readers
-   *  fold it by a frame word only while an image writes it, so no reader folds a layer this image
-   *  did not write; an opaque scene's level 0 is one layer. It changes identity on every target
-   *  resize. */
-  front(encoder: GPUCommandEncoder, wanted: boolean): GPUTextureView | undefined
-  /** Whether level 0 holds the front layer: once an image asked it (`front`), this pyramid and
-   *  every one made after keep it, which the frame's budget counts. */
-  readonly holdsFront: boolean
+   *  fold writes it. Made with level 0: the readers fold it by a frame word only while an image
+   *  writes it, so no reader folds a layer this image did not write. It changes identity on every
+   *  target resize. */
+  front(wanted: boolean): GPUTextureView | undefined
   /**
    * Tests the boxes the partition compacted, as a dispatch of the frame's compute pass, after
    * the pyramid's build in the same pass; their count lives in the state, the CPU does
@@ -61,7 +57,7 @@ export type GpuHiz = {
   resize(device: GPUDevice, width: number, height: number): boolean
   /**
    * The `width × height` this image draws in the top-left of level 0, at most its size: the build,
-   * the test and `levels()` read that, so a render-scale change remakes nothing. Level 0 is
+   * the test and the levels uniform read that, so a render-scale change remakes nothing. Level 0 is
    * cleared to the far plane beyond it, which never occludes.
    */
   extent(width: number, height: number): void

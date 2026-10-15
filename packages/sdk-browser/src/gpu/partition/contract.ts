@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { workgroupTallyWgsl } from '../core/workgroupTallyWgsl.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
-import { HIZ_MAX_LEVELS } from '../hiz/uniforms.ts'
+import { fieldLayout } from '../core/fieldLayout.ts'
 
 /**
  * Memory layout the GPU partition shares with the Hi-Z test and with the host.
@@ -44,11 +45,26 @@ export const FLAG_CLIP = 1,
   FLAG_KEPT = 16
 
 /**
- * Words per tested box: the rectangle already clipped to the viewport and expressed in texels of
- * the mip that covers it, the depth bound, the verdict row, the mip address, the triangles
- * whose count weighs a reject, and the address and shift of the coarse mip the test reads first.
+ * A tested box, the one table the partition writes it from (`classifyRows`) and the Hi-Z test
+ * reads it through (`struct Bounds`): the rectangle already clipped to the viewport and expressed
+ * in texels of the mip that covers it, the depth bound, the verdict row, the mip address, the
+ * triangles whose count weighs a reject, and the address and shift of the coarse mip the test reads
+ * first. Only a box the pyramid can judge is written: every field holds a found pick.
  */
-export const TESTED_U32 = 12
+export const TESTED_BOX = fieldLayout('Bounds', [
+  ['minX', 'i32'],
+  ['minY', 'i32'],
+  ['maxX', 'i32'],
+  ['maxY', 'i32'],
+  ['nearest', 'f32'],
+  ['row', 'u32'],
+  ['fineOffset', 'u32'],
+  ['fineWidth', 'u32'],
+  ['triangles', 'u32'],
+  ['coarseOffset', 'u32'],
+  ['coarseWidth', 'u32'],
+  ['coarseShift', 'u32'],
+] as const)
 
 /** Words of `state`: the frame counters, all atomic. */
 export const STATE_WORDS = 16
@@ -69,27 +85,21 @@ export const ST_TESTED = 0,
 const TALLY_WORDS = ST_REJECTED_TRIANGLES + 1
 /**
  * The frame's counters, kept on a sampled frame only (`uni.counting`: the `countsDue` answer that
- * also encodes their copy, `counters.ts`), as one atomic per workgroup and counter: a workgroup sums
- * its rows' in workgroup memory, then its lane `k` adds counter `k` to `state`. u32 sums wrap and
- * are associative: `state` holds what one atomic per row gave, term for term. A module that holds
- * `state` and a uniform `uni.counting` declares it; its entry point calls `flushTally` from uniform
- * control flow. `ST_TESTED`, the tested boxes' allocator, is never tallied.
+ * also encodes their copy, `counters.ts`), summed per workgroup (`workgroupTallyWgsl`) into
+ * `state`. A module that holds `state` and a uniform `uni.counting` declares it. `ST_TESTED`, the
+ * tested boxes' allocator, is never tallied.
  */
-export const STATE_TALLY_WGSL = wgslBlock(
+export const STATE_TALLY_WGSL = workgroupTallyWgsl(
   'STATE_TALLY_WGSL',
-  [],
-  `var<workgroup> tally:array<atomic<u32>,${TALLY_WORDS}>;
-fn tallyAdd(word:u32,n:u32){if(uni.counting!=0u){atomicAdd(&tally[word],n);}}
-fn flushTally(lane:u32){
- if(uni.counting==0u){return;}
- workgroupBarrier();
- if(lane>${ST_TESTED}u&&lane<${TALLY_WORDS}u){let n=atomicLoad(&tally[lane]);if(n!=0u){atomicAdd(&state[lane],n);}}
-}`,
+  TALLY_WORDS,
+  'uni.counting!=0u',
+  'atomicAdd(&state[lane],n);',
+  ST_TESTED + 1,
 )
 
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
  *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
- *  kept back to rejected; everything that draws — vertex stage, tested-half compaction, compute
+ *  kept back to rejected; everything that draws — the tested half's compaction, the compute
  *  raster — reads this word, and a reader that would read two values loses clusters. */
 export const VERDICT_OCCLUDER = 0,
   VERDICT_REJECTED = 1,
@@ -111,38 +121,54 @@ export const PARTITION_BINDING = {
   rowData: 3,
   tested: 4,
   restBits: 5,
-  slotUsed: 6,
-  state: 7,
-  uniforms: 8,
-  pyramid: 9,
+  state: 6,
+  uniforms: 7,
+  pyramid: 8,
+  hizLevels: 9,
 } as const
 /** What each kernel binds: each layout names only the resources its entry point reads or
  *  writes. */
 export const PARTITION_KERNEL_BINDINGS = {
-  clearRows: ['restBits', 'slotUsed', 'state', 'uniforms'],
-  projectRows: ['corners', 'items', 'flags', 'rowData', 'state', 'uniforms', 'pyramid'],
+  clearRows: ['restBits', 'state', 'uniforms'],
+  projectRows: [
+    'corners',
+    'items',
+    'flags',
+    'rowData',
+    'state',
+    'uniforms',
+    'pyramid',
+    'hizLevels',
+  ],
   classifyRows: [
     'items',
     'flags',
     'rowData',
     'tested',
     'restBits',
-    'slotUsed',
     'state',
     'uniforms',
+    'hizLevels',
   ],
 } as const satisfies Record<string, readonly (keyof typeof PARTITION_BINDING)[]>
 
 /**
- * Uniform words: view (16) and view-projection (16), both ALREADY composed with the anchor
- * translation; the anchor in two single-precision values, with the near plane; then the
- * scalars — nine, padded to the sixteen-byte alignment of the array that follows —, then the
- * mip table — offset and width — that bound packing reads.
+ * The frame's uniform, one table for the WGSL struct (`PARTITION_UNI_WGSL`) and its writer
+ * (`uniform.ts`): view and view-projection, both ALREADY composed with the anchor translation;
+ * the anchor in two single-precision values, with the near plane; then the scalars. The pyramid's
+ * mip table is the Hi-Z levels uniform's (`hizMip`), bound beside it.
  */
-export const UNI_VIEW = 0,
-  UNI_VIEW_PROJ = 16,
-  UNI_ANCHOR = 32,
-  UNI_ANCHOR_LOW = 36,
-  UNI_SCALARS = 40,
-  UNI_LEVELS = 52
-export const UNIFORM_U32 = UNI_LEVELS + HIZ_MAX_LEVELS * 2
+export const PARTITION_UNI = fieldLayout('Uni', [
+  ['view', 'mat4x4f'],
+  ['viewProj', 'mat4x4f'],
+  ['anchorHigh', 'vec3f'],
+  ['near', 'f32'],
+  ['anchorLow', 'vec3f'],
+  ['rows', 'u32'],
+  ['width', 'u32'],
+  ['height', 'u32'],
+  ['layerTop', 'u32'],
+  ['hasRest', 'u32'],
+  ['viewMoved', 'u32'],
+  ['counting', 'u32'],
+] as const)

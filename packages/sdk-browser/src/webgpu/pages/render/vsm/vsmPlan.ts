@@ -17,7 +17,7 @@ import { vsmCastPipes } from '../../../../vsm/castStale.ts'
 import { vsmMarkingPipes } from '../../../../vsm/markingPass.ts'
 import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPipes.ts'
-import { vsmProjectionTwin } from '../../../../vsm/projectionPass.ts'
+import { vsmProjectionPipeline } from '../../../../vsm/projectionPipelines.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm } from './vsmRegrow.ts'
 import { vsmFirstSetLayout } from './vsmBeside.ts'
@@ -93,7 +93,9 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return [
     ...pipes.map((pipe) => pipe?.prepared.prepare()),
     vsmRasterPipe(device, layout, pageLayout).prepared.prepare(),
-    vsmProjectionTwin(device, layout).prepare(),
+    vsmProjectionPipeline(device, layout)
+      .prepare()
+      .then(() => undefined),
     prepareRowBins(device),
   ].filter((compile): compile is Promise<void> => compile !== undefined)
 }
@@ -146,7 +148,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   const boxes = vsmCastBoxes(state.cache, changes),
     castMaps = vsmCastMaps(state.cache, boxes, lights.casts)
   changes.settled()
-  const prevSlots = state.cache.prevFrame?.mapSlotCount ?? 0
+  const prevSlots = state.cache.prevFrame?.mapCount ?? 0
   // The sun's clipmap is sized for the display, whatever scale this frame draws at; local lights
   // keep the drawn size.
   // More maps than the page table holds: twice the room, in the same frame when the tables grow

@@ -13,15 +13,11 @@ import { graphDraws } from './drawSource.ts'
 
 test('the root cover is what stays pinned for a flat cut', () => {
   const fixture = dagFixture()
-  const { roots, bootstrap } = collectClusterPages(
+  const { roots } = collectClusterPages(
     fixture.source,
     graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
-  )
-  assert.deepEqual(
-    bootstrap.map((page) => page.url),
-    ['root'],
   )
   assert.deepEqual(
     rootCoverage(roots).map((page) => page.url),

@@ -69,11 +69,10 @@ const lit = { suns: [] as VsmClipmap[], maps: [] as VsmBoundLight[] }
 export function boundLights(lights: readonly VsmBoundLight[]) {
   lit.suns.length = lit.maps.length = 0
   for (const light of lights) {
-    if (!light.shouldRender) continue
     if (light.kind === 'directional') {
       if (!light.clipmap) return undefined
       lit.suns.push(light.clipmap)
-    } else if (!light.singlePage) lit.maps.push(light)
+    } else lit.maps.push(light)
   }
   return lit
 }

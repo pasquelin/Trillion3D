@@ -7,8 +7,14 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { rootOfPacked } from '../page/selection/placements.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
-/** Current position, previous position and current normal: eleven words per vertex, including owner and frame tags. */
-export const DEFORM_VERTEX_WORDS = 11
+/** The words a vertex's results start with: its owner's tag, then its image's; a block's address
+ *  lies past the first vertex's (a whole copy keeps none, its words reserved all the same). */
+export const DEFORM_TAG_WORDS = 2
+/** Where each result of a vertex lies from its address, three floats each: its current position,
+ *  its previous one, its current normal — what the stage writes and the page passes read. */
+export const DEFORMED_FIELD = { position: 0, previous: 3, normal: 6 } as const
+/** Words per vertex: the tags, then the three results. */
+export const DEFORM_VERTEX_WORDS = DEFORM_TAG_WORDS + 3 * 3
 
 /** The word a row or a transparent span carries to name the results of a page and a placement
  *  (`ClusterRoot.deformationOutputs`): their first float plus one, in the float pool, zero for none.
@@ -68,6 +74,17 @@ export const pageDeforms = (page: PageRec) =>
 export const rowsAnimate = (rows: { sourceModels?: ReadonlySet<object> } | undefined) =>
   [...(rows?.sourceModels ?? [])].some(animates)
 
+/** The vertices of a page, its results' length. */
+const pageVertices = (page: PageRec) =>
+  page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0
+
+/** Whether a root's pages get results (`assignDeformationOutputs`): one with vertices deforms by
+ *  itself, or the meshes owning the root's rows animate. */
+export const rootHasOutputs = (root: ClusterRoot<PageRec>) => {
+  const animate = rowsAnimate(root.placement?.rows)
+  return root.pages.some((page) => (animate || pageDeforms(page)) && pageVertices(page) > 0)
+}
+
 /**
  * The results of the deformation, in the float pool: one block of floats, eleven a vertex behind
  * two tags, for each page a placement deforms (`ClusterRoot.deformationOutputs`, by the page's
@@ -89,8 +106,7 @@ export function assignDeformationOutputs(roots: readonly ClusterRoot<PageRec>[])
       shared = new Map<HostAttributes, DeformationOutput>()
     let outputs: (DeformationOutput | undefined)[] | undefined
     root.pages.forEach((page, k) => {
-      if (!want[k] && !animate) return
-      const count = page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0
+      const count = want[k] || animate ? pageVertices(page) : 0
       if (!count) return
       let output: DeformationOutput | undefined
       if (page.geometryPage) blocks.push((output = { from: 0, count }))

@@ -3,7 +3,7 @@ import { POOL_LANES_WGSL, POOL_SORT_HEAD_WGSL } from './sort.ts'
 import { POOL_SORT_STABLE_WGSL } from './sortStableWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
-import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 
 /**
  * THE VICTIM QUEUE of a GPU pool (#1527): a stable counting sort of the pool's slots by `poolRank`
@@ -51,32 +51,32 @@ fn poolSlotRank(j:u32)->u32{
  if(j>=poolSlotCount()){return POOL_RANKS;}
  return poolRank(poolSlotAge(j),poolSlotTier(j),poolInUse());
 }
+/** Scratch word of the ranks of slots \`j\` and its pair, behind the staged slots and the groups'
+ *  counts: two 16-bit ranks a word (\`POOL_RANKS\` fits). */
+fn poolRankWord(j:u32)->u32{return 2u*poolBurst()+2u*ceilDiv(poolSlotCount(),POOL_LANES)+j/2u;}
+/** Slot \`j\`'s rank as \`poolCount\` evaluated it, the one evaluation of a sort. */
+fn poolRankOf(j:u32)->u32{return (poolScratchLoad(poolRankWord(j))>>(16u*(j&1u)))&0xffffu;}
 @compute @workgroup_size(POOL_LANES)
 fn poolCount(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
- let rank=poolSlotRank(flatIndex(id,n,POOL_LANES));
+ let j=flatIndex(id,n,POOL_LANES);
+ let rank=poolSlotRank(j);
  if(rank<POOL_RANKS){atomicAdd(&poolLocal[rank],1u);}
+ poolChunk[lane]=rank;
  workgroupBarrier();
  for(var r=lane;r<POOL_RANKS;r+=POOL_LANES){let c=atomicLoad(&poolLocal[r]);if(c>0u){poolCountAdd(r,c);}}
+ // The group's ranks kept two to a word, each word written by one lane: the later stages read them.
+ if(lane<POOL_LANES/2u){
+  let first=j-lane+2u*lane;
+  poolScratchStore(poolRankWord(first),poolChunk[2u*lane]|(poolChunk[2u*lane+1u]<<16u));
+ }
 }
 /** The rank of place order \`d\`: the highest first. */
 fn poolRankAt(d:u32)->u32{return POOL_RANKS-1u-d;}
-/** A lane's run of ranks, counted. */
-fn poolPlaceSum(span:vec2u)->u32{
- var sum=0u;
- for(var d=span.x;d<span.y;d++){sum+=poolCountLoad(poolRankAt(d));}
- return sum;
-}
-/** A lane's run of ranks handed their first places from \`first\`, their counts zeroed, the
- *  boundary marked where it falls; the place past the run. */
-fn poolPlaceRun(span:vec2u,first:u32)->u32{
- var cursor=first;
- for(var d=span.x;d<span.y;d++){
-  let r=poolRankAt(d);let taken=poolCountLoad(r);
-  poolCountStore(r,0u);poolCountStore(POOL_RANKS+r,cursor);
-  if(cursor<poolBurst()&&cursor+taken>=poolBurst()){poolCountStore(POOL_BOUND,r);}
-  cursor+=taken;
- }
- return cursor;
+/** Rank \`r\` handed its first place \`cursor\`, its count \`taken\` zeroed for the next sort, the
+ *  boundary marked where it falls. */
+fn poolPlaceAt(r:u32,cursor:u32,taken:u32){
+ poolCountStore(r,0u);poolCountStore(POOL_RANKS+r,cursor);
+ if(cursor<poolBurst()&&cursor+taken>=poolBurst()){poolCountStore(POOL_BOUND,r);}
 }
 /** The total ranked: under the burst, no boundary — every slot ranked is staged. */
 fn poolPlaceTotal(total:u32){
@@ -86,10 +86,11 @@ fn poolPlaceTotal(total:u32){
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn poolPlace(@builtin(local_invocation_index) lane:u32){
- let span=laneRun(lane,POOL_RANKS);let sum=poolPlaceSum(span);
- let end=poolPlaceRun(span,laneScan(lane,sum)-sum);
+ // The descending place step every counting sort takes (\`laneRunOffsets\`), from the highest rank.
+ let span=laneRun(lane,POOL_RANKS);
+ ${laneRunOffsets('d', 'span', 'lane', '', 'poolCountLoad(poolRankAt(d))', 'poolPlaceAt(poolRankAt(d),cursor,taken)')}
  storageBarrier();
- if(lane==WORKGROUP_THREADS-1u){poolPlaceTotal(end);}
+ if(lane==WORKGROUP_THREADS-1u){poolPlaceTotal(cursor);}
 }
 `,
 )

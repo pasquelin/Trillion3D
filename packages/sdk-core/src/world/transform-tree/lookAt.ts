@@ -4,13 +4,14 @@ import {
 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import {
   conjugateQuaternion,
-  multiplyQuaternionVectorFirst,
+  multiplyQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import {
   crossVector3,
   lengthSqVector3,
   normalizeVector3,
 } from '../../../../math/src/vector/vector.ts'
+import { frameAcross } from '../../../../math/src/vector/frame.ts'
 import { setNodeQuaternion, type TransformTree } from './transformTree.ts'
 import { updateNodeWorldMatrix } from './update.ts'
 
@@ -64,12 +65,8 @@ function writeAimBasis(
   if (lengthSqVector3(forward) === 0) forward[2] = 1
   else normalizeVector3(forward)
   crossVector3(right, up, forward)
-  if (lengthSqVector3(right) === 0) {
-    if (Math.abs(up[2]) === 1) forward[0] += 0.0001
-    else forward[2] += 0.0001
-    normalizeVector3(forward)
-    crossVector3(right, up, forward)
-  }
+  // Looking along `up`: no side of its own, the first row of the frame around `forward`.
+  if (lengthSqVector3(right) === 0) frameAcross(right, forward[0], forward[1], forward[2])
   normalizeVector3(right)
   // Columns x, y = z × x, z; `y` is unit already, the cross product of two orthonormal axes.
   crossVector3(above, forward, right)
@@ -110,7 +107,7 @@ function aimQuaternion(
   // keeps its `x` and `w` and negates its `y` and `z`, the axis being an axial vector. The local
   // turn is the product `c ⊗ q`, `c` the parent's conjugate and `q` the world aim.
   conjugateQuaternion(parentTurn, parentTurn)
-  multiplyQuaternionVectorFirst(out, parentTurn, out)
+  multiplyQuaternion(out, parentTurn, out)
   if (parentScale[0] < 0) {
     out[1] = -out[1]
     out[2] = -out[2]

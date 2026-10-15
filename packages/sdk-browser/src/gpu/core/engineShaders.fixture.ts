@@ -14,7 +14,6 @@ import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { RESOLVE, rasterSource } from '../raster/shader.ts'
-import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
@@ -24,8 +23,7 @@ import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
 import { lightTilesShader } from '../../lighting/tiles/shader.ts'
-import { taaShader } from '../../taa/shaderWgsl.ts'
-import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts'
+import { taaResolveShader } from '../../taa/resolveWgsl.ts'
 import {
   COVERAGE_CHOOSE_WGSL,
   COVERAGE_COUNT_WGSL,
@@ -47,7 +45,6 @@ import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts'
 import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts'
 import { waterSurfaceWgsl } from '../../webgpu/water/surfaceWgsl.ts'
 import { particlesWgsl, PARTICLE_DRAW_WGSL } from '../../webgpu/particles/particlesWgsl.ts'
-import { TEXEL_TURN_WGSL } from '../../webgpu/tile/texelTurnWgsl.ts'
 import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts'
 import { blendShader } from '../../webgpu/blend/shader.ts'
 import {
@@ -61,7 +58,6 @@ import {
 import '../../impostor/lent.fixture.ts'
 import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts'
 import { cardTileWgsl } from '../../webgpu/tile/cardReads.ts'
-import { shadeWithoutFeedbackCode } from '../../webgpu/visibility/shaders.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 
 /**
@@ -82,6 +78,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
   DRAW_SHADER: drawShader(2),
+  DRAW_TESTED_SHADER: drawShader(2, true),
   HIZ_SHADER,
   REFLECTION_TRACE_SHADER,
   REFLECTION_CLASSIFY_SHADER,
@@ -97,7 +94,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTITION_SHADER,
   RASTER: rasterSource(4096, 16),
   RESOLVE,
-  REST_COMPACT_SHADER,
   ...COMPOSE_SHADERS,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SNAPSHOT_SHADER,
@@ -129,26 +125,18 @@ export const ENGINE_SHADERS: Record<string, string> = {
   LIGHT_TILES_SHADER: lightTilesShader('view'),
   LIGHT_TILES_WORLD_SHADER: lightTilesShader('world'),
   TAA_SHADER,
-  TAA_FLAGLESS_SHADER: taaShader(false),
-  TAA_UPSCALE_SHADER: taaUpscaleShader(true),
-  TAA_UPSCALE_FLAGLESS_SHADER: taaUpscaleShader(false),
-  TAA_UPSCALE_BLENDED_SHADER: taaUpscaleShader(true, true),
-  TAA_RESOLVE_FILTERED: taaShader(true, false, true),
-  TAA_RESOLVE_FILTERED_FLAGLESS: taaShader(false, false, true),
-  TAA_RESOLVE_FILTERED_BLENDED: taaShader(true, true, true),
-  TAA_UPSCALE_FILTERED: taaUpscaleShader(true, false, true),
-  TAA_UPSCALE_FILTERED_FLAGLESS: taaUpscaleShader(false, false, true),
-  TAA_UPSCALE_FILTERED_BLENDED: taaUpscaleShader(true, true, true),
+  TAA_FLAGLESS_SHADER: taaResolveShader(false),
+  TAA_BLENDED_SHADER: taaResolveShader(true, true),
+  TAA_RESOLVE_FILTERED: taaResolveShader(true, false, true),
+  TAA_RESOLVE_FILTERED_FLAGLESS: taaResolveShader(false, false, true),
+  TAA_RESOLVE_FILTERED_BLENDED: taaResolveShader(true, true, true),
   MATERIAL_MIP_WGSL,
   COVERAGE_WGSL: wgslModule(COVERAGE_COUNT_WGSL),
   COVERAGE_CHOOSE_WGSL,
-  TEXEL_TURN_WGSL,
   VIS_SHADER,
   VIS_DIAGNOSTIC: visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }),
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
-  // The resolve of a scene that wears no texture (`feedbackVariant.ts`).
-  SHADE_WITHOUT_FEEDBACK: shadeWithoutFeedbackCode(),
   BLEND_SHADER,
   DISPLAY_FILTER_SHADER,
   BLEND_WATER: blendShader({}, { stage: waterSurfaceWgsl(true) }),

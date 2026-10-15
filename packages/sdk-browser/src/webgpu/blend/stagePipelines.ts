@@ -15,13 +15,16 @@ import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts
 import type { BlendGpuItem } from './state.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
+import { CULL_MODES } from './planCull.ts'
 
 /** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
  *  and of their composite over the frozen backdrop. */
 export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal
 
-/** The three pipelines a plan entry picks by rank (`plan.ts`): none, front, back. */
-export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPURenderPipeline]
+/** The pipelines a plan entry picks by cull rank (`plan.ts`), one per `CULL_MODES`. */
+export type BlendPipelines = PerCullMode<typeof CULL_MODES>
+/** One pipeline for each entry of a cull-mode table: a tuple of its length. */
+type PerCullMode<T extends readonly unknown[]> = { readonly [K in keyof T]: GPURenderPipeline }
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the water surfaces' three, or the
  *  blend pass's modes, `filtered` in an image with display layers (`displayFilter.ts`); a rank
@@ -121,15 +124,12 @@ export async function blendStagePipelines(
   depthWrite: boolean,
   mask?: GPUBindGroupLayout,
 ): Promise<BlendPipelines> {
-  const [none, front, back] = await Promise.all(
+  return (await Promise.all(
     stageDescriptors(device, module, layout, fragment, depthWrite, mask).map((stage) =>
       buildRenderPipeline(device, stage),
     ),
-  )
-  return [none, front, back]
+  )) as unknown as BlendPipelines
 }
-
-const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back']
 
 /** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
  *  display mask's layout of a filtered image's pipelines; without `reflected`, the blend group alone —

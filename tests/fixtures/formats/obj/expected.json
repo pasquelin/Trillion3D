@@ -221,7 +221,7 @@
     "material-bump-map": 1,
     "material-separate-opacity-texture": 1,
     "material-specular-color": 1,
-    "material-specular-ior": 1,
+    "ior-unsupported": 1,
     "texture-bump-scale": 1,
     "texture-offset": 1,
     "texture-scale": 1

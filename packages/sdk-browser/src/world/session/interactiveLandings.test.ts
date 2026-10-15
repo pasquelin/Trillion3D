@@ -33,7 +33,7 @@ test('pages the engine makes resident without a fetch keep the loop drawing past
   }
   // Two hundred pages landed from memory, one per frame: the fetch count never moves.
   const explorer = { render: () => (++drawn <= 200 && landings++, { pageLoads: 7 }), resize() {} }
-  const config = { ownControls: false, pixelRatio: 1 }
+  const config = { pixelRatio: 1 }
   startInteractiveExplorer(explorer as never, runtime as never, config as never, {
     emit() {},
     diagnose() {},

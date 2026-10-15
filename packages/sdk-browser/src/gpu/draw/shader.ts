@@ -2,66 +2,51 @@ import { computeBufferEntries } from '../core/computeBindings.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
+import { HIZ_REJECTED_WGSL } from '../partition/contract.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { bitAt, bitWord, ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
 
 /**
- * Stable compaction of the frame's draw items into one indirect command per slot.
+ * THE stable compaction of the frame's draw items into one indirect command per slot, run once per
+ * half of the image: the occluder half before the first geometry pass, the tested half after the
+ * Hi-Z test, its rejected rows left out by the same predicate that selects the half. A rejected row
+ * launches no vertex, and no second pass rescans the instances already listed.
  *
  * An item takes one instance per batch of its triangles (`batchesOf`, `drawBatches`), consecutive
  * and in triangle order, so its row's triangles reach the raster as one instance per row drew them.
  *
  * A slot is a bin — a cull mode, or its cutout bin —, an occluder/tested half and a coplanar depth
- * layer (`contract.ts`). The layer is a property
- * of the page-table row, not of the frame, so it travels with the item and never costs a branch per
- * pixel: the clusters of a layer are simply drawn by their own command, with the pipeline that
- * carries that layer's depth bias.
- *
- * `slotUsed` is what the CPU counted for each slot before this pass: a slot it counted at zero holds
- * nothing here either, because the only thing this shader adds is the selection mask, which can just
- * remove items. Such a slot is written a zero count and skipped by the prefix, so a coplanar layer
- * that no cluster of the batch — or of this half of the image — reaches costs the prefix nothing.
+ * layer (`contract.ts`). The layer is a property of the page-table row, not of the frame, so it
+ * travels with the item and never costs a branch per pixel.
  *
  * Counting and scattering run one workgroup per group of 64 items: each lane reads its own item
  * once, tallies its slot in workgroup memory, and ranks itself among the earlier lanes of the same
- * slot from workgroup memory too — the counts and the order of the per-(group, slot) walk, without
- * rereading the group's items from the storage buffer once per slot and per lane.
- *
- * The prefix walks the slots in order with all sixty-four threads of a single workgroup: each
- * thread totals a contiguous run of groups, the sixty-four run totals are scanned in workgroup
- * memory, and each thread writes the offsets of its run from its exclusive prefix. The result is
- * that of the serial walk term for term — u32 addition is associative, and a slot starts where
- * the totals of the slots before it end, an unused slot adding nothing. The slots do not
- * fall one per thread, each walking every group alone: the groups are spread over the lanes.
+ * slot. Each group adds its non-zero tallies to `slotTotals`: one atomic per group and slot it
+ * fills, and a slot that no item of the half reaches costs the prefix nothing. The prefix, one
+ * workgroup, takes each slot's total (and leaves zero for the next run), skips an empty slot, and
+ * spreads the groups of a filled one over its lanes, a scan of their run totals giving each group
+ * its offset — the serial walk's result term for term. The occluder run leaves where its
+ * instances end in `slotTotals[slots]`, where the tested run starts, and writes the tested slots
+ * empty: an image that tests nothing draws no tested instance.
  * `../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts` carries the kernels and
  * `prefixEquivalence.test.ts` the proof.
  */
-/**
- * Group-0 bindings, published under the WGSL that declares them. The production layout and the
- * GPU proof READ them here — none copies them, so none can lag behind the shader. That lag is
- * what turned the draw proof (`tests/gpu/draw/draw-compaction.gpu.ts`) red: its copy stopped at
- * `@binding(6)` while `restBits` and `slotUsed` entered at 7 and 8.
- */
-export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
-  const types: GPUBufferBindingType[] = [
-    'read-only-storage',
-    'uniform',
-    'storage',
-    'storage',
-    'storage',
-    'storage',
-    'read-only-storage',
-    'read-only-storage',
-    'read-only-storage',
-  ]
+/** Group-0 bindings of a half's compaction, published under the WGSL that declares them: the
+ *  tested half's also reads the page table and the Hi-Z verdicts. */
+export function drawBindEntries(tested = false): GPUBindGroupLayoutEntry[] {
+  const types: GPUBufferBindingType[] = ['read-only-storage', 'uniform', 'storage', 'storage']
+  types.push('storage', 'storage', 'read-only-storage', 'read-only-storage', 'storage')
+  if (tested) types.push('read-only-storage', 'read-only-storage')
   return computeBufferEntries(types)
 }
 
-export const drawShader = (layerSlots: number) => {
+export const drawShader = (layerSlots: number, tested = false) => {
   const slots = slotCount(layerSlots)
   const top = Math.max(0, Math.max(1, layerSlots) - 1)
+  const half = tested ? 1 : 0
   return wgslProgram(
     `struct Uniforms{count:u32,corners:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,perRow:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
@@ -72,33 +57,47 @@ export const drawShader = (layerSlots: number) => {
 @group(0) @binding(5) var<storage, read_write> groupOffsets:array<u32>;
 @group(0) @binding(6) var<storage, read> selectionMask:array<u32>;
 @group(0) @binding(7) var<storage, read> restBits:array<u32>;
-@group(0) @binding(8) var<storage, read> slotUsed:array<u32>;
+@group(0) @binding(8) var<storage, read_write> slotTotals:array<atomic<u32>>;
+${
+  tested
+    ? `@group(0) @binding(9) var<storage, read> pages:array<PageInfo>;
+@group(0) @binding(10) var<storage, read> hizFlags:array<u32>;
+fn drawn(item:DrawItem)->bool{return !hizRejected(pages[item.pageIndex].hizSlot);}`
+    : 'fn drawn(item:DrawItem)->bool{return true;}'
+}
 // The occluder/rest partition is the only per-frame word of an item, so it travels as one bit each.
 fn restAt(i:u32)->u32{return bitAt(restBits[bitWord(i)],i);}
 fn selected(item:DrawItem)->bool{return uni.selectionEnabled==0u||maskSelects(item.selectionIndex);}
-/** GPU mirror of \`slotOf\` (cpu.ts): same product, same sum, same layer ceiling. */
-fn slotOf(i:u32,item:DrawItem)->u32{return restAt(i)*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
+/** The slot of \`item\` in half \`rest\`: the one formula of a slot, the layer capped at the last. */
+fn slotOf(rest:u32,item:DrawItem)->u32{return rest*${HALF_SLOTS}u+item.bin+${BASE_SLOTS}u*min(item.layer,${top}u);}
+/** The half slot \`slot\` belongs to: a layer's occluder bins, then its tested ones. */
+fn halfOf(slot:u32)->u32{return (slot%${BASE_SLOTS}u)/${HALF_SLOTS}u;}
 fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
- indirect[o]=uni.corners;
- indirect[o+1u]=count;
- indirect[o+2u]=0u;
- indirect[o+3u]=0u;
+ indirect[o]=uni.corners;indirect[o+1u]=count;indirect[o+2u]=0u;indirect[o+3u]=0u;
 }
 /** Instances \`item\` draws as: its corners by batches of \`corners\`, at least one, at most the
  *  \`perRow\` the instance list holds a row. */
-fn batchesOf(item:DrawItem)->u32{
- return clamp(ceilDiv(item.triangles*3u,uni.corners),1u,uni.perRow);
-}
+fn batchesOf(item:DrawItem)->u32{return clamp(ceilDiv(item.triangles*3u,uni.corners),1u,uni.perRow);}
 var<workgroup> laneSlots:array<u32,WORKGROUP_THREADS>;
 var<workgroup> laneBatches:array<u32,WORKGROUP_THREADS>;
 var<workgroup> slotTally:array<atomic<u32>,${slots}>;
-/** The slot item \`i\` draws in, or \`NO_INDEX\` when it lies at or past \`end\` or is not selected. */
+var<workgroup> laneWord:u32;
+/** The slot item \`i\` draws in, or \`NO_INDEX\` when it lies at or past \`end\`, is not selected,
+ *  lies in the other half, or the pyramid rejected it. */
 fn slotAt(i:u32,end:u32)->u32{
  if(i>=end){return NO_INDEX;}
  let item=items[i];
- if(!selected(item)){return NO_INDEX;}
- return slotOf(i,item);
+ if(!selected(item)||restAt(i)!=${half}u||!drawn(item)){return NO_INDEX;}
+ return slotOf(${half}u,item);
+}
+/** \`value\`, lane 0's, the same in every lane. */
+fn broadcast(lane:u32,value:u32)->u32{
+ if(lane==0u){laneWord=value;}
+ let word=workgroupUniformLoad(&laneWord);
+ // Every lane holds it before lane 0 may write the next.
+ workgroupBarrier();
+ return word;
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
@@ -111,29 +110,36 @@ fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
  if(s!=NO_INDEX){atomicAdd(&slotTally[s],batchesOf(items[i]));}
  workgroupBarrier();
  for(var slot=lane;slot<${slots}u;slot+=WORKGROUP_THREADS){
-  groupCounts[group*${slots}u+slot]=select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u);
+  if(halfOf(slot)!=${half}u){continue;}
+  let tally=atomicLoad(&slotTally[slot]);
+  groupCounts[group*${slots}u+slot]=tally;
+  if(tally!=0u){atomicAdd(&slotTotals[slot],tally);}
  }
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn prefixGroups(@builtin(local_invocation_index) lane:u32){
- if(uni.count>uni.slotCap){
-  for(var slot=lane;slot<${slots}u;slot+=WORKGROUP_THREADS){writeCmd(slot,0u);}
-  return;
- }
+ let overflow=uni.count>uni.slotCap;
  let span=laneRun(lane,uni.groupCount);
- var start=0u;
+ var start=${tested ? `broadcast(lane,atomicLoad(&slotTotals[${slots}u]))` : '0u'};
  for(var slot=0u;slot<${slots}u;slot++){
-  // \`slotUsed\` is read-only storage, uniform over the workgroup: an unused slot skips the scan.
-  if(slotUsed[slot]==0u){
+  if(halfOf(slot)!=${half}u){
+   ${tested ? '' : 'if(lane==0u){writeCmd(slot,0u);}'}
+   continue;
+  }
+  // The slot's total, left at zero for the next run; an empty slot skips the scan.
+  var held=0u;
+  if(lane==0u){held=atomicExchange(&slotTotals[slot],0u);}
+  let total=broadcast(lane,held);
+  if(total==0u||overflow){
    if(lane==0u){writeCmd(slot,0u);}
    continue;
   }
   ${laneRunOffsets('group', 'span', 'lane', 'start+', `groupCounts[group*${slots}u+slot]`, `groupOffsets[group*${slots}u+slot]=cursor`)}
-  let total=laneSums[WORKGROUP_THREADS-1u];
   if(lane==0u){writeCmd(slot,total);}
   start=start+total;
   workgroupBarrier();
  }
+ ${tested ? '' : `if(lane==0u){atomicStore(&slotTotals[${slots}u],start);}`}
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
@@ -166,6 +172,7 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
       bitAt,
       DRAW_MASK_WGSL,
       NO_INDEX,
+      ...(tested ? [PAGE_INFO_STRUCT_WGSL, HIZ_REJECTED_WGSL] : []),
     ],
   )
 }

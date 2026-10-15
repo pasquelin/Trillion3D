@@ -19,8 +19,6 @@ using namespace JPH;
 
 namespace trillion {
 
-namespace {
-
 RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
   uint64_t key = 0;
   uint32_t bits[3];
@@ -45,6 +43,14 @@ RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
   cache.emplace(key, shape);
   return shape;
 }
+
+void prunePrimitives() {
+  auto &cache = world().primitives;
+  for (auto at = cache.begin(); at != cache.end();)
+    at = at->second->GetRefCount() == 1 ? cache.erase(at) : std::next(at);
+}
+
+namespace {
 
 RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices, uint32_t indices) {
   if (kind == HULL) {

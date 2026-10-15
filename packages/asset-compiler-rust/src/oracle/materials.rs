@@ -1,28 +1,27 @@
 use crate::albedo::Palette;
+use crate::texture_preview::source::with_image_bytes;
 use serde_json::Value;
 use std::path::Path;
 use trillion3d_math::color::srgb_byte_to_linear;
 
 /// Mean color of a texture, decoded right here. Oracle does not read the cache preview: it
-/// recomputes the average on the source image, so both paths verify each other.
-fn texture_mean(g: &Value, directory: &Path, texture: u64) -> Option<[f64; 3]> {
+/// recomputes the average on the source image, embedded or linked, so both paths verify each other.
+fn texture_mean(g: &Value, bin: &[u8], directory: &Path, texture: u64) -> Option<[f64; 3]> {
     let image = g
         .get("textures")
         .and_then(Value::as_array)?
         .get(texture as usize)?
         .get("source")
         .and_then(Value::as_u64)?;
-    let uri = g
+    let image = g
         .get("images")
         .and_then(Value::as_array)?
-        .get(image as usize)?
-        .get("uri")
-        .and_then(Value::as_str)?;
-    if uri.starts_with("data:") || uri.contains("..") {
-        return None;
-    }
-    let bytes = std::fs::read(directory.join(uri)).ok()?;
-    let decoded = image::load_from_memory(&bytes).ok()?.to_rgb8();
+        .get(image as usize)?;
+    let decoded = with_image_bytes(g, bin, directory, image, |bytes, _| {
+        image::load_from_memory(bytes).map_err(|_| "image-undecodable")
+    })
+    .ok()?
+    .to_rgb8();
     let mut sum = [0.0f64; 3];
     for pixel in decoded.pixels() {
         for (axis, channel) in sum.iter_mut().enumerate() {
@@ -34,7 +33,7 @@ fn texture_mean(g: &Value, directory: &Path, texture: u64) -> Option<[f64; 3]> {
 }
 
 /// Linear diffuse albedo of each material, read from source and not from cache.
-pub fn palette(g: &Value, source: &Path) -> Palette {
+pub fn palette(g: &Value, bin: &[u8], source: &Path) -> Palette {
     let directory = source.parent().unwrap_or(Path::new("."));
-    crate::albedo::palette(g, |texture| texture_mean(g, directory, texture))
+    crate::albedo::palette(g, |texture| texture_mean(g, bin, directory, texture))
 }

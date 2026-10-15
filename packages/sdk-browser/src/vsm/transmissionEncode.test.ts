@@ -34,7 +34,7 @@ test('a transmission frame encodes clear, bin and resolve under the device’s b
     })),
   })
   const encoder = device.createCommandEncoder()
-  const lights = [{ kind: 'directional' as const, firstId: 0, count: 1, shouldRender: true }]
+  const lights = [{ kind: 'directional' as const, firstId: 0, count: 1 }]
   const binned = encodeVsmTransmission(
     encoder,
     res,

@@ -6,14 +6,13 @@
  * the last line (` cpu 2.31 ms raf 9.10/16.70 ms`, right after the GPU field; the CPU is the
  * corner's `cpuFrameMs`, the interval its `rafIntervalMs`); the timed passes by the state their
  * timestamp pair read in (valid, unwritten, invalid) and, when the image has no GPU time, why
- * (`frameMsReason`); and once, first, the device's `subgroups` feature and the vote the projection
- * compiles with it.
+ * (`frameMsReason`); and once, first, the device's `subgroups` feature and its sizes.
  * Nothing is timed for it: without the flag it reads nothing and writes nothing.
  */
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { addressFlag } from '../../../host/addressFlag.ts'
 import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
-import { VSM_PROJECTION_PASS, vsmProjectionCanUseSubgroups } from '../../../vsm/projectionPass.ts'
+import { VSM_PROJECTION_PASS } from '../../../vsm/projectionPipelines.ts'
 import { VSM_PROJECTION_GROUP_SIZE } from '../../../vsm/projectionWgsl.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { passOwnMs } from '../../../stage/mapping.ts'
@@ -22,17 +21,15 @@ const EVERY_FRAMES = 60
 const asked = addressFlag((params) => params.get('trillion3dGpuLog') === '1')
 const ms = (value: number | null | undefined) => (value == null ? '-' : value.toFixed(2))
 
-/** The device's line, written once: its subgroups and the projection's vote. */
+/** The device's line, written once: its subgroups (the projection votes by workgroup counters on
+ *  every device). */
 function deviceLine(device: GPUDevice) {
   const info = (device as { adapterInfo?: { subgroupMinSize?: number; subgroupMaxSize?: number } })
     .adapterInfo
-  const subgroups = vsmProjectionCanUseSubgroups(device)
-  const vote = subgroups
-    ? 'subgroup (workgroup counters where a half spans subgroups)'
-    : 'workgroup counters'
+  const subgroups = device.features.has('subgroups')
   return (
     `[T3D-GPU] subgroups ${subgroups ? 'yes' : 'no'}` +
-    ` (sizes ${info?.subgroupMinSize ?? '?'}-${info?.subgroupMaxSize ?? '?'}), projection vote: ${vote}`
+    ` (sizes ${info?.subgroupMinSize ?? '?'}-${info?.subgroupMaxSize ?? '?'})`
   )
 }
 
