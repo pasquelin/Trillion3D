@@ -3,6 +3,7 @@ import * as sampling from '../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots, mixWord, slotsWithin } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
+import { openProbeWgsl } from './shader/probeWgsl.ts'
 
 /**
  * THE OPEN COUNTS A PLACEMENT HOLDS OF ITS OWN, beside its primitive's shared nodes.
@@ -182,14 +183,15 @@ export const DAG_HELD_OPEN_WGSL = wgslBlock(
 fn heldHash(w:u32,node:u32)->u32{return mixWord(w^mixWord(node))&views[0u].heldMask;}
 fn openOf(w:u32,node:u32,blank:u32)->u32{
  if(heldByOf(w)==0u){return blank;}
- var s=heldHash(w,node);
- for(var k=0u;k<HELD_PROBES;k++){
-  let at=views[0u].heldBase+${OPEN_SLOT_WORDS}u*s;
-  let key=out.pages[at];
+${openProbeWgsl({
+  home: 'heldHash(w,node)',
+  mask: 'views[0u].heldMask',
+  steps: 'HELD_PROBES',
+  slotWord: (s) => `views[0u].heldBase+${OPEN_SLOT_WORDS}u*${s}`,
+  step: `let key=out.pages[at];
   if(key==0u){return blank;}
-  if(key==w+1u&&out.pages[at+1u]==node){return out.pages[at+2u];}
-  s=(s+1u)&views[0u].heldMask;
- }
+  if(key==w+1u&&out.pages[at+1u]==node){return out.pages[at+2u];}`,
+})}
  return blank;
 }`,
 )

@@ -8,6 +8,7 @@ import { mixWord } from '../../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots } from '../../../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
+import { openProbeWgsl } from './probeWgsl.ts'
 
 /**
  * THE CUT AS A DIFFERENCE, taken where the cut is: for each rank of a copied snapshot's two lists,
@@ -39,6 +40,15 @@ import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as const,
   KEEP_STAGES = ['dagCutKeep0', 'dagCutKeep1'] as const,
   REKEEP_STAGES = ['dagCutRekeep0', 'dagCutRekeep1'] as const
+
+/** A step over a kept list's table from page `i`'s home (`openProbeWgsl`), `mask` its slots less one. */
+const keptProbe = (step: string) =>
+  openProbeWgsl({
+    home: 'keptHome(i)',
+    mask: 'mask',
+    slotWord: (s) => `KEPT_HEAD+${OPEN_SLOT_WORDS}u*${s}`,
+    step,
+  })
 
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
@@ -80,30 +90,20 @@ fn keptRankOf(l:u32,i:u32)->u32{
  let gen=atomicLoad(&work[KEPT_GEN]);
  if(gen==0u){return NO_INDEX;}
  let mask=keptSlots()-1u;
- var s=keptHome(i);
- for(var k=0u;k<=mask;k++){
-  let at=KEPT_HEAD+${OPEN_SLOT_WORDS}u*s;
-  if(atomicLoad(&work[at])!=gen){return NO_INDEX;}
+${keptProbe(`if(atomicLoad(&work[at])!=gen){return NO_INDEX;}
   let r=atomicLoad(&work[at+2u]);
-  if(atomicLoad(&work[at+1u])==i&&r<out.pages[keptAt(l)]&&out.pages[keptPage(l,r)]==i){return r;}
-  s=(s+1u)&mask;
- }
+  if(atomicLoad(&work[at+1u])==i&&r<out.pages[keptAt(l)]&&out.pages[keptPage(l,r)]==i){return r;}`)}
  return NO_INDEX;
 }
 /** Page \`i\` at rank \`r\` in the table, stamped \`gen\`: the first slot from its home no keep of
  *  \`gen\` holds, taken by exchange — a lookup walks the same slots and stops past it. */
 fn keepRank(i:u32,r:u32,gen:u32){
  let mask=keptSlots()-1u;
- var s=keptHome(i);
- for(var k=0u;k<=mask;k++){
-  let at=KEPT_HEAD+${OPEN_SLOT_WORDS}u*s;
-  loop{
+${keptProbe(`loop{
    let old=atomicLoad(&work[at]);
    if(old==gen){break;}
    if(atomicCompareExchangeWeak(&work[at],old,gen).exchanged){atomicStore(&work[at+1u],i);atomicStore(&work[at+2u],r);return;}
-  }
-  s=(s+1u)&mask;
- }
+  }`)}
 }
 ${[0, 1].map(listKernels).join('')}`,
 )
