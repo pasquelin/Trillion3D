@@ -20,6 +20,7 @@ use super::placed::Local;
 use super::retries::{with_lock_retries, Reduction};
 use super::stopped::Stop;
 use super::*;
+use crate::perf::{Phase, Timer};
 use crate::qem::solve::{flags, Region};
 
 /// What a reduction holds still.
@@ -129,7 +130,11 @@ fn reduced<T>(
         // Only a seam-freed group places vertices: its copies each solve their own attributes.
         // Pruning ignores locks: a retry, which added some, no longer prunes.
         let place = !hold.seams;
-        let Some(solved) = region.solve(live.len() / 6, extra.is_empty(), place, &flag) else {
+        let solved = {
+            let _t = Timer::new(Phase::Simplify);
+            region.solve(live.len() / 6, extra.is_empty(), place, &flag)
+        };
+        let Some(solved) = solved else {
             return Ok(Err(Stop::NoCollapse));
         };
         let error = solved.error_object.max(weld_error);
@@ -148,7 +153,10 @@ fn reduced<T>(
             Ok(done) => done,
             Err(stop) => return Ok(Err(stop)),
         };
-    let clusters = cluster_triangles(&local.positions, &local.indices, DAG_CLUSTER_TRIANGLES)?;
+    let clusters = {
+        let _t = Timer::new(Phase::Resplit);
+        cluster_triangles(&local.positions, &local.indices, DAG_CLUSTER_TRIANGLES)?
+    };
     if clusters.len() >= children {
         return Ok(Err(Stop::NoCollapse));
     }

@@ -65,6 +65,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     }
     scene
         .out
+        .scene
         .report
         .add_count("blend-object-outside-scene", outside);
     // The key holds the digest of the file read: an unchanged file is rewritten identically, at

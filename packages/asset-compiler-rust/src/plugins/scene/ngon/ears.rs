@@ -101,7 +101,10 @@ impl Ngon {
         self.alive.clear();
         self.alive.resize(n, true);
         self.candidate.clear();
-        self.candidate.extend((0..n).map(|v| !self.convex(v, turn)));
+        for v in 0..n {
+            let reflex = !self.convex(v, turn);
+            self.candidate.push(reflex);
+        }
         if !self.candidate.contains(&true) && !swings_once(&self.flat) {
             self.candidate.fill(true);
         }

@@ -13,10 +13,9 @@
 //! the same error bit for bit.
 //!
 //! Nor is it below how far the texture slides across the coarse surface (`texture.rs`).
-use super::GroupReductionInput;
 use crate::physics_cook::hausdorff::Level0;
 
-/// The arrays a reduction's error is measured on: the level's (`Surface::of`), or a solve's own
+/// The arrays a reduction's error is measured on: the level's, or a solve's own
 /// region with the vertices it placed (`placed::Local::measured`).
 pub(super) struct Surface<'a> {
     pub positions: &'a [f32],
@@ -28,18 +27,6 @@ pub(super) struct Surface<'a> {
     pub extents: &'a [f64],
     /// Two floats per vertex per texture set; empty without one.
     pub uv_sets: Vec<&'a [f32]>,
-}
-impl<'a> Surface<'a> {
-    /// The level's arrays, as every reduction of `input` reads them.
-    pub fn of(input: &GroupReductionInput<'a>) -> Self {
-        Self {
-            positions: input.positions,
-            weld: input.weld,
-            weld_seam: input.weld_seam,
-            extents: input.extents,
-            uv_sets: input.attributes.uv_sets(),
-        }
-    }
 }
 
 /// The error of reducing `live` to `kept`: the largest of the quadrics' estimate `qem`, the

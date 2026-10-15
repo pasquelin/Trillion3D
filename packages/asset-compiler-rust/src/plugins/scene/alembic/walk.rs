@@ -151,13 +151,15 @@ impl World<'_> {
         let facesets = self.facesets(children)?;
         let (parts, counted) = parts(&geometry, &facesets, self.cancelled)?;
         self.scene
+            .tables
             .report
             .add_count("alembic-face-in-two-facesets", counted.overlaps);
-        self.scene.report.add_count(
+        self.scene.tables.report.add_count(
             crate::plugins::scene::codes::DEGENERATE_FACE,
             counted.degenerate,
         );
         self.scene
+            .tables
             .report
             .add_count(crate::plugins::scene::codes::NGON_UNCUT, counted.uncut);
         if parts.is_empty() {

@@ -42,7 +42,7 @@ impl Spread {
         };
         match indices {
             Some(indices) => u32::try_from(*indices.get(raw)?).ok(),
-            None => u32::try_from(raw).ok(),
+            None => <u32 as TryFrom<usize>>::try_from(raw).ok(),
         }
     }
 }

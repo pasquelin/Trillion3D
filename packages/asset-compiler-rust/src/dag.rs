@@ -121,8 +121,6 @@ struct GroupReductionInput<'a> {
     seams: &'a [bool],
     /// Per vertex, its texture island (`charts::vertex_islands`); empty without a texture set.
     islands: &'a [u32],
-    /// The source's vertex count: a vertex from it on was placed by a solve.
-    source_vertices: usize,
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
     /// Canonical vertex by position and every carried attribute (`attributes::weld_exact`).

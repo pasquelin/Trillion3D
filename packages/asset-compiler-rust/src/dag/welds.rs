@@ -88,7 +88,6 @@ impl<'a> Welds<'a> {
             locks,
             seams: &c.seams,
             islands: &c.islands,
-            source_vertices: self.positions.len() / 3,
             weld: &c.weld,
             exact: &c.exact,
             weld_seam: Some(&c.weld_seam[..])

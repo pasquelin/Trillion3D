@@ -62,6 +62,7 @@ impl Scene<'_> {
         };
         if self.overridden(object) {
             self.out
+                .scene
                 .report
                 .add("blend-object-material-override-unconverted");
         }
@@ -89,6 +90,7 @@ impl Scene<'_> {
             return;
         };
         self.out
+            .scene
             .nodes
             .push(crate::import::light_node(&name, json!(matrix), light));
         let rank = self.out.scene.nodes.len() - 1;

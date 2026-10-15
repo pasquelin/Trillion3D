@@ -151,4 +151,4 @@ pub(crate) use primitive::{primitive, Vertices};
 pub use runner::import_source;
 pub(crate) use tables::{readable, SceneTables};
 use textures::*;
-pub(crate) use write::{borrowed_tables, scene_source, write_scene, Converted, Tables};
+pub(crate) use write::{borrowed_tables, write_scene, Converted, Tables};

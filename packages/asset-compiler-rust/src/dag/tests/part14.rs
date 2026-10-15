@@ -41,7 +41,14 @@ fn deviation_above(mesh: &(Vec<f32>, Vec<f32>), live: &[u32], kept: &[u32], floo
     let locks = vec![false; mesh.0.len() / 3];
     let bound = quality::NORMAL_DEVIATION_BOUND;
     let input = welds.input(&mesh.0, &carried, &weighted, &locks, bound);
-    texture_deviation_above(&measured::Surface::of(&input), live, kept, floor)
+    let surface = measured::Surface {
+        positions: input.positions,
+        weld: input.weld,
+        weld_seam: input.weld_seam,
+        extents: input.extents,
+        uv_sets: input.attributes.uv_sets(),
+    };
+    texture_deviation_above(&surface, live, kept, floor)
 }
 
 #[test]
