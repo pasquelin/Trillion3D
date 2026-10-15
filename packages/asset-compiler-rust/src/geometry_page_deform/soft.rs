@@ -25,8 +25,7 @@ pub fn declare_soft(d: &mut Deformation, g: &Value, mesh: usize, positions: &[f3
         ));
     }
     let every: Vec<u32> = (0..positions.len() as u32 / 3).collect();
-    let welded = crate::dag::clusters::weld_positions(positions, &every);
-    let (_, map, _) = crate::qem::compact_region(positions, &welded);
+    let (_, map, _) = crate::qem::welded_region(positions, &every);
     if map.iter().any(|&v| v > 0xffff) {
         return Err(CompilerError::new(
             "SOFT_DEFORMATION",

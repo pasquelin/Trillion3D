@@ -43,6 +43,17 @@ pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, V
     }
     (compact_pos, compact_idx, remap)
 }
+/// The region of `corners` with each position welded to its first copy by bits
+/// (`weld_positions`), then compacted: its positions, its corners renumbered, and its corners
+/// welded in the source numbering. The one sequence a soft body's page ids, its simulation
+/// vertices and a convex hull read, so the page and the simulation name the same vertices by
+/// construction.
+pub(crate) fn welded_region(positions: &[f32], corners: &[u32]) -> (Vec<f32>, Vec<u32>, Vec<u32>) {
+    let canonical = crate::dag::clusters::weld_positions(positions, corners);
+    let welded: Vec<u32> = corners.iter().map(|&i| canonical[i as usize]).collect();
+    let (xyz, local, _) = compact_region(positions, &welded);
+    (xyz, local, welded)
+}
 /// The simplifier's per-vertex flags: the vertex does not move.
 pub const VERTEX_LOCK: u8 = 1;
 /// The vertex keeps its attribute discontinuity (a texture seam) under permissive mode.

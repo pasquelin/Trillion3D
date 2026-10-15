@@ -4,8 +4,7 @@
 //! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike.
 use super::SOFT_VERTEX_WORDS;
-use crate::dag::clusters::weld_positions;
-use crate::qem::compact_region;
+use crate::qem::welded_region;
 use trillion3d_math::triangle::triangle_area;
 use trillion3d_math::vecn::{length, sub};
 
@@ -63,7 +62,7 @@ pub(super) fn soft_record(
     // As the page's key, the text of each coordinate: 0 and -0 are one position.
     let every: Vec<u32> = (0..count as u32).collect();
     // Each welded vertex numbered at its first copy, as the page numbers them.
-    let (xyz, map, _) = compact_region(pos, &weld_positions(pos, &every));
+    let (xyz, map, _) = welded_region(pos, &every);
     let kept = xyz.len() / 3;
     // A rope keeps no triangle.
     let corners = match corners {
