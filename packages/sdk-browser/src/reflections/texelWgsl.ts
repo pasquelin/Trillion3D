@@ -7,6 +7,7 @@ import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 import { REFLECTED_WGSL } from './weight.ts'
 import { ndcToUvUnflipped, slabPerspective } from '../../../math/src/wgsl/projection.ts'
 import { unitToSigned2 } from '../../../math/src/wgsl/reals.ts'
+import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 
 /** The gather `name` (`historyGather`): with `near`, the bilinear sum of the held taps too — the
  *  upsample's fallback alone reads it, so the accumulation's gather adds none. One text, both. */
@@ -56,9 +57,11 @@ const historyGatherFn = (name: string, near: boolean) =>
  * pixels apart on the screen: one within the depth that surface spans across them — steeper as it turns
  * edge-on, `REFLECTION_GRAZING` at most —, nothing two such spans off, times the normals' agreement:
  * whole within a normal map's tilt (`REFLECTION_CREASE_NEAR`), nothing across a crease
- * (`REFLECTION_CREASE_FAR`). `reflectionRobustWeight`: the weight of a radiance in a mean that no
- * single bright sample may dominate, 1 / (1 + its luminance) — a firefly of luminance L counts as one
- * unit, not L (`temporalWgsl.ts`, `spatialWgsl.ts`).
+ * (`REFLECTION_CREASE_FAR`). `reflectionBounds`: the radiance the fresh texels of `grid` around `at`
+ * hold, its mean ± `REFLECTION_CLAMP` standard deviations, taken in a perceptual space — each channel
+ * c as c / (1 + c), where a firefly's thousandfold radiance is no more than a bright one's —, and
+ * `reflectionClamped` a radiance held within them: the one rule that holds a sample or a history to
+ * its neighbourhood (`spatialWgsl.ts`, `temporalWgsl.ts`).
  * `historyGather`: the four history texels of `grid` around `q` (half-grid coordinates, texel centres
  * on the integers), bilinear, those that hold a history (`near`), and those weighed by the same-surface
  * test too (`sharp`), with their mean count — the one read of a history, the accumulation's of the
@@ -76,6 +79,7 @@ export const REFLECTION_TEXEL_WGSL = wgslBlock(
     octDecode,
     ndcToUvUnflipped,
     unitToSigned2,
+    clampToExtent,
     REFLECTION_CONSTANTS_WGSL,
     reflectionBindingsWgsl(REFLECTION_GROUP),
   ],
@@ -127,8 +131,33 @@ fn reflectionSameSurface(depth:f32,N:vec3f,V:vec3f,other:f32,otherN:vec3f,pixels
  let near=1.0-smoothstep(span,2.0*span,abs(other-depth));
  return near*smoothstep(REFLECTION_CREASE_FAR,REFLECTION_CREASE_NEAR,dot(N,otherN));
 }
-fn reflectionRobustWeight(r:Reflected)->f32{
- return 1.0/(1.0+dot(r.base+r.coat,vec3f(0.2126,0.7152,0.0722)));
+struct ReflectedBounds{low:Reflected,high:Reflected,}
+fn reflectionPerceived(c:vec3f)->vec3f{return c/(vec3f(1.0)+c);}
+fn reflectionLinear(p:vec3f)->vec3f{let q=clamp(p,vec3f(0.0),vec3f(0.999));return q/(vec3f(1.0)-q);}
+fn reflectionBounds(grid:texture_2d<u32>,at:vec2i)->ReflectedBounds{
+ var mean=Reflected(vec3f(0.0),vec3f(0.0));
+ var square=mean;
+ var n=0.0;
+ let size=vec2i(textureDimensions(grid));
+ for(var k=0;k<9;k++){
+  let t=textureLoad(grid,clampToExtent(at+vec2i(k%3-1,k/3-1),size),0);
+  if(!freshValid(t)){continue;}
+  let r=texelReflected(t);
+  let b=reflectionPerceived(r.base);let c=reflectionPerceived(r.coat);
+  mean.base+=b;mean.coat+=c;
+  square.base+=b*b;square.coat+=c*c;
+  n+=1.0;
+ }
+ let m=Reflected(mean.base/max(n,1.0),mean.coat/max(n,1.0));
+ let s=Reflected(
+  REFLECTION_CLAMP*sqrt(max(square.base/max(n,1.0)-m.base*m.base,vec3f(0.0))),
+  REFLECTION_CLAMP*sqrt(max(square.coat/max(n,1.0)-m.coat*m.coat,vec3f(0.0))));
+ return ReflectedBounds(
+  Reflected(reflectionLinear(m.base-s.base),reflectionLinear(m.coat-s.coat)),
+  Reflected(reflectionLinear(m.base+s.base),reflectionLinear(m.coat+s.coat)));
+}
+fn reflectionClamped(r:Reflected,b:ReflectedBounds)->Reflected{
+ return Reflected(clamp(r.base,b.low.base,b.high.base),clamp(r.coat,b.low.coat,b.high.coat));
 }
 struct HistoryGather{sharp:Reflected,sharpWeight:f32,near:Reflected,nearWeight:f32,count:f32,}
 ${historyGatherFn('historyGather', false)}

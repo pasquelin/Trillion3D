@@ -1,6 +1,5 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
-import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
 import { HALF_FORMAT } from './halfTexture.ts'
 import { REFLECTION_SIDE } from './constants.ts'
 import { REFLECTION_LAYER_WGSL, REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
@@ -24,17 +23,14 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  *   (`forgetReflectedImage`: the content joined), nor on a still view's first quiet image
  *   (`ReflectionView.temporal.y` one): a still view's history is its own images' alone.
  * - CLAMP: on an image drawn for a move (`ReflectionView.temporal.z`: the camera moved, a light changed,
- *   a body of the scene moved or deformed, `RadianceSettle.move`), the history is clamped to the fresh
- *   texels around it, mean ± `REFLECTION_CLAMP` standard deviations: a lamp that moved lights the
- *   history at once. On any other image it is not: one sample a texel cannot tell a lobe's mean from
- *   its own noise, and a clamp to it would darken every lobe that meets a small bright body — so the
- *   images the engine draws while its own work lands (pages, probes, shadows) accumulate without bias.
+ *   a body of the scene moved or deformed, `RadianceSettle.move`), the history is held to the fresh
+ *   texels around it (`reflectionBounds`, the rule each fresh sample is held by): a lamp that moved
+ *   lights the history at once. A history that was right lies within them, as its samples did, and is
+ *   kept: the clamp removes the stale, not the mean. On any other image it is not clamped.
  * - BLEND: the running mean of `count` images, `REFLECTION_HISTORY` at most, then an exponential mean of
- *   that window while anything changes, each image weighed there by its robust weight
- *   (`reflectionRobustWeight`): one bright sample of a texel's ray — a headlight caught by the lobe's
- *   tail — would light the texel's four pixels for a dozen images, a square the window shows and never
- *   averages away while the view moves; weighed, it counts as one unit. The still view's own images
- *   are averaged plainly: their mean is the lobe's, unbiased. A still view's quiet images restart it, each at the turn of its
+ *   that window while anything changes: a plain mean of fresh samples each already held to its
+ *   neighbourhood (`spatialWgsl.ts`), the same samples on a moving and a still image, so both converge to
+ *   one colour — the window's length alone differs, which changes the noise, never the mean. A still view's quiet images restart it, each at the turn of its
  *   rank (`stageReflectionImage`), and let it grow to `REFLECTION_STILL`: once the view has been quiet
  *   for that many images, every texel holds the mean of those images' samples alone, and is copied as
  *   it is from the next on (`ReflectionView.temporal.y` past `REFLECTION_STILL`): a still view's
@@ -44,13 +40,7 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  */
 export const REFLECTION_TEMPORAL_WGSL = wgslBlock(
   'REFLECTION_TEMPORAL_WGSL',
-  [
-    REFLECTION_LAYER_WGSL,
-    REFLECTION_SURFACES_WGSL,
-    REFLECTION_TEXEL_WGSL,
-    clipToFramebuffer,
-    clampToExtent,
-  ],
+  [REFLECTION_LAYER_WGSL, REFLECTION_SURFACES_WGSL, REFLECTION_TEXEL_WGSL, clipToFramebuffer],
   `@group(0) @binding(${B.temporalIn}) var temporalIn:texture_2d<u32>;
 @group(0) @binding(${B.historyIn}) var historyIn:texture_2d<u32>;
 @group(0) @binding(${B.historyOut}) var historyOut:texture_storage_2d<${HALF_FORMAT},write>;
@@ -70,28 +60,6 @@ fn temporalHistory(P:vec3f,N:vec3f,V:vec3f,offset:vec2f)->TemporalHistory{
  return TemporalHistory(
   Reflected(g.sharp.base/g.sharpWeight,g.sharp.coat/g.sharpWeight),g.count/g.sharpWeight);
 }
-/** The history \`h\` held within mean ± \`REFLECTION_CLAMP\` deviations of the fresh texels around \`at\`. */
-fn temporalClamp(h:Reflected,at:vec2i)->Reflected{
- var mean=Reflected(vec3f(0.0),vec3f(0.0));
- var square=mean;
- var n=0.0;
- let size=vec2i(textureDimensions(temporalIn));
- for(var k=0;k<9;k++){
-  let tap=clampToExtent(at+vec2i(k%3-1,k/3-1),size);
-  let t=textureLoad(temporalIn,tap,0);
-  if(!freshValid(t)){continue;}
-  let r=texelReflected(t);
-  mean.base+=r.base;mean.coat+=r.coat;
-  square.base+=r.base*r.base;square.coat+=r.coat*r.coat;
-  n+=1.0;
- }
- mean.base/=n;mean.coat/=n;
- let spread=Reflected(
-  REFLECTION_CLAMP*sqrt(max(square.base/n-mean.base*mean.base,vec3f(0.0))),
-  REFLECTION_CLAMP*sqrt(max(square.coat/n-mean.coat*mean.coat,vec3f(0.0))));
- return Reflected(clamp(h.base,mean.base-spread.base,mean.base+spread.base),
-  clamp(h.coat,mean.coat-spread.coat,mean.coat+spread.coat));
-}
 fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  let fresh=textureLoad(temporalIn,at,0);
  if(!freshValid(fresh)){return vec4u(0u);}
@@ -105,14 +73,9 @@ fn temporalTexel(at:vec2i,layer:u32)->vec4u{
  let full=u32(round(held.count));
  let depth=surfaceLinearDepth(P);
  var history=held.radiance;
- if(reflectionView.temporal.z!=0u&&full>0u){history=temporalClamp(history,at);}
+ if(reflectionView.temporal.z!=0u&&full>0u){history=reflectionClamped(history,reflectionBounds(temporalIn,at));}
  let count=min(full+1u,select(REFLECTION_HISTORY,REFLECTION_STILL,quiet>0u));
- var share=1.0/f32(count);
- // While anything changes the mean weighs each image by its robust weight: a firefly is one unit.
- if(quiet==0u){
-  let w=share*reflectionRobustWeight(now);
-  share=w/(w+(1.0-share)*reflectionRobustWeight(history));
- }
+ let share=1.0/f32(count);
  let blended=Reflected(mix(history.base,now.base,share),mix(history.coat,now.coat,share));
  return historyPack(blended,depth,N,count);
 }
