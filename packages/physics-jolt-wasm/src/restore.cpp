@@ -8,10 +8,7 @@
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/RayCast.h>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
-#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Collision/Shape/ScaledShape.h>
-#include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/ShapeCast.h>
 
 using namespace JPH;
@@ -58,9 +55,10 @@ void cast(const uint32_t *q, uint32_t *out) {
     lock.ReleaseLock();
     return writeHit(out, hit.mBodyID, hit.mFraction, point, normal);
   }
-  RefConst<Shape> shape = q[0] == 1 ? RefConst<Shape>(new SphereShape(f32(q + 7)))
-                         : q[0] == 2 ? RefConst<Shape>(new BoxShape(vec3(q + 7)))
-                                     : RefConst<Shape>(new CapsuleShape(f32(q + 7), f32(q + 8)));
+  // The swept shape is the body primitive of the same dimensions (layout.ts CAST: sphere 1, box 2,
+  // capsule 3).
+  RefConst<Shape> shape = primitive(q[0] == 1 ? SPHERE : q[0] == 2 ? BOX : CAPSULE, f32(q + 7), f32(q + 8), f32(q + 9));
+  if (!shape) return;
   RShapeCast sweep(shape, Vec3::sOne(), RMat44::sTranslation(origin), travel);
   ShapeCastSettings settings;
   ClosestHitCollisionCollector<CastShapeCollector> closest;
