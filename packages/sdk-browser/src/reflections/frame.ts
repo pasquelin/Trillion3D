@@ -8,9 +8,8 @@ import { viewProj } from '../webgpu/pages/helpers.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { frontStamp } from './frontLayer.ts'
 import { reflectionGroup, reflectionLightView, type ScreenReflection } from './gpu.ts'
-import type { RadianceInputs } from './radianceBuild.ts'
 import { encodeImageRadiance, stageReflectionImage } from './image.ts'
-import { encodeReflectionTrace, type TraceInputs } from './halfEncode.ts'
+import { encodeReflectionTrace } from './halfEncode.ts'
 import type { ReflectionFrame } from './viewWrite.ts'
 import { createSurroundings } from '../lighting/toneUnmap.ts'
 import {
@@ -32,8 +31,6 @@ const frame: ReflectionFrame = {
 /** The radiance a ray that leaves the scene reaches, computed again when the background, the
  *  exposure or the curve moves. */
 const surroundings = createSurroundings()
-const inputs = {} as TraceInputs
-const radianceInputs = {} as RadianceInputs
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
@@ -98,7 +95,8 @@ export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   if (traced) {
     const views = surfaces.views()
     // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.
-    const contract = directLightResources(rt)
+    const contract = directLightResources(rt),
+      { inputs } = reflection
     inputs.base = views[0]
     inputs.flags = views[3]
     inputs.normals = views[1]
@@ -136,6 +134,7 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines
   if (!reflection || !stages || !gpu.hdrTexture || !gpu.deferred) return
+  const { radianceInputs } = reflection
   radianceInputs.texture = gpu.hdrTexture
   radianceInputs.view = gpu.deferred.uniform
   radianceInputs.hash = reflection.settle.hash

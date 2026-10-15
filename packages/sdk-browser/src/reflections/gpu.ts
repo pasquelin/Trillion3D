@@ -6,7 +6,8 @@ import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createRadiancePyramid, radianceBytes } from './radiance.ts'
 import { SETTLE_BYTES, createRadianceSettle } from './settle.ts'
-import { createTraceGroups } from './halfEncode.ts'
+import { createTraceGroups, type TraceInputs } from './halfEncode.ts'
+import type { RadianceInputs } from './radianceBuild.ts'
 import { createHalfGrids, halfBytes, halfExtent } from './halfTexture.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import {
@@ -95,6 +96,9 @@ export function createScreenReflection(
     /** The trace's and the upsample's bind groups, kept while their inputs stay
      *  (`encodeReflectionTrace`). */
     trace: createTraceGroups(),
+    /** What the trace and the radiance build read, written in place each image (`frame.ts`). */
+    inputs: {} as TraceInputs,
+    radianceInputs: {} as RadianceInputs,
     dispose() {
       target.destroy()
       radiance.image.texture.destroy()
