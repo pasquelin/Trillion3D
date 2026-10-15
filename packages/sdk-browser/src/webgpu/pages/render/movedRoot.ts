@@ -5,7 +5,7 @@ import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 import { noteWorldMoved } from './movedWorlds.ts'
 import { extendSpan } from '../../../../../math/src/sequence/span.ts'
 import { noteRootWorld } from '../../../placement/rootWorlds.ts'
-import { worldMoved } from '../../../page/selection/rootWorld.ts'
+import { worldMoved, worldVersion } from '../../../page/selection/rootWorld.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
@@ -41,9 +41,12 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, ra
   if (rt.run) noteWorldMoved(rt.run, rank)
   noteRootWorld(rt, rank)
   poseEntries(rt, root)
-  const cw = matrixWindingCw(root.world.elements)
-  if (root.windingCw === cw) return 0
-  root.windingEpoch = undefined
+  // Its winding is taken at its new world version, the one its bins are read at (`winding.ts`).
+  const cw = matrixWindingCw(root.world.elements),
+    turned = root.windingCw !== cw
+  root.windingCw = cw
+  root.windingEpoch = worldVersion(root)
+  if (!turned) return 0
   return markRootRows(rt, root, 0, root.pages.length - 1)
 }
 

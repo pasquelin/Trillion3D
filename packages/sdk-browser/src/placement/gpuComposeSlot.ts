@@ -9,6 +9,7 @@ import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { moveRootRows, poseEntries } from '../webgpu/pages/render/movedRoot.ts'
 import { slotRanks, type ComposeState } from './gpuComposeState.ts'
+import { worldMoved } from '../page/selection/rootWorld.ts'
 
 /** The draw bins of the rows of `slot`'s roots are made again, from the world the GPU composes:
  *  a mirror changes which face each row's bin culls (`pipelineFor.ts`). Called when the parent's
@@ -70,8 +71,12 @@ export function settleSlot(
   if (moved || p === undefined) state.parentsMoved.mark(slot)
   state.worlds.set(world, slot * MATRIX_VALUES)
   // The slot's composition moves only with its world or a link: a still parent sent again, and
-  // every other slot, keep their composed worlds and every memo keyed by their stamps.
-  if (moved || relinked || p === undefined) state.slotVersions[slot] = ++state.version
+  // every other slot, keep their composed worlds and every memo keyed by their roots' world
+  // versions (`worldMoved`); its readers' views read the slot's version.
+  if (moved || relinked || p === undefined) {
+    state.slotVersions[slot] = ++state.version
+    for (const rank of slotRanks(state, slot)) worldMoved(rt.layout.selectionRoots[rank])
+  }
   if (turned) remakeBins(rt, state, slot)
   if (!moved && !relinked) return moved
   // The impostor cards of its roots are written again from the composed worlds they read, and so

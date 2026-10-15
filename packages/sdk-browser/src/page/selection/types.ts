@@ -138,14 +138,12 @@ export type ClusterRoot<T> = {
   /** The local box of which `worldBox` is the image. Shared by every placement of the primitive,
    *  so it is read, never written. */
   localBox?: Float64Array
-  /** The stamp its world moved at (`worldMoved`), and what the memos of its box and stretch were
+  /** The version its world moved at (`worldMoved`), and what the memos of its box and stretch were
    *  taken at (`rootWorld.ts`). */
   worldAt?: number
   boxAt?: number
-  boxStamp?: number
   stretch?: number
   stretchAt?: number
-  stretchStamp?: number
   structure?: ClusterStructureIndex
   /** What the root declares of its pages' boxes, once and for all at prepare time: `true` says
    *  each carries `min` and `max`, and the cut then stops checking them per cluster under a node
@@ -179,9 +177,8 @@ export type ClusterRoot<T> = {
    *  world cut it (`world/page/runtimeProxy.ts`), or read from the cache (`proxy.bin`) —, and the surface it
    *  wears (`../../bounce/runtimeLayout.ts`). */
   proxy?: RootProxy
-  /** Winding of `world` and the row-table epoch it was computed at (`webgpu/pages/render/winding.ts`). */
+  /** Winding of `world` and the world version (`worldAt`) it was taken at
+   *  (`webgpu/pages/render/winding.ts`). */
   windingCw?: boolean
   windingEpoch?: number
-  /** The stamp of a composed world the winding was taken at (`placement/gpuCompose.ts`). */
-  windingStamp?: number
 }

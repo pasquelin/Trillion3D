@@ -20,6 +20,7 @@ import {
   type ComposeState,
 } from './gpuComposeState.ts'
 import { installComposedWorld, removeComposedWorld } from './gpuComposeWorld.ts'
+import { worldMoved } from '../page/selection/rootWorld.ts'
 import { readerViews, releaseReaderViews } from './composeReaders.ts'
 import type { PlacementLink } from './gpuCompose.ts'
 
@@ -87,6 +88,9 @@ export function unlinkHeld(
     if (state.parentOf[rank] !== slot || kept.has(rank)) continue
     removeComposedWorld(state, rank)
     state.parentOf[rank] = NO_INDEX
+    // Its world is no longer composed: what derives from it is taken again (`worldMoved`).
+    const root = rt.layout.selectionRoots[rank]
+    if (root) worldMoved(root)
     // Its world is the CPU's again: sent from it, its rows derived from it, the pages they leave
     // and enter staled.
     noteRootWorld(rt, rank)
