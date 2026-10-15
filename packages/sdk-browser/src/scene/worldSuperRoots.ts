@@ -21,6 +21,8 @@ import type { ClusterGroup, CullingHierarchy } from '../../../sdk-core/src/contr
 import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import { structureIndex } from '../page/selection/structure.ts'
 import { cullingNodes } from '../page/selection/helpers.ts'
+import { cullingBounds } from '../page/cut/bounds.ts'
+import { cullingLinks } from '../page/cut/links.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import type { worldRootPages } from './worldPageServe.ts'
 
@@ -72,12 +74,18 @@ export function worldRootDag(
   // The cook writes every world's hierarchy (version 6): a DAG without one is refused when read.
   const { roots, held, pages, origins, slack } = pagesOf(clusters, table.url, table.pinned)
   const structure = structureIndex({ version: 1, roots, groups }, pages.length, slack)
+  const nodes = cullingNodes(table.culling, pages.length, slack)
   return {
     world: IDENTITY_WORLD,
     pages,
     structure,
-    // Its links are the cut's own, derived once per hierarchy (`linksFor`, `page/cut/links.ts`).
-    culling: cullingNodes(table.culling, pages.length, slack),
+    // Its hierarchy with its bounds and links, made once here as a primitive's template makes its
+    // own (`page/selection/template.ts`): every reader takes them, none derives them again.
+    culling: nodes && {
+      ...nodes,
+      bounds: cullingBounds(nodes, pages),
+      links: cullingLinks(nodes, pages.length),
+    },
     // Each object root's placed object, which its residency mirrors (`gpu/dag/residencyMirror.ts`).
     origins,
     held,
