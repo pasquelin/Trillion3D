@@ -13,6 +13,13 @@ function quantile(sorted: ArrayLike<number>, q: number): number | undefined {
   return sorted[Math.ceil(q * sorted.length) - 1]
 }
 
+/** `quantile` of an unsorted list: a copy is sorted ascending first, the list itself is left as is.
+ *  The median is `quantileOf(values, 0.5)`, the lower of the two middle values of an even count:
+ *  the one convention of every median and 50th percentile. */
+export function quantileOf(values: ArrayLike<number>, q: number): number | undefined {
+  return quantile(ascending(values), q)
+}
+
 /** The arithmetic mean of `values`, summed left to right from 0 then divided by the count: the
  *  `reduce((a, b) => a + b, 0) / length` form, bit for bit. An empty list gives NaN. */
 export function mean(values: ArrayLike<number>) {

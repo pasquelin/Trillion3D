@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { decayFactor, decayRate, floorMod, fract, lerp, lerpArray, snap, wrap } from './reals.ts'
-import { mean, summaryOf } from './quantile.ts'
+import { mean, quantileOf, summaryOf } from './quantile.ts'
 import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('fract: the part above the floor, negatives counted from below, NaN through', () => {
@@ -77,11 +77,10 @@ test('mean: the left-to-right sum, the form it replaces', () => {
   }
 })
 
-test('summaryOf: the sorted ranks of an unsorted list, which stays as it was', () => {
+test('quantileOf: the sorted rank of an unsorted list, which stays as it was', () => {
   const values = [9, 1, 5, 3, 7, 2]
-  const summary = summaryOf(values)!
-  assert.equal(summary.p95, 9)
-  assert.equal(summary.p50, 3)
+  assert.equal(quantileOf(values, 0.95), 9)
+  assert.equal(quantileOf(values, 0.5), 3)
   assert.deepEqual(values, [9, 1, 5, 3, 7, 2])
 })
 
@@ -107,13 +106,12 @@ test('decayRate and decayFactor: the exponential decay, the factor of the rate r
   assert.ok(Math.abs(decayFactor(decayRate(0.01, 0.3), 0.3) - 0.01) < 1e-15)
 })
 
-test('summaryOf takes the nearest rank ceil(q n) − 1 at every length, the median and the 95th alike', () => {
+test('quantileOf is the nearest rank ceil(q n) − 1 at every length, the median and the 95th alike', () => {
   // A `floor(q n)` index is the same rank when `q n` is not a whole number and the one after when
   // it is (the 95th of twenty: the 20th, not the 19th).
-  for (let n = 1; n <= 2000; n++) {
+  for (let n = 0; n <= 2000; n++) {
     const t = Array.from({ length: n }, (_, i) => i)
-    const summary = summaryOf(t)!
-    assert.equal(summary.p50, t[Math.min(Math.ceil(n * 0.5) - 1, n - 1)], `0.5 of ${n}`)
-    assert.equal(summary.p95, t[Math.min(Math.ceil(n * 0.95) - 1, n - 1)], `0.95 of ${n}`)
+    for (const q of [0.5, 0.95])
+      assert.equal(quantileOf(t, q), t[Math.min(Math.ceil(n * q) - 1, n - 1)], `${q} of ${n}`)
   }
 })

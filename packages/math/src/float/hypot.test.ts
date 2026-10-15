@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { hypot2, hypot3, hypot4 } from './hypot.ts'
-import { lcgRandom } from '../sequence/random.ts'
+import { xorshiftRandom } from '../sequence/random.ts'
 
 // The helpers must return `Math.hypot`'s value to the bit under V8, the engine whose builtin they
 // port: signed zeros told apart, every NaN equal to every NaN.
@@ -41,7 +41,7 @@ test('hypot2, hypot3 and hypot4 equal Math.hypot on every edge-case pair, triple
 })
 
 test('hypot2, hypot3 and hypot4 equal Math.hypot on 10^6 random inputs of every magnitude and bit pattern', () => {
-  const next = lcgRandom(12345)
+  const next = xorshiftRandom(12345)
   const f64 = new Float64Array(1),
     u32 = new Uint32Array(f64.buffer)
   // Kind 0: close magnitudes, where the Kahan compensation matters; 1: every scale; 2: raw bits.
