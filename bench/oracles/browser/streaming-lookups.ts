@@ -9,11 +9,3 @@ export function referenceRetireDeLaFile(queue: Job[], job: Job) {
   const at = queue.indexOf(job)
   if (at >= 0) queue.splice(at, 1)
 }
-
-/**
- * `packages/sdk-browser/src/world/render/draw.ts`: missing addresses were stacked in an array whose membership
- * was tested by `includes`, hence a full sweep for each added address.
- */
-export function referencePushPending(wait: string[], urls: readonly string[]) {
-  for (const url of urls) if (!wait.includes(url)) wait.push(url)
-}
