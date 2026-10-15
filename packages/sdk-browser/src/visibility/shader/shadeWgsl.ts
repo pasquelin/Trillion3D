@@ -1,7 +1,7 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
-import { invTranspose3Apply, unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import {
   edgeFunction,
   perspectiveBarycentric,
@@ -66,11 +66,10 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   ddx=g[0];ddy=g[1];
  }
  let model=(page.flags>>${MODEL_SHIFT}u)&7u;
- // A matcap material reads its image by the view-space normal: the base map at that coordinate.
+ // A matcap material reads its image by the view-space normal: the base map at that coordinate,
+ // from the triangle's world normals the decode turned to the row's side (\`decodeTriangle\`).
  if(model==${SURFACE_MODEL.matcap}u){
-  // The row's normal matrix, as the rows pass composed it (\`rowFrame\`).
-  let it=rowFrame(pageIndex,page.world).invT;let h=pageHeader(page);let k=pageTriangle(page,h,tri);
-  uv=matcapUv(unitOrZero(invTranspose3Apply(it,pageNormal(page,h,k.x))*bary.x+invTranspose3Apply(it,pageNormal(page,h,k.y))*bary.y+invTranspose3Apply(it,pageNormal(page,h,k.z))*bary.z));
+  uv=matcapUv(unitOrZero(t.n0*bary.x+t.n1*bary.y+t.n2*bary.z));
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
  // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
@@ -180,7 +179,6 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       ORM_LAW_WGSL,
       DIAGNOSTIC_PALETTE_WGSL,
       worldMatrix3,
-      invTranspose3Apply,
       unitOrZero,
       edgeFunction,
       perspectiveBarycentric,
