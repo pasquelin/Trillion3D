@@ -48,7 +48,9 @@ export const tangentAcross = wgslFn(
 export const Frame3 = wgslStruct('Frame3', [], 'struct Frame3{x:vec3f,y:vec3f,z:vec3f,}')
 
 /** The orthonormal frame whose `z` is the unit `axis`, with no branch: the sign of `axis.z` picks
- *  the hemisphere's formula, so `1/(s + z)` never divides by less than 1. */
+ *  the hemisphere's formula, so `1/(s + z)` never divides by less than 1. Every unoriented frame's
+ *  start; its first row's twins are `frameAcross` (`../vector/frame.ts`) and Rust
+ *  `vec3::frame_across`. */
 export const frameAround = wgslFn(
   'frameAround',
   [Frame3],

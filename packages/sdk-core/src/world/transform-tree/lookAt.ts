@@ -11,6 +11,7 @@ import {
   lengthSqVector3,
   normalizeVector3,
 } from '../../../../math/src/vector/vector.ts'
+import { frameAcross } from '../../../../math/src/vector/frame.ts'
 import { setNodeQuaternion, type TransformTree } from './transformTree.ts'
 import { updateNodeWorldMatrix } from './update.ts'
 
@@ -64,12 +65,8 @@ function writeAimBasis(
   if (lengthSqVector3(forward) === 0) forward[2] = 1
   else normalizeVector3(forward)
   crossVector3(right, up, forward)
-  if (lengthSqVector3(right) === 0) {
-    if (Math.abs(up[2]) === 1) forward[0] += 0.0001
-    else forward[2] += 0.0001
-    normalizeVector3(forward)
-    crossVector3(right, up, forward)
-  }
+  // Looking along `up`: no side of its own, the first row of the frame around `forward`.
+  if (lengthSqVector3(right) === 0) frameAcross(right, forward[0], forward[1], forward[2])
   normalizeVector3(right)
   // Columns x, y = z × x, z; `y` is unit already, the cross product of two orthonormal axes.
   crossVector3(above, forward, right)

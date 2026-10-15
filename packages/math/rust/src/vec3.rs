@@ -6,6 +6,17 @@
 use crate::real::Real;
 use crate::vecn::{dot, length, scale};
 
+/// The first row of the orthonormal frame around the unit `axis`, with no branch on its direction:
+/// a unit vector across it, the one every unoriented frame starts from. The sign of `z` picks the
+/// hemisphere's formula, so `1/(s + z)` never divides by less than 1 (`frameAcross` of
+/// `packages/math/src/vector/frame.ts`, the shader's `frameAround`, term for term).
+#[inline]
+pub fn frame_across([x, y, z]: [f64; 3]) -> [f64; 3] {
+    let s = if z >= 0.0 { 1.0 } else { -1.0 };
+    let a = -1.0 / (s + z);
+    [1.0 + s * a * x * x, s * (x * y * a), -s * x]
+}
+
 /// Vertex `id` of a flat `x, y, z` position array, in float64.
 #[inline]
 pub fn point(positions: &[f32], id: u32) -> [f64; 3] {
