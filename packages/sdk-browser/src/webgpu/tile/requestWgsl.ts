@@ -97,6 +97,38 @@ fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{return pickOf(u32(po
 fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`,
 )
 
+/** What a surface's request loop is made of (`requestLoopWgsl`): its function's head, the pixel
+ *  position and feedback word it speaks by, the lines that make the word (`before`) and those a
+ *  speaking pixel needs (`setup`), its count of picks, and its pick's call on a pick and `missing`. */
+type RequestLoop = {
+  head: string
+  pos: string
+  word: string
+  before?: string
+  setup?: string
+  choices: string
+  pick: (pick: string, missing: string) => string
+}
+
+/**
+ * THE REQUEST LOOP of every surface that asks tiles, under `FEEDBACK_RULE_WGSL`: a pixel out of its
+ * phase asks nothing; on a convergence's asking rows it names the first of its picks whose tile is
+ * missing (`everyPick`, `PICK_TURNS` per choice); else its own pick (`requestPick`). Each surface
+ * brings only its choices and its pick; the loop is this one text.
+ */
+export const requestLoopWgsl = ({ head, pos, word, before, setup, choices, pick }: RequestLoop) =>
+  `${head}{
+${before ? ` ${before}\n` : ''} if(!feedbackPhase(${pos},${word})){return 0u;}
+${setup ? ` ${setup}\n` : ''} let choices=${choices};
+ if(feedbackMissing(${pos},${word})){
+  for(var turn=0u;turn<choices*PICK_TURNS;turn++){
+   let rank=${pick(`everyPick(${pos},choices,turn)`, 'true')};
+   if(rank!=0u){return rank;}
+  }
+ }
+ return ${pick(`requestPick(${pos},choices,${word})`, 'false')};
+}`
+
 const m = WRAP_MAP
 /**
  * Tile rank a pixel asks for, plus one, or zero: `colorRequestIndex(slot, uv, ddx, ddy, next,

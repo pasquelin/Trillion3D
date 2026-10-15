@@ -6,6 +6,7 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { requestLoopWgsl } from '../tile/requestWgsl.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the camera's own, both
  *  at the eye, then the eye in two singles a component — the high words with the focal length's
@@ -145,18 +146,15 @@ fn cardPick(px:CardPixel,p:RequestPick,lod:f32,missing:bool)->u32{
 /** The tile rank this card pixel asks, plus one, or zero, under the rule every surface asks by
  *  (\`FEEDBACK_RULE_WGSL\`): on a convergence's asking rows the first of its picks whose tile is
  *  missing, else its own. */
-fn cardRequest(px:CardPixel,pos:vec2f,lod:f32)->u32{
- let word=bitcast<u32>(view.eyeLow.w);
- if(!feedbackPhase(pos,word)){return 0u;}
- let at=impLod(px.maps.colour,lod);
- if(feedbackMissing(pos,word)){
-  for(var turn=0u;turn<${CARD_MAPS}u*PICK_TURNS;turn++){
-   let rank=cardPick(px,everyPick(pos,${CARD_MAPS}u,turn),at,true);
-   if(rank!=0u){return rank;}
-  }
- }
- return cardPick(px,requestPick(pos,${CARD_MAPS}u,word),at,false);
-}
+${requestLoopWgsl({
+  head: 'fn cardRequest(px:CardPixel,pos:vec2f,lod:f32)->u32',
+  pos: 'pos',
+  word: 'word',
+  before: 'let word=bitcast<u32>(view.eyeLow.w);',
+  setup: 'let at=impLod(px.maps.colour,lod);',
+  choices: `${CARD_MAPS}u`,
+  pick: (p, missing) => `cardPick(px,${p},at,${missing})`,
+})}
 /** The identifier of card slot \`slot\`'s pixels. */
 fn cardId(slot:u32)->u32{return ${core.VIS_CARD_BASE}u|slot;}
 struct CardVis{@location(0) id:u32,@builtin(frag_depth) depth:f32}
