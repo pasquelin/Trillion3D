@@ -7,10 +7,13 @@ import { rayRectangle } from '../../../packages/math/src/geometry/rayShapes.ts'
 
 export const WIDTH = 256,
   HEIGHT = 192
-const FOV = 55 * DEG2RAD
+/** The eye's vertical field of view, in degrees, and its near plane: the engine camera's and the
+ *  analytic eye's. */
+export const FOV_DEGREES = 55,
+  NEAR = 0.1
 export const EYE: V3 = [0, 2, 2.5],
   TARGET: V3 = [0.3, -0.2, -3.5]
-const eye = camera(EYE, TARGET, WIDTH, HEIGHT, FOV)
+const eye = camera(EYE, TARGET, WIDTH, HEIGHT, FOV_DEGREES * DEG2RAD, NEAR)
 
 /** The unit direction of the eye's ray through the centre of the pixel `(x, y)` (top row first). */
 export const rayOf = (x: number, y: number) => eye.ray(x + 0.5, y + 0.5)

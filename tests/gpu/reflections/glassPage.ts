@@ -11,7 +11,18 @@ import { batisseur } from '../kit/sharedSceneProof.ts'
 import { sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
 import { flipRows } from '../kit/patternImage.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { EYE, HEIGHT, TARGET, WIDTH, crossing, mirror, pixelOf, rayOf } from './glassView.ts'
+import {
+  EYE,
+  FOV_DEGREES,
+  HEIGHT,
+  NEAR,
+  TARGET,
+  WIDTH,
+  crossing,
+  mirror,
+  pixelOf,
+  rayOf,
+} from './glassView.ts'
 import type { V3 } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 
 /** Pane A: its centre, its half-side and its yaw (its normal is `(sin yaw, 0, cos yaw)`). */
@@ -63,7 +74,7 @@ function scene(
 }
 
 function cameraOf() {
-  const camera = G.perspectiveCamera(55, WIDTH / HEIGHT, 0.1, 100)
+  const camera = G.perspectiveCamera(FOV_DEGREES, WIDTH / HEIGHT, NEAR, 100)
   camera.position.set(...EYE)
   camera.lookAt(...TARGET)
   camera.updateMatrixWorld(true)
