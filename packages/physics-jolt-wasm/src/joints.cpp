@@ -1,18 +1,11 @@
-// The world's joints: Jolt's own two-body constraints — fixed, point, hinge, slider, distance and
-// cone here, the advanced kinds in `advancedJoints.cpp` — between two bodies or a body and the
-// world, with their limits, limit springs and motors. A joint past its break force is taken out
-// after the step and reported. Word layouts: layout.ts (JOINT, UNJOINT, MOTOR).
+// The world's joints: Jolt's own two-body constraints (built by `jointSettings.cpp`, driven and
+// weighed by `jointMotors.cpp`) between two bodies or a body and the world, with their limits,
+// limit springs and motors. A joint past its break force is taken out after the step and
+// reported. Word layouts: layout.ts (JOINT, UNJOINT, MOTOR).
 #include "binding.h"
 #include "joints.h"
 #include "jointIndex.h"
 #include "words.h"
-
-#include <Jolt/Physics/Constraints/ConeConstraint.h>
-#include <Jolt/Physics/Constraints/DistanceConstraint.h>
-#include <Jolt/Physics/Constraints/FixedConstraint.h>
-#include <Jolt/Physics/Constraints/HingeConstraint.h>
-#include <Jolt/Physics/Constraints/PointConstraint.h>
-#include <Jolt/Physics/Constraints/SliderConstraint.h>
 
 #include <algorithm>
 #include <cmath>
@@ -72,93 +65,13 @@ bool bodyOf(uint32_t engine, BodyID &id) {
   return (id = slots[index].id, true);
 }
 
-/// The settings of a core joint kind between two frames; `v` is `min, max, frequency, damping`.
-Ref<TwoBodyConstraintSettings> settingsOf(uint32_t kind, const Frame &f1, const Frame &f2, const uint32_t *v) {
-  float min = f32(v), max = f32(v + 1);
-  SpringSettings spring(ESpringMode::FrequencyAndDamping, f32(v + 2), f32(v + 3));
-  auto place = [&](auto *s) {
-    s->mSpace = EConstraintSpace::LocalToBodyCOM;
-    s->mPoint1 = RVec3(f1.point);
-    s->mPoint2 = RVec3(f2.point);
-    return s;
-  };
-  switch (kind) {
-    case FIXED: {
-      auto *s = place(new FixedConstraintSettings);
-      s->mAxisX1 = f1.axis, s->mAxisY1 = f1.normal, s->mAxisX2 = f2.axis, s->mAxisY2 = f2.normal;
-      return s;
-    }
-    case POINT:
-      return place(new PointConstraintSettings);
-    case HINGE: {
-      auto *s = place(new HingeConstraintSettings);
-      s->mHingeAxis1 = f1.axis, s->mNormalAxis1 = f1.normal, s->mHingeAxis2 = f2.axis, s->mNormalAxis2 = f2.normal;
-      s->mLimitsMin = Clamp(min, -JPH_PI, 0.0f);
-      s->mLimitsMax = Clamp(max, 0.0f, JPH_PI);
-      s->mLimitsSpringSettings = spring;
-      return s;
-    }
-    case SLIDER: {
-      auto *s = place(new SliderConstraintSettings);
-      s->mSliderAxis1 = f1.axis, s->mNormalAxis1 = f1.normal, s->mSliderAxis2 = f2.axis, s->mNormalAxis2 = f2.normal;
-      s->mLimitsMin = Clamp(min, -FLT_MAX, 0.0f);
-      s->mLimitsMax = Clamp(max, 0.0f, FLT_MAX);
-      s->mLimitsSpringSettings = spring;
-      return s;
-    }
-    case DISTANCE: {
-      auto *s = place(new DistanceConstraintSettings);
-      s->mMinDistance = Clamp(min, 0.0f, FLT_MAX);
-      s->mMaxDistance = Clamp(max, s->mMinDistance, FLT_MAX);
-      s->mLimitsSpringSettings = spring;
-      return s;
-    }
-    default: {  // CONE
-      auto *s = place(new ConeConstraintSettings);
-      s->mTwistAxis1 = f1.axis, s->mTwistAxis2 = f2.axis;
-      s->mHalfConeAngle = Clamp(max, 0.0f, JPH_PI);
-      return s;
-    }
-  }
-}
-
-/// Drives a hinge (radians), a slider (metres), a swing-twist, a six-DOF's `axis` or a path by its
-/// motor: off, to a velocity or to a position, with at most `maxForce` (N·m or N; 0 is no bound).
-/// Other kinds have no motor.
+/// Drives the joint by its motor: off, to a velocity or to a position, with at most `maxForce`
+/// (N·m or N; 0 is no bound); woken when its kind has one (`driveJoint`).
 void drive(Joint &joint, uint32_t mode, float target, float maxForce, uint32_t axis) {
   float limit = maxForce > 0 && std::isfinite(maxForce) ? maxForce : FLT_MAX;
   EMotorState state = mode == MOTOR_VELOCITY ? EMotorState::Velocity : mode == MOTOR_POSITION ? EMotorState::Position : EMotorState::Off;
-  if (joint.kind == HINGE) {
-    auto *hinge = static_cast<HingeConstraint *>(joint.constraint.GetPtr());
-    hinge->GetMotorSettings().SetTorqueLimit(limit);
-    hinge->SetMotorState(state);
-    if (mode == MOTOR_VELOCITY) hinge->SetTargetAngularVelocity(target);
-    else if (mode == MOTOR_POSITION) hinge->SetTargetAngle(target);
-  } else if (joint.kind == SLIDER) {
-    auto *slider = static_cast<SliderConstraint *>(joint.constraint.GetPtr());
-    slider->GetMotorSettings().SetForceLimit(limit);
-    slider->SetMotorState(state);
-    if (mode == MOTOR_VELOCITY) slider->SetTargetVelocity(target);
-    else if (mode == MOTOR_POSITION) slider->SetTargetPosition(target);
-  } else if (!driveAdvanced(joint.constraint.GetPtr(), joint.kind, state, target, limit, axis)) return;
-  world().system->GetBodyInterfaceNoLock().ActivateConstraint(joint.constraint);
-}
-
-/// The linear impulse the joint gave its bodies in the last step (N·s): what holds them together.
-float pull(const Joint &joint) {
-  Constraint *c = joint.constraint.GetPtr();
-  switch (joint.kind) {
-    case FIXED: return static_cast<FixedConstraint *>(c)->GetTotalLambdaPosition().Length();
-    case POINT: return static_cast<PointConstraint *>(c)->GetTotalLambdaPosition().Length();
-    case HINGE: return static_cast<HingeConstraint *>(c)->GetTotalLambdaPosition().Length();
-    case SLIDER: {
-      auto *slider = static_cast<SliderConstraint *>(c);
-      return slider->GetTotalLambdaPosition().Length() + std::abs(slider->GetTotalLambdaPositionLimits());
-    }
-    case DISTANCE: return std::abs(static_cast<DistanceConstraint *>(c)->GetTotalLambdaPosition());
-    case CONE: return static_cast<ConeConstraint *>(c)->GetTotalLambdaPosition().Length();
-    default: return advancedPull(c, joint.kind);
-  }
+  if (driveJoint(joint.constraint.GetPtr(), joint.kind, state, target, limit, axis))
+    world().system->GetBodyInterfaceNoLock().ActivateConstraint(joint.constraint);
 }
 
 /// The hinge or slider (`kind`) that holds the body in `slot` as its `a`, about `axis` in that
@@ -226,12 +139,12 @@ void add(const uint32_t *w) {
   // (from the world when `b` names none), and Jolt solves the turn from the steadier side. A rack
   // and pinion, and some gears, Jolt makes `a` first (`gearOrder`).
   Frame f1 = frameOf(w + 17, w[4]), f2 = frameOf(w + 8, w[3]);
-  Ref<TwoBodyConstraintSettings> settings = kind <= CONE ? settingsOf(kind, f1, f2, w + 26)
-                                                         : advancedSettings(kind, f1, f2, w + 26, w + JOINT_WORDS, w[7], vec3(w + 17));
+  GearOrder order = gearOrder(kind, w + JOINT_WORDS, w[7]);
+  Ref<TwoBodyConstraintSettings> settings = jointSettings(kind, f1, f2, w + 26, w + JOINT_WORDS, w[7], vec3(w + 17), order);
   if (!settings) return;
   BodyInterface &bodies = world().system->GetBodyInterfaceNoLock();
   Joint &joint = joints[index];
-  joint.order = gearOrder(kind, w + JOINT_WORDS, w[7]);
+  joint.order = order;
   joint.constraint = joint.order.aFirst ? bodies.CreateConstraint(settings, a, b) : bodies.CreateConstraint(settings, b, a);
   joint.id = id, joint.kind = kind, joint.breakForce = f32(w + 32);
   joint.axisA = f2.axis, joint.axisB = f1.axis;
@@ -289,7 +202,7 @@ void breakJoints(float dt) {
   // Taking a joint out changes the list: the broken are found first, then taken in slot order.
   std::vector<uint32_t> gone;
   for (uint32_t i : breakable)
-    if (pull(joints[i]) > joints[i].breakForce * dt) gone.push_back(i);
+    if (jointPull(joints[i].constraint, joints[i].kind) > joints[i].breakForce * dt) gone.push_back(i);
   std::sort(gone.begin(), gone.end());
   for (uint32_t i : gone) {
     broken.push_back(joints[i].id);
