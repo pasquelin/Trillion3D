@@ -1,18 +1,32 @@
 // Why the cutout needs no stipple under temporal antialiasing. On a still camera the jitter
 // moves each pixel's sample across its footprint, so the HARD cut, accumulated, already converges
 // to the pixel's coverage of the alpha as read. This file replays that on the CPU with the temporal
-// pass's own jitter, filter weights, neighbour clamp and 1/k share (`../../taa/shaderWgsl.ts`).
+// pass's own jitter, filter window, neighbour clamp and 1/k share (`../../taa/resolveWgsl.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts'
-import { taaWeightTable } from '../../taa/weights.ts'
 import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 
 const SIDE = 24,
   THRESHOLD = 0.5,
   SUB = 16
-const weights = taaWeightTable()
+/** The resolve's window at the display's size (`BLACKMAN_HARRIS_WGSL`), normalised over the 3×3, for
+ *  each jitter rank: the sample at `(−jx, +jy)` from the centre. */
+const window = (d: number) => {
+  if (d >= 1) return 0
+  const x = d * Math.PI + Math.PI
+  return 0.35875 - 0.48829 * Math.cos(x) + 0.14128 * Math.cos(2 * x) - 0.01168 * Math.cos(3 * x)
+}
+const weights = Array.from({ length: TAA_SAMPLES }, (_, sample) => {
+  const [jx, jy] = taaJitter(sample, new Float64Array(2))
+  const w = new Float32Array(9)
+  let k = 0
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) w[k++] = window(Math.hypot(dx - jx!, dy + jy!))
+  const sum = w.reduce((a, b) => a + b, 0)
+  return w.map((v) => v / sum)
+})
 type Field = (x: number, y: number) => number
 
 /** One image of the temporal resolve on a still camera: history re-read on its own texel, clamped
@@ -41,7 +55,7 @@ function resolve(current: Float64Array, history: Float64Array, frame: number, w:
 }
 
 /** The held image of `TAA_STILL_FRAMES` still images, each pixel drawn by `pixel` at its
- *  jittered sample — the sample is at `(−jx, +jy)` from the centre (`../../taa/weights.ts`). */
+ *  jittered sample — the sample is at `(−jx, +jy)` from the centre. */
 function held(pixel: (px: number, py: number) => number) {
   const jitter = new Float64Array(2)
   // A still image depends on its jitter rank alone: the second cycle replays the first.

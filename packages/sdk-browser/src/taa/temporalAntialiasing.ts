@@ -72,9 +72,6 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     uniform,
     motion,
     filterHistory,
-    /** Whether the resolves reconstruct a frame drawn below the display: every one does, compiled at
-     *  preparation (`resolve.ts`). */
-    upscales: () => true,
     /** Bytes of the two targets as allocated: what a capture must count beside its own. */
     get historyBytes() {
       return history.bytes + filterHistory.bytes

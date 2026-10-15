@@ -23,8 +23,7 @@ import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
 import { lightTilesShader } from '../../lighting/tiles/shader.ts'
-import { taaShader } from '../../taa/shaderWgsl.ts'
-import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts'
+import { taaResolveShader } from '../../taa/resolveWgsl.ts'
 import {
   COVERAGE_CHOOSE_WGSL,
   COVERAGE_COUNT_WGSL,
@@ -128,16 +127,11 @@ export const ENGINE_SHADERS: Record<string, string> = {
   LIGHT_TILES_SHADER: lightTilesShader('view'),
   LIGHT_TILES_WORLD_SHADER: lightTilesShader('world'),
   TAA_SHADER,
-  TAA_FLAGLESS_SHADER: taaShader(false),
-  TAA_UPSCALE_SHADER: taaUpscaleShader(true),
-  TAA_UPSCALE_FLAGLESS_SHADER: taaUpscaleShader(false),
-  TAA_UPSCALE_BLENDED_SHADER: taaUpscaleShader(true, true),
-  TAA_RESOLVE_FILTERED: taaShader(true, false, true),
-  TAA_RESOLVE_FILTERED_FLAGLESS: taaShader(false, false, true),
-  TAA_RESOLVE_FILTERED_BLENDED: taaShader(true, true, true),
-  TAA_UPSCALE_FILTERED: taaUpscaleShader(true, false, true),
-  TAA_UPSCALE_FILTERED_FLAGLESS: taaUpscaleShader(false, false, true),
-  TAA_UPSCALE_FILTERED_BLENDED: taaUpscaleShader(true, true, true),
+  TAA_FLAGLESS_SHADER: taaResolveShader(false),
+  TAA_BLENDED_SHADER: taaResolveShader(true, true),
+  TAA_RESOLVE_FILTERED: taaResolveShader(true, false, true),
+  TAA_RESOLVE_FILTERED_FLAGLESS: taaResolveShader(false, false, true),
+  TAA_RESOLVE_FILTERED_BLENDED: taaResolveShader(true, true, true),
   MATERIAL_MIP_WGSL,
   COVERAGE_WGSL: wgslModule(COVERAGE_COUNT_WGSL),
   COVERAGE_CHOOSE_WGSL,
