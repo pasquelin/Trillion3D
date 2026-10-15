@@ -30,43 +30,27 @@ export const REFLECTION_CENTRE_WGSL = wgslBlock(
 )
 
 /**
- * THE GLOSSY LOBE, SAMPLED (`reflectionLobeRadiance`, the reflections' trace's): a lobe wider than a
- * mirror's casts its ray in a
- * direction drawn from its own GGX distribution instead of its centre, a new one every image, so that the
- * history's images (`temporalWgsl.ts`) and the neighbours' reuse (`spatialWgsl.ts`) average the whole lobe,
- * its long tail included, where one centre ray read it through a cone alone.
+ * EVERY LOBE, SAMPLED (`reflectionLobeRadiance`, the reflections' trace's): every lobe, whatever its
+ * roughness, casts its ray in a direction drawn from its own GGX distribution, a new one every image,
+ * so that the history's images (`temporalWgsl.ts`) and the neighbours' reuse (`spatialWgsl.ts`) average
+ * the whole lobe, its long tail included. A mirror is the limit: its widths at the smoothest lobe the
+ * engine draws, its draws all within a fraction of a degree of its centre — its sample is its centre
+ * ray, with no rule of its own.
  *
- * - MIRROR, ONE ESTIMATOR: a mirror is the limit of the sampled lobe, never a switch. With m the
- *   pixels the lobe's cone spans over the screen march (`reflectionConeTangent(α)·REFLECTION_STEP_CAP`),
- *   a lobe of m < 1 is read along its centre alone, at its own pixel; one of m ≥ `REFLECTION_MIRROR_BAND`
- *   is sampled alone, in the half grid; between them the pixel's answer is both, the centre ray's share
- *   (`reflectionMirrorShare`) falling smoothly from one to none. Both estimate the same lobe — its
- *   centre read through its cone, its samples' mean — and they meet where the lobe is narrow, so a floor
- *   whose roughness crosses the band shows neither a ring nor two looks. A lobe sampled at all is in
- *   the half grid (`reflectionSampled`, m ≥ 1).
  * - DIRECTION: the half-vector drawn by D(h)·(n·h) — the unit GGX slopes, r = √(u/(1 − u)) at the angle
  *   2πv, stretched by the lobe's widths along its axis and across (`reflectionSampleDirection`) —, the ray
  *   its mirror about it; one under the surface takes the centre. The split-sum weight the upsample applies
  *   assumes this very distribution of directions.
- * - THIN RAYS: the direction is drawn from the whole lobe, and each ray is read through the cone of the
- *   smoothest lobe the engine draws (`lobeAlpha(0)`, a mirror's: under a pixel over the whole march), so
- *   the mean of the rays is the lobe's own. A wider cone with a narrower draw is not: GGX slopes have no
- *   variance, widths do not add in quadrature, and a draw narrowed by √(1 − c²) takes near a quarter
- *   of the tail's mass three widths out (c = ½: P(|s| > 3α) falls from 1/10 to 1/13) — the radiance a small bright body brings to the lobe's edge — while
- *   a cone of c of the width only moves mass within it: the lobe's edge read too dark, its centre too
- *   bright. The history's images and the neighbours' reuse are what average the noise.
+ * - THIN RAYS: each ray is read through the cone of the smoothest lobe the engine draws (`lobeAlpha(0)`,
+ *   under a pixel over the whole march), so the mean of the rays is the lobe's own. A wider cone with a
+ *   narrower draw is not: GGX slopes have no variance, widths do not add in quadrature, and a draw
+ *   narrowed by √(1 − c²) takes near a quarter of the tail's mass three widths out (c = ½: P(|s| > 3α)
+ *   falls from 1/10 to 1/13) — the radiance a small bright body brings to the lobe's edge.
  * - SEQUENCE: (u, v) from the plastic number's two-dimensional additive sequence over the image's turn
- *   (`ReflectionView.temporal.x`), shifted by a hash of the texel (`mixWord`) so neighbours differ: a
- *   low-discrepancy set within each texel's history, a turning one across the grid.
+ *   (`ReflectionView.temporal.x`), shifted by a hash of the texel or the pixel (`mixWord`) so neighbours
+ *   differ: a low-discrepancy set within each texel's history, a turning one across the grid.
  *
  * The coat's lobe is sampled the same way, its pair of numbers swapped (`reflectionTrace`).
- *
- * WHICH LOBES A CALL READS: a sampled lobe is the half grid's (`traceHalf.ts`), its rays shared over
- * neighbours and images; a lobe with a centre ray's share is its own pixel's too, read along its centre
- * by the upsample (`upsampleWgsl.ts`) at full resolution, where a half-resolution texel would spread a
- * sharp reflection over the two pixels around. `u` in [0, 1)² is the half grid's sample, and a lobe
- * not sampled gives nothing there; `REFLECTION_MIRRORS` (negative) asks for the centre rays of the
- * lobes with a share, the others giving nothing.
  */
 export const REFLECTION_SAMPLE_WGSL = wgslBlock(
   'REFLECTION_SAMPLE_WGSL',
@@ -83,14 +67,8 @@ export const REFLECTION_SAMPLE_WGSL = wgslBlock(
     tangentFallback,
     vectorRejection,
     LOBE_AXIS_WGSL,
-    reflectionCentreRadiance,
   ],
-  `const REFLECTION_MIRRORS=vec2f(-1.0);
-fn reflectionSampled(alpha:f32)->bool{return reflectionConeTangent(alpha)*REFLECTION_STEP_CAP>=1.0;}
-fn reflectionMirrorShare(alpha:f32)->f32{
- return 1.0-smoothstep(1.0,REFLECTION_MIRROR_BAND,reflectionConeTangent(alpha)*REFLECTION_STEP_CAP);
-}
-fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
+  `fn reflectionSampleAt(block:vec2u,layer:u32)->vec2f{
  let seed=mixWord(block.x^mixWord(block.y^(layer*GOLDEN_U32)));
  let shift=vec2f(f32(lowHalf(seed)),f32(highHalf(seed)))/65536.0;
  return additive2d(shift,reflectionView.temporal.x);
@@ -107,11 +85,6 @@ fn reflectionSampleDirection(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,u:vec2f)->v
  return select(reflect(-V,N),L,dot(L,N)>0.0);
 }
 fn reflectionLobeRadiance(P:vec3f,N:vec3f,V:vec3f,alpha:f32,lobe:vec4f,u:vec2f)->vec3f{
- if(u.x<0.0){
-  if(reflectionMirrorShare(alpha)<=0.0){return vec3f(0.0);}
-  return reflectionCentreRadiance(P,N,V,alpha,lobe);
- }
- if(!reflectionSampled(alpha)){return vec3f(0.0);}
  let R=reflectionSampleDirection(N,V,lobe.xyz,vec2f(lobe.w,alpha),u);
  let thin=lobeAlpha(0.0);
  return reflectedRadianceAlong(P,N,V,R,thin,vec4f(lobe.xyz,thin),min(alpha,lobe.w));

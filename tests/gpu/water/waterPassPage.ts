@@ -12,6 +12,7 @@ import {
   type ScenePreparee,
 } from '../kit/sharedSceneProof.ts'
 import { image } from '../kit/sceneImageProof.ts'
+import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { recordPassLabels, runOnDevice } from '../kit/deviceProof.ts'
 import {
@@ -54,8 +55,9 @@ interface CaseResult {
   heldLast: boolean | null | undefined
 }
 
-/** One case: four frames of the same pose. The centre of each, the draws, and whether the last
- *  was held — a still scene must end with no work at all. */
+/** One case: four frames of the same pose, then on until one is held. The centre of the first, the
+ *  draws, whether the first four moved, and whether the last was held — a still scene must end with no
+ *  work at all. */
 async function waterCase(
   device: GPUDevice,
   paged: boolean,
@@ -77,7 +79,13 @@ async function waterCase(
       moved: number
       pixels: Uint8Array
     }[] = []
-    for (let i = 0; i < 4; i++) {
+    // Four images of the pose, then on until it is held: a still view that reflects freezes its
+    // reflections' history after `REFLECTION_STILL` quiet images (`settle.ts`) and is held after them.
+    for (
+      let i = 0;
+      i < 4 || (i < 4 + 2 * REFLECTION_COUNTS.REFLECTION_STILL && !frames[i - 1].held);
+      i++
+    ) {
       const { pixels, metrics: metrics } = await image(backend, camera)
       frames.push({
         centre: centre(pixels),
@@ -100,7 +108,7 @@ async function waterCase(
       name: kase.name,
       paged,
       centre: frames[0].centre,
-      moved: frames.map((f) => f.moved),
+      moved: frames.slice(0, 4).map((f) => f.moved),
       drawsFirst: frames[0].draws,
       drawsLast: frames[frames.length - 1].draws,
       heldLast: frames[frames.length - 1].held,

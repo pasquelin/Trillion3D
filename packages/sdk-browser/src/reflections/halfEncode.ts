@@ -139,7 +139,7 @@ function traceGroups(reflection: TraceResources, stages: TraceStages, inputs: Tr
   next.push(inputs.proxy, inputs.proxyWorlds, inputs.proxyTree, settle.sampled)
   if (!trace.identity.moved() && trace.groups) return trace.groups
   const { layouts } = stages
-  // What a ray reads of the scene, the trace's and the upsamples' (a mirror lobe's ray).
+  // What a ray reads of the scene, the trace's and the upsamples' (an edge pixel's own ray).
   const scene: Named = {
     lights: { buffer: inputs.lights },
     lightLists: { buffer: inputs.lightLists },

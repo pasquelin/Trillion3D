@@ -60,8 +60,8 @@ ${
  * roughness, only where the coat is above zero; the reflection's hit is the nearer of its lobes'
  * (`reflectionHit`, `REFLECTION_FAR` where none traced). Each lobe is one `reflectionLobeRadiance`.
  * With `scene`, the proxy's bindings — the reflections' trace alone —, the chain holds the proxy's
- * stage (`reflectedRadianceWgsl`) and `u` names the lobes traced: a glossy lobe sampled by it, or the
- * mirror lobes alone (`sampleWgsl.ts`); without, every lobe is read along its centre, `u` unread, and
+ * stage (`reflectedRadianceWgsl`) and every lobe is sampled by `u` (`sampleWgsl.ts`); without, every
+ * lobe is read along its centre, `u` unread, and
  * the chain has no proxy's stage.
  */
 export const reflectionShareWgsl = (group: number, lobes: boolean, scene?: SceneBindings) =>

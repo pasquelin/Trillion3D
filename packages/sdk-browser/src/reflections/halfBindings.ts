@@ -26,7 +26,7 @@ export const REFLECTION_LAYER_WGSL = wgslBlock(
  * parity of the history's turn about (`halfEncode.ts`): its flags, normals and lobes (its depth is the
  * reflection group's), what a ray reads of the scene — the lights, the light grid's world lists, the
  * bounce cascades and their probes, the proxy's buffer, the culling's worlds and its placement tree —,
- * which the trace and the upsamples (a mirror lobe's ray) read, and the half grids each kernel reads or
+ * which the trace and the upsamples (an edge pixel's own ray) read, and the half grids each kernel reads or
  * writes (`halfTexture.ts`). The trace tells the settle whether it sampled a lobe (`sampled`). The opaque
  * upsample writes the reflection target the resolve reads, the front one the radiance the forward
  * fragments read.

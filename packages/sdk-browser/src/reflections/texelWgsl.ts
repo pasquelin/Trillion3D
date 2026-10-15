@@ -13,7 +13,8 @@ import { clampToExtent } from '../../../math/src/wgsl/sampling.ts'
  *  upsample's fallback alone reads it, so the accumulation's gather adds none. One text, both. */
 const historyGatherFn = (name: string, near: boolean) =>
   `fn ${name}(grid:texture_2d<u32>,q:vec2f,depth:f32,N:vec3f,V:vec3f,pixels:f32)->HistoryGather{
- var g=HistoryGather(Reflected(vec3f(0.0),vec3f(0.0)),0.0,Reflected(vec3f(0.0),vec3f(0.0)),0.0,0.0);
+ let none=Reflected(vec3f(0.0),vec3f(0.0));
+ var g=HistoryGather(none,0.0,none,0.0,0.0,Reflected(vec3f(HALF_MAX),vec3f(HALF_MAX)),none);
  let corner=vec2i(floor(q));
  let f=q-floor(q);
  let last=vec2i(textureDimensions(grid))-vec2i(1);
@@ -29,7 +30,15 @@ const historyGatherFn = (name: string, near: boolean) =>
   }
   let e=w*reflectionSameSurface(depth,N,V,historyDepth(t),historyNormal(t),pixels);
   g.sharp.base+=e*r.base;g.sharp.coat+=e*r.coat;g.sharpWeight+=e;
-  g.count+=e*f32(historyCount(t));
+  g.count+=e*f32(historyCount(t));${
+    near
+      ? `
+  if(e>0.0){
+   g.low=Reflected(min(g.low.base,r.base),min(g.low.coat,r.coat));
+   g.high=Reflected(max(g.high.base,r.base),max(g.high.coat,r.coat));
+  }`
+      : ''
+  }
  }
  return g;
 }`
@@ -159,7 +168,7 @@ fn reflectionBounds(grid:texture_2d<u32>,at:vec2i)->ReflectedBounds{
 fn reflectionClamped(r:Reflected,b:ReflectedBounds)->Reflected{
  return Reflected(clamp(r.base,b.low.base,b.high.base),clamp(r.coat,b.low.coat,b.high.coat));
 }
-struct HistoryGather{sharp:Reflected,sharpWeight:f32,near:Reflected,nearWeight:f32,count:f32,}
+struct HistoryGather{sharp:Reflected,sharpWeight:f32,near:Reflected,nearWeight:f32,count:f32,low:Reflected,high:Reflected,}
 ${historyGatherFn('historyGather', false)}
 ${historyGatherFn('historyGatherNear', true)}`,
 )

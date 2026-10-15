@@ -27,9 +27,9 @@ import { reflectionShareWgsl } from './weight.ts'
  * pass, before its lighting. Four kernels a surface, over its half grids (`halfTexture.ts`):
  *
  * 1. TRACE (`traceSurface`): one thread a texel of a half-resolution grid over the whole
- *    view, a texel a 2×2 block of pixels. It traces one pixel of its block whose surface reflects through
- *    a sampled lobe, the first in a turn of four images (`traceTexel`: the diagonal, then the other),
- *    along each of its glossy lobes (the base's and the clear coat's) in a direction drawn from its GGX
+ *    view, a texel a 2×2 block of pixels. It traces one pixel of its block whose surface reflects, the
+ *    first in a turn of four images (`traceTexel`: the diagonal, then the other), along each of its
+ *    lobes (the base's and the clear coat's), whatever their roughness, in a direction drawn from its GGX
  *    distribution, a low-discrepancy sequence turning every image (`sampleWgsl.ts`), through the one
  *    chain (`wgsl.ts`): the screen first (the Hi-Z march, `../gpu/hiz/screenMarch.ts`, read in the
  *    radiance pyramid), on what the screen leaves the run-time proxy (`proxy.ts`, as far as `reach.ts`
@@ -42,9 +42,10 @@ import { reflectionShareWgsl } from './weight.ts'
  *    through the last image's view-projection, rejected by depth and normal, clamped to the fresh
  *    neighbourhood on an image drawn for a change, frozen once a still view's history is full, so the
  *    view settles.
- * 4. UPSAMPLE (`upsampleWgsl.ts`): every reflecting pixel reads its four nearest history texels for its
- *    sampled lobes, weighed by depth and normal, and traces its mirror lobes itself along their centre,
- *    at full resolution: a mirror's reflection is as sharp as its pixel. The opaque one weighs the
+ * 4. UPSAMPLE (`upsampleWgsl.ts`): every reflecting pixel reads its four nearest history texels,
+ *    weighed by depth and normal; where those of its surface disagree past `REFLECTION_EDGE_CONTRAST`
+ *    — a reflected edge — it traces its own sample at full resolution, the one rule of resolution of
+ *    every lobe, a mirror's as a glossy one's. The opaque one weighs the
  *    radiance on its own reflectance into the reflection target the resolve reads, the front one writes
  *    its radiance where the forward fragments read one texel. A transparent behind the front surface
  *    casts no ray: it reads the chain without the proxy.
@@ -78,27 +79,26 @@ import { reflectionShareWgsl } from './weight.ts'
  *   (`settle.ts`); the CPU dispatches the kernels over the view's size, the front ones only on an image
  *   whose front pass reflected.
  *
- * COST. N pixels, G = N/4 half texels, F the front pixels that reflect, M the pixels with a mirror lobe:
- * - trace: per half texel at most 4 surface reads; per glossy texel and lobe (two with a coat) one ray:
+ * COST. N pixels, G = N/4 half texels, F the front pixels that reflect, E the share of pixels on an edge:
+ * - trace: per half texel at most 4 surface reads; per traced texel and lobe (two with a coat) one ray:
  *   the screen march, `REFLECTION_MARCH_STEPS` iterations at most (its mean and tail measured there),
  *   the footprint's ≤ 2·`REFLECTION_TAPS` reads; on a screen miss the proxy's walk, its hit's shadow
  *   rays included (`../bounce/runtimeLayout.ts`), ≤ `RAY_WORK` / `REFLECTION_MOVING_SHARE` units on
  *   an image drawn for a move, ≤ `RAY_WORK` on a still view's quiet images, which it holds, the
  *   placement tree walked nearest first (`../gpu/dag/treeWalkWgsl.ts`), over a ray no longer than
  *   `reflectionProxyReach`; then 8 probes a cascade, 4 cascades at most.
- * - spatial: per glossy texel `REFLECTION_REUSE_TAPS` neighbours, each a texel, a depth, a normal.
+ * - spatial: per traced texel `REFLECTION_REUSE_TAPS` neighbours, each a texel, a depth, a normal.
  * - temporal: per texel its pixel's depth and normal, 4 history texels, 9 fresh ones on a moved image.
- * - upsample: per pixel 1 flag read; per reflecting one 4 history texels for its glossy lobes, and per
- *   mirror lobe one ray of the same chain: a mirror at the half grid would spread a reflected
- *   silhouette over two more pixels (`sphere-staircase.gpu.ts`), an image loss.
+ * - upsample: per pixel 1 flag read; per reflecting one 4 history texels, and on a reflected edge — the
+ *   share E of the pixels where the texels disagree — one ray of the same chain per lobe.
  * - a frozen view — its pose, lights and content still, the temporal accumulation's jitter no move —
  *   dispatches nothing (`frame.ts`): a still view pays its quiet images' cost — the whole walk — for
  *   `REFLECTION_STILL` + 1 images, then none.
  * - worst case: per ray `REFLECTION_MARCH_STEPS` iterations + `RAY_WORK` / `REFLECTION_MOVING_SHARE`
  *   units (`RAY_WORK` on a quiet image) + 32 probes, per half texel two rays (a coat), per pixel two
- *   (a mirror coat); the frame (G + M + F)·2 rays — bounded by the view's pixels, never by the
- *   scene, nor by its lights (a hit's shadow rays share its budget).
- * - expected frame, R = G + M + F rays: t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + N · c_u, K̄ the mean
+ *   on an edge; the frame (G + N + F)·2 rays at worst (every pixel an edge) — bounded by the view's
+ *   pixels, never by the scene, nor by its lights (a hit's shadow rays share its budget).
+ * - expected frame, R = G + E·(N + F) rays, G the half texels of both surfaces: t ≈ R · (K̄ / r_m + p_miss · W̄ / r_w) + N · c_u, K̄ the mean
  *   march, r_m the iterations a second, p_miss the share of rays the screen leaves, W̄ their mean
  *   walk, r_w the walk's units a second, c_u the upsample's per pixel; the frame and r_w measured at
  *   `REFLECTION_MOVING_SHARE`. A still view's quiet images walk the whole budget, at most
@@ -113,9 +113,9 @@ export const REFLECTION_TRACE_SHADER = wgslProgram(
 @group(0) @binding(${B.traceOut}) var traceOut:texture_storage_2d<${HALF_FORMAT},write>;
 @group(0) @binding(${B.sampled}) var<storage,read_write> traceSampled:u32;
 var<workgroup> groupSampled:u32;
-/** The fresh texel of block \`block\` on the surface \`layer\`: its sampled lobes' radiance, traced now at
- *  the first pixel that reflects through a sampled lobe in the image's turn of the block — the
- *  diagonal, then the other —, its rank in the block plus one; zero where none does. */
+/** The fresh texel of block \`block\` on the surface \`layer\`: its lobes' radiance, traced now at the
+ *  first pixel that reflects in the image's turn of the block — the diagonal, then the other —, its
+ *  rank in the block plus one; zero where none does. */
 fn traceTexel(block:vec2u,layer:u32)->vec4u{
  let turn=reflectionView.temporal.x;
  for(var k=0u;k<4u;k++){
@@ -125,7 +125,6 @@ fn traceTexel(block:vec2u,layer:u32)->vec4u{
   let flags=surfaceFlagsAt(coord);
   if(!surfaceReflects(flags)){continue;}
   let own=reflectingPixelAt(layer,coord,flags);
-  if(!any(reflectionSampledLobes(own.rough))){continue;}
   // @cut pick -> vec4u(bitcast<u32>(own.P.x)) keep: ;
   let traced=reflectionTrace(own.P,own.N,own.V,own.rough,reflectionSampleAt(block,layer));
   let reach=reflectionReuseReach(own.P,lobeAlpha(own.rough),reflectionHit);

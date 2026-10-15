@@ -51,12 +51,12 @@ export const REFLECTION_CONSTANTS = {
    *  the field the rest, so the reach's end — a curve on a floor, as the reach grows with the floor's
    *  distance — shows no seam between the two sources. */
   REFLECTION_REACH_FADE: 3 / 4,
-  /** The pixels a lobe's cone spans over the screen march (`sampleWgsl.ts`) past which its centre ray
-   *  has no share and its samples answer alone; from one pixel to this many both answer, the centre
-   *  ray's share falling smoothly. Four: the half grid reconstructs a reflection over its 2×2 block and
-   *  its bilinear neighbours, about four pixels, a spread a lobe this wide already holds — so the
-   *  half grid's answer adds no blur the lobe has not. */
-  REFLECTION_MIRROR_BAND: 4,
+  /** How far apart, in a perceptual space (c / (1 + c) a channel), the half grid's texels of a pixel's
+   *  surface may answer before the pixel traces its own sample (`upsampleWgsl.ts`): 1/32, eight steps of
+   *  an 8-bit channel in that space. Past it the four texels hold a reflected edge, which their bilinear
+   *  mean would spread over two more pixels; under it their mean differs from the pixel's own answer by
+   *  less than the step the half grid's spread can show. */
+  REFLECTION_EDGE_CONTRAST: 1 / 32,
   /** The floor of the reflections' normalised lengths (`ReflectionLobe.T`, a footprint's direction),
    *  of a sum of upsample weights and of a hit's slab: under it, the value is none. Under math's
    *  `DIVISOR_FLOOR` (1e-20) on purpose: these values can fall between the two — an axis a hair

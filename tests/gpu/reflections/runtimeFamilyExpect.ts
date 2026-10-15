@@ -7,27 +7,16 @@
 import { DEG2RAD, TAU } from '../../../packages/math/src/constants.ts'
 import { add, reflect, scale, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts'
-import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
-import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import { halton } from '../../../packages/math/src/sequence/halton.ts'
 import { gridPixels, type FamilyCase, type Rgb } from './runtimeFamilyCases.ts'
 import { crossings, radiance } from './runtimeFamilyRays.ts'
 
 /**
- * The lobe's reference samples: the mean of the GGX lobe over this many directions wherever the engine samples
- * the lobe (`reflectionSampled`, its own shipped rule: a cone wider than a pixel over the screen march), its
- * images and neighbours averaging it (`sampleWgsl.ts`); one ray, the centre, on a mirror, which the engine reads
- * along its centre.
+ * The lobe's reference samples: the mean of the GGX lobe over this many directions, on every floor — the
+ * engine samples every lobe, a mirror's draws within a fraction of a degree of its centre (`sampleWgsl.ts`),
+ * its images and neighbours averaging them.
  */
 const LOBE_SAMPLES = 4096
-/** Whether the engine samples a lobe of width `alpha` (`reflectionSampled`, run as shipped, with the cone's
- *  tangent it reads). */
-const { reflectionSampled } = shaderRun<{ reflectionSampled: (alpha: number) => boolean }>(
-  wgslModule(REFLECTION_SAMPLE_WGSL),
-  ['reflectionSampled', 'reflectionConeTangent'],
-  {},
-)
 /** The error the proof declares: relative to the expected value, plus an absolute floor. */
 export const TOLERANCE = { relative: 0.25, absolute: 0.02 }
 const FLOOR_REACH = 30
@@ -94,11 +83,11 @@ export function expectedFloor(
       nov = v[1]
     const alpha = Math.max(rough * rough, 1e-4)
     const total: Rgb = [0, 0, 0]
-    const count = reflectionSampled(alpha) ? lobeSamples : 1
+    const count = lobeSamples
     for (let k = 0; k < count; k++) {
       // The half vector of the lobe's D·cosθ, on a Hammersley set.
       const u = (k + 0.5) / count
-      const cosT = count === 1 ? 1 : Math.sqrt((1 - u) / (1 + (alpha * alpha - 1) * u)),
+      const cosT = Math.sqrt((1 - u) / (1 + (alpha * alpha - 1) * u)),
         sinT = Math.sqrt(1 - cosT * cosT),
         phi = TAU * halton(k, 2)
       // The eye's direction mirrored about the half vector: the light's.

@@ -4,8 +4,6 @@ import { LOBES_DECODE_WGSL } from '../lighting/direct/lobesWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../scene/physicalLobes.ts'
 import { REFLECTION_TRACE_BINDINGS as B } from './halfBindings.ts'
 import { REFLECTION_GROUP, reflectionFrontWgsl } from './viewLayout.ts'
-import { REFLECTION_SAMPLE_WGSL } from './sampleWgsl.ts'
-import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
 
 /**
  * THE SURFACE THE REFLECTIONS READ, one reading for every kernel (`traceHalf.ts`): a group binds one of
@@ -15,18 +13,11 @@ import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
  * passes its layer as a constant. `reflectingPixelAt`: the surface `layer` at pixel `coord` as every
  * kernel opens it — its point, unit normal, direction to the eye and roughness —, its physical lobes
  * decoded (`lobesAt`) where `flags` carry them, none elsewhere; a kernel that weighs no lobe passes no
- * flag. `reflectionSampledLobes`: which of the lobes of the pixel last opened, of roughness `rough`, are
- * sampled (`reflectionSampled`) — the base's, the coat's —, the half grid's; `reflectionMirrorShares`
- * their centre rays' shares, their own pixel's (`sampleWgsl.ts`).
+ * flag.
  */
 export const REFLECTION_SURFACES_WGSL = wgslBlock(
   'REFLECTION_SURFACES_WGSL',
-  [
-    reflectionFrontWgsl(REFLECTION_GROUP),
-    LOBES_DECODE_WGSL,
-    REFLECTION_SAMPLE_WGSL,
-    LOBE_AXIS_WGSL,
-  ],
+  [reflectionFrontWgsl(REFLECTION_GROUP), LOBES_DECODE_WGSL],
   `@group(0) @binding(${B.flags}) var surfaceFlags:texture_2d<u32>;
 @group(0) @binding(${B.normals}) var surfaceNormals:texture_2d<f32>;
 @group(0) @binding(${B.lobes}) var surfaceLobes:texture_2d<u32>;
@@ -50,12 +41,5 @@ fn reflectingPixelAt(layer:u32,coord:vec2i,flags:u32)->ReflectingPixel{
  lobes.on=false;
  if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){lobesAt(surfaceLobesAt(coord),1.0,N,V,normal.a);}
  return ReflectingPixel(P,N,V,normal.a);
-}
-fn reflectionSampledLobes(rough:f32)->vec2<bool>{
- let coat=lobes.on&&lobes.coat>0.0&&reflectionSampled(lobeAlpha(lobes.coatRough));
- return vec2<bool>(reflectionSampled(lobeAlpha(rough)),coat);
-}
-fn reflectionMirrorShares(rough:f32)->vec2f{
- return vec2f(reflectionMirrorShare(lobeAlpha(rough)),reflectionMirrorShare(lobeAlpha(lobes.coatRough)));
 }`,
 )
