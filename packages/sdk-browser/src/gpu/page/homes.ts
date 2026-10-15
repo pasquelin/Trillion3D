@@ -25,14 +25,9 @@ export type PageHomes = {
  * nothing, changes no value. `undefined` for a catalogue of no bytes: fixed slots hold it.
  */
 export function pageHomes(widths: ReadonlyMap<string, number>): PageHomes | undefined {
-  const homes = new Map<string, PageHome>()
-  let bytes = 0
-  for (const [key, width] of widths) {
-    if (!Number.isSafeInteger(width) || width < 0 || width % 4) throw new Error('INVALID_PAGE_HOME')
-    homes.set(key, { rank: homes.size, offset: bytes, bytes: width })
-    bytes += width
-  }
-  return bytes > 0 ? { homes, bytes } : undefined
+  const homes: PageHomes = { homes: new Map<string, PageHome>(), bytes: 0 }
+  extendHomes(homes, widths)
+  return homes.bytes > 0 ? homes : undefined
 }
 
 /** `homes`, a home added behind the others for each address of `widths` it does not name: the
