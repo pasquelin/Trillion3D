@@ -34,20 +34,28 @@ function reportFailure(view: Window, events: ExplorerEmitters, error: unknown) {
 
 /** The loop's frame scheduler on `view`: a frame draws the explorer unless a capture or a family
  *  is on its way, or the engine holds it to measure the display. */
+/** Whether the loop holds its frame: a capture in flight, or a family the frame draws with on its
+ *  way (`familyUse.ts`): not drawn, nor stepped. */
+const held = (runtime: SessionRuntime, captures: Captures) =>
+  captures.count > 0 || !!runtime.familiesPending()
+
+/** One frame of the loop: the host's prologue, the draw, the host's epilogue. Drawn whether or not
+ *  the host listens: `onFrame?.(render())` would skip the render itself. */
+function drawFrame({ explorer, original }: LoopWiring) {
+  original.beforeFrame?.()
+  const metrics = explorer.render()
+  original.onFrame?.(metrics)
+}
+
 function loopScheduler(loop: LoopWiring, captures: Captures, events: ExplorerEmitters) {
-  const { view, runtime, explorer, original, fail } = loop
+  const { view, runtime, fail } = loop
   return createExplorerFrameScheduler({
     request: view.requestAnimationFrame.bind(view),
     cancel: view.cancelAnimationFrame.bind(view),
     render: () => {
-      // A frame that waits for a family on its way (`familyUse.ts`) is not drawn, nor stepped.
-      if (captures.count || runtime.familiesPending()) return
+      if (held(runtime, captures)) return
       // Before its first image, a frame the engine holds to measure the display draws nothing.
-      if (runtime.engine.measureFrame()) return
-      original.beforeFrame?.()
-      // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
-      const metrics = explorer.render()
-      original.onFrame?.(metrics)
+      if (!runtime.engine.measureFrame()) drawFrame(loop)
     },
     // A page landing, or a still image an unfinished average takes, is the image still arriving:
     // those frames spend none of the settle limit: the engine's own count.
@@ -55,7 +63,7 @@ function loopScheduler(loop: LoopWiring, captures: Captures, events: ExplorerEmi
     arriving: () => runtime.engine.arriving(),
     // A display frame out of the engine's steady cadence draws and counts nothing. A frame that
     // would not draw anyway — a capture, a family on its way — is not the engine's to leave out.
-    skip: () => !captures.count && !runtime.familiesPending() && runtime.engine.skipsFrame(),
+    skip: () => !held(runtime, captures) && runtime.engine.skipsFrame(),
     pending: () => (captures.count ? Promise.resolve(false) : runtime.pendingFrame()),
     error: fail,
     limited: () =>
@@ -110,12 +118,7 @@ export function startInteractiveExplorer(
   options.signal?.addEventListener('abort', abort, { once: true })
   options.signal?.throwIfAborted()
   resizing.resize()
-  // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
-  if (!runtime.familiesPending()) {
-    original.beforeFrame?.()
-    const first = explorer.render()
-    original.onFrame?.(first)
-  }
+  if (!held(runtime, captures)) drawFrame(loop)
   wrapCaptures(explorer, captures, invalidate)
   invalidate()
   return invalidate
