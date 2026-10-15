@@ -49,8 +49,6 @@ export function createHalfGrids(device: GPUDevice, label: string, size: GPUExten
   const views = textures.map((texture) => texture.createView())
   return {
     textures,
-    /** Its width in texels: what tells a grid of a texel from the view's (`frontLayer.ts`). */
-    width: textures[0].width,
     /** The turn about's two, `turn[parity]`, then the scratch. */
     turn: [views[0], views[1]] as const,
     scratch: views[2],

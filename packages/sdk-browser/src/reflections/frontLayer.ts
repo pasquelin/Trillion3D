@@ -1,5 +1,5 @@
 import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
-import { SURFACE_FORMATS } from '../scene/surfaceBuffer.ts'
+import { SURFACE_FORMATS, holds } from '../scene/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET } from '../scene/physicalLobes.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { HIZ_LEVEL0_FORMAT } from '../gpu/hiz/level0.ts'
@@ -87,7 +87,7 @@ export function createFrontLayer(
 ) {
   const attached = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
   const full: GPUExtent3D = [width, height],
-    halfSize = halfExtent(width, height),
+    [halfWidth, halfHeight] = halfExtent(width, height),
     one: GPUExtent3D = [1, 1]
   const make = (format: GPUTextureFormat, usage: number, size: GPUExtent3D) =>
     device.createTexture({ label: LABEL, size, format, usage })
@@ -126,7 +126,7 @@ export function createFrontLayer(
     remake: () => GPUTexture,
     bytes = (width * height - 1) * texelBytesOf(texture.format),
   ) => {
-    if (texture.width === width) return { texture, bytes: 0 }
+    if (holds({ width, height }, texture)) return { texture, bytes: 0 }
     retire(device, texture)
     return { texture: remake(), bytes }
   }
@@ -163,9 +163,9 @@ export function createFrontLayer(
         if (n.texture !== normals) views.normals = (normals = n.texture).createView()
         if (t.texture !== traced) views.traced = (traced = t.texture).createView()
         bytes.targetBytes += n.bytes + t.bytes
-        if (half.width !== halfSize[0]) {
+        if (!holds({ width: halfWidth, height: halfHeight }, half.textures[0])) {
           for (const texture of half.textures) retire(device, texture)
-          half = createHalfGrids(device, LABEL, halfSize)
+          half = createHalfGrids(device, LABEL, [halfWidth, halfHeight])
           bytes.targetBytes += halfBytes(width, height) - halfBytes(1, 1)
         }
         normalsOut.view = views.normals
