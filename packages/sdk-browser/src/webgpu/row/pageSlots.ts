@@ -14,6 +14,10 @@ import { alignUp } from '../../../../math/src/scalar/integers.ts'
 export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
   rec.geometryPage?.url ?? rec.url
 
+/** Whether `rec` has a page: a record without one — a placed object's cluster in the world DAG
+ *  (`../../scene/worldRecords.ts`) — takes no slot, reads no vertex and draws nothing. */
+export const hasPage = (rec: Pick<PageRec, 'url' | 'geometryPage'>) => pageAddress(rec) !== ''
+
 /** The bytes a page takes in its pool slot, padded to a word: its geometry page's, else its
  *  index bytes. */
 export const paddedPageBytes = (page: Pick<PageRec, 'geometryPage' | 'array' | 'indexBytes'>) =>
@@ -67,6 +71,7 @@ export function describePageSlots(allPages: readonly PageRec[], held = pageSlotC
   for (const page of allPages) {
     const geometry = page.geometryPage,
       address = pageAddress(page)
+    if (!hasPage(page)) continue
     if (homes.has(address) && geometryUrls.get(address) !== geometry?.url)
       throw new Error(`CLUSTER_PAGE_DISAGREEMENT: ${address}`)
     if (geometry) {

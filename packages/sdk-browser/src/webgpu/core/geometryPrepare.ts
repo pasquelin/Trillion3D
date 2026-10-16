@@ -1,4 +1,5 @@
 import type { wholeDeformationPool } from '../../deformation/wholePool.ts'
+import { hasPage } from '../row/pageSlots.ts'
 import type { BlendGpuItem } from '../blend/state.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import type { PageRec, DeformationOutput } from '../../page/selection/types.ts'
@@ -63,7 +64,7 @@ export function prepareWebgpuGeometry(
 ) {
   const sourced = new Map<HostAttributes, boolean>()
   for (const rec of allPages)
-    if (!rec.geometryPage) sourced.set(rec.attributes, !!rec.drawSource?.dynamic)
+    if (!rec.geometryPage && hasPage(rec)) sourced.set(rec.attributes, !!rec.drawSource?.dynamic)
   let whole = wholePool(items, deformation, blocks)
   for (const item of whole.placed) sourced.set(item.sourceGeometry.attributes, false)
   let vertices = 0,
