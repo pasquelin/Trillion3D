@@ -15,7 +15,7 @@ import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/w
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
 import { dagGroupEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { createDagReadiness } from '../../../packages/sdk-browser/src/gpu/dag/readiness.ts'
+import { createDagResidencyUpload } from '../../../packages/sdk-browser/src/gpu/dag/residencyUpload.ts'
 import { heldOpenSlots } from '../../../packages/sdk-browser/src/gpu/dag/heldOpen.ts'
 import { heldOpenAt } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
 import { readoutRow } from '../../../packages/sdk-browser/src/gpu/dag/bufferTable.ts'
@@ -26,12 +26,10 @@ import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeT
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
 import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
 import {
-  childBase,
   savedJournalWord,
   selectionListCap,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { setBit } from '../../../packages/math/src/scalar/bits.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 
@@ -65,23 +63,20 @@ export function posedSelection(
   return { packed, uniforms }
 }
 
-/** The cut rule's two residency bit sets over a copy of the cold words, and the open counts each
- *  placement holds kept in `packed.heldOpen`, as the engine's host uploads them
- *  (`gpu/dag/residencyUpload.ts`). */
+/** A device that takes the writes and keeps nothing: the host copy is what the kernel reads. */
+const NO_DEVICE = { queue: { writeBuffer() {} } } as unknown as GPUDevice
+
+/** The cold words as the engine's host uploads them for `resident` (`gpu/dag/residencyUpload.ts`):
+ *  the cut rule's two residency bit sets and the world's stand-in flags, a copy, the open counts
+ *  each placement holds kept in `packed.heldOpen`. */
 function withResidency(packed: PackedDag, resident: ArrayLike<number>, slots: number) {
-  const readiness = createDagReadiness(packed, slots)
-  readiness.apply(pageResidency(resident))
+  const upload = createDagResidencyUpload({
+    ...{ device: NO_DEVICE, packed, cold: () => {} },
+    heldSlots: slots,
+  })
+  upload(pageResidency(resident))
   const { buffer, byteOffset, length } = packed.pageCones
-  const cold = new Uint32Array(buffer, byteOffset, length).slice()
-  const sets = [
-    [readiness.isReady, 0],
-    [readiness.isChildReady, childBase(packed.pageCount)],
-  ] as const
-  for (const [ready, base] of sets) {
-    const bits = cold.subarray(base)
-    for (let page = 0; page < packed.pageCount; page++) if (ready(page)) setBit(bits, page)
-  }
-  return cold
+  return new Uint32Array(buffer, byteOffset, length).slice()
 }
 
 /** What the kernel binds for `selectionCase`, each buffer under its WGSL name, with the sizes the

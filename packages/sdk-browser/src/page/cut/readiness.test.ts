@@ -11,7 +11,8 @@ const dag = ruleDag(64),
   nodes = dag.culling.nodes.length / dag.culling.stride
 
 /** The definition, written the slow way: a group is ready when its members are resident and the
- *  group of each of its outputs is — an output nothing replaces standing for itself. */
+ *  group of each of its outputs is — an output nothing replaces standing for itself, with every
+ *  root its group outputs. */
 function reference(resident: Uint8Array) {
   const memo = new Map<number, boolean>()
   const group = (g: number): boolean => {
@@ -27,8 +28,15 @@ function reference(resident: Uint8Array) {
     }
     return memo.get(g)!
   }
+  const root = (p: number) => {
+    const g = s.sources[p]
+    if (g < 0) return resident[p] === 1
+    for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++)
+      if (s.owners[s.outputs[i]] < 0 && resident[s.outputs[i]] !== 1) return false
+    return true
+  }
   const ready = Uint8Array.from({ length: pages }, (_, p) =>
-    (s.owners[p] < 0 ? resident[p] === 1 : group(s.owners[p])) ? 1 : 0,
+    (s.owners[p] < 0 ? root(p) : group(s.owners[p])) ? 1 : 0,
   )
   const childReady = Uint8Array.from({ length: pages }, (_, p) =>
     s.sources[p] < 0 || group(s.sources[p]) ? 1 : 0,

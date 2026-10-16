@@ -45,15 +45,16 @@ export function worldScene(alone = 0) {
 
 export type WorldScene = ReturnType<typeof worldScene>
 
-/** Per object of `s`, how many of the `drawn` pages cover it: a placement its own, a super-root
- *  its units. */
+/** Per object of `s`, how much of it the `drawn` pages cover: a placement all of it, a world page
+ *  the share of its unit its span along x holds — a lone object's two half copies, a half each. */
 export function objectCovers(s: WorldScene, drawn: readonly number[]) {
   const count = new Array<number>(s.world.leaves).fill(0)
   for (const page of drawn) {
     if (page < s.base) count[page]++
     else if (s.world.pages[page - s.base].level > 0) {
-      const [a, b] = s.world.pages[page - s.base].units
-      for (let u = a; u < b; u++) count[u]++
+      const { units, min, max } = s.world.pages[page - s.base]
+      for (let u = units[0]; u < units[1]; u++)
+        count[u] += Math.min(max[0], u + 1) - Math.max(min[0], u)
     }
   }
   return count

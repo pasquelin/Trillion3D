@@ -10,6 +10,7 @@ import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { HELD_BY_WORD } from './frameTable.ts'
 import { createDagReadiness } from './readiness.ts'
 import { writeRanges, type RangeTarget } from './runWrites.ts'
+import { createStandInFlags } from './worldStandIns.ts'
 
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
@@ -72,7 +73,8 @@ type HeldTarget = {
 
 /**
  * The kernel's residency, kept by difference: the pool's per-page residency goes in, the cut
- * rule's two bit sets and the open counts the placements hold come out (`readiness.ts`), and only
+ * rule's two bit sets, the world's stand-in flags and the open counts the placements hold come out
+ * (`readiness.ts`, `worldStandIns.ts`), and only
  * the word ranges and table slots that changed are written, each page whose readiness moved handed
  * to `moved`. Returns whether anything did. Its change lists grow to the largest change seen,
  * never to the catalogue.
@@ -112,6 +114,9 @@ export function createDagResidencyUpload(
   writeBlankBits(packed, readiness, bits)
   const { pageCones } = packed
   cold(0, pageCones.buffer as ArrayBuffer, pageCones.byteOffset, 2 * residentWords(pageCount) * 4)
+  // The world's stand-ins follow its roots' readiness (`worldStandIns.ts`), down from the start.
+  const world = packed.world,
+    standIns = world && createStandInFlags(world.standIns, world.flagBase, bits, cold)
   const apply = (
     next: PageResidency,
     changes?: ResidencyChanges,
@@ -121,6 +126,10 @@ export function createDagResidencyUpload(
     const held = sendHeld()
     if (!settled.pages.length) return held
     if (moved) for (const page of settled.pages) moved(page)
+    if (standIns) {
+      for (const page of settled.pages) standIns.ready(page, readiness.isReady(page))
+      standIns.flush()
+    }
     const most = settled.pages.length
     if (changed.pages.length < most) changed.pages = resized(changed.pages, most)
     if (touched.length < most) touched = resized(touched, most)

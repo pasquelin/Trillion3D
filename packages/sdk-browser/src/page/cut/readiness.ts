@@ -8,11 +8,13 @@ import { baseOpen, type CullingLinks } from './links.ts'
  * (`../../gpu/dag/readiness.ts`), the CPU cut reads it (`./held.fixture.ts`).
  *
  * A group is READY when every cluster it replaces is resident and every group that replaces its
- * outputs is ready — a cluster nothing replaces standing for itself. Readiness is therefore closed
- * upward: a ready group has ready ancestors, whatever order pages arrived or left in. For a cluster:
+ * outputs is ready — a cluster nothing replaces standing for itself, with the others the group
+ * that produced it left unreplaced: a group's roots stand in together or not at all. Readiness is therefore
+ * closed upward: a ready group has ready ancestors, whatever order pages arrived or left in. For a
+ * cluster:
  *
- * - `isReady` (the rule's `resident(c)`): its own group is ready, or, nothing replacing it, it is
- *   resident itself;
+ * - `isReady` (the rule's `resident(c)`): its own group is ready, or, nothing replacing it, it and
+ *   every root the group that produced it outputs are resident (`rootsResident`);
  * - `isChildReady` (the rule's `resident(childGroup(c))`): the group that produced it is ready; a
  *   cluster nothing produced has no finer group, and reads ready.
  *
@@ -95,9 +97,13 @@ function propagate(
     const owner = structure ? structure.owners[page] : -1,
       source = structure ? structure.sources[page] : -1
     if (owner >= 0) work.push(owner)
+    else if (source < 0) touchedPages.push(page)
     else {
-      touchedPages.push(page)
-      if (source >= 0) work.push(source)
+      // A root stands in with its sibling roots: their readiness moves with its residency.
+      const s = structure!
+      for (let i = s.outputOffsets[source]; i < s.outputOffsets[source + 1]; i++)
+        if (s.owners[s.outputs[i]] < 0) touchedPages.push(s.outputs[i])
+      work.push(source)
     }
   }
   // Readiness only flows DOWN the DAG, from a group to those that produced its members: the
@@ -120,15 +126,25 @@ function propagate(
   pending.length = 0
 }
 
-/** The rule's `resident(c)`: the cluster's own group is ready, or, nothing replacing it, it is
- *  resident itself. */
+/** Whether every root group `g` outputs — each output nothing replaces — is resident. */
+function rootsResident(s: ClusterStructureIndex, g: number, resident: (page: number) => boolean) {
+  for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++)
+    if (s.owners[s.outputs[i]] < 0 && !resident(s.outputs[i])) return false
+  return true
+}
+
+/** The rule's `resident(c)`: the cluster's own group is ready, or, nothing replacing it, it and
+ *  every root the group that produced it outputs are resident. */
 function isReadyIn(
   structure: ClusterStructureIndex | undefined,
   state: ReadinessState,
   page: number,
 ) {
   const owner = structure ? structure.owners[page] : -1
-  return owner >= 0 ? state.groupReady.get(owner) !== 0 : state.resident.get(page) !== 0
+  if (owner >= 0) return state.groupReady.get(owner) !== 0
+  const source = structure ? structure.sources[page] : -1
+  if (source < 0) return state.resident.get(page) !== 0
+  return rootsResident(structure!, source, (root) => state.resident.get(root) !== 0)
 }
 
 /** The rule's `resident(childGroup(c))`: the group that produced the cluster is ready. */

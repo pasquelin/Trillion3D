@@ -26,11 +26,23 @@ export function oracleWorldPixels(packed: PackedDag, frames: DagViewFrames) {
   }
 }
 
+/** The CPU mirror of `worldStandsIn`: whether every root of the world above world cluster `c` is
+ *  `ready` — each of its set's roots (`../worldStandIns.ts`), its set read off the packed words. */
+function standsIn(packed: PackedDag, ready: ArrayLike<number>, c: number) {
+  const { standIns, flagBase, linkBase } = packed.world!,
+    cold = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset),
+    at = (cold[linkBase - 2] + c) >>> 0,
+    set = at + cold[at] - flagBase
+  for (let i = standIns.offsets[set]; i < standIns.offsets[set + 1]; i++)
+    if (!ready[standIns.roots[i]]) return false
+  return true
+}
+
 /**
  * The CPU mirror of `worldCovers` (`../shader/placementTreeWgsl.ts`): whether the world DAG draws a
- * placement in its place — its object's world cluster not ready, or that cluster's parent band, its
- * world group's error, projected within the threshold in the world DAG's frame. `ready` is the cut
- * rule's residency; none, every cluster is.
+ * placement in its place — its object's world cluster not ready while every root above it is, or
+ * that cluster's parent band, its world group's error, projected within the threshold in the world
+ * DAG's frame. `ready` is the cut rule's residency; none, every cluster is.
  */
 export function oracleWorldCovers(
   packed: PackedDag,
@@ -43,7 +55,7 @@ export function oracleWorldCovers(
   return (w: number) => {
     const c = world.links[w]
     if (c === NO_INDEX) return false
-    if (ready && !ready[c]) return true
+    if (ready && !ready[c]) return standsIn(packed, ready, c)
     return !(pixels(c) > thresholdOf(frames, world.root))
   }
 }

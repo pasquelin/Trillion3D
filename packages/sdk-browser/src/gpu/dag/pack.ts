@@ -15,6 +15,7 @@ import {
 import { KEY_PAGE_MAX, createContentKeys } from './evict.ts'
 import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
+import { standInWords } from './worldStandIns.ts'
 import { packPlacementTree } from './placementTreePack.ts'
 import { allocatePacking, emptyShared, placeRoot, type Packing } from './packRoots.ts'
 import { packPlan, roomFor, type DagCapacity } from './packCapacity.ts'
@@ -92,7 +93,7 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     ...(room && { shared }),
     ...(tree && { placementTree: tree }),
     ...(world >= 0 && {
-      world: packWorldLinks(roots, [world, p.recordShift[world]], plan.worlds, {
+      world: packWorldLinks(roots, [world, p.recordShift[world]], [plan.worlds, tables.standIns!], {
         ...{ cutLinks: p.cutLinks, cold, at: linkBase },
       }),
     }),
@@ -132,8 +133,11 @@ function recordTables(
     },
     coldAt = coldBase(shape)
   const linkBase = coldAt + Math.max(1, recordSlots) * COLD_WORDS
+  const standIns = world >= 0 ? standInWords(p.cutLinks[world], roots[world].origins!) : undefined
   const clusters = new Float32Array(Math.max(1, recordSlots) * CLUSTER_WORDS),
-    pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(worlds) : 0)),
+    pageCones = new Float32Array(
+      linkBase + (standIns ? worldLinkWords(worlds, standIns.words) : 0),
+    ),
     cold = new Uint32Array(pageCones.buffer)
   const at = {
     recordKey: recordKeyBase(pages),
@@ -144,7 +148,10 @@ function recordTables(
   }
   content.flush(cold, at)
   records.finish(clusters, pageCones, coldAt)
-  return { clusters, pageCones, cold, linkBase, ...shape, recordSlots, keys: content, coldAt }
+  return {
+    ...{ clusters, pageCones, cold, linkBase, standIns },
+    ...{ ...shape, recordSlots, keys: content, coldAt },
+  }
 }
 
 /**

@@ -18,14 +18,20 @@ fn worldViewOf()->mat4x4f{
  let o=-views[0u].cameraWorld;
  return views[vi].view*mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,o.x,o.y,o.z,1.0);
 }
+/** Whether every root of the world above world cluster \`c\` is ready (\`../worldStandIns.ts\`): its
+ *  word, at the stand-ins' shift from its page, leads to its set's flag. */
+fn worldStandsIn(c:u32)->bool{
+ let at=coldAt(views[0u].worldLinks-2u)+c;
+ return coldAt(at+coldAt(at))!=0u;
+}
 /** Whether the world DAG draws placement \`w\` in its place under the view \`vi\`: its object's world
- *  group is not ready — its super-roots stand in —, or that group's error projects within the
- *  threshold, the comparison its super-roots draw on, same operands, same frame (\`drawsCluster\`).
- *  Leaves \`deformReach\` at the world's: none. */
+ *  group is not ready while every root above it is — its super-roots stand in —, or that group's
+ *  error projects within the threshold, the comparison its super-roots draw on, same operands,
+ *  same frame (\`drawsCluster\`). Leaves \`deformReach\` at the world's: none. */
 fn worldCovers(w:u32)->bool{
  let c=worldLinkOf(w);
  if(c==NO_INDEX){return false;}
- if(!isResident(c)){return true;}
+ if(!isResident(c)){return worldStandsIn(c);}
  deformReach=0.0;
  // The world DAG's record shift leads its links (\`../worldLinks.ts\`).
  let cluster=clusterAt(c+coldAt(views[0u].worldLinks-1u));
