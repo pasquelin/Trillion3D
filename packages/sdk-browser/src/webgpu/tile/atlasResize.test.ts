@@ -143,6 +143,34 @@ test('a shrink tells the texture of each tile it evicts, and never clears a tail
   assert.equal(cleared.length, 2, 'no tail cleared')
 })
 
+test('a tail pinned past the surviving layers keeps its place: a streamed tile there gives way', () => {
+  const { gpu } = textureDevice()
+  const cleared: number[] = [],
+    tails: number[] = []
+  const pages = {
+    setTail: (slot: number) => tails.push(slot),
+    setTile() {},
+    clearTile: (key: { tx: number }) => cleared.push(key.tx),
+  }
+  // The surviving layer full of streamed tiles, one read of late; a tail pinned later, in layer 1.
+  const pool = createWebgpuTilePool(gpu, { ...options, layers: 2 })
+  const resident = new Map<number, number>()
+  for (let index = 0; index < TILES_PER_LAYER; index++) {
+    const id = tileId({ slot: 0, level: 0, tx: index % 256, ty: index >> 8 })
+    pool.adopt(index, id)
+    resident.set(id, index)
+  }
+  pool.follow(Uint32Array.of(1, 7), pool.arrivals)
+  pool.adopt(TILES_PER_LAYER, tailId(3), true)
+  resident.set(tailId(3), TILES_PER_LAYER)
+  const result = resizeTileAtlas(gpu, { ...options, layers: 1 }, 0, pool, pages as never, resident)
+  assert.equal(result.evicted, 1, 'one streamed tile gives way')
+  assert.deepEqual(cleared, [7], 'the first victim of the queue')
+  assert.deepEqual(tails, [3], 'the tail moved into the place it left')
+  assert.equal(resident.get(tailId(3)), 7)
+  assert.equal(result.pool.pinnedOf(7), true)
+})
+
 test('growing the pool keeps the resident count, and a pool full for the view refuses before any read', () => {
   const { gpu, copies } = textureDevice()
   const layout = tileLayout(4096, 4096)

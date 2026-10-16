@@ -6,12 +6,13 @@ import { tailSlotOf, tileKeyOf } from './ids.ts'
 import { pendingMade } from '../../gpu/core/tableGrowth.ts'
 
 /**
- * An atlas pool changes layers WITHOUT losing what it holds. Surviving layers are copied in one
- * command, slot for slot: the page table does not move for them. Tiles of vanishing layers are moved into a free
- * slot of the new pool — pinned tails first, then the most looked-at by the GPU's queue —, each copied and
- * re-registered in the table; what no longer fits is evicted, the table says so, `onEvicted` hears
- * its texture and the coarse level takes over. A tail never leaves: only a pool drawn under its
- * tails' floor, which `texturePoolFor` never draws, displaces one, and refuses by name.
+ * An atlas pool changes layers WITHOUT losing what it holds. The new pool keeps the pinned places
+ * first — every tail, wherever a late pin put it —, then the most looked-at by the GPU's queue, as
+ * many as it holds; the others are evicted wherever they sat, the table says so, `onEvicted` hears
+ * their texture and the coarse level takes over. Surviving layers are copied in one command, slot
+ * for slot: the page table does not move for them; a kept tile of a vanishing layer is moved into a
+ * free slot, copied and re-registered in the table. A tail never leaves: only a pool drawn under
+ * its tails' floor, which `texturePoolFor` never draws, refuses by name, before anything moves.
  * Returns the new pool and the evicted-tile count. The one growth transaction
  * (`../../gpu/core/tableGrowth.ts`): the new pool made first — the device asked for it beforehand
  * (`grantedTexturePool`), a refusal here throws with the pool in place and its table untouched —,
@@ -54,30 +55,31 @@ function moveTiles(
     POOL_LAYER_SIDE,
     kept,
   ])
-  const displaced: number[] = []
-  for (const index of pool.occupied()) {
-    const id = pool.keyOf(index)
-    if (index < next.tiles) next.adopt(index, id, pool.pinnedOf(index))
-    else displaced.push(index)
-  }
-  // Pinned first, then by the GPU's queue from its far end: a place it does not list — read of
-  // late — before any it does, and the last victim before the first.
+  // What the new pool keeps: every pinned place, then by the GPU's queue from its far end — a place
+  // it does not list, read of late, before any it does, and the last victim before the first —
+  // as many as its tiles hold; the rest is evicted, wherever it sat.
   const pinned = (index: number) => Number(pool.pinnedOf(index))
   const lastOut = (index: number) => pool.rankOf(index) ?? Number.MAX_SAFE_INTEGER
-  displaced.sort((a, b) => pinned(b) - pinned(a) || lastOut(b) - lastOut(a))
+  const order = pool.occupied().sort((a, b) => pinned(b) - pinned(a) || lastOut(b) - lastOut(a))
+  // The floor keeps every pinned place (`texturePoolFor`): only a pool drawn under it refuses one.
+  if (order.length > next.tiles && pool.pinnedOf(order[next.tiles]))
+    throw new Error('TEXTURE_POOL_UNDER_FLOOR')
+  const keep = order.slice(0, next.tiles),
+    displaced: number[] = []
   let evicted = 0
+  for (const index of order.slice(next.tiles)) {
+    evictTile(pool, index, { pages, resident }, onEvicted)
+    evicted++
+  }
+  // Kept in place where its layer survives; moved into a free place of the new pool otherwise.
+  for (const index of keep) {
+    if (index < next.tiles) next.adopt(index, pool.keyOf(index), pool.pinnedOf(index))
+    else displaced.push(index)
+  }
   for (const index of displaced) {
     const id = pool.keyOf(index),
       tail = tailSlotOf(id),
-      target = next.acquire(id, pool.pinnedOf(index))
-    if (target === undefined) {
-      // The tails hold the lowest places, pinned first into a fresh pool, and the floor keeps them
-      // all (`texturePoolFor`): only a pool drawn under it displaces one, never cleared as a tile.
-      if (tail !== undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR')
-      evictTile(pool, index, { pages, resident }, onEvicted)
-      evicted++
-      continue
-    }
+      target = next.acquire(id, pool.pinnedOf(index))!
     const from = pool.placeOf(index),
       place = next.placeOf(target)
     encoder.copyTextureToTexture(
