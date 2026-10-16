@@ -50,8 +50,18 @@ export function createWebgpuTileAtlas(
   }
   let evictions = 0,
     refused = 0
-  const evict = (lane: Lane) => {
-    const index = lane.pool.victim()
+  /** Gives up a streamed tile of `lane`: the GPU queue's victim. `forced`, for a tail the floor
+   *  holds, when the queue refuses — every tile read of late —, the unpinned place it ranks first,
+   *  any unpinned one past those it lists: the coarse level holds for it. */
+  const evict = (lane: Lane, forced = false) => {
+    const { pool } = lane
+    let index = pool.victim()
+    if (index === undefined && forced) {
+      const rank = (place: number) => pool.rankOf(place) ?? Number.MAX_SAFE_INTEGER
+      for (const place of pool.occupied())
+        if (!pool.pinnedOf(place) && (index === undefined || rank(place) < rank(index)))
+          index = place
+    }
     if (index === undefined) return undefined
     evictTile(lane.pool, index, { pages, resident: lane.resident }, options.onEvicted)
     evictions++
@@ -66,6 +76,7 @@ export function createWebgpuTileAtlas(
     laneOf: lanes.of,
     pages: () => pages,
     fillWaits,
+    makeRoom: (lane) => evict(lane, true) !== undefined,
   })
   return {
     kind,
