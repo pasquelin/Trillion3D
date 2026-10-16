@@ -46,6 +46,16 @@ fn a_uniform_pane_stays_blended() {
     assert!(!shape.looks_like_cutout());
 }
 
+// Behavior: a texture whose every texel is absent — a clear pane, an empty label — is never
+// proposed as cutout: the cutout would keep nothing, the surface would vanish.
+#[test]
+fn an_empty_texture_stays_blended() {
+    let shape = measure(&uniform_image(0));
+    assert_eq!(shape.absent, 1.0);
+    assert_eq!(shape.present, 0.0);
+    assert!(!shape.looks_like_cutout());
+}
+
 // Behavior: gradient across entire image has contour, but intermediates
 // are far. Edge case intermediate fraction alone cannot separate from
 // very soft leaf, location decides.

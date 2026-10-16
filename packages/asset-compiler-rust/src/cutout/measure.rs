@@ -43,8 +43,11 @@ pub(crate) struct AlphaShape {
 impl AlphaShape {
     /// Proposal, and nothing more: what HTML page pre-positions and human keeps
     /// or corrects.
+    /// A cutout keeps the texels its alpha holds: a texture none of whose texels is present (an
+    /// empty veil, a fully clear pane) would keep nothing, and stays blended.
     pub fn looks_like_cutout(&self) -> bool {
         self.texels > 0
+            && self.present > 0.0
             && self.absent >= MIN_ABSENT
             && self.between <= MAX_BETWEEN
             && self.at_contour >= MIN_AT_CONTOUR
