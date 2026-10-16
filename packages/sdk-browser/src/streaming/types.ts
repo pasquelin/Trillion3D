@@ -1,3 +1,4 @@
+import type { ReadRange } from '../cluster/ranged.ts'
 import type { EngineDiagnostic } from '../diagnostic/types.ts'
 import type { PageCache } from './pageCache.ts'
 import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
@@ -64,6 +65,8 @@ type PageCatalogue = {
  *  once it is disposed. */
 export type PageQueue = PageCatalogue & {
   readBytes(url: string, signal: AbortSignal, priority?: number): Promise<Uint8Array>
+  /** Bytes of a file outside the catalogue, by an HTTP Range through the page cache. */
+  readRange: ReadRange
   readonly signal: AbortSignal
 }
 /** How a page streamer reads (`createPageStreamer`): through `cache`, its owner's, which reserves

@@ -9,6 +9,7 @@
  * The loader is the witness here and only here, to prove it has nothing left to read. Images are
  * decoded by a stand-in answering the size of the bytes given, so both sides compare the same files.
  */
+import { fileRanges } from './binary.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
@@ -50,6 +51,7 @@ async function prepared(folder: URL, written?: unknown) {
     // The caches compared here draw no cloth: their manifest lists no primitive a cloth draws.
     metadata: { primitives: [] } as unknown as ClusterManifest,
     base: folder.href,
+    readRange: fileRanges,
     skipBaked: false,
     signal: undefined,
     track: (_resource, read) => read,

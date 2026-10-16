@@ -1,4 +1,5 @@
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { rangesOf } from './binary.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
@@ -30,10 +31,7 @@ test('a prepared geometry is the host’s: its normalised lists are edged and tu
     accessors: [run(0, 5122), run(1, 5120)],
     meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: null }] }],
   } as unknown as TableDocument
-  const geometry = await preparedGeometries(document, async () => binary.buffer)(
-    0,
-    0,
-  ).loadVertices()
+  const geometry = await preparedGeometries(document, rangesOf(binary.buffer))(0, 0).loadVertices()
   assert.equal(geometry._owner, 'host')
   assert.deepEqual(
     Array.from(wireframe(geometry).attributes.position.array),
@@ -70,7 +68,7 @@ test('a missing morph semantic has zero displacement, not the base attribute', a
       },
     ],
   } as unknown as TableDocument
-  const g = await preparedGeometries(document, async () => bytes.buffer)(0, 0).loadVertices()
+  const g = await preparedGeometries(document, rangesOf(bytes.buffer))(0, 0).loadVertices()
   assert.deepEqual([...g.morphAttributes.position[1].array], [0, 0, 0])
   assert.deepEqual([...g.morphAttributes.normal[0].array], [0, 0, 0])
 })

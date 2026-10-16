@@ -3,6 +3,7 @@
 // `source.gltf` as the prepared scene views it and each index page — a vertex a solve placed read
 // from its geometry page —, and requires the cooked cone to bound every face and to be at most
 // twice the compiler's margin wider.
+import { rangesOf } from '../../packages/sdk-browser/src/host/prepared/binary.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -28,7 +29,10 @@ async function checkScene(pointer: string) {
   const tables = readJson(join(dir, 'scene-tables.json')) as PreparedSceneTables
   // The document the session draws (`SCENE_FILE`).
   const { document, bufferUrl } = sceneDocument(tables, pathToFileURL(`${dir}/`).href)
-  const geometryOf = preparedGeometries(document, async () => bytesOf(fileURLToPath(bufferUrl!)))
+  const geometryOf = preparedGeometries(
+    document,
+    rangesOf(async () => bytesOf(fileURLToPath(bufferUrl!))),
+  )
   // A streaming bundle holds dozens of index pages: each is read once, and a page viewed in it.
   const bundles = new Map<string, ArrayBuffer>()
   const bundle = (url: string) =>

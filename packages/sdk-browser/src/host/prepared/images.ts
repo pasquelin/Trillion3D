@@ -1,3 +1,4 @@
+import type { PreparedBinary } from './accessors.ts'
 /**
  * The images the prepared scene's textures sample, read from where the scene tables say they are —
  * an address beside the published document, or a view of its binary — and decoded the way the host
@@ -29,8 +30,8 @@ type Inputs = {
   document: TableDocument
   /** Address of the published document: relative image addresses resolve against it. */
   documentUrl: string
-  /** Reads the document's binary, which embedded images are views of, once. */
-  binary: () => Promise<ArrayBuffer>
+  /** Reads a range of the document's binary, which embedded images are views of. */
+  binary: PreparedBinary
   /** Ranks of the images whose chain the cache baked. */
   skipped: ReadonlySet<number>
   signal: AbortSignal | undefined
@@ -58,10 +59,10 @@ export function preparedImages(inputs: Inputs) {
     const view = document.views[image.view]
     // A binary that cannot be read fails its reader, as the loader failed the scene: it is no
     // missing image, and it is read again at the next need (`readOnce`).
-    const buffer = await binary().catch((error: unknown) => {
+    const buffer = await binary.range(view.offset, view.length).catch((error: unknown) => {
       throw new UnreadBinary(error)
     })
-    return decodeBytes(new Uint8Array(buffer, view.offset, view.length), image.mimeType ?? '')
+    return decodeBytes(new Uint8Array(buffer), image.mimeType ?? '')
   }
   const held = new Map<number, Promise<unknown>>()
   return (rank: number): Promise<unknown> => {

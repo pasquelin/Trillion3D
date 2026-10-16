@@ -72,6 +72,7 @@ async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
       signal,
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
+      readRange: options.queue.readRange,
     }),
     openWorldRoots(metadata, base, options.queue, { signal, whole: !tables.partition }),
   ])

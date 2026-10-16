@@ -78,15 +78,12 @@ async function substitute(
   return out.array
 }
 
-/** Where the vertices of a prepared document are read: the whole binary, read once and kept, or
- *  `range`, which reads the bytes of one view alone. */
-export type PreparedBinary =
-  (() => Promise<ArrayBuffer>) | { range: (offset: number, length: number) => Promise<ArrayBuffer> }
+/** Where the views of a prepared document are read: `range` reads the bytes of one view alone. */
+export type PreparedBinary = { range: (offset: number, length: number) => Promise<ArrayBuffer> }
 
 /** The host attribute of each accessor of `document`, built on first request and shared after it.
  *  Its numbers are read from the document's buffer only when a reader loads them
- *  (`Geometry.loadVertices`): `binary` reads the buffer, once, on that first need, or each view
- *  alone by its `range`. */
+ *  (`Geometry.loadVertices`): `binary` reads each view alone by its `range`. */
 export function preparedAccessors(document: TableDocument, binary: PreparedBinary) {
   const attributes = new Map<number, Attribute>()
   const viewOf = viewReader(document, binary)
@@ -126,15 +123,10 @@ function viewReader(document: TableDocument, binary: PreparedBinary) {
           bytes,
         })
       held = readOnce(() =>
-        typeof binary === 'function'
-          ? binary().then((bytes) => {
-              if (view.offset + view.length > bytes.byteLength) throw outside(bytes.byteLength)
-              return bytes.slice(view.offset, view.offset + view.length)
-            })
-          : binary.range(view.offset, view.length).then((bytes) => {
-              if (bytes.byteLength !== view.length) throw outside(bytes.byteLength)
-              return bytes
-            }),
+        binary.range(view.offset, view.length).then((bytes) => {
+          if (bytes.byteLength !== view.length) throw outside(bytes.byteLength)
+          return bytes
+        }),
       )
       views.set(rank, held)
     }

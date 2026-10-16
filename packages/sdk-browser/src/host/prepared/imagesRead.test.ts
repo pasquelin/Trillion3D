@@ -17,7 +17,7 @@ const images = () =>
     ...{
       document,
       documentUrl: 'https://cache.test/model/source.gltf',
-      binary: () => Promise.reject(new Error('no binary')),
+      binary: { range: () => Promise.reject(new Error('no binary')) },
     },
     ...{ skipped: new Set<number>(), signal: undefined, meter: unmetered },
     track: (_resource, read) => read,

@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { rangesOf } from './binary.fixture.ts'
 import assert from 'node:assert/strict'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { preparedAccessors } from './accessors.ts'
@@ -36,7 +37,7 @@ test('a sparse accessor over an interleaved base substitutes into its own elemen
       },
     ],
   } as unknown as TableDocument
-  const position = preparedAccessors(document, async () => binary.buffer)(0)
+  const position = preparedAccessors(document, rangesOf(binary.buffer))(0)
   assert.equal(position.count, 2)
   await position._load()
   assert.deepEqual(Array.from(position.array), [1, 2, 3, 7, 8, 9])

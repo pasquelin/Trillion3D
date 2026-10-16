@@ -4,6 +4,7 @@
  * by address — and the sidecar entries the compiler wrote for it (`expected.json`), the embedded
  * image's bytes are decoded only when its baked twin is missing.
  */
+import { rangesOf } from './binary.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
@@ -55,7 +56,7 @@ async function decoded(t: test.TestContext, previews: { image: number }[]) {
   const read = preparedImages({
     document,
     documentUrl: folder.href,
-    binary: async () => binary,
+    binary: rangesOf(binary),
     signal: undefined,
     meter: unmetered,
     skipped: bakedImages(metadata, document.images.length),

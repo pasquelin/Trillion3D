@@ -136,6 +136,9 @@ export function createPageStreamer(
     roundTripMs: roundTrip.ms,
     read: (url: string, signal: AbortSignal) => readBytes(url, signal).then(asIndices),
     readBytes,
+    /** Bytes of a file outside the catalogue, by an HTTP Range through the page cache
+     *  (`PageCache.readRange`): a scene's binary, a view at a time. */
+    readRange: store.readRange,
     /** The streamer's life, aborted once it is disposed or its owner's signal aborts: the signal
      *  of a read its session owns. */
     signal: abort.signal,
