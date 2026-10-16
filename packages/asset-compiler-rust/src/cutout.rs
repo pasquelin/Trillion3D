@@ -5,12 +5,12 @@
 //! We import other people's files: nobody ticked the box. The compiler takes that
 //! role, but never guesses in silence.
 //!
-//! Two-stage mechanism. Compiler MEASURES alpha of candidate texture,
-//! during preview decoding, and PROPOSES verdict; writes answer sheet
-//! alongside compiled model, every compilation, whether items to decide or not.
-//! Applies only what sheet answers, ordered by image fingerprint:
-//! answer holds for any scene sharing texture. Without answer, nothing
-//! changes, blend remains blend.
+//! The compiler MEASURES the alpha of each candidate texture and decides by it: a texture
+//! present or absent almost everywhere is a cutout, one whose alpha lies halfway is
+//! transparency (`measure.rs`). Any scene, any vendor, no one to ask. The answer sheet,
+//! written alongside compiled model on every compilation, shows each measurement and
+//! verdict; an answer written there, ordered by image fingerprint, overrides the
+//! measurement for any scene sharing the texture.
 use super::*;
 
 mod apply;
@@ -47,7 +47,7 @@ pub(crate) struct Decisions {
 }
 
 impl Decisions {
-    /// Answer for this image, or `None` when undecided.
+    /// Answer for this image, or `None` when no one answered: the measurement decides.
     pub fn verdict(&self, sha256: &str) -> Option<bool> {
         self.by_image.get(sha256).copied()
     }

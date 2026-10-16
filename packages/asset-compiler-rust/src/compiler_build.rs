@@ -10,7 +10,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let _lock = CacheLock::acquire(o)?;
     // Each format driver yields the common glTF intermediate scene.
     let progress = with_ratio(progress);
-    let decisions = cutout::load_decisions(&o.cache, &o.source)?;
+    let mut decisions = cutout::load_decisions(&o.cache, &o.source)?;
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
     // Where relative image URIs resolve, read before a converted scene moves `o.source` away.
     let image_root = routed.scene.images(&o.source);
@@ -42,8 +42,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // What the cuts of the proxy share its budget over: the meshes, each once, not their instances.
     let unique_triangles = compiler_select::unique_triangles(&loaded.g, &chosen)?;
-    // Decided cutouts go to masked before any material is read (`cutout.rs`).
-    let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
+    // Cutouts, answered or measured, go to masked before any material is read (`cutout.rs`).
+    let cutouts =
+        cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &mut decisions)?;
     let g = &loaded.g;
     // Identity of the product, not the raw bytes of what the source declares:
     // conversion timings leave it, images the scene cites enter it, answers too.

@@ -22,7 +22,7 @@ fn scene() -> (Value, Vec<u8>, String) {
     (g, bin, sha)
 }
 
-fn appliquer(g: &mut Value, bin: &[u8], decisions: &Decisions) -> CutoutApplied {
+fn appliquer(g: &mut Value, bin: &[u8], decisions: &mut Decisions) -> CutoutApplied {
     apply_decisions(g, bin, Path::new("."), &BTreeSet::from([0usize]), decisions).expect("apply")
 }
 
@@ -32,22 +32,73 @@ fn answer(directory: &Path, g: &mut Value, bin: &[u8], sha: &str, cutout: bool) 
         directory,
         &json!({"version":1,"textures":{sha:{"cutout":cutout}}}),
     );
-    let decisions = load_decisions(directory, directory).expect("read");
-    appliquer(g, bin, &decisions)
+    let mut decisions = load_decisions(directory, directory).expect("read");
+    appliquer(g, bin, &mut decisions)
 }
 
-// Behavior: without sheet, nothing changes. Blend stays blend, report says so.
+/// The scene with its image the PNG of a `side`-square whose alpha `alpha` gives per texel.
+fn png_scene(side: u32, alpha: impl Fn(u32, u32) -> u8) -> (Value, Vec<u8>) {
+    let image =
+        image::RgbaImage::from_fn(side, side, |x, y| image::Rgba([90, 140, 60, alpha(x, y)]));
+    let mut bin = Vec::new();
+    image::DynamicImage::ImageRgba8(image)
+        .write_to(&mut std::io::Cursor::new(&mut bin), image::ImageFormat::Png)
+        .expect("png");
+    let (mut g, _, _) = scene();
+    g["bufferViews"][0]["byteLength"] = json!(bin.len());
+    g["images"][0]["mimeType"] = json!("image/png");
+    (g, bin)
+}
+
+/// A leaf: present inside a disc, absent outside, hard edged.
+fn leaf(x: u32, y: u32) -> u8 {
+    let (dx, dy) = (x as i32 - 32, y as i32 - 32);
+    if dx * dx + dy * dy < 24 * 24 {
+        255
+    } else {
+        0
+    }
+}
+
+// Behavior: with no answer, the measurement decides — a leaf turns masked, a pane whose alpha
+// lies halfway stays blend —, and the preview step finds the measurement kept.
 #[test]
-fn without_a_sheet_blend_stays_blend() {
+fn with_no_answer_the_measurement_decides() {
+    let directory = scratch("decoupes", "mesure");
+    let (mut g, bin) = png_scene(64, leaf);
+    let mut decisions = load_decisions(&directory, &directory).expect("read");
+    let applied = appliquer(&mut g, &bin, &mut decisions);
+    assert_eq!(g["materials"][0]["alphaMode"], json!("MASK"));
+    assert_eq!(applied.applied.len(), 1);
+    assert!(decisions.measurements.known(&hash(&bin)).is_some());
+    let (mut pane, bin) = png_scene(64, |_, _| 96);
+    let mut decisions = load_decisions(&directory, &directory).expect("read");
+    appliquer(&mut pane, &bin, &mut decisions);
+    assert_eq!(pane["materials"][0]["alphaMode"], json!("BLEND"));
+}
+
+// Behavior: an answer overrides the measurement: a leaf answered transparent stays blend.
+#[test]
+fn an_answer_overrides_the_measurement() {
+    let directory = scratch("decoupes", "contre-mesure");
+    let (mut g, bin) = png_scene(64, leaf);
+    answer(&directory, &mut g, &bin, &hash(&bin), false);
+    assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
+}
+
+// Behavior: an image that does not decode has no measurement: without an answer, blend stays
+// blend, and the report says so.
+#[test]
+fn an_unreadable_image_without_an_answer_stays_blend() {
     let directory = scratch("decoupes", "vide");
-    let decisions = load_decisions(&directory, &directory).expect("read");
+    let mut decisions = load_decisions(&directory, &directory).expect("read");
     let (mut g, bin, _) = scene();
-    let applied = appliquer(&mut g, &bin, &decisions);
+    let applied = appliquer(&mut g, &bin, &mut decisions);
     assert_eq!(g["materials"][0]["alphaMode"], json!("BLEND"));
     assert_eq!(applied.report(&decisions)["candidateTextures"], json!(1));
     assert!(
         applied.applied.is_empty(),
-        "nothing is applied without an answer"
+        "nothing is applied without an answer or a measurement"
     );
 }
 

@@ -6,9 +6,8 @@
 //! pixels. Two numbers suffice to distinguish them: fraction of intermediate texels, and fraction
 //! of those intermediates that are adjacent to contour.
 //!
-//! This module yields only a PROPOSAL. Decision belongs to answer file, because
-//! no measurement distinguishes for sure dirty window from very soft leaf — and because
-//! reference itself never reclassifies a material on its own.
+//! Its verdict applies unless the answer file says otherwise: a dirty window and a very soft
+//! leaf can measure alike, and the file is where an author corrects one.
 use super::*;
 
 /// Alpha below which texel is absent, and above which present, in bytes. Encoders
@@ -41,8 +40,8 @@ pub(crate) struct AlphaShape {
 }
 
 impl AlphaShape {
-    /// Proposal, and nothing more: what HTML page pre-positions and human keeps
-    /// or corrects.
+    /// The verdict applied to a texture no answer names, which the page shows and an answer
+    /// corrects.
     /// A cutout keeps the texels its alpha holds: a texture none of whose texels is present (an
     /// empty veil, a fully clear pane) would keep nothing, and stays blended.
     pub fn looks_like_cutout(&self) -> bool {

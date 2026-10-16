@@ -78,7 +78,7 @@ pub const PREVIEW_BASE: u32 = 64;
 /// Max levels entry carries: 64, 32, 16, 8, 4, 2, 1.
 pub const PREVIEW_MAX_LEVELS: u32 = 7;
 /// Decode memory allocation ceiling. Larger image is report entry, not failure.
-const PREVIEW_MAX_ALLOC: u64 = 512 * 1024 * 1024;
+pub(crate) const PREVIEW_MAX_ALLOC: u64 = 512 * 1024 * 1024;
 
 /// Everything step reads. `view_map` translates input glTF views to those written in
 /// `source.gltf`, so origin names index engine sees.

@@ -49,8 +49,8 @@ fn answer_sheet(options: &Options) -> Value {
 }
 
 // Behavior: each compiled model gets answer sheet, whether items to decide
-// or not. Sheet carries measurement and proposal, answer null:
-// until decided, blend remains blend.
+// or not. Sheet carries measurement and proposal, answer null: unanswered,
+// the measurement decides — the leaf is cut out.
 #[test]
 fn each_model_leaves_with_its_sheet() {
     let (_root, options) = scene_feuillage();
@@ -69,7 +69,7 @@ fn each_model_leaves_with_its_sheet() {
     );
     assert_eq!(entry["cutout"], Value::Null, "nobody has decided yet");
     assert_eq!(entry["image"], json!("feuille.png"));
-    assert_eq!(result["primitives"][0]["pass"], json!("clustered-blend"));
+    assert_eq!(result["primitives"][0]["pass"], json!("exact-clusters"));
     assert_eq!(result["cutouts"]["pending"], json!(1));
     assert_eq!(
         result["cutouts"]["version"],
@@ -77,21 +77,32 @@ fn each_model_leaves_with_its_sheet() {
     );
 }
 
-// Behavior: answer in sheet sets foliage to mask at glTF threshold,
-// primitive leaves blend path for exact clusters — single draw call
-// instead of per-item call. Published `source.gltf` carries reclassified material:
-// that is what the engine reads to shade.
+// Behavior: the measured leaf goes to mask at glTF threshold, its primitive
+// leaves blend path for exact clusters — single draw call instead of per-item
+// call —, published `source.gltf` carrying the reclassified material: that is
+// what the engine reads to shade. An answer overrides it: answered transparent,
+// the leaf is blend again, and the product identity follows.
 #[test]
 fn a_recorded_answer_turns_the_foliage_to_cutout() {
     let (_root, options) = scene_feuillage();
     let first = compile(&options, |_| {}).expect("first compile");
+    let published = read_json(
+        &options
+            .cache
+            .join("native")
+            .join("full")
+            .join(first["key"].as_str().expect("key"))
+            .join("source.gltf"),
+    );
+    assert_eq!(published["materials"][0]["alphaMode"], json!("MASK"));
+    assert_eq!(published["materials"][0]["alphaCutoff"], json!(0.5));
     let mut sheet = answer_sheet(&options);
     for (_, entry) in sheet["textures"]
         .as_object_mut()
         .expect("textures")
         .iter_mut()
     {
-        entry["cutout"] = json!(true);
+        entry["cutout"] = json!(false);
     }
     fs::write(
         options.cache.join(crate::cutout::DECISIONS_FILE),
@@ -99,23 +110,14 @@ fn a_recorded_answer_turns_the_foliage_to_cutout() {
     )
     .expect("write");
     let second = compile(&options, |_| {}).expect("second compile");
-    assert_eq!(second["primitives"][0]["pass"], json!("exact-clusters"));
+    assert_eq!(first["primitives"][0]["pass"], json!("exact-clusters"));
     assert_eq!(
-        second["cutouts"]["changes"]["applied"][0]["material"],
+        first["cutouts"]["changes"]["applied"][0]["material"],
         json!(0)
     );
+    assert_eq!(second["primitives"][0]["pass"], json!("clustered-blend"));
     assert_ne!(
         first["key"], second["key"],
         "an answer changes the product identity"
     );
-    let published = read_json(
-        &options
-            .cache
-            .join("native")
-            .join("full")
-            .join(second["key"].as_str().expect("key"))
-            .join("source.gltf"),
-    );
-    assert_eq!(published["materials"][0]["alphaMode"], json!("MASK"));
-    assert_eq!(published["materials"][0]["alphaCutoff"], json!(0.5));
 }

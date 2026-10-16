@@ -72,6 +72,16 @@ impl MeasureCache {
         )
     }
 
+    /// The shape stored for the image `sha`, before it is decoded.
+    pub(crate) fn known(&self, sha: &str) -> Option<&AlphaShape> {
+        self.0.get(sha)
+    }
+
+    /// Keeps `shape` for the image `sha`: the preview step reads it instead of measuring again.
+    pub(crate) fn insert(&mut self, sha: String, shape: AlphaShape) {
+        self.0.insert(sha, shape);
+    }
+
     pub(crate) fn get(&self, sha: &str, image: &image::RgbaImage) -> Option<AlphaShape> {
         self.0
             .get(sha)

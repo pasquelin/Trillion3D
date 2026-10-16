@@ -36,6 +36,7 @@ impl CutoutApplied {
 struct Candidate {
     material: usize,
     texture: usize,
+    image: usize,
     image_sha: String,
 }
 
@@ -44,9 +45,10 @@ pub(crate) fn apply_decisions(
     bin: &[u8],
     image_root: &Path,
     meshes: &BTreeSet<usize>,
-    decisions: &Decisions,
+    decisions: &mut Decisions,
 ) -> Result<CutoutApplied> {
     let candidates = candidates(g, bin, image_root, meshes)?;
+    let measured = measure_unanswered(g, bin, image_root, &candidates, decisions);
     let (mut applied, mut refused) = (Vec::new(), Vec::new());
     let mut materials_by_texture: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
     for candidate in &candidates {
@@ -54,7 +56,10 @@ pub(crate) fn apply_decisions(
             .entry(candidate.texture)
             .or_default()
             .insert(candidate.material);
-        if decisions.verdict(&candidate.image_sha) != Some(true) {
+        let verdict = decisions
+            .verdict(&candidate.image_sha)
+            .or_else(|| measured.get(&candidate.image_sha).copied());
+        if verdict != Some(true) {
             continue;
         }
         if let Some(reason) = refusal(g, candidate.material) {
@@ -81,6 +86,48 @@ pub(crate) fn apply_decisions(
         refused,
         materials_by_texture,
     })
+}
+
+/// The verdict of each image no answer names, by its fingerprint: its stored measurement, or
+/// the image decoded and measured once — kept with the others, so the preview step measures it
+/// no more. An image that does not decode to RGBA8 has none, and stays blend.
+fn measure_unanswered(
+    g: &Value,
+    bin: &[u8],
+    image_root: &Path,
+    candidates: &[Candidate],
+    decisions: &mut Decisions,
+) -> BTreeMap<String, bool> {
+    let mut verdicts = BTreeMap::new();
+    let images = g.get("images").and_then(Value::as_array);
+    for candidate in candidates {
+        let sha = &candidate.image_sha;
+        if decisions.verdict(sha).is_some() || verdicts.contains_key(sha) {
+            continue;
+        }
+        if let Some(shape) = decisions.measurements.known(sha) {
+            verdicts.insert(sha.clone(), shape.looks_like_cutout());
+            continue;
+        }
+        let decoded = images
+            .and_then(|images| images.get(candidate.image))
+            .and_then(|image| source::raw_image_bytes(g, bin, image_root, image).ok())
+            .and_then(|(bytes, _)| {
+                crate::plugins::image::decode(&bytes, crate::texture_preview::PREVIEW_MAX_ALLOC)
+                    .ok()
+            });
+        let Some(crate::plugins::image::DecodedImage::Rgba8(pixels)) = decoded.map(|d| d.image)
+        else {
+            continue;
+        };
+        let shape = {
+            let _t = perf::Timer::new(perf::Phase::TextureAlpha);
+            measure(&pixels)
+        };
+        verdicts.insert(sha.clone(), shape.looks_like_cutout());
+        decisions.measurements.insert(sha.clone(), shape);
+    }
+    verdicts
 }
 
 /// Why material stays in blend despite answer, or  when nothing opposes.
@@ -163,6 +210,7 @@ fn candidates(
         found.push(Candidate {
             material: id,
             texture,
+            image,
             image_sha: sha,
         });
     }
