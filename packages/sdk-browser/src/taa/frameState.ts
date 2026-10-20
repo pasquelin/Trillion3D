@@ -27,6 +27,16 @@ export interface TaaFrameState {
    *  ratio to this image's. */
   previousExposure: number
   hasHistory: boolean
+  /** Images accumulated, the view still, since the history was last dropped (`dropTaaHistory`) or
+   *  the image last moved — the camera, a placement, a deformation, the scene or its resources —:
+   *  how converged a still view is (`taaConverged`). A moving history keeps fewer samples than a
+   *  still one (`HISTORY_LAWS`), so motion restarts the count. */
+  accumulated: number
+  /** Resources revision of the last accumulated image: another one restarts `accumulated`. */
+  resourcesSeen: number
+  /** Whether the last accumulated image ran the flicker measure: one that runs it after an image
+   *  that did not drops the history, its flicker history unwritten meanwhile (`encodeTaaPass`). */
+  flickerRan: boolean
   /** Explicit discontinuity revision of this view, independent of ordinary camera motion. */
   viewSeen: number
   /** Scene revision of the last accumulated image: another one causes poses to be compared. */
@@ -48,6 +58,9 @@ export function createTaaFrameState(): TaaFrameState {
     previousRender: new Float64Array(2),
     previousExposure: 1,
     hasHistory: false,
+    accumulated: 0,
+    resourcesSeen: -1,
+    flickerRan: false,
     sceneSeen: -1,
     viewSeen: -1,
     active: false,

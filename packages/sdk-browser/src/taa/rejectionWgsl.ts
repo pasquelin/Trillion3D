@@ -9,7 +9,7 @@ import {
   LARGEST_SCENE_COLOR,
   LARGEST_SMALL_FLOAT,
   LUMA_TO_CHANNEL,
-  UNORM8_STEP,
+  quantizationError,
 } from './colorSpaceWgsl.ts'
 import { REPROJECT_BITS, REPROJECTED_WORD_WGSL, SHADING_HISTORY_FORMAT } from './reprojectWgsl.ts'
 import { SHARE_CODE_MASK } from './velocityWgsl.ts'
@@ -47,6 +47,7 @@ export const HELD_MEASURE_BINDINGS = {
   filteredInput: 4,
   filteredHistory: 5,
   filteredError: 6,
+  occluders: 7,
 } as const
 
 /** The held measure of each render texel, three targets of half floats, each colour beside a
@@ -103,7 +104,7 @@ export const REJECTION_FORMAT: GPUTextureFormat = 'rgba8unorm'
 /** The bit of a texel whose history is kept, not disoccluded. */
 const KEPT_BIT = 1
 /** The half step an eight-bit store rounds by, which the rejection's words are biased against. */
-const HALF_STEP = UNORM8_STEP / 2
+const HALF_STEP = quantizationError(REJECTION_FORMAT) / 2
 
 /** The binomial weight of the `n`-th texel of a 3×3, row-major from the upper left; what a texel
  *  adds to the blur of the rejection's input; the largest input a texel holds: one declaration both
@@ -135,6 +136,11 @@ fn inputMost()->f32{return ${wgslF32(LARGEST_SCENE_COLOR)}/view.exposure.x;}`,
  * The three channels run together, two colours a texel over three planes of half-float pairs.
  * Loads per span texel: the colour and the reprojection word, then the shading history; three
  * stores per written texel.
+ *
+ * The reprojection, the last reader of the closest occluder words (`velocityWgsl.ts`), ran in a
+ * dispatch before, and this one runs at every level: each lane empties its texel's word — and its
+ * second under an orthographic projection — so the next image's scatter starts from none, with no
+ * clear between the dispatches; one store a texel, two under an orthographic projection.
  */
 export const heldMeasureShader = () => {
   const plan = HELD_MEASURE_PLAN
@@ -159,8 +165,15 @@ export const heldMeasureShader = () => {
 @group(0) @binding(${HELD_MEASURE_BINDINGS.filteredInput}) var inputOut:texture_storage_2d<${HELD_MEASURE_FORMAT},write>;
 @group(0) @binding(${HELD_MEASURE_BINDINGS.filteredHistory}) var historyOut:texture_storage_2d<${HELD_MEASURE_FORMAT},write>;
 @group(0) @binding(${HELD_MEASURE_BINDINGS.filteredError}) var errorOut:texture_storage_2d<${HELD_MEASURE_FORMAT},write>;
+@group(0) @binding(${HELD_MEASURE_BINDINGS.occluders}) var<storage,read_write> occluders:array<u32>;
 ${tileWords(differences.end)}
 ${tileEntry(plan, 'heldMeasure')}
+ let own=corner+vec2i(i32(lane%${plan.width}u),i32(lane/${plan.width}u));
+ if(all(own<vec2i(view.render.xy))){
+  let index=u32(own.y)*u32(view.render.x)+u32(own.x);
+  occluders[index]=0u;
+  if(view.radius.w!=0.0){occluders[u32(view.render.x)*u32(view.render.y)+index]=0u;}
+ }
 ${tileStage(
   plan,
   5,
@@ -393,8 +406,9 @@ ${tileStage(
    let size=vec3f(abs(first.a),second.a,third.a);
    let error=max(third.rgb,size*${wgslF32(FILTERING_WEIGHT * 0.25)})+${Q};
    let boxLo=box0-error;let boxHi=box1+error;
-   // The flicker error, where the level rejects by it (view.quality.x).
-   let flickerError=bitcast<f32>(textureLoad(flicker,c,0).r)*view.quality.x;
+   // The flicker error, where the level rejects by it (view.quality.x): elsewhere the measure
+   // did not run, and its word holds no error (analysis.ts).
+   let flickerError=select(0.0,bitcast<f32>(textureLoad(flicker,c,0).r),view.quality.x>0.0);
    let spread=${LUMA_TO_CHANNEL}.0*flickerError;
    let clamped=clamp(history,min(boxLo,boxHi-spread),max(boxHi,boxLo+spread));
    let energy=abs(clamped-history);
@@ -457,7 +471,7 @@ ${tileStage(
    let shown=min(colour,vec3f(${wgslF32(LARGEST_SMALL_FLOAT)})/view.exposure.x)*view.exposure.x;
    let luma=luma601(shown);
    if(all(g<vec2i(view.render.xy))){
-    textureStore(shadingOut,g,vec4f(ditherUnorm(updated,frameRandom(g,u32(view.jitter.w)).x,${wgslF32(UNORM8_STEP)}),edge));
+    textureStore(shadingOut,g,vec4f(ditherUnorm(updated,frameRandom(g,u32(view.jitter.w)).x,${wgslF32(quantizationError(SHADING_HISTORY_FORMAT))}),edge));
     let bits=select(${KEPT_BIT}u,0u,restarted)|select(0u,${ANTI_ALIAS_BIT}u,antiAlias)|(word&${SHARE_CODE_MASK}u);
     var words=vec3f(rejected-${wgslF32(HALF_STEP)},lift-${wgslF32(HALF_STEP)},${wgslF32(1 - HALF_STEP)}-raise);
     if(view.params.w>=${FIRST_ANALYSIS_VIEW}.0){words=analysisView(u32(view.params.w),c,word,edge,rejected,${energy.index},kd);}

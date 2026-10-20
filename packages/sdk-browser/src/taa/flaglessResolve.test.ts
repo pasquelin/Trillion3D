@@ -72,11 +72,12 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   assert.ok(first[1].bindings.includes(flags))
   assert.equal(first[2].module, 'TAA_RESOLVE_BLENDED')
   assert.ok(first[2].bindings.includes(flags))
-  // Every resolve reads the share target and the analysis: the reprojection vectors, the shading
-  // rejection and the spatial anti-aliaser.
+  // Every resolve reads the share target, the history the transparents give up, and the analysis:
+  // the reprojection vectors, the shading rejection and the spatial anti-aliaser.
   for (const { bindings, layout } of first)
     for (const binding of [
       TAA_BINDINGS.shareHistory,
+      TAA_BINDINGS.givenUp,
       TAA_BINDINGS.vectors,
       TAA_BINDINGS.rejection,
       TAA_BINDINGS.antiAliasing,

@@ -15,7 +15,7 @@ import {
   VECTOR_FORMAT,
 } from './velocityWgsl.ts'
 import { CATMULL_ROM_TAPS_WGSL } from './historyWgsl.ts'
-import { COLOR_SPACES_WGSL, DITHER_WGSL, UNORM8_STEP } from './colorSpaceWgsl.ts'
+import { COLOR_SPACES_WGSL, DITHER_WGSL, quantizationError } from './colorSpaceWgsl.ts'
 import { TILE_CLAMP_WGSL } from './tileWgsl.ts'
 
 /** The reprojection pass's bindings. */
@@ -191,7 +191,7 @@ fn reprojectHistories(@builtin(global_invocation_id) gid:vec3u){
  var raw=vec4f(0.0);
  for(var k=0;k<5;k++){raw+=textureSampleLevel(prevShading,historySampler,clamp(taps.uv[k],lo,hi),0.0)*taps.weight[k];}
  let random=frameRandom(p,u32(view.jitter.w));
- let shading=ditherUnorm(exposedShading(raw.rgb),random.x,${wgslF32(UNORM8_STEP)});
+ let shading=ditherUnorm(exposedShading(raw.rgb),random.x,${wgslF32(quantizationError(SHADING_HISTORY_FORMAT))});
  let grid=vec2i(view.analysisGrid.xy);
  let flickerTexel=clampToExtent(vec2i(floor((uv+(random-0.5)*view.analysisGrid.zw)*view.analysisGrid.xy)),grid);
  var flicker=textureLoad(prevFlicker,flickerTexel,0);

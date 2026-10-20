@@ -13,6 +13,10 @@ const OFFSET_MASK = 15
 const OFFSET_STEPS = 7
 const OFFSET_ZERO = OFFSET_STEPS + 1
 const OFFSET_SCALE = OFFSET_STEPS / 0.5
+/** The anti-aliaser's word of no offset — the zero code on both axes — and no noise filtering:
+ *  what it writes where it does not run, and its target holds where the level runs none
+ *  (`analysis.ts`). */
+export const ANTI_ALIAS_NEUTRAL = OFFSET_ZERO | (OFFSET_ZERO << 4)
 /** The rejection's bit of a texel the anti-aliaser runs on (`rejectionWgsl.ts`). */
 export const ANTI_ALIAS_BIT = 4
 

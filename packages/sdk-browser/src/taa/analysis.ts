@@ -11,6 +11,7 @@ import {
   namedEntries,
 } from '../gpu/core/computeBindings.ts'
 import { TAA_PASS } from '../stage/passLabels.ts'
+import { FULL_ANALYSIS, type AnalysisWork } from './levels.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { resolveTargetUsage, taaPass } from './resolve.ts'
@@ -55,6 +56,7 @@ import {
 } from './rejectionWgsl.ts'
 import {
   ANTI_ALIASING_FORMAT,
+  ANTI_ALIAS_NEUTRAL,
   LDR_LUMA_FORMAT,
   SPATIAL_AA_BINDINGS,
   spatialAntiAliasingShader,
@@ -122,6 +124,8 @@ const TILES = [
   [HELD_MEASURE_PLAN.width, HELD_MEASURE_PLAN.height],
   [REJECTION_PLAN.width, REJECTION_PLAN.height],
 ] as const
+/** The flicker measure's place among them. */
+const FLICKER_DISPATCH = 3
 /** The compute pass they share. */
 const COMPUTE_PASS: GPUComputePassDescriptor = { label: TAA_PASS }
 
@@ -134,9 +138,10 @@ const COMPUTE_PASS: GPUComputePassDescriptor = { label: TAA_PASS }
  *    last image wrote into this image's targets, and the occluder words;
  * 3. the thin geometry detection (`thinGeometryWgsl.ts`), which writes the thin geometry history
  *    and this image's mask;
- * 4. the flicker measure (`flickerWgsl.ts`), which writes the flicker history and empties the
- *    occluder words for the next image — none before the first, made empty;
- * 5. the held measure (`rejectionWgsl.ts`), the filtered input and history the rejection clamps;
+ * 4. the flicker measure (`flickerWgsl.ts`), which writes the flicker history, where the level
+ *    runs it (`AnalysisWork`);
+ * 5. the held measure (`rejectionWgsl.ts`), the filtered input and history the rejection clamps,
+ *    which empties the occluder words for the next image — none before the first, made empty;
  * 6. the shading rejection (`rejectionWgsl.ts`), which writes the shading history;
  * 7. the spatial anti-aliaser (`spatialAntiAliasingWgsl.ts`), a fullscreen draw.
  * The groups that name the frame's inputs follow their identity, two held — the lit image is one of
@@ -201,7 +206,6 @@ export async function createTaaAnalysis(
     computeTextureEntry(FLICKER_BINDINGS.marks, 'uint'),
     computeStorageTextureEntry(FLICKER_BINDINGS.flickerOut, FLICKER_FORMAT),
     computeStorageTextureEntry(FLICKER_BINDINGS.error, FLICKER_ERROR_FORMAT),
-    computeBufferEntry(FLICKER_BINDINGS.occluders, 'storage', compute),
     computeTextureEntry(FLICKER_BINDINGS.thin, 'uint'),
   ])
   const rejectionLayout = layoutOf([
@@ -229,6 +233,7 @@ export async function createTaaAnalysis(
     computeStorageTextureEntry(HELD_MEASURE_BINDINGS.filteredInput, HELD_MEASURE_FORMAT),
     computeStorageTextureEntry(HELD_MEASURE_BINDINGS.filteredHistory, HELD_MEASURE_FORMAT),
     computeStorageTextureEntry(HELD_MEASURE_BINDINGS.filteredError, HELD_MEASURE_FORMAT),
+    computeBufferEntry(HELD_MEASURE_BINDINGS.occluders, 'storage', compute),
   ])
   const fragment = GPUShaderStage.FRAGMENT
   const aaLayout = layoutOf([
@@ -315,6 +320,11 @@ export async function createTaaAnalysis(
       reprojectGroup: GPUBindGroup
       aaGroup: GPUBindGroup
       aaPass: GPURenderPassDescriptor
+      /** The anti-aliaser's target cleared to no offset and no noise filtering, no draw: what the
+       *  history update reads where the level runs no anti-aliaser (`ANTI_ALIAS_NEUTRAL`). */
+      aaNeutral: GPURenderPassDescriptor
+      /** Whether the anti-aliaser's target holds its neutral word since it last drew. */
+      aaNeutralHeld: boolean
     }
   let width = 0,
     height = 0,
@@ -420,7 +430,6 @@ export async function createTaaAnalysis(
           marks: t.marks,
           flickerOut: t.flicker,
           error: t.vectorsError,
-          occluders: { buffer: t.occluders },
           thin: t.thin,
         }),
       }),
@@ -434,6 +443,7 @@ export async function createTaaAnalysis(
           filteredInput: t.filteredInput,
           filteredHistory: t.filteredHistory,
           filteredError: t.filteredError,
+          occluders: { buffer: t.occluders },
         }),
       }),
       device.createBindGroup({
@@ -520,6 +530,18 @@ export async function createTaaAnalysis(
           }),
         }),
         aaPass: taaPass([antiAliasing]),
+        aaNeutralHeld: false,
+        aaNeutral: {
+          label: TAA_PASS,
+          colorAttachments: [
+            {
+              view: antiAliasing,
+              loadOp: 'clear' as const,
+              storeOp: 'store' as const,
+              clearValue: [ANTI_ALIAS_NEUTRAL, 0, 0, 0],
+            },
+          ],
+        },
       }
       made = { ...own, reprojectGroup: reprojectGroupOf(own) }
     },
@@ -537,12 +559,17 @@ export async function createTaaAnalysis(
     },
     /** Encodes the analysis of the frame's `inputs` over the `render` size, drawn through an
      *  `orthographic` projection or not: the dispatches in one compute pass, then the anti-aliaser's
-     *  draw. */
+     *  draw — the `work` the level runs (`AnalysisWork`). Without the flicker measure, its
+     *  dispatch is left out: the rejection reads no flicker error (`view.quality.x`), its history
+     *  waits unwritten — an image running it again drops the history (`encodeTaaPass`). The held
+     *  measure, which runs at every level, empties the occluder words. Without the anti-aliaser,
+     *  its target is cleared to its neutral word once, no draw, until it draws again. */
     encode(
       encoder: GPUCommandEncoder,
       inputs: TaaInputs,
       render: readonly [number, number],
       orthographic: boolean,
+      work: AnalysisWork = FULL_ANALYSIS,
     ) {
       const t = targets()
       const slices = orthographic ? 2 : 1
@@ -552,11 +579,19 @@ export async function createTaaAnalysis(
         h = render[1]
       const dispatches = encoder.beginComputePass(COMPUTE_PASS)
       for (let s = 0; s < TILES.length; s++) {
+        if (s === FLICKER_DISPATCH && !work.flicker) continue
         dispatches.setPipeline(pipelines[s])
         dispatches.setBindGroup(0, groups[s])
         dispatches.dispatchWorkgroups(ceilDiv(w, TILES[s][0]), ceilDiv(h, TILES[s][1]))
       }
       dispatches.end()
+      // Without the anti-aliaser, its target is cleared to its neutral word once, until it draws.
+      if (!work.antiAlias) {
+        if (!t.aaNeutralHeld) encoder.beginRenderPass(t.aaNeutral).end()
+        t.aaNeutralHeld = true
+        return
+      }
+      t.aaNeutralHeld = false
       const pass = encoder.beginRenderPass(t.aaPass)
       pass.setViewport(0, 0, w, h, 0, 1)
       pass.setPipeline(aaPipeline)

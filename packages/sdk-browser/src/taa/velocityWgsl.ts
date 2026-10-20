@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { PI } from '../../../math/src/wgsl/constants.ts'
+import { TAU } from '../../../math/src/constants.ts'
 import {
   ndcToPixel,
   perspectiveDivide,
@@ -9,6 +10,7 @@ import {
   uvToNdc,
 } from '../../../math/src/wgsl/projection.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { HISTORY_SHARE_MASK } from '../visibility/types.ts'
 import { visPageIndex } from '../visibility/visWords.ts'
 import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { TAA_REPROJECT_WGSL } from './deformWgsl.ts'
@@ -68,7 +70,7 @@ export const HOLE_FILL_WGSL = wgslBlock(
   [PI],
   `
 const HOLE_FILL_LENGTH_MAX:f32=${wgslF32(((1 << HOLE_FILL_LENGTH_BITS) - 1.5) / HOLE_FILL_LENGTH_STEPS)};
-const HOLE_FILL_ANGLE_STEP:f32=${wgslF32((2 * Math.PI) / (1 << HOLE_FILL_ANGLE_BITS))};
+const HOLE_FILL_ANGLE_STEP:f32=${wgslF32(TAU / (1 << HOLE_FILL_ANGLE_BITS))};
 fn encodeHoleFill(v:vec2f)->u32{
  let angle=atan2(v.y,v.x)*${wgslF32((0.5 * (1 << HOLE_FILL_ANGLE_BITS)) / Math.PI)}+${(0.5 * (1 << HOLE_FILL_ANGLE_BITS)).toFixed(1)};
  let a=u32(round(angle))&${(1 << HOLE_FILL_ANGLE_BITS) - 1}u;
@@ -131,7 +133,7 @@ export const MARKS_FORMAT: GPUTextureFormat = 'rgba8uint'
  *  writes into the same bits of its own (`resolveWgsl.ts`). */
 export const SHARE_CODE_SHIFT = 4
 /** Those four bits, in place. */
-export const SHARE_CODE_MASK = 15 << SHARE_CODE_SHIFT
+export const SHARE_CODE_MASK = HISTORY_SHARE_MASK << SHARE_CODE_SHIFT
 export const VECTOR_FORMAT: GPUTextureFormat = 'r32uint'
 
 /**

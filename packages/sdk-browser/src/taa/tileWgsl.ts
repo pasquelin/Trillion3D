@@ -29,7 +29,8 @@ export interface TilePlan {
 /** Texels a row of the span within `ring` of the tile. */
 const ringSide = (plan: TilePlan, ring: number) => plan.width + 2 * ring
 /** Texels of the span within `ring` of the tile. */
-const ringTexels = (plan: TilePlan, ring: number) => ringSide(plan, ring) * (plan.height + 2 * ring)
+export const ringTexels = (plan: TilePlan, ring: number) =>
+  ringSide(plan, ring) * (plan.height + 2 * ring)
 /** Invocations of a workgroup: one per written texel. */
 const tileLanes = ({ width, height }: TilePlan) => width * height
 

@@ -18,7 +18,6 @@ function runtime(temporalAntialiasing: boolean) {
     context: { temporalAntialiasing },
     gpu: {
       temporal: undefined,
-      temporalWanted: true,
       temporalLevel: 'max',
       device: inertTaaDevice(),
       targetBytes: 0,

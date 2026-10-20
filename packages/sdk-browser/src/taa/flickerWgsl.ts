@@ -32,7 +32,6 @@ export const FLICKER_BINDINGS = {
   marks: 5,
   flickerOut: 6,
   error: 7,
-  occluders: 8,
   thin: 9,
 } as const
 
@@ -120,11 +119,6 @@ export const flickerParallaxInverse = (renderWidth: number, intervalMs: number |
  * the colour, the reactive value and the flicker history once; the relaxation's texels read the
  * thin geometry mask, the replay's the flicker history again and the mask, the written texels the
  * flicker history, the marks and the reprojection word.
- *
- * The reprojection, the last reader of the closest occluder words (`velocityWgsl.ts`), ran in a
- * dispatch before: each lane empties its texel's word — and its second under an orthographic
- * projection — so the next image's scatter starts from none, with no clear between the dispatches;
- * one store a texel, two under an orthographic projection.
  */
 export const flickerShader = () => {
   const plan = FLICKER_PLAN
@@ -156,16 +150,9 @@ export const flickerShader = () => {
 @group(0) @binding(${FLICKER_BINDINGS.marks}) var marks:texture_2d<u32>;
 @group(0) @binding(${FLICKER_BINDINGS.flickerOut}) var flickerOut:texture_storage_2d<${FLICKER_FORMAT},write>;
 @group(0) @binding(${FLICKER_BINDINGS.error}) var errorOut:texture_storage_2d<${FLICKER_ERROR_FORMAT},write>;
-@group(0) @binding(${FLICKER_BINDINGS.occluders}) var<storage,read_write> occluders:array<u32>;
 @group(0) @binding(${FLICKER_BINDINGS.thin}) var thin:texture_2d<u32>;
 ${tileWords(modified.end)}
 ${tileEntry(plan, 'flickerMeasure')}
- let own=corner+vec2i(i32(lane%${plan.width}u),i32(lane/${plan.width}u));
- if(all(own<vec2i(view.render.xy))){
-  let index=u32(own.y)*u32(view.render.x)+u32(own.x);
-  occluders[index]=0u;
-  if(view.radius.w!=0.0){occluders[u32(view.render.x)*u32(view.render.y)+index]=0u;}
- }
 ${tileStage(
   plan,
   9,

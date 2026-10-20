@@ -7,7 +7,7 @@ import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { TAA_PASS } from '../stage/passLabels.ts'
 
 /** The share target: the as-is share in red, the history's validity in green, eight bits each. */
-export const SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
+const SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
 /** A history's targets, in the resolve's order: colour, share target. */
 export const HISTORY_FORMATS = [HDR_FORMAT, SHARE_FORMAT] as const
 

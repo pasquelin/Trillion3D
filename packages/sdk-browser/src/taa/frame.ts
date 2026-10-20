@@ -1,15 +1,19 @@
 import { jitterViewProjection, taaJitter, upscalePhases } from './jitter.ts'
-import { isOrthographic, taaExposure, writeTaaView } from './view.ts'
+import { taaExposure, writeTaaView } from './view.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { sameMatrixBits } from '../../../math/src/matrix/matrixElements.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
+import type { AsIsShare } from '../lighting/deferred/asIsShare.ts'
 import { writtenFilter } from '../webgpu/blend/displayFilter.ts'
 import { drawFrameAt, scalesTargets, taaRuns } from '../webgpu/pages/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
 import { encodeComposedMotion } from '../placement/composedMotionPass.ts'
 import { taaViewCode } from '../visibility/shader/shadeMode.ts'
-import { TAA_LEVEL_KNOBS } from './levels.ts'
+import { FULL_ANALYSIS, taaKnobs } from './levels.ts'
+import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
+import { writesGivenUp } from '../webgpu/pages/prepare/asIsShareTarget.ts'
 
 /**
  * Image entry of the pass, called once per image drawn, where the image's motion is known. A
@@ -86,7 +90,8 @@ export function taaRenderProjection(rt: WebgpuPagesRuntime, cam: EngineCamera, o
  * render-resolution histories are kept at; `asIs` false reads no as-is flags; the image is reconstructed to the display from whatever size it
  * was drawn at. `share`, seeded when blends or particles draw,
  * holds the as-is share and the reactive value the blends, particles and water wrote
- * (`../lighting/deferred/asIsShare.ts`), which shortens a moving pixel's history.
+ * (`../lighting/deferred/asIsShare.ts`), which shortens a moving pixel's history, and beside it
+ * what the blends and transmissive layers give up of that history, which caps it.
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -95,7 +100,7 @@ export function encodeTaaPass(
   cam: EngineCamera,
   current: GPUTextureView,
   asIs = true,
-  share?: GPUTextureView,
+  share?: AsIsShare,
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     { gpu, vis, run } = rt
@@ -114,6 +119,23 @@ export function encodeTaaPass(
   const { inputs, filterHistory } = temporal
   inputs.filter = writtenFilter(gpu.displayFilter) // `displayFilter.ts`
   const exposure = taaExposure(rt.lights.store?.environment)
+  const knobs = taaKnobs(gpu.temporalLevel),
+    viewCode = taaViewCode(run.diagnostic),
+    moved = temporal.motion.moved || !!rt.compose?.moving
+  // The analysis the level runs: the flicker measure where it rejects by it or a view shows it.
+  const work = viewCode >= FIRST_ANALYSIS_VIEW ? FULL_ANALYSIS : knobs.work
+  // A flicker history the measure left unwritten describes no image: it starts again, with the
+  // history it is told against.
+  if (work.flicker && !state.flickerRan) dropTaaHistory(state)
+  state.flickerRan = work.flicker
+  // A still image adds to the count its convergence is told by; any motion starts it again.
+  const still =
+    state.hasHistory &&
+    !scan &&
+    run.gate.revisions.resources === state.resourcesSeen &&
+    !moved &&
+    !vis.deformationCompute &&
+    sameMatrixBits(state.previousViewProjection, cam.viewProjection)
   writeTaaView(
     device,
     temporal.uniform,
@@ -122,14 +144,14 @@ export function encodeTaaPass(
     targetSize,
     displaySize,
     temporal.analysisSize,
-    temporal.motion.moved || !!rt.compose?.moving,
+    moved,
     !!inputs.filter && filterHistory.written,
     !!vis.deformationCompute,
     exposure,
     // The display's interval, the world's controller's (`rt.views.main`), whichever view is drawn.
     rt.views.main.scale.frameIntervalMs,
-    taaViewCode(run.diagnostic),
-    TAA_LEVEL_KNOBS[gpu.temporalLevel],
+    viewCode,
+    knobs,
   )
   inputs.current = current
   inputs.depth = gpu.depthView
@@ -140,19 +162,23 @@ export function encodeTaaPass(
   inputs.positions = vis.concatPos
   inputs.uvs = vis.concatUv
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined
-  inputs.share = asIs ? share : undefined
-  inputs.reactive = share
-  const output = temporal.encode(encoder, inputs, targetSize, isOrthographic(cam.projection))
+  inputs.share = asIs ? share?.view : undefined
+  inputs.reactive = share?.view
+  // Bound where the blends wrote it; else the 1×1 zero: nothing given up (`writesGivenUp`).
+  inputs.givenUp = writesGivenUp(rt) ? share?.givenUpView : undefined
+  const output = temporal.encode(encoder, inputs, targetSize, cam.perspective === 0, work)
   if (inputs.filter) gpu.targetBytes += filterHistory.uncounted()
-  // Its two draws, the spatial anti-aliaser and the history update; the analysis' passes are
-  // dispatches.
-  run.gpuDrawCalls += 2
+  // Its draws, the spatial anti-aliaser where the level runs one and the history update; the
+  // analysis' passes are dispatches.
+  run.gpuDrawCalls += work.antiAlias ? 2 : 1
   state.sceneSeen = scene
   state.previousViewProjection.set(cam.viewProjection)
   state.previousEye.set(cam.eye)
   state.previousRender[0] = targetSize[0]
   state.previousRender[1] = targetSize[1]
   state.previousExposure = exposure
+  state.accumulated = still ? state.accumulated + 1 : 1
+  state.resourcesSeen = run.gate.revisions.resources
   state.hasHistory = true
   state.sample = (state.sample + 1) % state.phases
   state.stochasticSample++

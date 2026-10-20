@@ -71,6 +71,7 @@ const image = (): PartitionFrame => ({
   layerTop: 0,
   hasRest: true,
   counting: false,
+  cull: 'follow',
 })
 
 const words = new Uint32Array(PARTITION_UNI.words),

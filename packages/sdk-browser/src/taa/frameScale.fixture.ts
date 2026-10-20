@@ -20,7 +20,6 @@ export function runtime(option: RenderScale = { min: 0.5, max: 1 }, display = DI
   const rt = {
     gpu: {
       temporal: { frame: createTaaFrameState() },
-      temporalWanted: true,
       temporalLevel: 'max',
       targetSize: [...display],
       allocatedSize: [...display],

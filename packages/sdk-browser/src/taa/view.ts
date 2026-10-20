@@ -9,7 +9,7 @@ import {
 
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_VIEW, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
-import { IMAGE_SAMPLES } from './historyWgsl.ts'
+import { MAX_HISTORY_SAMPLES } from './historyWgsl.ts'
 import { THIN_GEOMETRY_PERIODS, flickerCountRate, flickerParallaxInverse } from './flickerWgsl.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { stochasticSlot, type TaaFrameState } from './frameState.ts'
@@ -23,9 +23,6 @@ const T = TAA_VIEW.at,
  *  so its ratio to the last image's stays finite. */
 export const taaExposure = (environment: SceneEnvironment | undefined) =>
   Math.max(environmentExposure(environment), 1e-6)
-
-/** Whether `projection` (column-major) is orthographic: its `w` does not follow the depth. */
-export const isOrthographic = (projection: ArrayLike<number>) => projection[11] === 0
 
 /** Writes `(width, height, 1/width, 1/height)` of `grid` at `at`. */
 function writeGrid(into: Float32Array, at: number, grid: ArrayLike<number>) {
@@ -56,18 +53,23 @@ function writeReprojection(
 
 /**
  * The projection's depth terms (`view.depth`, `view.radius`, `depthWgsl.ts`) from the column-major
- * `projection` and the render width: a view point `(0, 0, t)` projects to `z = p₁₀·t + p₁₄`,
+ * `projection`, whether it is a `perspective` one (`EngineCamera.perspective`), and the render
+ * width: a view point `(0, 0, t)` projects to `z = p₁₀·t + p₁₄`,
  * `w = p₁₁·t + p₁₅`; its scene depth is `|t|`, `t` of the sign that puts it ahead (`radius.z`). A
  * render pixel's world radius is `1 / (|p₀| · width)` per unit of depth under a perspective, at any
  * depth under an orthographic projection (`radius.w`).
  */
-function writeDepthTerms(into: Float32Array, projection: ArrayLike<number>, renderWidth: number) {
+function writeDepthTerms(
+  into: Float32Array,
+  projection: ArrayLike<number>,
+  perspective: boolean,
+  renderWidth: number,
+) {
   into[T.depth] = projection[10]
   into[T.depth + 1] = projection[14]
   into[T.depth + 2] = projection[11]
   into[T.depth + 3] = projection[15]
   const radius = 1 / ((Math.abs(projection[0]) || 1) * renderWidth)
-  const perspective = !isOrthographic(projection)
   into[T.radius] = perspective ? radius : 0
   into[T.radius + 1] = perspective ? 0 : radius
   into[T.radius + 2] = perspective ? Math.sign(projection[11]) : -Math.sign(projection[10]) || 1
@@ -81,7 +83,7 @@ function writeDepthTerms(into: Float32Array, projection: ArrayLike<number>, rend
  * was drawn in, its jitter and its rank, the eye and whether a GPU deformation moved (`deformed`);
  * the `exposure` every measured colour is exposed by (`taaExposure`), and its ratio to the last
  * image's; the flicker rates for a frame `frameIntervalMs` long; what the resolve outputs in place
- * of the accumulated colour (`output`, `taaViewCode`); the camera's parallax since the last image; the blend factor a whole shading history takes the image at (`IMAGE_SAMPLES`); the
+ * of the accumulated colour (`output`, `taaViewCode`); the camera's parallax since the last image; the blend factor a whole shading history takes the image at (`MAX_HISTORY_SAMPLES`); the
  * projection's depth terms;
  * the last image's render grid and the render-resolution histories' allocated size (`analysisGrid`);
  * the level's `knobs`, the finest level's by default.
@@ -134,10 +136,10 @@ export function writeTaaView(
     packed[T.parallax + row] = transformDirectionRow(last, row, dx, dy, dz)
   packed[T.rates] = flickerParallaxInverse(render[0], frameIntervalMs)
   // The blend factor of a render pixel's history holding the image's samples, at this render scale.
-  packed[T.rates + 1] = 1 / (1 + IMAGE_SAMPLES / (render[0] / display[0]) ** 2)
+  packed[T.rates + 1] = 1 / (1 + MAX_HISTORY_SAMPLES / (render[0] / display[0]) ** 2)
   packed[T.rates + 2] = 0
   packed[T.rates + 3] = 0
-  writeDepthTerms(packed, cam.projection, render[0])
+  writeDepthTerms(packed, cam.projection, cam.perspective !== 0, render[0])
   writeGrid(packed, T.prevRender, state.previousRender[0] > 0 ? state.previousRender : render)
   writeGrid(packed, T.analysisGrid, analysisGrid)
   packed[T.quality] = knobs.flicker ? 1 : 0

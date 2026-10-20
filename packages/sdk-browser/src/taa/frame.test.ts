@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dropTaaHistory } from './landing.ts'
+import { dropTaaHistory, taaConverged } from './landing.ts'
+import { HISTORY_LAWS } from './historyWgsl.ts'
+import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { taaRenderMatrix } from './frame.ts'
 import { runtime } from './frame.fixture.ts'
 import { TAA_SAMPLES } from './jitter.ts'
@@ -68,4 +70,29 @@ test('the jitter runs on every image, a cut drops the history', () => {
   dropTaaHistory(temporal.frame)
   assert.equal(temporal.frame.hasHistory, false)
   assert.equal(temporal.frame.sample, 0)
+})
+
+test('motion restarts the convergence count: a still view after it holds once its own images fill the history', () => {
+  const { rt, cam, temporal, frame } = runtime()
+  const converged = () => taaConverged(temporal.frame, 64, 64)
+  for (let i = 0; i < 30; i++) frame(true)
+  assert.equal(temporal.frame.accumulated, 30, 'a still view counts every image')
+  // The camera moves: the history is kept, its count restarts with this image.
+  cam.viewProjection = Float64Array.from(IDENTITY_MATRIX4, (v, i) => (i === 12 ? 0.25 : v))
+  frame(false)
+  assert.equal(temporal.frame.accumulated, 1)
+  assert.equal(temporal.frame.hasHistory, true)
+  // Still again: never whole before the history holds its most samples of still images.
+  let images = 1
+  while (!converged()) {
+    frame(true)
+    images++
+  }
+  const { samples } = HISTORY_LAWS
+  assert.ok(images >= samples, `${images} still images, at least ${samples}`)
+  assert.equal(temporal.frame.sample, 0, 'held at the end of a jitter cycle')
+  // A resource landing restarts it too.
+  rt.run.gate.resourcesChanged()
+  frame(true)
+  assert.equal(temporal.frame.accumulated, 1)
 })

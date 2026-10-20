@@ -21,7 +21,7 @@ function uniforms(intervals: number[], handed: number | null = null) {
     size = () => [64, 32],
     revisions = { scene: 0, view: 0, resources: 0 }
   const rt = {
-    gpu: { temporal, temporalWanted: true },
+    gpu: { temporal, temporalLevel: 'max' },
     vis: {},
     run: { diagnostic: 'beauty', frame: 0, gate: { revisions } },
     capture: { capturing: false },

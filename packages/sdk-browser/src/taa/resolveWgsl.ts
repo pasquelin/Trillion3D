@@ -3,20 +3,22 @@ import { TAA_WINDOW_WGSL } from './filterWeights.ts'
 import { layerText, taaOut } from './layers.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { LARGEST_SCENE_COLOR, LARGEST_SMALL_FLOAT } from './colorSpaceWgsl.ts'
+import { LARGEST_SCENE_COLOR, LARGEST_SMALL_FLOAT, quantizationError } from './colorSpaceWgsl.ts'
+import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { TILE_CLAMP_WGSL } from './tileWgsl.ts'
 import { FIRST_ANALYSIS_VIEW } from './rejectionWgsl.ts'
 import { SHARE_CODE_SHIFT } from './velocityWgsl.ts'
-import { HISTORY_SHARE_STEPS } from '../visibility/types.ts'
+import { HISTORY_GIVEN_UP_WGSL } from '../visibility/types.ts'
 
-/** The diagnostic view of the most of its history each pixel's material keeps
+/** The diagnostic view of the most of its history each pixel's material keeps — its opaque
+ *  surface's or, at their coverage, its transparents' (`materialShare`) —
  *  (`taa-material-history`, `../visibility/shader/shadeMode.ts`), as grey — white the whole
  *  history, black none —, after the analysis views. */
 const MATERIAL_HISTORY_VIEW = FIRST_ANALYSIS_VIEW + 5
 
-/** The history colour's mantissa bits (`HDR_FORMAT`, half floats): its stochastic rounding's
- *  relative step. */
-const HISTORY_MANTISSA_ERROR = 0.5 ** 10
+/** The history colour's relative rounding step (`HDR_FORMAT`, the colour of `HISTORY_FORMATS`):
+ *  its stochastic rounding's. */
+const HISTORY_MANTISSA_ERROR = quantizationError(HDR_FORMAT)
 
 /**
  * The kernel of the current image around render texel `k`, the display pixel's centre `ko` off it
@@ -81,7 +83,7 @@ const viewText = (blended: boolean) => ` let shown=u32(view.params.w);
  *
  * The kernel centre moves by the anti-aliaser's offset as far as the history is rejected
  * (`saturate(1 − 4·rejection)`, in full off screen or disoccluded). The weights, in whole
- * histories (`HISTORY_HYSTERESIS` an image of full alignment): the image's is its nearest texel's
+ * histories (`HISTORY_HYSTERESIS` an image of full alignment, `HISTORY_LAWS`): the image's is its nearest texel's
  * alignment at the kernel's alignment scale; the history's, the image's weight (the coarse
  * alignment's where it has none) times `(1 − b) / b` of the rejection's blend factor, at most the
  * history's validity — clamped by the validity drop (`REJECTED_VALIDITY_DROP`) — and the whole less
@@ -96,7 +98,9 @@ const viewText = (blended: boolean) => ` let shown=u32(view.params.w);
  * by more — a contrasted edge keeps its weight, so it stays stable. The image and the history are
  * blended by their weights times their tone weights — where the history is read and not
  * disoccluded, the history's share of the weights is capped by the most its material keeps
- * (`materialShare`, the rejection's `SHARE_CODE_SHIFT` bits, in twelfths): past it, the weights
+ * (`materialShare`: the least of the opaque surface's, the rejection's `SHARE_CODE_SHIFT` bits in
+ * twelfths, and what its transparents leave, the complement of the history they give up at the
+ * render texel, `givenUp`, `GIVEN_UP_TARGET`): past it, the weights
  * become that share and its complement of their sum; 0.75, a responsive material, the current
  * image weighing at least a quarter; 0 the current filtered image alone —; the validity, the
  * weights' sum, is kept in eight bits,
@@ -112,8 +116,8 @@ const viewText = (blended: boolean) => ` let shown=u32(view.params.w);
  * up to 3 the weights and the share target — are those of the beauty image, the colour history
  * then holds that output, dropped when the view changes. Off, a uniform branch never taken.
  *
- * Per pixel: one vector, one rejection and one anti-aliaser load, the history's five Catmull-Rom
- * taps of colour and share target, the kernel's five colour loads.
+ * Per pixel: one vector, one rejection, one anti-aliaser and one given-up load, the history's five
+ * Catmull-Rom taps of colour and share target, the kernel's five colour loads.
  */
 export const taaResolveShader = (asIs: boolean, blended = false, filtered = false) =>
   wgslProgram(
@@ -127,7 +131,8 @@ export const taaResolveShader = (asIs: boolean, blended = false, filtered = fals
  let rejected=textureLoad(rejection,at,0);
  let antiAliased=textureLoad(antiAliasing,at,0).rg;
  let prevScreen=screen-vector;
- let speed=length(vector*view.viewport.xy);
+ // The display pixels it slid since the last image: half the screen vector's span per pixel.
+ let speed=length(vector*view.viewport.xy*0.5);
  let lowFrequency=rejected.r;let clampLift=rejected.g;let validityDrop=rejected.b;
  let bits=u32(round(rejected.a*255.0));
  let offScreen=view.params.x!=0.0||max(abs(prevScreen.x),abs(prevScreen.y))>=1.0;
@@ -137,7 +142,7 @@ export const taaResolveShader = (asIs: boolean, blended = false, filtered = fals
  var past=TaaPast(vec4f(0.0),vec4f(0.0));
  let pastRead=!(lowFrequency<=0.0||offScreen);
  if(pastRead){past=historyRead(prevUv);}
- let materialShare=1.0-f32((bits>>${SHARE_CODE_SHIFT}u)&15u)/${HISTORY_SHARE_STEPS}.0;
+ let materialShare=min(1.0-historyGivenUp(bits>>${SHARE_CODE_SHIFT}u),1.0-textureLoad(givenUp,at,0).r);
  let shiftShare=select(saturate(1.0-lowFrequency*4.0),1.0,offScreen||disoccluded);
  ppco+=decodeAntiAliasOffset(antiAliased.x)*shiftShare;
  let k=clampTexel(vec2i(ppco));
@@ -176,5 +181,5 @@ ${kernelText(asIs, blended, filtered)} let clamped=clamp(past.color,lo,hi);
  color=vec4f(clamp(ditherFloat(color.rgb,random,${wgslF32(HISTORY_MANTISSA_ERROR)}),vec3f(0.0),vec3f(${wgslF32(LARGEST_SMALL_FLOAT)}/exposure)),color.a);
 ${viewText(blended)}${asIs ? ' let keptShare=clamp(past.tag.r,shareLo,shareHi);\n' : ''}${layerText(filtered, 'kept')} return ${taaOut(asIs, filtered)};
 }`,
-    [taaPrelude(asIs, blended, filtered), TAA_WINDOW_WGSL, TILE_CLAMP_WGSL],
+    [taaPrelude(asIs, blended, filtered), TAA_WINDOW_WGSL, TILE_CLAMP_WGSL, HISTORY_GIVEN_UP_WGSL],
   )

@@ -1,32 +1,50 @@
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { saturate } from '../../../math/src/scalar/reals.ts'
 
-/** The most samples a pixel of the image holds at the display's resolution: sixteen images
- *  average the jitter's noise away while a change still shows within a fraction of a second — the
- *  factor the shading history takes the image at follows it (`view.rates.y`). */
-export const IMAGE_SAMPLES = 16
-/** The display history's density: what a history of twice the display's resolution holds per
- *  display pixel, four of its pixels. */
-const HISTORY_DENSITY = 4
-/**
- * The most samples a display pixel's history holds: the image's, times the density — each image
- * weighs a 64th of a whole history, so a still pixel's history moves by a 64th of its jitter's
- * swing an image, and a thin, contrasted pattern the jitter samples differently every image stays
- * still. Motion and a shading rejection still cap it in images (`MOVING_SAMPLES`,
- * `REJECTED_SAMPLES`), so its sharpness in motion and its reaction to a change are those of the
- * sixteen.
- */
-export const HISTORY_SAMPLES = IMAGE_SAMPLES * HISTORY_DENSITY
-/** The most it keeps after a full shading rejection: two, enough to damp the new shading's first
- *  noisy image without dragging the old one along. */
+/** The most samples a display pixel's history holds, 8 to 32 by the weight law's bounds: sixteen
+ *  images average the jitter's noise away while a change still shows within a fraction of a
+ *  second. The factor the shading history takes the image at follows it at the render resolution
+ *  (`view.rates.y`, `writeTaaView`). */
+export const MAX_HISTORY_SAMPLES = 16
+/** The display histories' resolution per axis, of the display's: they are made at its size
+ *  (`createTaaHistoryTargets`, `allocate`d at the display size), so a history pixel is a display
+ *  pixel (`historySampleLaws`). */
+export const HISTORY_TO_DISPLAY = 1
+/** The most a history keeps after a full shading rejection, in samples of a display pixel: two,
+ *  enough to damp the new shading's first noisy image without dragging the old one along. */
 const REJECTED_SAMPLES = 2
-/** The most it keeps once its pixel slides `MOVING_PIXEL_SPEED` a frame: four — each resample of a
- *  moving history softens it. */
+/** The most it keeps once its pixel slides `MOVING_PIXEL_SPEED` display pixels a frame: four —
+ *  each resample of a moving history softens it. */
 const MOVING_SAMPLES = 4
-/** The speed, in the history update's measure of a pixel's motion, at which `MOVING_SAMPLES` holds. */
+/** The display pixel speed a frame at which `MOVING_SAMPLES` holds. */
 const MOVING_PIXEL_SPEED = 1
-/** The share of a whole history one image of full alignment weighs. */
-export const HISTORY_HYSTERESIS = 1 / HISTORY_SAMPLES
+
+/**
+ * The history update's sample laws for a history of `historyToDisplay` of the display's resolution
+ * per axis, each in samples of a history pixel: a history pixel covers `historyToDisplay⁻²` of a
+ * display pixel, so it holds `MAX_HISTORY_SAMPLES` over that square (`samples`); an image of full
+ * alignment weighs one sample of it (`hysteresis`); a full shading rejection keeps
+ * `REJECTED_SAMPLES` of a display pixel (`rejectedDrop`, the validity's drop to it), a pixel
+ * sliding `MOVING_PIXEL_SPEED` display pixels `MOVING_SAMPLES` of one (`movingDrop`) — each a
+ * display pixel's samples over that square —, the speed read in display pixels (`speedInverse`).
+ */
+export function historySampleLaws(historyToDisplay: number) {
+  const square = historyToDisplay * historyToDisplay
+  const samples = MAX_HISTORY_SAMPLES / square
+  const hysteresis = 1 / samples
+  return {
+    samples,
+    hysteresis,
+    rejectedDrop: 1 - (REJECTED_SAMPLES / square) * hysteresis,
+    movingDrop: saturate(1 - (MOVING_SAMPLES / square) * hysteresis),
+    speedInverse: 1 / MOVING_PIXEL_SPEED,
+  }
+}
+
+/** The display histories' laws (`HISTORY_TO_DISPLAY`): constants of the history update's program
+ *  (`HISTORY_WEIGHTS_WGSL`) and of its convergence (`taaConverged`). */
+export const HISTORY_LAWS = historySampleLaws(HISTORY_TO_DISPLAY)
 
 /**
  * The bicubic Catmull-Rom read of a texture at `uv` in five bilinear taps, the four corners'
@@ -90,18 +108,18 @@ export const SAFE_RCP_WGSL = wgslFn(
 )
 
 /**
- * The weight laws of the history update, in whole histories (`HISTORY_HYSTERESIS` an image of
- * full alignment): `prevMultiplier`, the history's weight per unit of the image's at blend factor
- * `b`, `(1 − b) / b`; and `safeRcp`.
+ * The weight laws of the history update, in whole histories (`HISTORY_HYSTERESIS` an image of full
+ * alignment), the display histories' laws as constants (`HISTORY_LAWS`): `prevMultiplier`, the
+ * history's weight per unit of the image's at blend factor `b`, `(1 − b) / b`; and `safeRcp`.
  */
 export const HISTORY_WEIGHTS_WGSL = wgslBlock(
   'HISTORY_WEIGHTS_WGSL',
   [SAFE_RCP_WGSL],
   `
-const HISTORY_HYSTERESIS:f32=${wgslF32(HISTORY_HYSTERESIS)};
-const HISTORY_SAMPLES:f32=${HISTORY_SAMPLES}.0;
-const REJECTED_VALIDITY_DROP:f32=${wgslF32(1 - REJECTED_SAMPLES * HISTORY_HYSTERESIS)};
-const MOVING_VALIDITY_DROP:f32=${wgslF32(1 - MOVING_SAMPLES * HISTORY_HYSTERESIS)};
-const MOVING_SPEED_INVERSE:f32=${wgslF32(1 / MOVING_PIXEL_SPEED)};
+const HISTORY_SAMPLES:f32=${wgslF32(HISTORY_LAWS.samples)};
+const HISTORY_HYSTERESIS:f32=${wgslF32(HISTORY_LAWS.hysteresis)};
+const REJECTED_VALIDITY_DROP:f32=${wgslF32(HISTORY_LAWS.rejectedDrop)};
+const MOVING_VALIDITY_DROP:f32=${wgslF32(HISTORY_LAWS.movingDrop)};
+const MOVING_SPEED_INVERSE:f32=${wgslF32(HISTORY_LAWS.speedInverse)};
 fn prevMultiplier(b:f32)->f32{return (1.0-b)/max(b,1e-30);}`,
 )

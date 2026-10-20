@@ -18,6 +18,7 @@ export const TAA_BINDINGS = {
   view: 6,
   flags: 7,
   shareHistory: 8,
+  givenUp: 9,
   ...layer.LAYER_BINDINGS,
 } as const
 
@@ -38,6 +39,8 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
     computeBufferEntry(TAA_BINDINGS.view, 'uniform', stage),
     computeTextureEntry(TAA_BINDINGS.flags, blended ? 'float' : 'uint', '2d', stage),
     computeTextureEntry(TAA_BINDINGS.shareHistory, 'float', '2d', stage),
+    // What the transparents over each render texel give up of its history (`GIVEN_UP_TARGET`).
+    computeTextureEntry(TAA_BINDINGS.givenUp, 'float', '2d', stage),
   ]
   const kept = asIs ? entries : entries.filter(({ binding }) => binding !== TAA_BINDINGS.flags)
   return device.createBindGroupLayout({
@@ -112,7 +115,8 @@ export const BINDINGS_WGSL = wgslBlock(
 @group(0) @binding(${TAA_BINDINGS.vectors}) var vectors:texture_2d<u32>;
 @group(0) @binding(${TAA_BINDINGS.antiAliasing}) var antiAliasing:texture_2d<u32>;
 @group(0) @binding(${TAA_BINDINGS.view}) var<uniform> view:TaaView;
-@group(0) @binding(${TAA_BINDINGS.shareHistory}) var shareHistory:texture_2d<f32>;`,
+@group(0) @binding(${TAA_BINDINGS.shareHistory}) var shareHistory:texture_2d<f32>;
+@group(0) @binding(${TAA_BINDINGS.givenUp}) var givenUp:texture_2d<f32>;`,
 )
 export const shareBindingsWgsl = (blended: boolean) =>
   wgslBlock(

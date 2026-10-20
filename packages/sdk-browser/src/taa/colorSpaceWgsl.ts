@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { interleavedGradientNoise, rand3dPcg16 } from '../../../math/src/wgsl/sampling.ts'
 import { HALF_MAX } from '../../../math/src/constants.ts'
+import { DISPLAY_FORMAT } from '../scene/targetFormats.ts'
 
 /**
  * The colour spaces the temporal passes measure and store in, and the noise they dither with.
@@ -19,15 +20,27 @@ import { HALF_MAX } from '../../../math/src/constants.ts'
  *
  * `HALF_MAX`, the largest half float, bounds every inverse so a channel at one stays finite.
  */
-export const PERCEPTUAL_OFFSET = 0.17
-/** An eight-bit channel's step, which a stochastic rounding moves it by (`ditherUnorm`). */
-export const UNORM8_STEP = 1 / 256
+const PERCEPTUAL_OFFSET = 0.17
+/** The mantissa bits a channel of each target format the passes store or show keeps: eight a
+ *  normalised byte, ten a half float, five the blue of an 11-11-10 float (its coarsest). */
+const MANTISSA_BITS: Partial<Record<GPUTextureFormat, number>> = {
+  rgba8unorm: 8,
+  bgra8unorm: 8,
+  rg8unorm: 8,
+  rgba16float: 10,
+  rg11b10ufloat: 5,
+}
+/** The rounding step of a channel of `format`, relative to its value for a float, absolute for a
+ *  normalised one: what a stochastic rounding into it moves a channel by (`ditherUnorm`,
+ *  `ditherFloat`). A format not listed stores single floats, 23 bits. */
+export const quantizationError = (format: GPUTextureFormat) => 0.5 ** (MANTISSA_BITS[format] ?? 23)
 /** The largest scene colour a channel holds before a sum of four of them overflows a half. */
 export const LARGEST_SCENE_COLOR = HALF_MAX * 0.25
 /** The largest value an 11- or 10-bit float holds: what a stored history colour is held below. */
 export const LARGEST_SMALL_FLOAT = 64512
-/** Half a step of a 10-bit display: below it no change is seen. */
-export const DISPLAY_STEP_ERROR = 0.5 / 1024
+/** Half a step of the display the image is shown on (`DISPLAY_FORMAT`): below it no change is
+ *  seen. */
+export const DISPLAY_STEP_ERROR = quantizationError(DISPLAY_FORMAT) / 2
 /** A luma flicker of `e` may be a channel's of `3e`: the measurement luma is the mean of three
  *  channels. */
 export const LUMA_TO_CHANNEL = 3
@@ -54,8 +67,8 @@ fn toneWeight(c:vec3f)->f32{return toneWeightOfLuma4(luma4(c));}`,
  * - `frameRandom`, a 16-bit draw in [0, 1) of a pixel and the image's rank among eight, from the
  *   3D integer hash (`rand3dPcg16`);
  * - `ditherUnorm`, a unit channel rounded stochastically in its target: moved by its step times the
- *   draw less a half, so the target's rounding averages to the value (`step`, `UNORM8_STEP` for
- *   eight bits);
+ *   draw less a half, so the target's rounding averages to the value (`step`, `quantizationError` of
+ *   its target's format);
  * - `ditherFloat`, the same for a float target whose mantissa holds `bits` bits: the step is the
  *   value's own power of two below `value · 2^-bits`.
  */

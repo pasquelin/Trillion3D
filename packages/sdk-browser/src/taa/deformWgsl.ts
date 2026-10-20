@@ -14,7 +14,7 @@ import { visPageIndex, visTriangle } from '../visibility/visWords.ts'
  * the world by the placement's linear part, moves the point back before the placement's own
  * motion and the last view project it. The page geometry is read as every pass reads it.
  */
-export const TAA_DEFORM_WGSL = wgslBlock(
+const TAA_DEFORM_WGSL = wgslBlock(
   'TAA_DEFORM_WGSL',
   [
     PAGE_GEOMETRY_WGSL,

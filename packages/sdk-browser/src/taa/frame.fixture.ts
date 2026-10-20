@@ -45,7 +45,6 @@ export function runtime() {
   const rt = {
     gpu: {
       temporal,
-      temporalWanted: true,
       temporalLevel: 'max',
       depthView: {},
       hdrView: {},

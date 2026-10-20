@@ -10,6 +10,7 @@
  * selection, its planes and its screen-error threshold see none of this jitter.
  */
 import { halton } from '../../../math/src/sequence/halton.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { clipWindowMatrix4 } from '../../../math/src/projection/clip.ts'
 
 /** The jitter positions of a frame drawn at the display's size, before the prime: eight. */
@@ -58,7 +59,7 @@ export function upscaleMipBias(render: number, display: number, temporal = true)
   if (!temporal) return 0
   const footprint = Math.log2(render / display)
   const bias = Math.max(Math.min(footprint, 0) + MIP_BIAS_OFFSET, MIP_BIAS_MIN)
-  return Math.ceil(bias / MIP_BIAS_STEP) * MIP_BIAS_STEP
+  return ceilDiv(bias, MIP_BIAS_STEP) * MIP_BIAS_STEP
 }
 
 /**

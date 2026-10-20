@@ -1,8 +1,6 @@
-import {
-  DEFAULT_TEMPORAL_AA_LEVEL,
-  type TemporalAntialiasingLevel,
-} from '../../../sdk-core/src/contracts/compilerAbi.ts'
-import { resolveTemporalAntialiasing } from '../../../sdk-core/src/contracts/materialOptions.ts'
+import type { TemporalAntialiasingLevel } from '../../../sdk-core/src/contracts/compilerAbi.ts'
+import { temporalAntialiasingLevel } from '../../../sdk-core/src/contracts/materialOptions.ts'
+import { isTaaLevelOn } from './levels.ts'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
 import { taaTargetBytes } from './historyTargets.ts'
 import type { FrameSize } from '../webgpu/pages/state/renderScale.ts'
@@ -11,12 +9,8 @@ import { grantCapability } from '../webgpu/pages/io/drops.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { isCancelled } from '../engine/common.ts'
 import { mainViewGpu, viewGpu, type WebgpuView } from '../webgpu/pages/state/view.ts'
+import { taaWanted } from '../webgpu/pages/state/gpu.ts'
 import { TAA_CAPABILITIES } from './capability.ts'
-
-/** The level a session's or a view's option names: `true` or none the default level, `false`
- *  off (`resolveTemporalAntialiasing`). */
-export const taaLevelOf = (option: boolean | TemporalAntialiasingLevel | undefined) =>
-  resolveTemporalAntialiasing(option) ?? DEFAULT_TEMPORAL_AA_LEVEL
 
 /**
  * Rig temporal antialiasing after deferred lighting, at the level the host asks
@@ -28,10 +22,8 @@ export const taaLevelOf = (option: boolean | TemporalAntialiasingLevel | undefin
  * (`../webgpu/pages/state/renderScale.ts`).
  */
 export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const level = taaLevelOf(rt.context.temporalAntialiasing)
-  rt.gpu.temporalWanted = level !== 'off'
-  if (level !== 'off') rt.gpu.temporalLevel = level
-  if (rt.gpu.temporalWanted) await rigMainTemporal(rt, device)
+  rt.gpu.temporalLevel = temporalAntialiasingLevel(rt.context.temporalAntialiasing)
+  if (taaWanted(rt.gpu)) await rigMainTemporal(rt, device)
 }
 
 /** The main view's pass (`rigViewTemporal`), even when a capture is drawn aside once the program
@@ -49,9 +41,11 @@ async function rigMainTemporal(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /**
  * Sets the pass of `view` — the main one by default, whose switch is the world's — to `level`
- * during the session, no session reopened. Another level while on keeps the pass, its knobs
- * written into the next image's uniform (`TAA_LEVEL_KNOBS`), the history dropped. Turned on or
- * off, the history is dropped either way. Off, the next image is sampled at the pixel centre, the history's targets are
+ * during the session, no session reopened. Another level while on keeps the pass and its history
+ * — no level changes a target's format or size —, its knobs written into the next image's uniform
+ * (`TAA_LEVEL_KNOBS`), and asks a frame: a held view draws again, its convergence counted anew
+ * (`resourcesSeen`); an image that runs the flicker measure after one that did not drops the
+ * history itself (`encodeTaaPass`). Turned on or off, the history is dropped either way. Off, the next image is sampled at the pixel centre, the history's targets are
  * released — no byte of them is kept off — and the program is kept, so that on again is
  * immediate: the targets are made again at the view's size, the first image a cut. On in a session
  * opened without it, the program is rigged in the background and the images stay unjittered until
@@ -69,13 +63,11 @@ export function setWebgpuTemporalAntialiasing(
     // A capture drawn aside meanwhile holds none: the pass is the view's, wherever it is held.
     gpu = viewGpu(rt, view),
     { temporal } = gpu,
-    on = level !== 'off'
-  if (level !== 'off' && gpu.temporalLevel !== level) {
-    gpu.temporalLevel = level
-    if (gpu.temporalWanted) dropTaaHistory(temporal?.frame)
-  }
-  if (gpu.temporalWanted === on) return
-  gpu.temporalWanted = on
+    was = gpu.temporalLevel,
+    on = isTaaLevelOn(level)
+  if (was === level) return
+  gpu.temporalLevel = level
+  if (isTaaLevelOn(was) && on) return void rt.run.gate.resourcesChanged()
   dropTaaHistory(temporal?.frame)
   if (temporal) {
     if (on) joinTargets(gpu)
@@ -125,12 +117,12 @@ export async function rigViewTemporal(
   device = rt.gpu.device,
 ) {
   const wanted = viewGpu(rt, view)
-  if (!device || !wanted.temporalWanted || wanted.temporal) return false
+  if (!device || !taaWanted(wanted) || wanted.temporal) return false
   const temporal = await createTaa(rt, device)
   const gpu = viewGpu(rt, view)
   // Switched off, rigged, removed or closed while the program compiled: not kept.
   const removed = view !== rt.views.main && !rt.views.persistent.includes(view)
-  if (!gpu.temporalWanted || gpu.temporal || removed || isCancelled(rt.signal)) {
+  if (!taaWanted(gpu) || gpu.temporal || removed || isCancelled(rt.signal)) {
     temporal.dispose()
     return false
   }
@@ -165,7 +157,7 @@ function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
  */
 export function ensureTaaTargets(rt: WebgpuPagesRuntime, size: FrameSize, aside = false) {
   const temporal = rt.gpu.temporal
-  if (!temporal || !rt.gpu.temporalWanted) return 0
+  if (!temporal || !taaWanted(rt.gpu)) return 0
   // Under a capture, the capture's reserve already carries history: it is not counted twice.
   if (rt.capture.capturing) return 0
   const { width, height, renderWidth, renderHeight } = size

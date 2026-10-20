@@ -49,7 +49,8 @@ test('shader bindings are those of the layout, and the uniform has the declared 
       `binding ${name}`,
     )
   // Two matrices, then thirteen quadruplets — the level's knobs last (`quality`, `levels.ts`): no
-  // filter weights, the window is evaluated where it is read.
+  // filter weights, the window is evaluated where it is read; the history's laws are constants
+  // (`HISTORY_LAWS`).
   assert.equal(TAA_VIEW_BYTES, 2 * 64 + 13 * 16)
   assert.match(
     TAA_SHADER,

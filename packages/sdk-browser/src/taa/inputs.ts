@@ -18,6 +18,10 @@ export interface TaaInputs {
    *  accumulated opacity over the pixel (`../lighting/deferred/asIsShare.ts`); absent, none is (a
    *  1×1 zero is bound). */
   reactive?: GPUTextureView
+  /** What the blends and transmissive layers over each pixel give up of its history, in red
+   *  (`GIVEN_UP_TARGET`, `../lighting/deferred/asIsShare.ts`); absent, nothing (the same 1×1 zero
+   *  is bound). */
+  givenUp?: GPUTextureView
   /** The display layers of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
   filter?: DisplayLayers
   /** The page pool and the float pool — positions, texture coordinates — a deformed pixel's
@@ -27,11 +31,12 @@ export interface TaaInputs {
   uvs: GPUBuffer
 }
 /** What the history update's groups name, in their identity order. */
-export const INPUTS = ['current', 'flags', 'share', 'filter'] as const
+export const INPUTS = ['current', 'flags', 'share', 'filter', 'givenUp'] as const
 
 /**
  * The history update's bindings but the display layers', reading history `image`: its colour and
- * its share target (`resolveWgsl.ts`); the flags, or a blended share, when the frame has them;
+ * its share target (`resolveWgsl.ts`); the flags, or a blended share, when the frame has them; what
+ * the transparents give up of the history;
  * the analysis's outputs (`analysis.ts`): each render texel's hole-filled reprojection vector,
  * shading rejection, and the spatial anti-aliaser's offset and noise filtering.
  */
@@ -55,6 +60,7 @@ export function taaGroupEntries(
     antiAliasing: analysis.antiAliasing,
     view: { buffer: uniform },
     shareHistory: image.share,
+    givenUp: inputs.givenUp!,
     ...((inputs.flags || inputs.share) && { flags: inputs.share ?? inputs.flags! }),
   })
 }

@@ -8,6 +8,7 @@ import { createTaaFrameState } from './frameState.ts'
 import { createPlacementMotion, type MotionRoot } from './motion.ts'
 import { createTaaFilterHistory, type DisplayLayers } from './layers.ts'
 import { createTaaAnalysis } from './analysis.ts'
+import type { AnalysisWork } from './levels.ts'
 import { standInTexture } from '../gpu/core/standInTexture.ts'
 
 /**
@@ -40,7 +41,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     addressModeV: 'clamp-to-edge',
   })
   const analysis = await createTaaAnalysis(device, sampler, uniform)
-  // A frame with no transparent reads zero as its reactive value, from this one texel.
+  // A frame with no transparent reads zero as its reactive value and as the history its layers give
+  // up, from this one texel.
   const noReactive = standInTexture(device, 'Trillion3D TAA no reactive', AS_IS_SHARE_FORMAT)
   const noReactiveView = noReactive.createView()
   const history = createTaaHistoryTargets(device),
@@ -125,10 +127,12 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       inputs: TaaInputs,
       render: readonly [number, number],
       orthographic = false,
+      work?: AnalysisWork,
     ) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING')
       inputs.reactive ??= noReactiveView
-      analysis.encode(encoder, inputs, render, orthographic)
+      inputs.givenUp ??= noReactiveView
+      analysis.encode(encoder, inputs, render, orthographic, work)
       const kind = inputs.share ? 'blended' : inputs.flags ? 'asIs' : 'flagless'
       const layered = inputs.filter && resolves.filtered(kind)
       // Until the layered resolve is compiled, the image resolves no layer: composition reads the raw ones.
