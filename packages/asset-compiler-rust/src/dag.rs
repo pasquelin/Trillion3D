@@ -116,6 +116,8 @@ struct GroupReduction {
     source_rank: u32,
     /// The vertices the reduction placed (`solved.rs`).
     placed: grown::Placed,
+    /// The ghosts it hands on to the groups of its outputs (`solved.rs`).
+    ghosts: Vec<crate::qem::solve::CarriedGhost>,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
 ///
@@ -150,6 +152,7 @@ pub(crate) mod bounds;
 mod build;
 pub(crate) mod clusters;
 mod diagnosis;
+mod ghosts;
 pub(crate) mod groups;
 mod grown;
 mod levels;

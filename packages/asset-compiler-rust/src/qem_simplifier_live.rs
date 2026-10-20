@@ -1,29 +1,36 @@
 //! The live surface the holes are measured against (`ghosts.rs`): the live triangles by the cells
-//! of one frame unit their box meets (a few mean triangles, `qem_solve.rs`), a stamp per
-//! triangle, and the pieces the triangles make.
+//! of one frame unit their box meets (a few mean triangles, `qem_solve.rs`), a stamp per triangle
+//! and a generation for the whole.
 //!
 //! **Cells.** A moved triangle leaves the cells it was listed in for those it now meets, a
-//! removed one leaves them all, so a list never holds more than what lies there. Every move
-//! stamps the triangle anew: a distance measured to it at an older stamp is stale.
+//! removed one leaves them all, and a cell left empty goes: a list never holds more than what
+//! lies there, and the cells listed are the cells occupied. Every move stamps the triangle anew
+//! and raises the generation: a distance measured to a triangle at an older stamp is stale, and
+//! one measured at the current generation is still exact.
 //!
 //! **Nearest.** The nearest live triangle to a point is sought ring of cells by ring of cells
-//! outwards. The search ends once the rings seen reach past the nearest found or past the cap,
-//! once a triangle within the distance that settles the question is met, or once the rings hold
-//! every occupied cell: its cost follows the distance found, never the size of the grid.
-//!
-//! **Pieces.** Triangles sharing a position are one piece, and a collapse joins every triangle
-//! it gathers (a union-find, the lower root kept).
-use super::{NONE, P};
+//! outwards. The search ends once the rings seen reach past the nearest found or past the cap, or
+//! once a triangle within the distance that settles the question is met; once the rings left to
+//! read hold more cells than are occupied, it reads the occupied cells instead. Its cost follows
+//! the distance found, bounded by the occupied cells, never by the extent of the grid.
+use super::{ADJ_TRI, NONE, P};
+use trillion3d_math::aabb::aabb_of_f32;
 use trillion3d_math::triangle::closest_point;
 use trillion3d_math::vecn::distance2;
 use trillion3d_page_codec::hash::WordMap;
 
-/// The live surface, as the simplifier holds it.
+/// A position in double precision, and a triangle's three.
+pub(super) type W = [f64; 3];
+pub(super) type Corners = [W; 3];
+
+/// The live surface, as the simplifier holds it; `flags` are its corner flags, the gathered
+/// triangles of the collapse weighed marked (`ADJ_TRI`).
 pub(super) struct Surface<'a> {
     pub verts: &'a [f32],
     pub m: usize,
     pub indexes: &'a [u32],
     pub tri_removed: &'a [bool],
+    pub flags: &'a [u8],
 }
 impl Surface<'_> {
     pub fn corners(&self, tri: usize) -> [P; 3] {
@@ -32,24 +39,21 @@ impl Surface<'_> {
             [self.verts[at], self.verts[at + 1], self.verts[at + 2]]
         })
     }
+    pub fn wide(&self, tri: usize) -> Corners {
+        self.corners(tri).map(|p| p.map(f64::from))
+    }
     pub fn bounds(&self, tris: &[usize]) -> (P, P) {
-        let (mut low, mut high) = ([f32::MAX; 3], [-f32::MAX; 3]);
-        for &tri in tris {
-            for p in self.corners(tri) {
-                for a in 0..3 {
-                    low[a] = low[a].min(p[a]);
-                    high[a] = high[a].max(p[a]);
-                }
-            }
-        }
-        (low, high)
+        aabb_of_f32(tris.iter().flat_map(|&tri| self.corners(tri)))
+    }
+    /// Whether the collapse weighed gathers triangle `tri`.
+    pub fn gathered(&self, tri: usize) -> bool {
+        self.flags[tri * 3] & ADJ_TRI != 0
     }
 }
 
 /// The squared distance from `p` to the triangle `abc`.
-pub(super) fn distance_to(p: P, [a, b, c]: [P; 3]) -> f64 {
-    let wide = |x: P| x.map(f64::from);
-    distance2(closest_point(wide(p), wide(a), wide(b), wide(c)), wide(p))
+pub(super) fn distance_to(p: W, [a, b, c]: Corners) -> f64 {
+    distance2(closest_point(p, a, b, c), p)
 }
 
 fn cell(p: P) -> [i32; 3] {
@@ -72,147 +76,151 @@ fn ring(c: [i32; 3], k: i32) -> impl Iterator<Item = [u32; 3]> {
     })
 }
 
+fn cells_of([low, high]: [[i32; 3]; 2]) -> impl Iterator<Item = [u32; 3]> {
+    (low[0]..=high[0]).flat_map(move |x| {
+        (low[1]..=high[1]).flat_map(move |y| (low[2]..=high[2]).map(move |z| key([x, y, z])))
+    })
+}
+
+/// No cell: the first past the last.
+const UNLISTED: [[i32; 3]; 2] = [[0; 3], [-1; 3]];
+
 pub(super) struct Live {
     cells: WordMap<[u32; 3], Vec<u32>>,
-    /// The first and last cell of each triangle's box as listed; none when the first is past
-    /// the last.
+    /// The first and last cell of each triangle's box as listed.
     listed: Vec<[[i32; 3]; 2]>,
-    /// Each triangle's stamp, raised by every move.
+    /// Each triangle's stamp, raised by every move of it.
     pub stamps: Vec<u32>,
-    parents: Vec<u32>,
-    /// The first and last cell ever occupied.
-    low: [i32; 3],
-    high: [i32; 3],
+    /// Raised by every collapse made.
+    pub generation: u32,
 }
 
 impl Live {
-    /// Every live triangle of `surface` listed, the triangles sharing a position joined.
+    /// Every live triangle of `surface` listed.
     pub fn new(surface: &Surface) -> Self {
         let count = surface.tri_removed.len();
         let mut live = Live {
             cells: WordMap::default(),
-            listed: vec![[[0; 3], [-1; 3]]; count],
+            listed: vec![UNLISTED; count],
             stamps: vec![0; count],
-            parents: (0..count as u32).collect(),
-            low: [i32::MAX; 3],
-            high: [i32::MIN; 3],
+            generation: 0,
         };
-        let mut first = WordMap::<[u32; 3], u32>::default();
         for tri in (0..count).filter(|&t| !surface.tri_removed[t]) {
-            live.list(surface, tri);
-            for p in surface.corners(tri) {
-                let at = *first
-                    .entry(p.map(|x| (x + 0.0).to_bits()))
-                    .or_insert(tri as u32);
-                live.join(at as usize, tri);
-            }
+            let (low, high) = surface.bounds(&[tri]);
+            live.list(tri, [cell(low), cell(high)]);
         }
         live
     }
 
-    /// Stamps the triangles of `tris`, gathered by one collapse, lists each where it now lies,
-    /// or nowhere once removed, and joins them.
+    /// Whether triangle `tri` is live and unmoved since `stamp`.
+    pub fn current(&self, surface: &Surface, tri: u32, stamp: u32) -> bool {
+        !surface.tri_removed[tri as usize] && self.stamps[tri as usize] == stamp
+    }
+
+    /// Stamps the triangles of `tris`, gathered by one collapse, and lists each where it now
+    /// lies, or nowhere once removed.
     pub fn moved(&mut self, surface: &Surface, tris: &[usize]) {
+        self.generation = self.generation.wrapping_add(1);
         for &tri in tris {
             self.stamps[tri] = self.stamps[tri].wrapping_add(1);
-            self.join(tri, tris[0]);
-            let [was_low, was_high] = self.listed[tri];
-            let removed = surface.tri_removed[tri];
-            if !removed {
+            let was = self.listed[tri];
+            let now = (!surface.tri_removed[tri]).then(|| {
                 let (low, high) = surface.bounds(&[tri]);
-                if [cell(low), cell(high)] == [was_low, was_high] {
-                    continue;
-                }
+                [cell(low), cell(high)]
+            });
+            if now == Some(was) {
+                continue;
             }
-            for k in Self::cells_of(was_low, was_high) {
+            for k in cells_of(was) {
                 let Some(list) = self.cells.get_mut(&k) else {
                     continue;
                 };
                 if let Some(at) = list.iter().position(|&t| t as usize == tri) {
                     list.swap_remove(at);
                 }
+                if list.is_empty() {
+                    self.cells.remove(&k);
+                }
             }
-            self.listed[tri] = [[0; 3], [-1; 3]];
-            if !removed {
-                self.list(surface, tri);
+            self.listed[tri] = UNLISTED;
+            if let Some(now) = now {
+                self.list(tri, now);
             }
         }
     }
 
-    fn cells_of(low: [i32; 3], high: [i32; 3]) -> impl Iterator<Item = [u32; 3]> {
-        (low[0]..=high[0]).flat_map(move |x| {
-            (low[1]..=high[1]).flat_map(move |y| (low[2]..=high[2]).map(move |z| key([x, y, z])))
-        })
-    }
-
-    fn list(&mut self, surface: &Surface, tri: usize) {
-        let (low, high) = surface.bounds(&[tri]);
-        let (low, high) = (cell(low), cell(high));
-        for k in Self::cells_of(low, high) {
+    fn list(&mut self, tri: usize, box_cells: [[i32; 3]; 2]) {
+        for k in cells_of(box_cells) {
             self.cells.entry(k).or_default().push(tri as u32);
         }
-        for a in 0..3 {
-            self.low[a] = self.low[a].min(low[a]);
-            self.high[a] = self.high[a].max(high[a]);
-        }
-        self.listed[tri] = [low, high];
+        self.listed[tri] = box_cells;
     }
 
-    /// The piece of triangle `tri`: its root.
-    pub fn piece(&mut self, tri: usize) -> u32 {
-        let mut t = tri as u32;
-        while self.parents[t as usize] != t {
-            let up = self.parents[self.parents[t as usize] as usize];
-            self.parents[t as usize] = up;
-            t = up;
-        }
-        t
-    }
-
-    fn join(&mut self, a: usize, b: usize) {
-        let (ra, rb) = (self.piece(a), self.piece(b));
-        self.parents[ra.max(rb) as usize] = ra.min(rb);
-    }
-
-    /// The live triangle outside `skip` nearest to `p` within `cap2` and its squared distance, or
-    /// the first met within `enough2`; `cap2` and none without one.
+    /// The live triangle `keep` accepts nearest to `p` within `cap2`, and its squared distance,
+    /// or the first met within `enough2`; `cap2` and none without one. Ties go to the lower
+    /// triangle.
     pub fn nearest(
         &self,
         surface: &Surface,
         p: P,
-        skip: &[usize],
-        (enough2, cap2): (f64, f64),
+        enough2: f64,
+        cap2: f64,
+        mut keep: impl FnMut(usize) -> bool,
     ) -> (f64, u32) {
-        let c = cell(p);
+        let (c, at) = (cell(p), p.map(f64::from));
         let mut best = (cap2, NONE);
-        for k in 0.. {
+        let mut read = |list: &[u32], best: &mut (f64, u32)| -> bool {
+            for &tri in list {
+                let t = tri as usize;
+                if surface.tri_removed[t] || !keep(t) {
+                    continue;
+                }
+                let d2 = distance_to(at, surface.wide(t));
+                if d2 < best.0 || (d2 == best.0 && tri < best.1) {
+                    *best = (d2, tri);
+                    if d2 <= enough2 {
+                        return true;
+                    }
+                }
+            }
+            false
+        };
+        for k in 0i32.. {
             if k > 0 {
-                // What the rings seen leave out lies at least `seen` away, and nothing past them.
-                let seen = k - 1;
-                let all = (0..3).all(|a| c[a] - seen <= self.low[a] && c[a] + seen >= self.high[a]);
-                if best.0 <= f64::from(seen * seen) || all {
+                // What the rings seen leave out lies at least `seen` away.
+                let seen = f64::from(k - 1);
+                if best.0 <= seen * seen {
+                    break;
+                }
+                // The rings left within the cap hold more cells than are occupied.
+                let left = (2.0 * best.0.sqrt() + 3.0).powi(3) - f64::from(2 * k - 1).powi(3);
+                if left > self.cells.len() as f64 {
+                    for (occupied, list) in &self.cells {
+                        if cell_distance2(at, *occupied) < best.0 && read(list, &mut best) {
+                            return best;
+                        }
+                    }
                     break;
                 }
             }
-            for at in ring(c, k) {
-                let Some(list) = self.cells.get(&at) else {
-                    continue;
-                };
-                for &tri in list {
-                    let t = tri as usize;
-                    if surface.tri_removed[t] || skip.contains(&t) {
-                        continue;
-                    }
-                    let d2 = distance_to(p, surface.corners(t));
-                    if d2 < best.0 {
-                        best = (d2, tri);
-                        if d2 <= enough2 {
-                            return best;
-                        }
+            for near in ring(c, k) {
+                if let Some(list) = self.cells.get(&near) {
+                    if read(list, &mut best) {
+                        return best;
                     }
                 }
             }
         }
         best
     }
+}
+
+/// The squared distance from `p` to cell `k`.
+fn cell_distance2(p: W, k: [u32; 3]) -> f64 {
+    (0..3)
+        .map(|a| {
+            let low = f64::from(k[a] as i32);
+            (low - p[a]).max(0.0).max(p[a] - low - 1.0).powi(2)
+        })
+        .sum()
 }

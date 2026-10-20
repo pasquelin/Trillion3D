@@ -1,6 +1,6 @@
 //! The region's simplifier, built from the region in its frame, and what it leaves of it.
 use super::simplifier::{Input, Simplifier};
-use super::{Region, SolvedRegion};
+use super::{Handing, Region, SolvedRegion};
 
 impl Region {
     /// The simplifier of the region in its frame.
@@ -25,13 +25,14 @@ impl Region {
             values: self.source_values.clone(),
             moved: vec![false; self.remap.len()],
             error_object: 0.0,
+            handing: None,
         }
     }
 
     /// What `simplifier` left of the region at `error`: its triangles over the compact vertices,
-    /// the positions — brought back from the frame — and attributes it rewrote, and its error in
-    /// object space.
-    pub(super) fn assembled(&self, simplifier: &Simplifier, error: f32) -> SolvedRegion<'_> {
+    /// the positions — brought back from the frame — and attributes it rewrote, its error in
+    /// object space, and the simplifier, to hand its ghosts on.
+    pub(super) fn assembled(&self, simplifier: Simplifier, error: f32) -> SolvedRegion<'_> {
         let (n, stride) = (self.remap.len(), self.weights.len());
         let mut positions = self.source.clone();
         let mut values = self.source_values.clone();
@@ -60,6 +61,10 @@ impl Region {
             values,
             moved,
             error_object: f64::from(error.sqrt() * inverse),
+            handing: Some(Handing {
+                simplifier,
+                scale: self.scale,
+            }),
         }
     }
 }

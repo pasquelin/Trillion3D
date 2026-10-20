@@ -3,6 +3,7 @@
 //! simplification that pops it.
 use super::super::quadric;
 use super::{Simplifier, NONE};
+use crate::qem::solve::CarriedGhost;
 
 #[derive(Default)]
 pub(super) struct Heap {
@@ -119,7 +120,8 @@ impl Simplifier {
     /// Collapses pairs, cheapest first, until `target` triangles are left, then removes triangles
     /// in order down to it, and puts the largest triangle back if none remains; the largest error
     /// made, penalties aside. At least one collapse is made whatever the count.
-    pub fn simplify(&mut self, target: usize) -> f32 {
+    /// It starts from the ghosts `carried`, in object space, the frame `scale` times it.
+    pub fn simplify(&mut self, target: usize, carried: &[CarriedGhost], scale: f32) -> f32 {
         let size = quadric::size(self.m);
         for tri in 0..self.tri_removed.len() {
             self.fix_up_tri(tri);
@@ -134,6 +136,7 @@ impl Simplifier {
         for corner in 0..self.indexes.len() {
             self.calc_edge_quadric(corner);
         }
+        self.seed_ghosts(carried, scale);
         self.holed = vec![false; self.pairs.len()];
         for pair in 0..self.pairs.len() as u32 {
             self.weigh(pair);
@@ -145,16 +148,20 @@ impl Simplifier {
                 break;
             }
             self.heap.pop();
-            // A hole grows as ghosts are left and the surface around goes: weighed again, the
-            // pair goes back if it rose.
-            if self.holed[pair as usize] && self.ghosts.any() && self.weigh(pair) > key {
-                continue;
-            }
-            self.heap.remove(pair);
             let [p0, p1] = self.pairs[pair as usize];
+            // A hole grows as ghosts are left and the surface around goes: weighed again, the
+            // pair goes back if it rose — once per weighing: popped again, it goes at that cost.
+            if self.holed[pair as usize] && self.ghosts.any() {
+                self.holed[pair as usize] = false;
+                let (cost, _) = self.evaluate_merge(p0, p1, false);
+                if cost > key {
+                    self.heap.add(cost, pair);
+                    continue;
+                }
+            }
             self.pair_hash0.remove(p0, pair);
             self.pair_hash1.remove(p1, pair);
-            let error = self.evaluate_merge(p0, p1, true);
+            let (error, _) = self.evaluate_merge(p0, p1, true);
             max_error = max_error.max(error);
             if self.met(target, max_error) {
                 break;
@@ -175,17 +182,19 @@ impl Simplifier {
         }
         if self.remaining_tris == 0 || self.remaining_verts < 3 {
             self.restore_backup(&mut max_error);
+            // The triangle put back is listed where it lies.
+            let (ghosts, live) = self.ghosts_and_surface();
+            ghosts.moved(&live, &[0]);
         }
         max_error
     }
 
-    /// Weighs `pair` and queues it at its cost, which it returns.
-    fn weigh(&mut self, pair: u32) -> f32 {
+    /// Weighs `pair` and queues it at its cost.
+    fn weigh(&mut self, pair: u32) {
         let [p0, p1] = self.pairs[pair as usize];
-        let error = self.evaluate_merge(p0, p1, false);
+        let (error, capped) = self.evaluate_merge(p0, p1, false);
         self.heap.add(error, pair);
-        self.holed[pair as usize] = self.capped;
-        error
+        self.holed[pair as usize] = capped;
     }
 
     /// Whether the simplification stops: `target` triangles reached, or no triangle, no vertex

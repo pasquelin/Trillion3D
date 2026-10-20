@@ -87,7 +87,7 @@ fn coarse_levels_turned_inside_out_are_reported_flipped_and_lost() {
 }
 /// Digest of what the family's first case cooks to: every page, its objects by digest, its
 /// errors and bounds.
-const FIRST_CASE_COOK: &str = "907eb94dc9ebc8b0fef4b79afae8f00e7e863ca469bb424732553a10aa5aae0f";
+const FIRST_CASE_COOK: &str = "e434c50026850deb869ed710fff2f0258a945f9c904a0d7ec141f2def16496bf";
 
 /// The cook is the same bytes on every platform: its cache keys and every test above depend on
 /// it. A different digest on one platform alone is a cook that is not portable (the simplifier's

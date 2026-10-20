@@ -28,10 +28,10 @@
 //! where their neighbours cover them. The queue adds penalties — a vertex of more than 24
 //! triangles, two locked positions merged, a triangle turned around — and pops the cheapest; a
 //! pair whose cost measured a hole is weighed again when popped once a ghost exists, and goes back
-//! if it rose — a hole only grows as ghosts are left and the surface around goes. The error
-//! published is the largest cost made, penalties aside. If the collapses run out above the
-//! target, triangles are removed in order until it is met, and the region's largest triangle is
-//! put back if none remains.
+//! if it rose, once per weighing — a hole only grows as ghosts are left and the surface around
+//! goes. The error published is the largest cost made, penalties aside. If the collapses run out
+//! above the target, triangles are removed in order until it is met, and the region's largest
+//! triangle is put back if none remains.
 //!
 //! **Data.** Flat arrays: vertex floats (position then attributes), corner indices, per-corner
 //! flags, per-triangle quadrics, per-corner edge quadrics; vertices, corners and candidate pairs
@@ -57,6 +57,7 @@ mod positions;
 use ghosts::Ghosts;
 use heap::Heap;
 use merge::Scratch;
+pub(crate) use positions::key as position_bits;
 use positions::{hash_position, ByPosition};
 
 const NONE: u32 = u32::MAX;
@@ -138,9 +139,11 @@ pub(super) struct Simplifier {
     total_area: f32,
     scratch: Scratch,
     ghosts: Ghosts,
-    /// Whether the last evaluation measured a hole, and per pair whether its key did.
-    capped: bool,
+    /// Per pair, whether its key measured a hole.
     holed: Vec<bool>,
+    /// Kept between collapses made: the vertices around and the pairs at one.
+    near_verts: Vec<u32>,
+    near_pairs: Vec<u32>,
 }
 
 impl Simplifier {
@@ -198,8 +201,9 @@ impl Simplifier {
             total_area: 0.0,
             scratch: Scratch::default(),
             ghosts: Ghosts::default(),
-            capped: false,
             holed: Vec::new(),
+            near_verts: Vec::new(),
+            near_pairs: Vec::new(),
         };
         for v in 0..verts_count as u32 {
             let p = s.position(v);

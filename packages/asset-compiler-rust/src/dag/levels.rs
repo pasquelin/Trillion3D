@@ -19,6 +19,8 @@ pub(super) fn coarsen(
     };
     let mut grown = None;
     let mut current: Vec<usize> = (0..dag.len()).collect();
+    // The ghosts each group kept so far handed on, by group, until the next level routes them.
+    let mut handed: Vec<Vec<crate::qem::solve::CarriedGhost>> = Vec::new();
     // The box the groups' locality order is laid on: the source's, every level.
     let bounds = vertex_bounds(positions);
     for level in 1..=DAG_MAX_LEVELS {
@@ -51,17 +53,19 @@ pub(super) fn coarsen(
             let _t = Timer::new(Phase::Locks);
             level_locks(welds.weld(), &lists, &groups)
         };
+        let routed = ghosts::route(level_positions, &lists, &sources, &groups, &mut handed);
         let weighted = DagAttributes { carried: &carried }.weighted();
         let base = (level_positions.len() / 3) as u32;
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
+            .zip(&routed)
             .map(
-                |group| -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
+                |(group, ghosts)| -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
                     checkpoint()?;
                     let children: Vec<&DagCluster> =
                         group.iter().map(|&slot| &dag[current[slot]]).collect();
                     let input = welds.input(level_positions, &carried, &weighted, &locks);
-                    reduce_group(&input, &children)
+                    reduce_group(&input, &children, ghosts)
                 },
             )
             .collect::<Result<Vec<_>>>()?;
@@ -85,9 +89,11 @@ pub(super) fn coarsen(
                 mut clusters,
                 source_rank,
                 placed,
+                ghosts: left,
             } = reduction;
             Grown::place(&mut grown, &mut welds, placed, &mut clusters, base);
             let group_index = reductions_kept.len();
+            handed.push(left);
             let mut children = Vec::with_capacity(group.len());
             for &slot in group {
                 let id = current[slot];

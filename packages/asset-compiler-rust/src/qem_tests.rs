@@ -18,7 +18,7 @@ pub(super) fn simplify(
 ) -> crate::Result<Kept> {
     let area = solve::surface_area(positions, indices);
     let region = solve::Region::of(positions, attributes, locked, indices, area)?;
-    let solved = region.solve(target);
+    let solved = region.solve(target, &[]);
     Ok(Kept {
         indices: (solved.indices.iter())
             .map(|&i| solved.region.remap[i as usize])

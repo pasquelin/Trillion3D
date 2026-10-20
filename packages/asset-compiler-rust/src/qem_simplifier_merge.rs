@@ -85,11 +85,10 @@ fn find(parents: &mut [u32], start: usize) -> u32 {
 
 impl Simplifier {
     /// The cost of merging positions `p0` and `p1`, penalties included unless the merge is made
-    /// (`move_verts`), when it returns the error made; `capped` tells whether it measured a hole.
-    pub(super) fn evaluate_merge(&mut self, p0: P, p1: P, move_verts: bool) -> f32 {
-        self.capped = false;
+    /// (`move_verts`), when it returns the error made; and whether it measured a hole.
+    pub(super) fn evaluate_merge(&mut self, p0: P, p1: P, move_verts: bool) -> (f32, bool) {
         if p0 == p1 {
-            return 0.0;
+            return (0.0, false);
         }
         let mut s = std::mem::take(&mut self.scratch);
         let error = self.merge_with(&mut s, p0, p1, move_verts);
@@ -97,7 +96,7 @@ impl Simplifier {
         error
     }
 
-    fn merge_with(&mut self, s: &mut Scratch, p0: P, p1: P, move_verts: bool) -> f32 {
+    fn merge_with(&mut self, s: &mut Scratch, p0: P, p1: P, move_verts: bool) -> (f32, bool) {
         s.adj_tris.clear();
         s.parents.clear();
         s.wedge_verts.iter_mut().for_each(Vec::clear);
@@ -129,12 +128,12 @@ impl Simplifier {
             }
         }
         if degree == 0 {
-            return 0.0;
+            return (0.0, false);
         }
         // Collapsing it would remove every triangle left.
         if degree as usize == self.remaining_tris * 2 {
             self.clear_flags(&s.adj_tris);
-            return 0.0;
+            return (0.0, false);
         }
         let locked = [flags_union[0] & LOCKED != 0, flags_union[1] & LOCKED != 0];
         let mut penalty = 0.0_f32;
@@ -277,23 +276,19 @@ impl Simplifier {
             error = surface;
         }
         // All the area it touches: it takes a piece's shape away, and the holes too (`ghosts.rs`).
-        self.capped = disjoint || (surface > 0.0 && error >= surface);
-        if self.capped {
-            let (ghosts, live) = self.ghosts_and_surface();
-            error = ghosts.hole(&live, &s.adj_tris, ([p0, p1], new_position), error);
+        let capped = disjoint || (surface > 0.0 && error >= surface);
+        if capped {
+            error = self.hole_opened(&s.adj_tris, [p0, p1], new_position, error, move_verts);
         }
         if move_verts {
-            let lock = locked[0] || locked[1];
-            self.move_to(
-                s,
-                ([p0, p1], new_position),
-                lock,
-                self.capped.then_some(error),
-            );
+            if capped {
+                self.leave_ghosts(&s.adj_tris, error);
+            }
+            self.move_to(s, ([p0, p1], new_position), locked[0] || locked[1]);
         } else {
             error += penalty;
         }
         self.clear_flags(&s.adj_tris);
-        error
+        (error, capped)
     }
 }

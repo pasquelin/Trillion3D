@@ -13,6 +13,11 @@
 //! cheaply as it is small.
 //!
 //! **Targets.** Every target is simplified afresh from the region as it was given.
+//!
+//! **Ghosts.** A simplification starts from the ghosts the simplifications of its region's
+//! children left (`qem_simplifier_ghosts.rs`) and hands on its own once its group keeps it
+//! (`Handing`): where removed surface was, in object space, so a hole is measured against the
+//! surface it came from whatever the level.
 use crate::qem::{compact_attributes, compact_region, Attribute, Corrected, Role};
 use crate::{invalid, Result};
 use trillion3d_math::vec3::cross;
@@ -24,6 +29,26 @@ mod prepare;
 mod quadric;
 #[path = "qem_simplifier.rs"]
 mod simplifier;
+
+pub(crate) use simplifier::position_bits;
+use simplifier::Simplifier;
+
+/// A ghost one simplification hands to the next, in object space: where removed surface was, its
+/// size, a position of the live piece it was left by and one of the live triangle covering it,
+/// when there is one.
+#[derive(Clone, Copy, Debug)]
+pub struct CarriedGhost {
+    pub p: [f32; 3],
+    pub size: f32,
+    pub owner: Option<[f32; 3]>,
+    pub cover: Option<[f32; 3]>,
+}
+impl CarriedGhost {
+    /// Whether it can still open a hole above `error`: a hole is sought up to twice its size.
+    pub fn outlasts(&self, error: f64) -> bool {
+        2.0 * f64::from(self.size) > error
+    }
+}
 
 /// A region prepared once, in its own compact vertex space and frame, simplified towards a target.
 pub struct Region {
@@ -62,6 +87,22 @@ pub struct SolvedRegion<'r> {
     /// Object-space error of the simplification: the square root of the largest error made,
     /// brought back from the frame.
     pub error_object: f64,
+    /// What hands its ghosts on, once its group keeps it; none when it simplified nothing.
+    pub handing: Option<Handing>,
+}
+
+/// The simplifier of a solved region, kept to hand its ghosts on.
+pub struct Handing {
+    simplifier: Simplifier,
+    scale: f32,
+}
+impl Handing {
+    /// The ghosts to hand on, in object space, to a parent that publishes `error`: those that
+    /// can still open a hole above it (`CarriedGhost::outlasts`).
+    pub fn ghosts(mut self, error: f64) -> Vec<CarriedGhost> {
+        let least = (error * f64::from(self.scale)) as f32;
+        self.simplifier.carried(least, 1.0 / self.scale)
+    }
 }
 impl SolvedRegion<'_> {
     /// Floats of the weighed attributes per compact vertex.
@@ -141,14 +182,15 @@ impl Region {
         })
     }
 
-    /// Simplifies the region afresh towards `target_triangles` and returns what remains; a region
-    /// already at or under the target comes back as it was, at zero error.
-    pub fn solve(&self, target_triangles: usize) -> SolvedRegion<'_> {
+    /// Simplifies the region afresh towards `target_triangles`, from the ghosts `carried` its
+    /// children left, and returns what remains; a region already at or under the target comes
+    /// back as it was, at zero error, and hands nothing of its own on.
+    pub fn solve(&self, target_triangles: usize, carried: &[CarriedGhost]) -> SolvedRegion<'_> {
         if self.compact.len() / 3 <= target_triangles {
             return self.unsimplified();
         }
         let mut simplifier = self.build();
-        let error = simplifier.simplify(target_triangles);
-        self.assembled(&simplifier, error)
+        let error = simplifier.simplify(target_triangles, carried, self.scale);
+        self.assembled(simplifier, error)
     }
 }

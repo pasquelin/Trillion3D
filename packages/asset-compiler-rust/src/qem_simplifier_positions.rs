@@ -4,7 +4,7 @@ use trillion3d_math::scalar::normalized_bits;
 use trillion3d_page_codec::hash::WordMap;
 
 /// The bits of a position, a zero of either sign read as one.
-fn key(p: P) -> [u32; 3] {
+pub(crate) fn key(p: P) -> [u32; 3] {
     p.map(normalized_bits)
 }
 
@@ -46,6 +46,10 @@ impl ByPosition {
     /// The items at `p`, oldest first: read them backwards.
     pub fn at(&self, p: P) -> &[u32] {
         self.lists.get(&key(p)).map_or(&[], |list| list.as_slice())
+    }
+    /// Every position's list.
+    pub fn lists(&self) -> impl Iterator<Item = &Vec<u32>> {
+        self.lists.values()
     }
     /// Takes every item at `p` off the list, oldest first.
     pub fn take(&mut self, p: P) -> Vec<u32> {

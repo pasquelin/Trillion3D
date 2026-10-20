@@ -7,12 +7,15 @@
 //! differ, each wedge solving its own at the merged position, the seam held by its edge quadric.
 use super::solved::attempt;
 use super::*;
-use crate::qem::solve::surface_area;
+use crate::qem::solve::{surface_area, CarriedGhost};
 use trillion3d_page_codec::min_ball::ball_of_balls;
 
+/// Reduces the group of `children`, from the ghosts `carried` the reductions of its children's
+/// groups handed on to it (`ghosts.rs`).
 pub(super) fn reduce_group(
     input: &GroupReductionInput,
     children: &[&DagCluster],
+    carried: &[CarriedGhost],
 ) -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
     let mut spheres = Vec::with_capacity(children.len());
     let mut child_error = 0.0_f64;
@@ -35,7 +38,7 @@ pub(super) fn reduce_group(
     let area = (children.iter()).fold(0.0_f32, |sum, c| {
         sum + surface_area(input.positions, &c.indices)
     });
-    let Some(solved) = attempt(input, &corners, (parents, area), child_error)? else {
+    let Some(solved) = attempt(input, &corners, (parents, area), child_error, carried)? else {
         return Ok(Err(diagnosis::outcome(
             StallCause::Unreducible,
             input,
@@ -61,5 +64,6 @@ pub(super) fn reduce_group(
         clusters: solved.clusters,
         source_rank,
         placed: solved.placed,
+        ghosts: solved.ghosts,
     }))
 }

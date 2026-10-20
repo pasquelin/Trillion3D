@@ -33,7 +33,7 @@ fn reduce_whole(
     let locks = vec![locked; positions.len() / 3];
     let weighted = attributes.weighted();
     let input = welds.input(positions, &carried, &weighted, &locks);
-    match reduce_group(&input, &group).expect("reduce") {
+    match reduce_group(&input, &group, &[]).expect("reduce") {
         Ok(reduction) => Ok(reduction.clusters),
         Err(outcome) => Err(outcome.cause),
     }

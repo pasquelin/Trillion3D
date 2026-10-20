@@ -11,19 +11,8 @@ impl Simplifier {
     /// Makes the merge: every vertex of the gathered triangles at `ends` moves to `p` with its
     /// wedge's attributes, its corners locked if either end was; the lists and pairs follow, the
     /// pairs around leave the queue to be weighed again, and the gathered triangles are fixed up,
-    /// their edges' quadrics computed afresh. A collapse costing all the area it touches, `ghost`,
-    /// first leaves their ghost (`ghosts.rs`).
-    pub(super) fn move_to(
-        &mut self,
-        s: &Scratch,
-        (ends, p): ([P; 2], P),
-        lock: bool,
-        ghost: Option<f32>,
-    ) {
-        if let Some(cost) = ghost {
-            let (ghosts, live) = self.ghosts_and_surface();
-            ghosts.leave(&live, &s.adj_tris, cost);
-        }
+    /// their edges' quadrics computed afresh; the ghosts follow (`ghosts.rs`).
+    pub(super) fn move_to(&mut self, s: &Scratch, (ends, p): ([P; 2], P), lock: bool) {
         let (m, size) = (self.m, quadric::size(self.m));
         self.begin_move(ends[0]);
         self.begin_move(ends[1]);
@@ -56,25 +45,30 @@ impl Simplifier {
             }
         }
         self.end_moves();
-        let mut adj_verts = Vec::new();
+        let (mut verts, mut found) = (
+            std::mem::take(&mut self.near_verts),
+            std::mem::take(&mut self.near_pairs),
+        );
+        verts.clear();
         for &tri in &s.adj_tris {
             for k in 0..3 {
                 let vert = self.indexes[tri * 3 + k];
-                if !adj_verts.contains(&vert) {
-                    adj_verts.push(vert);
+                if !verts.contains(&vert) {
+                    verts.push(vert);
                 }
             }
         }
-        for vert in adj_verts {
-            let mut found = Vec::new();
+        for &vert in &verts {
+            found.clear();
             self.for_pairs_at(self.position(vert), |pair| found.push(pair));
-            for pair in found {
+            for &pair in &found {
                 if self.heap.is_present(pair) {
                     self.heap.remove(pair);
                     self.reevaluate.push(pair);
                 }
             }
         }
+        (self.near_verts, self.near_pairs) = (verts, found);
         for &tri in &s.adj_tris {
             self.fix_up_tri(tri);
         }
@@ -94,6 +88,7 @@ impl Simplifier {
             m: self.m,
             indexes: &self.indexes,
             tri_removed: &self.tri_removed,
+            flags: &self.corner_flags,
         };
         (&mut self.ghosts, live)
     }
