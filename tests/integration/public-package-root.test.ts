@@ -109,10 +109,11 @@ test('the browser condition imports rendering and common bindings without initia
 test('a packed installation resolves Node and browser runtime and declarations', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'trillion3d-contract-'))
   try {
+    // The tarball's file list on stdout is not read and outgrows the default output buffer.
     execFileSync('pnpm', ['pack', '--pack-destination', directory], {
       cwd: REPOSITORY_ROOT,
       env: { ...process.env, CI: 'true' },
-      stdio: 'pipe',
+      stdio: ['ignore', 'ignore', 'pipe'],
     })
     const tarball = (await readdir(directory)).find((file) => file.endsWith('.tgz'))
     assert.ok(tarball)
