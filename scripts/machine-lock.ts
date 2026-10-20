@@ -1,4 +1,4 @@
-// One holder at a time per machine for a lock file: the GPU bench lock (`bench/dawn/lock.ts`) and
+// One holder at a time per machine for a lock file: the GPU bench lock (`bench/dawn/runs/lock.ts`) and
 // the heavy-step lock (`scripts/heavy-lock.ts`) are two policies over this one mechanism. The holder
 // is a JSON record naming its process; a holder whose process is dead is taken over.
 import { linkSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'

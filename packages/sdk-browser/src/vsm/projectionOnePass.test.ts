@@ -18,7 +18,7 @@ import { VSM_TRACE_KINDS_BOTH, VSM_TRACE_KINDS_LOCAL, VSM_TRACE_KINDS_SUN } from
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
 
 test('one store a layer the tile holds a light of, under bounds the view gives: the votes stay in uniform flow', () => {
-  // The bench's `// @cut` lines (`bench/dawn/shaderCuts.ts`) are comments for it, not code.
+  // The bench's `// @cut` lines (`bench/dawn/passes/shaderCuts.ts`) are comments for it, not code.
   const entry = functionsOf(CODE, ['vsmProjection']).replace(/^\s*\/\/ @cut.*$/gm, ''),
     tile = functionsOf(CODE, ['vsmProjectTile'])
   // The mask's one store, a layer at a time, and its transmission's, a light at a time where the
