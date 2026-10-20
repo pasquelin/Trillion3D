@@ -1,8 +1,8 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
-import type { BodyLedger } from './bodyLedger.ts'
+import type { BodyLedger } from './bodies/bodyLedger.ts'
 import { createSimulatedIds } from './simulatedIds.ts'
-import { readShared } from './cookedReads.ts'
+import { readShared } from './cooked/cookedReads.ts'
 
 /** What a cooked object is to the bodies built from it: a tile's or a hull's shape, restored in
  *  the module; or a soft body's settings, written whole into each one made from them. */

@@ -1,6 +1,6 @@
 /**
  * The physics worker: it loads the physics module and takes the fixed steps the page's frames owe it
- * (`advance`, `stepClock.ts`), handing their poses and contact events back in a transferable
+ * (`advance`, `step/stepClock.ts`), handing their poses and contact events back in a transferable
  * buffer. No clock of its own counts a step: the page's messages run in the order it sent them —
  * commands, keys, character, water, steps —, so the same frames and inputs take the same steps on
  * the same inputs, whatever this worker's speed; an advance of no step, the page's clock standing
@@ -9,18 +9,18 @@
  * copy, and once one more step's events might not fit there, that step and every message after it
  * wait, in order, for the next buffer. With every body asleep, no command queued, no leave owed and
  * the character still, the world rests: an advance takes no step (the waves run on by the page's
- * step alone, `water.ts`), and the page, told so, sends no more until something wakes it.
+ * step alone, `water/water.ts`), and the page, told so, sends no more until something wakes it.
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import type { JoltModule } from './joltModule.ts'
 import { JOLT_THREAD_LOADED, runJoltThread } from './joltThreads.ts'
 import type { FromPhysics, ToPhysics } from './protocol.ts'
-import type { createTickResults } from './tickResults.ts'
-import { createCharacterDriver } from './characterDriver.ts'
-import { createWaterStep } from './water.ts'
+import type { createTickResults } from './step/tickResults.ts'
+import { createCharacterDriver } from './character/characterDriver.ts'
+import { createWaterStep } from './water/water.ts'
 import type { createThreadTuner } from './threadTuner.ts'
-import { createStepTimes } from './stepTimes.ts'
+import { createStepTimes } from './step/stepTimes.ts'
 import { startPhysics } from './workerStart.ts'
 import { joinedWords } from '../../../math/src/sequence/joined.ts'
 import type { WorkerScope } from '../host/workerScope.ts'
@@ -77,7 +77,7 @@ function fail(error: unknown) {
  *  moving. */
 const live = () => active > 0 || leaves || queued.length > 0 || character.moving()
 
-/** Runs the queued commands and one step from the page's step `at`, timed (`stepTimes.ts`); each
+/** Runs the queued commands and one step from the page's step `at`, timed (`step/stepTimes.ts`); each
  *  fixed step's time steers the threads the next ones split over (`createThreadTuner`). */
 function run(dt: number) {
   const move = dt > 0 ? character.command(dt, jolt!.active() > 0) : null

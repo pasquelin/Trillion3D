@@ -120,7 +120,7 @@ function linkPhysics(s: PhysicsState) {
 }
 
 /** Runs the frame's physics, timed into the `physics` CPU stage of `engine`, then clocks the
- *  water's surface and finds the meshes it carries (`waterCarry.ts`); returns whether a body is
+ *  water's surface and finds the meshes it carries (`water/waterCarry.ts`); returns whether a body is
  *  still on its way, or waves still move a mesh that holds the surface. */
 function physicsFrame(
   s: PhysicsState,

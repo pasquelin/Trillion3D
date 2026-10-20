@@ -8,7 +8,7 @@ goldens are written by the cook itself under `TRILLION3D_WRITE_GOLDEN=1`.
   x z (`tests.rs`); the physics module's tests restore it beside the ramp (`tileGround.test.ts`).
 - `cloth-settings.bin`: the golden cooked soft body, a 1 m cloth of 2 × 2 squares pinned at its top
   corners, Jolt's `SoftBodySharedSettings` binary state (`soft_tests.rs`); the physics module's test
-  restores it (`packages/sdk-browser/src/physics/cookedSoft.test.ts`).
+  restores it (`packages/sdk-browser/src/physics/soft/cookedSoft.test.ts`).
 - `cube-hull.bin`: the golden cooked hull of a unit cube, Jolt's `ConvexHullShape` binary state
   (`mass_tests.rs`).
 - `soft-records.bin`: the cook's soft records of a cloth, a welded rope and a closed tetrahedron
@@ -23,7 +23,7 @@ goldens are written by the cook itself under `TRILLION3D_WRITE_GOLDEN=1`.
   little-endian: `u32` vertex count, then `f32` x, y, z per vertex, then `u32` indices, three per
   triangle.
 - `soft-writeback-develop.bin`: the soft words a reference physics module (`cc7d590615`) wrote at
-  the kept steps of `writebackScene` (`packages/sdk-browser/src/physics/softWriteback.fixture.ts`);
+  the kept steps of `writebackScene` (`packages/sdk-browser/src/physics/soft/softWriteback.fixture.ts`);
   `softWriteback.test.ts` holds the module to them within its bound and says how to record them
   again. Its scene keeps every body 20 m above the floor and every teleport under 3 m, past which a
   soft body starts again in its rest shape. Layout, little-endian `u32`: the step count, then per

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { POSE_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import { createPhysicsPoses } from './poses.ts'
-import { along, createStepClock } from './stepClock.ts'
+import { along, createStepClock } from './step/stepClock.ts'
 import { records, seated } from './seatedPoses.fixture.ts'
 
 /** Every row the frame drew is finite: a non-finite one stops the renderer ("Invalid matrix"). */

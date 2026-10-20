@@ -4,7 +4,7 @@ import { ObjectPhysics } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodied.ts'
+import type { Bodied } from './bodies/bodied.ts'
 import { poseRecord } from './worker.fixture.ts'
 
 /** `count` seated crates in slots 0.., their rows in one batch, and the frames' `placed` calls. */

@@ -1,6 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
-import { emitContacts } from '../contacts.ts'
+import { emitContacts } from '../contacts/contacts.ts'
 import { eventsAt, type FromPhysics, type PhysicsResults } from '../protocol.ts'
 import type { SessionParts } from './sessionParts.ts'
 

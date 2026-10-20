@@ -24,7 +24,7 @@ export interface CharacterEvents {
 /**
  * WHAT A CHARACTER WISHES OVER ONE TICK, before it meets anything: the speed it gathers or loses,
  * the jump it takes. The virtual character of the physics worker reads it
- * (`sdk-browser/src/physics/characterDriver.ts`); only how the move meets the world is Jolt's.
+ * (`sdk-browser/src/physics/character/characterDriver.ts`); only how the move meets the world is Jolt's.
  *
  * On the ground the velocity closes 95 % of its gap to the wished one in `responseTime` while a
  * key is held and in `stopTime` once none is, never faster than the floor lets it: a sole pushes

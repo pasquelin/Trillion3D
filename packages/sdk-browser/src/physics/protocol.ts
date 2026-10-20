@@ -2,7 +2,7 @@ import { ASLEEP_BIT, EVENT_WORDS, POSE_WORDS } from '../../../sdk-core/src/physi
 import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
 import type { WaterSpec } from '../../../sdk-core/src/fluids/buoyancy.ts'
 import type { JoltThreadStart } from './joltThreads.ts'
-import type { CharacterReport } from './characterDriver.ts'
+import type { CharacterReport } from './character/characterDriver.ts'
 import type { CharacterSettings } from '../../../sdk-core/src/collision/characterSettings.ts'
 import type { CharacterInput } from '../../../sdk-core/src/collision/characterDrive.ts'
 
@@ -16,7 +16,7 @@ export type ToPhysics =
       budget: PhysicsBudget
       /** Threads that step the module, the worker's included (`budget.threads`, capped). */
       threads: number
-      /** Seconds of one fixed step: the page's clock owes them (`stepClock.ts`), the worker
+      /** Seconds of one fixed step: the page's clock owes them (`step/stepClock.ts`), the worker
        *  takes them. */
       step: number
       /** Two result buffers, exchanged back and forth. */
@@ -25,7 +25,7 @@ export type ToPhysics =
   /** A frame's commands, applied before the next step. */
   | { type: 'commands'; words: Uint32Array<ArrayBuffer> }
   /** A frame's time: the page's clock stands `to` fixed steps from its start, `steps` of them
-   *  this frame's (`stepClock.ts`); the steps before them passed while the page sent nothing, the
+   *  this frame's (`step/stepClock.ts`); the steps before them passed while the page sent nothing, the
    *  world at rest. None, the clock standing still: the commands sent before it run in place. */
   | { type: 'advance'; to: number; steps: number }
   /** The body of water the bodies float in (`fluids/buoyancy.ts`), or none; its waves start at 0 s
@@ -46,7 +46,7 @@ export type ToPhysics =
  * A tick's records of one kind (`recordTick.ts`), `id, count, …` then `count` items each: in
  * `words`, each where its last step left it; in `befores`, at the same words, a record the tick's
  * step before wrote too as that step left it, any other's id word inverted, naming none (`null`
- * when the tick wrote none twice). The page draws between the two (`twoSteps.ts`).
+ * when the tick wrote none twice). The page draws between the two (`step/twoSteps.ts`).
  */
 export interface TickRecords {
   words: Uint32Array
@@ -111,7 +111,7 @@ export type FromPhysics =
   | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] }
 
 /** Word where a result buffer's earlier poses start: after one pose per body. Record `r` there
- *  is the pose of record `r`'s body one step before it (`tickResults.ts`). */
+ *  is the pose of record `r`'s body one step before it (`step/tickResults.ts`). */
 export const beforesAt = (budget: Pick<PhysicsBudget, 'bodies'>) => budget.bodies * POSE_WORDS
 
 /** Whether the earlier-state word `before` beside a record whose id word is `id` holds its state a

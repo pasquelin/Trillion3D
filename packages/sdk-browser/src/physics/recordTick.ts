@@ -16,7 +16,7 @@ export const noBefore = (id: number) => ~id
  * array may hold both): `stepped`, its copy so far becomes its state a step before; a run of no
  * step (commands run while paused, or before a query) that changed it moved it in place, nothing
  * to draw it over, so the new copy is its step before too; one that left it as it was changes
- * nothing. Every record the worker hands the page — poses (`tickResults.ts`), wheels, soft
+ * nothing. Every record the worker hands the page — poses (`step/tickResults.ts`), wheels, soft
  * vertices, the character's feet — is kept by this rule.
  */
 export function rewriteRecord(

@@ -3,7 +3,7 @@ import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { EVENT_WORDS, FLAG } from '../../../sdk-core/src/physics/layout.ts'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'
-import { REFERENCE_PRESSURE, ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts'
+import { REFERENCE_PRESSURE, ropeLine, softBodiesIn, writeSoftBody } from './soft/soft.fixture.ts'
 import { FLAT, body, id } from './records.fixture.ts'
 
 /** Writes `geometry` as a soft body in slot `slot`, at `position` turned by `quaternion`. */

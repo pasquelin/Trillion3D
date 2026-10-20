@@ -46,7 +46,7 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
 const RESOLVENT: Record<string, string> = {
   'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
-  'physics/bodies.ts': 'a body the page moved, not a camera',
+  'physics/bodies/bodies.ts': 'a body the page moved, not a camera',
   'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',
 }
 

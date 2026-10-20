@@ -1,10 +1,10 @@
 import type { WaterSpec } from '../../../../sdk-core/src/fluids/buoyancy.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { hasBody } from '../bodied.ts'
+import { hasBody } from '../bodies/bodied.ts'
 import { followNode } from '../followNode.ts'
 import type { SessionParts } from './sessionParts.ts'
 import { engineIdOf } from '../simulatedIds.ts'
-import { drawnBySoft } from '../softVertices.ts'
+import { drawnBySoft } from '../soft/softVertices.ts'
 
 /** What the world asks of a session between its frames: its clock, its water, the scene's changes,
  *  its queries and its end. */

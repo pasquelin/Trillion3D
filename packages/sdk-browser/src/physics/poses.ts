@@ -9,12 +9,12 @@ import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { slerpArc } from '../../../math/src/quaternion/quaternion.ts'
 import { sameRange } from '../../../math/src/matrix/matrixElements.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodied.ts'
-import type { NodeMove } from './cookedBodies.ts'
+import type { Bodied } from './bodies/bodied.ts'
+import type { NodeMove } from './cooked/cookedBodies.ts'
 import { extrapolateAll, interpolateAll, landAll } from './drawnPoses.ts'
 import { createPosePlacer } from './placer.ts'
 import { beforesAt, keptBefore } from './protocol.ts'
-import { createTwoSteps, FROM } from './twoSteps.ts'
+import { createTwoSteps, FROM } from './step/twoSteps.ts'
 
 /** The bodies a tick's records name, by slot: meshes, moved compiled nodes, generations. */
 export interface PosedBodies {
@@ -32,8 +32,8 @@ function copyPose(into: Float32Array, o: number, src: ArrayLike<number>, s: numb
 /**
  * The drawn poses of the moving bodies. A frame draws each body at the frame's time, the fraction
  * `t` of a step the session reads once for everything the physics draws (`along`), between its
- * two states (`twoSteps.ts`): the newest record a tick brought, and its state a step before — its
- * earlier pose in that tick (`tickResults.ts`), else its record before, else the pose it is drawn
+ * two states (`step/twoSteps.ts`): the newest record a tick brought, and its state a step before — its
+ * earlier pose in that tick (`step/tickResults.ts`), else its record before, else the pose it is drawn
  * at, at rest. Places are drawn on the line between the two, as a step moves a body, turns on the
  * arc between them, as a step turns it; the same frames draw the same poses, whenever the ticks
  * came. A time past the newest state — the worker is late — is drawn moved on from it by each
@@ -128,7 +128,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
           g = generation[index],
           mesh = meshes[index],
           made = mesh ? undefined : nested.get(index)
-        // A body that left its slot, or a model's moving no node (`bodySlots.ts`), draws nothing.
+        // A body that left its slot, or a model's moving no node (`bodies/bodySlots.ts`), draws nothing.
         if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || !(mesh || made)) continue
         // A body new to its slot starts from its own pose, whatever the slot listed before it.
         const fresh = bound[index] !== g

@@ -25,7 +25,7 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
  * than the friction of its floor lets a sole push, so a stop glides a little on stone and far on
  * ice; it keeps its momentum in the air, rises under `gravity` and falls under `fallGravity`,
  * climbs ledges up to `stepHeight`, slides along walls and stands on slopes up to `maxSlope`
- * (`sdk-browser/src/physics/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`).
+ * (`sdk-browser/src/physics/character/characterDriver.ts`, `sdk-core/src/collision/characterDrive.ts`).
  *
  * The camera is the eye, `eyeHeight` above the feet, bobbing with the stride by `headBob` and
  * dipping on a landing by `landingDip` (`sdk-core/src/collision/characterEye.ts`); both ride on

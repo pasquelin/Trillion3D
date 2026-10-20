@@ -5,8 +5,8 @@ import {
   GENERATIONS,
 } from '../../../sdk-core/src/physics/layout.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { hasBody } from './bodied.ts'
-import type { createPhysicsBodies } from './bodies.ts'
+import { hasBody } from './bodies/bodied.ts'
+import type { createPhysicsBodies } from './bodies/bodies.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 
 /** The engine id of `node`'s body: `NO_INDEX` for no node (the world), -1 while it is not simulated. */

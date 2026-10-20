@@ -246,7 +246,7 @@ vertex on the module's soft bodies.
   bracket it left them, as a body is drawn; the geometry is dynamic
   ([Geometry rewritten every frame](SDK.md#geometry-rewritten-every-frame)). A compiled model's
   cooked soft body draws through the GPU deformation source (`deformation/softSource.ts`,
-  `physics/cookedSoft.ts`): its cooked render positions and indices are attached to the model's
+  `soft/cookedSoft.ts`): its cooked render positions and indices are attached to the model's
   nodes, each step's vertices are copied in with their normals, and the deformation pass moves the
   drawn pages ([GPU deformation](ENGINE.md#gpu-deformation)).
 

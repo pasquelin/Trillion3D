@@ -174,7 +174,7 @@ export const collisionBytesOf = (budget: Pick<PhysicsBudget, 'memoryBytes'>) =>
   Math.floor(budget.memoryBytes * COLLISION_SHARE)
 
 /** A fixed step of 60 Hz: the simulation's clock, whatever the display's rate; the frames owe it
- *  their time in such steps (`sdk-browser/src/physics/stepClock.ts`). */
+ *  their time in such steps (`sdk-browser/src/physics/step/stepClock.ts`). */
 export const PHYSICS_STEP = 1 / 60
 /** Steps one frame may owe; beyond, its time is dropped (slow motion, never a spiral). */
 export const MAX_CATCH_UP_STEPS = 4

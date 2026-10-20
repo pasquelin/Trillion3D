@@ -15,7 +15,7 @@ import type {
   PhysicsPrimitive,
 } from '../../../packages/sdk-core/src/physics/options.ts'
 import { OCEAN } from '../../../packages/sdk-core/src/fluids/waves.fixture.ts'
-import { floatingBodies } from '../../../packages/sdk-browser/src/physics/water.fixture.ts'
+import { floatingBodies } from '../../../packages/sdk-browser/src/physics/water/water.fixture.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { isEngine, type Side } from '../harness/sideOptions.ts'

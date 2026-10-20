@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { joint } from '../../../sdk-core/src/physics/joint.ts'
 import type { JointMotor } from '../../../sdk-core/src/physics/jointOptions.ts'
-import { gap, jointRig } from './joints.fixture.ts'
+import { gap, jointRig } from './joints/joints.fixture.ts'
 import { energiesOverALap, G } from './pathEnergy.fixture.ts'
 
 test('a body on a frictionless vertical loop keeps its energy over a lap, to within a step of gravity', async () => {

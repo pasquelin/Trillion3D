@@ -9,8 +9,8 @@ import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { families } from '../host/families.ts'
-import { createJointList } from './jointList.ts'
-import { createWaterCarry } from './waterCarry.ts'
+import { createJointList } from './joints/jointList.ts'
+import { createWaterCarry } from './water/waterCarry.ts'
 import type { PhysicsSession } from './session/session.ts'
 import {
   simulationRangeOf,

@@ -1,11 +1,11 @@
-import type { CookedParts } from './cookedObjects.ts'
+import type { CookedParts } from './cooked/cookedObjects.ts'
 import type { CookedPhysics } from '../../../sdk-core/src/physics/cooked.ts'
-import type { SlotOwner } from './bodySlots.ts'
-import { createCookedBodies } from './cookedBodies.ts'
-import { createCookedSoftBodies } from './cookedSoft.ts'
-import type { Model } from './tilePlace.ts'
+import type { SlotOwner } from './bodies/bodySlots.ts'
+import { createCookedBodies } from './cooked/cookedBodies.ts'
+import { createCookedSoftBodies } from './soft/cookedSoft.ts'
+import type { Model } from './tiles/tilePlace.ts'
 
-/** The bodies the compiled models in a scene declare, soft (`cookedSoft.ts`) and rigid, opened,
+/** The bodies the compiled models in a scene declare, soft (`soft/cookedSoft.ts`) and rigid, opened,
  *  moved, refused and forgotten together, each by its model. */
 export function createModelBodies(parts: CookedParts) {
   const softs = createCookedSoftBodies(parts)

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { joint } from '../../../sdk-core/src/physics/joint.ts'
-import { jointRig } from './joints.fixture.ts'
+import { jointRig } from './joints/joints.fixture.ts'
 
 /** Two cubes launched at 10 m/s without gravity, one declaring no damping: their speeds after 1 s. */
 async function speedsAfterOneSecond() {

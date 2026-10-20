@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SharedShapes } from './sharedShapes.ts'
-import { crate, hulled, opened, reads, recorded, repeated } from './tileShapes.fixture.ts'
+import { crate, hulled, opened, reads, recorded, repeated } from './tiles/tileShapes.fixture.ts'
 import {
   compiledModel,
   cooked,
@@ -13,7 +13,7 @@ import {
   streamedModel,
   stubFetch,
   tile,
-} from './tiles.fixture.ts'
+} from './tiles/tiles.fixture.ts'
 
 /** The streamer of `repeated(1)` at the origin and its twin, 5 m aside, scanned and opened: what
  *  its writer writes recorded. */

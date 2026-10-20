@@ -21,9 +21,9 @@ import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { Joint } from '../../../sdk-core/src/physics/joint.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Bodied } from './bodied.ts'
-import { framesOf } from './jointFrames.ts'
-import { moversOf, nearness, type Placed } from './tilePlace.ts'
+import type { Bodied } from './bodies/bodied.ts'
+import { framesOf } from './joints/jointFrames.ts'
+import { moversOf, nearness, type Placed } from './tiles/tilePlace.ts'
 import { createPhysicsView } from './view.ts'
 
 /** What the last VIEW command carried. */

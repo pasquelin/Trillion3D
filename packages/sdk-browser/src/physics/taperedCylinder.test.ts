@@ -6,7 +6,7 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import { jointRig } from './joints.fixture.ts'
+import { jointRig } from './joints/joints.fixture.ts'
 
 const TAPERED = { type: 'cylinder', halfHeight: 1, radius: 0.2, radiusBottom: 0.5 } as const
 

@@ -1,9 +1,9 @@
 import { BODY_INDEX } from '../../../sdk-core/src/physics/layout.ts'
-import type { Model } from './tilePlace.ts'
+import type { Model } from './tiles/tilePlace.ts'
 
 /**
  * Each open model's opening of the bodies it declares, one per model, `made` holding the bodies
- * made from it (`cookedBodies.ts`, `cookedSoft.ts`): a model opened again, or forgotten, gives
+ * made from it (`cooked/cookedBodies.ts`, `soft/cookedSoft.ts`): a model opened again, or forgotten, gives
  * its last opening's slots back, then hands that opening to `left`, and a read that lands after
  * that is not wanted.
  */

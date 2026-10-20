@@ -1,6 +1,6 @@
 // The world's character: one Jolt `CharacterVirtual`, an upright capsule whose feet are its
 // position, moved each step by the velocity the worker's driver asks for
-// (`packages/sdk-browser/src/physics/characterDriver.ts`). Jolt resolves the contacts: it slides
+// (`packages/sdk-browser/src/physics/character/characterDriver.ts`). Jolt resolves the contacts: it slides
 // along walls, climbs stairs, stands on slopes up to its angle, is carried by what it stands on
 // and pushed by what moves into it, and pushes dynamic bodies with at most its strength. An inner
 // kinematic capsule lets the bodies meet it in turn. Word layouts: `layout.ts` (CHARACTER,

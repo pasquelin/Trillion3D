@@ -5,7 +5,7 @@ import { openJolt, startJolt } from './joltModule.ts'
 import { joltWorkerPool } from './joltThreads.ts'
 import type { FromPhysics, ToPhysics } from './protocol.ts'
 import { createThreadTuner } from './threadTuner.ts'
-import { createTickResults } from './tickResults.ts'
+import { createTickResults } from './step/tickResults.ts'
 
 /** The worker's own scope: its script, which the module's threads run in too, and its post. */
 type StartScope = {

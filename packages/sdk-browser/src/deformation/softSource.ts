@@ -2,7 +2,7 @@ import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import type { Model } from '../physics/tilePlace.ts'
+import type { Model } from '../physics/tiles/tilePlace.ts'
 import { keepPrevious } from './layout.ts'
 
 /** Simulation writeback; never a second render mesh or a CPU skin/morph implementation. */

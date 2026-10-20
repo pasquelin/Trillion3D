@@ -1,10 +1,10 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { flagsOf, type createPhysicsBodies } from './bodies.ts'
-import { hasBody, type Bodied } from './bodied.ts'
-import { worldPoseOf } from './bodyFrame.ts'
-import { followBody, type Following } from './cookedMoved.ts'
+import { flagsOf, type createPhysicsBodies } from './bodies/bodies.ts'
+import { hasBody, type Bodied } from './bodies/bodied.ts'
+import { worldPoseOf } from './bodies/bodyFrame.ts'
+import { followBody, type Following } from './cooked/cookedMoved.ts'
 import { followMove } from './nodePose.ts'
 
 /**

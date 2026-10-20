@@ -4,8 +4,8 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
-import { worldPoseOf } from './bodyFrame.ts'
-import type { NodeMove } from './cookedBodies.ts'
+import { worldPoseOf } from './bodies/bodyFrame.ts'
+import type { NodeMove } from './cooked/cookedBodies.ts'
 
 /** Whether `node` is `ancestor` or lies under it. */
 const under = (node: Object3D, ancestor: Object3D) => {
