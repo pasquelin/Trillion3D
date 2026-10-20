@@ -13,8 +13,8 @@
 // time runs as the frames need, so a machine whose main thread is slow plays the same display.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
-import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { measurementSdk, proofCanvas } from '../../kit/device/renderHarness.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { catchDevice, playDisplay, REFRESH } from './playedDisplay.ts'
 
 /** The images the display queues at most. */

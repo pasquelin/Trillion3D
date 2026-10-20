@@ -8,7 +8,7 @@ import { ASSETS } from '../../../bench/runner/assets/scene.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { listen, staticServer } from '../../../scripts/test/static-server.ts'
-import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 
 /** A scene cache's content-addressed object, geometry pages among them. */
 const isCacheObject = (path: string) => /\/objects\/[^/]+\.bin$/.test(path)

@@ -5,7 +5,7 @@ import { holdWorldDevice } from './worldDevice.ts'
 import { worldReopens } from './worldReopen.ts'
 import { createWorldNotices, worldNoticeListeners } from '../diagnostic/worldNotices.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
 
 test('an adapter that refuses its device refuses the world by name', async () => {

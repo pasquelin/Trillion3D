@@ -2,7 +2,7 @@
 // device's creators (`hookAfter`, the bench's one way to wrap a WebGPU call) before the engine's own
 // ledger does, so that what it counts is what the device made and nothing destroyed since.
 import { hookAfter, type Proto } from '../../../bench/dawn/page/hook.ts'
-import { untag } from '../../kit/gpu/fakeWebgpuDevice.ts'
+import { untag } from '../fakeDevice/fakeWebgpuDevice.ts'
 
 /** The live buffers and textures of `device`, counted at its two creators and their destroys. */
 export function countLive(device: GPUDevice) {

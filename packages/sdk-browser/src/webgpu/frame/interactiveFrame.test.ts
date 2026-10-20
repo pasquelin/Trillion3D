@@ -9,7 +9,7 @@ import { deviceAnswering } from './deviceAnswer.ts'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import { wantsContractLighting, directLightResources } from '../pages/prepare/contractLight.ts'
 
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts'
 
 installGpuGlobals()

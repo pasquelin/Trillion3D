@@ -1,6 +1,6 @@
 // A load's life in the GPU page cache: aborted by its caller or by dispose, failed by its read,
 // or answered by a page already resident — the source is asked only for what a load needs.
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'

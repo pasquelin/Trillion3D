@@ -3,7 +3,7 @@
 // after the frame's submit; a growth refused keeps it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { heldBuffers } from './heldBuffers.ts'
 import { destroyRetired } from './frameRetire.ts'
 

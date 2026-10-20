@@ -8,7 +8,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof, type PageProofResult } from '../kit/enginePageProof.ts'
+import {
+  assertSoundProof,
+  runPageProof,
+  type PageProofResult,
+} from '../../kit/device/enginePageProof.ts'
 
 test('a glass without texture coordinates is drawn, opened with the world or joining it', async () => {
   const page = resolve(import.meta.dirname, 'glassNoUvPage.ts')

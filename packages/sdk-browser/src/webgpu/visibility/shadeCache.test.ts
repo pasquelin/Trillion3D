@@ -8,9 +8,9 @@
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { createUsageScope } from '../../../../../tests/kit/gpu/scopeRules.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { createUsageScope } from '../../../../../tests/kit/fakeDevice/scopeRules.ts'
 import { createShadeCache, type ShadeCacheInputs } from './shadeCache.ts'
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
 import {

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { entryLevel, packEntry, tileLayout, tilesAt, type TileLayout } from '../../texture/tiles.ts'
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'

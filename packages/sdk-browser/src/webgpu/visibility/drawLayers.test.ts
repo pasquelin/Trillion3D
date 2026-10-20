@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import {
   BASE_SLOTS,
@@ -14,7 +14,7 @@ import {
 import { ROW_WORDS } from '../../visibility/types.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { createWebgpuVisState, type WebgpuVisState } from '../pages/state/vis.ts'
-import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
+import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { createDrawItemWordsHold, refreshDrawItemWords } from './itemWords.ts'
 import { drawVis } from './drawer.ts'

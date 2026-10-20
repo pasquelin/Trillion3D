@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { passParams, writePassParams } from './passParams.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('a pass sends its parameters when a word moved, its fourth too, else nothing', () => {
   const gpu = fakeDevice()

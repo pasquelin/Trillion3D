@@ -1,4 +1,4 @@
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */

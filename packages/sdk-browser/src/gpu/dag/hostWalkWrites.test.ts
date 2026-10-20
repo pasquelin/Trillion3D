@@ -11,9 +11,9 @@ import { dagRootCounts } from './packCapacity.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
 import { FRAME_TABLE } from './frameTable.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 
 test('a host walk that turned one placement sends its world alone, no stretch', async () => {
   installGpuGlobals()

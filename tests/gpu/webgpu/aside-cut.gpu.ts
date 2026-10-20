@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { runPageProof, publishAndVerify } from '../kit/enginePageProof.ts'
+import { runPageProof, publishAndVerify } from '../../kit/device/enginePageProof.ts'
 
 interface Reading {
   scene: { held: boolean; red: number; bytes: number; main: number | null; moved: number | null }

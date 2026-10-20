@@ -7,7 +7,7 @@ import { createTilePublish } from '../../../packages/sdk-browser/src/webgpu/tile
 import { stampedPlace } from '../../../packages/sdk-browser/src/webgpu/tile/stamp.fixture.ts'
 import { poolEncoding } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
 import { tileLayout } from '../../../packages/sdk-browser/src/texture/tiles.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 /** A target of `width × height` pixels: the first `read` ask a level-0 tile each, the others the
  *  missing child its ancestor stands in for; `frames` images, every pixel speaking. */

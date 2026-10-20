@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from './deviceLedger.ts'
 import { createGpuDraw } from '../draw/factory.ts'
 import { createGpuPartition } from '../partition/factory.ts'

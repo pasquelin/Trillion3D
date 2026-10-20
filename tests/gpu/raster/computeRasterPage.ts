@@ -9,9 +9,9 @@
 import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { DiagnosticGpuVariant } from '../../../packages/sdk-browser/src/diagnostic/gpuVariant.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
-import { VIEWPORT, cameraFace, release, engine } from '../kit/sharedSceneProof.ts'
-import { image } from '../kit/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
+import { VIEWPORT, cameraFace, release, engine } from '../../kit/device/sharedSceneProof.ts'
+import { image } from '../../kit/device/sceneImageProof.ts'
 import { tileScene } from './computeRasterScene.ts'
 
 const [WIDTH, HEIGHT] = VIEWPORT

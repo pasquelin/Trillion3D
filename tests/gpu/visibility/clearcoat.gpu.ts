@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { lobeReadings } from '../kit/enginePageProof.ts'
+import { lobeReadings } from '../../kit/device/enginePageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 test('a clear coat draws its highlight over the base, and its map zeroes it', async () => {

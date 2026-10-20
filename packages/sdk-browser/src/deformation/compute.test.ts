@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createDeformationCompute } from './compute.ts'
 
 test('cluster and float-pool deformation dispatch in one pass and reuse stable bindings', async () => {

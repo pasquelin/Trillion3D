@@ -4,7 +4,7 @@
 // for a local light's maps, its range first, the perspective box, and every mip's rect.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { Mat, matrixProduct } from '../texture/shaderRunMatrix.fixture.ts'

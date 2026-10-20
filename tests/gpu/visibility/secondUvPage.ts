@@ -7,7 +7,7 @@
 // (`compiledPages.ts`), drawn opaque or blended.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { level, MATTE, plane, type PlaneOptions } from './physicalLobesPage.ts'
 
 /** Where each lamp's mirror highlight lands: the plane's point between the eye (z 3) and a lamp

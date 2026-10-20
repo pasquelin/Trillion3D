@@ -7,7 +7,7 @@ import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { settledRt } from './hold.fixture.ts'
 import { createGpuPresenter } from '../../gpu/core/presentation.ts'
 import { captureImage } from '../pages/io/hostApi.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 
 /** A display image's usage, as the engine's targets have it: drawn, sampled, copied out. */

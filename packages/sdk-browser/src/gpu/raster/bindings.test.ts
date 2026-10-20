@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRasterBindings } from './bindings.ts'
 import type { GpuRasterInput } from './types.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('raster variants compare their bound mask even when its selection owner stays', () => {
   const { device, bindGroups } = fakeDevice()

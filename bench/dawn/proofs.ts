@@ -1,7 +1,7 @@
 // The GPU proofs on the bench: every `*.gpu.ts` under `tests/gpu/`, one by one, on Dawn in Node
-// (`tests/gpu/kit/onDawn.ts`) under the machine's bench lock — never beside a measurement. With
+// (`tests/kit/device/onDawn.ts`) under the machine's bench lock — never beside a measurement. With
 // `--chrome`, every `*.chrome.ts`: what Dawn does not have — a browser's own surface, the witness
-// library's renderer — proved in the system Chrome (`tests/gpu/kit/onChrome.ts`), the recette's
+// library's renderer — proved in the system Chrome (`tests/kit/device/onChrome.ts`), the recette's
 // run alone, never a merge's. Paths are resolved from the repository root, never from
 // the current directory: the command gives the same result wherever it is launched from.
 //

@@ -9,7 +9,7 @@ import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/bounce/cont
 import { createBounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { GUARANTEED_SIDE } from '../gpu/core/textureLimits.ts'
 import { PROBE_TEXELS, atlasBytes, probeAtlasExtent } from './atlas.ts'
 import { ATLAS_CALLS, simulatedAtlas } from './atlas.fixture.ts'

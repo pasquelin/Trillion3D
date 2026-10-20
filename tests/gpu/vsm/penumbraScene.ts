@@ -4,7 +4,7 @@
 // receiver is opaque, or a blended surface, or absent; the slats may be taken away (`open`).
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
-import { batisseur, square } from '../kit/sharedSceneProof.ts'
+import { batisseur, square } from '../../kit/device/sharedSceneProof.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
 
 export type Receiver = 'opaque' | 'blend' | 'none'

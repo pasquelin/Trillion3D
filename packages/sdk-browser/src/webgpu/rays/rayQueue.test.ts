@@ -6,9 +6,9 @@
 // beside three storage buffers whatever the world's size.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import type { FakeDeviceOptions } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import type { ComputeBind } from '../../../../../tests/kit/gpu/fakeCompute.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import type { FakeDeviceOptions } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import type { ComputeBind } from '../../../../../tests/kit/fakeDevice/fakeCompute.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { RAY_PARAMS } from './deformIndexWgsl.ts'
@@ -114,7 +114,7 @@ test("a world of any size is traced by one dispatch, its tables at the culling's
   assert.equal(await queue.cast(ray(0)), null)
   const traces = gpu.dispatches.filter(({ entryPoint }) => entryPoint === 'traceRays')
   assert.equal(traces.length, 1, 'one dispatch whatever the placements')
-  // A view names its texture (`tests/kit/gpu/fakeResources.ts`), a binding its buffer.
+  // A view names its texture (`tests/kit/fakeDevice/fakeResources.ts`), a binding its buffer.
   const labelOf = (entry: GPUBindGroupEntry) =>
     (entry.resource as { texture?: { label?: string } }).texture?.label ??
     (entry.resource as Partial<GPUBufferBinding>).buffer?.label

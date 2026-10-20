@@ -9,8 +9,8 @@ import {
 } from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
-import { animationFrame } from '../kit/frame.ts'
-import { gaps } from '../kit/patternImage.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
+import { gaps } from '../../kit/device/patternImage.ts'
 
 export type World = ReturnType<typeof createWorld>
 

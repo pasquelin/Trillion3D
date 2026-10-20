@@ -6,10 +6,10 @@
 // held image stay held: nothing is left to recompute when the host declares its convention.
 import { WebGPUCoordinateSystem } from 'three'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { cameraFace, release, engine } from '../kit/sharedSceneProof.ts'
-import { image, redCount } from '../kit/sceneImageProof.ts'
+import { cameraFace, release, engine } from '../../kit/device/sharedSceneProof.ts'
+import { image, redCount } from '../../kit/device/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import { runPasses } from '../kit/deviceProof.ts'
+import { runPasses } from '../../kit/device/deviceProof.ts'
 import { TILE, transformScene } from '../placement/transformScene.ts'
 
 /** Frames rendered under each convention: enough for the image to be held. */

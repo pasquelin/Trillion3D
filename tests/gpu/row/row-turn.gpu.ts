@@ -9,7 +9,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
+import { runPageProof, assertSoundProof } from '../../kit/device/enginePageProof.ts'
 
 type Reading = Awaited<ReturnType<typeof import('./rowTurnPage.ts').runRowTurn>>
 

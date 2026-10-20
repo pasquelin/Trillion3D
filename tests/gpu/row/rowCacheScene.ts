@@ -12,9 +12,9 @@ import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { openSelectionKernel } from '../dag/selectionKernel.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
-import { placedRuleDag } from '../kit/placedRuleDag.ts'
+import { placedRuleDag } from '../../kit/device/placedRuleDag.ts'
 
 /** Placements apart along -x: one view sees one of them. */
 const SPACING = 1e4

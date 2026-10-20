@@ -6,7 +6,7 @@
 // printed: the room the bins hold covers it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { runRowBins } from './rowBinsRun.ts'
 
 test('the chunk bound never under-counts on an oblique dense moving scene', async () => {

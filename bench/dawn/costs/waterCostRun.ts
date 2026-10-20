@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { installProofGpu } from '../../../tests/gpu/kit/onDawn.ts'
+import { installProofGpu } from '../../../tests/kit/device/onDawn.ts'
 import type { WaterCostOptions } from '../../../tests/gpu/water/waterCostPage.ts'
 
 /** The water-cost measure on Dawn of the engine at `engineRoot`: the fixture is fixed, only the

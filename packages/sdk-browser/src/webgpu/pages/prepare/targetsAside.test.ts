@@ -3,7 +3,7 @@
 // they are made beside those, which the frames go on drawing into, and swapped in at a frame's entry.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { SHADOW_LIMITS, camera, quadScene } from '../testScenes.fixture.ts'
 import { MANIFEST_IDENTITY } from '../../../engine/pagesEngine.fixture.ts'
 import { createWebgpuPagesRuntime } from '../runtime.ts'

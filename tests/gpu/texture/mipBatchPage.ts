@@ -3,7 +3,7 @@
 import { generateMaterialMips } from '../../../packages/sdk-browser/src/texture/mipBatch.ts'
 import { materialMipTexture } from '../../../packages/sdk-browser/src/texture/mips.ts'
 import { mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { readLevels } from './pageMipsPage.ts'
 import type { ChainCase } from './pageMipsReference.ts'
 

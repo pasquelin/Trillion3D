@@ -11,7 +11,7 @@ import {
 } from '../../visibility/types.ts'
 import { createMaterialTable } from '../material/materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../material/materialLayout.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createShadeCensus } from '../visibility/shadeCensus.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import { SURFACE_MODEL } from '../../scene/surfaceModel.ts'

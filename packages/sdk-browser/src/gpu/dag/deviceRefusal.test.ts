@@ -12,7 +12,7 @@ import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 import { POOL_SORT_WORDS } from '../pool/sortWords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 const LIMIT = 64 << 10
 /** A thousand pages over ten nodes and ten primitives, `big` past one 64 KiB binding. */

@@ -4,8 +4,13 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { EngineContext, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
+import {
+  batisseur,
+  engine,
+  release,
+  type ScenePreparee,
+} from '../../kit/device/sharedSceneProof.ts'
 
 function occluderScene(): ScenePreparee {
   const builder = batisseur()

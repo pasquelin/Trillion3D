@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
 import { destroyRetired } from '../gpu/core/frameRetire.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 // Each history carries its colour and, beside it, the share target — the as-is share composition
 // reads and the history's validity —: the pass writes both targets, and the bytes it declares count

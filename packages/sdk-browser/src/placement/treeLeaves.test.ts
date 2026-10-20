@@ -7,7 +7,7 @@
 // or a rope whose root never moves, would keep it for ever.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { treeLeaves } from './treeLeaves.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 

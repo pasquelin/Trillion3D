@@ -8,10 +8,10 @@ import { FRAMES_PER_SEGMENT, PATH_POSES, poseAt } from '../../../bench/runner/tr
 import { DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { MEASURE_HEIGHT, MEASURE_WIDTH } from './measureResolution.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { benchManifest, settle } from '../world/proofWorld.ts'
-import { drawnPixels } from '../kit/sceneImageProof.ts'
+import { drawnPixels } from '../../kit/device/sceneImageProof.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One reading per trajectory point: the first frame of each segment. */

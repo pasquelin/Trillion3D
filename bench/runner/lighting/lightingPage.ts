@@ -5,7 +5,7 @@ import type * as PageExplorateur from '../harness/explorerPage.ts'
 import type * as PageMeasure from '../harness/measurePage.ts'
 import type { MovingNode } from '../report/types.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
-import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
+import { animationFrame } from '../../../tests/kit/device/frame.ts'
 
 // Named by its backend export at build time (`webgpuPagesEngine`), by whatever name a test double
 // exports otherwise: the lookup below is a plain dynamic index by design, so the namespace type

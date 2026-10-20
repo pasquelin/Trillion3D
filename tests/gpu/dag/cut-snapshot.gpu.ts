@@ -12,7 +12,7 @@ import {
   residentReadbackBytes,
   selectionListCap,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 const SWEEP = {
   sizes: [12000, 120000, 500000, 1000000],

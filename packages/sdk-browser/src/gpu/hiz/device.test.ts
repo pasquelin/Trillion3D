@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuHiz } from './factory.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('a Hi-Z resize replaces the this-frame level-0 depth target', async () => {
   const { device, textures } = fakeDevice()

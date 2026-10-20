@@ -3,9 +3,9 @@
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { EngineFactory } from '../../../packages/sdk-browser/src/engine/factory.ts'
 import { summarize } from '../../../packages/sdk-core/src/runtime/stats.ts'
-import { animationFrame } from '../kit/frame.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { engine, releaseScene } from '../kit/sharedSceneProof.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
+import { engine, releaseScene } from '../../kit/device/sharedSceneProof.ts'
 import { BACKGROUND, WATER_ATTACHMENT_BYTES } from './waterPassCases.ts'
 import {
   DISTORTION_APPLY_PASS,

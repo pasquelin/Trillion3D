@@ -6,7 +6,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof, type PageProofResult } from '../kit/enginePageProof.ts'
+import {
+  assertSoundProof,
+  runPageProof,
+  type PageProofResult,
+} from '../../kit/device/enginePageProof.ts'
 import { BACKGROUND } from './shadowCatcherPage.ts'
 
 test('a shadow catcher shows the background, darkened only under the shadow', async () => {

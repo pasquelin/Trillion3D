@@ -15,7 +15,7 @@
 //   node bench/dawn/proofs.ts tests/gpu/math/octahedral-fold.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeOnDawn } from '../kit/computeRun.ts'
+import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import { LOBE_PACK_WGSL } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import {

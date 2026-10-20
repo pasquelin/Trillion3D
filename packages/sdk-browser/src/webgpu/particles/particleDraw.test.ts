@@ -2,7 +2,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setImmediate as tick } from 'node:timers/promises'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { ParticlePool, type ParticlePoolSpec } from '../../../../sdk-core/src/fluids/particles.ts'
 import { DRAW_FLOATS, writeDrawWords } from '../../particles/drawWords.ts'
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts'

@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 test('chains reduced together equal each reduced alone, and again on its held groups', async () => {
   const page = (await loadPage(

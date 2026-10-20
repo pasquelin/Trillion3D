@@ -3,7 +3,7 @@
 // the ring is destroyed once no capture came. Each capture's pixels are an array of its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { readGpuImage } from './readback.ts'
 
 const capturing = () => {

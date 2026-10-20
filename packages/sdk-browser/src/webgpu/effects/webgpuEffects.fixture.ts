@@ -1,8 +1,8 @@
 // What the effect-chain tests share: the kit device's encoder and its passes, and a chain on it.
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { written, type FakeWrite } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { written, type FakeWrite } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { commandArgs, type FakePass } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
 
 /** A write's words as the floats the bloom's slots hold. */

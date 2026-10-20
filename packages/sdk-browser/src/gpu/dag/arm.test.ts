@@ -12,7 +12,7 @@ import { DAG_ARGS, DAG_ARGS_INITIAL, DAG_ARM_BINDING, DAG_ARM_WGSL } from './sha
 import { DAG_BINDINGS_WGSL, dagBindEntries } from './shader/bindings.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { buildDagArm, dagArmGroup, dagArmLayout } from './arm.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('each record holds the words the arming copy carried, z one', () => {

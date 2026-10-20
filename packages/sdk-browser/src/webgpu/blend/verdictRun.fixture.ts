@@ -1,8 +1,8 @@
 // The GPU frustum verdict (`verdictWgsl.ts`) run in JavaScript (`shaderRun`): the shipped text,
 // its workgroups replayed one after the other, what `verdictWgsl.test.ts` holds to its contract and
-// what a fake device dispatches (`tests/kit/gpu/fakeComputeBlend.ts`).
+// what a fake device dispatches (`tests/kit/fakeDevice/fakeComputeBlend.ts`).
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { vectors } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
+import { vectors } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { BLEND_VERDICT_SHADER, VERDICT_GROUP } from './verdictWgsl.ts'
 import { VERDICT, VERDICT_WORDS } from './verdictLayout.ts'

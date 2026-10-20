@@ -14,7 +14,7 @@ import {
   TESTED_BOX,
 } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { BOX_NEAREST, UNIFORM_BYTES, type OcclusionCase } from './occlusionTestCases.ts'
 
 /** Words of `Bounds` the cases fill: the rectangle, then these. */

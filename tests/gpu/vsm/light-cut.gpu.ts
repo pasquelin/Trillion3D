@@ -11,8 +11,8 @@ import { PATH_POSES, poseAt, VIEWS } from '../../../bench/runner/trajectory/pose
 import { DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts'
 import { streetBounds } from '../../../bench/runner/street/street.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { animationFrame } from '../kit/frame.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
 import { benchManifest, SDK_URL, settle } from '../world/proofWorld.ts'
 import { pixelLuminance, openBenchWorld } from './shadowScene.ts'
 

@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { selectVisiblePages } from '../../page/cut/cut.fixture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
   quadScene,
   camera,

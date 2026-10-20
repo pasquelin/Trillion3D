@@ -8,7 +8,7 @@ import { resizeTileAtlas } from './atlasResize.ts'
 import { createWebgpuTilePageTable } from './pageTable.ts'
 import { tailId, tileId } from './ids.ts'
 import { packEntry, tileLayout, TILES_PER_LAYER } from '../../texture/tiles.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { textureDevice } from './textureDevice.fixture.ts'
 
 installGpuGlobals()

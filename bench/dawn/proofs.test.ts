@@ -79,7 +79,12 @@ test('proofArgs runs every proof by default, serially, and the targets given oth
 test('under node --test, only a GPU proof may open the GPU', () => {
   assert.doesNotThrow(() => assertProofEntryPoint(at(listProofFiles()[0]), true))
   const chrome = at(listProofFiles(CHROME_SUFFIX)[0])
-  for (const entry of ['', fileURLToPath(import.meta.url), at('tests/gpu/kit/onDawn.ts'), chrome])
+  for (const entry of [
+    '',
+    fileURLToPath(import.meta.url),
+    at('tests/kit/device/onDawn.ts'),
+    chrome,
+  ])
     assert.throws(() => assertProofEntryPoint(entry, true), new RegExp(DAWN_REFUSED), entry)
 })
 

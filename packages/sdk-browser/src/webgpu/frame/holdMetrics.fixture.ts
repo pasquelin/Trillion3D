@@ -1,7 +1,7 @@
 // The settled engine (`settledRt`), its last complete frame drawn: what the held-frame metric tests
 // read.
 import { settledRt } from './hold.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { WebgpuTimingState } from '../pages/state/timing.ts'
 import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'

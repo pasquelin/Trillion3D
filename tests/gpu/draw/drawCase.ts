@@ -3,7 +3,7 @@
 // by the visibility raster in the same submission — no CPU readback or reorder between —, and what
 // both left read back.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
+import { bufferHolding, readTexture } from '../../kit/device/computeReadback.ts'
 import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
 import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'

@@ -7,7 +7,7 @@
 // one, never the background's.
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { faceIndex } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { roomFrame } from './roomFrame.ts'
 import { settledImage } from './rigImage.ts'
 import { rgbAt } from './rigFrame.ts'

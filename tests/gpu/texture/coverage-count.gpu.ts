@@ -10,9 +10,9 @@ import { COVERAGE_COUNT_WGSL } from '../../../packages/sdk-browser/src/texture/m
 import { previewLevelSize } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { autoKernel, groupZero } from '../kit/computeReadback.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
+import { autoKernel, groupZero } from '../../kit/device/computeReadback.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The shipped count's read through the workgroup's alphas, and the direct read it replaces. */

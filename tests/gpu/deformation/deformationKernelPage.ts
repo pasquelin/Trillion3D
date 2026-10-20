@@ -9,7 +9,7 @@ import {
   deformationBindings,
 } from '../../../packages/sdk-browser/src/deformation/computeWgsl.ts'
 import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import type { BufferName, Frame } from './deformationKernelCases.ts'
 
 /** Each binding of the stage by its shader name, read from the stage's WGSL. */

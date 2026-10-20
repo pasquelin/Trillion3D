@@ -17,7 +17,7 @@ import {
 import { TILE_BORDER } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
 import { POOL_PLACE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/poolPlaceWgsl.ts'
 import { cellOrigin } from '../../../packages/sdk-browser/src/webgpu/tile/write.ts'
-import { computeOnDawn } from '../kit/computeRun.ts'
+import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The atlas reads' place decode and pool tap, taken from the shipped text itself. */

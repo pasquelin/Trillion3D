@@ -3,7 +3,7 @@ import { DEFAULT_CACHED_BYTES } from '../streaming/pageCache.ts'
 // by the rule the renderers count them with, before the pools, whose defaults stay what they were.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { effect } from '../../../sdk-core/src/world/effect/index.ts'
 import { createWebgpuEffects } from '../webgpu/effects/webgpuEffects.ts'
 import { effectChainBytesAt } from '../post/effects/targets.ts'

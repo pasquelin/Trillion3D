@@ -13,7 +13,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { luminance } from '../../../packages/math/src/color/luminance.fixture.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { settle } from '../world/proofWorld.ts'
 import { FACING, openFacingWorld, region } from '../frame/facingWorld.ts'
 

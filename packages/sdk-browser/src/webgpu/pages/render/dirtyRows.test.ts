@@ -12,7 +12,7 @@ import assert from 'node:assert/strict'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { PAGE_INFO_STRIDE } from '../../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** A session whose page table is a real buffer and whose queue records every write, so the test
  *  reads what the frame sent rather than how many times it was asked to send it. */

@@ -10,7 +10,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { runOnDawn, loadPage } from '../kit/onDawn.ts'
+import { runOnDawn, loadPage } from '../../kit/device/onDawn.ts'
 
 test('a bounce point walking its cell list sums what walking every light sums, bit for bit', async () => {
   const page = (await loadPage(

@@ -6,8 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { measureOutput } from '../../../bench/core/paths.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { threeStackCache } from '../kit/renderHarness.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { threeStackCache } from '../../kit/device/renderHarness.ts'
 import { drag, key, openCameraProbe, wheel } from './cameraGestures.ts'
 
 type Probe = Awaited<ReturnType<typeof openCameraProbe>>

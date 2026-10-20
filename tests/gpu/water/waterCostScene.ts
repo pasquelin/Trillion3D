@@ -4,7 +4,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
-import { batisseur } from '../kit/sharedSceneProof.ts'
+import { batisseur } from '../../kit/device/sharedSceneProof.ts'
 import { GROUND, waterSurface } from './waterPassCases.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'

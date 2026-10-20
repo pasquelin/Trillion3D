@@ -11,7 +11,7 @@ import { takeBenchLock } from '../../../bench/dawn/runs/lock.ts'
 import { assertBrowserEntryPoint, launchChrome } from '../../../bench/runner/harness/chrome.ts'
 import { ENGINES } from '../../../bench/runner/harness/sideOptions.ts'
 import { resolveMounts } from '../../../bench/runner/harness/options.ts'
-import { startServer } from '../../kit/server/staticServer.ts'
+import { startServer } from '../server/staticServer.ts'
 import type { Mount } from '../../../scripts/test/static-server.ts'
 import { REPOSITORY_ROOT, posixPath } from '../../../scripts/repository-files.ts'
 

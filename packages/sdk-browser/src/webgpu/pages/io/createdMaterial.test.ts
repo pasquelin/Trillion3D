@@ -11,9 +11,9 @@ import {
   PAGE_INFO_STRIDE,
   ROW_WORDS,
 } from '../../../visibility/types.ts'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { quadScene, camera } from '../testScenes.fixture.ts'
 import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'

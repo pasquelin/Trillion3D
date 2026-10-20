@@ -11,7 +11,7 @@ import { packed } from './selectionHelpers.fixture.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 
 /** `device` with a queue that never moves: its submitted work, and every mapping, never settle. */
 function stalledQueue(device: GPUDevice) {

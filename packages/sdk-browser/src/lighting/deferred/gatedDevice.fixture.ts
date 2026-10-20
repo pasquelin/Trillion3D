@@ -1,4 +1,4 @@
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 type Creates = Record<string, (descriptor: object) => unknown>
 

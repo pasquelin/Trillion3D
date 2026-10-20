@@ -1,9 +1,9 @@
 // The session the table growth tests open: the deep quad on a pool at its floor.
 import { createSceneLightStore } from '../../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
-import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
+import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { frontCamera } from '../../../engine/pagesEngineScenes.fixture.ts'
 import { deepQuadScene } from '../deepQuad.fixture.ts'
 import { createWebgpuPagesRuntime } from '../runtime.ts'

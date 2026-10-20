@@ -12,8 +12,13 @@ import {
   createWitnessRenderer,
   readWitnessImage,
 } from '../../../bench/runner/witness/threeRenderer.ts'
-import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
-import { untilHeld } from '../kit/sceneImageProof.ts'
+import {
+  batisseur,
+  engine,
+  release,
+  type ScenePreparee,
+} from '../../kit/device/sharedSceneProof.ts'
+import { untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { SceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'

@@ -7,10 +7,10 @@
 // tells where on the image the exact mirror rays of the panes' pixels meet what they meet.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { batisseur } from '../kit/sharedSceneProof.ts'
-import { sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
-import { flipRows } from '../kit/patternImage.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { batisseur } from '../../kit/device/sharedSceneProof.ts'
+import { sunlitEngine, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { flipRows } from '../../kit/device/patternImage.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import {
   EYE,
   FOV_DEGREES,

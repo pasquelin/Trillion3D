@@ -7,9 +7,9 @@ import {
   drawnPageIds,
   indirectDraws,
   installGpuGlobals,
-} from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, dispatchedEntries } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+} from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND, dispatchedEntries } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
   quadScene,
   camera,

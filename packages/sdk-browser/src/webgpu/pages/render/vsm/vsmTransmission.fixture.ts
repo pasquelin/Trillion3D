@@ -1,6 +1,6 @@
 // A transmission under the GPU budget's limit (`encodeVsmRenderAndTransmission`, whose raster
 // draws no view here), found short once binned: what the growth tests start from.
-import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../../../../gpu/core/deviceLedger.ts'
 import { shadowPageEntries } from '../../../shadow/pageGroup.ts'
 import { createVsmResources } from '../../../../vsm/resources.ts'

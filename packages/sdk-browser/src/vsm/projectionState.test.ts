@@ -2,7 +2,7 @@
 // one device never share them, and freeing a set frees its own and nothing of the other's.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { createVsmResources } from './resources.ts'
 import {

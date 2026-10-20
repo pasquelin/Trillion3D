@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { claimWebgpuDevice, markWebgpuLost } from './lost.ts'
-import { asWebgpuDevice } from '../../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
+import { asWebgpuDevice } from '../../../../../../tests/kit/fakeDevice/fakeWebgpuDevice.ts'
 
 function runtime() {
   const announced: Array<{ phase: string; details: Record<string, unknown> }> = []

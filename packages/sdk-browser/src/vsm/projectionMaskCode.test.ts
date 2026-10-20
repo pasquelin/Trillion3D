@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'

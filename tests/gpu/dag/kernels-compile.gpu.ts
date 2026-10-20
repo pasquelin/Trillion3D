@@ -7,7 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import type { KernelText } from './kernelsCompilePage.ts'
 
 const CONE = 'let d=dot(axisWorld,view);'

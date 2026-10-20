@@ -28,7 +28,7 @@ import { signedArea } from '../../../bench/oracles/browser/cpu-image/projection.
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { OPEN_CONE, triangleCone } from '../../kit/reference/cone.ts'
-import { project } from '../kit/cameraRig.ts'
+import { project } from '../../kit/device/cameraRig.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import type { SelectionCase } from './selectionCase.ts'
 import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'

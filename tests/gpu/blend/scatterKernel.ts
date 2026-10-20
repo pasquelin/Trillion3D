@@ -16,8 +16,8 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
 import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** What the kernel reads, word for word, and how many words of each output it writes. */

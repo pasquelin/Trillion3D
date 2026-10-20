@@ -3,7 +3,7 @@
 // on the others stand; a move keeps its row's generation and counts as used now.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
   createRowUseWords,
   createRowUseWordsGpu,

@@ -17,9 +17,9 @@ import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface
 import { OCT_BYTE_STEP } from '../../../packages/math/src/constants.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
-import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
-import * as K from '../kit/sharedSceneProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
+import { colorAt, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import * as K from '../../kit/device/sharedSceneProof.ts'
 
 /** The voxels' side; the brick spans [-0.5, 0.5]² about its placement, one voxel thick. */
 const SIDE = 0.25

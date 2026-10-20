@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { claimGpuDevice } from './deviceOwners.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { deviceOwner } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { deviceOwner } from '../../../../../tests/kit/fakeDevice/fakeWebgpuDevice.ts'
 
 // As the implementation writes it: the object at fault by its type and its label, in quotes.
 const destroyed = (label: string) =>

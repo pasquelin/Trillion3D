@@ -9,10 +9,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { poseAt, VIEWS } from '../../../bench/runner/trajectory/poses.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { animationFrame } from '../kit/frame.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
 import { settle } from '../world/proofWorld.ts'
-import { canvasImage } from '../kit/patternImage.ts'
+import { canvasImage } from '../../kit/device/patternImage.ts'
 import { openBenchWorld, shadingGap } from './shadowScene.ts'
 
 const WIDTH = 1248,

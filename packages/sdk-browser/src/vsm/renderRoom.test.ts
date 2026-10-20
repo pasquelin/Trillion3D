@@ -3,7 +3,7 @@
 // one row's lists fit, no raster this frame; never an allocation the budget refuses.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { createVsmResources } from './resources.ts'
 import { encodeVsmRender } from './renderPass.ts'

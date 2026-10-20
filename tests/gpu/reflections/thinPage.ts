@@ -6,7 +6,7 @@
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { camera, castBoxes } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { BOX_FOV, type Block } from './boxFrame.ts'
 import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudit.ts'
 

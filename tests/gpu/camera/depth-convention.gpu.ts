@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { runPageProof, publishAndVerify } from '../kit/enginePageProof.ts'
+import { runPageProof, publishAndVerify } from '../../kit/device/enginePageProof.ts'
 
 interface Pass {
   frames: { name: string; held: boolean }[]

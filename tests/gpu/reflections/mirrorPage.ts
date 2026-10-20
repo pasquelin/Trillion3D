@@ -3,7 +3,7 @@
 // engine's own inputs and run through its kernels as an image runs them (`rig.ts`) for a fixed count
 // of images (`rigImage.ts`), its reflection target read back.
 import { PHYSICAL_SURFACE_FLAG } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
 import { settledImage } from './rigImage.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'

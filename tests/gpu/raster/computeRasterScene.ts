@@ -2,7 +2,12 @@
 // repeat, a face-on tile whose diagonal falls exactly on pixel centres, a huge tile whose vertices
 // round far outside the image, and a tile that crosses the near plane.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { VIEWPORT, batisseur, square, type ScenePreparee } from '../kit/sharedSceneProof.ts'
+import {
+  VIEWPORT,
+  batisseur,
+  square,
+  type ScenePreparee,
+} from '../../kit/device/sharedSceneProof.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 

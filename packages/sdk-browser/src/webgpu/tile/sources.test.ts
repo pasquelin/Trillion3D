@@ -2,7 +2,7 @@
 // is refused where its read resolves.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createTileSources } from './sources.ts'
 import { createTileCounters } from './counters.ts'
 import { tileLayout } from '../../texture/tiles.ts'

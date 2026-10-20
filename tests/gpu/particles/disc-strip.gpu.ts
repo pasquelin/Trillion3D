@@ -21,9 +21,9 @@ import {
 } from '../../../packages/sdk-browser/src/particles/drawWords.ts'
 import { particleTargets } from '../../../packages/sdk-browser/src/particles/particleTargets.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { bufferHolding, readTexture } from '../../kit/device/computeReadback.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 const SIDE = 128,
   DISCS = 400

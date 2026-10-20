@@ -6,7 +6,7 @@ import { createScaleControl } from '../../../frame/scaleControl.ts'
 import { keepWebgpuFrame } from '../../frame/hold.ts'
 import { setFeedbackTargetAb } from './feedbackAb.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
 
 test('same-device toggle changes only feedback allocation and selected pipelines', async () => {

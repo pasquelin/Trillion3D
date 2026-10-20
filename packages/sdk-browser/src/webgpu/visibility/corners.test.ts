@@ -15,7 +15,7 @@ import { createWebgpuRowState } from '../row/state.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { PageRec } from '../../page/selection/types.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { uploadDirtyRows } from '../pages/render/dirtyRows.ts'
 
 const ROWS = 1000,

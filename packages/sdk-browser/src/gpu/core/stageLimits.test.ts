@@ -4,7 +4,7 @@
 // kind in one stage than WebGPU guarantees a device that asks for nothing: 16 sampled textures,
 // 8 storage buffers, 4 storage textures — the engine runs on any machine at the default limits,
 // whatever the world's size. The kit's device, holding the defaults, refuses a pipeline layout
-// past them (`tests/kit/gpu/limitRules.ts`); each test reads every stage it built too.
+// past them (`tests/kit/fakeDevice/limitRules.ts`); each test reads every stage it built too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -20,8 +20,8 @@ import { createWebgpuBlendPipelines } from '../../webgpu/blend/pipelines.ts'
 import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
 import { createReflectionPipelines } from '../../reflections/reflectionPipelines.ts'
 import { createHizPipelines } from '../hiz/pipelines.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { limitOf, stageBindingCounts } from '../../../../../tests/kit/gpu/limitRules.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { dagBindEntries } from '../dag/shader/bindings.ts'
 import { drawBindEntries } from '../draw/shader.ts'

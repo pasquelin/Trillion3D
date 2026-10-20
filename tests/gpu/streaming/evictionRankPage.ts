@@ -14,7 +14,7 @@ import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixtur
 import { EVICTION_BURST } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { evictionWorld } from './evictionWorld.ts'
 import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 

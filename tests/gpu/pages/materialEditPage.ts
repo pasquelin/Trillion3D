@@ -4,9 +4,9 @@
 // (`surfaceWritten`, `refreshMaterials`); a session opened on the new values draws the reference.
 // The page reports both held images and the rows each edit sent up.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { batisseur, cameraFace } from '../kit/sharedSceneProof.ts'
-import { countsStep, sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { batisseur, cameraFace } from '../../kit/device/sharedSceneProof.ts'
+import { countsStep, sunlitEngine, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { surfaceWritten } from '../../../packages/sdk-browser/src/page/surfaceWrites.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'

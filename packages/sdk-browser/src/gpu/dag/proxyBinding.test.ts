@@ -10,8 +10,8 @@ import { createProxyInstances } from './proxyInstances.ts'
 import { createRecordTexture } from '../core/recordTexture.ts'
 import { WORLD_TABLE } from './worldTable.ts'
 import type { PackedDag } from './types.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { LIMITS, cut, region, surface, writes } from './proxyInstances.fixture.ts'
 
 /** The proxy over `packed` on `device`, its instances in records of the culling's laid for it. */

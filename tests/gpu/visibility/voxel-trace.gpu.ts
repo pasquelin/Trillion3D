@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
+import { assertSoundProof, runPageProof } from '../../kit/device/enginePageProof.ts'
 import type { VoxelTraceProof } from './voxelTracePage.ts'
 
 test('a voxel brick shows its traced voxels: depth, normal and shadow', async () => {

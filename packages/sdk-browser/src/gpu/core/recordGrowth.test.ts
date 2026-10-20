@@ -3,8 +3,8 @@
 // refuses keeps the table it had. Over the device double.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import type { FakeTexture } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createRecordTexture } from './recordTexture.ts'
 import type { RecordLayout } from './recordLayout.ts'
 import { recordWordAt } from './recordTexture.fixture.ts'

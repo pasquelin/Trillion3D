@@ -11,7 +11,7 @@ import type { GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/se
 import { createRowEviction } from '../../../packages/sdk-browser/src/webgpu/row/rowEviction.ts'
 import { createRowUseWords } from '../../../packages/sdk-browser/src/webgpu/row/rowWords.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { closureScene } from './rowClosureRun.ts'
 import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 

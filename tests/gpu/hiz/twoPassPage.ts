@@ -7,8 +7,8 @@
 // image, and the image must still be held. Each held image is compared to a fresh engine's.
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { cameraFace } from '../kit/sharedSceneProof.ts'
-import { countsStep, untilHeld } from '../kit/sceneImageProof.ts'
+import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
+import { countsStep, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 

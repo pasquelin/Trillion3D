@@ -2,10 +2,10 @@
 // kit's backdrop scene (`backdropScene.ts`), an opaque blue backdrop filling the view. Over it, a
 // clear glass square; the same glass with a red volume; an opaque red tile in front of the glass,
 // and the same tile without the glass; the glass moved out of view; and the backdrop alone.
-import { cameraFace } from '../kit/sharedSceneProof.ts'
-import { backdropScene, type Backdrop } from '../kit/backdropScene.ts'
-import { colorAt, sunlitEngine, untilHeld } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
+import { backdropScene, type Backdrop } from '../../kit/device/backdropScene.ts'
+import { colorAt, sunlitEngine, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 /** The held image of `layout`: its pixels at the centre, and all of them (kept in the page). */

@@ -6,8 +6,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTileEvictions } from './evictSort.ts'
 import { losslessAtlas } from './losslessAtlas.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { words } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 
 test('a queue that still holds victims and saw nothing move is not cut again', () => {

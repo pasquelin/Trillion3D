@@ -14,7 +14,7 @@ import { createDagRuntime } from './runtime.ts'
 import { stagedOutputBytes } from './layout.ts'
 import { viewWord } from './viewLayout.ts'
 import { idleKernels, writtenReadbacks } from './differenceRig.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { SelectionUniforms } from '../core/selection.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 

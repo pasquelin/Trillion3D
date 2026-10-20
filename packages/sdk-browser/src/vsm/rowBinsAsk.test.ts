@@ -11,7 +11,7 @@ import { scene, sunAt } from './rowPageBound.fixture.ts'
 import { onBuffers } from './rowBins.fixture.ts'
 import { encodeRowBins } from './rowBinsGpu.ts'
 import { passRowOf } from '../stage/passTable.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('an ask of the last encoded inputs is not made again; a change of any is', () => {
   const rows = scene(300, [0, 0, 0], 100, 0.01, 30, 1),

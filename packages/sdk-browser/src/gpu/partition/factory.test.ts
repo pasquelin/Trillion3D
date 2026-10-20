@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createGpuPartition } from './factory.ts'
 import { PARTITION_SHADER } from './shader.ts'
 import { PARTITION_BINDING, PARTITION_KERNEL_BINDINGS, ROW_DATA_U32 } from './contract.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { buffer, frame, view } from './partition.fixture.ts'
 
 const STORAGE_BUFFERS_PER_STAGE = 8

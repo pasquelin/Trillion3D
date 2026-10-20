@@ -3,7 +3,7 @@
 // wall pixel whose exact ray meets the body, away from the body's silhouette, must show the body's
 // colour — the reflection of a body is continuous, never the shards of its edges the ray happens to
 // meet inside a thin slab.
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import type { Block } from './boxFrame.ts'
 import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudit.ts'
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'

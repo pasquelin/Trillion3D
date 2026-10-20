@@ -6,8 +6,8 @@ import type { FakeCanvas } from '../../../bench/dawn/page/canvas.ts'
 import { createGpuPresenter } from '../../../packages/sdk-browser/src/gpu/core/presentation.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { pipelinesSettled } from '../../../packages/sdk-browser/src/lighting/deferred/compileLedger.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
-import { flipRows, gaps, readCanvasRgba, writePattern } from '../kit/patternImage.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
+import { flipRows, gaps, readCanvasRgba, writePattern } from '../../kit/device/patternImage.ts'
 
 const WIDTH = 64,
   HEIGHT = 48

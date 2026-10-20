@@ -7,7 +7,7 @@ import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_TABLE } from './mater
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 
 const lit = () => ({ ...surfaceOf([]), lit: true })

@@ -3,7 +3,7 @@
 // lights in place, its lobes set by its own fragment (`physicalWgsl.ts`) —, rendered by the real
 // WebGPU engine until held.
 import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import {
   ANISOTROPY_CASES,
   CLEARCOAT_CASES,

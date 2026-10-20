@@ -6,7 +6,7 @@ import { createWebgpuTimingState } from '../pages/state/timing.ts'
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { WebgpuEffects } from '../effects/webgpuEffects.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 
 /**

@@ -7,8 +7,8 @@ import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
 import { heldImage } from './heldImage.fixture.ts'
 import { createReflectionViewWriter } from './viewWrite.ts'
 import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import type { FakeBuffer } from '../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import type { FakeBuffer } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 
 /** A device whose queue lays each write into the words of one view uniform: what the buffer holds
  *  after each call, and the writes it took. */

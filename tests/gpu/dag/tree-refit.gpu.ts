@@ -5,7 +5,7 @@
 // beside the nodes is never written.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { runRefit } from './treeRefitRun.ts'
 
 test("the GPU refit is the CPU fit, word for word, in the tree's table", async () => {

@@ -4,9 +4,12 @@
 // the words the real ones would. A command buffer never submitted runs nothing. What the readbacks
 // hold is then the GPU's difference of the lists given, in the order the real dispatch copied them,
 // for the host to adopt or not (`dispatch.ts`, `differenceChain.ts`).
-import { dispatchedEntries, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
+import {
+  dispatchedEntries,
+  type FakeBuffer,
+} from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { words } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { packDagSelection } from './pack.ts'

@@ -3,7 +3,7 @@
 // old one retired after the frame's submit, since the image being encoded may still name it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuLightTiles } from './tiles.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { storageBufferCap } from '../../residency/pools.ts'

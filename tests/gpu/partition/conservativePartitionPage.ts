@@ -8,7 +8,7 @@ import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnos
 import { readBounds } from '../../../bench/runner/harness/page.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
 import { SDK_URL } from '../world/proofWorld.ts'
-import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { compareAudit, emptyTotals } from './partitionReference.ts'
 import { checkOcclusionAudit, emptyOcclusionTotals } from './transparentOcclusionReference.ts'
 

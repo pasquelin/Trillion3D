@@ -14,8 +14,8 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../math/src/wgsl/decl.ts'
 import { unresolvedNames } from '../gpu/core/wgslNames.fixture.ts'
 import { createPlacementMotion } from '../taa/motion.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { written } from '../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { written } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
 
 const motionRun = shaderRun<{

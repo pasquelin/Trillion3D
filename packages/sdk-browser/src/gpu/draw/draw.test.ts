@@ -1,8 +1,8 @@
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { BACKEND, writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { packDrawIndirect, evaluateDrawCompact, indirectForDraw } from './cpu.fixture.ts'
 import {
   BASE_SLOTS,

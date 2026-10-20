@@ -4,10 +4,10 @@
 // is the resolution it does itself before inverting the parent's matrix (`poseNode`, in
 // `setWebgpuTransform`).
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { release } from '../kit/sharedSceneProof.ts'
-import { image, redCount } from '../kit/sceneImageProof.ts'
+import { release } from '../../kit/device/sharedSceneProof.ts'
+import { image, redCount } from '../../kit/device/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import { runPasses } from '../kit/deviceProof.ts'
+import { runPasses } from '../../kit/device/deviceProof.ts'
 import { PIVOT, TILE, openPass, translation } from './transformScene.ts'
 
 /**

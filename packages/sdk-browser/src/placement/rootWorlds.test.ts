@@ -5,7 +5,7 @@
 // one writer of their stretch. Generated roots, one composed under a parent.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { destroyRetired } from '../gpu/core/frameRetire.ts'

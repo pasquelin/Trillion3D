@@ -3,7 +3,7 @@
 // the device granted, never the one asked.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { deepQuadScene } from '../deepQuad.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import type { EngineDiagnostic } from '../../../diagnostic/types.ts'

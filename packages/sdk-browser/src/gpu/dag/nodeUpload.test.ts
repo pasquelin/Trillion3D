@@ -5,8 +5,8 @@
 // with the one the readiness leaves.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import type { FakeTexture } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { textureExtent } from '../core/textureExtent.ts'
 import { NODE_TABLE } from './nodeTable.ts'
 import { createGpuDagSelection } from './selection.ts'

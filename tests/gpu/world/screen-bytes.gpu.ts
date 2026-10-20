@@ -30,7 +30,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { runPageProof, assertSoundProof, type PageProofResult } from '../kit/enginePageProof.ts'
+import {
+  runPageProof,
+  assertSoundProof,
+  type PageProofResult,
+} from '../../kit/device/enginePageProof.ts'
 import { KINDS, type Kind, type ScreenReading } from './screenBytesPage.ts'
 
 /** Allocations that are no frame target: the bench canvas stands for the window's, the held

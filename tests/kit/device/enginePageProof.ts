@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runOnDawn, loadPage } from './onDawn.ts'
-import type { LobeReading } from '../visibility/physicalLobesPage.ts'
+import type { LobeReading } from '../../gpu/visibility/physicalLobesPage.ts'
 
 /** One entry of the `events` array a page result reports diagnostics through. */
 interface PageProofEvent {

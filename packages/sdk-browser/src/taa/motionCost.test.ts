@@ -3,7 +3,7 @@
 // world loses its history at every landing; its CPU must not read every placement each time.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createPlacementMotion } from './motion.ts'
 
 /** `count` still roots whose world reads are counted, one of them `mobile`. */

@@ -1,7 +1,7 @@
 // The image every reflection proof reads (`rig.ts`): the image a still view of a frame holds after a
 // fixed count of images drawn as a frame loop draws them — one image an animation frame —, enough
 // for the history to fill (`REFLECTION_HISTORY`, twice over), its reflection target read back.
-import { animationFrame } from '../kit/frame.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
 import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { openRig } from './rig.ts'
 import type { RigFrame } from './rigFrame.ts'

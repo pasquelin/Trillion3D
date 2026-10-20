@@ -10,7 +10,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { lobeReadings, lobeSpread } from '../kit/enginePageProof.ts'
+import { lobeReadings, lobeSpread } from '../../kit/device/enginePageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 const readingsOf = (method: string) =>

@@ -4,7 +4,7 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { ensureWebgpuVisibilityBindings } from './bindings.ts'
 import { ensureWebgpuShadeBindings } from '../core/shadeBindings.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { visGroupFor } from './visGroup.ts'
 import { createMaterialTable } from '../material/materialTable.ts'
 

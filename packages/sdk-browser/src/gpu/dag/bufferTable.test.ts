@@ -8,7 +8,7 @@ import { dagDeviceRefusal } from './deviceRefusal.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
 import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('the camera cut makes the buffers its table names', async () => {
   const { dag } = packed(dagFixture())

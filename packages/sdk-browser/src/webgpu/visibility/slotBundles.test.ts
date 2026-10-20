@@ -3,8 +3,8 @@
 // is recorded once as a render bundle and replayed by every image over the same slots.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
 import { BASE_SLOTS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'

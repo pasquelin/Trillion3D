@@ -28,10 +28,10 @@ import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/de
 import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowBindings.ts'
 import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
-import { bufferHolding } from '../kit/computeReadback.ts'
+import { bufferHolding } from '../../kit/device/computeReadback.ts'
 
 /** A cell record — its count, the shadow flag in its high bit, where its list starts in the pool —
  *  and the resolve reading it: `contractLighting`, with `perLight` its surface taken per light

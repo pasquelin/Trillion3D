@@ -1,7 +1,7 @@
 // The page of the proxy-tables proof (`proxy-tables.gpu.ts`), on the engine's device: the engine's own
 // proxy over a world the culling splits in ranges, against the same world held whole.
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { reporting } from '../kit/reportingDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
+import { reporting } from '../../kit/device/reportingDevice.ts'
 import { engineWalk } from './proxyEngineWalk.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { hypot3 } from '../../../packages/math/src/float/hypot.ts'

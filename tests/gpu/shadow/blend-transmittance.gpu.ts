@@ -7,7 +7,7 @@
 //   node bench/dawn/proofs.ts tests/gpu/shadow/blend-transmittance.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeOnDawn } from '../kit/computeRun.ts'
+import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import { blendTransmittanceWgsl } from '../../../packages/sdk-browser/src/gpu/shadow/transmittanceWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
 import {

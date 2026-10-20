@@ -7,8 +7,8 @@ import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { createTaaFrameState } from '../../taa/frameState.ts'
 import { taaConverged } from '../../taa/landing.ts'
 import { HISTORY_LAWS } from '../../taa/historyWgsl.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { settledRt } from './hold.fixture.ts'
 
 installGpuGlobals()

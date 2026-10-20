@@ -15,7 +15,7 @@ import { multiplyMatrix4 } from '../../../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../../../math/src/matrix/matrix4Inverse.ts'
 import { composeMatrix4 } from '../../../../../../math/src/matrix/matrix4Compose.ts'
 import { yawPitchQuaternion } from '../../../../../../math/src/quaternion/quaternion.ts'
-import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { fakeHizDepth } from '../../../../vsm/hizDepth.fixture.ts'
 
 const frame = createTaaFrameState()

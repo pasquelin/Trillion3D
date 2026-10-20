@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuPageCache } from '../../gpu/page/pages.ts'
 import { createReadWatch } from '../../streaming/readWatch.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'

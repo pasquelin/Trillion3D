@@ -20,8 +20,8 @@ import {
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
 } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
 import { workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 import { hasBit } from '../../../packages/math/src/scalar/bits.ts'

@@ -3,7 +3,7 @@
 import { writeFileSync } from 'node:fs'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import type { BenchGpu } from '../machine/device.ts'
-import { readTexture } from '../../../tests/gpu/kit/computeReadback.ts'
+import { readTexture } from '../../../tests/kit/device/computeReadback.ts'
 
 /** Reads `texture` (8-bit RGBA or BGRA) back as RGBA rows, `width` × `height`, uncounted. */
 async function readRgba(gpu: BenchGpu, device: GPUDevice, texture: GPUTexture) {

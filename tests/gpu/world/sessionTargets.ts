@@ -7,7 +7,7 @@ import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/wor
 import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/world/session/target.ts'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { settle } from './proofWorld.ts'
-import { measurementSdk, openEngineWorld } from '../kit/renderHarness.ts'
+import { measurementSdk, openEngineWorld } from '../../kit/device/renderHarness.ts'
 
 /** Opens `manifestUrl` on the canvas `viewer` three ways and through a job, aborts one session and
  *  cancels a job: what each answered. */

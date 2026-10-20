@@ -13,8 +13,8 @@ import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnos
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import { createOrbitCameraControls } from '../../../packages/sdk-browser/src/camera/controls/orbitControls.ts'
 import { drag } from '../camera/cameraGestures.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { measurementSdk, proofCanvas, threeStackCache } from '../kit/renderHarness.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { measurementSdk, proofCanvas, threeStackCache } from '../../kit/device/renderHarness.ts'
 import { sessionTargets } from './sessionTargets.ts'
 
 /** Counts the animation frames the page is asked for until `restore`: the session's loop asks one

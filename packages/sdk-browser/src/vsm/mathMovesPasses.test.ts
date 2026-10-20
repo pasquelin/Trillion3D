@@ -15,7 +15,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeVsmProjectionFrame } from './projectionPass.ts'
 import { createVsmResources } from './resources.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import {

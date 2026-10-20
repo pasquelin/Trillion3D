@@ -2,7 +2,7 @@
 // gets the same record, nothing made — no list object, no buffer.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { vsmEnsureLists } from './chunkLists.ts'
 import type { VsmListSizes } from './chunkSizing.ts'
 

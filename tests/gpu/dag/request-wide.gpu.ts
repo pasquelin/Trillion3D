@@ -11,7 +11,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { OUT_COUNT } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { requestScene } from '../../../packages/sdk-browser/src/gpu/dag/requestScene.fixture.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openSelectionKernel } from './selectionKernel.ts'
 
 /** Pages past twenty-two bits, each with its priority, in the order the threads staged them. */

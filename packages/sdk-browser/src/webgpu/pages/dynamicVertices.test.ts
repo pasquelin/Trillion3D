@@ -12,7 +12,7 @@ import type { HostAttributes } from '../../host/resources.ts'
 import { webgpuVertexApi } from './dynamicVertices.ts'
 import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
 
 /** A runtime of `pool` on `device`, drawing `roots` with `lights`. */

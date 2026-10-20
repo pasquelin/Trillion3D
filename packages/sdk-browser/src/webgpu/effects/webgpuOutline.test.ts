@@ -4,8 +4,8 @@
 // scissored to where they may show, and gives everything back once the chain holds none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'

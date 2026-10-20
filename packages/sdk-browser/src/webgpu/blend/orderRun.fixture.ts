@@ -1,6 +1,6 @@
 // The order kernel (`orderWgsl.ts`) run in JavaScript (`shaderRun`), one dispatch at a time, a
 // block sort barrier by barrier: what `orderKernel.fixture.ts` replays a pass with and what a fake
-// device dispatches (`tests/kit/gpu/fakeComputeBlend.ts`).
+// device dispatches (`tests/kit/fakeDevice/fakeComputeBlend.ts`).
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { BLEND_ORDER_SHADER, SORT_BLOCK } from './orderWgsl.ts'

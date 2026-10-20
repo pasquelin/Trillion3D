@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuLightTiles } from './tiles.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { shippedColumn, suns } from './gridColumn.fixture.ts'

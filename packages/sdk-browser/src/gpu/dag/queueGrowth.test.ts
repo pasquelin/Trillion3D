@@ -9,7 +9,7 @@ import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { ruleResidency, pageResidency } from './readiness.fixture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import type { GpuSelection } from '../core/selection.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 

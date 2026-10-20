@@ -3,7 +3,7 @@
 // proof (`tests/gpu/webgpu/materialPixelsRender.ts`). Initialised before its first frame, sRGB
 // output at exposure 1 and its image read back from the GPU. Served to the page under `/runner/`, it imports only `three` — never the engine.
 import * as THREE from 'three/webgpu'
-import { readTexture } from '../../../tests/gpu/kit/computeReadback.ts'
+import { readTexture } from '../../../tests/kit/device/computeReadback.ts'
 
 export interface WitnessRendererOptions {
   width: number

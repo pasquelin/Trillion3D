@@ -2,7 +2,7 @@
 // all are in flight, read in place once mapped, and a copy never submitted taken over.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createReadbackRing, ReadbackRefused } from './readbackRing.ts'
 
 const settled = () => new Promise((resolve) => setImmediate(resolve))

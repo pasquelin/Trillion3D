@@ -15,7 +15,7 @@ import {
   flattenedCamera,
   creeRig,
   poseRig,
-} from '../../../../tests/gpu/kit/cameraRig.ts'
+} from '../../../../tests/kit/device/cameraRig.ts'
 import { SITES, renderFrameResidual } from './parentedSites.fixture.ts'
 import type { Site } from './parentedEngineSites.fixture.ts'
 import type { HostCamera } from './world.ts'

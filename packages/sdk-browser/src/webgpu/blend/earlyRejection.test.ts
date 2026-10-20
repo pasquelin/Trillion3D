@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuBlendPipelines } from './pipelines.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
 /**

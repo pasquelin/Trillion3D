@@ -3,7 +3,7 @@
 // at least the transparent layer, never rejecting a glass its own draw would show.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
 import { transparentOcclusionShader } from '../../gpu/core/transparentOcclusionWgsl.ts'

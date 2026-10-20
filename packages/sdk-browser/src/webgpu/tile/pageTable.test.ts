@@ -17,8 +17,8 @@ import {
   POOL_MAX_LAYERS,
   tileLayout,
 } from '../../texture/tiles.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import type { FakeWrite } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import type { FakeWrite } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { entryPlace } from '../../texture/tiles.fixture.ts'
 
 /** The writes of a device, in words: first word written, and the word count or -1 for all. */

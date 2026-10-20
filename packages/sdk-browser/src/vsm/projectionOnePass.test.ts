@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
-import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { commandArgs } from '../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { writeVsmProjectionFrame, type VsmProjectionLight } from './projectionPass.ts'

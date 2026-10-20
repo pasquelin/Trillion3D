@@ -20,7 +20,7 @@ import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
-import { draws } from '../kit/randomDraw.ts'
+import { draws } from '../../kit/device/randomDraw.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 

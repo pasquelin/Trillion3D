@@ -25,8 +25,8 @@ import {
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { BOUNCE_GRID_HEAD_WGSL } from '../../../packages/sdk-browser/src/bounce/gridWgsl.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { autoKernel } from '../kit/computeReadback.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { autoKernel } from '../../kit/device/computeReadback.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { BASE, POINTS, SIDE, SPACING, lightsOf, pointsOf } from './lightListsScene.ts'
 
 /** Interleaved timings of each dispatch. */

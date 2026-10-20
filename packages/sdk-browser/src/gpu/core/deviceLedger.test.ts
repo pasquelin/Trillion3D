@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { gpuDeviceLedgerOf, installGpuDeviceLedger } from './deviceLedger.ts'
 import { namesNoSession, sessionHandle } from './sessionHandle.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('the ledger sees each allocation, returns it on destroy and installs once', () => {
   const { device, destroyed } = fakeDevice()

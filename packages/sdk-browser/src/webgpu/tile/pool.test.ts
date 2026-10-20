@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTilePool } from './pool.ts'
 import { poolLayerBytes, POOL_MAX_LAYERS, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 const rgba = { kind: 'data', lane: 'lossless', format: 'rgba8unorm', texelBytes: 4 } as const

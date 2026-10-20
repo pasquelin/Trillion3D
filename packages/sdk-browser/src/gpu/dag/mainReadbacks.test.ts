@@ -3,7 +3,7 @@
 // the cut past its share is refused by name, whatever kind of resource holds the rest.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { DAG_READBACK_SLOTS } from './layout.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
 

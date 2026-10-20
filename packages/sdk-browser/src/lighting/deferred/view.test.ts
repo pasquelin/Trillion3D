@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredView } from './view.ts'
 import { VIEW_LAYOUT } from './worldAtWgsl.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 // A frame drawn below the display without the temporal resolve was composed pixel for pixel: the
 // composition reads where each display pixel falls in the image drawn (`composeSource`).

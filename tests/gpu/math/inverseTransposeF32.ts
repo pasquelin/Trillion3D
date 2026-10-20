@@ -9,7 +9,7 @@
 // `packages/sdk-browser/src/gpu/dag/inverseTranspose.test.ts` (selection) and the GPU proof all read
 // the same arithmetic, instead of each holding a copy.
 import { DIVISOR_FLOOR } from '../../../packages/math/src/matrix/singular.ts'
-import type { Vec3, Mat3 } from '../kit/vecTypes.ts'
+import type { Vec3, Mat3 } from '../../kit/device/vecTypes.ts'
 import { cross, dot } from './f32Vec3.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { RAD2DEG } from '../../../packages/math/src/constants.ts'

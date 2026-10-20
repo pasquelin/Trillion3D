@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 import { functionsOf, reachedFunctions } from '../../texture/shaderRule.fixture.ts'
 

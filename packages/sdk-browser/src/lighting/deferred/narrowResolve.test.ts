@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 
 test("the narrow resolve bounds its light array, the rest of its program the wide one's", () => {

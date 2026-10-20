@@ -8,8 +8,8 @@ import { previewLevelSize } from '../../../packages/sdk-core/src/texture/preview
 import { mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { checkView } from '../../kit/gpu/textureRules.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
+import { checkView } from '../../kit/fakeDevice/textureRules.ts'
 import { encodeReferenceChain, type ChainCase } from './pageMipsReference.ts'
 
 /** Colour chains plain, weighted and cut; data chains; even, odd, wide and tall sizes. Alphas mix

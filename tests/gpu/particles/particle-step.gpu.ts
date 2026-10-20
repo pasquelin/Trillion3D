@@ -21,8 +21,8 @@ import {
   PARTICLE_STATE_HEAD,
 } from '../../../packages/sdk-browser/src/webgpu/particles/particlesWgsl.ts'
 import { createStepWords } from '../../../packages/sdk-browser/src/webgpu/particles/stepWords.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 
 type Steps = { words: number[][]; staged: number[]; capacity: number; runs: number[][] }

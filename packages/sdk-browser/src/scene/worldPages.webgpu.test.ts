@@ -2,9 +2,9 @@
 // whole: a geometry page, decoded in place by the shaders as any page.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { replayWrites } from '../../../../tests/kit/gpu/fakeRecords.ts'
+import { installGpuGlobals } from '../../../../tests/kit/fakeDevice/globals.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { replayWrites } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createGpuPageCache } from '../gpu/page/pages.ts'
 import { worldPage } from './worldRootsPages.fixture.ts'
 import { opened, served } from './worldRoots.fixture.ts'

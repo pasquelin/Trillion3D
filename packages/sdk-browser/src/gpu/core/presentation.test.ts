@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPresenter } from './presentation.ts'
 import { claimGpuDevice } from './deviceOwners.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('presentation acquires a fresh canvas target after resizing, shared by fused and copy paths', () => {
   const sizes: number[][] = [],

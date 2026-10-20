@@ -9,9 +9,9 @@ import { tileCatalogue } from './catalogue.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('a live texture keeps its raw texels between pictures, let go with it', () => {
   installGpuGlobals()

@@ -3,9 +3,9 @@
 import { WRAP_COORD_WGSL } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts'
 import { COLOR_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
 import { functionBody } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts'
-import { readTexture } from '../kit/computeReadback.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readTexture } from '../../kit/device/computeReadback.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { bilinear4 } from '../../../packages/math/src/wgsl/sampling.ts'
 

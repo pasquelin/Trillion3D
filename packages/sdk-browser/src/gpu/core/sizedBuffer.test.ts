@@ -4,7 +4,7 @@
 // whole.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { destroyRetired } from './frameRetire.ts'
 import { sizedBuffer } from './sizedBuffer.ts'
 

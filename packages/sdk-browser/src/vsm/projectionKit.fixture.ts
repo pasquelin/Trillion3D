@@ -1,7 +1,7 @@
 // The shadow projection on the kit's device, as the projection proofs encode it: one device of a
 // 2²⁷-byte binding, its shadow resources, the frame's inputs as views nothing reads, and the view
 // uniform the pass uploads.
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import {
   encodeVirtualShadowProjection,

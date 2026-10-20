@@ -3,7 +3,7 @@
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { MeasureViewOptions } from '../harness/measureOptions.ts'
 import { BENCH_BACKGROUND, explorerOptions } from '../harness/explorerPage.ts'
-import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
+import { animationFrame } from '../../../tests/kit/device/frame.ts'
 
 type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.EngineFactory | undefined>
 

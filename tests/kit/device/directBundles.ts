@@ -4,8 +4,8 @@
 // and a pass's `executeBundles` encodes them on itself, on the real device — the image the engine
 // drew before it used bundles. Both act on the WebGPU prototypes of this process, never on an
 // import, and give back what they replaced.
-import { fakeBundleEncoder, replayBundles } from '../../kit/gpu/fakeBundles.ts'
-import { untag } from '../../kit/gpu/fakeWebgpuDevice.ts'
+import { fakeBundleEncoder, replayBundles } from '../fakeDevice/fakeBundles.ts'
+import { untag } from '../fakeDevice/fakeWebgpuDevice.ts'
 
 type Method = (...args: unknown[]) => unknown
 const device = () => GPUDevice.prototype as unknown as Record<string, Method>

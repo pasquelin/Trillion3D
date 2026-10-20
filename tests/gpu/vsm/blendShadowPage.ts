@@ -2,9 +2,9 @@
 // the generated penumbra scene (`penumbraScene.ts`), lit by its wide sun, read back held — the
 // receiver opaque, the same receiver blended, and the opaque one with the slats taken away.
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
-import { engine, release } from '../kit/sharedSceneProof.ts'
-import { untilHeld } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { engine, release } from '../../kit/device/sharedSceneProof.ts'
+import { untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { WIDE_SUN, penumbraCamera, penumbraScene, type Receiver } from './penumbraScene.ts'
 
 export type Shots = Record<'opaque' | 'blend' | 'open', { held: boolean; pixels: number[] }>

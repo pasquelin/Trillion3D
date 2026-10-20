@@ -3,9 +3,9 @@
 // in that order. Run on the Node device, which replays the kernels through their CPU mirrors.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'

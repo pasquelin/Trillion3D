@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { createVsmBlueNoiseTexture } from './blueNoise.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test("the texture's texels are develop's, byte for byte", () => {
   const { device, textureWrites } = fakeDevice()

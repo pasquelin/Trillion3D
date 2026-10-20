@@ -6,9 +6,9 @@ import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { Vector3 } from '../../../../../sdk-core/src/world/math/vector3.ts'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { camera, disposeQuadRun, quadBackend } from '../testScenes.fixture.ts'
 
 /** The quad backend on a mock GPU, tracing every diagnostic into `events`. */

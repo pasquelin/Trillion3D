@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 const SWEEP = { rows: [1 << 18, 1 << 20, 1 << 22], frames: 30, rounds: 5 }
 

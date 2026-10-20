@@ -16,8 +16,8 @@ import { laneCounts, poolEncoding } from '../../texture/blockFormats.ts'
 import { textureProbe } from '../residency/poolGrants.ts'
 import { texturePoolFor } from '../residency/memoryBudgets.ts'
 import { noTails } from '../../texture/noTails.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { words } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { createWebgpuTilePageTable, type TileKey } from './pageTable.ts'
 
 /** The shipped `tilePlaceWord`, run as the kernels find a place's first word. */

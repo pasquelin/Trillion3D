@@ -2,9 +2,9 @@
 // error of the session closed before it on the same device for its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { camera, quadBackend } from '../testScenes.fixture.ts'
 import { tagsIn } from '../../../gpu/core/sessionHandle.ts'
 

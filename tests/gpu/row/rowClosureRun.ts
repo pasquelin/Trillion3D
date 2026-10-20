@@ -3,7 +3,7 @@
 // holding a row; the cut's own lists the seeds, the engine's hosts dispatching the shipped kernels
 // (`webgpu/row/rowClosure.ts`, `webgpu/row/rowEvictSort.ts`), the use words and two queues read back.
 import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
-import { placedRuleDag } from '../kit/placedRuleDag.ts'
+import { placedRuleDag } from '../../kit/device/placedRuleDag.ts'
 import { createSparseInts } from '../../../packages/sdk-browser/src/page/cut/sparseInts.ts'
 import { mixWord, workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
@@ -26,7 +26,7 @@ import {
 } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openSelectionKernel } from '../dag/selectionKernel.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 
 /** The frame the cut runs at: the clock its seeds stamp. */
 export const CUT_FRAME = 9

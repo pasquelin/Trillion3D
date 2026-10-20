@@ -9,9 +9,9 @@ import { createTreeRefit } from './treeRefit.ts'
 import { createTreeTable } from './treeTable.ts'
 import { createRecordTexture } from '../core/recordTexture.ts'
 import { FRAME_TABLE } from './frameTable.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 
 test('the refit binds the tree’s and the frame words’ record tables, then its own tables', () => {
   installGpuGlobals()

@@ -2,12 +2,12 @@
 // (`readGpuImage`) at a width whose rows the copy pads, compared byte for byte, bottom row first;
 // then the engine's capture of a frame no flush settled against the capture its flush settled.
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
-import { redCount, untilHeld } from '../kit/sceneImageProof.ts'
+import { cameraFace, engine, release } from '../../kit/device/sharedSceneProof.ts'
+import { redCount, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import { animationFrame } from '../kit/frame.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
-import { flipRows, gaps, writePattern } from '../kit/patternImage.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
+import { flipRows, gaps, writePattern } from '../../kit/device/patternImage.ts'
 import { transformScene } from '../placement/transformScene.ts'
 
 /** A pattern no flip, transposition or offset leaves looking the same, at row `y`, column `x`. */

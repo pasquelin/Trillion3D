@@ -8,8 +8,8 @@ import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './shaders.ts'
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 
 type Compose = { composeColor: (pixel: object) => unknown }
 const hdr = {},

@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 test('every pixel of an all-mirror image of a display is traced', async () => {
   const page = (await loadPage(

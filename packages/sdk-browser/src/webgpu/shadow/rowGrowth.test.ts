@@ -4,7 +4,7 @@
 // Their first making never resizes: a held buffer is the one the growth keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { pendingAll } from '../../gpu/core/tableGrowth.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { clusterSpheres, growShadowRows, mobilityRows, rowLodBuffer } from './rowBuffers.ts'

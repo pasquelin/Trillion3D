@@ -4,7 +4,7 @@ import type { MeasureViewOptions } from '../harness/measureOptions.ts'
 import { walkTrajectory } from './trajectoryWalk.ts'
 import { BENCH_BACKGROUND, explorerOptions } from '../harness/explorerPage.ts'
 import { collecteDiagnostics, posterCapture } from '../harness/measurePage.ts'
-import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
+import { animationFrame } from '../../../tests/kit/device/frame.ts'
 
 export async function captureTrajectory(
   options: MeasureViewOptions,

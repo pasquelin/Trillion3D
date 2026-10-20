@@ -13,7 +13,7 @@ import { createGpuDagSelection } from './selection.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { frontCamera } from '../../page/selection/dag.fixture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 
 test('roots appended into the room read as a packing of every root at that capacity', () => {

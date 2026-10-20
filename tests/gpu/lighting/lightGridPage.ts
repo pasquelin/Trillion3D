@@ -15,7 +15,7 @@ import { createWebgpuLightState } from '../../../packages/sdk-browser/src/webgpu
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 export type GridLamp = { position: [number, number, number]; range: number; slot: boolean }
 const SHADOWED = 0x80000000

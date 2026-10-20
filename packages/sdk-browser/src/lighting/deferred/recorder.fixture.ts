@@ -1,7 +1,7 @@
 // The deferred lighting's frames, drawn on the kit's device: the program each draw is lit with.
 import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** The frames of `lighting`, made on `gpu`, each lit with `direct`, and the label of each program
  *  `gpu` drew with. */

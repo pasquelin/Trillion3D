@@ -7,7 +7,7 @@ import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts'
 import { smallBindEntries, visBindEntries } from './bindEntries.ts'
 import { SMALL_BINDINGS, VIS_BINDINGS, VIS_UNIFORM_BYTES } from './bindLayout.ts'
 import { VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { WebgpuTileStreamer } from '../tile/streamer.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 

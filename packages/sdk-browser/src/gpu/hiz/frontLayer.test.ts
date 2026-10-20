@@ -11,7 +11,7 @@ import {
 } from './pyramidTexture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { pyramidBytes } from './oracle.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { HIZ_LEVELS_FRONT_WORD } from './levelsUniform.ts'
 
 const LEVEL_0 = 'Trillion3D Hi-Z level 0'

@@ -18,7 +18,7 @@ import {
   flattenedCamera,
   creeRig,
   poseRig,
-} from '../../../../tests/gpu/kit/cameraRig.ts'
+} from '../../../../tests/kit/device/cameraRig.ts'
 import { engineCamera } from './camera.fixture.ts'
 import type { CameraMotion } from './motion.ts'
 

@@ -11,7 +11,7 @@ import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/view
 import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
 import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 

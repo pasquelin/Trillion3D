@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { TAA_BINDINGS } from './bindingsWgsl.ts'
 
 // The resolves compile with the pass, the analysis's programs after them — five compute passes and

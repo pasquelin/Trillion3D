@@ -4,7 +4,7 @@
 // differently, within the few units in the last place the formula's growth covers.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { runSphere } from './rowSphereRun.ts'
 
 test('the device’s sphere is the CPU’s: the centre to the bit, the radius within the growth', async () => {

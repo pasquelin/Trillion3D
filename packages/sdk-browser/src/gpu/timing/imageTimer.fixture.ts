@@ -1,4 +1,4 @@
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuTiming } from './timing.ts'
 import type { GpuTimingSample } from './types.ts'
 

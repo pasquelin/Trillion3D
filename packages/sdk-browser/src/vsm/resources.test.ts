@@ -3,7 +3,7 @@
 // both frames (no pass reads them as last frame's), and `destroy` frees every buffer once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
   createVsmResources,
   vsmBindGroupEntries,

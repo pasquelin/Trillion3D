@@ -1,9 +1,9 @@
 // The page of the screen-memory proof: the same generated worlds drawn at two sizes, the engine's
 // allocation ledger read by label once their image is drawn, in bytes per pixel. A target that
 // follows the screen holds the same bytes a pixel at both; the shadows' pools and tables do not.
-import { backdropScene } from '../kit/backdropScene.ts'
-import { sunlitEngine } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { backdropScene } from '../../kit/device/backdropScene.ts'
+import { sunlitEngine } from '../../kit/device/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 
 const SIZES = [
   [640, 400],

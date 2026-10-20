@@ -2,9 +2,9 @@
 // `VsmPmParams` the kernels read, and the host writes no word beyond it, in any slot.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { written } from '../../../../tests/kit/gpu/fakeRecords.ts'
-import { commandArgs } from '../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { written } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { commandArgs } from '../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import {
   encodeVsmPageCarry,
   encodeVsmAfterRaster,

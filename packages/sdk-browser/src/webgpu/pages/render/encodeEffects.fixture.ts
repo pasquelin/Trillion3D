@@ -2,7 +2,7 @@
 // tests (`encodeEffects.test.ts`, `encodeEffectsOutput.test.ts`).
 import type { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts'
 import { settledRt } from '../../frame/hold.fixture.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { AccumulatedImage } from '../../../lighting/deferred/program.ts'
 import { families } from '../../../host/families.ts'
 

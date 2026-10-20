@@ -3,7 +3,7 @@
 // other built-ins and the custom pass plug in.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
 import { createWebgpuEffects } from '../../webgpu/effects/webgpuEffects.ts'

@@ -4,7 +4,7 @@
 //   node bench/dawn/proofs.ts tests/gpu/visibility/shading-point.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeOnDawn } from '../kit/computeRun.ts'
+import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import { SHADING_POINT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/shadingPoint.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 

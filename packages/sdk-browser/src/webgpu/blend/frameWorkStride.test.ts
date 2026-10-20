@@ -8,8 +8,8 @@ import { encodeBlendExpansion } from './expansionFrame.ts'
 import { orderStepCount } from './orderSteps.ts'
 import { ORDER_UNI } from './orderWgsl.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 
 test('a device aligning uniform offsets at 512 lays every step and pass 512 bytes apart', async () => {
   const { items } = counted()

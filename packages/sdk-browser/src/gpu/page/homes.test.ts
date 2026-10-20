@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createGpuPageCache, type GpuPageCache } from './pages.ts'
 import { giveUp } from './order.fixture.ts'
 import { pageHomes } from './homes.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 /** Three pages of their own sizes, the widest 40 bytes: 37 bytes padded to 40. */

@@ -1,10 +1,10 @@
 // What the shadow proofs share: a bench scene opened the way they read it, and how a frame shades
-// otherwise than another away from every edge (its canvas read back with `kit/patternImage.ts`).
+// otherwise than another away from every edge (its canvas read back with `device/patternImage.ts`).
 import type { FakeCanvas } from '../../../bench/dawn/page/canvas.ts'
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
 import { luminance } from '../../../packages/math/src/color/luminance.fixture.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
-import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { benchManifest } from '../world/proofWorld.ts'
 
 /**

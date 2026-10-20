@@ -3,7 +3,7 @@
 // and frame words go up where they changed (`writeChanged`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import { createVsmTransmission } from './transmissionMade.ts'
 import { encodeVsmTransmission } from './transmissionPass.ts'

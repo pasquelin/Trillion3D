@@ -4,7 +4,7 @@
 // bundle — a bundle there would cost a key and `executeBundles` for the same commands.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import { encodeVsmRender } from './renderPass.ts'
 import { recordingRaster } from './recordingRaster.fixture.ts'

@@ -7,8 +7,8 @@
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { cameraFace } from '../kit/sharedSceneProof.ts'
-import { countsStep, image } from '../kit/sceneImageProof.ts'
+import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
+import { countsStep, image } from '../../kit/device/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
 
 /** Rig poses; the camera itself never changes its local pose. */

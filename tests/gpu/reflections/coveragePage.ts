@@ -3,7 +3,7 @@
 // The reflection target is set to a not-a-number first; after the second image — the first builds
 // the radiance pyramid the screen is marched on — each of its words must have been written.
 import { perspectiveProjection } from '../../../packages/math/src/projection/camera.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { openRig } from './rig.ts'
 import { HALF_NAN, paintPixel, rigFrameOf } from './rigFrame.ts'
 

@@ -10,9 +10,9 @@ import { pathToFileURL } from 'node:url'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { manifestUrlOf } from '../../kit/scenes/caches.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { benchManifest, defaultWorldImage } from './proofWorld.ts'
-import { drawnPixels } from '../kit/sceneImageProof.ts'
+import { drawnPixels } from '../../kit/device/sceneImageProof.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 /** The default world of `manifestUrl` on Dawn, lit by `lights`: the pixels its image draws, with

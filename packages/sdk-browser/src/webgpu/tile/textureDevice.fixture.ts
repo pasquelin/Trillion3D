@@ -1,4 +1,4 @@
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** A texture device that notes copies, by their origins, and destroyed textures. */
 export function textureDevice() {

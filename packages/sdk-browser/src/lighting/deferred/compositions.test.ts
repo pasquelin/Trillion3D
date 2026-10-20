@@ -5,8 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 
 test('a composition handed a bloom blend reads it through the bloom pipelines', async () => {
   const gpu = fakeDevice(),

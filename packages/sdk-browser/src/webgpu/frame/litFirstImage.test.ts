@@ -8,7 +8,7 @@ import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts'
 import { litPrograms } from '../pages/prepare/contractLight.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { settledRt, surface, view } from './hold.fixture.ts'
 import { BLEND_SHADER, UNLIT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 

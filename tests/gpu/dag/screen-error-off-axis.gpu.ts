@@ -19,7 +19,7 @@ import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fi
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { project } from '../kit/cameraRig.ts'
+import { project } from '../../kit/device/cameraRig.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 const THRESHOLD = 0.4

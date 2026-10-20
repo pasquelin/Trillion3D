@@ -8,9 +8,15 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
-import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
-import { VIEWPORT, batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
+import { colorAt, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import {
+  VIEWPORT,
+  batisseur,
+  cameraFace,
+  engine,
+  release,
+} from '../../kit/device/sharedSceneProof.ts'
 import { compilePages } from './compiledPages.ts'
 import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 

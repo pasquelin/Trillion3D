@@ -26,7 +26,7 @@ import {
   flattenedCamera,
   creeRig,
   poseRig,
-} from '../../../../tests/gpu/kit/cameraRig.ts'
+} from '../../../../tests/kit/device/cameraRig.ts'
 import { engineCamera } from './camera.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'

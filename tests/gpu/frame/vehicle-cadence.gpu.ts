@@ -14,7 +14,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import type { CadenceReading } from './vehicleCadencePage.ts'

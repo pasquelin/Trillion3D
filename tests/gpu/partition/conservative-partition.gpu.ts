@@ -13,7 +13,7 @@ import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { DEFAULT_SCENE, sceneDerived } from '../../../bench/runner/assets/scene.ts'
 import { cacheHoldsBlend } from '../../../bench/runner/assets/cacheManifest.ts'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 const POSES = 30
 const cache = join(sceneDerived(DEFAULT_SCENE), 'native/full')

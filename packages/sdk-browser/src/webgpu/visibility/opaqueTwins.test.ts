@@ -5,7 +5,7 @@
 // with the same pipelines —, and its voxel slots only on a frame whose table holds a voxel row.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
@@ -18,7 +18,7 @@ import {
 } from './pipelines.ts'
 import { drawVis } from './drawer.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
-import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
+import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
 
 type Made = GPURenderPipelineDescriptor & GPURenderPipeline
 const build = async (variant?: 'geometry-flat') => {

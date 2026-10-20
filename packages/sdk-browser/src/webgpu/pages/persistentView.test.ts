@@ -3,7 +3,7 @@
 // reset by it, and once both are sized neither asks the device anything.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { camera, flushedGpuScene, quadScene } from './testScenes.fixture.ts'

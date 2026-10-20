@@ -1,10 +1,10 @@
 // The EVICTION QUEUE a resident GPU cut publishes, on the Node device: the stamps, their raise up
 // the groups and the pool sort (`../pool/sortWgsl.ts`) replayed on the CPU, the queue by contract
-// (`tests/kit/gpu/fakeEvict.ts`), checked against the cut rule's closure on generated frames.
+// (`tests/kit/fakeDevice/fakeEvict.ts`), checked against the cut rule's closure on generated frames.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from './pack.ts'
 import { requestScene } from './requestScene.fixture.ts'

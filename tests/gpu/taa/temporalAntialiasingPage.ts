@@ -12,9 +12,9 @@ import {
   release,
   engine,
   toApiMatrix,
-} from '../kit/sharedSceneProof.ts'
-import { image, untilHeld } from '../kit/sceneImageProof.ts'
-import { runAccumulation } from '../kit/deviceProof.ts'
+} from '../../kit/device/sharedSceneProof.ts'
+import { image, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { runAccumulation } from '../../kit/device/deviceProof.ts'
 
 /** The tile's rotation, a third of a radian: its edges are oblique. */
 const TURN = 0.33

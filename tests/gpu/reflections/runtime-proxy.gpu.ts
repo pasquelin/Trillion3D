@@ -15,7 +15,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { writeFileSync } from 'node:fs'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import { FAMILY_SIZE, familyCase } from './runtimeFamilyCases.ts'
 import { expectedFloor, judge, TOLERANCE } from './runtimeFamilyExpect.ts'
 

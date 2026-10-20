@@ -13,9 +13,9 @@ import { createDagRuntime } from './runtime.ts'
 import type { RootsOnGpu } from './runtimeOps.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
 import { TREE_REFIT_PASS } from '../../stage/passLabels.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 
 /** A field of `side`² placements cut on a mock device, its tree followed by the run itself

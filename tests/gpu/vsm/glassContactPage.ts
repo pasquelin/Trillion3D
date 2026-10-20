@@ -4,7 +4,7 @@
 // (`glass-contact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
 // transparent pane in the same place; the view is orthographic, its world its NDC.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { standaloneHiz } from '../kit/standaloneHiz.ts'
+import { standaloneHiz } from '../../kit/device/standaloneHiz.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
 import {
   HIZ_FRONT_LAYER,
@@ -26,8 +26,8 @@ import { functionsOf } from '../../../packages/sdk-browser/src/texture/shaderRul
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../packages/math/src/wgsl/number.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
-import { bufferHolding } from '../kit/computeReadback.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { bufferHolding } from '../../kit/device/computeReadback.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 const WIDTH = 64,
   HEIGHT = 64,

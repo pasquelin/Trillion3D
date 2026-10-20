@@ -9,7 +9,7 @@
 //   node bench/dawn/proofs.ts tests/gpu/shadow/volume-law.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeOnDawn } from '../kit/computeRun.ts'
+import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import {
   VOLUME_LAW_WGSL,
   volumeAttenuation,

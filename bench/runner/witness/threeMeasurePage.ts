@@ -14,7 +14,7 @@ import { createWitnessRenderer, readWitnessImage } from './threeRenderer.ts'
 import { movableLampPosition, posterCapture, networkFrom } from '../harness/measurePage.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
-import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
+import { animationFrame } from '../../../tests/kit/device/frame.ts'
 
 function placer(camera: THREE.PerspectiveCamera, pose: CameraPose, aspect: number) {
   camera.fov = pose.fov

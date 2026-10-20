@@ -15,7 +15,7 @@ import { refreshWebgpuMaterials } from '../pages/io/refreshMaterials.ts'
 import { createMaterialTable } from '../material/materialTable.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 const RECORD = BLEND_ITEM_WORDS * 4
 

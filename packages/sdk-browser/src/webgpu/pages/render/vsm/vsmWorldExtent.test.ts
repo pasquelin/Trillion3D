@@ -7,9 +7,9 @@ import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import { SUN } from '../../../../../../sdk-core/src/scene/light/shadow/lightShadow.fixture.ts'
-import { installGpuGlobals } from '../../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { SHADOW_LIMITS, camera, disposeQuadRun, quadBackend } from '../../testScenes.fixture.ts'
 
 const light = (id: string, kind: 'point' | 'spot', position: number[], range: number) =>

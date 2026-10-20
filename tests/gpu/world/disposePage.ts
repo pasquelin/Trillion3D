@@ -9,12 +9,12 @@ import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts
 import { createGuideSet } from '../../../packages/sdk-browser/src/guides/guideSet.ts'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { backdropScene, type Backdrop } from '../kit/backdropScene.ts'
-import { sunlitEngine } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { backdropScene, type Backdrop } from '../../kit/device/backdropScene.ts'
+import { sunlitEngine } from '../../kit/device/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { openBenchWorld } from '../vsm/shadowScene.ts'
 import { settle } from './proofWorld.ts'
-import { countLive } from '../kit/liveResources.ts'
+import { countLive } from '../../kit/device/liveResources.ts'
 
 /** A world opened and drawn: what the engine's ledger counts, and its dispose. */
 type Open = { bytes(): number; dispose(): Promise<void> | void }

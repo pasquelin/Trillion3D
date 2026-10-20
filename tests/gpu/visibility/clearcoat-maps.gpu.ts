@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
+import { assertSoundProof, runPageProof } from '../../kit/device/enginePageProof.ts'
 import type { LobeReading } from './physicalLobesPage.ts'
 
 test("the coat's roughness map sharpens it, and its normal map moves its highlight", async () => {

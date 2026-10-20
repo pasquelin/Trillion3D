@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../core/deviceLedger.ts'
 import { destroyRetired } from '../core/frameRetire.ts'
 

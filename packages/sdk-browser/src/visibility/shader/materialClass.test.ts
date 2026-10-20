@@ -10,7 +10,7 @@ import {
   FLAG_VOXEL,
 } from '../types.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { DIAGNOSTICS } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts'
 import { createWebgpuShadePipelines } from '../../webgpu/visibility/shadePipelines.ts'

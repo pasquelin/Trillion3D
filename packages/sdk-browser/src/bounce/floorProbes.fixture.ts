@@ -1,6 +1,6 @@
 // The probes the bounce tests drive: the engine's own, on the kit's device, over a scene of one
 // placement that wears a proxy above the floor they keep.
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuLightTiles } from '../lighting/tiles/tiles.ts'
 import { createGpuBounceProbes } from './probes.ts'
 import { createProxyBudget } from '../../../sdk-core/src/proxy/budget.ts'

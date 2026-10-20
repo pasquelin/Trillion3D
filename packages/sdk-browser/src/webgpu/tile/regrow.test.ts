@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuTilePageTable, PAGE_HEADER_WORDS } from './pageTable.ts'
 import { regrownPageTable } from './regrow.ts'
 import { packEntry, tileLayout } from '../../texture/tiles.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 
 // A texture appended after open lays the table out again around what it held — each header,

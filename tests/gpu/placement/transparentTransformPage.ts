@@ -4,9 +4,9 @@
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { release, toApiMatrix } from '../kit/sharedSceneProof.ts'
-import { colorAt, isRed, image } from '../kit/sceneImageProof.ts'
-import { runPasses } from '../kit/deviceProof.ts'
+import { release, toApiMatrix } from '../../kit/device/sharedSceneProof.ts'
+import { colorAt, isRed, image } from '../../kit/device/sceneImageProof.ts'
+import { runPasses } from '../../kit/device/deviceProof.ts'
 import { PIVOT, TILE, openPass, translation } from './transformScene.ts'
 
 /** A sheared matrix: `y` pushes `x`. No translation-rotation-scale product yields it, and the

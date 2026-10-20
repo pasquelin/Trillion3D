@@ -5,10 +5,10 @@ import { namesNoSession, sharedGpuDevice, tagsIn } from './sessionHandle.ts'
 import { installGpuDeviceLedger } from './deviceLedger.ts'
 import { validated } from './errorScope.ts'
 import { generateMaterialMips } from '../../texture/mipBatch.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { deviceOwner, untag } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { deviceOwner, untag } from '../../../../../tests/kit/fakeDevice/fakeWebgpuDevice.ts'
 
 test('every object a session creates names it; the device names none', () => {
   const gpu = fakeDevice(BACKEND)

@@ -10,7 +10,7 @@ import {
   worldControls,
   type WorldControls,
 } from '../../../packages/sdk-browser/src/world/core/worldCamera.ts'
-import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { settle } from '../world/proofWorld.ts'
 
 /** One pointer event of the mouse at `(x, y)` CSS pixels of the canvas, `buttons` held. */

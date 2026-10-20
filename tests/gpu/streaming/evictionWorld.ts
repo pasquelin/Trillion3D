@@ -5,7 +5,7 @@
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 import type { GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
-import { placedRuleDag } from '../kit/placedRuleDag.ts'
+import { placedRuleDag } from '../../kit/device/placedRuleDag.ts'
 
 /** Bytes of a page: its rank, its complement, and two more words. */
 export const PAGE_BYTES = 16

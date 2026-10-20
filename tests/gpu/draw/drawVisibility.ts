@@ -12,7 +12,7 @@ import { visLayoutEntries } from '../../../packages/sdk-browser/src/webgpu/visib
 import { VIS_TARGETS } from '../../../packages/sdk-browser/src/webgpu/visibility/pipelines.ts'
 import { VIS_FRAGMENT } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
 import { VIS_UNIFORM } from '../../../packages/sdk-browser/src/visibility/shader/uniformLayout.ts'
-import { bufferHolding } from '../kit/computeReadback.ts'
+import { bufferHolding } from '../../kit/device/computeReadback.ts'
 import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 

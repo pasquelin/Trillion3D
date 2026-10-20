@@ -12,9 +12,9 @@ import { LOBELESS_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighti
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { unitOrZero } from '../../../packages/math/src/wgsl/inverseTranspose.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuModule } from '../kit/webgpuDevice.ts'
-import { autoKernel, groupZero } from '../kit/computeReadback.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuModule } from '../../kit/device/webgpuDevice.ts'
+import { autoKernel, groupZero } from '../../kit/device/computeReadback.ts'
 import type { GpuRow, LitCase } from './lightingNormalCases.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 

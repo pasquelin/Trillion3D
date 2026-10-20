@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict'
 import type { encodeDagKernels } from './encode.ts'
 import { DAG_ARGS } from './shader/armWgsl.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** `list`: the list whose armed record the dispatch reads, `-1` when no arming ran before it in
  *  its pass; `rows`: the rows of a flat dispatch past one row (`../dispatch/grid.ts`). */

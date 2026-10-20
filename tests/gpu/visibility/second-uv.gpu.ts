@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { assertSoundProof, runPageProof } from '../kit/enginePageProof.ts'
+import { assertSoundProof, runPageProof } from '../../kit/device/enginePageProof.ts'
 import type { SideReading } from './secondUvPage.ts'
 
 test('a coat map on the second UV set reads it, from floats and from pages, opaque and blended', async () => {

@@ -6,10 +6,10 @@
 // (`withDirectBundles`): the witness. The bundles each image records are counted.
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { cameraFace } from '../kit/sharedSceneProof.ts'
-import { untilHeld } from '../kit/sceneImageProof.ts'
+import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
+import { untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import { countBundles, withDirectBundles } from '../kit/directBundles.ts'
+import { countBundles, withDirectBundles } from '../../kit/device/directBundles.ts'
 import { occluderEngine, onOccluderScene } from '../hiz/occluderScene.ts'
 
 const options = { stageProfile: true, temporalAntialiasing: true }

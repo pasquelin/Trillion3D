@@ -10,7 +10,7 @@ import { scene } from '../residency/sets.fixture.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** The residency path of one GPU-cut image, in the engine's order: publication, admission, budget. */
 function overBudgetEngine(slots: number) {

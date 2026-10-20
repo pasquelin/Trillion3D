@@ -15,7 +15,7 @@ import {
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { BOX_NEAREST, CASES, UNIFORM_BYTES } from './occlusionTestCases.ts'
 
 /** Rows the table holds, far more than the image tests. */

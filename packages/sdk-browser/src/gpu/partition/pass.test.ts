@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPartition } from './factory.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { buffer, frame, view } from './partition.fixture.ts'
 
 test('the frame clears nothing from the encoder: its first dispatch zeroes what the kernels count', async () => {

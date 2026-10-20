@@ -4,7 +4,7 @@
 // never from the indirect command.
 import { createGpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/factory.ts'
 import { VIS_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { runCase, type DrawCase } from './drawCase.ts'
 import { setupVisibility } from './drawVisibility.ts'
 

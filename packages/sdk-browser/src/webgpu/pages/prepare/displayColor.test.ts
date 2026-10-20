@@ -3,7 +3,7 @@
 // surfaces or not.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
 import { runtime } from './targets.fixture.ts'
 import { makeTargets, releaseTargets, targetsFit } from './targets.ts'

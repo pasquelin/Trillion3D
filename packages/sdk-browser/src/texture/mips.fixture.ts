@@ -1,9 +1,9 @@
 // The texture mips tests' bench: a four-texel working texture on a mock device, and its chains.
 import { generateMaterialMips } from './mipBatch.ts'
 import { mipLevelCountFor } from './tiles.ts'
-import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** The reduction's entry point. */
 export const REDUCE = 'reduceLevel'

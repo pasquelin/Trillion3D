@@ -15,9 +15,9 @@ import { DAG_NODE_FLOATS } from './types.ts'
 import { recordTable } from '../core/recordTexture.fixture.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
 import { SPRITE_UNCULLED } from '../../visibility/shader/spriteWgsl.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import type { FakeTexture } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import type { FakeTexture } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 
 /** The words the device holds of `table`, read as the record table they are. */
 const held = (table: ReturnType<typeof createTreeTable>, records: number) =>

@@ -1,6 +1,6 @@
 // The GPU cut's per-image CPU steps as wholes, on the engine's own runtime: a WebGPU pages
 // backend mounted on the mock device that executes the selection kernel on the CPU
-// (`tests/kit/gpu/fakeDevice.ts`), drawing a streamed two-level terrain while the camera flies over
+// (`tests/kit/fakeDevice/fakeDevice.ts`), drawing a streamed two-level terrain while the camera flies over
 // it. Each image's bounds are read from the engine's own CPU profile (`webgpu/pages/render/cpuStepTable.ts`),
 // the ones the explorer publishes: `adoptCutMs` (`services.adoptGpuCut`, `webgpu/cut/publication.ts`),
 // `admissionMs` (`admitGpuCut`) and the residency stream (`streamCutResidency`: queue, rows and
@@ -18,9 +18,9 @@ import { renderWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/page
 import { flushWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/pages/render/flush.ts'
 import { disposeWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/pages/io/metrics.ts'
 import { CPU_STEP } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
-import { BACKEND } from '../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../tests/kit/gpu/globals.ts'
+import { BACKEND } from '../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../tests/kit/fakeDevice/globals.ts'
 import { cutFrameScene } from './support/cutFrameScene.ts'
 import { createTextureCaches } from '../../../packages/sdk-browser/src/texture/textureCaches.ts'
 import { createPageCache } from '../../../packages/sdk-browser/src/streaming/pageCache.ts'

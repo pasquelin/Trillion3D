@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createWebgpuTileAtlas } from './atlas.ts'
 import { tailId } from './ids.ts'
 import { tileLayout, TILES_PER_LAYER } from '../../texture/tiles.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { textureDevice } from './textureDevice.fixture.ts'
 

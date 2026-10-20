@@ -2,8 +2,8 @@ import { ROW_WORDS } from '../../visibility/types.ts'
 import { createPresentClasses } from './materialPasses.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { RenderBundles } from '../../gpu/core/renderBundles.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { commandArgs, type FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { commandArgs, type FakePass } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 
 /** The pipelines `pass` set, in order. */

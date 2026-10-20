@@ -13,7 +13,7 @@ import { createChangedRuns } from '../residency/ranges.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 const ENTRIES = 4
 

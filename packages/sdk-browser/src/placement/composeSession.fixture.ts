@@ -1,6 +1,6 @@
 // A session of two roots the GPU composes under a parent, for the compose tests: its selection
 // counts the world revisions it is told of, its device records what it is asked.
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { encodeComposedRoots } from './gpuComposeEncode.ts'
 import { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
 import { createPlacementRows } from './rows.ts'

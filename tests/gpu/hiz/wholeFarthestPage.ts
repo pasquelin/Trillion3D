@@ -6,7 +6,7 @@
 import { fromF32Bits } from '../../../packages/math/src/float/bits.ts'
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
-import { standaloneHiz } from '../kit/standaloneHiz.ts'
+import { standaloneHiz } from '../../kit/device/standaloneHiz.ts'
 import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
 import {
   packHizPyramid,
@@ -22,8 +22,8 @@ import {
 import { surfaceSlopeOf } from '../../../packages/math/src/wgsl/sampling.ts'
 import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { readTexture } from '../kit/computeReadback.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readTexture } from '../../kit/device/computeReadback.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 export type WholeFarthestCase = { width: number; height: number; seed: number }
 

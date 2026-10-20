@@ -3,7 +3,7 @@
 // a prefetch, only an old page.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuPageCache } from './pages.ts'
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 import { orderOf } from './order.fixture.ts'

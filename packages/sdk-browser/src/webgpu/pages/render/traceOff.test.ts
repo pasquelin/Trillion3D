@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { traceGpuCutFrame, traceGpuCutWaiting } from './gpuCutTrace.ts'
 import { submitColorCopy } from './encoder.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The runtime slice the trace sites read, counting the records they emit. */

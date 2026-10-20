@@ -13,7 +13,7 @@ import {
   indirectForDraw,
   type DrawItem,
 } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import type { DrawCase } from './drawCase.ts'
 import { DIRECT_PAGE } from './drawVisibility.ts'
 

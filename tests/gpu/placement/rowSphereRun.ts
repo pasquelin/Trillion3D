@@ -1,7 +1,7 @@
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { f32Bits } from '../../../packages/math/src/float/bits.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { autoKernel, bufferHolding, groupZero } from '../kit/computeReadback.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
+import { autoKernel, bufferHolding, groupZero } from '../../kit/device/computeReadback.ts'
 import {
   DERIVE_ROWS_ENTRY,
   DERIVE_ROWS_WGSL,

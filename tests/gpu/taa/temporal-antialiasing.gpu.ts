@@ -11,8 +11,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
-import { isRed } from '../kit/sceneImageProof.ts'
+import { runPageProof, assertSoundProof } from '../../kit/device/enginePageProof.ts'
+import { isRed } from '../../kit/device/sceneImageProof.ts'
 import { changedPixels, nearEdge } from './antialiasingDiffs.ts'
 
 type Held = { rendered: number[] | undefined; settled: number[]; count: number }

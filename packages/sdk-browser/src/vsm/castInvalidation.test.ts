@@ -10,8 +10,8 @@ import { CAST_BOX_WORDS, vsmCastBoxes } from './castBoxes.ts'
 import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
 import { createCastChanges, type CastChanges } from '../webgpu/shadow/castChanges.ts'
 import { createVsmResources } from './resources.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { dispatchedEntries } from '../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { dispatchedEntries } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 
 /** A sun of one map holding cached pages, a point light of six over a receiver cover, a spot never
  *  rendered; the cache accepting invalidations when `accepts`. */

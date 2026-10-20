@@ -10,11 +10,11 @@ import {
   engine,
   release,
   type ScenePreparee,
-} from '../kit/sharedSceneProof.ts'
-import { image } from '../kit/sceneImageProof.ts'
+} from '../../kit/device/sharedSceneProof.ts'
+import { image } from '../../kit/device/sceneImageProof.ts'
 import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import { recordPassLabels, runOnDevice } from '../kit/deviceProof.ts'
+import { recordPassLabels, runOnDevice } from '../../kit/device/deviceProof.ts'
 import {
   BACKGROUND,
   CASES,

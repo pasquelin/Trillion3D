@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createGpuDrawBuffers } from './buffers.ts'
 import { createGpuDraw } from './factory.ts'
 import {

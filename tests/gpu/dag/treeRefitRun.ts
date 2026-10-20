@@ -3,7 +3,7 @@
 // are the CPU build's (`packPlacementTree`) after the same change, word for word, the frame words
 // read in their record table (`frameTable.ts`); the tree's order beside them is never written.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { placementField } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import {

@@ -13,7 +13,7 @@ import {
   SAMPLE_FILTER_MASK,
   samplingWords,
 } from '../../../packages/sdk-browser/src/texture/sampling.ts'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import type { FootprintCase } from './footprintLevelPage.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 

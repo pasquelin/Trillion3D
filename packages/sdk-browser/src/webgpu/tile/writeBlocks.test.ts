@@ -5,7 +5,7 @@ import { writeBlocksLevel, writeTileFromBlocks } from './writeBlocks.ts'
 import { writeTail, tileRegion } from './write.ts'
 import { tailOffset, TILE_PITCH } from '../../texture/tiles.ts'
 import { TILE_BORDER } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** The device's queue (`fakeDevice`) and its texture writes. */
 function fakeQueue() {

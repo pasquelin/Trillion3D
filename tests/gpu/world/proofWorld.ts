@@ -1,15 +1,15 @@
 // What the proofs that open a whole world on Dawn share: the page's frame, the loop that settles a
 // pose, the bench scenes read from disk, and the image a world opened with the engine's defaults
-// draws. Written in an area until the kit (`../kit/`) holds it.
+// draws. Written in an area until the kit (`../../kit/device/`) holds it.
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { ASSETS, assetsManifest } from '../../../bench/runner/assets/scene.ts'
-import { openDefaultWorld } from '../kit/defaultWorld.ts'
+import { openDefaultWorld } from '../../kit/device/defaultWorld.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
-import { animationFrame } from '../kit/frame.ts'
-import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
+import { measurementSdk, proofCanvas } from '../../kit/device/renderHarness.ts'
 
 /** Frames a pose gets to be held before the proof gives up on it. */
 const SETTLE_FRAMES = 128

@@ -5,7 +5,7 @@ import { createScaleControl, type ScaleControl } from '../frame/scaleControl.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { TaaInputs } from './inputs.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** The scale controller a fixture runtime's view holds: the engine reads it as its `ViewScale`,
  *  a test drives the whole controller. */

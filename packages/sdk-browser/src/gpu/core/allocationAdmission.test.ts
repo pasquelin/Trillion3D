@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { installGpuDeviceLedger } from './deviceLedger.ts'
 import { namesNoSession, sessionHandle } from './sessionHandle.ts'
 import { deviceMade, validationScope } from './errorScope.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 test('buffers and every texture mip are admitted before device creation against the live total', () => {
   const gpu = fakeDevice()

@@ -2,7 +2,7 @@
 // lists and the raster's page rows layout, and the contract lights are fitted.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createWebgpuLightState } from '../state/lights.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { prepareDirectLights } from './lights.ts'

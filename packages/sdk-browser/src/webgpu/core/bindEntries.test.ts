@@ -22,7 +22,7 @@ import { BASE_SLOTS } from '../../gpu/draw/contract.ts'
 import { createGpuRaster } from '../../gpu/raster/raster.ts'
 import type { WebgpuTileStreamer } from '../tile/streamer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { visGroupFor } from '../visibility/visGroup.ts'
 import { reflectionFront } from '../../reflections/frontDepth.fixture.ts'
 

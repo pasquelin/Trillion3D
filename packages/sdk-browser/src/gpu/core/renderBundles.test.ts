@@ -3,8 +3,8 @@
 // latest `capacity` keys are held, so a stream that alternates between two inputs replays both.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.ts'
 import { RenderBundles, type RecordBundle } from './renderBundles.ts'
 
 const LAYOUT: GPURenderBundleEncoderDescriptor = { label: 'stream', colorFormats: ['r32uint'] }

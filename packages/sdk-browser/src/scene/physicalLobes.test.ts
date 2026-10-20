@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createSurfaceBuffer, withLobes } from './surfaceAllocation.ts'
 import { holds } from './surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT, PHYSICAL_LOBES_TARGET, hasPhysicalLobes } from './physicalLobes.ts'

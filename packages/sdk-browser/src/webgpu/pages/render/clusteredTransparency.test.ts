@@ -4,9 +4,12 @@ import * as G from '../../../host/graph/graph.fixture.ts'
 import { BufferAttribute } from '../../../../../sdk-core/src/world/buffer/attribute.ts'
 import type { HostMesh } from '../../../host/resources.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import { installGpuGlobals, transparentDraws } from '../../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND, writtenBytes } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import {
+  installGpuGlobals,
+  transparentDraws,
+} from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND, writtenBytes } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
 import { coarseQuadScene } from '../coarseQuads.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'

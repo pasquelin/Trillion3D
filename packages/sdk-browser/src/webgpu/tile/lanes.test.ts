@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTileAtlas } from './atlas.ts'
 import { tileLayout } from '../../texture/tiles.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts'
 import { textureDevice } from './textureDevice.fixture.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 
 installGpuGlobals()

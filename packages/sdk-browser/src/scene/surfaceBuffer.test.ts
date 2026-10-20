@@ -1,7 +1,7 @@
 import { MIB } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
   FEEDBACK_BYTES,
   SURFACE_BYTES_PER_PIXEL,

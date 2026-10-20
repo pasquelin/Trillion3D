@@ -4,9 +4,9 @@
 // the ground truth a cut decision is held against.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
-import { bufferHolding } from '../kit/computeReadback.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
+import { bufferHolding } from '../../kit/device/computeReadback.ts'
 
 const RASTER = `struct Uni{viewProj:mat4x4f,}
 @group(0) @binding(0) var<uniform> uni:Uni;

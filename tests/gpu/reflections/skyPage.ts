@@ -8,7 +8,7 @@ import {
   emptyIrradiance,
 } from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import { faceIndex } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { settledImage } from './rigImage.ts'
 import { rgbAt } from './rigFrame.ts'

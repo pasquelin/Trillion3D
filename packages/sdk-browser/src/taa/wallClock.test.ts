@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { beginTaaFrame } from './frame.ts'
 import { createTaaFrameState } from './frameState.ts'
 import { writeTaaView } from './view.ts'

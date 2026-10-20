@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { camera, flushedGpuScene, quadScene } from './testScenes.fixture.ts'
 import { prepared } from '../blend/translucentScene.fixture.ts'

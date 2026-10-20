@@ -15,9 +15,9 @@ import {
   backendVisibilityIds,
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'

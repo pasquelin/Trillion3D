@@ -27,7 +27,7 @@ test('every scene a GPU proof names is a scene folder, never a cache path', () =
     assert.ok(!path.includes('/cache/'), `${file}: ${path} reaches into a cache; name the scene`)
 })
 
-// A proof reads a scene from its folder on disk (`kit/renderHarness.ts`): every scene it names is
+// A proof reads a scene from its folder on disk (`device/renderHarness.ts`): every scene it names is
 // a scene with a committed source, so its compiled cache is where the proof looks for it.
 test('every scene a GPU proof names is a scene folder with a source', () => {
   for (const { file, path } of named)

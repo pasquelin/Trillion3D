@@ -25,7 +25,7 @@ import {
   hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
 import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/traceEncode.ts'
-import { standaloneHiz } from '../kit/standaloneHiz.ts'
+import { standaloneHiz } from '../../kit/device/standaloneHiz.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
 import {
@@ -36,7 +36,7 @@ import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/ligh
 import { TONE_MAPPING_RANK } from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.ts'
 import type { WebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
-import { readTexture } from '../kit/computeReadback.ts'
+import { readTexture } from '../../kit/device/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
 import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'

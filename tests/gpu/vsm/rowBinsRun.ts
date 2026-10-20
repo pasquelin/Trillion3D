@@ -33,8 +33,8 @@ import {
 } from '../../../packages/sdk-browser/src/vsm/rowPageBound.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
-import { autoKernel, bufferHolding, groupZero } from '../kit/computeReadback.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { autoKernel, bufferHolding, groupZero } from '../../kit/device/computeReadback.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 const N = 3000
 

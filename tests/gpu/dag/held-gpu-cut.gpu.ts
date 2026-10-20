@@ -11,7 +11,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { coverFault } from '../../../packages/sdk-browser/src/page/cut/cutRule.fixture.ts'
-import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
+import { runPageProof, assertSoundProof } from '../../kit/device/enginePageProof.ts'
 
 type Reading = Awaited<ReturnType<typeof import('./heldGpuCutPage.ts').runHeldCut>>
 

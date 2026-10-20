@@ -8,7 +8,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { KEPT_RANK_HEAD, keptRankCapHeld, keptRankRow } from './keptRanks.ts'
 import { deviceListCap } from './deviceListCap.ts'
 import { createDagList } from './listCap.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 
 /** Slots of the table the host makes for a list of `listCap` ranks: three words each. */
 const keptRankSlots = (listCap: number) => (keptRankRow(0, listCap).size / 4 - KEPT_RANK_HEAD) / 3

@@ -1,5 +1,5 @@
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuPageCache } from './pages.ts'

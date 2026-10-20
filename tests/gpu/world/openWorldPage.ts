@@ -17,8 +17,8 @@ import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
-import { animationFrame } from '../kit/frame.ts'
-import { drawnPixels } from '../kit/sceneImageProof.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
+import { drawnPixels } from '../../kit/device/sceneImageProof.ts'
 import { coplanarModel } from './generatedModels.ts'
 
 /** The camera of each frame: where it stands and what it looks at. */

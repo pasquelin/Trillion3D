@@ -3,8 +3,8 @@
 // growth, removals that shift runs back, and a cleared table.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { words } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { words } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { createRowPageState } from './pageState.ts'
 import { createRowMapGpu } from './rowMapGpu.ts'

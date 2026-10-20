@@ -4,7 +4,7 @@
 // roots' rows the same, and a placement's first move counts its rows whole.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { mulberry32 } from '../../../../math/src/sequence/random.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'

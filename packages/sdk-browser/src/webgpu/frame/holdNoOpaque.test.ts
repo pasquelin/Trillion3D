@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { camera, flushedGpuScene, quadScene } from '../pages/testScenes.fixture.ts'
 
 test('a view without a packed row owes no occluder history', () => {

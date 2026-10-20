@@ -1,6 +1,6 @@
 // What anisotropic filtering costs the WebGPU engine: one floor with detail at every
 // texel, seen at a grazing angle, drawn at each anisotropy asked — 1 and 16 by default — by the
-// engine's sources on Dawn in this process (`tests/gpu/kit/onDawn.ts`), under the machine's bench
+// engine's sources on Dawn in this process (`tests/kit/device/onDawn.ts`), under the machine's bench
 // lock, and the p50 GPU time of its images printed side by side. The page is
 // `tests/gpu/texture/anisotropyCostPage.ts`; nothing outside this repository is read.
 //
@@ -10,7 +10,7 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { takeBenchLock } from '../runs/lock.ts'
-import { loadPage, runOnDawn } from '../../../tests/gpu/kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../../tests/kit/device/onDawn.ts'
 import type { run } from '../../../tests/gpu/texture/anisotropyCostPage.ts'
 
 declare global {

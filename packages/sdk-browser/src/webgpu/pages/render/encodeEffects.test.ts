@@ -10,7 +10,7 @@ import { encodeEffects } from './encodeEffects.ts'
 import { pendingWebgpuFrame } from '../../frame/interactiveFrame.ts'
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts'
 import { frameQueue } from '../../../world/render/frameQueue.fixture.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { WEBGPU_KINDS } from '../../effects/webgpuKinds.ts'
 import { drawing, encoder, input, passes } from './encodeEffects.fixture.ts'
 

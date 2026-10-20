@@ -5,7 +5,7 @@
 // attribute in place on the GPU instead of the float pool.
 import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
 import type { PageAttributes } from '../../../packages/sdk-core/src/page/pageInput.ts'
-import type { ScenePreparee } from '../kit/sharedSceneProof.ts'
+import type { ScenePreparee } from '../../kit/device/sharedSceneProof.ts'
 
 /** The glTF semantic of each host attribute a page carries. */
 const SEMANTICS = [

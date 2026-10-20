@@ -5,7 +5,7 @@ import {
   FEEDBACK_EVERY,
 } from '../../../packages/sdk-browser/src/webgpu/tile/feedback.ts'
 import { createWebgpuTileReduce } from '../../../packages/sdk-browser/src/webgpu/tile/reduce.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 /** One image's feedback: the requests the target holds (a rank plus one, 0 none), `images` times. */
 export type FeedbackCase = {

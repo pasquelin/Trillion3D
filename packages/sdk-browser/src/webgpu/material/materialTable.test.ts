@@ -7,7 +7,7 @@ import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from '
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** The collector, called on demand: what the open world's churn waits for. */
 function gcOf() {

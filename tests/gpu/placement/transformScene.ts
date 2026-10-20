@@ -11,7 +11,7 @@ import {
   engine,
   toApiMatrix,
   type ScenePreparee,
-} from '../kit/sharedSceneProof.ts'
+} from '../../kit/device/sharedSceneProof.ts'
 
 /** Half-width of the transparent tile: the sampling window depends on it, not the reverse. */
 const HALF = 0.35

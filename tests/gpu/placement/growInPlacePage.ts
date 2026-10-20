@@ -13,9 +13,9 @@ import {
   type RowLink,
 } from '../../../packages/sdk-browser/src/partition/rows.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
-import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
-import { drawnPixels, untilHeld } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { batisseur, cameraFace, engine, release } from '../../kit/device/sharedSceneProof.ts'
+import { drawnPixels, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
 /** Half-width of the tile, and the three places its rows put it. */

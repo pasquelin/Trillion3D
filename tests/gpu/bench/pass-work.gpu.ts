@@ -4,9 +4,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { FrameGpu } from '../../../bench/dawn/passes/passSpans.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openBenchDevice } from '../kit/benchDevice.ts'
-import { autoKernel, groupZero } from '../kit/computeReadback.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openBenchDevice } from '../../kit/device/benchDevice.ts'
+import { autoKernel, groupZero } from '../../kit/device/computeReadback.ts'
 
 const KERNEL = /* wgsl */ `
 override WG: u32 = 64;

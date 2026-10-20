@@ -4,8 +4,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { measureMachine } from '../../../bench/dawn/machine/machine.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openBenchDevice } from '../kit/benchDevice.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openBenchDevice } from '../../kit/device/benchDevice.ts'
 
 test('the machine’s limits are measured, positive and in order', { timeout: 300_000 }, async () => {
   const machine = await runOnDawn(async () => {

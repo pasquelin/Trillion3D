@@ -1,11 +1,11 @@
 // A whole transmission frame encoded on the kit's device under the binding rules the device
-// enforces (`tests/kit/gpu/scopeRules.ts`, `bindRules.ts`): every group set with its layout's
+// enforces (`tests/kit/fakeDevice/scopeRules.ts`, `bindRules.ts`): every group set with its layout's
 // dynamic offsets, every pipeline's groups set and of its layouts, every indirect buffer made for
 // it — the frame whose index group, set with an offset its layout has no room for, lost the device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dispatchedEntries } from '../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { dispatchedEntries } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
 import { createVsmResources } from './resources.ts'
 import { createVsmTransmission } from './transmissionMade.ts'

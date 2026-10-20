@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { inChrome } from '../kit/onChrome.ts'
+import { inChrome } from '../../kit/device/onChrome.ts'
 import type { execute } from './noWebgpuPage.ts'
 
 const PAGE = resolve(import.meta.dirname, 'noWebgpuPage.ts')

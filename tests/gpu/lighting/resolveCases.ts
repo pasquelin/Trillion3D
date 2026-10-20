@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { draws } from '../kit/randomDraw.ts'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { draws } from '../../kit/device/randomDraw.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import type { ResolveScene } from './resolvePage.ts'
 import { unit } from '../../../packages/math/src/vector/vectorTuple.ts'
 

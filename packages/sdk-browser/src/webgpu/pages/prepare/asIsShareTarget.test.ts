@@ -3,7 +3,7 @@
 // no share target, no share attachment in the transparent pass.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { blendShareTargets, seedAsIsShare } from './asIsShareTarget.ts'
 import type { ShareTargets } from '../../blend/blendTargets.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
@@ -16,7 +16,7 @@ import {
   targets,
   writesOf,
 } from '../../blend/translucentScene.fixture.ts'
-import type { FakePass } from '../../../../../../tests/kit/gpu/fakeRenderPass.ts'
+import type { FakePass } from '../../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { reflectionFront } from '../../../reflections/frontDepth.fixture.ts'
 

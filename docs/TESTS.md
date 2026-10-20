@@ -81,7 +81,7 @@ beside the code.
 matrices, texel coordinates, readbacks and whole frames of the engine. Every proof is a
 `tests/gpu/<area>/<name>.gpu.ts`, the area named after the engine folder it tests; the other files
 of an area are the modules its proofs load. They run on Dawn in Node — the WebGPU implementation
-Chrome runs, on the machine's GPU, no browser (`tests/gpu/kit/onDawn.ts`).
+Chrome runs, on the machine's GPU, no browser (`tests/kit/device/onDawn.ts`).
 
 `pnpm run test:gpu` (`bench/dawn/proofs.ts`) takes the machine's bench lock, compiles the test
 scenes (`TEST_SCENES`, `scripts/native/scene-caches.ts`) under it, then runs every `*.gpu.ts` in one
@@ -116,7 +116,7 @@ What Dawn does not have is proved in the system Chrome: the absence of WebGPU (`
 and the per-material comparison with the witness library (`webgpu/material-pixels`). Each is a
 `tests/gpu/<area>/<name>.chrome.ts`, found by the same rule and declared in the same `EXCLUDED`;
 its page module is served from the sources and called in a fresh headless Chrome
-(`tests/gpu/kit/onChrome.ts`), under the bench lock. Their scenes are built by the proofs.
+(`tests/kit/device/onChrome.ts`), under the bench lock. Their scenes are built by the proofs.
 
 ```bash
 pnpm run test:chrome                                                       # run all

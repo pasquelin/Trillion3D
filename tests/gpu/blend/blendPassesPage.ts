@@ -4,9 +4,9 @@
 // front-only transparent tile, both turned to show their back; below them two masked tiles, one
 // whose opacity passes its cutoff and one whose opacity does not, and a hidden transparent tile.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
-import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { batisseur, cameraFace, engine, release } from '../../kit/device/sharedSceneProof.ts'
+import { colorAt, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import type { Side } from '../../../packages/sdk-core/src/contracts/material.ts'
 
 /** Where each tile stands, its centre in the plane `z = 0`. */

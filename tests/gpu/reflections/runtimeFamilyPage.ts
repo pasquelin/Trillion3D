@@ -1,12 +1,12 @@
 // The page of the run-time proxy's family proof: the world of one case (`runtimeFamilyWorld.ts`) drawn until
 // it is held — a moving case moved and held again —, the reflection target the engine wrote read back at a
 // grid of its pixels, and the frames timed.
-import { proofCanvas } from '../kit/renderHarness.ts'
-import { animationFrame } from '../kit/frame.ts'
+import { proofCanvas } from '../../kit/device/renderHarness.ts'
+import { animationFrame } from '../../kit/device/frame.ts'
 import { lastFrameOf } from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
-import { readTexture } from '../kit/computeReadback.ts'
-import { latestMade, listenToWorldDevices } from '../kit/worldErrors.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
+import { readTexture } from '../../kit/device/computeReadback.ts'
+import { latestMade, listenToWorldDevices } from '../../kit/device/worldErrors.ts'
 import { familyCase, gridPixels } from './runtimeFamilyCases.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import { familyWorld } from './runtimeFamilyWorld.ts'

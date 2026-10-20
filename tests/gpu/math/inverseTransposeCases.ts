@@ -23,7 +23,7 @@ import { createEngineCamera } from '../../../packages/sdk-browser/src/camera/eng
 import { readCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { project } from '../kit/cameraRig.ts'
+import { project } from '../../kit/device/cameraRig.ts'
 import { worldPose, type PoseParams } from './lightingNormalCases.ts'
 import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 

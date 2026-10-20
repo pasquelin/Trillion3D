@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts'
 import { effect } from '../../../../../sdk-core/src/world/effect/index.ts'
 import { encodeEffects, encodeOverlayEffects } from './encodeEffects.ts'
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { drawing, encoder, input } from './encodeEffects.fixture.ts'
 

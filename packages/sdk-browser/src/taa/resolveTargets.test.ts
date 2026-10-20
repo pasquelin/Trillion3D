@@ -2,7 +2,7 @@
 // under the temporal antialiasing's pass label (`../stage/passTable.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
 import { TAA_PASS } from '../stage/passLabels.ts'
 

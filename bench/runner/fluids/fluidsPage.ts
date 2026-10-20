@@ -6,7 +6,7 @@ import type { FluidsPayload, FluidsScene } from './fluids.ts'
 import type { PhysicsPart } from '../../../packages/sdk-core/src/physics/options.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { posterCapture } from '../harness/measurePage.ts'
-import { animationFrame } from '../../../tests/gpu/kit/frame.ts'
+import { animationFrame } from '../../../tests/kit/device/frame.ts'
 
 type Sdk = typeof SdkBrowser
 

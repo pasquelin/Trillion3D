@@ -3,7 +3,7 @@
 // (#408).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuPageCache } from '../gpu/page/pages.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 import { createPageCache } from './pageCache.ts'

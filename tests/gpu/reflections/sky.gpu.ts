@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { loadPage, runOnDawn } from '../kit/onDawn.ts'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'

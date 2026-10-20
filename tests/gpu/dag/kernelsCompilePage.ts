@@ -7,7 +7,7 @@ import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/
 import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts'
 import { validationScope } from '../../../packages/sdk-browser/src/gpu/core/errorScope.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 /** One text to compile, under its name. */
 export type KernelText = { name: string; code: string }

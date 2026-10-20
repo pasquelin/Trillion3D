@@ -10,9 +10,9 @@ import { kernelUniforms } from './selectionHelpers.fixture.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { packDagSelection } from './pack.ts'
 import { dagRootCounts } from './packCapacity.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import {
   LIMITS,
   cut,

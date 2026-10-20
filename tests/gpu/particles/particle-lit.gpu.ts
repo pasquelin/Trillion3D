@@ -10,9 +10,9 @@ import assert from 'node:assert/strict'
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts'
 import { createWebgpuParticles } from '../../../packages/sdk-browser/src/webgpu/particles/webgpuParticles.ts'
 import { saturate } from '../../../packages/math/src/scalar/reals.ts'
-import { readTexture } from '../kit/computeReadback.ts'
-import { runOnDawn } from '../kit/onDawn.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { readTexture } from '../../kit/device/computeReadback.ts'
+import { runOnDawn } from '../../kit/device/onDawn.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 const SIDE = 32
 /** Orthographic, column-major: x and y as they are; the depth reversed, the eye's plane z = 10 at

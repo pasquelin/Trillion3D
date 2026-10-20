@@ -1,6 +1,6 @@
 // One compute shader run on Dawn, its storage output read back: the shape of every proof that runs
-// an engine WGSL function on known inputs (`../visibility/shading-point.gpu.ts`,
-// `../shadow/blend-transmittance.gpu.ts`, `../texture/pool-place.gpu.ts`, ...).
+// an engine WGSL function on known inputs (`../../gpu/visibility/shading-point.gpu.ts`,
+// `../../gpu/shadow/blend-transmittance.gpu.ts`, `../../gpu/texture/pool-place.gpu.ts`, ...).
 import {
   computeReadback,
   autoKernel,

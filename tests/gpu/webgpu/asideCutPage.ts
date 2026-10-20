@@ -1,10 +1,10 @@
 // Page side of the aside-cut proof (#1483): the engine's capture of a second camera is cut on the
 // GPU, on the main cut's tables, with no other cut to fall back on; the main view, drawn again
 // after it, cuts again and holds the image it held before.
-import { cameraFace, engine, release, VIEWPORT } from '../kit/sharedSceneProof.ts'
-import { redCount, untilHeld } from '../kit/sceneImageProof.ts'
+import { cameraFace, engine, release, VIEWPORT } from '../../kit/device/sharedSceneProof.ts'
+import { redCount, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import { runOnDevice } from '../kit/deviceProof.ts'
+import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { transformScene } from '../placement/transformScene.ts'
 
 async function sequence(device: GPUDevice, events: unknown[], result: { scene?: unknown }) {

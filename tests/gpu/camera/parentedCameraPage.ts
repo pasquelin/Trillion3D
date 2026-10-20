@@ -9,8 +9,8 @@ import { collectClusterPages } from '../../../packages/sdk-browser/src/page/sele
 import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import type { HostCamera } from '../../../packages/sdk-browser/src/camera/world.ts'
-import { POSES_PARENT, flattenedCamera, creeRig, poseRig } from '../kit/cameraRig.ts'
-import { openGpuDevice } from '../kit/webgpuDevice.ts'
+import { POSES_PARENT, flattenedCamera, creeRig, poseRig } from '../../kit/device/cameraRig.ts'
+import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
 

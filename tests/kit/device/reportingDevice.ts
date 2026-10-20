@@ -1,5 +1,5 @@
 // A device that reports a smaller binding than it holds: what a proof splits the engine's tables on,
-// the device underneath the same (`../dag/frameRangesPage.ts`, `../reflections/proxyTablesPage.ts`).
+// the device underneath the same (`../../gpu/dag/frameRangesPage.ts`, `../../gpu/reflections/proxyTablesPage.ts`).
 
 /** `device` reporting `binding` bytes per buffer and per storage binding, every other limit and
  *  every call its own. */

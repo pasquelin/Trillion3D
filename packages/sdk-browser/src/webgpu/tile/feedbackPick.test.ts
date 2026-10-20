@@ -3,8 +3,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FEEDBACK_EVERY, PICK_SHIFT, createWebgpuTileFeedback } from './feedback.ts'
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 

@@ -3,7 +3,7 @@
 // bound as one, and the view uniform is laid out at its size and bound at the size it is given.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BLEND_BINDINGS } from './bindLayout.ts'
 import {
   blendBindEntries,

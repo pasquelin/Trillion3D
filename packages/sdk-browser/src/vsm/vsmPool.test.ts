@@ -3,7 +3,7 @@
 // the device for; and the transmission atlas's bytes, what the device ledger counts of it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { createVsmResources } from './resources.ts'
 import { createVsmTransmission } from './transmissionMade.ts'

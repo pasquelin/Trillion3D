@@ -11,7 +11,7 @@
  * WGSL `groupOffsetAt` and `groupCountAt` place them: each group's count read at
  * `[entries, 2·entries)`, its offset written at `[0, entries)`.
  *
- * This file depends on no real GPU run: `tests/kit/gpu/fakeCompute.ts` does not replay
+ * This file depends on no real GPU run: `tests/kit/fakeDevice/fakeCompute.ts` does not replay
  * `prefixGroups` (it short-circuits the whole compaction with the CPU oracle `evaluateDrawCompact`),
  * so equivalence of the kernels is proved here by direct transcription and comparison.
  */
