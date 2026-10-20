@@ -19,6 +19,8 @@ pub(super) fn coarsen(
     };
     let mut grown = None;
     let mut current: Vec<usize> = (0..dag.len()).collect();
+    // The box the groups' locality order is laid on: the source's, every level.
+    let bounds = vertex_bounds(positions);
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
         if current.len() < 2 {
@@ -37,7 +39,6 @@ pub(super) fn coarsen(
         let sources: Vec<Option<usize>> = current.iter().map(|&id| dag[id].source).collect();
         let groups = {
             let _t = Timer::new(Phase::Grouping);
-            let bounds = vertex_bounds(positions);
             group_clusters(
                 &lists,
                 level_positions,

@@ -19,6 +19,7 @@
 use super::heap::Gains;
 use super::order::{sort_by_key_exactly, Draws};
 use super::Graph;
+use std::borrow::Cow;
 
 const SEED: u32 = 4321;
 /// The coarsest graph's size the coarsening aims at.
@@ -39,16 +40,17 @@ const UNMATCHED: u32 = u32::MAX;
 const FEW_LINKS: usize = 2047;
 const NOT_ON_BOUNDARY: usize = usize::MAX;
 
-/// A graph of the coarsening: vertex weights, links in rows, and the total weight.
-struct Level {
-    offsets: Vec<usize>,
-    adjacency: Vec<u32>,
-    costs: Vec<i64>,
-    weights: Vec<i64>,
+/// A graph of the coarsening: vertex weights, links in rows, and the total weight. The finest
+/// borrows the caller's rows; each coarser one owns its own.
+struct Level<'g> {
+    offsets: Cow<'g, [u32]>,
+    adjacency: Cow<'g, [u32]>,
+    costs: Cow<'g, [i32]>,
+    weights: Vec<i32>,
     total: i64,
 }
 
-impl Level {
+impl Level<'_> {
     fn len(&self) -> usize {
         self.weights.len()
     }
@@ -56,11 +58,29 @@ impl Level {
         self.adjacency.len()
     }
     fn degree(&self, v: usize) -> usize {
-        self.offsets[v + 1] - self.offsets[v]
+        (self.offsets[v + 1] - self.offsets[v]) as usize
     }
     fn row(&self, v: usize) -> std::ops::Range<usize> {
-        self.offsets[v]..self.offsets[v + 1]
+        self.offsets[v] as usize..self.offsets[v + 1] as usize
     }
+    fn cost(&self, e: usize) -> i64 {
+        i64::from(self.costs[e])
+    }
+    fn weight(&self, v: usize) -> i64 {
+        i64::from(self.weights[v])
+    }
+}
+
+/// The buffers one bisection reuses from level to level, sized for its finest graph.
+struct Work {
+    queues: [Gains; 2],
+    moved: Vec<bool>,
+    swaps: Vec<u32>,
+    /// Per coarse vertex, its place in the row being merged (`contract`).
+    slot: Vec<usize>,
+    row: Vec<(u32, i32)>,
+    /// The side of each vertex of the next finer level (`refine`).
+    spare: Vec<u8>,
 }
 
 /// The balance of a bisection: each side's share of the total, its weight multiplier, and the
@@ -97,11 +117,19 @@ pub(super) fn bisect(graph: &Graph, shares: [f32; 2], unbalance: i32) -> Vec<u8>
     let n = graph.len();
     let mut random = Draws::seeded(SEED);
     let finest = Level {
-        offsets: graph.offsets.clone(),
-        adjacency: graph.adjacency.clone(),
-        costs: graph.costs.clone(),
+        offsets: Cow::Borrowed(&graph.offsets[..]),
+        adjacency: Cow::Borrowed(&graph.adjacency[..]),
+        costs: Cow::Borrowed(&graph.costs[..]),
         weights: vec![1; n],
         total: n as i64,
+    };
+    let mut work = Work {
+        queues: [Gains::new(n), Gains::new(n)],
+        moved: vec![false; n],
+        swaps: Vec::with_capacity(n),
+        slot: vec![usize::MAX; n],
+        row: Vec::new(),
+        spare: Vec::with_capacity(n),
     };
     let tolerance = ((1.0 + 0.001 * unbalance as f64) as f32 as f64 + 0.000_049_9) as f32;
     let inverse = 1.0f32 / n as f32;
@@ -110,22 +138,26 @@ pub(super) fn bisect(graph: &Graph, shares: [f32; 2], unbalance: i32) -> Vec<u8>
         multipliers: [inverse / shares[0], inverse / (1.0 - shares[0])],
         tolerance,
     };
-    let (levels, maps) = coarsen(finest, &mut random);
+    let (levels, maps) = coarsen(finest, &mut work, &mut random);
     let coarsest = levels.last().expect("one level");
     let tries = if coarsest.len() <= COARSEN_TO {
         TRIES_SMALL
     } else {
         TRIES_LARGE
     };
-    let side = grow(coarsest, &balance, tries, &mut random);
-    refine(&levels, &maps, side, &balance, &mut random)
+    let side = grow(coarsest, &balance, tries, &mut work, &mut random);
+    refine(&levels, &maps, side, &balance, &mut work, &mut random)
 }
 
 // ---------------------------------------------------------------- 1. coarsening
 
 /// The levels from the finest to the coarsest, and for each but the coarsest, its vertices'
 /// vertex in the next.
-fn coarsen(finest: Level, random: &mut Draws) -> (Vec<Level>, Vec<Vec<u32>>) {
+fn coarsen<'g>(
+    finest: Level<'g>,
+    work: &mut Work,
+    random: &mut Draws,
+) -> (Vec<Level<'g>>, Vec<Vec<u32>>) {
     let equal_costs = finest.costs.windows(2).all(|w| w[0] == w[1]);
     let heaviest = (1.5 * finest.total as f64 / COARSEN_TO as f64) as i64;
     let mut levels = vec![finest];
@@ -136,7 +168,7 @@ fn coarsen(finest: Level, random: &mut Draws) -> (Vec<Level>, Vec<Vec<u32>>) {
         let heaviest_link = !(first && equal_costs) && graph.links() > 0;
         let mut mate = match_vertices(graph, heaviest, heaviest_link, random);
         first = false;
-        let (map, coarse) = contract(graph, &mut mate);
+        let (map, coarse) = contract(graph, &mut mate, work);
         let finer = graph.len();
         maps.push(map);
         levels.push(coarse);
@@ -197,7 +229,7 @@ fn match_vertices(
             continue;
         }
         let mut partner = Some(i);
-        let w = graph.weights[i];
+        let w = graph.weight(i);
         if w < heaviest {
             if graph.degree(i) == 0 {
                 partner = island_partner(&order, &mate, at, &mut last_free).or(partner);
@@ -205,14 +237,14 @@ fn match_vertices(
                 let mut best = -1i64;
                 for e in graph.row(i) {
                     let k = graph.adjacency[e] as usize;
-                    if mate[k] == UNMATCHED && w + graph.weights[k] <= heaviest {
+                    if mate[k] == UNMATCHED && w + graph.weight(k) <= heaviest {
                         if !heaviest_link {
                             partner = Some(k);
                             break;
                         }
-                        if best < graph.costs[e] {
+                        if best < graph.cost(e) {
                             partner = Some(k);
-                            best = graph.costs[e];
+                            best = graph.cost(e);
                         }
                     }
                 }
@@ -387,9 +419,13 @@ fn same_links(
 }
 
 /// The next graph: each pair one vertex, numbered by its first member, of the pair's weight; its
-/// links those of both members (the first's first) to other vertices, merged by vertex. With
-/// each fine vertex's coarse vertex.
-fn contract(graph: &Level, mate: &mut [u32]) -> (Vec<u32>, Level) {
+/// links those of both members (the first's first) to other vertices, merged by vertex in the
+/// order first met, costs summed (saturating). With each fine vertex's coarse vertex.
+///
+/// The pair's link to itself leaves its row. A pair of few links (`FEW_LINKS`, the degree of a
+/// vertex matched with itself counted twice) holds that link first, from the start, and the row's
+/// last link takes its place; a pair of many leaves the link's own place to the last link.
+fn contract<'g>(graph: &Level, mate: &mut [u32], work: &mut Work) -> (Vec<u32>, Level<'g>) {
     let n = graph.len();
     let mut map = vec![0u32; n];
     let mut count = 0u32;
@@ -405,26 +441,25 @@ fn contract(graph: &Level, mate: &mut [u32]) -> (Vec<u32>, Level) {
         }
     }
     let count = count as usize;
-    let mut coarse = Level {
-        offsets: Vec::with_capacity(count + 1),
-        adjacency: Vec::with_capacity(graph.links()),
-        costs: Vec::with_capacity(graph.links()),
-        weights: Vec::with_capacity(count),
-        total: graph.total,
-    };
-    let mut slot = vec![usize::MAX; count];
-    let mut row: Vec<(u32, i64)> = Vec::new();
+    let mut offsets = Vec::with_capacity(count + 1);
+    let mut adjacency = Vec::with_capacity(graph.links());
+    let mut costs = Vec::with_capacity(graph.links());
+    let mut weights = Vec::with_capacity(count);
+    let Work { slot, row, .. } = work;
     for v in 0..n {
         let u = mate[v] as usize;
         if u < v {
             continue;
         }
-        let me = map[v] as u32;
+        let me = map[v];
         let members: &[usize] = if u == v { &[v] } else { &[v, u] };
-        // The pair's links, merged by coarse vertex in the order first met, the first member's
-        // first; its link to itself among them.
+        let few = graph.degree(v) + graph.degree(u) < FEW_LINKS;
         row.clear();
-        let mut weight = 0;
+        if few {
+            slot[me as usize] = 0;
+            row.push((me, 0));
+        }
+        let mut weight = 0i32;
         for &w in members {
             weight += graph.weights[w];
             for e in graph.row(w) {
@@ -434,33 +469,42 @@ fn contract(graph: &Level, mate: &mut [u32]) -> (Vec<u32>, Level) {
                         slot[k as usize] = row.len();
                         row.push((k, graph.costs[e]));
                     }
-                    at => row[at].1 += graph.costs[e],
+                    at => row[at].1 = row[at].1.saturating_add(graph.costs[e]),
                 }
             }
         }
-        for &(k, _) in &row {
+        let own = slot[me as usize];
+        for &(k, _) in row.iter() {
             slot[k as usize] = usize::MAX;
         }
-        // The link to itself leaves the row. A pair of few links (`FEW_LINKS`, the degree of a
-        // vertex matched with itself counted twice) hands its place, the row's first, to the
-        // row's last link; a pair of many leaves its own place to the last link.
-        let degrees = graph.degree(v) + graph.degree(u);
-        if degrees < FEW_LINKS {
-            row.retain(|&(k, _)| k != me);
-            if let Some(last) = row.pop() {
-                row.insert(0, last);
+        if few {
+            let last = row.pop().expect("the link to itself");
+            if !row.is_empty() {
+                row[0] = last;
             }
-        } else if let Some(at) = row.iter().position(|&(k, _)| k == me) {
-            row.swap_remove(at);
+        } else if own != usize::MAX {
+            row.swap_remove(own);
         }
-        coarse.offsets.push(coarse.adjacency.len());
-        coarse.weights.push(weight);
-        for &(k, cost) in &row {
-            coarse.adjacency.push(k);
-            coarse.costs.push(cost);
+        offsets.push(adjacency.len() as u32);
+        weights.push(weight);
+        for &(k, cost) in row.iter() {
+            adjacency.push(k);
+            costs.push(cost);
         }
     }
-    coarse.offsets.push(coarse.adjacency.len());
+    offsets.push(adjacency.len() as u32);
+    // A coarse graph much smaller than its finer one gives the room back.
+    if adjacency.len() > 10_000 && (adjacency.len() as f64) < 0.9 * graph.links() as f64 {
+        adjacency.shrink_to_fit();
+        costs.shrink_to_fit();
+    }
+    let coarse = Level {
+        offsets: Cow::Owned(offsets),
+        adjacency: Cow::Owned(adjacency),
+        costs: Cow::Owned(costs),
+        weights,
+        total: graph.total,
+    };
     (map, coarse)
 }
 
@@ -482,39 +526,51 @@ struct Cut {
 impl Cut {
     /// Everything a side assignment implies, the boundary listed in vertex order.
     fn of(graph: &Level, side: Vec<u8>) -> Self {
-        let n = graph.len();
         let mut cut = Cut {
             side,
-            inside: vec![0; n],
-            across: vec![0; n],
+            inside: Vec::new(),
+            across: Vec::new(),
             sides: [0; 2],
             cut: 0,
             boundary: Vec::new(),
-            place: vec![NOT_ON_BOUNDARY; n],
+            place: Vec::new(),
         };
+        cut.recount(graph);
+        cut
+    }
+    /// Everything `side` implies on `graph`, the buffers kept.
+    fn recount(&mut self, graph: &Level) {
+        let n = graph.len();
+        self.inside.clear();
+        self.inside.resize(n, 0);
+        self.across.clear();
+        self.across.resize(n, 0);
+        self.place.clear();
+        self.place.resize(n, NOT_ON_BOUNDARY);
+        self.boundary.clear();
+        self.sides = [0; 2];
         for v in 0..n {
-            cut.sides[cut.side[v] as usize] += graph.weights[v];
+            self.sides[self.side[v] as usize] += graph.weight(v);
         }
         let mut total = 0;
         for v in 0..n {
-            let me = cut.side[v];
+            let me = self.side[v];
             let (mut inside, mut across) = (0, 0);
             for e in graph.row(v) {
-                if cut.side[graph.adjacency[e] as usize] == me {
-                    inside += graph.costs[e];
+                if self.side[graph.adjacency[e] as usize] == me {
+                    inside += graph.cost(e);
                 } else {
-                    across += graph.costs[e];
+                    across += graph.cost(e);
                 }
             }
-            cut.inside[v] = inside;
-            cut.across[v] = across;
+            self.inside[v] = inside;
+            self.across[v] = across;
             if across > 0 || graph.degree(v) == 0 {
-                cut.enter(v);
+                self.enter(v);
                 total += across;
             }
         }
-        cut.cut = total / 2;
-        cut
+        self.cut = total / 2;
     }
     fn on_boundary(&self, v: usize) -> bool {
         self.place[v] != NOT_ON_BOUNDARY
@@ -547,7 +603,7 @@ impl Cut {
     /// returns that neighbour.
     fn shift(&mut self, graph: &Level, e: usize, to: u8) -> usize {
         let k = graph.adjacency[e] as usize;
-        let cost = graph.costs[e];
+        let cost = graph.cost(e);
         let shift = if self.side[k] == to { cost } else { -cost };
         self.inside[k] += shift;
         self.across[k] -= shift;
@@ -562,9 +618,15 @@ impl Cut {
 /// its weight with the tolerance, a vertex that would take side 1 under its weight less the
 /// tolerance stopping the growth until another front; then balanced and refined. The cut of
 /// least weight, the first on a tie; none at all ends the tries.
-fn grow(graph: &Level, balance: &Balance, tries: usize, random: &mut Draws) -> Vec<u8> {
+fn grow(
+    graph: &Level,
+    balance: &Balance,
+    tries: usize,
+    work: &mut Work,
+    random: &mut Draws,
+) -> Vec<u8> {
     if graph.links() == 0 {
-        return random_cut(graph, balance, tries, random);
+        return random_cut(graph, balance, tries, work, random);
     }
     let n = graph.len();
     let total = graph.total;
@@ -605,13 +667,13 @@ fn grow(graph: &Level, balance: &Balance, tries: usize, random: &mut Draws) -> V
             }
             let v = queue[first] as usize;
             first += 1;
-            if sides[0] > 0 && sides[1] - graph.weights[v] < least {
+            if sides[0] > 0 && sides[1] - graph.weight(v) < least {
                 drain = true;
                 continue;
             }
             side[v] = 0;
-            sides[0] += graph.weights[v];
-            sides[1] -= graph.weights[v];
+            sides[0] += graph.weight(v);
+            sides[1] -= graph.weight(v);
             if sides[1] <= most {
                 break;
             }
@@ -632,8 +694,8 @@ fn grow(graph: &Level, balance: &Balance, tries: usize, random: &mut Draws) -> V
             side[random.below(n)] = 0;
         }
         let mut cut = Cut::of(graph, side);
-        balance_cut(graph, &mut cut, balance, random);
-        passes(graph, &mut cut, balance, PASSES, random);
+        balance_cut(graph, &mut cut, balance, work, random);
+        passes(graph, &mut cut, balance, PASSES, work, random);
         if best
             .as_ref()
             .is_none_or(|(least_cut, _)| cut.cut < *least_cut)
@@ -658,7 +720,13 @@ fn side_bounds(balance: &Balance, total: i64) -> (i64, i64) {
 /// The cut of a graph with no link: the first try everything on side 1, each other a shuffled
 /// run of vertices moved to side 0 while it stays under its weight with the tolerance; each
 /// balanced and refined (`PASSES_UNLINKED`), the least kept, the first on a tie.
-fn random_cut(graph: &Level, balance: &Balance, tries: usize, random: &mut Draws) -> Vec<u8> {
+fn random_cut(
+    graph: &Level,
+    balance: &Balance,
+    tries: usize,
+    work: &mut Work,
+    random: &mut Draws,
+) -> Vec<u8> {
     let n = graph.len();
     let most = (balance.tolerance * graph.total as f32 * balance.shares[0]) as i64;
     let mut best: Option<(i64, Vec<u8>)> = None;
@@ -669,9 +737,9 @@ fn random_cut(graph: &Level, balance: &Balance, tries: usize, random: &mut Draws
             let mut first = 0;
             for &v in &order {
                 let v = v as usize;
-                if first + graph.weights[v] < most {
+                if first + graph.weight(v) < most {
                     side[v] = 0;
-                    first += graph.weights[v];
+                    first += graph.weight(v);
                     if first > most {
                         break;
                     }
@@ -679,8 +747,8 @@ fn random_cut(graph: &Level, balance: &Balance, tries: usize, random: &mut Draws
             }
         }
         let mut cut = Cut::of(graph, side);
-        balance_cut(graph, &mut cut, balance, random);
-        passes(graph, &mut cut, balance, PASSES_UNLINKED, random);
+        balance_cut(graph, &mut cut, balance, work, random);
+        passes(graph, &mut cut, balance, PASSES_UNLINKED, work, random);
         if best
             .as_ref()
             .is_none_or(|(least_cut, _)| cut.cut < *least_cut)
@@ -704,19 +772,23 @@ fn refine(
     maps: &[Vec<u32>],
     side: Vec<u8>,
     balance: &Balance,
+    work: &mut Work,
     random: &mut Draws,
 ) -> Vec<u8> {
     let mut at = levels.len() - 1;
     let mut cut = Cut::of(&levels[at], side);
     loop {
-        balance_cut(&levels[at], &mut cut, balance, random);
-        passes(&levels[at], &mut cut, balance, PASSES, random);
+        balance_cut(&levels[at], &mut cut, balance, work, random);
+        passes(&levels[at], &mut cut, balance, PASSES, work, random);
         if at == 0 {
             return cut.side;
         }
         at -= 1;
-        let side = maps[at].iter().map(|&c| cut.side[c as usize]).collect();
-        cut = Cut::of(&levels[at], side);
+        work.spare.clear();
+        work.spare
+            .extend(maps[at].iter().map(|&c| cut.side[c as usize]));
+        std::mem::swap(&mut cut.side, &mut work.spare);
+        cut.recount(&levels[at]);
     }
 }
 
@@ -724,7 +796,13 @@ fn refine(
 /// its target; only vertices no heavier than the imbalance move, each once. Skipped when the cut
 /// is within the tolerance, or within three mean vertex weights of the target. With a boundary,
 /// only boundary vertices move; without, any.
-fn balance_cut(graph: &Level, cut: &mut Cut, balance: &Balance, random: &mut Draws) {
+fn balance_cut(
+    graph: &Level,
+    cut: &mut Cut,
+    balance: &Balance,
+    work: &mut Work,
+    random: &mut Draws,
+) {
     if balance.excess(cut.sides) <= 0.0 {
         return;
     }
@@ -739,10 +817,12 @@ fn balance_cut(graph: &Level, cut: &mut Cut, balance: &Balance, random: &mut Dra
     let from = if cut.sides[0] < targets[0] { 1u8 } else { 0 };
     let to = 1 - from;
     let boundary_only = !cut.boundary.is_empty();
-    let mut moved = vec![false; n];
-    let mut queue = Gains::new(n);
+    let Work { queues, moved, .. } = work;
+    let queue = &mut queues[0];
+    queue.reset();
+    moved[..n].fill(false);
     let movable = |cut: &Cut, moved: &[bool], v: usize| {
-        !moved[v] && cut.side[v] == from && graph.weights[v] <= gap
+        !moved[v] && cut.side[v] == from && graph.weight(v) <= gap
     };
     let candidates: Vec<usize> = if boundary_only {
         let order = random.permutation(cut.boundary.len(), cut.boundary.len() / 5);
@@ -755,7 +835,7 @@ fn balance_cut(graph: &Level, cut: &mut Cut, balance: &Balance, random: &mut Dra
         order.iter().map(|&v| v as usize).collect()
     };
     for v in candidates {
-        if movable(cut, &moved, v) {
+        if movable(cut, moved, v) {
             queue.insert(v as u32, cut.gain(v));
         }
     }
@@ -763,12 +843,12 @@ fn balance_cut(graph: &Level, cut: &mut Cut, balance: &Balance, random: &mut Dra
     for _ in 0..n {
         let Some(v) = queue.pop() else { break };
         let v = v as usize;
-        if cut.sides[to as usize] + graph.weights[v] > targets[to as usize] {
+        if cut.sides[to as usize] + graph.weight(v) > targets[to as usize] {
             break;
         }
         weight_cut -= cut.gain(v);
-        cut.sides[to as usize] += graph.weights[v];
-        cut.sides[from as usize] -= graph.weights[v];
+        cut.sides[to as usize] += graph.weight(v);
+        cut.sides[from as usize] -= graph.weight(v);
         moved[v] = true;
         cut.turn(v);
         if cut.across[v] == 0 && cut.on_boundary(v) && graph.degree(v) > 0 {
@@ -782,20 +862,20 @@ fn balance_cut(graph: &Level, cut: &mut Cut, balance: &Balance, random: &mut Dra
                 if cut.on_boundary(k) {
                     if cut.across[k] == 0 {
                         cut.leave(k);
-                        if movable(cut, &moved, k) {
+                        if movable(cut, moved, k) {
                             queue.remove(k as u32);
                         }
-                    } else if movable(cut, &moved, k) {
+                    } else if movable(cut, moved, k) {
                         queue.update(k as u32, cut.gain(k));
                     }
                 } else if cut.across[k] > 0 {
                     cut.enter(k);
-                    if movable(cut, &moved, k) {
+                    if movable(cut, moved, k) {
                         queue.insert(k as u32, cut.gain(k));
                     }
                 }
             } else {
-                if movable(cut, &moved, k) {
+                if movable(cut, moved, k) {
                     queue.update(k as u32, cut.gain(k));
                 }
                 if cut.across[k] == 0 && cut.on_boundary(k) {
@@ -815,16 +895,27 @@ fn balance_cut(graph: &Level, cut: &mut Cut, balance: &Balance, random: &mut Dra
 /// first imbalance plus a mean vertex weight, or keeps it and narrows the imbalance, is the new
 /// best; past `limit` moves without one the pass stops — and every move after the best undone,
 /// the last first. A pass that finds nothing better ends the refinement.
-fn passes(graph: &Level, cut: &mut Cut, balance: &Balance, count: usize, random: &mut Draws) {
+fn passes(
+    graph: &Level,
+    cut: &mut Cut,
+    balance: &Balance,
+    count: usize,
+    work: &mut Work,
+    random: &mut Draws,
+) {
     let n = graph.len();
     let targets = balance.targets(graph.total);
     let limit = (0.01 * n as f64).clamp(15.0, 100.0) as usize;
     let all = cut.sides[0] + cut.sides[1];
     let mean = (all / 20).min(2 * all / n as i64);
     let first_gap = (targets[0] - cut.sides[0]).abs();
-    let mut queues = [Gains::new(n), Gains::new(n)];
-    let mut moved = vec![false; n];
-    let mut swaps: Vec<u32> = Vec::with_capacity(n);
+    let Work {
+        queues,
+        moved,
+        swaps,
+        ..
+    } = work;
+    moved[..n].fill(false);
     for _ in 0..count {
         queues[0].reset();
         queues[1].reset();
@@ -849,8 +940,8 @@ fn passes(graph: &Level, cut: &mut Cut, balance: &Balance, count: usize, random:
             let Some(v) = queues[from].pop() else { break };
             let v = v as usize;
             current -= cut.gain(v);
-            cut.sides[to] += graph.weights[v];
-            cut.sides[from] -= graph.weights[v];
+            cut.sides[to] += graph.weight(v);
+            cut.sides[from] -= graph.weight(v);
             let gap = (targets[0] - cut.sides[0]).abs();
             if (current < best_cut && gap <= first_gap + mean)
                 || (current == best_cut && gap < best_gap)
@@ -860,8 +951,8 @@ fn passes(graph: &Level, cut: &mut Cut, balance: &Balance, count: usize, random:
                 best_at = Some(step);
             } else if step as isize - best_at.map_or(-1, |b| b as isize) > limit as isize {
                 // Past the limit: this last move is not made.
-                cut.sides[from] += graph.weights[v];
-                cut.sides[to] -= graph.weights[v];
+                cut.sides[from] += graph.weight(v);
+                cut.sides[to] -= graph.weight(v);
                 break;
             }
             moved[v] = true;
@@ -890,7 +981,7 @@ fn passes(graph: &Level, cut: &mut Cut, balance: &Balance, count: usize, random:
                 }
             }
         }
-        for &v in &swaps {
+        for &v in swaps.iter() {
             moved[v as usize] = false;
         }
         let keep = best_at.map_or(0, |b| b + 1);
@@ -902,8 +993,8 @@ fn passes(graph: &Level, cut: &mut Cut, balance: &Balance, count: usize, random:
             } else if cut.across[v] > 0 && !cut.on_boundary(v) {
                 cut.enter(v);
             }
-            cut.sides[to as usize] += graph.weights[v];
-            cut.sides[1 - to as usize] -= graph.weights[v];
+            cut.sides[to as usize] += graph.weight(v);
+            cut.sides[1 - to as usize] -= graph.weight(v);
             for e in graph.row(v) {
                 let k = cut.shift(graph, e, to);
                 if cut.on_boundary(k) && cut.across[k] == 0 {

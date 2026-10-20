@@ -10,15 +10,13 @@ use super::placed::{Local, RegionWeld};
 use super::*;
 use crate::perf::{Phase, Timer};
 use crate::qem::solve::Region;
-use trillion3d_page_codec::min_ball::point_sphere;
 
 /// A reduction: its error, its clusters in the primitive's numbering — placed vertices from the
-/// level's vertex count on —, the vertices it placed, and the smallest ball of its triangles.
+/// level's vertex count on —, and the vertices it placed.
 pub(super) struct Solved {
     pub error: f64,
     pub clusters: Vec<Vec<u32>>,
     pub placed: Placed,
-    pub sphere: [f64; 4],
 }
 
 /// Reduces the group `corners` (its children's area `area` and worst error `child_error`) to
@@ -61,7 +59,6 @@ pub(super) fn attempt(
                 };
                 return Ok(Some(Solved {
                     error,
-                    sphere: point_sphere(&local.positions, &local.indices),
                     placed: local.placed(input, base),
                     clusters: clusters.into_iter().map(global).collect(),
                 }));

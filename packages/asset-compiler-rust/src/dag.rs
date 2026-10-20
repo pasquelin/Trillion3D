@@ -60,7 +60,10 @@ pub struct DagCluster {
     pub lod_error: f64,
     /// Object-space error of the group that replaces this cluster. Infinite for a root.
     pub parent_error: f64,
-    /// Bounds of the group that produced this cluster, used to project `lod_error`.
+    /// The ball `lod_error` is projected through: at level 0 the smallest ball of the cluster's
+    /// vertices, above it the ball of the producing group's children's balls, so it nests and the
+    /// cut is monotone. It bounds no vertex of a coarse cluster: what a page draws is bounded by its
+    /// box (`bounds::cluster_bounds`), which the culling reads.
     pub sphere: [f64; 4],
     /// Bounds of the group that replaces this cluster, used to project `parent_error`.
     pub parent_sphere: [f64; 4],
@@ -80,6 +83,28 @@ impl DagCluster {
     pub fn is_root(&self) -> bool {
         !self.parent_error.is_finite()
     }
+}
+
+/// Appends another DAG's `clusters` and `groups`, their vertices from `vertex_base`, after those
+/// `into` holds: each cluster's vertices, group and source and each group's children and outputs
+/// renumbered after them. The world and a voxel actor splice their parts by it.
+pub(crate) fn append_dag(
+    (all_clusters, all_groups): (&mut Vec<DagCluster>, &mut Vec<DagGroup>),
+    (clusters, groups): (Vec<DagCluster>, Vec<DagGroup>),
+    vertex_base: u32,
+) {
+    let (cluster_base, group_base) = (all_clusters.len(), all_groups.len());
+    all_clusters.extend(clusters.into_iter().map(|mut cluster| {
+        cluster.indices.iter_mut().for_each(|v| *v += vertex_base);
+        cluster.group = cluster.group.map(|g| g + group_base);
+        cluster.source = cluster.source.map(|g| g + group_base);
+        cluster
+    }));
+    all_groups.extend(groups.into_iter().map(|mut group| {
+        group.children.iter_mut().for_each(|c| *c += cluster_base);
+        group.outputs.iter_mut().for_each(|c| *c += cluster_base);
+        group
+    }));
 }
 
 // ---------------------------------------------------------------- geometry helpers

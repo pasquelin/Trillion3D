@@ -144,23 +144,16 @@ fn a_ball_of_balls_holds_every_ball_and_is_the_smallest() {
 #[test]
 fn every_sphere_holds_its_cluster_and_children() {
     for (positions, indices) in [grid(96), ball(160)] {
-        // The clusters index the source's vertices, then those the reductions placed.
-        let (dag, groups, _, drawn) = build_of(&positions, &indices);
+        let (dag, groups, ..) = build_of(&positions, &indices);
         for cluster in dag.iter().filter(|c| c.level == 0) {
             assert_eq!(cluster.sphere, point_sphere(&positions, &cluster.indices));
             assert!(holds_vertices(cluster.sphere, &positions, &cluster.indices));
         }
         for group in &groups {
-            // The children's balls and the ball of the triangles the group drew: the solved
-            // positions may leave the children's balls, and one sphere both projects the error
-            // and bounds what is drawn (`reduce.rs`).
-            let mut balls: Vec<[f64; 4]> =
-                group.children.iter().map(|&id| dag[id].sphere).collect();
-            let drawn_by: Vec<u32> = (group.outputs.iter())
-                .flat_map(|&id| dag[id].indices.iter().copied())
-                .collect();
-            balls.push(point_sphere(&drawn, &drawn_by));
-            assert_eq!(group.sphere, ball_of_balls(&balls));
+            // The children's balls alone: the sphere projects the error, the page's box bounds
+            // what it draws (`reduce.rs`).
+            let children: Vec<[f64; 4]> = group.children.iter().map(|&id| dag[id].sphere).collect();
+            assert_eq!(group.sphere, ball_of_balls(&children));
             for &id in &group.children {
                 // A ball left on the merge keeps its rounding (1.1e-13 m).
                 let [x, y, z, r] = dag[id].sphere;
@@ -168,7 +161,7 @@ fn every_sphere_holds_its_cluster_and_children() {
                 assert_eq!(dag[id].parent_sphere, group.sphere);
             }
             for &id in &group.outputs {
-                assert!(holds_vertices(group.sphere, &drawn, &dag[id].indices));
+                assert_eq!(dag[id].sphere, group.sphere);
             }
             // A group under the floor is its level's only one, with no group to join.
             let peers = groups.iter().filter(|g| g.level == group.level).count();

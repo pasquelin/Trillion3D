@@ -65,7 +65,7 @@ pub fn build_dag(
     let mut dag: Vec<DagCluster> = Vec::new();
     let level0 = {
         let _t = Timer::new(Phase::ClusterLevel0);
-        cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)?
+        cluster_source(positions, indices, DAG_CLUSTER_TRIANGLES)?
     };
     for cluster in level0 {
         let sphere = point_sphere(positions, &cluster);

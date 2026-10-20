@@ -16,6 +16,8 @@ mod bisect;
 mod heap;
 mod order;
 
+use trillion3d_math::vecn::distance2;
+
 use std::ops::Range;
 
 /// Who runs the two halves of a bisection: one after the other (`Serial`), or side by side on a
@@ -70,9 +72,9 @@ impl Islands {
 /// A graph over the elements in rank order (`Partitioner::ranks`): element of rank `i` links the
 /// ranks `adjacency[offsets[i]..offsets[i + 1]]`, each at its cost.
 pub struct Graph {
-    offsets: Vec<usize>,
+    offsets: Vec<u32>,
     adjacency: Vec<u32>,
-    costs: Vec<i64>,
+    costs: Vec<i32>,
 }
 impl Graph {
     fn len(&self) -> usize {
@@ -93,14 +95,16 @@ pub struct Partitioner {
     /// The element at each rank: Morton order once `locality_links` ran, part order once
     /// `partition` did.
     pub ranks: Vec<u32>,
-    /// The rank of each element.
+    /// The rank of each element in the Morton order (`locality_links`).
     pub rank_of: Vec<u32>,
     /// Each part as its range of ranks, in rank order.
     pub parts: Vec<Range<usize>>,
     min: usize,
     max: usize,
-    /// Each element's locality links, in the order they were made.
-    links: Vec<Vec<u32>>,
+    /// Each element's locality links, `link_to[link_start[e]..link_start[e + 1]]`, the last made
+    /// first.
+    link_start: Vec<u32>,
+    link_to: Vec<u32>,
 }
 
 impl Partitioner {
@@ -112,7 +116,8 @@ impl Partitioner {
             parts: Vec::new(),
             min,
             max: max.max(min),
-            links: vec![Vec::new(); count],
+            link_start: vec![0; count + 1],
+            link_to: Vec::new(),
         }
     }
 
@@ -130,10 +135,12 @@ impl Partitioner {
         let n = self.ranks.len();
         let (low, high) = bounds;
         let extent = (0..3).map(|a| high[a] - low[a]).fold(0.0f32, f32::max);
-        let keys: Vec<u32> = (0..n as u32)
-            .map(|e| morton(centre(e), low, extent))
+        // Each element after its Morton code, ties by element: one sort of whole words.
+        let mut keyed: Vec<u64> = (0..n as u32)
+            .map(|e| u64::from(morton(centre(e), low, extent)) << 32 | u64::from(e))
             .collect();
-        self.ranks.sort_by_key(|&e| keys[e as usize]);
+        keyed.sort_unstable();
+        self.ranks = keyed.iter().map(|&k| k as u32).collect();
         for (rank, &e) in self.ranks.iter().enumerate() {
             self.rank_of[e as usize] = rank as u32;
         }
@@ -147,6 +154,8 @@ impl Partitioner {
                 start = i;
             }
         }
+        // Every link as it is made, both ways: (element, other, when).
+        let mut made: Vec<(u32, u32, u32)> = Vec::new();
         for i in 0..n {
             if runs[i].len() >= RUN_FOR_LINKS {
                 continue;
@@ -186,40 +195,57 @@ impl Partitioner {
                 }
             }
             for &(other, _) in nearest.iter().filter(|(o, _)| *o != u32::MAX) {
-                add_unique(&mut self.links[me as usize], other);
-                add_unique(&mut self.links[other as usize], me);
+                made.push((me, other, made.len() as u32));
+                made.push((other, me, made.len() as u32));
             }
         }
+        // A link made twice counts once, when first made; each element's links, the last made
+        // first.
+        made.sort_unstable();
+        made.dedup_by_key(|&mut (e, other, _)| (e, other));
+        made.sort_unstable_by_key(|&(e, _, when)| (e, std::cmp::Reverse(when)));
+        self.link_start = vec![0; n + 1];
+        for &(e, _, _) in &made {
+            self.link_start[e as usize + 1] += 1;
+        }
+        for e in 0..n {
+            self.link_start[e + 1] += self.link_start[e];
+        }
+        self.link_to = made.iter().map(|&(_, other, _)| other).collect();
     }
 
     /// The graph over the elements in rank order: `links` hands each element's own links, as
-    /// (element, cost); its locality links follow at `locality_cost`, the last made first.
+    /// (element, cost), about `own_links` in all; its locality links follow at `locality_cost`,
+    /// the last made first.
     pub fn graph(
         &self,
-        locality_cost: i64,
-        mut links: impl FnMut(u32, &mut Vec<(u32, i64)>),
+        own_links: usize,
+        locality_cost: i32,
+        mut links: impl FnMut(u32, &mut Vec<(u32, i32)>),
     ) -> Graph {
         let n = self.ranks.len();
+        let room = own_links + self.link_to.len();
         let mut graph = Graph {
             offsets: Vec::with_capacity(n + 1),
-            adjacency: Vec::new(),
-            costs: Vec::new(),
+            adjacency: Vec::with_capacity(room),
+            costs: Vec::with_capacity(room),
         };
         let mut own = Vec::new();
         for &e in &self.ranks {
-            graph.offsets.push(graph.adjacency.len());
+            graph.offsets.push(graph.adjacency.len() as u32);
             own.clear();
             links(e, &mut own);
             for &(other, cost) in &own {
                 graph.adjacency.push(self.rank_of[other as usize]);
                 graph.costs.push(cost);
             }
-            for &other in self.links[e as usize].iter().rev() {
+            let (from, to) = (self.link_start[e as usize], self.link_start[e as usize + 1]);
+            for &other in &self.link_to[from as usize..to as usize] {
                 graph.adjacency.push(self.rank_of[other as usize]);
                 graph.costs.push(locality_cost);
             }
         }
-        graph.offsets.push(graph.adjacency.len());
+        graph.offsets.push(graph.adjacency.len() as u32);
         graph
     }
 
@@ -234,9 +260,6 @@ impl Partitioner {
         } else {
             recurse(graph, 0, &mut self.ranks, (min, max), fork)
         };
-        for (rank, &e) in self.ranks.iter().enumerate() {
-            self.rank_of[e as usize] = rank as u32;
-        }
     }
 }
 
@@ -328,9 +351,9 @@ fn bisect_graph(
     for i in 0..n {
         let (c, base) = if i < split { (0, 0) } else { (1, split) };
         let child = &mut children[c];
-        child.offsets.push(child.adjacency.len());
+        child.offsets.push(child.adjacency.len() as u32);
         let old = moved[i];
-        for e in graph.offsets[old]..graph.offsets[old + 1] {
+        for e in graph.offsets[old] as usize..graph.offsets[old + 1] as usize {
             let to = moved[graph.adjacency[e] as usize];
             if (base..base + sizes[c]).contains(&to) {
                 child.adjacency.push((to - base) as u32);
@@ -339,22 +362,10 @@ fn bisect_graph(
         }
     }
     let [a, b] = children.map(|mut child| {
-        child.offsets.push(child.adjacency.len());
+        child.offsets.push(child.adjacency.len() as u32);
         child
     });
     (split, Some((a, b)))
-}
-
-fn add_unique(list: &mut Vec<u32>, value: u32) {
-    if !list.contains(&value) {
-        list.push(value);
-    }
-}
-
-/// Squared distance in `f32`, the axes summed in order.
-fn distance2(a: [f32; 3], b: [f32; 3]) -> f32 {
-    let d = [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-    d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
 }
 
 /// The 30-bit Morton code of `p` on a grid of 1 024 cells along the longest side of the bounds

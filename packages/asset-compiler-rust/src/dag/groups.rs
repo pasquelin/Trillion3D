@@ -1,15 +1,16 @@
 use super::clusters::Pool;
 use super::*;
+use trillion3d_math::aabb::aabb_of_f32;
 pub use trillion3d_page_codec::clusters::vertex_bounds;
 use trillion3d_page_codec::partition::{Islands, Partitioner};
 
 /// The cost of a shared edge between two clusters a group's simplification made together, and
 /// between any other two; every pair that shares an edge adds `LINK_COST`, a locality link
 /// `LOCALITY_COST`.
-const SIBLING_EDGE_COST: i64 = 12;
-const EDGE_COST: i64 = 16;
-const LINK_COST: i64 = 4;
-const LOCALITY_COST: i64 = 1;
+const SIBLING_EDGE_COST: i32 = 12;
+const EDGE_COST: i32 = 16;
+const LINK_COST: i32 = 4;
+const LOCALITY_COST: i32 = 1;
 
 /// The groups of a level's clusters (`lists`, indexing `positions`), parts of `DAG_GROUP_MIN` to
 /// `DAG_GROUP_MAX` clusters of the clusters' graph (`Partitioner`): two clusters that share edges
@@ -42,7 +43,8 @@ pub fn group_clusters(
         .collect();
     let mut partitioner = Partitioner::new(n, DAG_GROUP_MIN, DAG_GROUP_MAX);
     partitioner.locality_links(&mut islands, bounds, |c| centres[c as usize]);
-    let graph = partitioner.graph(LOCALITY_COST, |c, links| {
+    let own_links = adjacency.iter().map(Vec::len).sum();
+    let graph = partitioner.graph(own_links, LOCALITY_COST, |c, links| {
         let source = sources[c as usize];
         for &(other, shared) in &adjacency[c as usize] {
             let siblings = source.is_some() && source == sources[other as usize];
@@ -51,7 +53,7 @@ pub fn group_clusters(
             } else {
                 EDGE_COST
             };
-            links.push((other, shared as i64 * per_edge + LINK_COST));
+            links.push((other, shared as i32 * per_edge + LINK_COST));
         }
     });
     partitioner.partition(graph, &Pool);
@@ -66,16 +68,9 @@ pub fn group_clusters(
 
 /// The centre of the box of the vertices a cluster names, in `f32`.
 fn box_centre(positions: &[f32], list: &[u32]) -> [f32; 3] {
-    let mut low = [f32::INFINITY; 3];
-    let mut high = [f32::NEG_INFINITY; 3];
-    for &v in list {
-        let i = v as usize * 3;
-        if let Some(p) = positions.get(i..i + 3) {
-            for k in 0..3 {
-                low[k] = low[k].min(p[k]);
-                high[k] = high[k].max(p[k]);
-            }
-        }
-    }
+    let points = (list.iter())
+        .filter_map(|&v| positions.get(v as usize * 3..v as usize * 3 + 3))
+        .map(|p| [p[0], p[1], p[2]]);
+    let (low, high) = aabb_of_f32(points);
     [0, 1, 2].map(|k| 0.5 * (low[k] + high[k]))
 }

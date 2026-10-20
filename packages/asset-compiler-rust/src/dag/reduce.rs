@@ -49,11 +49,11 @@ pub(super) fn reduce_group(
             &corners,
         )));
     }
-    // The group's sphere encloses its children's final ones — a level-0 cluster's smallest ball
-    // and every earlier group's, so each parent holds its children, the invariant the cut's
-    // monotonicity rests on — and its own triangles, which the solved positions may carry past
-    // them: one sphere both projects the error and bounds what is drawn.
-    spheres.push(solved.sphere);
+    // The group's sphere is the ball of its children's alone — a level-0 cluster's smallest ball
+    // of its vertices, every coarser one its producing group's —, so each parent holds its
+    // children and the projected error never drops along the cut. It projects the error only:
+    // what a page draws is bounded by its box over the drawn vertices (`bounds::cluster_bounds`),
+    // which the culling reads.
     let sphere = ball_of_balls(&spheres);
     Ok(Ok(GroupReduction {
         error: solved.error,
