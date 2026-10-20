@@ -1,6 +1,8 @@
 //! The queue of candidate pairs: a binary min-heap over pair indices, each keyed by its cost,
-//! with every pair's place kept so a pair can be removed or tested in constant time.
-use super::NONE;
+//! with every pair's place kept so a pair can be removed or tested in constant time; and the
+//! simplification that pops it.
+use super::super::quadric;
+use super::{Simplifier, NONE};
 
 #[derive(Default)]
 pub(super) struct Heap {
@@ -110,5 +112,88 @@ impl Heap {
             self.heap[i] = moving;
             self.places[moving as usize] = i as u32;
         }
+    }
+}
+
+impl Simplifier {
+    /// Collapses pairs, cheapest first, until `target` triangles are left, then removes triangles
+    /// in order down to it, and puts the largest triangle back if none remains; the largest error
+    /// made, penalties aside. At least one collapse is made whatever the count.
+    pub fn simplify(&mut self, target: usize) -> f32 {
+        let size = quadric::size(self.m);
+        for tri in 0..self.tri_removed.len() {
+            self.fix_up_tri(tri);
+            if !self.tri_removed[tri] {
+                let area = self.tri_quadrics[tri * size + quadric::AREA] as f32;
+                self.total_area += area;
+                if self.backup.as_ref().is_none_or(|b| area > b.area) {
+                    self.capture_backup(tri, area);
+                }
+            }
+        }
+        for corner in 0..self.indexes.len() {
+            self.calc_edge_quadric(corner);
+        }
+        self.holed = vec![false; self.pairs.len()];
+        for pair in 0..self.pairs.len() as u32 {
+            self.weigh(pair);
+        }
+        let mut max_error = 0.0_f32;
+        while let Some(pair) = self.heap.top() {
+            let key = self.heap.key(pair);
+            if key > f32::MAX {
+                break;
+            }
+            self.heap.pop();
+            // A hole grows as ghosts are left and the surface around goes: weighed again, the
+            // pair goes back if it rose.
+            if self.holed[pair as usize] && self.ghosts.any() && self.weigh(pair) > key {
+                continue;
+            }
+            self.heap.remove(pair);
+            let [p0, p1] = self.pairs[pair as usize];
+            self.pair_hash0.remove(p0, pair);
+            self.pair_hash1.remove(p1, pair);
+            let error = self.evaluate_merge(p0, p1, true);
+            max_error = max_error.max(error);
+            if self.met(target, max_error) {
+                break;
+            }
+            let reevaluate = std::mem::take(&mut self.reevaluate);
+            for &pair in &reevaluate {
+                self.weigh(pair);
+            }
+            self.reevaluate = reevaluate;
+            self.reevaluate.clear();
+        }
+        let mut tri = 0;
+        while !self.met(target, max_error) {
+            while self.tri_removed[tri] {
+                tri += 1;
+            }
+            self.remove_tri(tri);
+        }
+        if self.remaining_tris == 0 || self.remaining_verts < 3 {
+            self.restore_backup(&mut max_error);
+        }
+        max_error
+    }
+
+    /// Weighs `pair` and queues it at its cost, which it returns.
+    fn weigh(&mut self, pair: u32) -> f32 {
+        let [p0, p1] = self.pairs[pair as usize];
+        let error = self.evaluate_merge(p0, p1, false);
+        self.heap.add(error, pair);
+        self.holed[pair as usize] = self.capped;
+        error
+    }
+
+    /// Whether the simplification stops: `target` triangles reached, or no triangle, no vertex
+    /// or no finite error left.
+    fn met(&self, target: usize, max_error: f32) -> bool {
+        self.remaining_tris <= target
+            || self.remaining_tris == 0
+            || self.remaining_verts == 0
+            || max_error >= f32::MAX
     }
 }

@@ -3,7 +3,8 @@
 //! A cut at threshold `t` is every page whose own error is at most `t` and whose parent's is above
 //! it: the pages a renderer draws at that distance. Each camera looks along one signed axis and
 //! keeps, per sample, the nearest FRONT face, back faces culled as the renderer culls them. Where
-//! the source covers a whole disc of the cut's error around a sample, the cut must draw a front
+//! the source covers a whole disc of the cut's error — never under its pages' quantization error —
+//! around a sample, the cut must draw a front
 //! face within that disc, no further than the error behind the source: a wall wider than the error
 //! is neither pruned nor turned away, and a seam narrower than the error may open. The rest of the
 //! mesh, drawn beside the cut, covers for a part the cut removed in front of it, as the cook
@@ -43,20 +44,30 @@ impl Mesh {
     }
 }
 
-/// Every cut of `primitive`, finest first: its threshold and what it draws, the pages
-/// `proxy::cut::in_cut` selects, each drawing its mesh of `drawn` (`cooked_pages::drawn`).
-pub(in crate::tests) fn page_cuts(drawn: &[Mesh], primitive: &Value) -> Vec<(f64, Mesh)> {
+/// Every cut of `primitive`, finest first: its threshold, what it draws — the pages
+/// `proxy::cut::in_cut` selects, each drawing its mesh of `drawn` (`cooked_pages::drawn`) — and
+/// the largest quantization error of those pages (`geometry.quantizationError`).
+pub(in crate::tests) fn page_cuts(drawn: &[Mesh], primitive: &Value) -> Vec<(f64, Mesh, f64)> {
     let pages = primitive["pages"].as_array().expect("pages");
     let error = |page: &Value, key: &str| page[key].as_f64().unwrap_or(f64::INFINITY);
     let mut thresholds: Vec<f64> = pages.iter().map(|p| error(p, "lodError")).collect();
     thresholds.sort_by(f64::total_cmp);
     thresholds.dedup();
-    let cut = |t: f64| -> Mesh {
+    let cut = |t: f64| -> (f64, Mesh, f64) {
         let drawn = pages.iter().zip(drawn);
-        let drawn = drawn.filter(|(p, _)| in_cut(error(p, "lodError"), error(p, "parentError"), t));
-        Mesh::merged(drawn.map(|(_, mesh)| mesh))
+        let drawn: Vec<(&Value, &Mesh)> = drawn
+            .filter(|(p, _)| in_cut(error(p, "lodError"), error(p, "parentError"), t))
+            .collect();
+        let quantization = (drawn.iter())
+            .filter_map(|(p, _)| p["geometry"]["quantizationError"].as_f64())
+            .fold(0.0, f64::max);
+        (
+            t,
+            Mesh::merged(drawn.iter().map(|(_, mesh)| *mesh)),
+            quantization,
+        )
     };
-    thresholds.into_iter().map(|t| (t, cut(t))).collect()
+    thresholds.into_iter().map(cut).collect()
 }
 
 /// Each cut of `primitive`, whose pages draw the meshes of `drawn` as they decode, against
@@ -71,7 +82,7 @@ pub(in crate::tests) fn cut_defects(
     let (low, high) = trillion3d_math::aabb::aabb_of(mesh.positions.iter().copied());
     let diagonal = trillion3d_math::aabb::diagonal(low, high);
     let mut defects = Vec::new();
-    for (t, cut) in page_cuts(drawn, primitive) {
+    for (t, cut, quantization) in page_cuts(drawn, primitive) {
         for c in cut.indices.chunks(3) {
             let p = [0, 1, 2].map(|k| cut.positions[c[k] as usize]);
             let n = [0, 1, 2].map(|k| cut.normals[c[k] as usize]);
@@ -87,7 +98,10 @@ pub(in crate::tests) fn cut_defects(
         }
         // An eighth of the error, never finer than the object's own 1/256th: the check's resolution.
         let step = (t / 8.0).max(diagonal / 256.0);
-        let radius = (t / step).ceil() as usize;
+        // The disc a wall must cover: the cut's error, never under the format's own tolerance —
+        // the pages' grid moves a corner by up to their quantization error, even at the exact
+        // cut, where an error of zero would ask every sample on the source's edge to stay covered.
+        let radius = (t.max(quantization) / step).ceil() as usize;
         for axis in 0..3 {
             for sign in [-1.0, 1.0] {
                 let [u, v] = [(axis + 1) % 3, (axis + 2) % 3];

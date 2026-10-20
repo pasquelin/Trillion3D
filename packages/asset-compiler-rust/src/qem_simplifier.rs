@@ -22,29 +22,42 @@
 //!
 //! **Cost.** A collapse costs its wedges' errors plus its border edges' error. Each wedge's error
 //! is at most its area, the total at most the area it touches, and a collapse taking a piece's
-//! last triangles costs exactly that area: a small piece goes as cheaply as it is small. The
-//! queue adds penalties — a vertex of more than 24 triangles, two locked positions merged, a
-//! triangle turned around — and pops the cheapest; the error published is the largest cost made,
-//! penalties aside. If the collapses run out above the target, triangles are removed in order
-//! until it is met, and the region's largest triangle is put back if none remains.
+//! last triangles costs that area — a small piece goes as cheaply as it is small. A collapse
+//! costing all the area it touches costs, when it uncovers what such a collapse of another piece
+//! left to it, the square of the hole it opens, if larger (`ghosts.rs`): pieces side by side go
+//! where their neighbours cover them. The queue adds penalties — a vertex of more than 24
+//! triangles, two locked positions merged, a triangle turned around — and pops the cheapest; a
+//! pair whose cost measured a hole is weighed again when popped once a ghost exists, and goes back
+//! if it rose — a hole only grows as ghosts are left and the surface around goes. The error
+//! published is the largest cost made, penalties aside. If the collapses run out above the
+//! target, triangles are removed in order until it is met, and the region's largest triangle is
+//! put back if none remains.
 //!
 //! **Data.** Flat arrays: vertex floats (position then attributes), corner indices, per-corner
 //! flags, per-triangle quadrics, per-corner edge quadrics; vertices, corners and candidate pairs
 //! found by position through position-keyed lists, newest first.
 use super::quadric::{self, EdgeQuadric, V3};
 use crate::qem::Corrected;
-use trillion3d_math::scalar::normalized_bits;
-use trillion3d_page_codec::hash::WordMap;
 
 #[path = "qem_simplifier_fixup.rs"]
 mod fixup;
+#[path = "qem_simplifier_ghosts.rs"]
+mod ghosts;
 #[path = "qem_simplifier_heap.rs"]
 mod heap;
+#[path = "qem_simplifier_live.rs"]
+mod live;
 #[path = "qem_simplifier_merge.rs"]
 mod merge;
+#[path = "qem_simplifier_moves.rs"]
+mod moves;
+#[path = "qem_simplifier_positions.rs"]
+mod positions;
 
+use ghosts::Ghosts;
 use heap::Heap;
 use merge::Scratch;
+use positions::{hash_position, ByPosition};
 
 const NONE: u32 = u32::MAX;
 
@@ -80,62 +93,12 @@ pub(in super::super) struct Input<'a> {
     pub materials: &'a [u32],
 }
 
-/// The bits of a position, a zero of either sign read as one.
-fn key(p: P) -> [u32; 3] {
-    p.map(normalized_bits)
-}
-
-/// The 32-bit Murmur hash of a position's bits: the order of a pair's two positions.
-fn hash_position(p: P) -> u32 {
-    let mut hash = 0u32;
-    for element in key(p) {
-        let mut e = element.wrapping_mul(0xcc9e_2d51);
-        e = e.rotate_left(15);
-        e = e.wrapping_mul(0x1b87_3593);
-        hash ^= e;
-        hash = hash.rotate_left(13);
-        hash = hash.wrapping_mul(5).wrapping_add(0xe654_6b64);
-    }
-    hash ^= hash >> 16;
-    hash = hash.wrapping_mul(0x85eb_ca6b);
-    hash ^= hash >> 13;
-    hash = hash.wrapping_mul(0xc2b2_ae35);
-    hash ^ (hash >> 16)
-}
-
 /// The next corner of a corner's triangle, and the one after.
 fn cycle3(corner: usize) -> usize {
     corner - corner % 3 + (corner + 1) % 3
 }
 fn cycle3_by(corner: usize, offset: usize) -> usize {
     corner - corner % 3 + (corner + offset) % 3
-}
-
-/// Items listed by position, oldest first: each position's newest is read first, as the items
-/// were last listed.
-#[derive(Default)]
-struct ByPosition {
-    lists: WordMap<[u32; 3], Vec<u32>>,
-}
-impl ByPosition {
-    fn add(&mut self, p: P, item: u32) {
-        self.lists.entry(key(p)).or_default().push(item);
-    }
-    fn remove(&mut self, p: P, item: u32) {
-        if let Some(list) = self.lists.get_mut(&key(p)) {
-            if let Some(at) = list.iter().rposition(|&x| x == item) {
-                list.remove(at);
-            }
-        }
-    }
-    /// The items at `p`, oldest first: read them backwards.
-    fn at(&self, p: P) -> &[u32] {
-        self.lists.get(&key(p)).map_or(&[], |list| list.as_slice())
-    }
-    /// Takes every item at `p` off the list, oldest first.
-    fn take(&mut self, p: P) -> Vec<u32> {
-        self.lists.remove(&key(p)).unwrap_or_default()
-    }
 }
 
 /// The region's largest triangle, put back if the simplification leaves none.
@@ -174,6 +137,10 @@ pub(super) struct Simplifier {
     backup: Option<Backup>,
     total_area: f32,
     scratch: Scratch,
+    ghosts: Ghosts,
+    /// Whether the last evaluation measured a hole, and per pair whether its key did.
+    capped: bool,
+    holed: Vec<bool>,
 }
 
 impl Simplifier {
@@ -230,6 +197,9 @@ impl Simplifier {
             backup: None,
             total_area: 0.0,
             scratch: Scratch::default(),
+            ghosts: Ghosts::default(),
+            capped: false,
+            holed: Vec::new(),
         };
         for v in 0..verts_count as u32 {
             let p = s.position(v);
@@ -289,74 +259,6 @@ impl Simplifier {
                 f(i);
             }
         }
-    }
-
-    /// Collapses pairs, cheapest first, until `target` triangles are left, then removes triangles
-    /// in order down to it, and puts the largest triangle back if none remains; the largest error
-    /// made, penalties aside. At least one collapse is made whatever the count.
-    pub fn simplify(&mut self, target: usize) -> f32 {
-        let size = quadric::size(self.m);
-        for tri in 0..self.tri_removed.len() {
-            self.fix_up_tri(tri);
-            if !self.tri_removed[tri] {
-                let area = self.tri_quadrics[tri * size + quadric::AREA] as f32;
-                self.total_area += area;
-                if self.backup.as_ref().is_none_or(|b| area > b.area) {
-                    self.capture_backup(tri, area);
-                }
-            }
-        }
-        for corner in 0..self.indexes.len() {
-            self.calc_edge_quadric(corner);
-        }
-        for pair in 0..self.pairs.len() {
-            let [p0, p1] = self.pairs[pair];
-            let error = self.evaluate_merge(p0, p1, false);
-            self.heap.add(error, pair as u32);
-        }
-        let mut max_error = 0.0_f32;
-        while let Some(pair) = self.heap.top() {
-            if self.heap.key(pair) > f32::MAX {
-                break;
-            }
-            self.heap.pop();
-            let [p0, p1] = self.pairs[pair as usize];
-            self.pair_hash0.remove(p0, pair);
-            self.pair_hash1.remove(p1, pair);
-            let error = self.evaluate_merge(p0, p1, true);
-            max_error = max_error.max(error);
-            if self.met(target, max_error) {
-                break;
-            }
-            let reevaluate = std::mem::take(&mut self.reevaluate);
-            for &pair in &reevaluate {
-                let [p0, p1] = self.pairs[pair as usize];
-                let error = self.evaluate_merge(p0, p1, false);
-                self.heap.add(error, pair);
-            }
-            self.reevaluate = reevaluate;
-            self.reevaluate.clear();
-        }
-        let mut tri = 0;
-        while !self.met(target, max_error) {
-            while self.tri_removed[tri] {
-                tri += 1;
-            }
-            self.remove_tri(tri);
-        }
-        if self.remaining_tris == 0 || self.remaining_verts < 3 {
-            self.restore_backup(&mut max_error);
-        }
-        max_error
-    }
-
-    /// Whether the simplification stops: `target` triangles reached, or no triangle, no vertex
-    /// or no finite error left.
-    fn met(&self, target: usize, max_error: f32) -> bool {
-        self.remaining_tris <= target
-            || self.remaining_tris == 0
-            || self.remaining_verts == 0
-            || max_error >= f32::MAX
     }
 
     /// The live triangles, three vertices each, in triangle order.

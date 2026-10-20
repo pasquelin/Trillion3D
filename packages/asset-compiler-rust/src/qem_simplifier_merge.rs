@@ -1,6 +1,5 @@
-//! A collapse: its cost, where it puts the merged position, and — when made — every vertex moved
-//! there with its wedge's attributes, the pairs and lists brought up to date and the triangles
-//! around fixed up.
+//! A collapse: its cost, where it puts the merged position and the attributes each wedge takes
+//! there; made, it moves every vertex there (`moves.rs`).
 use super::super::quadric::{self, Optimizer, PositionQuadric};
 use super::{
     about, attributes, Simplifier, ADJ_TRI, DEGREE_LIMIT, DEGREE_PENALTY, INVERSION_PENALTY,
@@ -20,16 +19,16 @@ struct WedgeVert {
 #[derive(Default)]
 pub(super) struct Scratch {
     /// The live triangles at either position, in the order met.
-    adj_tris: Vec<usize>,
+    pub(super) adj_tris: Vec<usize>,
     /// Per position, its vertices and the triangle each was first met in.
     wedge_verts: [Vec<WedgeVert>; 2],
     /// The union of the gathered triangles into wedges, by their rank in `adj_tris`.
     parents: Vec<u32>,
     /// Per gathered triangle, its wedge; per wedge, its union root, quadric and attributes.
-    wedge_of: Vec<usize>,
+    pub(super) wedge_of: Vec<usize>,
     wedge_ids: Vec<u32>,
-    wedge_quadrics: Vec<f64>,
-    wedge_values: Vec<f32>,
+    pub(super) wedge_quadrics: Vec<f64>,
+    pub(super) wedge_values: Vec<f32>,
 }
 
 /// Joins the newest triangle `x` to `y`'s wedge.
@@ -86,8 +85,9 @@ fn find(parents: &mut [u32], start: usize) -> u32 {
 
 impl Simplifier {
     /// The cost of merging positions `p0` and `p1`, penalties included unless the merge is made
-    /// (`move_verts`), when it returns the error made.
+    /// (`move_verts`), when it returns the error made; `capped` tells whether it measured a hole.
     pub(super) fn evaluate_merge(&mut self, p0: P, p1: P, move_verts: bool) -> f32 {
+        self.capped = false;
         if p0 == p1 {
             return 0.0;
         }
@@ -272,134 +272,28 @@ impl Simplifier {
         }
         error += edge_error;
         error = error.min(surface);
-        if s.adj_tris.len() == 1 || (s.adj_tris.len() == 2 && degree == 4) {
+        let disjoint = s.adj_tris.len() == 1 || (s.adj_tris.len() == 2 && degree == 4);
+        if disjoint {
             error = surface;
         }
+        // All the area it touches: it takes a piece's shape away, and the holes too (`ghosts.rs`).
+        self.capped = disjoint || (surface > 0.0 && error >= surface);
+        if self.capped {
+            let (ghosts, live) = self.ghosts_and_surface();
+            error = ghosts.hole(&live, &s.adj_tris, ([p0, p1], new_position), error);
+        }
         if move_verts {
-            self.move_to(s, [p0, p1], new_position, locked[0] || locked[1]);
+            let lock = locked[0] || locked[1];
+            self.move_to(
+                s,
+                ([p0, p1], new_position),
+                lock,
+                self.capped.then_some(error),
+            );
         } else {
             error += penalty;
         }
-        for &tri in &s.adj_tris {
-            if move_verts {
-                for k in 0..3 {
-                    self.calc_edge_quadric(tri * 3 + k);
-                }
-            }
-        }
         self.clear_flags(&s.adj_tris);
         error
-    }
-
-    /// Makes the merge: every vertex of the gathered triangles at `ends` moves to `p` with its
-    /// wedge's attributes, its corners locked if either end was; the lists and pairs follow, the
-    /// pairs around leave the queue to be weighed again, and the gathered triangles are fixed up.
-    fn move_to(&mut self, s: &Scratch, ends: [P; 2], p: P, lock: bool) {
-        let (m, size) = (self.m, quadric::size(self.m));
-        self.begin_move(ends[0]);
-        self.begin_move(ends[1]);
-        for (adj, &tri) in s.adj_tris.iter().enumerate() {
-            let w = s.wedge_of[adj];
-            let solved = s.wedge_quadrics[w * size + quadric::AREA] > 1e-8;
-            for k in 0..3 {
-                let corner = tri * 3 + k;
-                let vert = self.indexes[corner] as usize;
-                let at = vert * (3 + m);
-                let old = [self.verts[at], self.verts[at + 1], self.verts[at + 2]];
-                if old == ends[0] || old == ends[1] {
-                    self.verts[at..at + 3].copy_from_slice(&p);
-                    if solved {
-                        let values = &s.wedge_values[w * m..(w + 1) * m];
-                        self.verts[at + 3..at + 3 + m].copy_from_slice(values);
-                    }
-                    if lock {
-                        self.corner_flags[corner] |= LOCKED;
-                    }
-                }
-            }
-        }
-        for i in 0..self.moved_pairs.len() {
-            let pair = &mut self.pairs[self.moved_pairs[i] as usize];
-            for end in pair.iter_mut() {
-                if *end == ends[0] || *end == ends[1] {
-                    *end = p;
-                }
-            }
-        }
-        self.end_moves();
-        let mut adj_verts = Vec::new();
-        for &tri in &s.adj_tris {
-            for k in 0..3 {
-                let vert = self.indexes[tri * 3 + k];
-                if !adj_verts.contains(&vert) {
-                    adj_verts.push(vert);
-                }
-            }
-        }
-        for vert in adj_verts {
-            let mut found = Vec::new();
-            self.for_pairs_at(self.position(vert), |pair| found.push(pair));
-            for pair in found {
-                if self.heap.is_present(pair) {
-                    self.heap.remove(pair);
-                    self.reevaluate.push(pair);
-                }
-            }
-        }
-        for &tri in &s.adj_tris {
-            self.fix_up_tri(tri);
-        }
-    }
-
-    /// Clears the merge and gathered flags of the gathered triangles' corners.
-    fn clear_flags(&mut self, adj_tris: &[usize]) {
-        for &tri in adj_tris {
-            for k in 0..3 {
-                self.corner_flags[tri * 3 + k] &= !(MERGE_MASK | ADJ_TRI);
-            }
-        }
-    }
-
-    /// Takes every vertex, corner and pair at `p` off its lists, to be listed again once moved.
-    fn begin_move(&mut self, p: P) {
-        self.moved_verts
-            .extend(self.vert_hash.take(p).into_iter().rev());
-        self.moved_corners
-            .extend(self.corner_hash.take(p).into_iter().rev());
-        for pair in self.pair_hash0.take(p).into_iter().rev() {
-            self.pair_hash1.remove(self.pairs[pair as usize][1], pair);
-            self.moved_pairs.push(pair);
-        }
-        for pair in self.pair_hash1.take(p).into_iter().rev() {
-            self.pair_hash0.remove(self.pairs[pair as usize][0], pair);
-            self.moved_pairs.push(pair);
-        }
-    }
-
-    /// Lists the moved vertices, corners and pairs again at their new positions; a pair whose two
-    /// ends met, or that repeats another, leaves the queue.
-    fn end_moves(&mut self) {
-        for i in 0..self.moved_verts.len() {
-            let vert = self.moved_verts[i];
-            let p = self.position(vert);
-            self.vert_hash.add(p, vert);
-        }
-        for i in 0..self.moved_corners.len() {
-            let corner = self.moved_corners[i];
-            let p = self.position(self.indexes[corner as usize]);
-            self.corner_hash.add(p, corner);
-        }
-        for i in 0..self.moved_pairs.len() {
-            let pair = self.moved_pairs[i];
-            let mut ends = self.pairs[pair as usize];
-            let kept = ends[0] != ends[1] && self.add_unique_pair(&mut ends, pair);
-            self.pairs[pair as usize] = ends;
-            if !kept {
-                self.heap.remove(pair);
-            }
-        }
-        self.moved_verts.clear();
-        self.moved_corners.clear();
-        self.moved_pairs.clear();
     }
 }
