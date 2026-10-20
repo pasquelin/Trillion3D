@@ -9,8 +9,8 @@ mod geometry_page_deform;
 mod geometry_page_quant;
 mod gltf_codes;
 pub mod import;
-mod impostor;
 mod join;
+pub mod json;
 mod le;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
@@ -21,15 +21,16 @@ pub mod plugins;
 pub mod proxy;
 mod qem;
 pub mod shared_math;
+mod surface_trace;
 pub mod texture_preview;
-mod topology;
 mod uri;
+mod voxel;
 use rayon::prelude::*;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fmt::{Display, Formatter},
+    fmt::Display,
     fs::{self, File},
     io::{BufWriter, Read, Write},
     path::{Path, PathBuf},
@@ -44,18 +45,17 @@ mod compiler_format;
 mod compiler_identity;
 pub use shared_math::abi::*;
 pub const COMPILER_VERSION: &str = env!("CARGO_PKG_VERSION");
-/// Per-cluster DAG identity: absolute group QEM error weighing positions, normals and every
-/// texture set, clamped to the group's extent, raised to what each part it removes whole costs
-/// (`dag/vanished.rs`), never below the sampled Hausdorff distance between the group's children
-/// and its outputs, and projected through the group bounding sphere. v1 measured positions only,
-/// v2 published the quadric error alone; their caches are refused, never reinterpreted.
-pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v3";
+/// Per-cluster DAG identity: the group error is the simplifier's own — positions, normals and every
+/// texture set at their quadric weights — never below the children's, so the error grows
+/// monotonically up the DAG and a cut stays consistent, projected through the group bounding
+/// sphere. v1 measured positions only, v2 published the quadric error alone at our weights, v3
+/// raised it to the measured Hausdorff distance and removed parts; their caches are refused, never
+/// reinterpreted.
+pub const DAG_ERROR_MODEL: &str = "dag-group-qem-v4";
 pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
-/// Target size of one streaming bundle. Clusters remain individually addressable through offsets.
+/// Target size of one streaming bundle: a cell of the scene index, a bundle of the world DAG.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;
-/// Target size of one bootstrap object shared by root clusters of every primitive.
-pub const BOOTSTRAP_BUNDLE_BYTES: usize = 1024 * 1024;
 /// The root of the manifest, of fixed size: its pages lie beside it (`compiler_manifest_pages.rs`).
 pub const MANIFEST_FILE: &str = "clusters.json";
 /// Code of a job stopped on a cancel request: what the batch counts and the event reports.
@@ -63,41 +63,6 @@ pub const CANCELLED: &str = "CANCELLED";
 /// The file that names a directory's product — a source, a converted scene, a published scope:
 /// one name for every writer and reader.
 pub const MANIFEST_POINTER: &str = "manifest.json";
-#[derive(Debug)]
-pub struct CompilerError {
-    pub code: &'static str,
-    pub message: String,
-}
-impl CompilerError {
-    fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-        }
-    }
-}
-impl Display for CompilerError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.code, self.message)
-    }
-}
-impl std::error::Error for CompilerError {}
-impl From<std::io::Error> for CompilerError {
-    fn from(value: std::io::Error) -> Self {
-        Self::new("IO_ERROR", value.to_string())
-    }
-}
-impl From<serde_json::Error> for CompilerError {
-    fn from(value: serde_json::Error) -> Self {
-        Self::new("INVALID_JSON", value.to_string())
-    }
-}
-impl From<rayon::ThreadPoolBuildError> for CompilerError {
-    fn from(value: rayon::ThreadPoolBuildError) -> Self {
-        Self::new("THREAD_POOL_ERROR", value.to_string())
-    }
-}
-pub type Result<T> = std::result::Result<T, CompilerError>;
 #[derive(Clone)]
 pub struct Options {
     pub source: PathBuf,
@@ -108,8 +73,17 @@ pub struct Options {
     pub threads: usize,
     pub ram_budget_mb: usize,
     pub simplification: String,
-    /// Texture block families (`--textures-format`), every family by default.
+    /// Texture block families (`--textures-format`), the stored one first, the stored one alone by
+    /// default.
     pub texture_formats: Vec<texture_preview::BlockFormat>,
+    /// The HLOD layers and the rules assigning objects to them (`hlod`, `Hlod::read`): none when
+    /// the job names none; `Err` with the job's refusal when they do not read.
+    pub hlod: std::result::Result<Hlod, String>,
+    /// The temporal anti-aliasing settings — the scene's level, the responsive match and the
+    /// settings by material name (`temporalAntialiasing`, `responsive`, `materials`,
+    /// `MaterialOptions::read`): none when the job names none;
+    /// `Err` with the job's refusal when they do not read.
+    pub materials: std::result::Result<MaterialOptions, String>,
     pub cancelled: Arc<AtomicBool>,
 }
 fn check(o: &Options) -> Result<()> {
@@ -128,9 +102,11 @@ pub mod compiler_budget;
 mod compiler_buffers;
 mod compiler_build;
 mod compiler_bundle_dependencies;
-mod compiler_bundles;
 mod compiler_coplanar;
 mod compiler_copy;
+mod compiler_digest;
+mod compiler_error;
+mod compiler_geometry_files;
 mod compiler_instancing;
 mod compiler_lights;
 mod compiler_lock;
@@ -138,12 +114,13 @@ mod compiler_manifest_pages;
 mod compiler_materials;
 mod compiler_mesh_share;
 mod compiler_nodes;
-mod compiler_page_object;
+mod compiler_page_bundles;
+mod compiler_page_record;
 mod compiler_plan;
 mod compiler_primitive;
-mod compiler_primitive_bundle;
 mod compiler_primitive_checks;
 mod compiler_primitive_dag;
+mod compiler_primitive_pages;
 mod compiler_primitive_stalls;
 mod compiler_primitive_warn;
 mod compiler_prune;
@@ -153,6 +130,7 @@ mod compiler_ratio;
 mod compiler_reuse;
 mod compiler_reuse_proof;
 mod compiler_runtime;
+mod compiler_safe_path;
 mod compiler_scene;
 mod compiler_select;
 mod compiler_source;
@@ -170,13 +148,16 @@ mod tests;
 use compiler_accessor_create::*;
 use compiler_accessor_types::*;
 pub use compiler_args::{
-    job_options, machine_threads, parse_compiler_args, positive, JobDefaults, ID_FIELD,
+    job_options, machine_threads, parse_compiler_args, positive, Hlod, HlodBuilder, HlodLayer,
+    HlodLodSelection, JobDefaults, MaterialOptions, ID_FIELD,
 };
 use compiler_buffers::*;
 pub use compiler_build::compile;
 use compiler_bundle_dependencies::*;
-use compiler_bundles::*;
 use compiler_copy::*;
+use compiler_digest::*;
+pub use compiler_error::{CompilerError, Result};
+use compiler_geometry_files::write_geometry_files;
 use compiler_instancing::expand_gpu_instances;
 use compiler_lights::stage_scene_lights;
 use compiler_lock::CacheLock;
@@ -184,12 +165,14 @@ use compiler_manifest_pages::write_mesh_pages;
 use compiler_materials::*;
 use compiler_plan::*;
 use compiler_primitive::*;
-use compiler_primitive_bundle::*;
 use compiler_primitive_dag::*;
+use compiler_primitive_pages::*;
 use compiler_prune::*;
+pub use compiler_publish::scope_pointer;
 use compiler_publish::{publish, Publication};
 use compiler_ratio::with_ratio;
 use compiler_runtime::*;
+use compiler_safe_path::*;
 use compiler_scene::*;
 use compiler_source::*;
 use compiler_storage::*;

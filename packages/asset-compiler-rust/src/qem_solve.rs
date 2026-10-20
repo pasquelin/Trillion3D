@@ -1,20 +1,31 @@
-//! THE REGION SIMPLIFIER of the cluster DAG, by the linked `meshopt` simplifier's
-//! `simplifyWithUpdate`: the library ranks the collapses — absolute error, the weighed attributes
-//! counted, permissive across every attribute discontinuity but a protected one — measures the
-//! error, then moves every surviving vertex that is neither locked, on a protected seam nor on an
-//! open border to the minimum of its accumulated quadric, each copy's attributes solved at that
-//! point. This module compacts the region, sets its flags and weights, and reads back what moved.
+//! THE REGION SIMPLIFIER of the cluster DAG: a region of the level's mesh, compacted and scaled
+//! into a frame of its own, simplified by our quadric simplifier (`qem_simplifier.rs`) towards the
+//! target size it is asked for.
 //!
-//! The region is handed over in a frame of its own: each axis from its least coordinate, divided
-//! by the widest axis span, and every attribute already multiplied by its weight, with unit
-//! weights. The library's own normalisation is then the identity — least coordinate 0, span 1,
-//! weight 1 — so a value it writes back is bit for bit the one it solved: a vertex whose bits did
-//! not change did not move, and stays the source vertex.
-use crate::qem::{compact_attributes, compact_region, Attribute, VERTEX_LOCK, VERTEX_PROTECT};
+//! **The frame.** Positions are scaled by the power of two that brings the region's mean triangle
+//! (the square root of its mean area, at least 2e-5) into a quarter to a half of a unit: the
+//! exponent of a quarter less the exponent of that size, held within single precision's range.
+//! The attribute weights are written for that frame (`dag::attributes`), whatever the model's
+//! size; a power of two keeps the scaling exact both ways.
+//!
+//! **The surface limit.** A region simplified for a cluster level holds each wedge's error to its
+//! area and each collapse's to the area it touches (`qem_simplifier.rs`): a small piece goes as
+//! cheaply as it is small.
+//!
+//! **Targets.** Every target is simplified afresh from the region as it was given.
+use crate::qem::{compact_attributes, compact_region, Attribute, Corrected, Role};
 use crate::{invalid, Result};
-use meshopt::SimplifyOptions;
+use trillion3d_math::vec3::cross;
+use trillion3d_math::vecn::{length, sub};
 
-/// A region prepared once, in its own compact vertex space: its retries differ only in flags.
+#[path = "qem_solve_prepare.rs"]
+mod prepare;
+#[path = "qem_quadric.rs"]
+mod quadric;
+#[path = "qem_simplifier.rs"]
+mod simplifier;
+
+/// A region prepared once, in its own compact vertex space and frame, simplified towards a target.
 pub struct Region {
     /// The region's triangles over the compact vertices.
     pub compact: Vec<u32>,
@@ -24,13 +35,18 @@ pub struct Region {
     pub source: Vec<f32>,
     /// The weighed attributes, interleaved in the order of `attributes`, as written.
     pub source_values: Vec<f32>,
+    /// One weight per attribute float.
     weights: Vec<f32>,
-    /// The positions in the region's own frame, and that frame: least corner and span.
+    corrected: Corrected,
+    /// Per compact vertex: its position is locked.
+    locked: Vec<bool>,
+    /// The source positions in the frame.
     frame: Vec<f32>,
-    low: [f32; 3],
-    span: f32,
-    /// `source_values` times their weights: what the library weighs and solves.
-    weighed: Vec<f32>,
+    /// Per triangle, the mirror bits of its texture sets: two triangles of different bits share
+    /// no edge (`prepare::mirrored`).
+    materials: Vec<u32>,
+    /// The frame's scale.
+    scale: f32,
 }
 
 /// A simplification of a `Region`: what it kept and where it moved it.
@@ -40,10 +56,11 @@ pub struct SolvedRegion<'r> {
     pub indices: Vec<u32>,
     /// Three floats per compact vertex: the source's where it did not move, else the solve's.
     pub positions: Vec<f32>,
-    /// The weighed attributes, unweighed: the source's where the vertex did not move.
+    /// The weighed attributes: the source's where the vertex did not move, else the solve's.
     pub values: Vec<f32>,
     moved: Vec<bool>,
-    /// Object-space error of the collapses, clamped to the region's span.
+    /// Object-space error of the simplification: the square root of the largest error made,
+    /// brought back from the frame.
     pub error_object: f64,
 }
 impl SolvedRegion<'_> {
@@ -51,15 +68,44 @@ impl SolvedRegion<'_> {
     pub fn stride(&self) -> usize {
         self.region.weights.len()
     }
-    /// Whether the solve rewrote compact vertex `local`: its position or a weighed attribute.
+    /// Whether the solve rewrote compact vertex `local` — its position or a weighed attribute —;
+    /// only a vertex its triangles use is marked.
     pub fn moved(&self, local: usize) -> bool {
         self.moved[local]
     }
 }
 
+/// The surface area of the triangles `indices` over `positions`, summed in single precision a
+/// triangle after the other: half the length of the cross of its first edge and its last. A
+/// corner past the positions reads the origin, as `compact_region` reads it: a malformed region
+/// reaches `Region::of`, which names it.
+pub fn surface_area(positions: &[f32], indices: &[u32]) -> f32 {
+    let p = |v: u32| {
+        let at = v as usize * 3;
+        match positions.get(at..at + 3) {
+            Some(&[x, y, z]) => [x, y, z],
+            _ => [0.0; 3],
+        }
+    };
+    let mut area = 0.0_f32;
+    for t in indices.as_chunks::<3>().0 {
+        let (edge01, edge20) = (sub(p(t[1]), p(t[0])), sub(p(t[0]), p(t[2])));
+        area += 0.5 * length(cross(edge01, edge20));
+    }
+    area
+}
+
 impl Region {
-    /// Compacts `indices` and the weighed `attributes` of their vertices, in the region's frame.
-    pub fn of(positions: &[f32], attributes: &[Attribute], indices: &[u32]) -> Result<Self> {
+    /// Compacts `indices` and the weighed `attributes` of their vertices, each at its weight;
+    /// `locked` names the source vertices whose position is locked; `surface_area` is the area of
+    /// the triangles as their clusters measured it (`surface_area`), which sets the frame.
+    pub fn of(
+        positions: &[f32],
+        attributes: &[Attribute],
+        locked: &dyn Fn(u32) -> bool,
+        indices: &[u32],
+        surface_area: f32,
+    ) -> Result<Self> {
         if indices.len() < 3
             || !indices.len().is_multiple_of(3)
             || !positions.len().is_multiple_of(3)
@@ -68,119 +114,41 @@ impl Region {
         }
         let (source, compact, remap) = compact_region(positions, indices);
         let (source_values, weights) = compact_attributes(attributes, &remap);
-        let points = source.as_chunks::<3>().0;
-        let low = [0, 1, 2].map(|k| points.iter().map(|p| p[k]).fold(f32::MAX, f32::min));
-        let high = [0, 1, 2].map(|k| points.iter().map(|p| p[k]).fold(-f32::MAX, f32::max));
-        let span = (0..3).map(|k| high[k] - low[k]).fold(0.0f32, f32::max);
-        let unit = |x: f32, k: usize| if span > 0.0 { (x - low[k]) / span } else { 0.0 };
-        let frame = points
-            .iter()
-            .flat_map(|p| [0, 1, 2].map(|k| unit(p[k], k)))
-            .collect();
-        let stride = weights.len().max(1);
-        let weighed = (source_values.iter().enumerate())
-            .map(|(i, &v)| v * weights[i % stride])
-            .collect();
+        // The power of two from the exponent of the mean triangle's size to a quarter's.
+        let size = (surface_area / (compact.len() / 3) as f32).sqrt().max(2e-5);
+        let exponent = (125 - ((size.to_bits() >> 23) & 0xff) as i32).clamp(-126, 127);
+        let scale = f32::from_bits(((exponent + 127) as u32) << 23);
+        let mut uv_offsets = Vec::new();
+        let mut offset = 0;
+        for a in attributes {
+            if a.role == Role::Texture {
+                uv_offsets.push(offset);
+            }
+            offset += a.width;
+        }
+        let stride = weights.len();
         Ok(Self {
+            locked: remap.iter().map(|&v| locked(v)).collect(),
+            frame: source.iter().map(|&x| x * scale).collect(),
+            materials: prepare::mirrored(&compact, &source_values, stride, &uv_offsets),
             compact,
             remap,
             source,
             source_values,
             weights,
-            frame,
-            low,
-            span,
-            weighed,
+            corrected: Corrected::of(attributes),
+            scale,
         })
     }
 
-    /// Simplifies the region towards `target_triangles` and, when `place`, keeps the solve of what
-    /// survives. `flags` answers `VERTEX_LOCK` and `VERTEX_PROTECT` per source vertex; `prune` also
-    /// removes the parts that fall under the error, ignoring locks. `None` when no triangle went.
-    /// The collapses and their error are the library's either way: `place` only decides whether a
-    /// surviving vertex takes its solved position (a placed vertex) or stays the source vertex it
-    /// collapsed onto.
-    pub fn solve(
-        &self,
-        target_triangles: usize,
-        prune: bool,
-        place: bool,
-        flags: &dyn Fn(u32) -> u8,
-    ) -> Option<SolvedRegion<'_>> {
-        let current = self.compact.len() / 3;
-        if current <= target_triangles.max(1) {
-            return None;
+    /// Simplifies the region afresh towards `target_triangles` and returns what remains; a region
+    /// already at or under the target comes back as it was, at zero error.
+    pub fn solve(&self, target_triangles: usize) -> SolvedRegion<'_> {
+        if self.compact.len() / 3 <= target_triangles {
+            return self.unsimplified();
         }
-        let flags: Vec<u8> = self.remap.iter().map(|&v| flags(v)).collect();
-        let mut options = SimplifyOptions::ErrorAbsolute | SimplifyOptions::Permissive;
-        if prune {
-            options |= SimplifyOptions::Prune;
-        }
-        // The library rewrites the indices, positions and values it is handed: each solve starts
-        // from fresh copies. Every buffer is sized as the call reads it.
-        let (mut indices, mut frame) = (self.compact.clone(), self.frame.clone());
-        let mut weighed = self.weighed.clone();
-        let unit = vec![1.0f32; self.weights.len()];
-        let mut result_error = 0.0_f32;
-        let count = unsafe {
-            meshopt::ffi::meshopt_simplifyWithUpdate(
-                indices.as_mut_ptr(),
-                indices.len(),
-                frame.as_mut_ptr(),
-                self.remap.len(),
-                12,
-                weighed.as_mut_ptr(),
-                unit.len() * 4,
-                unit.as_ptr(),
-                unit.len(),
-                flags.as_ptr(),
-                target_triangles.max(1) * 3,
-                f32::MAX,
-                options.bits(),
-                &mut result_error,
-            )
-        };
-        if count == 0 || count / 3 >= current {
-            return None;
-        }
-        indices.truncate(count);
-        let (n, stride) = (self.remap.len(), self.weights.len());
-        let differs =
-            |a: &[f32], b: &[f32]| a.iter().zip(b).any(|(x, y)| x.to_bits() != y.to_bits());
-        let moved: Vec<bool> = (0..n)
-            .map(|i| {
-                place && differs(&frame[i * 3..i * 3 + 3], &self.frame[i * 3..i * 3 + 3])
-                    || place
-                        && differs(
-                            &weighed[i * stride..][..stride],
-                            &self.weighed[i * stride..][..stride],
-                        )
-            })
-            .collect();
-        let mut positions = self.source.clone();
-        let mut values = self.source_values.clone();
-        for i in (0..n).filter(|&i| moved[i]) {
-            for k in 0..3 {
-                positions[i * 3 + k] = frame[i * 3 + k] * self.span + self.low[k];
-            }
-            for k in 0..stride {
-                values[i * stride + k] = weighed[i * stride + k] / self.weights[k];
-            }
-        }
-        let span = f64::from(self.span);
-        Some(SolvedRegion {
-            region: self,
-            indices,
-            positions,
-            values,
-            moved,
-            error_object: (f64::from(result_error) * span).min(span),
-        })
+        let mut simplifier = self.build();
+        let error = simplifier.simplify(target_triangles);
+        self.assembled(&simplifier, error)
     }
-}
-
-/// A region's flags for the simplifier: `VERTEX_LOCK` where `locked`, `VERTEX_PROTECT` where
-/// `protected`.
-pub fn flags(locked: bool, protected: bool) -> u8 {
-    u8::from(locked) * VERTEX_LOCK | u8::from(protected) * VERTEX_PROTECT
 }

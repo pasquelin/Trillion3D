@@ -4,12 +4,12 @@
 use super::cut::store_shape;
 use super::mass::solid_mass;
 use super::{refused, taken};
-use crate::compiler_validate::{item, values};
+use crate::compiler_primitive::triangles::mesh_triangles;
 use crate::compiler_world::Mat4;
 use crate::qem::welded_region;
 use crate::{Options, Result};
 use serde_json::{json, Value};
-use trillion3d_math::matrix::transform_point;
+use trillion3d_math::matrix::transform_point_f32;
 
 extern "C" {
     fn cook_hull(points: *const f32, count: u32, out: *mut *const u8, bytes: *mut u32) -> u32;
@@ -28,22 +28,6 @@ pub(super) fn hull_shape(points: &[f32]) -> Result<Vec<u8>> {
         )
     };
     taken(status, out, bytes, "convex hull")
-}
-
-/// Source positions and triangles of every triangle primitive of mesh `mesh`.
-fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u32>)> {
-    let (mut pos, mut triangles) = (Vec::new(), Vec::new());
-    let primitives = values(item(values(g, "meshes")?, mesh, "mesh")?, "primitives")?;
-    for p in primitives
-        .iter()
-        .filter(|p| p.get("mode").is_none_or(|m| m == 4))
-    {
-        let base = (pos.len() / 3) as u32;
-        let (positions, local, _) = crate::compiler_primitive::triangles::read(g, bin, p, None)?;
-        pos.extend(positions.collect_f32()?);
-        triangles.extend(local.iter().map(|i| i + base));
-    }
-    Ok((pos, triangles))
 }
 
 /// Mesh `mesh` as a body collides by it: its positions, its triangles welded, and the `cooked`
@@ -90,7 +74,7 @@ pub(super) fn cooked_hull(
     let (mut pos, triangles) = mesh_triangles(g, bin, mesh).map_err(|e| refused(e.message))?;
     if let Some(m) = frame {
         for p in pos.as_chunks_mut::<3>().0 {
-            *p = transform_point(&m, p.map(f64::from)).map(|v| v as f32);
+            *p = transform_point_f32(&m, *p);
         }
     }
     // One point per position: seam copies neither split an edge nor add a hull point.

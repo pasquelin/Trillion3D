@@ -4,6 +4,7 @@
 //! These three functions reread it assuming nothing more than the width of an element, and stop
 //! at what the block actually carries.
 use super::*;
+use crate::le::{u16_at, u32_at, u64_at, words};
 
 /// An integer read at the width and signedness the SDNA declares.
 pub(super) fn scalar(field: &Field, bytes: &[u8]) -> Option<i64> {
@@ -17,33 +18,21 @@ pub(super) fn scalar(field: &Field, bytes: &[u8]) -> Option<i64> {
     Some(match (field.unit, unsigned) {
         (1, false) => i64::from(bytes[0] as i8),
         (1, true) => i64::from(bytes[0]),
-        (2, false) => i64::from(i16::from_le_bytes(bytes[..2].try_into().ok()?)),
-        (2, true) => i64::from(u16::from_le_bytes(bytes[..2].try_into().ok()?)),
-        (4, false) => i64::from(i32::from_le_bytes(bytes[..4].try_into().ok()?)),
-        (4, true) => i64::from(u32::from_le_bytes(bytes[..4].try_into().ok()?)),
-        (8, _) => i64::from_le_bytes(bytes[..8].try_into().ok()?),
+        (2, false) => i64::from(u16_at(bytes, 0)? as i16),
+        (2, true) => i64::from(u16_at(bytes, 0)?),
+        (4, false) => i64::from(u32_at(bytes, 0)? as i32),
+        (4, true) => i64::from(u32_at(bytes, 0)?),
+        (8, _) => u64_at(bytes, 0)? as i64,
         _ => return None,
     })
 }
 
-/// The floats of a raw block, bounded by what the block carries.
+/// The floats of a raw block, at most `count`, bounded by what the block carries.
 pub(super) fn floats(bytes: &[u8], count: usize) -> Vec<f32> {
-    bytes
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .take(count)
-        .map(|word| f32::from_le_bytes(*word))
-        .collect()
+    words(bytes, f32::from_le_bytes).take(count).collect()
 }
 
 /// The thirty-two-bit integers of a raw block, bounded the same way.
 pub(super) fn ints(bytes: &[u8], count: usize) -> Vec<i32> {
-    bytes
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .take(count)
-        .map(|word| i32::from_le_bytes(*word))
-        .collect()
+    words(bytes, i32::from_le_bytes).take(count).collect()
 }

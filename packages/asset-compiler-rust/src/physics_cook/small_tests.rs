@@ -33,12 +33,7 @@ const PAWN_PATCH: &str = "../../tests/fixtures/physics/pawn-body-patch.bin";
 /// The pawn patch's positions and triangle indices.
 fn pawn_patch() -> (Vec<f32>, Vec<u32>) {
     let bytes = std::fs::read(PAWN_PATCH).unwrap();
-    let words: Vec<u32> = bytes
-        .as_chunks()
-        .0
-        .iter()
-        .map(|&w| u32::from_le_bytes(w))
-        .collect();
+    let words: Vec<u32> = crate::le::words(&bytes, u32::from_le_bytes).collect();
     let floats = 3 * words[0] as usize + 1;
     let pos = words[1..floats].iter().map(|&w| f32::from_bits(w));
     (pos.collect(), words[floats..].to_vec())
@@ -73,7 +68,7 @@ fn a_refused_collider_is_named_not_fatal() {
     let (order, culling) = trillion3d_page_codec::culling::build_culling_bvh(
         &crate::dag::bounds::culling_clusters(&pos, &dag),
     );
-    let o = crate::texture_preview::tests::options(&std::env::temp_dir());
+    let o = crate::tests::fixtures::options_in(&std::env::temp_dir());
     let collision = cook_primitive(&o, &dag, &order, &culling, &pos, &[0, 1, 2]).unwrap();
     let reason = collision["refused"].as_str().expect("refused");
     assert!(reason.contains("Need triangles"), "{reason}");

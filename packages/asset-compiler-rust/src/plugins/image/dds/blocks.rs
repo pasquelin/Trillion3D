@@ -5,7 +5,6 @@
 //! order is the same work, written once.
 use super::header::Surface;
 use super::{DATA_TRUNCATED, TOO_LARGE};
-use crate::plugins::image::blocks;
 use crate::plugins::image::DecodedImage;
 use crate::plugins::image::{surface_budget, RGBA8_PIXEL_BYTES};
 
@@ -21,11 +20,10 @@ pub(super) fn decode(
         max_alloc,
         TOO_LARGE,
     )?;
-    let level = &bytes[surface.data..];
-    let (width, height) = (surface.width as usize, surface.height as usize);
-    let rgba = surface
-        .codec
-        .layout()
-        .rgba8(level, width, height, DATA_TRUNCATED)?;
-    blocks::image(surface.width, surface.height, rgba, DATA_TRUNCATED)
+    surface.codec.layout().decode(
+        &bytes[surface.data..],
+        surface.width,
+        surface.height,
+        DATA_TRUNCATED,
+    )
 }

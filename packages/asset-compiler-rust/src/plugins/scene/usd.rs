@@ -25,7 +25,6 @@ use serde_json::json;
 use std::{
     collections::{BTreeSet, HashMap},
     fs,
-    sync::atomic::Ordering,
     time::Instant,
 };
 
@@ -79,38 +78,7 @@ impl ScenePlugin for Usd {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(TEXT_MAGIC) || head.starts_with(CRATE_MAGIC)
     }
-    fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        convert::convert(request, self).map(|directory| request.converted(directory))
-    }
-}
-
-/// The requested layer. A directory that carries several USD files is an ambiguity: the
-/// compiler does not choose the root layer in the caller's place, who names one.
-fn source_file(inputs: &[PathBuf]) -> Result<&Path> {
-    match inputs {
-        [one] => Ok(one.as_path()),
-        [] => Err(CompilerError::new(
-            "SOURCE_FORMAT_UNKNOWN",
-            "usd: a .usd, .usda or .usdc layer is required",
-        )),
-        many => {
-            let names: Vec<String> = many
-                .iter()
-                .map(|file| {
-                    file.file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .into()
-                })
-                .collect();
-            Err(CompilerError::new(
-                "SOURCE_FORMAT_AMBIGUOUS",
-                format!(
-                    "usd: this directory carries {} USD layers ({}); name the one to compile by giving its file as the source",
-                    names.len(),
-                    names.join(", ")
-                ),
-            ))
-        }
+    fn convert(&self, request: &SceneRequest<'_>) -> Result<PathBuf> {
+        convert::convert(request, self)
     }
 }

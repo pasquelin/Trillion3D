@@ -2,11 +2,9 @@
 //! settings Jolt's own bytes (a golden file), and a declaring node listed as a soft body in
 //! `physics.json`, never as static ground.
 use super::soft_record::{soft_record, SoftDeclared, SoftRecord};
-use super::stage_physics;
-use super::tests::assert_golden;
+use super::tests::{assert_golden, cook_scene};
 use super::{soft_settings, SOFT_VERTEX_WORDS};
-use crate::compiler_coplanar::DepthLayerScene;
-use serde_json::{json, Value};
+use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
 
 /// The golden cloth: a 1 m square of 2 × 2 squares in the xy plane, its vertices row by row from
@@ -105,30 +103,19 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
             {"mesh":1,"extras":{"physics":{"type":"cloth"}}},
             {"mesh":0,"extras":{"physics":{"type":"cloth","sensor":true}}}],
     });
-    let root =
-        std::path::Path::new(env!("OUT_DIR")).join(format!("soft-cook-{}", std::process::id()));
-    let o = crate::texture_preview::tests::options(&root);
-    std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
     let (chosen, mesh_map) = (
         BTreeSet::from([0, 1, 2, 3]),
         BTreeMap::from([(0, 0), (1, 1)]),
     );
-    let scene = DepthLayerScene {
-        o: &o,
-        g: &g,
-        bin: &bin,
-        shown: &chosen,
-        mesh_map: &mesh_map,
-        cluster_planes: &[],
-    };
     let primitives = [
         json!({"mesh":0,"primitive":0}),
         json!({"mesh":1,"primitive":0}),
     ];
     let collision = json!({"kind":"mesh","tiles":[],"triangles":8});
-    stage_physics(&scene, &primitives, &[collision.clone(), collision], &root).unwrap();
-    let written: Value =
-        serde_json::from_slice(&std::fs::read(root.join("physics.json")).unwrap()).unwrap();
+    let compiled = (&chosen, &mesh_map);
+    let collisions = [collision.clone(), collision];
+    let (root, o, written) =
+        cook_scene("soft-cook", (&g, &bin), compiled, &primitives, &collisions);
     let soft = &written["softBodies"][0];
     assert_eq!((&soft["node"], &soft["vertices"]), (&json!(0), &json!(9)));
     assert_eq!(

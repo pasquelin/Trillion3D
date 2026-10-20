@@ -1,46 +1,14 @@
 //! From the requested scene to the intermediate scene written into the cache.
 use super::*;
 
-/// The requested scene. A directory that carries several scenes is an ambiguity: the compiler
-/// does not choose in the caller's place, who names a specific `.unity` as the source.
-fn scene_file(inputs: &[PathBuf]) -> Result<&Path> {
-    let scenes: Vec<&PathBuf> = inputs
-        .iter()
-        .filter(|input| input.extension().is_some_and(|kind| kind == "unity"))
-        .collect();
-    match scenes.as_slice() {
-        [one] => Ok(one.as_path()),
-        [] => Err(CompilerError::new(
-            "SOURCE_FORMAT_UNKNOWN",
-            "unity: a .unity scene file is required beside the other Unity data files",
-        )),
-        many => {
-            let names: Vec<String> = many
-                .iter()
-                .map(|scene| {
-                    scene
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string()
-                })
-                .collect();
-            Err(CompilerError::new(
-                "SOURCE_FORMAT_AMBIGUOUS",
-                format!(
-                    "unity: this directory carries {} scenes ({}); name the one to compile by giving its .unity file as the source",
-                    names.len(),
-                    names.join(", ")
-                ),
-            ))
-        }
-    }
-}
-
 /// Reads the scene and writes its conversion into the cache. Nothing is written beside the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
-    let file = scene_file(request.inputs)?;
+    let scenes = request.inputs.iter();
+    let scenes: Vec<_> = scenes
+        .filter(|input| input.extension().is_some_and(|kind| kind == "unity"))
+        .collect();
+    let file = *single_input(&scenes, NAME, ".unity scene")?;
     // Root under which the scene's image URIs resolve, the same as the one where the compiler
     // will reread those images: one rule for every driver.
     let source_dir = crate::plugins::scene::image_root(request.source);
@@ -53,10 +21,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         let mut world = World {
             scene: &mut scene,
             project: &project,
-            cache: request.cache,
-            cancelled: request.cancelled,
-            progress: request.progress,
-            ram_budget: request.ram_budget,
+            request,
         };
         traverse(&mut world, file)?;
         world.scene.count("metaFiles", project.meta_files);

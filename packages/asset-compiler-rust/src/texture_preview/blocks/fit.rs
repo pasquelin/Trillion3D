@@ -1,14 +1,13 @@
 //! Fitting of one 4 × 4 block to a segment of RGBA space: two endpoints and, per
-//! texel, the rank of the nearest point of a weight ladder. BC7 mode 6 and the
-//! ASTC block written here both describe a block that way — what differs is the
-//! ladder and how the endpoints are quantised, which each codec applies on top.
+//! texel, the rank of the nearest point of a weight ladder. The ASTC block
+//! written here describes a block that way — its ladder and its endpoint
+//! quantisation applied on top; BC7 is searched by `block_compression`.
 //!
 //! The segment starts on the principal axis of the sixteen texels — the direction
 //! that carries most of their variance —, then alternates a few rounds between
 //! assigning each texel its nearest rung and re-solving both endpoints by least
 //! squares for those rungs. No search over partitions or modes: one segment, one
-//! solve. The axis does not depend on the codec: it is found once per block and
-//! handed to both.
+//! solve.
 
 use trillion3d_math::vecn::{add, dot, length, scale, squared_length, sub};
 

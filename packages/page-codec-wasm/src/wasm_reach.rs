@@ -5,6 +5,7 @@
 use crate::deform::MAX_SKIN_JOINT;
 use crate::held::hold;
 use crate::reach::{joint_balls, target_radius};
+use crate::wasm_math::view;
 
 /// Measures the reach of `vertex_count` rest `positions` (× 3 floats) skinned by `joints` (words)
 /// and `weights` (floats), `influences` of each per vertex (0 offsets: no skin), and moved by
@@ -27,13 +28,13 @@ pub unsafe extern "C" fn deform_reach(
     meta: u32,
 ) -> u32 {
     let floats = vertex_count as usize * 3;
-    let positions = core::slice::from_raw_parts(positions as *const f32, floats);
+    let positions = view(positions, floats);
     let balls = match (joints, weights) {
         (0, _) | (_, 0) => Vec::new(),
         _ => {
             let entries = vertex_count as usize * influences as usize;
-            let joints = core::slice::from_raw_parts(joints as *const u32, entries);
-            let weights = core::slice::from_raw_parts(weights as *const f32, entries);
+            let joints: &[u32] = view(joints, entries);
+            let weights = view(weights, entries);
             // The encoder's bound, on every joint a vertex names, weighted or not.
             if joints.iter().any(|&joint| joint > MAX_SKIN_JOINT) {
                 return 1;
@@ -44,7 +45,7 @@ pub unsafe extern "C" fn deform_reach(
     let radii: Vec<f64> = match target_count {
         0 => Vec::new(),
         count => {
-            let all = core::slice::from_raw_parts(targets as *const f32, floats * count as usize);
+            let all: &[f32] = view(targets, floats * count as usize);
             (0..count as usize)
                 .map(|t| target_radius(&all[t * floats..(t + 1) * floats]))
                 .collect()

@@ -57,12 +57,11 @@ fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
         &std::sync::atomic::AtomicBool::new(false),
     )
     .expect("the mesh");
-    let written: Vec<f32> = read(&out, &mesh["primitives"][0]["attributes"]["TEXCOORD_0"])
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|word| f32::from_le_bytes(*word))
-        .collect();
+    let written = written(
+        &out,
+        &mesh["primitives"][0]["attributes"]["TEXCOORD_0"],
+        accessor_floats,
+    );
     assert_eq!(
         written,
         vec![0.0, 1.0, 1.0, 0.75, 0.5, 0.0],

@@ -43,7 +43,7 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
         .save(dir.join("small.png"))
         .expect("save small png");
     let g = scene_with_two_textures();
-    let meshes = BTreeSet::from([0usize]);
+    let (used, shas) = read_once(&g, &[], &dir, &BTreeSet::from([0usize]));
     let view_map = BTreeMap::new();
 
     let mut already_cancelled = options(&dir);
@@ -59,10 +59,11 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
                 g: &g,
                 bin: &[],
                 image_root: &dir,
-                meshes: &meshes,
+                used_materials: &used,
                 view_map: &view_map,
                 to_measure: &BTreeSet::new(),
                 measurements: crate::cutout::MeasureCache::EMPTY,
+                image_shas: &shas,
             },
             &silent,
         )
@@ -84,10 +85,11 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
                 g: &g,
                 bin: &[],
                 image_root: &dir,
-                meshes: &meshes,
+                used_materials: &used,
                 view_map: &view_map,
                 to_measure: &BTreeSet::new(),
                 measurements: crate::cutout::MeasureCache::EMPTY,
+                image_shas: &shas,
             },
             &after_first_image,
         )

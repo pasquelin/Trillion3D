@@ -3,9 +3,8 @@
 //! both slopes and a plane —, decodes back to its source on every level: no page carries a vertex
 //! away from its surface, on either simplification. The engine's terrain test scene is held to
 //! the same.
-use super::cooked_pages::cooked_page_defects;
+use super::cooked_pages::{cooked_page_defects, cooked_pages, page_corners, Source};
 use super::cooked_scene::{cook_fixture, cook_scene, CookedScene, ENGINE_SCENES};
-use super::silhouette::page_indices;
 use super::*;
 use crate::tests::fixtures::portable_sin;
 use crate::tests::scene_document::{SceneDocument, Surface};
@@ -95,14 +94,15 @@ fn cook_and_check(simplification: &str) -> CookedScene {
             "{simplification}: levels {top:?}"
         );
         let positions = scene.positions(primitive);
-        let defects = cooked_page_defects(&scene.objects, primitive, &positions);
+        let defects = cooked_page_defects(cooked_pages(&scene, primitive), primitive, &positions);
         assert!(defects.is_empty(), "{simplification}: {defects:#?}");
     }
     for (folder, gltf, tag) in ENGINE_SCENES {
         let fixture = cook_fixture(folder, gltf, tag, simplification);
         for primitive in fixture.result["primitives"].as_array().expect("primitives") {
             let positions = fixture.positions(primitive);
-            let defects = cooked_page_defects(&fixture.objects, primitive, &positions);
+            let read = cooked_pages(&fixture, primitive);
+            let defects = cooked_page_defects(read, primitive, &positions);
             assert!(
                 defects.is_empty(),
                 "{folder}, {simplification}: {defects:#?}"
@@ -135,16 +135,17 @@ fn defects_with_a_vertex_moved(
     level: u64,
     up: f32,
 ) -> Vec<String> {
-    let mut primitive = scene.result["primitives"][0].clone();
+    let primitive = &scene.result["primitives"][0];
     let exponent = primitive["quantization"]["positionExponent"]
         .as_i64()
         .expect("exponent") as i32;
-    let pages = primitive["pages"].as_array_mut().expect("pages");
-    let page = pages
-        .iter_mut()
-        .find(|p| p["level"].as_u64() == Some(level))
+    let pages = primitive["pages"].as_array().expect("pages");
+    let at = pages
+        .iter()
+        .position(|p| p["level"].as_u64() == Some(level))
         .expect("a page at that level");
-    let source = page_indices(&scene.objects, page);
+    let mut read = cooked_pages(scene, primitive);
+    let source = read[at].as_ref().expect("a decoded page").source.clone();
     let mut moved = positions.to_vec();
     moved[source[0] as usize * 3 + 1] += up;
     let encoded = trillion3d_page_codec::encode::encode(
@@ -155,15 +156,15 @@ fn defects_with_a_vertex_moved(
         trillion3d_page_codec::bits::grid::UV_EXPONENT,
     )
     .expect("encode");
-    let digest = hash(&encoded.bytes);
-    fs::write(scene.objects.join(format!("{digest}.bin")), &encoded.bytes).expect("page");
-    page["geometry"]["sha256"] = json!(digest);
-    cooked_page_defects(&scene.objects, &primitive, positions)
+    read[at] = page_corners(&encoded.bytes, &Source::new(positions, None));
+    cooked_page_defects(read, primitive, positions)
 }
 
 /// An exact page with one vertex half a metre off is reported, since the source and not the page
 /// is the reference; a coarse one with a vertex moved by a quarter of its representable range,
-/// a sheet across the sky that still encodes on the primitive grid, is reported on every count.
+/// a sheet across the sky that still encodes on the primitive grid, is reported on every count a
+/// coarse page answers to: its bounds, its sphere and its children's surface — a coarse vertex
+/// sits where its merge optimized it, on no source vertex (`cooked_page_defects.rs`).
 fn assert_moved_vertices_are_reported(scene: &CookedScene) {
     let positions = scene.positions(&scene.result["primitives"][0]);
     let exact = defects_with_a_vertex_moved(scene, &positions, 0, 0.5);
@@ -173,12 +174,7 @@ fn assert_moved_vertices_are_reported(scene: &CookedScene) {
         .expect("exponent") as i32;
     let up = 2f32.powi(exponent + trillion3d_page_codec::bits::MAX_BITS as i32 - 2);
     let coarse = defects_with_a_vertex_moved(scene, &positions, 1, up);
-    for defect in [
-        "decodes",
-        "outside its bounds",
-        "outside its sphere",
-        "leaves group",
-    ] {
+    for defect in ["outside its bounds", "outside its sphere", "leaves group"] {
         assert!(
             coarse.iter().any(|d| d.contains(defect)),
             "{defect}: {coarse:#?}"

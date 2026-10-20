@@ -7,30 +7,24 @@ pub(super) struct Kept {
     pub triangles: usize,
 }
 
-/// `positions` and `indices` simplified towards `target` triangles by the one region simplifier;
-/// what it did not reduce comes back as it was.
+/// `positions` and `indices` simplified towards `target` triangles by the one region simplifier:
+/// what it kept.
 pub(super) fn simplify(
     positions: &[f32],
     attributes: &[Attribute],
     indices: &[u32],
     target: usize,
-    prune: bool,
-    flags: &dyn Fn(u32) -> u8,
+    locked: &dyn Fn(u32) -> bool,
 ) -> crate::Result<Kept> {
-    let region = solve::Region::of(positions, attributes, indices)?;
-    Ok(match region.solve(target, prune, true, flags) {
-        Some(solved) => Kept {
-            indices: (solved.indices.iter())
-                .map(|&i| region.remap[i as usize])
-                .collect(),
-            error_object: solved.error_object,
-            triangles: solved.indices.len() / 3,
-        },
-        None => Kept {
-            indices: indices.to_vec(),
-            error_object: 0.0,
-            triangles: indices.len() / 3,
-        },
+    let area = solve::surface_area(positions, indices);
+    let region = solve::Region::of(positions, attributes, locked, indices, area)?;
+    let solved = region.solve(target);
+    Ok(Kept {
+        indices: (solved.indices.iter())
+            .map(|&i| solved.region.remap[i as usize])
+            .collect(),
+        error_object: solved.error_object,
+        triangles: solved.indices.len() / 3,
     })
 }
 pub(super) const CUBE_POSITIONS: [f32; 24] = [
@@ -42,7 +36,7 @@ pub(super) const CUBE_INDICES: [u32; 36] = [
 ];
 #[test]
 fn free_vertices_reduce_a_closed_cube() {
-    let reduced = simplify(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| 0).expect("cube");
+    let reduced = simplify(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, &|_| false).expect("cube");
     assert!(
         reduced.triangles < 12,
         "expected a reduction, got {}",
@@ -58,15 +52,19 @@ fn free_vertices_reduce_a_closed_cube() {
         "indices stay in the source buffer"
     );
 }
+// Behaviour: a lock is a price, not a wall: a cube locked everywhere still reduces as a free one
+// does, every merge it makes priced past any merge the free cube makes.
 #[test]
-fn locked_vertices_keep_every_triangle() {
-    let kept = simplify(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, true, &|_| {
-        VERTEX_LOCK
-    })
-    .expect("cube");
-    assert_eq!(kept.triangles, 12);
-    assert_eq!(kept.indices, CUBE_INDICES.to_vec());
-    assert_eq!(kept.error_object, 0.0);
+fn locked_vertices_reduce_last_and_cost_more() {
+    let free = simplify(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, &|_| false).expect("cube");
+    let locked = simplify(&CUBE_POSITIONS, &[], &CUBE_INDICES, 6, &|_| true).expect("cube");
+    assert!(locked.triangles < 12, "{} triangles", locked.triangles);
+    assert!(
+        locked.error_object > free.error_object,
+        "locked {} over free {}",
+        locked.error_object,
+        free.error_object
+    );
 }
 #[test]
 fn a_mesh_already_below_the_target_is_returned_untouched() {
@@ -75,8 +73,7 @@ fn a_mesh_already_below_the_target_is_returned_untouched() {
         &[],
         &[0u32, 1, 2],
         0,
-        true,
-        &|_| 0,
+        &|_| false,
     )
     .expect("triangle");
     assert_eq!(open.indices, vec![0, 1, 2]);
@@ -84,8 +81,8 @@ fn a_mesh_already_below_the_target_is_returned_untouched() {
 }
 #[test]
 fn malformed_input_is_rejected() {
-    assert!(simplify(&CUBE_POSITIONS, &[], &[0u32, 1], 1, true, &|_| 0).is_err());
-    assert!(simplify(&[0., 0.], &[], &CUBE_INDICES, 1, true, &|_| 0).is_err());
+    assert!(simplify(&CUBE_POSITIONS, &[], &[0u32, 1], 1, &|_| false).is_err());
+    assert!(simplify(&[0., 0.], &[], &CUBE_INDICES, 1, &|_| false).is_err());
 }
 #[test]
 fn compact_region_renumbers_each_vertex_once_and_maps_back() {

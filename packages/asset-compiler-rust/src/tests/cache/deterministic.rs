@@ -56,14 +56,14 @@ fn reused_and_pages(result: &Value) -> (u64, u64) {
     })
 }
 
-// Behaviour: the warm run's result still reports the pages it found already built: both objects
-// of every page, its indices and its packed geometry, where the cold run found fewer.
+// Behaviour: the warm run's result still reports the pages it found already built — every page,
+// its primitive's run of geometry pages stored already —, where the cold run found fewer.
 #[test]
 fn the_warm_result_reports_the_pages_it_reused() {
     let (root, _, [cold, warm]) = cold_then_warm();
     let (warm_reused, pages) = reused_and_pages(&warm);
     assert!(pages > 0, "the scene has pages");
-    assert_eq!(warm_reused, 2 * pages, "every page found already built");
+    assert_eq!(warm_reused, pages, "every page found already built");
     assert!(
         reused_and_pages(&cold).0 < warm_reused,
         "the cold run built them"

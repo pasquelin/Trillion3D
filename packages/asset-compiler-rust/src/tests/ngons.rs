@@ -48,41 +48,15 @@ pub(crate) fn cut_area(ring: &[[f64; 3]], triangles: &[[usize; 3]]) -> f64 {
         .sum()
 }
 
-/// Bytes of an accessor in the scene binary, with its component type.
-pub(crate) fn accessor<'a>(gltf: &Value, bin: &'a [u8], rank: usize) -> (&'a [u8], u64) {
-    let accessor = &gltf["accessors"][rank];
-    let rank = accessor["bufferView"].as_u64().expect("buffer view") as usize;
-    let view = &gltf["bufferViews"][rank];
-    let from = view["byteOffset"].as_u64().unwrap_or(0) as usize;
-    let length = view["byteLength"].as_u64().expect("length") as usize;
-    (
-        &bin[from..from + length],
-        accessor["componentType"].as_u64().expect("component type"),
-    )
-}
-
 /// Rendered area of the first primitive of the first mesh a driver wrote in the cache.
 fn prepared_area(run: &GoldenRun, plugin: &str) -> f64 {
     let (_, gltf) = run.prepared(plugin);
     let bin = fs::read(run.prepared_dir(plugin).join("model.bin")).expect("model.bin");
     let primitive = &gltf["meshes"][0]["primitives"][0];
     let rank = |value: &Value| value.as_u64().expect("accessor") as usize;
-    let (bytes, _) = accessor(&gltf, &bin, rank(&primitive["attributes"]["POSITION"]));
-    let positions: Vec<f32> = bytes
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|word| f32::from_le_bytes(*word))
-        .collect();
-    let (bytes, component) = accessor(&gltf, &bin, rank(&primitive["indices"]));
-    let width = if component == 5125 { 4 } else { 2 };
-    let indices: Vec<u32> = bytes
-        .chunks_exact(width)
-        .map(|word| match width {
-            4 => u32::from_le_bytes(word.try_into().expect("index")),
-            _ => u32::from(u16::from_le_bytes(word.try_into().expect("index"))),
-        })
-        .collect();
+    let positions = accessor_floats(&gltf, &bin, rank(&primitive["attributes"]["POSITION"]));
+    // A driver writes 16-bit indices where the vertices fit: read at the width declared.
+    let indices = accessor_indices(&gltf, &bin, rank(&primitive["indices"]));
     rendered_area(&positions, &indices)
 }
 

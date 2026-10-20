@@ -13,7 +13,7 @@
 //! always compiled to.
 use super::*;
 use trillion3d_math::euler::{euler_matrix, ORDERS_BY_NAME};
-use trillion3d_math::matrix::multiply_matrix4;
+use trillion3d_math::matrix::{multiply_matrix4, scaling};
 use trillion3d_math::rotation::{half_angle_wxyz, identity, quaternion_wxyz, turn};
 use trillion3d_math::vec3::normalize_finite_f32;
 
@@ -60,7 +60,8 @@ fn local(object: &At<'_>) -> Matrix {
     } else {
         triple(object, "dsize", 1.0)
     };
-    let mut matrix = multiply_matrix4(&rotation(object), &scaling(&scale, &delta));
+    let size = [0, 1, 2].map(|axis| scale[axis] * delta[axis]);
+    let mut matrix = multiply_matrix4(&rotation(object), &scaling(size));
     let position = triple(object, "loc", 0.0);
     let shift = triple(object, "dloc", 0.0);
     for axis in 0..3 {
@@ -111,14 +112,6 @@ fn axis_angle(axis: &[f32; 3], angle: f32) -> Matrix {
         return identity();
     };
     quaternion(half_angle_wxyz(unit, angle))
-}
-
-fn scaling(scale: &[f32; 3], delta: &[f32; 3]) -> Matrix {
-    let mut matrix = identity();
-    for axis in 0..3 {
-        matrix[axis * 4 + axis] = scale[axis] * delta[axis];
-    }
-    matrix
 }
 
 /// A matrix written in place in a field of sixteen floats.

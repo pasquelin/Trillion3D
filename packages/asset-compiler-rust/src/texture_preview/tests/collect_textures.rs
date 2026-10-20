@@ -23,7 +23,7 @@ fn every_binding_goes_to_its_atlas() {
         }],
         "meshes": meshes_using(&[0]),
     });
-    let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
+    let found = atlas_textures(&g, &used(&g, 0));
     let expected = [
         (1, AtlasKind::Data),
         (2, AtlasKind::Color),
@@ -51,7 +51,7 @@ fn an_entry_reads_the_channels_and_cutoffs_of_its_roles() {
         ],
         "meshes": meshes_using(&[0, 1, 2, 3]),
     });
-    let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
+    let found = atlas_textures(&g, &used(&g, 0));
     assert_eq!(
         found,
         vec![
@@ -82,7 +82,7 @@ fn an_entry_reads_the_channels_and_cutoffs_of_its_roles() {
         "materials": [{"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}}],
         "meshes": meshes_using(&[0]),
     });
-    let found = atlas_textures(&opaque, &BTreeSet::from([0])).expect("collect");
+    let found = atlas_textures(&opaque, &used(&opaque, 0));
     assert_eq!(found[0].channels, [true, true, true, false]);
 }
 
@@ -98,7 +98,7 @@ fn a_texture_read_by_both_atlases_has_one_entry_per_atlas() {
         ],
         "meshes": meshes_using(&[0, 1]),
     });
-    let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
+    let found = atlas_textures(&g, &used(&g, 0));
     let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
     assert_eq!(keys, [(4, AtlasKind::Color), (4, AtlasKind::Data)]);
 }
@@ -129,7 +129,7 @@ fn only_a_texture_every_reader_takes_for_coverage_is_weighted() {
         ],
         "meshes": meshes_using(&[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
     });
-    let found = atlas_textures(&g, &BTreeSet::from([0])).expect("collect");
+    let found = atlas_textures(&g, &used(&g, 0));
     let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
     assert_eq!(
         keys,
@@ -160,7 +160,7 @@ fn only_materials_of_selected_meshes_are_collected() {
             {"primitives": [{"attributes": {}, "material": 1}]},
         ],
     });
-    let found = atlas_textures(&g, &BTreeSet::from([1])).expect("collect");
+    let found = atlas_textures(&g, &used(&g, 1));
     let keys: Vec<_> = found.iter().map(|t| (t.texture, t.kind)).collect();
     assert_eq!(keys, [(1, AtlasKind::Color)]);
 }

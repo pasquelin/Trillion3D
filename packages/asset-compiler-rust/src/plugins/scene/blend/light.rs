@@ -60,7 +60,7 @@ pub(super) fn build(
             return None;
         }
     };
-    let power = f64::from(energy(&lamp)) * f64::from(lamp.float("exposure", 0.0)).exp2();
+    let exposure = f64::from(lamp.float("exposure", 0.0));
     let source = crate::import::LightSource {
         name,
         kind: gltf_kind,
@@ -70,14 +70,18 @@ pub(super) fn build(
             lamp.float("b", 1.0),
         ]
         .map(|channel| f64::from(channel).max(0.0)),
-        intensity: crate::compiler_lights::photometric(power * spread(kind)),
+        intensity: crate::compiler_lights::radiometric_intensity(
+            f64::from(energy(&lamp)),
+            exposure,
+            spread(kind),
+        ),
         cone,
         casts_shadow: None,
         emitter_radius: radius(&lamp, kind, scale),
     };
-    out.scene.lights.push(source.json());
+    let rank = out.scene.light(&source);
     out.scene.count("lights", 1);
-    Some(out.scene.lights.len() - 1)
+    Some(rank)
 }
 
 /// The lamp's power. Files where the current field is still called `energy` have no
@@ -116,7 +120,7 @@ fn radius(lamp: &At<'_>, kind: i64, scale: f64) -> Option<f64> {
         _ if lamp.has("radius") => f64::from(lamp.float("radius", 0.0)),
         _ => f64::from(lamp.float("shadow_soft_size", 0.0)),
     };
-    Some(local * scale).filter(|value| value.is_finite() && *value > 0.0)
+    Some(local * scale)
 }
 
 /// The radius of the sphere that contains an area lamp's emissive surface: the half-diagonal of

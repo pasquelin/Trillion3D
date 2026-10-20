@@ -1,37 +1,26 @@
 use super::*;
 use crate::compiler_format::SOURCE_FORMAT_VERSION;
 
-pub(super) fn unsplit_material(material: Option<&Value>) -> bool {
-    let Some(material) = material else {
-        return false;
-    };
-    material
-        .get("extensions")
-        .and_then(|e| e.get("KHR_materials_transmission"))
-        .and_then(|t| t.get("transmissionFactor"))
-        .and_then(Value::as_f64)
-        .map(|v| v > 0.0)
-        .unwrap_or(false)
+mod factors;
+pub(crate) use factors::{AlphaMode, MaterialFactors};
+
+pub(super) fn transmissive_material(material: Option<&Value>) -> bool {
+    material.is_some_and(|m| MaterialFactors::of(m).transmission > 0.0)
 }
+
 /// The cutoff of a material the engine draws with a coverage test, or `None` when it draws it
 /// opaque. A `MASK` cutoff at or under 0 cuts nothing: the engine draws it opaque
 /// (`alphaTest > 0`, `collectWebgpuMaterialTextures`), and so does a mode glTF does not name,
 /// which the material table writes `OPAQUE` (`compiler_tables/materials.rs`). A transmissive
 /// `BLEND` tints what crosses it by its base colour whatever its alpha
 /// (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 too. Any other `BLEND` takes
-/// coverage, at no cutoff of its own (`None` inside). The texture chains and the impostor bake
-/// both judge by it.
+/// coverage, at no cutoff of its own (`None` inside). The texture chains and the traced
+/// surfaces (`surface_trace`) both judge by it.
 pub(crate) fn coverage_cutoff(material: &Value) -> Option<Option<f32>> {
-    match material.get("alphaMode").and_then(Value::as_str) {
-        Some("MASK") => {
-            let cutoff = material
-                .get("alphaCutoff")
-                .and_then(Value::as_f64)
-                .unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32;
-            (cutoff > 0.0).then_some(Some(cutoff))
-        }
-        Some("BLEND") => (!unsplit_material(Some(material))).then_some(None),
-        _ => None,
+    match AlphaMode::of(material) {
+        AlphaMode::Mask(cutoff) => (cutoff as f32 > 0.0).then_some(Some(cutoff as f32)),
+        AlphaMode::Blend => (!transmissive_material(Some(material))).then_some(None),
+        AlphaMode::Opaque => None,
     }
 }
 
@@ -44,16 +33,8 @@ pub(super) fn material_reads_texcoord(material: Option<&Value>, set: u64) -> boo
     fn scan(value: &Value, set: u64) -> bool {
         match value {
             Value::Object(map) => {
-                let named = |t: Option<&Value>| t.and_then(Value::as_u64);
-                let transform = map
-                    .get("extensions")
-                    .and_then(|e| e.get("KHR_texture_transform"))
-                    .and_then(|t| named(t.get("texCoord")));
-                let texture = map.get("index").is_some_and(Value::is_number)
-                    && transform
-                        .or_else(|| named(map.get("texCoord")))
-                        .unwrap_or(0)
-                        == set;
+                let texture =
+                    map.get("index").is_some_and(Value::is_number) && sampled_set(value) == set;
                 texture || map.values().any(|v| scan(v, set))
             }
             Value::Array(items) => items.iter().any(|v| scan(v, set)),
@@ -61,6 +42,18 @@ pub(super) fn material_reads_texcoord(material: Option<&Value>, set: u64) -> boo
         }
     }
     material.is_some_and(|m| scan(m, set))
+}
+
+/// The coordinate set a `textureInfo` samples: its `KHR_texture_transform`'s `texCoord` when that
+/// names one, else its own `texCoord`, else 0.
+pub(crate) fn sampled_set(info: &Value) -> u64 {
+    let named = |t: Option<&Value>| t.and_then(Value::as_u64);
+    let transform = info
+        .get("extensions")
+        .and_then(|e| e.get("KHR_texture_transform"));
+    named(transform.and_then(|t| t.get("texCoord")))
+        .or_else(|| named(info.get("texCoord")))
+        .unwrap_or(0)
 }
 
 /// The attributes a page carries. Tangents are never read: a page carries none, the shader
@@ -99,13 +92,7 @@ pub(super) fn rewrite_images(
                 image["uri"] = json!(format!("{base}/{uri}"));
             }
         }
-        if image.get("bufferView").is_some() {
-            let old = required_index(image.get("bufferView"), "image.bufferView")?;
-            let mapped = *view_map
-                .get(&old)
-                .ok_or_else(|| invalid("image.bufferView is not in the compacted buffer"))?;
-            image["bufferView"] = json!(mapped);
-        }
+        remap_view_refs(image, "image.bufferView", view_map)?;
     }
     Ok(())
 }

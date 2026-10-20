@@ -1,37 +1,31 @@
 use super::*;
 
-/// Source bytes of an image and where they come from, the named view as
-/// `source.gltf` publishes it. Provenance is the only part that needs the view
-/// map: the rest also serves the cutout step, which only has the input scene.
-pub(super) fn image_bytes(
+/// `inspect` over the source bytes of an image, borrowed, and where they come from, the named
+/// view as `source.gltf` publishes it. Provenance is the only part that needs the view map: the
+/// rest also serves the cutout step, which only has the input scene.
+pub(super) fn image_bytes<T>(
     inputs: &PreviewInputs<'_>,
     image: &Value,
-) -> std::result::Result<(Vec<u8>, PreviewSource), &'static str> {
-    let (bytes, view) = raw_image_bytes(inputs.g, inputs.bin, inputs.image_root, image)?;
-    let Some(view) = view else {
-        return Ok((bytes, PreviewSource::Uri));
-    };
-    // Provenance names the view as `source.gltf` publishes it, not the input one.
-    let mapped = *inputs
-        .view_map
-        .get(&view)
-        .ok_or("image-buffer-view-not-copied")?;
-    let mapped = u32::try_from(mapped).map_err(|_| "image-buffer-view-invalid")?;
-    Ok((bytes, PreviewSource::BufferView(mapped)))
-}
-
-/// Source bytes of an image, and the INPUT glTF view when it is embedded there.
-/// An embedded image is a slice of the already mapped binary; a linked image is
-/// read once under the source folder, never written.
-pub(crate) fn raw_image_bytes(
-    g: &Value,
-    bin: &[u8],
-    image_root: &Path,
-    image: &Value,
-) -> std::result::Result<(Vec<u8>, Option<usize>), &'static str> {
-    with_image_bytes(g, bin, image_root, image, |bytes, view| {
-        Ok((bytes.to_vec(), view))
-    })
+    inspect: impl FnOnce(&[u8], PreviewSource) -> std::result::Result<T, &'static str>,
+) -> std::result::Result<T, &'static str> {
+    with_image_bytes(
+        inputs.g,
+        inputs.bin,
+        inputs.image_root,
+        image,
+        |bytes, view| {
+            let Some(view) = view else {
+                return inspect(bytes, PreviewSource::Uri);
+            };
+            // Provenance names the view as `source.gltf` publishes it, not the input one.
+            let mapped = *inputs
+                .view_map
+                .get(&view)
+                .ok_or("image-buffer-view-not-copied")?;
+            let mapped = u32::try_from(mapped).map_err(|_| "image-buffer-view-invalid")?;
+            inspect(bytes, PreviewSource::BufferView(mapped))
+        },
+    )
 }
 
 /// Inspect mapped or already resident bytes without allocating the encoded file again.
@@ -77,4 +71,53 @@ pub(crate) fn with_image_bytes<T>(
         Err(_) => return Err("image-missing"),
     };
     inspect(&bytes, None)
+}
+
+/// The fingerprint of each image the compilation reads, by image index, taken once before any
+/// step reads it: the cache key names the linked ones (`compiler_identity`), the cutout step
+/// answers by it, the bake addresses its files by it. Every image the scene cites by URI is in —
+/// identity covers an unused one too, absent or not —, and every image an atlas texture of a used
+/// material reads. `None` is an image whose bytes do not read, or one no step reads.
+pub(crate) struct ImageShas(Vec<Option<String>>);
+
+impl ImageShas {
+    /// The table of a scene no step reads an image of.
+    #[cfg(test)]
+    pub(crate) const EMPTY: &'static Self = &Self(Vec::new());
+
+    /// Hashes the images side by side on the caller's pool, each from its borrowed bytes — a
+    /// slice of the mapped binary or file —, never copied.
+    pub(crate) fn of(
+        g: &Value,
+        bin: &[u8],
+        image_root: &Path,
+        used_materials: &BTreeSet<usize>,
+    ) -> Self {
+        let Some(images) = g.get("images").and_then(Value::as_array) else {
+            return Self(Vec::new());
+        };
+        let textures = g.get("textures").and_then(Value::as_array);
+        let read: BTreeSet<usize> = super::collect::atlas_textures(g, used_materials)
+            .iter()
+            .filter_map(|entry| textures?.get(entry.texture)?.get("source")?.as_u64())
+            .map(|image| image as usize)
+            .collect();
+        let _t = perf::Timer::new(perf::Phase::CutoutScan);
+        Self(
+            images
+                .par_iter()
+                .enumerate()
+                .map(|(index, image)| {
+                    (image.get("uri").is_some() || read.contains(&index))
+                        .then(|| with_image_bytes(g, bin, image_root, image, |b, _| Ok(hash(b))))?
+                        .ok()
+                })
+                .collect(),
+        )
+    }
+
+    /// The fingerprint of image `index`, when it was read.
+    pub(crate) fn get(&self, index: usize) -> Option<&str> {
+        self.0.get(index)?.as_deref()
+    }
 }

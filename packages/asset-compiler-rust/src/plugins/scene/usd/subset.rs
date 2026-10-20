@@ -5,6 +5,7 @@
 //! geometry, one material each. Faces no subset claims go back to the mesh binding, which is
 //! what the specification says for a partial family.
 use super::*;
+use crate::plugins::scene::claims::Claims;
 
 /// Name of the subset family that binds materials.
 const FAMILY: &str = "materialBind";
@@ -30,21 +31,19 @@ pub(super) fn parts(
     double_sided: bool,
 ) -> Vec<Part> {
     let mut out = Vec::new();
-    let mut claimed = vec![false; faces];
+    // A face named by two subsets goes into both.
+    let mut claims = Claims::new(faces, false);
     for child in prim.children().unwrap_or_default() {
         let Some(indices) = subset_faces(&child, faces) else {
             continue;
         };
         let material = binding(world, &child, double_sided);
-        for face in &indices {
-            claimed[*face] = true;
-        }
         out.push(Part {
             material,
-            faces: indices,
+            faces: claims.claim(indices),
         });
     }
-    let rest: Vec<usize> = (0..faces).filter(|face| !claimed[*face]).collect();
+    let rest = claims.rest();
     if !rest.is_empty() || out.is_empty() {
         let material = binding(world, prim, double_sided);
         out.push(Part {
@@ -62,8 +61,8 @@ fn subset_faces(prim: &usd::Prim, faces: usize) -> Option<Vec<usize>> {
     if prim.type_name().ok().flatten()?.as_str() != "GeomSubset" {
         return None;
     }
-    let family = attribute_text(prim, "familyName");
-    let element = attribute_text(prim, "elementType");
+    let family = read::text_attribute(prim, "familyName");
+    let element = read::text_attribute(prim, "elementType");
     if family.as_deref() != Some(FAMILY) || element.as_deref().unwrap_or("face") != "face" {
         return None;
     }
@@ -126,10 +125,4 @@ fn stronger(world: &World<'_>, path: &sdf::Path) -> bool {
         .and_then(read::text)
         .as_deref()
         == Some(STRONGER)
-}
-
-/// An attribute of this prim read as text.
-fn attribute_text(prim: &usd::Prim, name: &str) -> Option<String> {
-    let (value, _) = read::first(&prim.attribute(name))?;
-    read::text(&value)
 }

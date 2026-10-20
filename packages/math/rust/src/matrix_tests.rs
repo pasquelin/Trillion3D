@@ -6,7 +6,7 @@ fn translation_and_scaling_write_their_column_and_diagonal() {
     let t = translation([1.0, -2.0, 3.5]);
     assert_eq!(&t[12..15], &[1.0, -2.0, 3.5]);
     assert_eq!(t[..12], IDENTITY[..12]);
-    let s = scaling([2.0, -0.0, 4.0]);
+    let s = scaling([2.0f64, -0.0, 4.0]);
     assert_eq!([s[0], s[5], s[10], s[15]], [2.0, -0.0, 4.0, 1.0]);
     assert!(s[5].is_sign_negative());
     assert_eq!(multiply_matrix4(&t, &IDENTITY), t);

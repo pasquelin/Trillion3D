@@ -2,6 +2,7 @@ use super::cut::tolerance;
 use super::declared::declared_matter;
 use super::*;
 use crate::dag::DagCluster;
+use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_math::linear::decompose_trs;
 
 /// The golden tile: a 2 × 2 m quad tilted up along x, two triangles, cooked by native Jolt. The
@@ -19,6 +20,35 @@ pub(super) fn golden_tile(cook: impl Fn() -> Vec<u8>, golden: &str) -> Vec<u8> {
     assert_eq!(first, cook());
     assert_golden(&first, golden);
     first
+}
+
+/// Cooks the physics of scene `g` over `bin` in a fresh folder `name` under `OUT_DIR`: the nodes
+/// `shown`, the source meshes `mesh_map` compiled as `primitives`, each with its collision.
+/// Returns that folder, its options and the `physics.json` written there.
+pub(super) fn cook_scene(
+    name: &str,
+    (g, bin): (&Value, &[u8]),
+    (shown, mesh_map): (&BTreeSet<usize>, &BTreeMap<usize, usize>),
+    primitives: &[Value],
+    collisions: &[Value],
+) -> (std::path::PathBuf, Options, Value) {
+    let root = std::path::Path::new(env!("OUT_DIR")).join(format!("{name}-{}", std::process::id()));
+    let o = crate::tests::fixtures::options_in(&root);
+    std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
+    let world = crate::compiler_world::world_matrices(g).unwrap();
+    let placement = crate::proxy::placement::Placement::new(world, primitives);
+    let scene = crate::compiler_coplanar::DepthLayerScene {
+        o: &o,
+        g,
+        bin,
+        shown,
+        mesh_map,
+        cluster_planes: &[],
+        placement: &placement,
+    };
+    stage_physics(&scene, primitives, collisions, &root).unwrap();
+    let written = crate::tests::fixtures::read_json(&root.join("physics.json"));
+    (root, o, written)
 }
 
 /// Checks cooked `bytes` against the golden file `golden` (`TRILLION3D_WRITE_GOLDEN` rewrites it).

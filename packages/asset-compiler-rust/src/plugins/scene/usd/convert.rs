@@ -8,18 +8,16 @@ use super::*;
 /// Reads the layer and writes its conversion into the cache. Nothing is written beside the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
-    let file = super::source_file(request.inputs)?;
+    let file = single_input(request.inputs, NAME, ".usd, .usda or .usdc")?;
     let images = crate::plugins::scene::image_root(request.source);
     let stage = open(file)?;
     (request.progress)(
         json!({"phase":"import-source","step":"scan","plugin":NAME,"layers":stage.layer_count()}),
     );
     let mut scene = SceneTables::new(plugin);
-    scene.read_file(
-        &file.file_name().unwrap_or_default().to_string_lossy(),
-        usize::try_from(fs::metadata(file)?.len()).unwrap_or(usize::MAX),
-        &crate::hash_file(file)?,
-    );
+    // Size and fingerprint from the one read pass, not a stat beside it.
+    let (sha256, size) = crate::hash_file_sized(file)?;
+    scene.read_source(file, usize::try_from(size).unwrap_or(usize::MAX), &sha256);
     traverse(&mut scene, &stage, &images, request);
     super::finish(
         scene,

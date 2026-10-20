@@ -1,28 +1,47 @@
 use super::*;
 use crate::gltf_codes::{
-    BYTE, FLOAT, INDEX_COMPONENTS, SHORT, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT,
+    index_bytes_of, BYTE, FLOAT, INDEX_COMPONENTS, SHORT, UNSIGNED_BYTE, UNSIGNED_INT,
+    UNSIGNED_SHORT,
 };
 
 impl Accessor<'_> {
-    /// Every element's bytes, `width × bytes` from `base + i·stride`, the range checked once:
-    /// the one walk the collectors and the content digest read, tightly packed or interleaved.
-    pub(super) fn elements(&self) -> Result<impl Iterator<Item = &[u8]> + '_> {
+    /// Every element's bytes, `width × bytes` from `base + i·stride`, tightly packed or
+    /// interleaved: the one walk the collectors and the content digest read. Its range is the one
+    /// `accessor_validation::layout` checked, now or in the pass that validated the accessor.
+    pub(super) fn elements(&self) -> impl Iterator<Item = &[u8]> + '_ {
         let element = self.width * self.bytes;
-        let end = match self.count.checked_sub(1) {
-            None => self.base,
-            Some(last) => last
-                .checked_mul(self.stride)
-                .and_then(|offset| offset.checked_add(self.base))
-                .and_then(|offset| offset.checked_add(element))
-                .ok_or_else(|| invalid("Accessor offset overflow"))?,
-        };
-        if end > self.bin.len() {
-            return Err(CompilerError::new(
-                "BUFFER_OUT_OF_BOUNDS",
-                "Accessor exceeds binary buffer",
-            ));
-        }
-        Ok((0..self.count).map(move |i| &self.bin[self.base + i * self.stride..][..element]))
+        (0..self.count).map(move |i| &self.bin[self.base + i * self.stride..][..element])
+    }
+    /// Every sparse substitution in order: the element it replaces and its `width × bytes` value
+    /// bytes. The one walk of the sparse indices and values the collectors read.
+    fn substitutions(&self) -> impl Iterator<Item = Result<(usize, &[u8])>> + '_ {
+        let element = self.width * self.bytes;
+        self.sparse.iter().flat_map(move |sparse| {
+            (0..sparse.count).map(move |k| {
+                let component = sparse.indices_component;
+                let width = index_bytes_of(component)
+                    .ok_or_else(|| invalid("Unsupported sparse indices component"))?;
+                let at = sparse.indices_offset + k * width;
+                let index = self
+                    .bin
+                    .get(at..at + width)
+                    .and_then(|bytes| index_value(component, bytes))
+                    .ok_or_else(|| invalid("Sparse index out of bounds"))?
+                    as usize;
+                if index >= self.count {
+                    return Err(CompilerError::new(
+                        "INDEX_OUT_OF_BOUNDS",
+                        "Sparse index exceeds count",
+                    ));
+                }
+                let at = sparse.values_offset + k * element;
+                let value = self
+                    .bin
+                    .get(at..at + element)
+                    .ok_or_else(|| invalid("Sparse value out of bounds"))?;
+                Ok((index, value))
+            })
+        })
     }
     pub(super) fn decoded_value(&self, b: &[u8]) -> Result<f64> {
         let raw = match self.component {
@@ -50,30 +69,21 @@ impl Accessor<'_> {
         if self.normalized || !INDEX_COMPONENTS.contains(&self.component) {
             return Err(invalid("Indices require an unsigned integer accessor"));
         }
+        // An index accessor is SCALAR: `index_value` reads the element's one component.
+        let value = |bytes| {
+            index_value(self.component, bytes).ok_or_else(|| invalid("Unsupported component"))
+        };
         let mut out = reserve(self.count)?;
         if !self.has_buffer_view {
             out.resize(self.count, 0);
         } else {
-            // An index accessor is SCALAR: `index_value` reads the element's one component.
-            for element in self.elements()? {
-                out.push(
-                    index_value(self.component, element)
-                        .ok_or_else(|| invalid("Unsupported component"))?,
-                );
+            for element in self.elements() {
+                out.push(value(element)?);
             }
         }
-        if let Some(sparse) = &self.sparse {
-            for k in 0..sparse.count {
-                let idx = sparse.index(k, self.count)?;
-                let vo = sparse.values_offset + k * self.bytes;
-                let b = sparse
-                    .values_bin
-                    .get(vo..vo + self.bytes)
-                    .ok_or_else(|| invalid("Sparse value out of bounds"))?;
-                let val = index_value(self.component, b)
-                    .ok_or_else(|| invalid("Unsupported component"))?;
-                out[idx] = val;
-            }
+        for substitution in self.substitutions() {
+            let (index, element) = substitution?;
+            out[index] = value(element)?;
         }
         Ok(out)
     }
@@ -82,41 +92,30 @@ impl Accessor<'_> {
             .count
             .checked_mul(self.width)
             .ok_or_else(|| invalid("Accessor offset overflow"))?;
+        let finite = |component| -> Result<f32> {
+            let value = self.decoded_value(component)? as f32;
+            if !value.is_finite() {
+                return Err(CompilerError::new(
+                    "NONFINITE_POSITION",
+                    "Position is not finite",
+                ));
+            }
+            Ok(value)
+        };
         let mut out = reserve(n)?;
         if !self.has_buffer_view {
             out.resize(n, 0.0);
         } else {
-            for element in self.elements()? {
+            for element in self.elements() {
                 for component in element.chunks_exact(self.bytes) {
-                    let value = self.decoded_value(component)? as f32;
-                    if !value.is_finite() {
-                        return Err(CompilerError::new(
-                            "NONFINITE_POSITION",
-                            "Position is not finite",
-                        ));
-                    }
-                    out.push(value);
+                    out.push(finite(component)?);
                 }
             }
         }
-        if let Some(sparse) = &self.sparse {
-            for k in 0..sparse.count {
-                let idx = sparse.index(k, self.count)?;
-                for c in 0..self.width {
-                    let vo = sparse.values_offset + (k * self.width + c) * self.bytes;
-                    let b = sparse
-                        .values_bin
-                        .get(vo..vo + self.bytes)
-                        .ok_or_else(|| invalid("Sparse value out of bounds"))?;
-                    let val = self.decoded_value(b)? as f32;
-                    if !val.is_finite() {
-                        return Err(CompilerError::new(
-                            "NONFINITE_POSITION",
-                            "Position is not finite",
-                        ));
-                    }
-                    out[idx * self.width + c] = val;
-                }
+        for substitution in self.substitutions() {
+            let (index, element) = substitution?;
+            for (c, component) in element.chunks_exact(self.bytes).enumerate() {
+                out[index * self.width + c] = finite(component)?;
             }
         }
         Ok(out)

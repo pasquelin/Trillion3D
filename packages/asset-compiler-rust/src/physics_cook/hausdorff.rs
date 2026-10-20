@@ -2,7 +2,7 @@
 //! vertex, edge midpoint and centroid of one side to the nearest triangle of the other, the largest
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
-use trillion3d_math::aabb::{extend_aabb, longest_side};
+use trillion3d_math::aabb::{aabb_of, longest_side};
 use trillion3d_math::triangle::closest_point;
 use trillion3d_math::vec3::point;
 use trillion3d_math::vecn::{dot, sub};
@@ -31,14 +31,15 @@ struct Grid<'a> {
     origin: P,
     cell: f64,
     cells: WordMap<[i64; 3], Vec<u32>>,
+    /// The least and greatest keys of the binned cells: no cell outside holds a triangle.
+    keys: [[i64; 3]; 2],
 }
 
 impl<'a> Grid<'a> {
     fn new(pos: &'a [f32], triangles: &'a [u32]) -> Self {
-        let (mut min, mut max) = ([f64::MAX; 3], [f64::MIN; 3]);
-        for &i in triangles {
-            extend_aabb(&mut min, &mut max, point(pos, i));
-        }
+        let binned = || triangles.as_chunks::<3>().0.iter().enumerate();
+        let corners = binned().flat_map(|(_, tri)| tri.map(|i| point(pos, i)));
+        let (min, max) = aabb_of(corners);
         let extent = longest_side(min, max).max(1e-9);
         // About one triangle per cell along a surface: the cube root is wrong for a surface, the
         // square root of the count per face is right.
@@ -50,8 +51,9 @@ impl<'a> Grid<'a> {
             origin: min,
             cell,
             cells: WordMap::default(),
+            keys: [[i64::MAX; 3], [i64::MIN; 3]],
         };
-        for (t, tri) in triangles.as_chunks::<3>().0.iter().enumerate() {
+        for (t, tri) in binned() {
             let (lo, hi) = tri
                 .iter()
                 .fold(([i64::MAX; 3], [i64::MIN; 3]), |(lo, hi), &i| {
@@ -61,6 +63,10 @@ impl<'a> Grid<'a> {
                         [0, 1, 2].map(|k| hi[k].max(c[k])),
                     )
                 });
+            grid.keys = [
+                [0, 1, 2].map(|k| grid.keys[0][k].min(lo[k])),
+                [0, 1, 2].map(|k| grid.keys[1][k].max(hi[k])),
+            ];
             for x in lo[0]..=hi[0] {
                 for y in lo[1]..=hi[1] {
                     for z in lo[2]..=hi[2] {
@@ -72,10 +78,7 @@ impl<'a> Grid<'a> {
         grid
     }
     fn brute(&self, p: P) -> f64 {
-        self.triangles
-            .as_chunks::<3>()
-            .0
-            .iter()
+        (self.triangles.as_chunks::<3>().0.iter())
             .map(|tri| {
                 let [a, b, c] = [0, 1, 2].map(|k| point(self.pos, tri[k]));
                 triangle_distance2(p, a, b, c)
@@ -98,15 +101,28 @@ impl<'a> Grid<'a> {
             if ring > RINGS {
                 return self.brute(p);
             }
-            for x in -ring..=ring {
-                for y in -ring..=ring {
-                    for z in -ring..=ring {
-                        if x.abs().max(y.abs()).max(z.abs()) != ring {
-                            continue;
-                        }
-                        let Some(list) =
-                            self.cells
-                                .get(&[centre[0] + x, centre[1] + y, centre[2] + z])
+            // The ring's cells within the binned keys, in order: a whole row along `z` where `x`
+            // or `y` lies on the ring, its two ends elsewhere.
+            let [(x0, x1, xl, xh), (y0, y1, yl, yh), (z0, z1, zl, zh)] = [0, 1, 2].map(|k| {
+                let (low, high) = (centre[k] - ring, centre[k] + ring);
+                (
+                    low.max(self.keys[0][k]),
+                    high.min(self.keys[1][k]),
+                    low,
+                    high,
+                )
+            });
+            for x in x0..=x1 {
+                for y in y0..=y1 {
+                    let (from, to, step) = match x == xl || x == xh || y == yl || y == yh {
+                        true => (z0, z1, 1),
+                        false => (zl, zh, zh - zl),
+                    };
+                    for z in (from..=to).step_by(step as usize) {
+                        let Some(list) = (z0..=z1)
+                            .contains(&z)
+                            .then(|| self.cells.get(&[x, y, z]))
+                            .flatten()
                         else {
                             continue;
                         };

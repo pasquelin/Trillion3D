@@ -59,11 +59,14 @@ pub(super) fn build(
     scale: f64,
 ) -> Option<usize> {
     let Some(shape) = shape(type_name) else {
-        world.refuse(crate::plugins::scene::codes::LIGHT_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::LIGHT_UNSUPPORTED);
         return None;
     };
-    let radiance = number(world, prim, "inputs:intensity", 1.0)
-        * number(world, prim, "inputs:exposure", 0.0).exp2();
+    let intensity = number(world, prim, "inputs:intensity", 1.0);
+    let exposure = number(world, prim, "inputs:exposure", 0.0);
     let (area, radius) = extent(world, prim, &shape, scale);
     let normalized = flag(world, prim, "inputs:normalize").unwrap_or(false);
     let cone = cone(world, prim);
@@ -75,16 +78,18 @@ pub(super) fn build(
             (_, false) => "point",
         },
         colour: colour(world, prim),
-        intensity: crate::compiler_lights::photometric(
-            radiance * if normalized { 1.0 } else { area },
+        intensity: crate::compiler_lights::radiometric_intensity(
+            intensity,
+            exposure,
+            if normalized { 1.0 } else { area },
         ),
         cone,
         casts_shadow: flag(world, prim, "inputs:shadow:enable"),
-        emitter_radius: radius.filter(|value| value.is_finite() && *value > 0.0),
+        emitter_radius: radius,
     };
-    world.scene.lights.push(source.json());
+    let rank = world.scene.light(&source);
     world.count("lights", 1);
-    Some(world.scene.lights.len() - 1)
+    Some(rank)
 }
 
 /// Projected area of the source, in square metres, and the radius of its envelope, in metres. A
@@ -125,12 +130,9 @@ fn cone(world: &mut World<'_>, prim: &usd::Prim) -> Option<(f64, f64)> {
 
 /// Light colour, finite and non-negative channels; white by default, like `UsdLux`.
 fn colour(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 3] {
-    let Some((value, sampled)) = read::first(&prim.attribute("inputs:color")) else {
+    let Some(value) = world.first(prim, "inputs:color") else {
         return [1.0; 3];
     };
-    if sampled {
-        world.refuse(world::TIME_SAMPLE);
-    }
     read::triple(&value).map_or([1.0; 3], |rgb| {
         rgb.map(|c| if c.is_finite() && c >= 0.0 { c } else { 1.0 })
     })
@@ -146,18 +148,10 @@ fn number(world: &mut World<'_>, prim: &usd::Prim, name: &str, default: f64) -> 
 /// A numeric attribute written by the light, and nothing when it does not write it: that is
 /// how a light shaped as a spotlight is distinguished from a light that is not.
 fn read(world: &mut World<'_>, prim: &usd::Prim, name: &str) -> Option<f64> {
-    let (value, sampled) = read::first(&prim.attribute(name))?;
-    if sampled {
-        world.refuse(world::TIME_SAMPLE);
-    }
-    read::number(&value)
+    read::number(&world.first(prim, name)?)
 }
 
 /// A boolean attribute written by the light, and nothing when it does not write it.
 fn flag(world: &mut World<'_>, prim: &usd::Prim, name: &str) -> Option<bool> {
-    let (value, sampled) = read::first(&prim.attribute(name))?;
-    if sampled {
-        world.refuse(world::TIME_SAMPLE);
-    }
-    read::flag(&value)
+    read::flag(&world.first(prim, name)?)
 }

@@ -23,7 +23,6 @@ pub(crate) fn map_source(path: &Path) -> Result<memmap2::Mmap> {
 }
 pub(super) struct RuntimeSource {
     pub(super) manifest: Value,
-    pub(super) manifest_bytes: Vec<u8>,
     pub(super) g: Value,
     pub(super) g_bytes_len: usize,
     pub(super) binary: Binary,

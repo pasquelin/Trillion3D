@@ -1,5 +1,5 @@
 //! Generated corpus: every kind of mesh an artist can hand the compiler, each built from a seed
-//! and its parameters, none hand-picked. A case is a function of the seed; `invariants.rs` and `islands.rs` hold
+//! and its parameters, none hand-picked. A case is a function of the seed; `invariants.rs` holds
 //! what the DAG builder guarantees on it, `cache.rs` what the compiled cache guarantees, and
 //! `run.rs` asserts both on every case of every family.
 use super::*;
@@ -7,11 +7,13 @@ use crate::tests::random::Xorshift;
 use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 mod attributes;
+mod attributes_colours;
 mod cache;
+mod foliage;
 mod gltf;
 mod inputs;
 mod invariants;
-mod islands;
+mod invariants_pages;
 mod materials;
 mod run;
 mod shapes;

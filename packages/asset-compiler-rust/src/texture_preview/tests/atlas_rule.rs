@@ -48,7 +48,7 @@ fn a_transparent_texel_color_enters_the_data_mean_as_on_the_card() {
 fn each_level_is_derived_from_the_quantized_previous_level() {
     let source = rgba_from(8, 8, |x, y| [((x * 37 + y * 11) % 256) as u8, 7, 200, 255]);
     let chain = reduce::chain(&source, AtlasKind::Color);
-    let level1 = image::RgbaImage::from_raw(4, 4, chain[1].clone()).expect("level 1");
+    let level1 = image::RgbaImage::from_raw(4, 4, chain[1].to_vec()).expect("level 1");
     let from_level1 = reduce::chain(&level1, AtlasKind::Color);
     assert_eq!(chain[2..], from_level1[1..]);
 }

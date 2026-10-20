@@ -7,7 +7,7 @@
 //! division by `LUMENS_PER_WATT`, with no spectrum assumption, and the host sets
 //! exposure, never import. Detail in `docs/SDK.md`.
 use super::*;
-use crate::compiler_world::{world_matrices, Mat4};
+use crate::compiler_world::Mat4;
 
 mod emitter;
 mod fields;
@@ -53,6 +53,13 @@ const SPOT_CONE_MAX: f64 = std::f64::consts::FRAC_PI_2 - SPOT_CONE_MIN;
 pub(crate) fn photometric(radiometric: f64) -> f64 {
     radiometric * LUMENS_PER_WATT
 }
+
+/// `photometric` of a radiometric `value` raised by `exposure` stops and times the format's
+/// `factor` (area, spread), grouped `(value · 2^exposure) · factor`.
+pub(crate) fn radiometric_intensity(value: f64, exposure: f64, factor: f64) -> f64 {
+    photometric(value * exposure.exp2() * factor)
+}
+
 pub(crate) fn fbx_intensity_scale(kind: &str) -> f64 {
     if kind == "directional" {
         10_000.0
@@ -111,8 +118,12 @@ type Nodes<'a> = (&'a BTreeSet<usize>, &'a BTreeSet<usize>);
 /// Only nodes of the rendered scene count: a light placed in another scene does
 /// not light this one, nor one a hidden node hides (`KHR_node_visibility`). A
 /// light whose type, matrix or intensity fails the contract is counted in
-/// `rejected` and left aside: a compilation never dies on a light, it says so.
-fn scene_lights(g: &Value, bin: &[u8], (reached, hidden): Nodes<'_>) -> Result<Value> {
+/// `rejected` and left aside: a compilation never dies on a light, it says so. `world` is every
+/// node's transform, computed once for the job (`proxy::placement::Placement`).
+fn scene_lights(
+    (g, bin, world): (&Value, &[u8], &[Mat4]),
+    (reached, hidden): Nodes<'_>,
+) -> Result<Value> {
     let (mut rejected, mut counts) = (Tally::new(), Tally::new());
     let (Some(nodes), Some(declared)) = (
         g.get("nodes").and_then(Value::as_array),
@@ -121,8 +132,7 @@ fn scene_lights(g: &Value, bin: &[u8], (reached, hidden): Nodes<'_>) -> Result<V
     ) else {
         return Ok(report(Vec::new(), rejected, counts));
     };
-    let world = world_matrices(g)?;
-    let emitter = Emitter::new(g, bin, &world)?;
+    let emitter = Emitter::new(g, bin, world)?;
     let mut seen = BTreeSet::new();
     let mut lights = Vec::new();
     for (index, node) in nodes.iter().enumerate() {
@@ -154,13 +164,12 @@ fn scene_lights(g: &Value, bin: &[u8], (reached, hidden): Nodes<'_>) -> Result<V
 /// the manifest. Its version therefore does not move, and a reader that ignores
 /// this file reads the cache unchanged.
 pub(super) fn stage_scene_lights(
-    g: &Value,
-    bin: &[u8],
+    scene: (&Value, &[u8], &[Mat4]),
     scene_nodes: Nodes<'_>,
     directory: &Path,
     progress: impl Fn(Value),
 ) -> Result<Product> {
-    let lights = scene_lights(g, bin, scene_nodes)?;
+    let lights = scene_lights(scene, scene_nodes)?;
     let written = product(directory, SCENE_LIGHTS_FILE, &serde_json::to_vec(&lights)?)?;
     progress(lights_event(&lights));
     Ok(written)

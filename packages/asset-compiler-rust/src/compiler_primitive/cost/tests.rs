@@ -1,5 +1,5 @@
 use super::*;
-use crate::compiler_page_object::{geometry_record, page_record};
+use crate::compiler_page_record::{geometry_record, page_record};
 
 // Behaviour: the cost grows with the geometry and the working part is freed, not retained.
 #[test]
@@ -39,7 +39,7 @@ fn a_worker_charge_holds_a_full_tile_and_its_jolt_cook() {
     const JOLT_FULL_TILE_PEAK: usize = 1_175_616;
     const {
         assert!(TILE_TRIANGLES * JOLT_TRIANGLE_BYTES >= JOLT_FULL_TILE_PEAK);
-        assert!(WORKER_BYTES >= TILE_BYTES && WORKER_BYTES >= BUNDLE_BYTES);
+        assert!(WORKER_BYTES >= TILE_BYTES && WORKER_BYTES >= PAGE_ENCODE_BYTES);
         assert!(WORKER_BYTES >= JOLT_FULL_TILE_PEAK + TILE_TRIANGLES * 3 * size_of::<u32>());
     }
 }
@@ -69,7 +69,6 @@ fn page_constants_are_the_page_record() {
     let pos = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
     let packed =
         trillion3d_page_codec::encode::encode(&[0, 1, 2], &pos, &[], -4, 0).expect("encode");
-    let digest = "0".repeat(64);
     let cluster = DagCluster {
         indices: vec![0, 1, 2],
         level: 1,
@@ -81,24 +80,17 @@ fn page_constants_are_the_page_record() {
         group: Some(0),
         source: Some(0),
     };
-    let record = page_record(
+    // The record as the job keeps it: placed in its bundle.
+    let mut record = page_record(
         (0, &cluster),
-        (&digest, 12),
         ([0.0; 3], [1.0; 3]),
         [0.0, 0.0, 1.0, 0.5],
-        geometry_record(&digest, &packed, 3),
-        (0, 0),
+        geometry_record(&packed, 3),
     );
+    record["stream"] = 0.into();
+    record["streamOffset"] = 0.into();
     let mut found = (0, 0, 0, 0);
     shape(&record, &mut found);
     let role = record["role"].as_str().expect("role").len();
-    assert_eq!(
-        found,
-        (
-            PAGE_ENTRIES,
-            PAGE_ARRAY_VALUES,
-            PAGE_TEXT_BYTES + role,
-            KEY_BYTES
-        )
-    );
+    assert_eq!(found, (PAGE_ENTRIES, PAGE_ARRAY_VALUES, role, KEY_BYTES));
 }

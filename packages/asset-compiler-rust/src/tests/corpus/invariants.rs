@@ -1,6 +1,8 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
+pub(super) use super::invariants_pages::check_pages;
 use super::*;
-use crate::dag::{build_dag_tallied, DagCluster, DagStall, DagStrategy};
+use crate::compiler_primitive_checks::triangle_fingerprint;
+use crate::dag::{build_dag, DagBuild, DagCluster, DagStall, DagStrategy};
 use std::collections::{HashMap, HashSet};
 
 pub(super) struct Built {
@@ -23,7 +25,12 @@ impl Built {
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
     let attributes = case.attributes();
     let carried: Vec<&encode::Attribute> = attributes.iter().collect();
-    let (dag, _, _, stalls, grown) = build_dag_tallied(
+    let DagBuild {
+        clusters: dag,
+        stalls,
+        grown,
+        ..
+    } = build_dag(
         &case.positions,
         crate::dag::DagAttributes { carried: &carried },
         indices,
@@ -63,10 +70,7 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         source, partition,
         "{label}: level 0 is the source partition"
     );
-    let carried: Vec<&encode::Attribute> = built.attributes.iter().collect();
-    let normals = crate::dag::DagAttributes { carried: &carried }.normals();
-    let quality = crate::dag::quality::check(&built.dag, &built.positions, normals);
-    if let Err(refusal) = quality {
+    if let Err(refusal) = crate::dag::quality::check(&built.dag) {
         panic!("{label}: the cook refuses the DAG: {refusal}");
     }
     let used: HashSet<u32> = indices.iter().copied().collect();
@@ -125,50 +129,29 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
     }
 }
 
-/// One root per primitive, and no stalled group: every layout of the corpus, seam-locked ones
-/// included (`dag/solved.rs`), climbs to the top.
+/// One root cluster per primitive, and no stalled group: every layout of the corpus, every seam
+/// included (`qem_simplifier.rs`, its wedges), climbs to the top. A root over the encoder's vertex
+/// cap is halved once every level is built (`dag::constrain_wide`): its two halves share its group,
+/// level and error, and draw together at most one cluster's triangles.
 pub(super) fn check_roots(built: &Built, label: &str) {
     let causes: Vec<(usize, &str)> = built
         .stalls
         .iter()
         .map(|s| (s.level, s.outcome.cause.name()))
         .collect();
-    assert_eq!(built.roots(), 1, "{label}: one root, stalls {causes:?}");
-    assert!(causes.is_empty(), "{label}: no stall, stalls {causes:?}");
-}
-
-/// Every cluster's page decodes back to its source positions and attributes, within the error
-/// the page declares.
-pub(super) fn check_pages(built: &Built, label: &str) {
-    let (positions, attributes) = (&built.positions, &built.attributes);
-    let carried: Vec<&encode::Attribute> = attributes.iter().collect();
-    let exponent = crate::geometry_page_quant::primitive_exponent(
-        positions,
-        built
-            .dag
-            .iter()
-            .filter(|c| c.level > 0)
-            .map(|c| c.lod_error),
-        false,
-        trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2,
+    let roots: Vec<&DagCluster> = built.dag.iter().filter(|c| c.is_root()).collect();
+    let one = match roots[..] {
+        [_] => true,
+        [a, b] => {
+            (a.source, a.level, a.lod_error) == (b.source, b.level, b.lod_error)
+                && a.indices.len() + b.indices.len() <= 3 * crate::dag::DAG_CLUSTER_TRIANGLES
+        }
+        _ => false,
+    };
+    assert!(
+        one,
+        "{label}: one root, {} roots, stalls {causes:?}",
+        roots.len()
     );
-    for cluster in &built.dag {
-        let encoded = encode::encode(
-            &cluster.indices,
-            positions,
-            &carried,
-            exponent,
-            trillion3d_page_codec::bits::grid::UV_EXPONENT,
-        )
-        .unwrap_or_else(|e| panic!("{label}: encode level {}: {e}", cluster.level));
-        let page = trillion3d_page_codec::decode(&encoded.bytes, 64 << 20)
-            .unwrap_or_else(|e| panic!("{label}: decode level {}: {e:?}", cluster.level));
-        crate::tests::geometry_page::codec::verify(
-            &page,
-            &cluster.indices,
-            positions,
-            attributes,
-            page.quantization_error,
-        );
-    }
+    assert!(causes.is_empty(), "{label}: no stall, stalls {causes:?}");
 }

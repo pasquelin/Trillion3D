@@ -1,14 +1,6 @@
 use super::*;
-use crate::gltf_codes::{index_bytes_of, UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT};
+use crate::gltf_codes::{UNSIGNED_BYTE, UNSIGNED_INT, UNSIGNED_SHORT};
 
-pub(super) struct SparseAccessor<'a> {
-    pub(super) count: usize,
-    pub(super) indices_bin: &'a [u8],
-    pub(super) indices_offset: usize,
-    pub(super) indices_component: usize,
-    pub(super) values_bin: &'a [u8],
-    pub(super) values_offset: usize,
-}
 /// The unsigned integer that a glTF index component (`INDEX_COMPONENTS`) holds at the start of
 /// `bytes`, or `None` for another component or too few bytes: the one reading of those types.
 pub(super) fn index_value(component: usize, bytes: &[u8]) -> Option<u32> {
@@ -18,25 +10,6 @@ pub(super) fn index_value(component: usize, bytes: &[u8]) -> Option<u32> {
         UNSIGNED_INT => u32::from_le_bytes(*bytes.first_chunk()?),
         _ => return None,
     })
-}
-impl SparseAccessor<'_> {
-    pub(super) fn index(&self, offset: usize, count: usize) -> Result<usize> {
-        let width = index_bytes_of(self.indices_component)
-            .ok_or_else(|| invalid("Unsupported sparse indices component"))?;
-        let start = self.indices_offset + offset * width;
-        let index = self
-            .indices_bin
-            .get(start..start + width)
-            .and_then(|bytes| index_value(self.indices_component, bytes))
-            .ok_or_else(|| invalid("Sparse index out of bounds"))? as usize;
-        if index >= count {
-            return Err(CompilerError::new(
-                "INDEX_OUT_OF_BOUNDS",
-                "Sparse index exceeds count",
-            ));
-        }
-        Ok(index)
-    }
 }
 /// Fallible reservation of a dense expansion. A capacity no machine can address
 /// describes an invalid file; an allocation failure describes a memory-budget
@@ -49,13 +22,13 @@ pub(super) fn reserve<T>(n: usize) -> Result<Vec<T>> {
         return Err(invalid("Accessor expansion exceeds addressable memory"));
     }
     let mut out = Vec::new();
-    out.try_reserve_exact(n).map_err(|_| {
-        CompilerError::new(
-            "RAM_ADMISSION_BUDGET_EXCEEDED",
-            "Accessor expansion could not be allocated",
-        )
-    })?;
+    reserve_more(&mut out, n, "Accessor expansion could not be allocated")?;
     Ok(out)
+}
+/// `try_reserve_exact` of `additional` more in `out`; a failure is a memory-budget overrun.
+pub(super) fn reserve_more<T>(out: &mut Vec<T>, additional: usize, message: &str) -> Result<()> {
+    out.try_reserve_exact(additional)
+        .map_err(|_| CompilerError::new("RAM_ADMISSION_BUDGET_EXCEEDED", message))
 }
 pub(super) struct Accessor<'a> {
     pub(super) bin: &'a [u8],
@@ -67,5 +40,6 @@ pub(super) struct Accessor<'a> {
     pub(super) width: usize,
     pub(super) normalized: bool,
     pub(super) has_buffer_view: bool,
-    pub(super) sparse: Option<SparseAccessor<'a>>,
+    /// The sparse substitution, over the same binary (`accessor_validation::layout`).
+    pub(super) sparse: Option<accessor_validation::Sparse>,
 }

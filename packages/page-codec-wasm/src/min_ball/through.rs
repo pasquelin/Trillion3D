@@ -11,8 +11,9 @@
 //! `basis` is the pivot of the ball of balls: the smallest ball of at most five balls, exactly.
 //! The smallest ball of a set has a support of at most four affinely independent balls, all
 //! touching it, so its centre is that of `through` some subset; every other subset's centre needs
-//! at least that radius to hold the set (`radius_for`). The least of those radii over the subsets
+//! at least that radius to hold the set (`farthest`). The least of those radii over the subsets
 //! is therefore the smallest ball.
+use trillion3d_math::sphere::farthest;
 use trillion3d_math::vecn::{add, dot, length, scale, sub};
 
 /// A ball as its centre and radius.
@@ -32,14 +33,6 @@ fn through(balls: &[Sphere]) -> Option<Sphere> {
     }
 }
 
-/// The radius a ball centred on `c` needs to hold every ball of `balls`.
-pub(super) fn radius_for(c: [f64; 3], balls: &[Sphere]) -> f64 {
-    balls
-        .iter()
-        .map(|s| length(sub(centre(s), c)) + s[3])
-        .fold(0.0, f64::max)
-}
-
 /// The smallest ball holding `set` (one to five balls) and its support: over every subset of at
 /// most four, the centre `through` gives, the one needing the least radius to hold the set.
 pub(super) fn basis(set: &[Sphere]) -> (Vec<Sphere>, Sphere) {
@@ -57,7 +50,7 @@ pub(super) fn basis(set: &[Sphere]) -> (Vec<Sphere>, Sphere) {
             continue;
         };
         let c = centre(&ball);
-        let r = radius_for(c, set);
+        let r = farthest(c, set.iter().map(|s| (centre(s), s[3])));
         if best.as_ref().is_none_or(|(_, b)| r < b[3]) {
             best = Some((subset, [c[0], c[1], c[2], r]));
         }

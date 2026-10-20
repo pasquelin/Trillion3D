@@ -1,5 +1,5 @@
-//! The coarse levels of a DAG: group, reduce, re-split, until the level stops shrinking. Shared by
-//! a primitive's build and by the world super-roots entered from existing root clusters.
+//! The coarse levels of a DAG: group, reduce, re-split, until one cluster is left
+//! (`build::build_dag`), at most `DAG_MAX_LEVELS` levels.
 use super::*;
 
 /// Builds every level above `dag`, whose clusters index `positions` through `indices`.
@@ -18,9 +18,6 @@ pub(super) fn coarsen(
         welds::Welds::of(positions, attributes, indices)
     };
     let mut grown = None;
-    // Per cluster, the worst normal deviation of the source triangles it descends from: a group's
-    // reduction is held to the bound of its own descendants (`quality::deviation_bound`).
-    let mut descent = quality::cluster_deviations(&dag, positions, attributes.normals());
     let mut current: Vec<usize> = (0..dag.len()).collect();
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
@@ -33,49 +30,46 @@ pub(super) fn coarsen(
             .collect();
         let adjacency_by_slot = {
             let _t = Timer::new(Phase::Adjacency);
-            cluster_adjacency(&lists)
+            cluster_adjacency(&lists, welds.weld())
         };
-        let spheres: Vec<[f64; 4]> = current.iter().map(|&id| dag[id].sphere).collect();
+        // The level reads the vertices placed so far; placing its own waits for every reduction.
+        let (level_positions, carried) = Grown::arrays(&grown, positions, attributes);
+        let sources: Vec<Option<usize>> = current.iter().map(|&id| dag[id].source).collect();
         let groups = {
             let _t = Timer::new(Phase::Grouping);
-            group_clusters(&spheres, &adjacency_by_slot, DAG_GROUP_MAX)
+            let bounds = vertex_bounds(positions);
+            group_clusters(
+                &lists,
+                level_positions,
+                bounds,
+                &sources,
+                &adjacency_by_slot,
+            )
         };
-        if groups.len() >= current.len() {
-            break;
-        }
         let locks = {
             let _t = Timer::new(Phase::Locks);
             level_locks(welds.weld(), &lists, &groups)
         };
-        let worst: Vec<f64> = groups
-            .iter()
-            .map(|g| g.iter().map(|&s| descent[current[s]]).fold(0.0, f64::max))
-            .collect();
-        // The level reads the vertices placed so far; placing its own waits for every reduction.
-        let (level_positions, carried) = Grown::arrays(&grown, positions, attributes);
         let weighted = DagAttributes { carried: &carried }.weighted();
         let base = (level_positions.len() / 3) as u32;
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
-            .zip(&worst)
             .map(
-                |(group, &worst)| -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
+                |group| -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
                     checkpoint()?;
                     let children: Vec<&DagCluster> =
                         group.iter().map(|&slot| &dag[current[slot]]).collect();
-                    let bound = quality::deviation_bound(worst);
-                    let input = welds.input(level_positions, &carried, &weighted, &locks, bound);
+                    let input = welds.input(level_positions, &carried, &weighted, &locks);
                     reduce_group(&input, &children)
                 },
             )
             .collect::<Result<Vec<_>>>()?;
         let mut next = Vec::new();
         let mut tally = GroupTally::default();
-        for ((group, reduction), &worst) in groups.iter().zip(reductions).zip(&worst) {
-            let mut reduction = match reduction {
+        for (group, reduction) in groups.iter().zip(reductions) {
+            let reduction = match reduction {
                 Ok(reduction) => {
                     tally.reduced += 1;
-                    tally.relocked += usize::from(reduction.relocked);
                     reduction
                 }
                 Err(outcome) => {
@@ -84,37 +78,43 @@ pub(super) fn coarsen(
                     continue;
                 }
             };
-            Grown::place(&mut grown, &mut welds, &mut reduction, base);
+            let GroupReduction {
+                error,
+                sphere,
+                mut clusters,
+                source_rank,
+                placed,
+            } = reduction;
+            Grown::place(&mut grown, &mut welds, placed, &mut clusters, base);
             let group_index = reductions_kept.len();
             let mut children = Vec::with_capacity(group.len());
             for &slot in group {
                 let id = current[slot];
-                dag[id].parent_error = reduction.error;
-                dag[id].parent_sphere = reduction.sphere;
+                dag[id].parent_error = error;
+                dag[id].parent_sphere = sphere;
                 dag[id].group = Some(group_index);
                 children.push(id);
             }
-            let mut outputs = Vec::with_capacity(reduction.clusters.len());
-            for cluster in reduction.clusters {
+            let mut outputs = Vec::with_capacity(clusters.len());
+            for cluster in clusters {
                 outputs.push(dag.len());
                 next.push(dag.len());
-                descent.push(worst);
                 dag.push(DagCluster {
                     indices: cluster,
                     level,
-                    lod_error: reduction.error,
+                    lod_error: error,
                     parent_error: f64::INFINITY,
-                    sphere: reduction.sphere,
-                    parent_sphere: reduction.sphere,
-                    source_rank: reduction.source_rank,
+                    sphere,
+                    parent_sphere: sphere,
+                    source_rank,
                     group: None,
                     source: Some(group_index),
                 });
             }
             reductions_kept.push(DagGroup {
                 level,
-                error: reduction.error,
-                sphere: reduction.sphere,
+                error,
+                sphere,
                 children,
                 outputs,
             });
@@ -123,11 +123,13 @@ pub(super) fn coarsen(
         if next.is_empty() {
             break;
         }
-        let progressed = next.len() < current.len();
         current = next;
-        if !progressed {
-            break;
-        }
     }
-    Ok((dag, reductions_kept, tallies, stalls, grown))
+    Ok(DagBuild {
+        clusters: dag,
+        groups: reductions_kept,
+        tallies,
+        stalls,
+        grown,
+    })
 }

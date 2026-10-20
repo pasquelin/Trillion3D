@@ -36,6 +36,15 @@ pub fn merge_spheres(left: [f64; 4], right: [f64; 4]) -> [f64; 4] {
     ]
 }
 
+/// The radius a ball centred on `c` needs to hold every `(centre, radius)` ball of `balls`, a
+/// point being a ball of radius 0.
+pub fn farthest(c: [f64; 3], balls: impl IntoIterator<Item = ([f64; 3], f64)>) -> f64 {
+    balls
+        .into_iter()
+        .map(|(p, r)| length(sub(p, c)) + r)
+        .fold(0.0, f64::max)
+}
+
 #[cfg(test)]
 #[path = "sphere_tests.rs"]
 mod tests;

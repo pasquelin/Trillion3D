@@ -58,7 +58,7 @@ fn scanline<'a>(
         .get(..4)
         .and_then(|head| head.try_into().ok())
         .ok_or(TRUNCATED)?;
-    let announced = usize::from(u16::from_be_bytes([head[2], head[3]]));
+    let announced = usize::from(crate::le::be16_at(&head, 2).ok_or(TRUNCATED)?);
     if head[0] == 2 && head[1] == 2 && announced == row.len() && NEW_RLE_WIDTHS.contains(&row.len())
     {
         return new_rle(&body[4..], row);

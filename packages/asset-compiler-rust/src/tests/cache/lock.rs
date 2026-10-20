@@ -1,7 +1,7 @@
 use super::*;
 
 /// Cache consistency held regardless of outcome: published pointer names key whose
-/// folder exists, and each page named by sidecar columns is still on
+/// folder exists, and each geometry container its manifest names is still on
 /// disk. Exactly what concurrent purge destroys.
 fn assert_cache_coherent(o: &Options) {
     let pointer = read_json(&o.scope_directory().join("manifest.json"));
@@ -11,14 +11,10 @@ fn assert_cache_coherent(o: &Options) {
         directory.join("clusters.json").exists(),
         "the pointer names {key}, whose directory is gone"
     );
-    let sidecars = paged(&directory).sidecars;
-    let digests = sidecars
-        .iter()
-        .map(|s| manifest_binary::digests(s).expect("sidecar columns"));
-    for digest in digests.flatten() {
+    for digest in geometry_files(&directory) {
         assert!(
             object_path(o, &digest).exists(),
-            "the page {digest} the manifest names is gone"
+            "the geometry file {digest} the manifest names is gone"
         );
     }
 }

@@ -73,9 +73,9 @@ fn a14_two_parallel_jobs_do_not_mix_their_phases() {
     let (long, court) = std::thread::scope(|scope| {
         let long = scope.spawn(|| {
             compile(&grille, |event| {
-                // Root bundles assemble once all primitives grouped and
+                // The geometry containers assemble once all primitives grouped and
                 // simplified: grid counters full, waiting here.
-                if event["phase"] == "bootstrap" {
+                if event["phase"] == "geometry" {
                     simplifie.store(true, Ordering::Relaxed);
                     wait_for(&petit_fini);
                 }

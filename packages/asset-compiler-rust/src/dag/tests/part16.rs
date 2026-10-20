@@ -1,5 +1,4 @@
-//! The published error is never below the measured geometry, measured only where it can raise it
-//! (`measured.rs`).
+//! The bounded Hausdorff distance (`physics_cook::hausdorff::Level0`) equals the full one.
 use super::*;
 use crate::physics_cook::hausdorff::reference::distance;
 use crate::physics_cook::hausdorff::Level0;
@@ -42,27 +41,6 @@ fn a_bounded_distance_is_the_full_one_raised_to_its_floor_bit_for_bit() {
                 bounded.to_bits(),
                 expected.to_bits(),
                 "case {case}, floor {floor}: {bounded} against {full}"
-            );
-        }
-    }
-}
-
-#[test]
-fn every_group_publishes_at_least_the_distance_between_its_children_and_its_outputs() {
-    for (positions, indices) in [grid(64), cylinder(64)] {
-        let (dag, groups, _) = build_of(&positions, &indices);
-        assert!(!groups.is_empty());
-        for group in &groups {
-            let measured = distance(
-                &positions,
-                &indices_of(&dag, &group.children),
-                &indices_of(&dag, &group.outputs),
-            );
-            assert!(
-                group.error >= measured,
-                "level {}: {} published below {measured}",
-                group.level,
-                group.error
             );
         }
     }

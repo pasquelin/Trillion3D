@@ -73,6 +73,12 @@ pub enum QuantRefusal {
     Overflow,
 }
 
+/// The cell of `x` on the grid of `step`: `x / step` rounded half away from zero.
+#[inline(always)]
+pub fn grid_cell(x: f32, step: f64) -> f64 {
+    (f64::from(x) / step).round()
+}
+
 /// A vector attribute on the grid of `2^exponent`: `values` holds `N` floats per vertex, each
 /// divided by the step and rounded half away from zero. Returns the record and, per vertex, the
 /// `N` grid offsets from the page minimum. `#[inline(always)]`: the compiler runs it in its AVX2
@@ -88,7 +94,7 @@ pub fn quantize<const N: usize>(
     let (mut lo, mut hi) = ([f64::INFINITY; N], [f64::NEG_INFINITY; N]);
     let grid: Vec<[f64; N]> = (0..count)
         .map(|i| {
-            let cell = core::array::from_fn(|c| (f64::from(values[i * N + c]) / step).round());
+            let cell = core::array::from_fn(|c| grid_cell(values[i * N + c], step));
             extend_aabb(&mut lo, &mut hi, cell);
             cell
         })

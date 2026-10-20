@@ -12,17 +12,13 @@ fn obj_source_is_imported_into_the_cache_then_compiled() {
         .map(|e| e.expect("entry").path())
         .collect();
     assert_eq!(entries.len(), 1);
-    let manifest: Value =
-        serde_json::from_slice(&fs::read(entries[0].join("manifest.json")).expect("manifest"))
-            .expect("json");
+    let manifest: Value = read_json(&entries[0].join("manifest.json"));
     assert_eq!(manifest["status"], "ready");
     assert_eq!(manifest["source"]["plugin"]["name"], "obj");
     assert_eq!(result["scenePlugin"]["name"], "obj");
     assert_eq!(manifest["runtime"]["trianglesAcrossNodes"], 2);
     assert_eq!(manifest["runtime"]["meshNodes"], 1);
-    let gltf: Value =
-        serde_json::from_slice(&fs::read(entries[0].join("model.gltf")).expect("gltf"))
-            .expect("json");
+    let gltf: Value = read_json(&entries[0].join("model.gltf"));
     assert_eq!(
         gltf["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"][3],
         0.5
@@ -77,15 +73,8 @@ fn recompiling_prunes_stale_keys_and_orphan_objects() {
         .collect();
     assert_eq!(keys.len(), 1, "only the latest key survives");
     let mut referenced = BTreeSet::new();
-    for p in second["primitives"].as_array().unwrap() {
-        for page in p["pages"].as_array().unwrap() {
-            referenced.insert(page["sha256"].as_str().unwrap().to_string());
-            if let Some(g) = page["geometry"]["sha256"].as_str() {
-                referenced.insert(g.to_string());
-            }
-        }
-    }
-    let objects: BTreeSet<String> = fs::read_dir(options.cache.join("native/objects"))
+    compiler_prune::referenced_objects(&second, &mut referenced);
+    let objects: BTreeSet<String> = fs::read_dir(objects_dir(&options.cache))
         .expect("objects")
         .filter_map(|e| e.ok())
         .map(|e| {
@@ -95,21 +84,12 @@ fn recompiling_prunes_stale_keys_and_orphan_objects() {
                 .to_string()
         })
         .collect();
-    assert!(
-        referenced.is_subset(&objects),
-        "every page of the surviving manifest is still on disk"
-    );
-    assert!(
-        objects.len()
-            <= referenced.len() + second["bundles"].as_array().map(|b| b.len()).unwrap_or(4),
-        "orphans of the first key are gone: {} objects for {} pages",
-        objects.len(),
-        referenced.len()
+    assert_eq!(
+        objects, referenced,
+        "every object of the surviving manifest is on disk, the orphans of the first key gone"
     );
     // The pointer still resolves after pruning.
-    let pointer: Value =
-        serde_json::from_slice(&fs::read(options.cache.join("native/full/manifest.json")).unwrap())
-            .unwrap();
+    let pointer: Value = read_json(&options.cache.join("native/full/manifest.json"));
     assert!(options
         .cache
         .join("native/full")
@@ -131,19 +111,11 @@ fn pruning_one_scope_keeps_the_objects_the_other_scope_needs() {
     let key = full["key"].as_str().unwrap();
     let dir = options.cache.join("native/full").join(key);
     assert!(dir.join("clusters.json").exists());
-    let mut digests = BTreeSet::new();
-    for bin in paged(&dir).sidecars {
-        referenced_objects(&json!({}), Some(&bin), &mut digests)
-            .expect("digests of the full scope");
-    }
-    assert!(!digests.is_empty(), "binary columns carry the page digests");
+    let digests = geometry_files(&dir);
+    assert!(!digests.is_empty(), "the manifest names its geometry files");
     for digest in &digests {
         assert!(
-            options
-                .cache
-                .join("native/objects")
-                .join(format!("{digest}.bin"))
-                .exists(),
+            object_path(&options, digest).exists(),
             "object {digest} of the full scope was pruned by the slice compile"
         );
     }

@@ -8,7 +8,7 @@
 //!   upper hemi-octahedron.
 
 use crate::real::Real;
-use crate::vec3::unit_or_itself;
+use crate::vec3::{divide, unit_or_itself};
 use crate::vecn::{length, scale};
 
 /// `2 / 255` as the nearest `f32`: an octahedral byte to `[-1, 1]`.
@@ -26,8 +26,7 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
     let [px, py] = project(normal);
     let cell = |v: f32| ((v + 1.0) * 127.5).floor().clamp(0.0, 254.0) as u32;
     let (bx, by) = (cell(px), cell(py));
-    let length = length(normal);
-    let unit = [x / length, y / length, z / length];
+    let unit = divide(normal, length(normal));
     let mut best = (f32::INFINITY, 0u32);
     for candidate in [bx, bx + 1]
         .into_iter()
@@ -46,12 +45,11 @@ pub fn oct_encode(normal: [f32; 3]) -> u32 {
 /// Two octahedral bytes (`x` low, `y` high) back to a unit vector: each byte times `OCT_SCALE`
 /// less one, the lower half unfolded, divided by `√((x² + y²) + z²)`.
 pub fn oct_decode(q: u32) -> [f32; 3] {
-    let [x, y, z] = unproject([
+    let v = unproject([
         (q & 255) as f32 * OCT_SCALE - 1.0,
         ((q >> 8) & 255) as f32 * OCT_SCALE - 1.0,
     ]);
-    let length = length([x, y, z]);
-    [x / length, y / length, z / length]
+    divide(v, length(v))
 }
 
 /// `v` on the octahedron, `(x, y) / (|x| + |y| + |z|)`, the lower half (`z < 0`) folded: the one

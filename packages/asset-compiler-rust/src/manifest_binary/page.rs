@@ -1,9 +1,9 @@
 use super::*;
 
-/// The bits of a page's flag word (`pageU32`, second word).
+/// The bits of a page's flag word (`pageU32`). Bit 4 is free: every page has its geometry, in a
+/// bundle.
 pub(super) const FLAG_ROLE: u32 = 1;
 pub(super) const FLAG_COARSE: u32 = 2;
-pub(super) const FLAG_GEOMETRY: u32 = 4;
 pub(super) const FLAG_CLUSTER_ERROR: u32 = 8;
 pub(super) const FLAG_PARENT_ERROR: u32 = 16;
 pub(super) const FLAG_PARENT_ERROR_FINITE: u32 = 32;
@@ -12,12 +12,9 @@ pub(super) const FLAG_PARENT_SPHERE_SET: u32 = 128;
 pub(super) const FLAG_GROUP: u32 = 256;
 pub(super) const FLAG_SOURCE: u32 = 512;
 
-pub(super) fn encode_page(
-    page: &Value,
-    columns: &mut [Column],
-    templates: &Templates,
-) -> Result<()> {
-    let item = object(page, "page")?;
+/// Writes `page`'s row of every page column: its geometry lies at `streamOffset` of its bundle.
+pub(super) fn encode_page(page: &Value, columns: &mut [Column]) -> Result<()> {
+    let item = MANIFEST.object(page, "page")?;
     vector_into(item.get("min"), 3, "page.min", &mut columns[PAGE_BOUNDS])?;
     vector_into(item.get("max"), 3, "page.max", &mut columns[PAGE_BOUNDS])?;
     let mut flags = 0u32;
@@ -29,13 +26,13 @@ pub(super) fn encode_page(
                 flags |= FLAG_COARSE;
             }
         }
-        Some(other) => return Err(bad(format!("page.role is not a string: {other}"))),
+        Some(other) => return Err(MANIFEST.bad(format!("page.role is not a string: {other}"))),
     }
     let cluster_error = matches!(item.get("lodError"),Some(value) if value.is_number())
         && item.get("sphere").is_some();
     if cluster_error {
         flags |= FLAG_CLUSTER_ERROR;
-        columns[PAGE_ERROR].f64(number(item.get("lodError"), "page.lodError")?);
+        columns[PAGE_ERROR].f64(MANIFEST.number(item.get("lodError"), "page.lodError")?);
         vector_into(
             item.get("sphere"),
             4,
@@ -56,7 +53,7 @@ pub(super) fn encode_page(
         }
         Some(value) => {
             flags |= FLAG_PARENT_ERROR | FLAG_PARENT_ERROR_FINITE;
-            columns[PAGE_ERROR].f64(number(Some(value), "page.parentError")?);
+            columns[PAGE_ERROR].f64(MANIFEST.number(Some(value), "page.parentError")?);
         }
     }
     match item.get("parentSphere") {
@@ -77,10 +74,13 @@ pub(super) fn encode_page(
             )?;
         }
     }
-    columns[PAGE_INT].i32(as_i32(integer(item.get("id"), "page.id")?, "page.id")?);
+    columns[PAGE_INT].i32(as_i32(
+        MANIFEST.integer(item.get("id"), "page.id")?,
+        "page.id",
+    )?);
     columns[PAGE_INT].i32(match item.get("level") {
         None => -1,
-        Some(value) => as_i32(integer(Some(value), "page.level")?, "page.level")?,
+        Some(value) => as_i32(MANIFEST.integer(Some(value), "page.level")?, "page.level")?,
     });
     // Literal labels, not formatted per key and per page.
     for (key, label, flag) in [
@@ -95,63 +95,36 @@ pub(super) fn encode_page(
             }
             Some(value) => {
                 flags |= flag;
-                columns[PAGE_INT].i32(as_i32(integer(Some(value), label)?, label)?);
+                columns[PAGE_INT].i32(as_i32(MANIFEST.integer(Some(value), label)?, label)?);
             }
         }
     }
-    let stream = match item.get("stream") {
-        None => -1,
-        Some(value) => as_i32(integer(Some(value), "page.stream")?, "page.stream")?,
-    };
-    columns[PAGE_INT].i32(stream);
-    columns[PAGE_INT].i32(if stream < 0 {
-        -1
-    } else {
-        as_i32(
-            integer(item.get("streamOffset"), "page.streamOffset")?,
-            "page.streamOffset",
-        )?
-    });
+    for (key, label) in [
+        ("stream", "page.stream"),
+        ("streamOffset", "page.streamOffset"),
+    ] {
+        columns[PAGE_INT].i32(as_i32(MANIFEST.integer(item.get(key), label)?, label)?);
+    }
     columns[PAGE_INT].i32(as_i32(
-        integer(item.get("count"), "page.count")?,
+        MANIFEST.integer(item.get("count"), "page.count")?,
         "page.count",
     )?);
     columns[PAGE_INT].i32(match item.get("start") {
         None => -1,
-        Some(value) => as_i32(integer(Some(value), "page.start")?, "page.start")?,
+        Some(value) => as_i32(MANIFEST.integer(Some(value), "page.start")?, "page.start")?,
     });
-    columns[PAGE_U32].u32(as_u32(
-        integer(item.get("bytes"), "page.bytes")?,
-        "page.bytes",
-    )?);
-    let sha = text(item.get("sha256"), "page.sha256")?;
-    templated(templates.page, text(item.get("url"), "page.url")?, sha)?;
-    columns[PAGE_SHA].sha(sha)?;
-    match item.get("geometry") {
-        None | Some(Value::Null) => {
-            columns[GEOMETRY_SHA].zeros(64);
-            columns[GEOMETRY_U32].zeros(20);
-        }
-        Some(value) => {
-            flags |= FLAG_GEOMETRY;
-            let geometry = object(value, "page.geometry")?;
-            let digest = text(geometry.get("sha256"), "page.geometry.sha256")?;
-            templated(
-                templates.geometry,
-                text(geometry.get("url"), "page.geometry.url")?,
-                digest,
-            )?;
-            columns[GEOMETRY_SHA].sha(digest)?;
-            for (key, label) in [
-                ("bytes", "page.geometry.bytes"),
-                ("vertexCount", "page.geometry.vertexCount"),
-                ("indexCount", "page.geometry.indexCount"),
-                ("flags", "page.geometry.flags"),
-                ("uncompressedBytes", "page.geometry.uncompressedBytes"),
-            ] {
-                columns[GEOMETRY_U32].u32(as_u32(integer(geometry.get(key), label)?, label)?);
-            }
-        }
+    let geometry = MANIFEST.object(
+        item.get("geometry").unwrap_or(&Value::Null),
+        "page.geometry",
+    )?;
+    for (key, label) in [
+        ("bytes", "page.geometry.bytes"),
+        ("vertexCount", "page.geometry.vertexCount"),
+        ("indexCount", "page.geometry.indexCount"),
+        ("flags", "page.geometry.flags"),
+        ("uncompressedBytes", "page.geometry.uncompressedBytes"),
+    ] {
+        columns[GEOMETRY_U32].u32(as_u32(MANIFEST.integer(geometry.get(key), label)?, label)?);
     }
     // Every page of version 9 has its cone; a hand-written page that names none rejects nothing.
     let column = &mut columns[PAGE_CONE];
@@ -162,9 +135,9 @@ pub(super) fn encode_page(
             }
         }
         Some(cone) => {
-            let cone = object(cone, "page.cone")?;
+            let cone = MANIFEST.object(cone, "page.cone")?;
             vector_into(cone.get("axis"), 3, "page.cone.axis", column)?;
-            column.f64(number(cone.get("angle"), "page.cone.angle")?);
+            column.f64(MANIFEST.number(cone.get("angle"), "page.cone.angle")?);
         }
     }
     columns[PAGE_U32].u32(flags);
@@ -172,9 +145,12 @@ pub(super) fn encode_page(
     columns[PAGE_DEPTH_LAYER].u32(match item.get("depthLayer") {
         None => 0,
         Some(value) => {
-            let layer = as_u32(integer(Some(value), "page.depthLayer")?, "page.depthLayer")?;
+            let layer = as_u32(
+                MANIFEST.integer(Some(value), "page.depthLayer")?,
+                "page.depthLayer",
+            )?;
             if layer > crate::coplanar::COPLANAR_MAX_LAYER {
-                return Err(bad(format!("page.depthLayer {layer} exceeds four bits")));
+                return Err(MANIFEST.bad(format!("page.depthLayer {layer} exceeds four bits")));
             }
             layer
         }

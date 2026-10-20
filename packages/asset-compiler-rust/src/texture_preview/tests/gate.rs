@@ -1,5 +1,6 @@
 //! The quality gate, end to end on a cooked scene: what the roles route, what
-//! the bar refuses, and what the report says of it.
+//! the bar refuses — in every family but the stored BC one, kept whatever it
+//! measures —, and what the report says of it.
 use super::*;
 use crate::texture_preview::blocks::quality::GATE_DB;
 use trillion3d_math::random::lcg32;
@@ -39,8 +40,8 @@ fn noise(width: u32, height: u32) -> image::RgbaImage {
 }
 
 // Behaviour: a texture only normal maps read is cooked on two channels — a
-// `.bc5` file per level above the tail, the tail in that layout — and the
-// report counts it as such; the lossless PNG is still there.
+// `.bc5` file per level above the tail, the tail in that layout, no other file —
+// and the report counts it as such.
 #[test]
 fn a_normal_map_is_cooked_on_two_channels() {
     let dir = scratch("texture-preview", "gate-normal");
@@ -56,7 +57,6 @@ fn a_normal_map_is_cooked_on_two_channels() {
     assert!(entry.blocks[1].is_empty());
     let native = dir.join("cache").join("native");
     let file = |format: &str| native.join(level_path(&entry.sha256, AtlasKind::Data, 0, format));
-    assert!(file(LOSSLESS).exists());
     assert!(file("bc5").exists());
     assert!(!file("bc7").exists());
     assert_eq!(report["encoded"]["bc7"]["twoChannel"], json!(1));
@@ -71,30 +71,46 @@ fn a_normal_map_is_cooked_on_two_channels() {
     assert_eq!(report["lossless"], json!([]));
 }
 
-// Behaviour: a chain under the bar stays lossless — no block file, an empty
-// tail, the family's layout word says so — and the report names it with its
-// decibels, its largest gap and its flips.
+// Behaviour: a chain under the bar is left out of ASTC — no block file, an empty
+// tail, its layout word says so — and the report names it there with its
+// decibels, its largest gap and its flips; the stored BC family keeps it
+// whatever it measures, its level files written, its decibels reported.
 #[test]
-fn a_texture_under_the_bar_stays_lossless_and_is_named() {
+fn a_texture_under_the_bar_stays_out_of_astc_and_is_named() {
     let dir = scratch("texture-preview", "gate-noise");
     noise(128, 128).save(dir.join("map.png")).expect("save");
-    let (previews, report) = stage_scene(
+    let (previews, report) = stage_scene_in(
         &dir,
         &scene(json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}})),
+        vec![BlockFormat::Bc7, BlockFormat::Astc],
     );
     let entry = &previews[0];
-    assert_eq!(entry.layouts, [None; 3]);
-    assert!(entry.blocks.iter().all(Vec::is_empty));
+    assert_eq!(entry.layouts, [Some(Layout::Rgba), None, None]);
+    assert!(!entry.blocks[0].is_empty());
+    assert!(entry.blocks[1].is_empty());
+    assert_eq!(
+        entry.baked_levels, entry.first_level,
+        "the stored levels are baked"
+    );
     let native = dir.join("cache").join("native");
     let file = |format: &str| native.join(level_path(&entry.sha256, AtlasKind::Color, 0, format));
-    assert!(file(LOSSLESS).exists());
-    assert!(!file("bc7").exists());
-    assert_eq!(report["encoded"]["bc7"]["lossless"], json!(1));
-    assert_eq!(report["encoded"]["bc7"]["keptPsnrDb"], Value::Null);
-    let named = &report["lossless"][0];
+    assert!(file("bc7").exists());
+    assert!(!file("astc").exists());
+    assert_eq!(report["encoded"]["bc7"]["lossless"], json!(0));
+    assert!(
+        report["encoded"]["bc7"]["keptPsnrDb"]["min"]
+            .as_f64()
+            .unwrap()
+            < GATE_DB
+    );
+    assert_eq!(report["encoded"]["astc"]["lossless"], json!(1));
+    assert_eq!(report["encoded"]["astc"]["keptPsnrDb"], Value::Null);
+    let named = report["lossless"].as_array().expect("named chains");
+    assert_eq!(named.len(), 1);
+    let named = &named[0];
     assert_eq!(named["sha256"], json!(entry.sha256));
     assert_eq!(named["atlas"], json!("srgb"));
-    assert_eq!(named["format"], json!("bc7"));
+    assert_eq!(named["format"], json!("astc"));
     assert_eq!(named["layout"], json!("rgba"));
     assert!(named["psnrDb"].as_f64().unwrap() < GATE_DB);
     assert!(named["maxDelta"].as_u64().unwrap() > 0);
@@ -103,7 +119,8 @@ fn a_texture_under_the_bar_stays_lossless_and_is_named() {
 }
 
 // Behaviour: a masked texture whose compressed alpha crosses the cutoff on one
-// texel stays lossless whatever its decibels — the report counts the flips. The
+// texel is left out of its family whatever its decibels — the report counts
+// the flips. The
 // cut is the engine's, alpha times the colour factor's: 0.25 under a
 // factor of 0.5 cuts where 0.5 does, alone it cuts nothing the alphas reach.
 #[test]
@@ -120,9 +137,16 @@ fn a_masked_texture_that_flips_a_texel_stays_lossless() {
     let flips = |cutoff: f64, factor: f64| {
         let material = json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0},
             "baseColorFactor": [1, 1, 1, factor]}, "alphaMode": "MASK", "alphaCutoff": cutoff});
-        let (previews, report) = stage_scene(&dir, &scene(material));
-        let flips = report["lossless"][0]["maskFlips"].as_u64().unwrap_or(0);
-        (previews[0].layouts[0].is_none() && flips > 0, report)
+        let astc = vec![BlockFormat::Bc7, BlockFormat::Astc];
+        let (previews, report) = stage_scene_in(&dir, &scene(material), astc);
+        let flips: u64 = report["lossless"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|named| named["format"] == json!("astc"))
+            .filter_map(|named| named["maskFlips"].as_u64())
+            .sum();
+        (previews[0].layouts[1].is_none() && flips > 0, report)
     };
     for (cutoff, factor) in [(0.5, 1.0), (0.25, 0.5)] {
         let (lossless, report) = flips(cutoff, factor);
@@ -132,40 +156,23 @@ fn a_masked_texture_that_flips_a_texel_stays_lossless() {
     assert!(!flips(0.25, 1.0).0, "no alpha reaches down to 64");
 }
 
-// Behaviour: `--textures-format=none` cooks no block family: PNG only, every
-// layout word lossless, no gate line, the report saying which families it wrote.
-#[test]
-fn no_block_family_leaves_every_chain_lossless() {
-    let dir = scratch("texture-preview", "gate-none");
-    normal_map(128, 128)
-        .save(dir.join("map.png"))
-        .expect("save");
-    let (previews, report) = stage_scene_in(
-        &dir,
-        &scene(json!({"normalTexture": {"index": 0}})),
-        Vec::new(),
-    );
-    assert_eq!(previews[0].layouts, [None; 3]);
-    assert_eq!(report["blockFormats"], json!([]));
-    assert_eq!(report["encoded"], json!({}));
-    assert_eq!(report["lossless"], json!([]));
-    assert_eq!(report["blockBytes"], json!(0));
-}
-
 // Behaviour: a chain the gate keeps but whose block level cannot be written
-// stays lossless in the family — the sidecar says so — and the report counts
-// it there, not among the kept, under the note; the verdict is not left behind.
+// is left out of the family — the sidecar says so — and the report counts it
+// there, not among the kept, under the note; the verdict is not left behind.
 #[cfg(unix)]
 #[test]
-fn a_kept_chain_whose_level_will_not_write_is_counted_lossless() {
+fn a_kept_chain_whose_level_will_not_write_is_left_out() {
     use std::os::unix::fs::PermissionsExt;
     let dir = scratch("texture-preview", "gate-unwritable");
-    rgba_from(256, 256, |x, _| [x as u8, 255 - x as u8, 77, 255])
-        .save(dir.join("map.png"))
-        .expect("save");
+    // A gentle ramp, a sixteenth of the range: one ASTC keeps.
+    rgba_from(256, 256, |x, _| {
+        [96 + (x / 16) as u8, 160 - (x / 16) as u8, 77, 255]
+    })
+    .save(dir.join("map.png"))
+    .expect("save");
     let material = json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}});
-    // The PNG pass first, alone; then the image's folder refuses every new file.
-    let (previews, _) = stage_scene_in(&dir, &scene(material.clone()), Vec::new());
+    // The stored family's pass first, alone; then the image's folder refuses every new file.
+    let (previews, _) = stage_scene(&dir, &scene(material.clone()));
     let folder = dir
         .join("cache")
         .join("native")
@@ -173,14 +180,15 @@ fn a_kept_chain_whose_level_will_not_write_is_counted_lossless() {
         .join(&previews[0].sha256);
     let lock = |mode| fs::set_permissions(&folder, fs::Permissions::from_mode(mode));
     lock(0o555).expect("read-only folder");
-    let (previews, report) = stage_scene(&dir, &scene(material));
+    let astc = vec![BlockFormat::Bc7, BlockFormat::Astc];
+    let (previews, report) = stage_scene_in(&dir, &scene(material), astc);
     lock(0o755).expect("folder given back");
-    assert_eq!(previews[0].baked_levels, 2, "the PNG levels were there");
-    assert_eq!(previews[0].layouts, [None; 3]);
-    assert!(previews[0].blocks[0].is_empty());
-    assert_eq!(report["encoded"]["bc7"]["rgba"], json!(0));
-    assert_eq!(report["encoded"]["bc7"]["lossless"], json!(1));
-    assert_eq!(report["encoded"]["bc7"]["keptPsnrDb"], Value::Null);
+    assert_eq!(previews[0].baked_levels, 2, "the BC levels were there");
+    assert_eq!(previews[0].layouts, [Some(Layout::Rgba), None, None]);
+    assert!(previews[0].blocks[1].is_empty());
+    assert_eq!(report["encoded"]["astc"]["rgba"], json!(0));
+    assert_eq!(report["encoded"]["astc"]["lossless"], json!(1));
+    assert_eq!(report["encoded"]["astc"]["keptPsnrDb"], Value::Null);
     assert_eq!(report["lossless"][0]["sha256"], json!(previews[0].sha256));
     assert_eq!(report["notes"]["texture-level-write-failed"], json!(1));
 }

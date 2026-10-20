@@ -13,8 +13,7 @@
 //! Only opaque surfaces without an alpha mask take part. Transparent and masked surfaces keep the
 //! order they already had, and a surface that shares its plane with nobody keeps layer 0, which is
 //! the untouched draw.
-use crate::compiler_accessor_create::accessor;
-use crate::compiler_materials::unsplit_material;
+use crate::compiler_materials::{transmissive_material, AlphaMode};
 use crate::compiler_validate::{item, required_index, values};
 use crate::Result;
 use serde_json::{json, Value};
@@ -125,16 +124,17 @@ pub fn offset_quantum(primitives: &[Value]) -> f64 {
     }
 }
 
-/// Stacks the coplanar opaque surfaces of a scene and hands back one layer per cluster.
+/// Stacks the coplanar opaque surfaces of a scene and hands back one layer per cluster. `world`
+/// is every node's transform, computed once for the job (`proxy::placement::Placement`): both
+/// passes read it.
 pub fn assign_depth_layers(
     inputs: &CoplanarInputs<'_>,
     bounds: &CoplanarBounds,
+    world: &[crate::compiler_world::Mat4],
 ) -> Result<CoplanarResult> {
     let mut counts = Counts::default();
-    // World matrices serve both passes: single construction for whole step.
-    let world = crate::compiler_world::world_matrices(inputs.g)?;
-    let surfaces = surface::collect(inputs, bounds, &mut counts.dropped_planes, &world)?;
-    let overlaps = pairs::find_overlaps(inputs, bounds, &surfaces, &mut counts, &world)?;
+    let surfaces = surface::collect(inputs, bounds, &mut counts.dropped_planes, world)?;
+    let overlaps = pairs::find_overlaps(inputs, bounds, &surfaces, &mut counts, world)?;
     let (assigned, overflow) = assign::layers(&surfaces, &overlaps, COPLANAR_MAX_LAYER);
     counts.layer_overflow = overflow;
     let mut layers: Vec<Vec<u32>> = inputs

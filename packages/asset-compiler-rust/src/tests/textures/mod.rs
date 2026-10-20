@@ -6,5 +6,5 @@ pub(in crate::tests) mod ktx2_golden;
 pub(in crate::tests) mod obj_texture_cache;
 pub(in crate::tests) mod previews_golden;
 pub(in crate::tests) mod previews_import;
-pub(in crate::tests) mod previews_source;
+pub(crate) mod previews_source;
 pub(in crate::tests) mod psd_golden;

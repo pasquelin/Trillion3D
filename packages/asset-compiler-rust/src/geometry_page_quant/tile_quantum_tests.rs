@@ -2,13 +2,13 @@
 //! quantizes under the display quantum, and a kilometre terrain takes the finest grid its root
 //! page fits.
 
-use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
+use crate::dag::{build_dag, DagAttributes, DagStrategy};
 use crate::geometry_page_quant::primitive_exponent;
 use crate::tests::fixtures::grid_indices;
 use crate::tests::random::Xorshift;
-use trillion3d_page_codec::bits::grid::finest_exponent;
 use trillion3d_page_codec::bits::grid::TILE_EXTENT_LOG2;
 use trillion3d_page_codec::bits::grid::UV_EXPONENT;
+use trillion3d_page_codec::bits::grid::{finest_exponent, positions_extent};
 use trillion3d_page_codec::encode::encode;
 
 /// A terrain of `quads × quads` cells over `size` metres, its relief drawn from the seed.
@@ -60,35 +60,44 @@ fn a_hall_seen_from_a_metre_quantizes_under_the_display_quantum() {
 
 #[test]
 fn a_kilometre_terrain_takes_the_finest_grid_its_root_page_fits() {
-    let (positions, indices) = terrain(1024.0, 128);
-    let (dag, ..) = build_dag_tallied(
-        &positions,
+    let (source, indices) = terrain(1024.0, 128);
+    let built = build_dag(
+        &source,
         DagAttributes { carried: &[] },
         &indices,
         DagStrategy::QemEndpoints,
         &|| Ok(()),
     )
     .expect("dag");
+    let (dag, grown) = (built.clusters, built.grown);
+    // The clusters index the source's vertices, then those the reductions placed, where their
+    // quadrics put them — on the terrain's edge, a hair past the kilometre it spans.
+    let positions = grown.as_ref().map_or(&source[..], |g| &g.positions[..]);
     let errors = || dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error);
-    let exponent = primitive_exponent(&positions, errors(), false, TILE_EXTENT_LOG2);
-    // The tile asks 2^-15; the root page spans the kilometre, 2^23 steps of 2^-13 at most.
-    assert_eq!(exponent, finest_exponent(1024.0));
-    assert_eq!(exponent, -13);
-    let before = primitive_exponent(&positions, errors(), false, i32::MAX);
+    let exponent = primitive_exponent(positions, errors(), false, TILE_EXTENT_LOG2);
+    // The tile asks 2^-15; the root page spans every vertex, 2^23 steps at most: 2^-13 for the
+    // kilometre itself, 2^-12 once a placed vertex lies past it.
+    assert_eq!(exponent, finest_exponent(positions_extent(positions)));
+    assert!((-13..=-12).contains(&exponent), "{exponent}");
+    let before = primitive_exponent(positions, errors(), false, i32::MAX);
     let worst = |grid| {
         dag.iter()
             .map(|cluster| {
-                let page = encode(&cluster.indices, &positions, &[], grid, UV_EXPONENT);
+                let page = encode(&cluster.indices, positions, &[], grid, UV_EXPONENT);
                 f64::from(page.expect("every page fits").header.quantization_error)
             })
             .fold(0.0, f64::max)
     };
     let (tiled, untiled) = (worst(exponent), worst(before));
+    // A placed vertex lies anywhere between the grid's points: the worst is half a step on each
+    // axis, the step's half diagonal, under the display quantum from 2.3 m on 2^-13 and from
+    // 4.6 m on 2^-12 (`quantum`).
+    let half_diagonal = 3f64.sqrt() * 2f64.powi(exponent - 1);
     assert!(
-        tiled < quantum(2.0),
-        "tiled: {tiled} against {}",
-        quantum(2.0)
+        tiled <= half_diagonal * (1.0 + 1e-6),
+        "tiled: {tiled} against {half_diagonal}"
     );
+    assert!(tiled < untiled, "tiled: {tiled} against {untiled}");
     assert!(
         untiled > quantum(2.0),
         "untiled was an image loss: {untiled} against {}",

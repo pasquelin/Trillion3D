@@ -2,40 +2,45 @@
 //! index, written before the scene tables whose region pages name them.
 use super::*;
 use crate::compiler_tables::partition::split::halving;
-use std::{cell::RefCell, ops::Range};
+use std::cell::RefCell;
 
 /// What a run reports of each primitive — how many of its pages it found already built — rather
 /// than what it built: no page keeps it, so a cold and a warm compile write the same bytes;
 /// the run's result and its pointer carry it.
 pub(crate) const RUN_REPORT: &str = "reusedPages";
 
-/// The metrics a run's settings decide — its threads, its RAM budget, the working set it admitted
-/// and the waves it cut from them — which change how fast and in how much memory it compiles,
-/// never what it writes.
-const RUN_SETTINGS: [&str; 4] = [
+/// The metrics a run's settings decide — its threads, its RAM budget, the working set it admitted,
+/// the jobs its room made wait, the cores its HLOD kept busy and its estimates over its memory —,
+/// which change how fast and in how much memory it compiles, never what it writes.
+const RUN_SETTINGS: [&str; 6] = [
     "threads",
     "ramBudgetMb",
     "admissionEstimatedBytes",
-    "compileWaves",
+    "compileWaited",
+    "hlodParallelism",
+    "hlodEstimateOverPeak",
+];
+
+/// The HLOD shells' triangles after each step and the most one actor holds, per layer:
+/// diagnostics of the run, never what the head describes.
+const HLOD_STAGES: [&str; 7] = [
+    "hlodSolidTriangles",
+    "hlodClosedTriangles",
+    "hlodFastTriangles",
+    "hlodFirstPassTriangles",
+    "hlodToleranceTriangles",
+    "hlodFailedStageTriangles",
+    "hlodMaxActorTriangles",
 ];
 
 /// Whether the metric `name` is what a run measured of itself — a time, its memory peak,
 /// its settings — rather than what it built: the head leaves it to the run's result and
 /// pointer.
 pub(super) fn is_run_measure(name: &str) -> bool {
-    name.ends_with("Ms") || name == "peakRssBytes" || RUN_SETTINGS.contains(&name)
-}
-
-/// `page` without the run's report of its primitives.
-pub(super) fn without_run_report(mut page: Value) -> Value {
-    for primitive in page[MANIFEST_PAGES.records]
-        .as_array_mut()
-        .into_iter()
-        .flatten()
-    {
-        primitive.as_object_mut().map(|p| p.remove(RUN_REPORT));
-    }
-    page
+    name.ends_with("Ms")
+        || name == "peakRssBytes"
+        || RUN_SETTINGS.contains(&name)
+        || HLOD_STAGES.contains(&name)
 }
 
 /// The mesh pages of a compile, written before the tables whose region pages name them.
@@ -49,23 +54,31 @@ pub(crate) struct MeshPages {
 }
 
 /// Writes `primitives` in order as mesh pages in `directory`, cut through the pager: a region page
-/// is one primitive, or primitives whose page fits `PAGE_BYTES`, each with its own sidecar.
-pub(crate) fn write_mesh_pages(primitives: &[Value], directory: &Path) -> Result<MeshPages> {
+/// is one primitive, or primitives whose page fits `PAGE_BYTES`, each with its own sidecar, a
+/// bundle naming its container by its rank among the `file_count` geometry files. The columns are encoded
+/// once, each page cut from them; the head alone lists the files, which every page reads.
+pub(crate) fn write_mesh_pages(
+    primitives: &[Value],
+    file_count: usize,
+    directory: &Path,
+) -> Result<MeshPages> {
     let kind = &MANIFEST_PAGES;
-    let whole = without_run_report(columns(&Map::new(), primitives, &TEMPLATES, &[])?.0);
-    let slim = whole[kind.records]
-        .as_array()
-        .map_or(&[][..], Vec::as_slice);
+    let mut encoded = Encoded::new(primitives, file_count)?;
+    for primitive in &mut encoded.slim {
+        primitive.as_object_mut().map(|p| p.remove(RUN_REPORT));
+    }
+    let top = Map::new();
     let kept = RefCell::new(BTreeSet::new());
-    let leaf = |range: Range<usize>, written: bool| {
-        let place = written.then_some(directory);
-        let (page, sha256) = columned(&Map::new(), &primitives[range], &[], place)?;
-        if written {
-            kept.borrow_mut().insert(sha256);
+    let leaf = |range: Range<usize>, measured: Option<Value>| match measured {
+        None => columned(&top, (&encoded, range), &[], None).map(|(page, _)| page),
+        Some(mut page) => {
+            let bytes = encoded.bytes(range, &[])?;
+            kept.borrow_mut()
+                .insert(seal(&mut page, &bytes, Some(directory))?);
+            Ok(page)
         }
-        Ok(page)
     };
-    let mut pager = Pager::new(kind, slim, None, directory, &leaf, None)?;
+    let mut pager = Pager::new(kind, &encoded.slim, None, directory, &leaf, None)?;
     let (slots, _) = pager.root(&halving(0..primitives.len()))?;
     let mut by_mesh = MeshSlots::new();
     for (records, slot) in pager.written {

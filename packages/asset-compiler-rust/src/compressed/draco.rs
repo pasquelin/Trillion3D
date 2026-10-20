@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_buffers::append_view;
 use crate::gltf_codes::UNSIGNED_INT;
 use draco_core::{DecodeLimits, DecoderBuffer, FaceIndex, Mesh, MeshDecoder};
 mod attributes;
@@ -140,20 +141,12 @@ fn append(
     let start = add(out.len(), crate::shared_math::pad_to_4(out.len()))?;
     let end = add(start, bytes.len())?;
     budget.admit(add(end, bytes.len())?)?;
-    out.try_reserve_exact(end - out.len()).map_err(|_| {
-        CompilerError::new(
-            "RAM_ADMISSION_BUDGET_EXCEEDED",
-            "Draco accessor allocation failed",
-        )
-    })?;
-    out.resize(start, 0);
-    out.extend_from_slice(bytes);
+    reserve_more(out, end - out.len(), "Draco accessor allocation failed")?;
     let views = g["bufferViews"]
         .as_array_mut()
         .ok_or_else(|| invalid("bufferViews array is required"))?;
-    accessor["bufferView"] = json!(views.len());
+    accessor["bufferView"] = json!(append_view(out, views, bytes, None));
     accessor["byteOffset"] = json!(0);
-    views.push(json!({"buffer":0,"byteOffset":start,"byteLength":bytes.len()}));
     let accessors = g["accessors"]
         .as_array_mut()
         .ok_or_else(|| invalid("accessors array is required"))?;

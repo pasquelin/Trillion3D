@@ -2,11 +2,11 @@
 //! `dds` and `ktx2` drivers already trust (`texture2ddecoder`), which shares no
 //! line with them: the quality gate reads the blocks back through it, so the
 //! loss it publishes is the loss a graphics card will show, never the writer's
-//! own idea of it. A two-channel level comes back with X in R and Y in G
+//! own idea of it. Blocks are read one at a time, on the stack, each by its
+//! format's block decoder. A two-channel level comes back with X in R and Y in G
 //! whichever the family — BC5 and EAC RG11 lay them there, the luminance-alpha
 //! block puts Y in A and it is moved — with Z rebuilt as the shader rebuilds it.
 use super::{BlockFormat, Layout, BLOCK_BYTES};
-use crate::plugins::image::blocks::to_rgba8;
 
 /// Z of a unit normal from its X and Y, in bytes as the map holds them.
 pub fn rebuilt_z(x: u8, y: u8) -> u8 {
@@ -16,7 +16,9 @@ pub fn rebuilt_z(x: u8, y: u8) -> u8 {
     ((z + 1.0) * 127.5).round().clamp(0.0, 255.0) as u8
 }
 
-/// RGBA8 texels of one level's blocks, or the decoder's refusal on short bytes.
+/// RGBA8 texels of one level's blocks, row-major, block by block (`decode_block`), or a refusal
+/// on short bytes.
+#[cfg(test)]
 pub fn decode_level(
     blocks: &[u8],
     width: u32,
@@ -24,64 +26,78 @@ pub fn decode_level(
     format: BlockFormat,
     layout: Layout,
 ) -> Result<Vec<u8>, &'static str> {
-    let decoder = match (format, layout) {
-        (BlockFormat::Bc7, Layout::TwoChannel) => texture2ddecoder::decode_bc5,
-        (BlockFormat::Bc7, Layout::Rgba) => texture2ddecoder::decode_bc7,
-        (BlockFormat::Astc, _) => texture2ddecoder::decode_astc_4_4,
-        (BlockFormat::Etc2, Layout::Rgba) => texture2ddecoder::decode_etc2_rgba8,
-        (BlockFormat::Etc2, Layout::TwoChannel) => decode_eac_rg,
-    };
-    let mut rgba = to_rgba8(
-        decoder,
-        BLOCK_BYTES,
-        blocks,
-        width as usize,
-        height as usize,
-        "truncated",
-    )?;
-    if layout == Layout::TwoChannel {
-        for texel in rgba.chunks_mut(4) {
-            if format == BlockFormat::Astc {
-                texel[1] = texel[3];
+    let (width, height) = (width as usize, height as usize);
+    let across = width.div_ceil(4);
+    let blocks = blocks.as_chunks::<BLOCK_BYTES>().0;
+    if blocks.len() < across * height.div_ceil(4) {
+        return Err("truncated");
+    }
+    let mut rgba = vec![0u8; width * height * 4];
+    for (index, block) in blocks.iter().enumerate().take(across * height.div_ceil(4)) {
+        let back = decode_block(block, format, layout);
+        let (bx, by) = (index % across * 4, index / across * 4);
+        for texel in 0..16 {
+            let (x, y) = (bx + texel % 4, by + texel / 4);
+            if x < width && y < height {
+                let at = (y * width + x) * 4;
+                rgba[at..at + 4].copy_from_slice(&back[texel * 4..texel * 4 + 4]);
             }
-            texel[2] = rebuilt_z(texel[0], texel[1]);
-            texel[3] = 255;
         }
     }
     Ok(rgba)
 }
 
-/// An EAC RG11 surface, X in R and Y in G, each half through the decoder's ETC2
-/// alpha block, which shares its fields — `texture2ddecoder`'s own RG11 reader
-/// takes the index bits in the wrong byte order. An R11 channel whose
-/// multiplier is not 0, the only kind `eac.rs` writes, is that block's byte
-/// times eight plus four, clamped to 2047, which the card's unorm read returns
-/// to the same byte: `(8b + 4) / 2047 × 255` lies within half a level of `b`.
-fn decode_eac_rg(
-    blocks: &[u8],
-    width: usize,
-    height: usize,
-    image: &mut [u32],
-) -> Result<(), &'static str> {
-    let across = width.div_ceil(4);
-    if blocks.len() < across * height.div_ceil(4) * BLOCK_BYTES || image.len() < width * height {
-        return Err("truncated");
+/// The sixteen RGBA8 texels of one block, row-major, edge texels included, on the stack.
+pub fn decode_block(block: &[u8; BLOCK_BYTES], format: BlockFormat, layout: Layout) -> [u8; 64] {
+    use texture2ddecoder::{
+        decode_astc_block, decode_bc5_block, decode_bc7_block, decode_etc2_rgba8_block,
+    };
+    // Each block decoder starts from the buffer the crate's level decoder hands it: opaque black,
+    // ASTC's zero.
+    let start = match format {
+        BlockFormat::Astc => 0,
+        _ => u32::from_le_bytes([0, 0, 0, 255]),
+    };
+    let mut words = [start; 16];
+    match (format, layout) {
+        (BlockFormat::Bc7, Layout::TwoChannel) => decode_bc5_block(block, &mut words),
+        (BlockFormat::Bc7, Layout::Rgba) => decode_bc7_block(block, &mut words),
+        (BlockFormat::Astc, _) => decode_astc_block(block, 4, 4, &mut words),
+        (BlockFormat::Etc2, Layout::Rgba) => decode_etc2_rgba8_block(block, &mut words),
+        (BlockFormat::Etc2, Layout::TwoChannel) => eac_rg_block(block, &mut words),
     }
-    for (index, block) in blocks.as_chunks::<BLOCK_BYTES>().0.iter().enumerate() {
-        let (bx, by) = (index % across * 4, index / across * 4);
-        if by >= height {
-            break;
-        }
-        let [mut x, mut y] = [[0u32; 16]; 2];
-        texture2ddecoder::decode_etc2_a8_block(&block[..8], &mut x);
-        texture2ddecoder::decode_etc2_a8_block(&block[8..], &mut y);
-        let channel = |word: &u32| word.to_le_bytes()[3];
-        for (texel, (x, y)) in x.iter().zip(&y).enumerate() {
-            let (px, py) = (bx + texel % 4, by + texel / 4);
-            if px < width && py < height {
-                image[py * width + px] = u32::from_le_bytes([0, channel(y), channel(x), 255]);
-            }
+    let mut rgba = [0u8; 64];
+    for (texel, word) in rgba.as_chunks_mut::<4>().0.iter_mut().zip(words) {
+        let [b, g, r, a] = word.to_le_bytes();
+        *texel = [r, g, b, a];
+        if layout == Layout::TwoChannel {
+            two_channel(texel, format);
         }
     }
-    Ok(())
+    rgba
+}
+
+/// A two-channel texel as the shader reads it: X in R, Y in G — moved from A out of a
+/// luminance-alpha block —, Z rebuilt, opaque.
+fn two_channel(texel: &mut [u8; 4], format: BlockFormat) {
+    if format == BlockFormat::Astc {
+        texel[1] = texel[3];
+    }
+    texel[2] = rebuilt_z(texel[0], texel[1]);
+    texel[3] = 255;
+}
+
+/// One EAC RG11 block as BGRA words, X in R and Y in G, each half through the decoder's ETC2
+/// alpha block, which shares its fields — `texture2ddecoder`'s own RG11 reader takes the index
+/// bits in the wrong byte order. An R11 channel whose multiplier is not 0, the only kind `eac.rs`
+/// writes, is that block's byte times eight plus four, clamped to 2047, which the card's unorm
+/// read returns to the same byte: `(8b + 4) / 2047 × 255` lies within half a level of `b`.
+fn eac_rg_block(block: &[u8], words: &mut [u32; 16]) {
+    let [mut x, mut y] = [[0u32; 16]; 2];
+    texture2ddecoder::decode_etc2_a8_block(&block[..8], &mut x);
+    texture2ddecoder::decode_etc2_a8_block(&block[8..], &mut y);
+    let channel = |word: &u32| word.to_le_bytes()[3];
+    for (word, (x, y)) in words.iter_mut().zip(x.iter().zip(&y)) {
+        *word = u32::from_le_bytes([0, channel(y), channel(x), 255]);
+    }
 }

@@ -1,6 +1,13 @@
 //! A ray crossing an axis-aligned box (`aabb.rs`), by the slab test: what the compiler's CPU tracer
 //! (`asset-compiler-rust/src/proxy/tracer.rs`) tests each tree node with.
 
+/// The reciprocal of the direction `ray`, axis by axis, a component nearer zero than `1e-20` held
+/// at `1e-20`: the `inverse` the slab test reads.
+#[inline]
+pub fn inverse(ray: [f64; 3]) -> [f64; 3] {
+    ray.map(|d| 1.0 / if d.abs() < 1e-20 { 1e-20 } else { d })
+}
+
 /// Whether the ray from `origin`, its direction's reciprocal `inverse`, crosses the box `[low,
 /// high]` between 0 and `limit`: the slab test, axis by axis in axis order, each side's distance
 /// `(bound − origin) · inverse`, the entry raised from 0 by `f64::max` of the nearer and the exit

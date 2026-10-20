@@ -151,7 +151,8 @@ fn flatten(key: Vec<String>, value: Value, into: &mut Vec<(Vec<String>, String)>
 }
 
 /// The `path` of every dependency `manifest` links into the build — those of `[dependencies]` and
-/// `[build-dependencies]`, of a target's too, never of `[dev-dependencies]` —, as written:
+/// `[build-dependencies]`, of a target's too, and a `[patch.<registry>]` crate that replaces one,
+/// never of `[dev-dependencies]` —, as written:
 /// `name = { path = "…" }` on one line or several, `name.path = "…"`, or `path = "…"` in a
 /// `[dependencies.name]` table.
 pub fn dependency_paths(manifest: &str) -> Vec<String> {
@@ -186,6 +187,7 @@ pub fn dependency_paths(manifest: &str) -> Vec<String> {
     strings
         .into_iter()
         .filter(|(key, _)| match key.as_slice() {
+            [patch, _, _, last] if patch == "patch" => last == "path",
             [scope @ .., kind, _, last] => {
                 last == "path"
                     && linked.contains(&kind.as_str())

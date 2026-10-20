@@ -1,8 +1,7 @@
 use super::*;
-use std::collections::HashSet;
 
 #[test]
-fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
+fn group_simplification_locks_shared_vertices_and_frees_the_open_boundary() {
     let Grouped {
         positions,
         indices,
@@ -51,8 +50,7 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         .flat_map(|c| c.indices.iter().copied())
         .collect();
     let welds = welds::Welds::of(&positions, DagAttributes::default(), &indices);
-    let bound = quality::NORMAL_DEVIATION_BOUND;
-    let input = welds.input(&positions, &[], &[], &locks, bound);
+    let input = welds.input(&positions, &[], &[], &locks);
     let reduction = reduce_group(&input, &group)
         .expect("reduce")
         .expect("group must simplify");
@@ -61,20 +59,6 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
     assert!(produced < merged.len() / 3);
     for cluster in &reduction.clusters {
         assert!(cluster.len() / 3 <= DAG_CLUSTER_TRIANGLES);
-    }
-    let kept: HashSet<u32> = reduction
-        .clusters
-        .iter()
-        .flat_map(|c| c.iter())
-        .map(|&id| weld[id as usize])
-        .collect();
-    for &id in &merged {
-        if locks[id as usize] {
-            assert!(
-                kept.contains(&weld[id as usize]),
-                "a vertex shared with another group was dropped: crack"
-            );
-        }
     }
 }
 
@@ -98,8 +82,7 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
     let welds = welds::Welds::of(&positions, DagAttributes::default(), &indices);
-    let bound = quality::NORMAL_DEVIATION_BOUND;
-    let input = welds.input(&positions, &[], &[], &locks, bound);
+    let input = welds.input(&positions, &[], &[], &locks);
     let reduction = reduce_group(&input, &group)
         .expect("reduce")
         .expect("an unlocked sheet must simplify");

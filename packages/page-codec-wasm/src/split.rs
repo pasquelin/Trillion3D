@@ -1,12 +1,21 @@
 //! THE MEDIAN SPLIT of a group of ids by their centres, on the axis of least cost, one for every
-//! tree built over boxed things: the culling hierarchy (`culling.rs`), the triangle clusters
-//! (`clusters/spatial.rs`), the proxy's BVH (`proxy/bvh.rs`), the DAG's groups
-//! (`asset-compiler-rust/src/dag/groups.rs`) and the world's cells
+//! tree built over boxed things: the culling hierarchy (`culling.rs`), the proxy's BVH
+//! (`proxy/bvh.rs`) and the world's cells
 //! (`asset-compiler-rust/src/compiler_tables/partition/split.rs`).
 //! A split is a selection, linear in the group, never a sort; a caller that reads a half in order
 //! sorts it (`sort_along`). Ties break by identifier, so a tree is the same on every build.
-use trillion3d_math::aabb::aabb_of_boxes;
+use trillion3d_math::aabb::{aabb_of, aabb_of_boxes};
+use trillion3d_math::triangle::centroid;
 use trillion3d_math::vecn::distance2;
+
+/// Triangle centroids and boxes (`centres_and_boxes`).
+pub type Boxed = (Vec<[f64; 3]>, Vec<([f64; 3], [f64; 3])>);
+
+/// Each triangle's centroid and box, of its three corners: what the median splits, and what its
+/// cost weighs.
+pub fn centres_and_boxes(triangles: impl Iterator<Item = [[f64; 3]; 3]>) -> Boxed {
+    triangles.map(|t| (centroid(t), aabb_of(t))).unzip()
+}
 
 /// The order of two ids by their centres' coordinate on `axis` (`total_cmp`, so NaN has a place),
 /// then by identifier: two coincident centres keep the same order from build to build.
@@ -31,12 +40,21 @@ pub fn sort_along(slice: &mut [usize], centres: &[[f64; 3]], axis: usize) {
     slice.sort_unstable_by(along(centres, axis));
 }
 
-/// Splits `slice` at rank `at` on the axis of the least cost, of the three: each side's count times
-/// the squared diagonal of its boxes (`bounds` of an id; `distance2` of the corners). A side's
-/// squared diagonal is the square of the sphere every cull and every shadow page draws it with, so
-/// the cost is what a view pays to test what lies below; on a flat patch, where a surface ties on
-/// both axes, it still cuts the long side first, so the sides stay square. Each axis costs one
-/// selection and one pass over the boxes, so a split stays linear. Returns that axis.
+/// The cost of a split into two sides, each a count and the box of its members: each side's count
+/// times the squared diagonal of its box, summed left then right.
+pub fn split_cost(
+    (left, (low, high)): (usize, ([f64; 3], [f64; 3])),
+    (right, (low1, high1)): (usize, ([f64; 3], [f64; 3])),
+) -> f64 {
+    left as f64 * distance2(high, low) + right as f64 * distance2(high1, low1)
+}
+
+/// Splits `slice` at rank `at` on the axis of the least cost, of the three (`split_cost`, over the
+/// boxes `bounds` gives each id). A side's squared diagonal is the square of the sphere every cull
+/// and every shadow page draws it with, so the cost is what a view pays to test what lies below; on
+/// a flat patch, where a surface ties on both axes, it still cuts the long side first, so the sides
+/// stay square. Each axis costs one selection and one pass over the boxes, so a split stays linear.
+/// Returns that axis.
 pub fn bisect_least_cost(
     slice: &mut [usize],
     centres: &[[f64; 3]],
@@ -47,10 +65,10 @@ pub fn bisect_least_cost(
     let mut best: Option<(f64, usize)> = None;
     for axis in 0..3 {
         select_at(slice, centres, axis, at);
-        let (low, high) = boxes(&slice[..at]);
-        let (low1, high1) = boxes(&slice[at..]);
-        let (left, right) = (at as f64, (slice.len() - at) as f64);
-        let cost = left * distance2(high, low) + right * distance2(high1, low1);
+        let cost = split_cost(
+            (at, boxes(&slice[..at])),
+            (slice.len() - at, boxes(&slice[at..])),
+        );
         if best.is_none_or(|(least, _)| cost < least) {
             best = Some((cost, axis));
         }

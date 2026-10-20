@@ -138,3 +138,10 @@ fn longest_edge_is_the_longest_side_of_the_corners_named() {
     assert_eq!(longest_edge(&positions, &[0, 1, 2]), 5.0);
     assert_eq!(longest_edge(&positions, &[2, 0, 2]), 4.0);
 }
+
+#[test]
+fn centroid_is_the_mean_of_the_corners_axis_by_axis() {
+    let corners = [[0.0, 3.0, -0.0], [3.0, 0.0, -0.0], [0.0, 0.0, -0.0]];
+    assert_eq!(centroid(corners), [1.0, 1.0, -0.0]);
+    assert!(centroid(corners)[2].is_sign_negative());
+}

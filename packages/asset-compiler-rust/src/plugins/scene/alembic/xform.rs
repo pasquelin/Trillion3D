@@ -71,8 +71,3 @@ pub(super) fn matrix(ops: &[u8], values: &[f64]) -> Result<Mat4> {
     }
     Ok(out)
 }
-
-/// Is the matrix usable as a node's transform?
-pub(super) fn is_finite(matrix: &Mat4) -> bool {
-    matrix.iter().all(|value| value.is_finite())
-}

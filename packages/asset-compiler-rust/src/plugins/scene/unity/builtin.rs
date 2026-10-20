@@ -73,9 +73,6 @@ fn cube(material: Option<usize>, scene: &mut SceneTables) -> usize {
             .extend_from_slice(&[first, first + 1, first + 2, first, first + 2, first + 3]);
     }
     let primitive = primitive(&cube, &mut scene.bin, &mut scene.accessors, material);
-    scene
-        .meshes
-        .push(json!({"name":"UnityBuiltinCube","primitives":[primitive]}));
-    scene.mesh_triangles.push(cube.indices.len() / 3);
-    scene.meshes.len() - 1
+    let mesh = json!({"name":"UnityBuiltinCube","primitives":[primitive]});
+    scene.mesh(mesh, cube.indices.len() / 3)
 }

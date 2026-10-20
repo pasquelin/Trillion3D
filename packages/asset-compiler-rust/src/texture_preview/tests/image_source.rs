@@ -8,7 +8,7 @@ fn inputs<'a>(
     g: &'a Value,
     bin: &'a [u8],
     image_root: &'a Path,
-    meshes: &'a BTreeSet<usize>,
+    used_materials: &'a BTreeSet<usize>,
     view_map: &'a BTreeMap<usize, usize>,
 ) -> PreviewInputs<'a> {
     PreviewInputs {
@@ -17,10 +17,11 @@ fn inputs<'a>(
         g,
         bin,
         image_root,
-        meshes,
+        used_materials,
         view_map,
         to_measure: &RIEN_A_MESURER,
         measurements: crate::cutout::MeasureCache::EMPTY,
+        image_shas: crate::texture_preview::source::ImageShas::EMPTY,
     }
 }
 
@@ -36,6 +37,7 @@ fn read_uri(dir: &Path, uri: &str) -> std::result::Result<(Vec<u8>, PreviewSourc
     crate::texture_preview::source::image_bytes(
         &inputs(&o, &g, &bin, dir, &meshes, &view_map),
         &json!({"uri": uri}),
+        |bytes, provenance| Ok((bytes.to_vec(), provenance)),
     )
 }
 
@@ -73,6 +75,7 @@ fn an_embedded_image_names_its_remapped_buffer_view() {
     let (bytes, provenance) = crate::texture_preview::source::image_bytes(
         &inputs(&o, &g, &bin, &dir, &meshes, &view_map),
         &image,
+        |bytes, provenance| Ok((bytes.to_vec(), provenance)),
     )
     .expect("read");
     assert_eq!(bytes, vec![2, 3, 4, 5]);

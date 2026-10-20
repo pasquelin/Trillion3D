@@ -31,7 +31,10 @@ pub(crate) fn write_pages(
     directory: &Path,
 ) -> Result<Value> {
     let kind = &CELL_PAGES;
-    let leaf = |cells: Range<usize>, _| {
+    let leaf = |cells: Range<usize>, measured: Option<Value>| {
+        if let Some(page) = measured {
+            return Ok(page);
+        }
         let first = cells.start;
         let records = &records[cells];
         let meshes = records

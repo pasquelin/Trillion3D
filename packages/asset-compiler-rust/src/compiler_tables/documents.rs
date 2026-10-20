@@ -39,12 +39,9 @@ fn accessors(g: &Value, views: usize) -> Result<Vec<Value>> {
         .iter()
         .map(|accessor| {
             let view = match accessor.get("bufferView") {
-                Some(view) => Some(required_index(Some(view), "accessor.bufferView")?),
+                Some(view) => Some(bounded(view, "accessor.bufferView", views)?),
                 None => None,
             };
-            if view.is_some_and(|view| view >= views) {
-                return Err(invalid("accessor.bufferView index is out of bounds"));
-            }
             let kind = accessor.get("type").and_then(Value::as_str).unwrap_or("");
             let component = accessor.get("componentType").and_then(Value::as_u64);
             if element_shape(kind).is_none()
@@ -77,10 +74,7 @@ fn semantics(
     };
     let mut out = serde_json::Map::new();
     for (semantic, id) in declared {
-        let id = required_index(Some(id), "primitive attribute")?;
-        if id >= accessors {
-            return Err(invalid("primitive attribute index is out of bounds"));
-        }
+        let id = bounded(id, "primitive attribute", accessors)?;
         out.insert(semantic.clone(), json!(id));
     }
     Ok(Some(out))
@@ -109,12 +103,9 @@ fn primitive(g: &Value, p: &Value, accessors: usize, surfaces: &mut Materials) -
         None => Value::Null,
     };
     let indices = match p.get("indices") {
-        Some(value) => Some(required_index(Some(value), "primitive.indices")?),
+        Some(value) => Some(bounded(value, "primitive.indices", accessors)?),
         None => None,
     };
-    if indices.is_some_and(|id| id >= accessors) {
-        return Err(invalid("primitive.indices index is out of bounds"));
-    }
     Ok(
         json!({"attributes":attributes,"targets":targets,"indices":indices,"material":surfaces.rank(g, p)?}),
     )
@@ -128,12 +119,9 @@ fn images(g: &Value, views: usize) -> Result<Vec<Value>> {
         .iter()
         .map(|image| {
             let view = match image.get("bufferView") {
-                Some(view) => Some(required_index(Some(view), "image.bufferView")?),
+                Some(view) => Some(bounded(view, "image.bufferView", views)?),
                 None => None,
             };
-            if view.is_some_and(|view| view >= views) {
-                return Err(invalid("image.bufferView index is out of bounds"));
-            }
             Ok(json!({
                 "name": image.get("name").and_then(Value::as_str).unwrap_or(""),
                 "uri": image.get("uri").cloned().unwrap_or(Value::Null),

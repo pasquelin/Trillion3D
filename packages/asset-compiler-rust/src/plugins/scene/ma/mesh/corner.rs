@@ -5,7 +5,7 @@
 //! share all three are one: it is that equality, never a rounding nor a distance, that decides
 //! what merges and what splits.
 use super::*;
-use crate::import::Vertices;
+use crate::import::Corner;
 use crate::plugins::scene::corners::gltf_uv;
 use trillion3d_math::vec3::normalized_or;
 
@@ -65,21 +65,5 @@ impl Surface {
                 uv,
             },
         ))
-    }
-}
-
-/// What the vertex of a corner carries.
-pub(super) struct Corner {
-    position: [f32; 3],
-    normal: [f32; 3],
-    uv: Option<[f32; 2]>,
-}
-
-impl Corner {
-    /// Pours the vertex.
-    pub(super) fn write(self, out: &mut Vertices) {
-        out.positions.extend(self.position);
-        out.normals.extend(self.normal);
-        out.uvs.extend(self.uv.into_iter().flatten());
     }
 }

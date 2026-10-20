@@ -46,6 +46,14 @@ pub(super) struct Surface {
     pub(super) plain: usize,
 }
 
+/// The section the header words at `offset_at` and `length_at` name, its offset then its length,
+/// bounded by the file length: `None` when it falls outside, never a read beside it.
+pub(super) fn section(bytes: &[u8], offset_at: usize, length_at: usize) -> Option<&[u8]> {
+    let word = |at: usize| usize::try_from(crate::le::u32_at(bytes, at)?).ok();
+    let (at, length) = (word(offset_at)?, word(length_at)?);
+    bytes.get(at..at.checked_add(length)?)
+}
+
 /// The sixty-four-bit word at this offset: the level index only counts in 64 bits.
 fn long(bytes: &[u8], at: usize) -> std::result::Result<usize, &'static str> {
     let long = crate::le::u64_at(bytes, at).ok_or(DATA_TRUNCATED)?;

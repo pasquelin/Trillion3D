@@ -4,11 +4,14 @@
 //! takes the ball of the unit face normals; it is the one smallest-ball solver, for points and for
 //! the ball of balls a DAG group and a culling node (`culling.rs`) enclose their children's with
 //! (`ball_of_balls`), exact by pivoting on its support (`through::basis`).
-use through::{basis, radius_for};
+use circumscribed::{circumscribed, diameter};
+use through::basis;
 use trillion3d_math::random::xorshift64;
-use trillion3d_math::vec3::{cross, point};
-use trillion3d_math::vecn::{add, dot, length, scale, sub};
+use trillion3d_math::sphere::farthest;
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{dot, length, sub};
 
+mod circumscribed;
 mod through;
 
 /// A ball as its centre and radius.
@@ -35,57 +38,6 @@ impl Held {
     }
 }
 
-/// The ball of which `a` and `b` are a diameter.
-fn diameter(a: [f64; 3], b: [f64; 3]) -> Ball {
-    let centre = scale(add(a, b), 0.5);
-    (centre, length(sub(a, centre)))
-}
-
-fn widest(balls: &[Ball]) -> Ball {
-    *balls
-        .iter()
-        .max_by(|x, y| x.1.total_cmp(&y.1))
-        .expect("candidates")
-}
-
-/// The smallest ball through the 3 or 4 points `p` (circumscribed), or, when they are
-/// degenerate (coincident, colinear or coplanar), the widest ball of a subset.
-fn circumscribed(p: &[[f64; 3]]) -> Ball {
-    match p.len() {
-        3 => {
-            let (ab, ac) = (sub(p[1], p[0]), sub(p[2], p[0]));
-            let n = cross(ab, ac);
-            let d = 2.0 * dot(n, n);
-            if d.abs() < 1e-300 {
-                return widest(&[
-                    diameter(p[0], p[1]),
-                    diameter(p[0], p[2]),
-                    diameter(p[1], p[2]),
-                ]);
-            }
-            let (t, u) = (cross(n, ab), cross(ac, n));
-            let k = [0, 1, 2].map(|i| (dot(ac, ac) * t[i] + dot(ab, ab) * u[i]) / d);
-            (add(p[0], k), length(k))
-        }
-        _ => {
-            let (u, v, w) = (sub(p[1], p[0]), sub(p[2], p[0]), sub(p[3], p[0]));
-            let det = 2.0 * dot(u, cross(v, w));
-            if det.abs() < 1e-300 {
-                return widest(&[
-                    circumscribed(&p[..3]),
-                    circumscribed(&[p[0], p[1], p[3]]),
-                    circumscribed(&[p[0], p[2], p[3]]),
-                    circumscribed(&p[1..]),
-                ]);
-            }
-            let (vw, wu, uv) = (cross(v, w), cross(w, u), cross(u, v));
-            let (uu, vv, ww) = (dot(u, u), dot(v, v), dot(w, w));
-            let k = [0, 1, 2].map(|i| (uu * vw[i] + vv * wu[i] + ww * uv[i]) / det);
-            (add(p[0], k), length(k))
-        }
-    }
-}
-
 /// Reorders `items` by a Fisher–Yates shuffle driven by a xorshift seeded with their count:
 /// the order the expected linear time needs, and the same order on every run.
 fn shuffle<T>(items: &mut [T]) {
@@ -95,11 +47,22 @@ fn shuffle<T>(items: &mut [T]) {
     }
 }
 
-/// The smallest ball enclosing `points`, which it shuffles, up to the rounding of its support
-/// points' circumscribed ball; `None` when there is none.
+/// The smallest ball enclosing `points`, which it reorders, up to the rounding of its support
+/// points' circumscribed ball; `None` when there is none. Coincident points are taken once: a
+/// repeated point in a support makes its circumscribed balls degenerate, and the construction
+/// then loses points it had enclosed.
 pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
-    shuffle(points);
-    let p = &*points;
+    points.sort_unstable_by_key(|p| p.map(f64::to_bits));
+    let mut kept = 0;
+    for at in 0..points.len() {
+        if kept == 0 || points[at] != points[kept - 1] {
+            points[kept] = points[at];
+            kept += 1;
+        }
+    }
+    let p = &mut points[..kept];
+    shuffle(p);
+    let p = &*p;
     let mut ball = Held::new((*p.first()?, 0.0));
     for i in 1..p.len() {
         if ball.contains(p[i]) {
@@ -132,18 +95,13 @@ pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
 /// inside by construction, not by the solver. No vertex, or one that is not a number, gives the
 /// zero sphere.
 pub fn point_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
-    let mut ids = indices.to_vec();
-    ids.sort_unstable();
-    ids.dedup();
-    // `min_ball` reorders the points; the radius re-measured below does not depend on their order.
-    let mut points: Vec<[f64; 3]> = ids.iter().map(|&v| point(positions, v)).collect();
+    // `min_ball` takes each point once and reorders them; the radius re-measured below depends on
+    // neither.
+    let mut points: Vec<[f64; 3]> = indices.iter().map(|&v| point(positions, v)).collect();
     let Some((c, _)) = min_ball(&mut points) else {
         return [0.0; 4];
     };
-    let radius = points
-        .iter()
-        .map(|&p| length(sub(p, c)))
-        .fold(0.0, f64::max);
+    let radius = farthest(c, points.iter().map(|&p| (p, 0.0)));
     if c.iter().all(|v| v.is_finite()) && radius.is_finite() {
         [c[0], c[1], c[2], radius]
     } else {
@@ -186,7 +144,7 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
         (support, ball) = basis(&support);
     }
     let c = [ball[0], ball[1], ball[2]];
-    let r = radius_for(c, &live);
+    let r = farthest(c, live.iter().map(|s| ([s[0], s[1], s[2]], s[3])));
     let magnitude = c[0].abs().max(c[1].abs()).max(c[2].abs()).max(r);
     [c[0], c[1], c[2], r + magnitude * CONTAINMENT_MARGIN]
 }

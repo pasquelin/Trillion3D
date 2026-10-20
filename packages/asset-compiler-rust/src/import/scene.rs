@@ -144,11 +144,7 @@ impl<'a> Importer<'a> {
                         &mut self.scene.report,
                         self.cancelled,
                     );
-                    let id = converted.map(|out| {
-                        self.scene.meshes.push(out.mesh);
-                        self.scene.mesh_triangles.push(out.triangles);
-                        self.scene.meshes.len() - 1
-                    });
+                    let id = converted.map(|out| self.scene.mesh(out.mesh, out.triangles));
                     mesh_ids.insert(key, id);
                     if i % 64 == 0 || i + 1 == node_total {
                         (self.progress)(

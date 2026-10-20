@@ -16,13 +16,12 @@ use serde_json::{json, Value};
 use std::{
     collections::HashMap,
     io::Write,
-    path::Path,
     sync::{atomic::AtomicBool, Arc, Mutex},
     time::Instant,
 };
 use trillion3d_compiler::{
-    compile, implementation_hash, parse_compiler_args, plugins, shared_math::elapsed_ms,
-    CompilerError, Options, COMPILER_VERSION, FORMAT_VERSION,
+    compile, implementation_hash, parse_compiler_args, plugins, scope_pointer,
+    shared_math::elapsed_ms, CompilerError, Options, COMPILER_VERSION, FORMAT_VERSION,
 };
 /// Per-thread heaps for the Rayon workers (`Cargo.toml`, `mimalloc`).
 #[global_allocator]
@@ -48,13 +47,16 @@ fn error_value(error: &CompilerError) -> Value {
 /// kept rather than written (`null` otherwise): the manifest on disk describes the product, not
 /// this run. `textureSkipped` and `textureNotes` count the texture stage's reasons by catalogue
 /// code, so a host summarises them without reading the manifest.
-fn pointer(result: &Value, cache: &Path) -> Value {
-    let scope = result["scope"].as_str().unwrap_or("");
+fn pointer(result: &Value, options: &Options) -> Value {
     let key = result["key"].as_str().unwrap_or("");
-    json!({"status":"ready","key":key,"scope":scope,"url":format!("{key}/{}", trillion3d_compiler::MANIFEST_FILE),"pointer":cache.join("native").join(scope).join(trillion3d_compiler::MANIFEST_POINTER).to_string_lossy(),"cache":cache.to_string_lossy(),
-  "formatVersion":result["formatVersion"],"compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
+    let format = result["formatVersion"].as_u64().unwrap_or(0) as u32;
+    let mut pointer = scope_pointer(key, &options.scope, format);
+    let report = json!({"pointer":options.pointer_path().to_string_lossy(),"cache":options.cache.to_string_lossy(),
+  "compilerVersion":result["compilerVersion"],"selectedTriangles":result["selectedTriangles"],"sourceTriangles":result["sourceTriangles"],"selectedNodes":result["selectedNodes"],"totalNodes":result["totalNodes"],"primitives":result["primitives"].as_array().map(|a|a.len()).unwrap_or(0),"simplification":result["simplification"],
   "metrics":result["metrics"],"reusedPages":result["reused"].is_null().then(||result["primitives"].as_array().map(|a|a.iter().filter_map(|p|p["reusedPages"].as_u64()).sum::<u64>())),
-  "unsupported":result["unsupported"],"textureSkipped":result["texturePreviews"]["skipped"],"textureNotes":result["texturePreviews"]["notes"],"reused":result["reused"]})
+  "unsupported":result["unsupported"],"textureSkipped":result["texturePreviews"]["skipped"],"textureNotes":result["texturePreviews"]["notes"],"reused":result["reused"]});
+    trillion3d_compiler::json::merge(&mut pointer, report);
+    pointer
 }
 
 fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
@@ -73,7 +75,7 @@ fn run_job(id: &str, options: &Options) -> Result<Value, CompilerError> {
     match result {
         Ok(result) => {
             cli_stalls::emit_worst(&result, id);
-            let pointer = pointer(&result, &options.cache);
+            let pointer = pointer(&result, options);
             emit(
                 json!({"event":"complete","ratio":1.0,"pointer":pointer,"ms":elapsed_ms(started)}),
                 id,

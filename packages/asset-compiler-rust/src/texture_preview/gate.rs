@@ -1,10 +1,12 @@
 //! What the quality gate decides for one chain: the sheet its readers hand it,
 //! the encode and read-back under `quality.rs`, the verdict kept for the next
 //! cook. A gate is per (image, atlas, family): every texture that reads the
-//! chain follows its verdict; `report.rs` says what the stage decided.
+//! chain follows its verdict; `report.rs` says what the stage decided. The
+//! stored family (`BlockFormat::STORED`) is measured the same way and always
+//! kept: a device that samples no other family decodes it.
 use super::bake_write::{write_levels, LEVEL_WRITE_FAILED};
-use super::blocks::quality::{encode_chain, Channels, Measure};
-use super::blocks::{encode_level, BlockFormat, Layout};
+use super::blocks::quality::{encode_chain, fast_chain, slow_chain, Channels, Measure};
+use super::blocks::{BlockFormat, Effort, Layout};
 use super::collect::{absorb, AtlasTexture};
 use super::coverage::Cut;
 use super::reduce::AtlasKind;
@@ -45,18 +47,44 @@ impl GateSheet {
             cutoffs,
         }
     }
+    /// The key a chain's level files and verdicts live under — the `{sha}` of the level template
+    /// —: the digest of its source's fingerprint `source`, of this sheet, whose channels and cuts
+    /// decide the bytes (the blocks searched again across a cut, `quality::encode_chain`), and of
+    /// every family's ladder in the sheet's layout with its encoder settings (`Effort::spelling`). Two
+    /// readings of one image under other sheets never share a file, nor two encodings; the atlas
+    /// and the layout are in its name.
+    pub fn key(&self, source: &str) -> String {
+        let channels: String = self
+            .channels
+            .iter()
+            .zip(['r', 'g', 'b', 'a'])
+            .filter_map(|(&read, name)| read.then_some(name))
+            .collect();
+        let cutoffs: String = self
+            .cutoffs
+            .iter()
+            .map(|&(c, f)| format!("-{c}x{f}"))
+            .collect();
+        let encodings: Vec<String> = BlockFormat::ALL
+            .iter()
+            .map(|&format| Effort::spelling(format, self.layout))
+            .collect();
+        let spelled = format!("{source}-{channels}{cutoffs}-{}", encodings.join(";"));
+        crate::hash(spelled.as_bytes())
+    }
 }
 
 /// What a chain came out of the gate as: kept, with the family's tail bytes;
-/// lossless; or not cooked at all, under a note.
+/// refused, not in the family; or not cooked at all, under a note.
 pub(super) enum Cooked {
     Kept(Vec<u8>),
-    Lossless,
+    Refused,
     Failed(&'static str),
 }
 
 /// One gate decision, as the report lists it.
-pub(super) struct Gate {
+pub(crate) struct Gate {
+    /// The chain's key (`GateSheet::key`).
     pub sha256: String,
     pub kind: AtlasKind,
     pub format: BlockFormat,
@@ -65,29 +93,34 @@ pub(super) struct Gate {
     pub measure: Measure,
     /// Whether the chain came out in the family's blocks: false when the gate
     /// refused it, and false too when the cook could not deliver it — a level
-    /// file that would not write — since the sidecar then says lossless.
+    /// file that would not write — since the sidecar then names no layout.
     pub kept: bool,
 }
 
 /// Encodes a chain in one family under its sheet, reads it back and decides:
-/// the family's tail bytes when the chain passes — its levels above the tail
-/// written as files, when missing —, nothing when it stays lossless. A verdict
-/// a previous cook left for the same chain and sheet is taken as read, only
-/// the tail is encoded again (`verdict.rs`). A level file that cannot be
-/// written leaves the family lossless too, under the note.
+/// the family's tail bytes when the chain passes, its levels above the tail
+/// written as files when missing; nothing when it is refused — never in the
+/// stored family, kept whatever it measures. A chain is encoded fast; one that fails the gate is
+/// encoded again slow while the family has a slower search (`Effort::ladder`), on top of its fast
+/// blocks (`quality::slow_chain`), and the slow chain is kept and measured. A verdict a previous
+/// cook left for the same chain and sheet is taken as read, only the tail of a kept chain is
+/// encoded again, at the verdict's effort (`verdict.rs`). A level file that
+/// cannot be written leaves the chain out of the family too, under the note.
+/// `files` false writes no level above the tail: the stored family kept no
+/// file, and the levels are the source image's.
 pub(super) fn cook_chain(
     o: &Options,
-    sha256: &str,
-    kind: AtlasKind,
+    (key, kind): (&str, AtlasKind),
     format: BlockFormat,
     sheet: &GateSheet,
-    levels: &[Vec<u8>],
+    levels: &[Cow<'_, [u8]>],
     (width, height): (u32, u32),
+    files: bool,
 ) -> (Gate, Cooked) {
     let sizes: Vec<(u32, u32)> = preview_level_sizes(width, height).collect();
     let gate = |measure, cooked: Cooked| {
         let gate = Gate {
-            sha256: sha256.to_string(),
+            sha256: key.to_string(),
             kind,
             format,
             layout: sheet.layout,
@@ -98,42 +131,67 @@ pub(super) fn cook_chain(
     };
     let file = format.file_name(sheet.layout);
     let first = preview_first_level(width, height) as usize;
+    let written_levels = if files { first as u32 } else { 0 };
     // A chain that fits in its tail is encoded whole either way: no verdict for it.
+    // The stored family is kept whatever it measures: a device that samples no other family
+    // decodes it, and its measure is reported. Any other family is kept only when it passes.
+    let refused = |measure: &Measure| format != BlockFormat::STORED && !measure.passes();
     let known = (first > 0)
-        .then(|| verdict::read(o, sha256, kind, file, sheet, first as u32))
+        .then(|| verdict::read(o, key, kind, file, written_levels, refused))
         .flatten();
-    let from = if known.is_some() { first } else { 0 };
-    let _t = perf::Timer::new(perf::Phase::TextureBake);
-    let (blocks, measured) = match encode_chain(
-        &levels[from..],
-        &sizes[from..],
-        format,
-        sheet.layout,
-        sheet.channels,
-        &sheet.cutoffs,
-    ) {
-        Ok(cooked) => cooked,
-        Err(note) => return gate(Measure::default(), Cooked::Failed(note)),
-    };
-    let measure = known.unwrap_or_else(|| {
-        if first > 0 {
-            verdict::write(o, sha256, kind, file, sheet, &measured);
-        }
-        measured
-    });
-    if !measure.passes() {
-        return gate(measure, Cooked::Lossless);
+    if let Some((measure, _)) = known.filter(|(measure, _)| refused(measure)) {
+        return gate(measure, Cooked::Refused);
     }
-    // A level the verdict vouched for and that vanished meanwhile is encoded on the spot;
-    // its file holds its tile records.
-    let written = write_levels(o, sha256, kind, (width, height), file, |level, (w, h)| {
-        let encoded = match level.checked_sub(from) {
-            Some(index) => Cow::Borrowed(blocks[index].as_slice()),
-            None => Cow::Owned(encode_level(&levels[level], w, h, format, sheet.layout)),
-        };
-        Ok(Cow::Owned(tile_records(&encoded, w, h)))
-    });
-    if written.is_err() {
+    let from = if known.is_some() { first } else { 0 };
+    let codec = (format, sheet.layout);
+    let (levels, sizes) = (&levels[from..], &sizes[from..]);
+    let _t = perf::Timer::new(perf::Phase::TextureBake);
+    let (blocks, measure) = match known {
+        Some((measure, effort)) => {
+            let (blocks, _) =
+                encode_chain(levels, sizes, codec, effort, sheet.channels, &sheet.cutoffs);
+            (blocks, measure)
+        }
+        None => {
+            let (mut blocks, mut measure) =
+                fast_chain(levels, sizes, codec, sheet.channels, &sheet.cutoffs);
+            let mut effort = Effort::Fast;
+            if !measure.passes() && Effort::ladder(format, sheet.layout).contains(&Effort::Slow) {
+                // The fast chain is dropped once the slow one, built on it, is measured.
+                (blocks, measure) = slow_chain(
+                    levels,
+                    sizes,
+                    codec,
+                    &blocks,
+                    sheet.channels,
+                    &sheet.cutoffs,
+                );
+                effort = Effort::Slow;
+            }
+            if first > 0 {
+                verdict::write(o, key, kind, file, (&measure, effort));
+            }
+            (blocks, measure)
+        }
+    };
+    if refused(&measure) {
+        return gate(measure, Cooked::Refused);
+    }
+    // A verdict read back has just seen every level file (`verdict::read`): none is looked for
+    // again. Otherwise each missing level is written from the chain just encoded; its file holds
+    // its tile records.
+    let written = known.is_some()
+        || write_levels(
+            o,
+            key,
+            kind,
+            (width, height),
+            file,
+            written_levels,
+            |level, (w, h)| Ok(tile_records(&blocks[level], w, h)),
+        )
+        .is_ok();
+    if !written {
         return gate(measure, Cooked::Failed(LEVEL_WRITE_FAILED));
     }
     gate(measure, Cooked::Kept(blocks[first - from..].concat()))

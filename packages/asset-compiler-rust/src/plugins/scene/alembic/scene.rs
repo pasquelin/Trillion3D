@@ -75,11 +75,9 @@ impl Scene {
                 material,
             ));
         }
-        self.tables
-            .meshes
-            .push(json!({"name": name, "primitives": primitives}));
-        self.tables.mesh_triangles.push(triangles);
-        let id = self.tables.meshes.len() - 1;
+        let id = self
+            .tables
+            .mesh(json!({"name": name, "primitives": primitives}), triangles);
         self.mesh_ids.insert(digest, id);
         id
     }

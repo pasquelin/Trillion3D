@@ -1,72 +1,83 @@
 use super::*;
 
 #[test]
-fn compile_dag_bundles_clusters_for_streaming_and_names_their_group() {
+fn compile_lays_every_page_in_a_bundle_of_a_geometry_file_and_names_its_group() {
     let (root, options) = grid_fixture_displaced(100, 100, 3.0);
     let result = compile(&options, |_| {}).expect("compile");
     let primitive = &result["primitives"][0];
-    let directory = options
-        .cache
-        .join("native/full")
-        .join(result["key"].as_str().expect("key"));
     let pages = primitive["pages"].as_array().expect("pages");
+    let files = result["geometryFiles"].as_array().expect("geometry files");
+    assert_eq!(files.len(), 1, "a 20 000 triangle grid fits one container");
+    let file_bytes = files[0]["bytes"].as_u64().expect("bytes") as usize;
     let streams = &primitive["streams"];
-    assert_eq!(streams["version"], STRUCTURE_VERSION);
     let bundles = streams["pages"].as_array().expect("bundles");
     assert!(
         bundles.len() > 1,
-        "a 20 000 triangle grid must need several bundles"
+        "a 20 000 triangle grid needs several bundles"
     );
     assert!(
-        bundles.len() * 30 < pages.len(),
-        "a bundle must carry dozens of clusters"
+        bundles.len() * 8 < pages.len(),
+        "a bundle carries many pages"
     );
     let pinned = streams["pinned"].as_u64().expect("pinned") as usize;
-    assert!(pinned >= 1 && pinned <= bundles.len());
-    // Every page sits in exactly one bundle, at the recorded offset, and bundles stay homogeneous.
-    let mut members: Vec<Vec<usize>> = vec![Vec::new(); bundles.len()];
-    for (id, page) in pages.iter().enumerate() {
-        let bundle = page["stream"].as_u64().expect("stream") as usize;
-        assert!(bundle < bundles.len());
-        members[bundle].push(id);
+    let at = |value: &Value, key: &str| value[key].as_u64().expect(key) as usize;
+    // The bundles tile the container, the pinned first; each holds its pages end to end, proven
+    // by its digest, each page decoding.
+    let mut tiles: Vec<(usize, usize)> = bundles
+        .iter()
+        .map(|b| (at(b, "offset"), at(b, "bytes")))
+        .collect();
+    tiles.sort();
+    let mut end = 0;
+    for &(offset, bytes) in &tiles {
+        assert_eq!(offset, end, "the bundles lie end to end");
+        end += bytes;
     }
-    assert_eq!(members.iter().map(Vec::len).sum::<usize>(), pages.len());
+    assert_eq!(end, file_bytes, "a container is exactly its bundles");
+    let pinned_end = bundles[..pinned]
+        .iter()
+        .map(|b| at(b, "offset") + at(b, "bytes"))
+        .max();
+    let rest_start = bundles[pinned..].iter().map(|b| at(b, "offset")).min();
+    assert!(pinned_end <= rest_start, "the pinned bundles lie first");
+    let container =
+        fs::read(object_path(&options, files[0]["sha256"].as_str().unwrap())).expect("container");
+    let mut members = vec![Vec::new(); bundles.len()];
+    for (id, page) in pages.iter().enumerate() {
+        members[at(page, "stream")].push(id);
+        let bytes = geometry_page(&options.cache, &result, primitive, page);
+        trillion3d_page_codec::decode(&bytes, usize::MAX).expect("a geometry page");
+    }
     for (index, bundle) in bundles.iter().enumerate() {
-        assert!(!members[index].is_empty());
-        let level = pages[members[index][0]]["level"].clone();
-        let is_root = pages[members[index][0]]["parentError"].is_null();
+        let bytes = &container[at(bundle, "offset")..at(bundle, "offset") + at(bundle, "bytes")];
+        assert_eq!(
+            hash(bytes),
+            bundle["sha256"].as_str().unwrap(),
+            "bundle {index}"
+        );
+        assert_eq!(at(bundle, "count"), members[index].len());
+        let covered: usize = members[index]
+            .iter()
+            .map(|&id| at(&pages[id]["geometry"], "bytes"))
+            .sum();
+        assert_eq!(covered, bytes.len(), "a bundle is exactly its pages");
         assert_eq!(
             index < pinned,
-            is_root,
-            "pinned bundles are exactly the ones holding the coarsest cover"
+            pages[members[index][0]]["parentError"].is_null(),
+            "the pinned bundles are the root cover"
         );
-        let payload =
-            fs::read(directory.join(bundle["url"].as_str().expect("bundle URL"))).expect("bundle");
-        assert_eq!(
-            payload.len() as u64,
-            bundle["bytes"].as_u64().expect("bytes")
-        );
-        assert_eq!(
-            bundle["count"].as_u64().expect("count") as usize,
-            members[index].len()
-        );
-        let mut covered = 0usize;
-        for &id in &members[index] {
-            assert_eq!(pages[id]["level"], level, "a bundle holds one level");
-            assert_eq!(pages[id]["parentError"].is_null(), is_root);
-            let offset = pages[id]["streamOffset"].as_u64().expect("offset") as usize;
-            let length = pages[id]["count"].as_u64().expect("count") as usize * 4;
-            let single = fs::read(directory.join(pages[id]["url"].as_str().expect("page URL")))
-                .expect("page");
-            assert_eq!(single.len(), length);
+    }
+    // A bundle never cuts the members of one group: they swap together.
+    let mut bundle_of_group = std::collections::BTreeMap::new();
+    for page in pages {
+        if let Some(group) = page["group"].as_u64() {
+            let bundle = at(page, "stream");
             assert_eq!(
-                &payload[offset..offset + length],
-                &single[..],
-                "a cluster must be readable at its offset in the bundle"
+                *bundle_of_group.entry(group).or_insert(bundle),
+                bundle,
+                "group {group}"
             );
-            covered += length;
         }
-        assert_eq!(covered, payload.len(), "a bundle is exactly its clusters");
     }
     // The structure links every cluster to the group that replaces it and lists the coarse cover.
     let structure = &primitive["structure"];
@@ -114,8 +125,7 @@ fn compile_dag_bundles_clusters_for_streaming_and_names_their_group() {
 fn compile_dag_covers_transparent_primitives_and_records_their_source_rank() {
     let (root, options) = grid_fixture_displaced(80, 80, 3.0);
     let gltf_path = options.source.join("grid.gltf");
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(&gltf_path).expect("read")).expect("json");
+    let mut gltf: Value = read_json(&gltf_path);
     let material = json!({"alphaMode":"BLEND","doubleSided":true,"pbrMetallicRoughness":{"baseColorFactor":[0.2,0.8,0.3,0.45]}});
     gltf["materials"] = json!([material.clone()]);
     gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
@@ -136,9 +146,7 @@ fn compile_dag_covers_transparent_primitives_and_records_their_source_rank() {
         .cache
         .join("native/full")
         .join(result["key"].as_str().expect("key"));
-    let source: Value =
-        serde_json::from_slice(&fs::read(directory.join("source.gltf")).expect("source"))
-            .expect("json");
+    let source: Value = read_json(&directory.join("source.gltf"));
     assert_eq!(source["materials"][0], material);
     let pages = primitive["pages"].as_array().expect("pages");
     let exact: Vec<&Value> = pages

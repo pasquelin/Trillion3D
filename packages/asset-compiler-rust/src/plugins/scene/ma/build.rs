@@ -33,13 +33,6 @@ pub(super) struct World<'a> {
     pub(super) cancelled: &'a AtomicBool,
 }
 
-impl World<'_> {
-    /// Counts a named refusal once.
-    pub(super) fn refuse(&mut self, reason: &str) {
-        self.scene.report.add(reason);
-    }
-}
-
 /// Fills the scene tables from the document.
 pub(super) fn scene(
     document: &Document,
@@ -87,11 +80,12 @@ pub(super) fn scene(
 
 /// glTF node of a `transform` and its descendants, or nothing when it carries no surface.
 fn visit(world: &mut World<'_>, node: usize, depth: usize) -> Option<usize> {
-    if world.cancelled.load(Ordering::Relaxed) {
-        return None;
-    }
+    crate::plugins::scene::cancel::going(world.cancelled)?;
     if depth > MAX_DEPTH {
-        world.refuse(crate::plugins::scene::codes::HIERARCHY_TOO_DEEP);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::HIERARCHY_TOO_DEEP);
         return None;
     }
     let document = world.document;

@@ -13,14 +13,6 @@ pub(super) struct Opacity<'m> {
     pub(super) texture: Option<&'m ufbx::MaterialMap>,
 }
 
-/// Classic FBX convention: `TransparentColor` is a *transparency* weighted by
-/// `TransparencyFactor`. Black, or a zero factor, is opaque; white and a full
-/// factor, invisible.
-pub(crate) fn opacity_from_transparency(color: [f64; 3], factor: f64) -> f64 {
-    let transparency = trillion3d_math::scalar::mean(color) * factor;
-    (1.0 - transparency).clamp(0.0, 1.0)
-}
-
 /// A map counts as declared as soon as it carries a value **or** a texture: a
 /// property with no value but a bound map is the common opacity-export case.
 fn declared(map: &ufbx::MaterialMap) -> bool {
@@ -53,7 +45,10 @@ pub(super) fn read_opacity(material: &ufbx::Material) -> Opacity<'_> {
     }
     let c = color.value_vec4;
     Opacity {
-        alpha: opacity_from_transparency([c.x, c.y, c.z], map_value(factor, 1.0)),
+        alpha: crate::plugins::scene::opacity_from_transparency(
+            [c.x, c.y, c.z],
+            map_value(factor, 1.0),
+        ),
         texture: bound(color).or_else(|| bound(factor)),
     }
 }

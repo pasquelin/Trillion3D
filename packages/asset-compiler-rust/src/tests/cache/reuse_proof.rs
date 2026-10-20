@@ -47,7 +47,7 @@ fn an_unfinished_bake_is_not_reused() {
         layouts: [0; 3],
     };
     let refused = compiler_reuse_proof::check_textures(
-        &options.cache.join("native"),
+        &native_dir(&options.cache),
         &json!({}),
         &[unfinished],
     );
@@ -103,8 +103,8 @@ fn shared_image_levels_are_counted_once() {
         "kept in the BC family"
     );
     let (second, _) = compile_with_events(&options);
-    // The lossless level and its BC7 twin, each once for both textures.
-    assert_eq!(second["reused"]["textureLevels"], 2, "{}", second["reused"]);
+    // The level's BC7 file, once for both textures.
+    assert_eq!(second["reused"]["textureLevels"], 1, "{}", second["reused"]);
     fs::remove_dir_all(root).expect("cleanup");
 }
 
@@ -115,11 +115,9 @@ fn corrupted_entry_is_rejected_and_rebuilt() {
     let (root, options) = textured();
     let (first, _) = compile_with_events(&options);
     let directory = options.key_directory(first["key"].as_str().unwrap());
-    let native = options.cache.join("native");
+    let native = native_dir(&options.cache);
     let sidecars = paged(&directory).sidecars;
-    let object = manifest_binary::digests(&sidecars[1])
-        .expect("digests")
-        .remove(0);
+    let object = geometry_files(&directory).remove(0);
     let manifest_binary::BakedLevels {
         sha256: level_sha,
         kind,
@@ -131,13 +129,17 @@ fn corrupted_entry_is_rejected_and_rebuilt() {
         &level_sha,
         texture_preview::AtlasKind::from_word(kind).unwrap(),
         0,
-        texture_preview::LOSSLESS,
+        "bc7",
     ));
+    // An object of its recorded size whose bytes rotted: the compile path trusts an object by its
+    // name and length, so the proof that refuses it must not leave it to be kept.
+    let mut rotten = fs::read(object_path(&options, &object)).expect("object");
+    rotten[0] ^= 0xff;
     let corruptions: [(&str, PathBuf, Option<&[u8]>); 4] = [
         (
             "does not match its fingerprint",
             object_path(&options, &object),
-            Some(b"corrupt"),
+            Some(&rotten),
         ),
         (
             "is not the sidecar its page names",

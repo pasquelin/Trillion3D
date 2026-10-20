@@ -19,7 +19,9 @@
 //! differently named channels (AOV, `Y`/`RY`/`BY`, depth), 32-bit integers, subsampled chroma.
 //! A file outside the subset lets the engine fall back to white; it is never guessed or
 //! approximated.
-use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer};
+use super::{
+    budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer, FLOAT_PIXEL_BYTES,
+};
 use ::exr::math::Vec2;
 use ::exr::meta::attribute::SampleType;
 use ::exr::meta::MetaData;
@@ -114,7 +116,7 @@ fn subset(bytes: &[u8], max_alloc: u64) -> std::result::Result<(u32, u32), &'sta
     channels(header)?;
     let width = u32::try_from(header.layer_size.width()).map_err(|_| TOO_LARGE)?;
     let height = u32::try_from(header.layer_size.height()).map_err(|_| TOO_LARGE)?;
-    float_budget(width, height, max_alloc, TOO_LARGE)?;
+    budget(width, height, FLOAT_PIXEL_BYTES, max_alloc, TOO_LARGE)?;
     Ok((width, height))
 }
 

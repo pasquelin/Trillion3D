@@ -79,16 +79,9 @@ pub(super) fn refused_golden_source(source: &Path, name: &str) -> String {
 pub(crate) fn golden_options(source: &Path, name: &str) -> (Options, PathBuf) {
     let root = scratch("golden", name);
     let options = Options {
-        source: source.to_path_buf(),
-        cache: root.join("cache"),
         resource_base: "/assets".into(),
-        scope: "full".into(),
         triangle_budget: 1_000_000,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "none".into(),
-        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
-        cancelled: Arc::new(AtomicBool::new(false)),
+        ..options(source.to_path_buf(), root.join("cache"))
     };
     (options, root)
 }
@@ -155,9 +148,7 @@ pub(super) fn scene_digest(run: &GoldenRun, plugin: &str) -> (Value, Value, Valu
 
 /// Versioned expected of a fixture, without the two fields that are only prose.
 pub(super) fn golden_expected(dir: &Path) -> Value {
-    let mut expected: Value =
-        serde_json::from_slice(&fs::read(dir.join("expected.json")).expect("expected.json"))
-            .expect("expected.json is not valid JSON");
+    let mut expected: Value = read_json(&dir.join("expected.json"));
     if let Some(object) = expected.as_object_mut() {
         object.remove("case");
         object.remove("rule");

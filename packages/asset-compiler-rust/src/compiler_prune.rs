@@ -1,42 +1,53 @@
 use super::*;
 use compiler_manifest_pages::Paged;
 
-pub(super) fn referenced_objects(
-    json: &Value,
-    binary: Option<&[u8]>,
-    into: &mut BTreeSet<String>,
-) -> Result<()> {
-    fn walk(value: &Value, into: &mut BTreeSet<String>) {
+mod scratch;
+use scratch::remove_scratch;
+
+/// Every object descriptor `json` holds — a manifest, or the physics document whose shapes it
+/// lists: each `{url, sha256}` `store_descriptor` wrote, known by its object URL (the geometry
+/// containers, the physics shapes), and each shape the manifest's `physics`
+/// lists by digest. The one rule of what a manifest keeps, for prune and the reuse proof alike: a
+/// bundle's digest in `streams`, the proxy's and a sidecar's name no object.
+pub(super) fn object_descriptors(json: &Value) -> Vec<&Value> {
+    fn walk<'a>(value: &'a Value, into: &mut Vec<&'a Value>) {
         match value {
             Value::Object(map) => {
-                for (k, v) in map {
-                    if k == "sha256" {
-                        if let Some(s) = v.as_str() {
-                            if s.len() == 64 {
-                                into.insert(s.to_string());
-                            }
-                        }
-                    } else {
-                        walk(v, into);
-                    }
+                let named = |key| map.get(key).and_then(Value::as_str);
+                let object = named("sha256").zip(named("url"));
+                if object.is_some_and(|(sha256, url)| url == object_url(sha256)) {
+                    return into.push(value);
                 }
+                map.values().for_each(|v| walk(v, into));
             }
-            Value::Array(items) => {
-                for v in items {
-                    walk(v, into);
-                }
-            }
+            Value::Array(items) => items.iter().for_each(|v| walk(v, into)),
             _ => {}
         }
     }
-    walk(json, into);
-    if let Some(bytes) = binary {
-        // A sidecar of another version lays out its columns differently: reading it
-        // as "no object referenced" would delete pages still in use, so an unknown
-        // format is refused.
-        into.extend(manifest_binary::digests(bytes).map_err(unreadable)?);
+    let mut into = Vec::new();
+    walk(json, &mut into);
+    into.extend(json["physics"]["objects"].as_array().into_iter().flatten());
+    into
+}
+
+/// The digests of every object `json` names (`object_descriptors`).
+pub(super) fn referenced_objects(json: &Value, into: &mut BTreeSet<String>) {
+    let digests = object_descriptors(json).into_iter();
+    into.extend(
+        digests
+            .filter_map(|d| d["sha256"].as_str())
+            .map(str::to_owned),
+    );
+}
+/// Every chain of the textures' storage a published manifest reads: a texture's, by its
+/// sidecar columns. The one rule of which chains a manifest keeps, for prune and the reuse proof
+/// alike.
+pub(super) fn baked_chains(paged: &Paged) -> Result<Vec<manifest_binary::BakedLevels>> {
+    let mut chains = Vec::new();
+    for sidecar in &paged.sidecars {
+        chains.extend(manifest_binary::texture_levels(sidecar)?);
     }
-    Ok(())
+    Ok(chains)
 }
 /// A sidecar this compiler cannot read: prune stops on it, cache intact.
 fn unreadable(e: impl Display) -> CompilerError {
@@ -45,30 +56,28 @@ fn unreadable(e: impl Display) -> CompilerError {
         format!("Cached manifest binary is not readable by this compiler: {e}"),
     )
 }
-/// What the key just published or proved still needs: its objects and the source
-/// images whose baked levels it reads. Everything else of the cache may go.
+/// What the key just published or proved still needs: its objects and the chains whose baked
+/// levels it reads — their keys (`GateSheet::key`). Everything else of the cache may go.
 pub(super) struct Keep {
     pub objects: BTreeSet<String>,
     pub textures: BTreeSet<String>,
 }
 impl Keep {
-    /// What a result just published names: its objects, and the images its previews read.
-    pub fn of_result(result: &Value, previews: &[texture_preview::TexturePreview]) -> Result<Self> {
+    /// What a result just published names: its objects and the chain keys of its previews.
+    pub fn of_result(result: &Value, previews: &[texture_preview::TexturePreview]) -> Self {
         let mut objects = BTreeSet::new();
-        referenced_objects(result, None, &mut objects)?;
+        referenced_objects(result, &mut objects);
         let textures = previews.iter().map(|p| p.sha256.clone()).collect();
-        Ok(Self { objects, textures })
+        Self { objects, textures }
     }
     /// What a published manifest and its sidecars name, for a scope this job does
-    /// not touch: pages and texture levels live only in the sidecar columns, read
-    /// once for both.
+    /// not touch: the objects in the manifest and the chains in the sidecar columns
+    /// (`baked_chains`).
     pub fn named_by(paged: &Paged) -> Result<Self> {
-        let (mut objects, mut textures) = (BTreeSet::new(), BTreeSet::new());
-        referenced_objects(&paged.manifest, None, &mut objects)?;
-        for sidecar in &paged.sidecars {
-            objects.extend(manifest_binary::digests(sidecar).map_err(unreadable)?);
-            textures.extend(manifest_binary::texture_digests(sidecar).map_err(unreadable)?);
-        }
+        let mut objects = BTreeSet::new();
+        referenced_objects(&paged.manifest, &mut objects);
+        let chains = baked_chains(paged).map_err(unreadable)?;
+        let textures = chains.into_iter().map(|level| level.sha256).collect();
         Ok(Self { objects, textures })
     }
 }
@@ -96,7 +105,7 @@ pub(super) fn prune_cache(
     mut keep: Keep,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Value> {
-    let native = o.cache.join("native");
+    let native = native_dir(&o.cache);
     let mut removed_keys = 0usize;
     for scope in crate::shared_math::abi::SCOPES {
         let dir = native.join(scope);
@@ -113,8 +122,8 @@ pub(super) fn prune_cache(
                 .and_then(|p| p["key"].as_str().map(str::to_owned))
         };
         // The other scope is read before any deletion: a missing sidecar or one of
-        // another version stops prune, cache intact, instead of erasing pages it
-        // still uses.
+        // another version stops prune, cache intact, instead of erasing the objects
+        // and texture levels it still uses.
         if scope != o.scope {
             if let Some(name) = current.as_deref() {
                 other_scope(&dir.join(name), &mut keep)?;
@@ -134,7 +143,7 @@ pub(super) fn prune_cache(
         }
     }
     // Stale FBX/OBJ imports: keep the one this compile read, drop the others.
-    let imports = native.join("imports");
+    let imports = imports_dir(&o.cache);
     if o.source.starts_with(&imports) {
         if let Ok(entries) = fs::read_dir(&imports) {
             for entry in entries {
@@ -146,10 +155,11 @@ pub(super) fn prune_cache(
             }
         }
     }
+    remove_scratch(&o.cache)?;
     let mut removed_objects = 0usize;
     let mut removed_bytes = 0u64;
     let mut kept_objects = 0usize;
-    if let Ok(entries) = fs::read_dir(native.join("objects")) {
+    if let Ok(entries) = fs::read_dir(objects_dir(&o.cache)) {
         for entry in entries {
             let entry = entry?;
             let name = entry.file_name();

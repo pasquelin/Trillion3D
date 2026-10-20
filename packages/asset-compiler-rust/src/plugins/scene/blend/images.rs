@@ -37,44 +37,30 @@ impl Images {
     }
 }
 
+/// The texture of `image`: its packed bytes when it holds some in a format an image driver reads,
+/// else the file it designates under the served root — the one refusal of every driver when no
+/// driver reads it there (`SceneTables::image_found`).
 fn resolve(image: &At<'_>, root: &Path, out: &mut Out) -> Result<Option<usize>> {
     let declared = image.text("name").replace('\\', "/");
-    let name = declared
-        .rsplit('/')
-        .next()
-        .filter(|name| !name.is_empty())
-        .unwrap_or("image")
-        .to_string();
-    let Some(mime) = crate::plugins::image::by_extension(Path::new(&name)).map(|d| d.mime()) else {
-        out.scene.report.add("blend-image-format");
-        out.scene
-            .report
-            .notes
-            .push(format!("image outside the image register: {name}"));
-        return Ok(None);
+    let name = declared.rsplit('/').next().filter(|name| !name.is_empty());
+    let name = name.unwrap_or("image").to_string();
+    let mime = crate::plugins::image::by_extension(Path::new(&name)).map(|d| d.mime());
+    let image = match (packed(image), mime) {
+        (Some(bytes), Some(mime)) => {
+            let used = out.scene.bin.bytes.len();
+            out.fit("packed image", &name, used, bytes.len())?;
+            out.scene.image_embedded(&name, mime, bytes)
+        }
+        _ => match out
+            .scene
+            .image_found(root, linked(&declared, root), &declared)
+        {
+            Some(image) => image,
+            None => return Ok(None),
+        },
     };
     // Blender repeats its textures by default, and this driver does not read the coordinate
     // nodes that would say otherwise.
-    if let Some(bytes) = packed(image) {
-        out.fit(
-            "packed image",
-            &name,
-            out.scene.bin.bytes.len(),
-            bytes.len(),
-        )?;
-        let image = out.scene.image_embedded(&name, mime, bytes);
-        let sampler = out.scene.sampler_uv(REPEAT, REPEAT);
-        return Ok(Some(out.scene.texture(image, sampler)));
-    }
-    let Some(relative) = linked(&declared, root) else {
-        out.scene.report.add("blend-image-outside-source");
-        out.scene
-            .report
-            .notes
-            .push(format!("image outside the served root: {declared}"));
-        return Ok(None);
-    };
-    let image = out.scene.image(relative, mime);
     let sampler = out.scene.sampler_uv(REPEAT, REPEAT);
     Ok(Some(out.scene.texture(image, sampler)))
 }

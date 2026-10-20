@@ -22,7 +22,7 @@ pub(crate) fn relative_under(root: &Path, path: &Path) -> Option<String> {
 }
 
 /// MIME type of image driver claiming URI under root, when file present.
-pub(crate) fn readable(root: &Path, uri: &str) -> Option<&'static str> {
+fn readable(root: &Path, uri: &str) -> Option<&'static str> {
     let path = root.join(uri);
     crate::plugins::image::by_extension(&path)
         .filter(|_| path.is_file())
@@ -54,12 +54,27 @@ impl SceneTables {
         self.images.len() - 1
     }
 
-    /// Reports texture no image driver reads under root, by source path:
-    /// scene continues without it.
-    pub(crate) fn image_unreadable(&mut self, written: &str) {
-        self.report.notes.push(format!(
-            "unreadable texture or outside image registry: {written}"
-        ));
+    /// Rank of the image at the first of `candidates` — paths relative to `root` — an image
+    /// driver reads there, added on first request. When none reads, the texture the source names
+    /// `written` is reported missing and the scene continues without it: one refusal, whatever
+    /// the driver.
+    pub(crate) fn image_found(
+        &mut self,
+        root: &Path,
+        candidates: impl IntoIterator<Item = String>,
+        written: &str,
+    ) -> Option<usize> {
+        let mut candidates = candidates.into_iter();
+        let found = candidates.find_map(|path| readable(root, &path).map(|mime| (path, mime)));
+        let Some((relative, mime)) = found else {
+            self.report
+                .add(crate::plugins::scene::codes::TEXTURE_MISSING);
+            self.report.notes.push(format!(
+                "unreadable texture or outside image registry: {written}"
+            ));
+            return None;
+        };
+        Some(self.image(relative, mime))
     }
 
     /// Rank of texture binding image to sampler, added once.

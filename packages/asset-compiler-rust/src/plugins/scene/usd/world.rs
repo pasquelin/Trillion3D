@@ -80,17 +80,18 @@ pub(super) struct World<'a> {
 }
 
 impl World<'_> {
-    /// Cancellation, checked at each prim: the walk stops, `convert` then refuses.
-    pub(super) fn check(&self) -> Option<()> {
-        (!self.cancelled.load(Ordering::Relaxed)).then_some(())
-    }
-    /// Counts a named refusal once.
-    pub(super) fn refuse(&mut self, reason: &str) {
-        self.scene.report.add(reason);
-    }
     /// Counts what the report publishes in the open.
     pub(super) fn count(&mut self, what: &'static str, by: usize) {
         self.scene.count(what, by);
+    }
+    /// The value of `prim`'s attribute `name` (`read::first`), one read at its first time sample
+    /// counted (`TIME_SAMPLE`); `None` when the prim does not write it.
+    pub(super) fn first(&mut self, prim: &usd::Prim, name: &str) -> Option<sdf::Value> {
+        let (value, sampled) = read::first(&prim.attribute(name))?;
+        if sampled {
+            self.scene.report.add(TIME_SAMPLE);
+        }
+        Some(value)
     }
 }
 

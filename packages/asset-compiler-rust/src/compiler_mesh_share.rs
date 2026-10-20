@@ -145,7 +145,7 @@ fn element_digest(g: &Value, bin: &[u8], id: usize) -> Option<String> {
         .ok()
         .filter(|a| a.has_buffer_view)?;
     let mut sha = Sha256::new();
-    for element in a.elements().ok()? {
+    for element in a.elements() {
         sha.update(element);
     }
     Some(hex_of(sha.finalize()))

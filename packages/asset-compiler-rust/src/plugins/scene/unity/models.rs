@@ -48,14 +48,7 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
         world.scene.report.add("unity-model-nested-scene");
         return None;
     }
-    let request = SceneRequest {
-        source: asset,
-        inputs: &inputs,
-        cache: world.cache,
-        cancelled: world.cancelled,
-        progress: world.progress,
-        ram_budget: world.ram_budget,
-    };
+    let request = world.request.nested(asset, &inputs);
     let prepared = match plugin.prepare(&request) {
         Ok(prepared) => prepared,
         Err(error) => {
@@ -79,6 +72,9 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
             file.clone(),
             hash_file(asset).ok()?,
         ),
+        PreparedScene::Extracted { directory, file } => {
+            (directory.clone(), file.clone(), hash_file(asset).ok()?)
+        }
         PreparedScene::Manifest => return None,
     };
     // The manifest the model's driver wrote carries the file unit and its report. A model read
@@ -89,7 +85,15 @@ fn import(asset: &Path, world: &mut World<'_>, meta: &ModelImport) -> Option<Par
     };
     let unit = manifest.as_ref().map_or(1.0, unit_meters);
     if let Some(manifest) = &manifest {
-        carry_report(manifest, &name, world.scene);
+        // What the model's driver could not yield also belongs to the scene that cites it: its
+        // codes come up under their own name — two models missing the same thing add up — and
+        // its notes take the model's name, otherwise one would not know which they speak of.
+        let counts = manifest["unsupported"].as_object().into_iter().flatten();
+        let notes = manifest["notes"].as_array().into_iter().flatten();
+        world.scene.report.merge(
+            counts.filter_map(|(code, count)| Some((code.as_str(), count.as_u64()? as usize))),
+            notes.filter_map(|note| Some(format!("{name}: {}", note.as_str()?))),
+        );
     }
     let (gltf, binary) = match crate::compiler_source::flat_document(&directory.join(&file)) {
         Ok(loaded) => loaded,
@@ -124,24 +128,6 @@ fn unit_meters(manifest: &Value) -> f64 {
         .as_f64()
         .filter(|unit| unit.is_finite() && *unit > 0.0)
         .unwrap_or(1.0)
-}
-
-/// What the model's driver could not yield also belongs to the scene that cites it: its codes
-/// come up under their own name — two models missing the same thing add up — and its notes take
-/// the model's name, otherwise one would not know which they speak of.
-fn carry_report(manifest: &Value, name: &str, scene: &mut SceneTables) {
-    if let Some(unsupported) = manifest["unsupported"].as_object() {
-        for (code, count) in unsupported {
-            if let Some(count) = count.as_u64() {
-                scene.report.add_count(code, count as usize);
-            }
-        }
-    }
-    for note in manifest["notes"].as_array().map_or(&[][..], Vec::as_slice) {
-        if let Some(note) = note.as_str() {
-            scene.report.notes.push(format!("{name}: {note}"));
-        }
-    }
 }
 
 /// Applies the model's import scale factor: geometry stays exactly that its driver yielded,

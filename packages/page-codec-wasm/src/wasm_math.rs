@@ -42,6 +42,34 @@ unsafe fn release<T>(offset: u32, len: usize) {
     }
 }
 
+/// The `count` values of `T` at byte `offset` of linear memory: how every export reads its
+/// arguments.
+///
+/// # Safety
+/// The range must lie in a live `arena_alloc` reservation, aligned for `T`.
+pub(crate) unsafe fn view<'a, T>(offset: u32, count: usize) -> &'a [T] {
+    core::slice::from_raw_parts(offset as *const T, count)
+}
+
+/// `view`, none when `count` is 0 whatever `offset` holds.
+///
+/// # Safety
+/// As `view` when `count` is not 0.
+pub(crate) unsafe fn view_or_empty<'a, T>(offset: u32, count: usize) -> &'a [T] {
+    match count {
+        0 => &[],
+        _ => view(offset, count),
+    }
+}
+
+/// `view` to write: how every export writes its answer.
+///
+/// # Safety
+/// As `view`, and no other view of the range may be alive.
+pub(crate) unsafe fn view_mut<'a, T>(offset: u32, count: usize) -> &'a mut [T] {
+    core::slice::from_raw_parts_mut(offset as *mut T, count)
+}
+
 /// The contract version this module honours.
 #[no_mangle]
 pub extern "C" fn math_contract() -> u32 {
@@ -82,9 +110,9 @@ pub unsafe extern "C" fn arena_free(offset: u32, bytes: usize) {
 #[no_mangle]
 pub unsafe extern "C" fn math_box_transform_batch(out: u32, boxes: u32, mats: u32, n: usize) {
     box_transform_batch(
-        core::slice::from_raw_parts_mut(out as *mut f64, n * BOX_VALUES),
-        core::slice::from_raw_parts(boxes as *const f64, n * BOX_VALUES),
-        core::slice::from_raw_parts(mats as *const f64, n * MATRIX_VALUES),
+        view_mut(out, n * BOX_VALUES),
+        view(boxes, n * BOX_VALUES),
+        view(mats, n * MATRIX_VALUES),
         n,
     );
 }
@@ -97,10 +125,5 @@ pub unsafe extern "C" fn math_box_transform_batch(out: u32, boxes: u32, mats: u3
 #[no_mangle]
 pub unsafe extern "C" fn math_multiply_matrix4_batch(out: u32, a: u32, b: u32, n: usize) {
     let values = n * MATRIX_VALUES;
-    multiply_matrix4_batch(
-        core::slice::from_raw_parts_mut(out as *mut f64, values),
-        core::slice::from_raw_parts(a as *const f64, values),
-        core::slice::from_raw_parts(b as *const f64, values),
-        n,
-    );
+    multiply_matrix4_batch(view_mut(out, values), view(a, values), view(b, values), n);
 }

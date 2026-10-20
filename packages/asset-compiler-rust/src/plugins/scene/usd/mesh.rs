@@ -10,19 +10,25 @@ pub(super) fn build(world: &mut World<'_>, prim: &usd::Prim, key: &str) -> Optio
     let counts = array(world, prim, "faceVertexCounts", read::integers)?;
     let corners = array(world, prim, "faceVertexIndices", read::integers)?;
     let Some(faces) = spans(&counts, corners.len()) else {
-        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     };
     if points.is_empty() || faces.is_empty() {
-        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     }
-    if scheme(prim, "subdivisionScheme")
+    if read::text_attribute(prim, "subdivisionScheme")
         .as_deref()
         .unwrap_or("catmullClark")
         != "none"
     {
-        world.refuse(world::SUBDIVISION);
+        world.scene.report.add(world::SUBDIVISION);
     }
     let double_sided = read::first(&prim.attribute("doubleSided"))
         .and_then(|(value, _)| read::flag(&value))
@@ -48,26 +54,13 @@ fn emit(
     parts: &[subset::Part],
     identity: (String, Vec<Option<usize>>),
 ) -> Option<usize> {
-    let mut primitives = Vec::new();
-    let mut triangles = 0usize;
-    for part in parts {
-        let Some((value, count)) = surface.part(world, part) else {
-            continue;
-        };
-        triangles += count;
-        primitives.push(value);
-    }
-    if primitives.is_empty() {
-        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
-        return None;
-    }
-    let name = prim.path().name().unwrap_or("Mesh").to_string();
-    world
-        .scene
-        .meshes
-        .push(json!({"name":name,"primitives":primitives}));
-    world.scene.mesh_triangles.push(triangles);
-    let mesh = world.scene.meshes.len() - 1;
+    let built = parts
+        .iter()
+        .filter_map(|part| surface.part(world, part))
+        .collect();
+    let name = prim.path().name().unwrap_or("Mesh");
+    let invalid = crate::plugins::scene::codes::MESH_INVALID;
+    let mesh = world.scene.mesh_of_parts(name, built, invalid)?;
     world.meshes.insert(identity, mesh);
     Some(mesh)
 }
@@ -92,17 +85,20 @@ fn array<T>(
     name: &str,
     decode: impl Fn(&sdf::Value) -> Option<Vec<T>>,
 ) -> Option<Vec<T>> {
-    let Some((value, sampled)) = read::first(&prim.attribute(name)) else {
-        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+    let Some(value) = world.first(prim, name) else {
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     };
-    if sampled {
-        world.refuse(world::TIME_SAMPLE);
-    }
     match decode(&value) {
         Some(values) => Some(values),
         None => {
-            world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+            world
+                .scene
+                .report
+                .add(crate::plugins::scene::codes::MESH_INVALID);
             None
         }
     }
@@ -114,27 +110,22 @@ fn array<T>(
 /// counted as any face a mesh declares and that its tables do not carry.
 fn holes(world: &mut World<'_>, prim: &usd::Prim, faces: usize) -> BTreeSet<usize> {
     let mut out = BTreeSet::new();
-    let Some((value, sampled)) = read::first(&prim.attribute("holeIndices")) else {
+    let Some(value) = world.first(prim, "holeIndices") else {
         return out;
     };
-    if sampled {
-        world.refuse(world::TIME_SAMPLE);
-    }
     let Some(indices) = read::integers(&value) else {
-        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::MESH_INVALID);
         return out;
     };
     for index in indices {
         match usize::try_from(index).ok().filter(|face| *face < faces) {
-            Some(face) if out.insert(face) => world.refuse(world::FACE_HOLE),
+            Some(face) if out.insert(face) => world.scene.report.add(world::FACE_HOLE),
             Some(_) => {}
-            None => world.refuse(world::FACE_INVALID),
+            None => world.scene.report.add(world::FACE_INVALID),
         }
     }
     out
-}
-
-/// A mesh attribute read as text — `subdivisionScheme`, `orientation`.
-pub(super) fn scheme(prim: &usd::Prim, name: &str) -> Option<String> {
-    read::first(&prim.attribute(name)).and_then(|(value, _)| read::text(&value))
 }

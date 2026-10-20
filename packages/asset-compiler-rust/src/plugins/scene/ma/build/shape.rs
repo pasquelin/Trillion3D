@@ -32,7 +32,7 @@ fn drawn(world: &mut World<'_>, shape: usize) -> bool {
     let intermediate = flag(&["io", "intermediateObject"]) == Some(true);
     let hidden = flag(&["v", "visibility"]) == Some(false);
     if intermediate {
-        world.refuse(report::SHAPE_INTERMEDIATE);
+        world.scene.report.add(report::SHAPE_INTERMEDIATE);
     } else if hidden {
         world.scene.count("invisible", 1);
     }

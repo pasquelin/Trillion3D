@@ -1,4 +1,5 @@
 use super::*;
+use crate::tests::fixtures::{encode_glb, read_json};
 fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/formats/gltf/compressed-box")
 }
@@ -29,26 +30,10 @@ fn external_gltf_load_retains_provenance_and_original_bytes() {
 #[test]
 fn embedded_glb_and_triangle_strip_normalize_to_triangles() {
     let root = fixture();
-    let mut g: Value = serde_json::from_slice(&fs::read(root.join("Box.gltf")).unwrap()).unwrap();
+    let mut g = read_json(&root.join("Box.gltf"));
     g["buffers"][0].as_object_mut().unwrap().remove("uri");
     g["meshes"][0]["primitives"][0]["mode"] = json!(5);
-    let mut json = serde_json::to_vec(&g).unwrap();
-    json.resize(json.len() + crate::shared_math::pad_to_4(json.len()), b' ');
-    let bin = fs::read(root.join("Box.bin")).unwrap();
-    let mut glb = Vec::new();
-    for word in [
-        0x46546c67u32,
-        2,
-        (28 + json.len() + bin.len()) as u32,
-        json.len() as u32,
-        0x4e4f534a,
-    ] {
-        glb.extend_from_slice(&word.to_le_bytes());
-    }
-    glb.extend_from_slice(&json);
-    glb.extend_from_slice(&(bin.len() as u32).to_le_bytes());
-    glb.extend_from_slice(&0x004e4942u32.to_le_bytes());
-    glb.extend_from_slice(&bin);
+    let glb = encode_glb(&g, &fs::read(root.join("Box.bin")).unwrap());
     let (mut g, range) = parse_glb_parts(&glb).unwrap();
     let bin = glb[range].to_vec();
     let (binary, mut offsets, _) =

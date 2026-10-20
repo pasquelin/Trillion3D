@@ -3,8 +3,11 @@
 //! `positions` and `deform`.
 pub mod cells;
 pub mod deformation;
+mod error;
 mod skin;
 pub mod vertices;
+
+pub use error::{EncodeError, Result};
 
 use cells::{grids, Grids};
 use deformation::{join, page_deformation, write, Deformation};
@@ -13,28 +16,6 @@ use vertices::{first_use, localise, stored_positions};
 use crate::triangles::Spans;
 use crate::writer::BitWriter;
 use crate::{Header, Layout, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
-
-/// A refusal of the encoder: a stable code and what it says.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EncodeError {
-    pub code: &'static str,
-    pub message: &'static str,
-}
-
-impl EncodeError {
-    pub const fn new(code: &'static str, message: &'static str) -> Self {
-        Self { code, message }
-    }
-}
-
-impl std::fmt::Display for EncodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.code, self.message)
-    }
-}
-
-/// The encoder's result: a value or its refusal.
-pub type Result<T> = std::result::Result<T, EncodeError>;
 
 /// The glTF attributes a page may carry, in the order the page writes them: the name the
 /// document gives each, its width (a colour may also be three-wide) and its presence bit.
@@ -54,11 +35,28 @@ pub struct Attribute {
     pub values: Vec<f32>,
 }
 
-/// A written page: its bytes and the header they open with, which is what the manifest says of it.
+/// A written page: its bytes, the header they open with and its normal cone, which is what the
+/// manifest says of it.
 #[derive(Debug)]
 pub struct Encoded {
     pub bytes: Vec<u8>,
     pub header: Header,
+    /// The cone of the triangles the page draws (`decoded_cone`), `[x, y, z, angle]`.
+    pub cone: [f64; 4],
+}
+
+/// The normal cone (`normal_cone::triangle_cone`) of the page's `corners` over the positions its
+/// `unique` vertices decode to on the grid `q` (`bits::dequant`, the floats every reader and the
+/// GPU draw), never over the source's: the grid turns a face, by up to its step over an edge of a
+/// few steps, and a cone of the source's faces then rejects a face that is drawn facing the view.
+fn decoded_cone(unique: &[cells::Cell], q: &crate::bits::Quant<3>, corners: &[u32]) -> [f64; 4] {
+    let step = q.step();
+    let decoded: Vec<f32> = (unique.iter())
+        .flat_map(|cell| {
+            (0..3).map(move |c| crate::bits::dequant(q.min[c], cell.position[c], step))
+        })
+        .collect();
+    crate::normal_cone::triangle_cone(&decoded, corners)
 }
 
 /**
@@ -134,6 +132,7 @@ pub fn encode_deformed(
     let (unique, remap) = first_use(cells.iter().copied());
     let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
     let spans = Spans::of(&corners);
+    let cone = decoded_cone(&unique, &position, &corners);
     let (stored, links) = stored_positions(&unique, position.bits);
     let mut header = Header {
         vertex_count: unique.len(),
@@ -189,5 +188,9 @@ pub fn encode_deformed(
         bytes.extend_from_slice(&word.to_le_bytes());
     }
     debug_assert_eq!(bytes.len(), layout.bytes());
-    Ok(Encoded { bytes, header })
+    Ok(Encoded {
+        bytes,
+        header,
+        cone,
+    })
 }

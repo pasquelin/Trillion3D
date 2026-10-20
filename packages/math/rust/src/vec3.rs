@@ -4,7 +4,7 @@
 //! the sites that round in single precision on purpose.
 
 use crate::real::Real;
-use crate::vecn::{dot, length, scale};
+use crate::vecn::{dot, length, scale, squared_length};
 
 /// The first row of the orthonormal frame around the unit `axis`, with no branch on its direction:
 /// a unit vector across it, the one every unoriented frame starts from. The sign of `z` picks the
@@ -33,6 +33,13 @@ pub fn point_checked(positions: &[f32], id: u32) -> Option<[f64; 3]> {
     let i = id as usize * 3;
     positions.get(i + 2).map(|_| point(positions, id))
 }
+/// The axis of `a`'s largest magnitude; the last among equals.
+#[inline]
+pub fn dominant_axis(a: [f64; 3]) -> usize {
+    (0..3)
+        .max_by(|&i, &j| a[i].abs().total_cmp(&a[j].abs()))
+        .unwrap_or(0)
+}
 /// `a × b` in the caller's precision, `[a₁b₂ − a₂b₁, a₂b₀ − a₀b₂, a₀b₁ − a₁b₀]`.
 #[inline]
 pub fn cross<T: Real>(a: [T; 3], b: [T; 3]) -> [T; 3] {
@@ -44,12 +51,7 @@ pub fn cross<T: Real>(a: [T; 3], b: [T; 3]) -> [T; 3] {
 }
 /// Divides each axis by `k`: not `scale(a, 1.0 / k)`, which rounds once more.
 #[inline]
-pub fn divide(a: [f64; 3], k: f64) -> [f64; 3] {
-    [a[0] / k, a[1] / k, a[2] / k]
-}
-/// `divide` in single precision.
-#[inline]
-pub fn divide_f32(a: [f32; 3], k: f32) -> [f32; 3] {
+pub fn divide<T: Real>(a: [T; 3], k: T) -> [T; 3] {
     [a[0] / k, a[1] / k, a[2] / k]
 }
 
@@ -66,9 +68,10 @@ pub fn normalize(a: [f64; 3]) -> [f64; 3] {
     divide(a, length(a))
 }
 
-/// `normalize`, when `usable` accepts the length; `None` otherwise. The guard is the caller's.
+/// `normalize` in the caller's precision, when `usable` accepts the length; `None` otherwise. The
+/// guard is the caller's.
 #[inline]
-pub fn normalize_where(a: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f64; 3]> {
+pub fn normalize_where<T: Real>(a: [T; 3], usable: impl Fn(T) -> bool) -> Option<[T; 3]> {
     let norm = length(a);
     usable(norm).then(|| divide(a, norm))
 }
@@ -80,13 +83,20 @@ pub fn normalized_or(a: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     normalize_where(a, |norm| norm > 1e-12).unwrap_or(fallback)
 }
 
-/// `a` times the reciprocal of its length (`scale(a, 1 / length)`), when `usable` accepts that
-/// length; `None` otherwise. One rounding more than `normalize_where`: the two give different
-/// floats and keep apart.
+/// `a` times the reciprocal of its length (`scale(a, 1 / length)`) in the caller's precision, when
+/// `usable` accepts that length; `None` otherwise. One rounding more than `normalize_where`: the
+/// two give different floats and keep apart.
 #[inline]
-pub fn unit_where(a: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f64; 3]> {
-    let norm = length(a);
-    usable(norm).then(|| scale(a, 1.0 / norm))
+pub fn unit_where<T: Real>(a: [T; 3], usable: impl Fn(T) -> bool) -> Option<[T; 3]> {
+    unit_where_squared(a, |square| usable(square.sqrt()))
+}
+
+/// `unit_where`, the guard reading the squared length: a threshold on it decides as written, with
+/// no root taken before the comparison.
+#[inline]
+pub fn unit_where_squared<T: Real>(a: [T; 3], usable: impl Fn(T) -> bool) -> Option<[T; 3]> {
+    let square = squared_length(a);
+    usable(square).then(|| scale(a, T::ONE / square.sqrt()))
 }
 
 /// `unit_where` for a finite, positive length.
@@ -107,12 +117,12 @@ pub fn unit_or_itself(a: [f64; 3]) -> [f64; 3] {
     unit_unless_zero(a).unwrap_or(a)
 }
 
-/// `normalize` in single precision (`vecn::length`, `divide_f32`) for a finite, non-zero length;
+/// `normalize` in single precision (`vecn::length`, `divide`) for a finite, non-zero length;
 /// `None` otherwise.
 #[inline]
 pub fn normalize_finite_f32(a: [f32; 3]) -> Option<[f32; 3]> {
     let norm = length(a);
-    (norm.is_finite() && norm != 0.0).then(|| divide_f32(a, norm))
+    (norm.is_finite() && norm != 0.0).then(|| divide(a, norm))
 }
 
 #[cfg(test)]

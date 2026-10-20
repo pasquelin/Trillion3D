@@ -27,22 +27,19 @@ pub fn world_plane(
     Some((normal, offset, scale))
 }
 
-/// World box of one cluster: the eight corners of its local box carried through the instance.
+/// World box of one cluster: its local box carried through the instance (`box_transform`).
 pub fn extend_box(surface: &mut Surface, page: &Value, matrix: &crate::compiler_world::Mat4) {
-    for corner in 0..8 {
-        let mut point = [0.0f64; 3];
-        for axis in 0..3 {
-            let field = if corner & (1 << axis) == 0 {
-                "min"
-            } else {
-                "max"
-            };
-            match page[field][axis].as_f64() {
-                Some(value) => point[axis] = value,
-                None => return,
-            }
-        }
-        let placed = trillion3d_math::matrix::transform_point(matrix, point);
-        trillion3d_math::aabb::extend_aabb(&mut surface.low, &mut surface.high, placed);
-    }
+    let side = |field: &str| [0, 1, 2].map(|axis| page[field][axis].as_f64());
+    let ([Some(x0), Some(y0), Some(z0)], [Some(x1), Some(y1), Some(z1)]) =
+        (side("min"), side("max"))
+    else {
+        return;
+    };
+    let mut placed = [0.0f64; trillion3d_math::box_transform::BOX_VALUES];
+    trillion3d_math::box_transform::box_transform(&mut placed, &[x0, y0, z0, x1, y1, z1], matrix);
+    let (low, high) = (
+        [placed[0], placed[1], placed[2]],
+        [placed[3], placed[4], placed[5]],
+    );
+    trillion3d_math::aabb::merge_aabb(&mut surface.low, &mut surface.high, low, high);
 }

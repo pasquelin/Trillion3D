@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn every_group_owns_its_children_and_its_coarse_replacement() {
     let (positions, indices) = grid(160);
-    let (dag, groups, _) = build_of(&positions, &indices);
+    let (dag, groups, ..) = build_of(&positions, &indices);
     assert!(!groups.is_empty());
     let mut owned = vec![0usize; dag.len()];
     let mut produced = vec![0usize; dag.len()];
@@ -55,8 +55,9 @@ fn every_group_owns_its_children_and_its_coarse_replacement() {
 #[test]
 fn a_group_and_its_replacement_cover_the_same_triangles_once() {
     // Fallback safety: swapping a group's children for its outputs must not leave or duplicate area.
-    let (positions, indices) = grid(160);
-    let (dag, groups, _) = build_of(&positions, &indices);
+    let (source, indices) = grid(160);
+    // The clusters index the source's vertices, then those the reductions placed.
+    let (dag, groups, _, positions) = build_of(&source, &indices);
     let area = |ids: &[u32]| -> f64 {
         ids.as_chunks::<3>()
             .0
@@ -111,7 +112,7 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
             ]);
         }
     }
-    let (dag, _, _) = build_of(&positions, &indices);
+    let (dag, ..) = build_of(&positions, &indices);
     let leaves: usize = dag
         .iter()
         .filter(|c| c.level == 0)
@@ -127,9 +128,9 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
         "a plane must still coarsen"
     );
     // A collapse inside a plane displaces no surface, so no level may lift it by as much as the
-    // distance between two of its own vertices, the only length the sheet carries. The simplifier
-    // 0.25 accumulates its error over the collapses rather than remeasuring it, so what it reports
-    // on a plane is not exactly nil; it stays two orders of magnitude under the step.
+    // distance between two of its own vertices, the only length the sheet carries. What the
+    // simplifier reports on a plane is rounding, not exactly nil; it stays two orders of magnitude
+    // under the step.
     let step = 1.0;
     let worst = dag
         .iter()
@@ -142,13 +143,14 @@ fn a_planar_sheet_keeps_its_exact_level_and_coarsens_within_its_step() {
 #[test]
 fn build_honours_cancellation() {
     let (positions, indices) = grid(32);
-    let error = build_dag_tallied(
+    let error = build_dag(
         &positions,
         DagAttributes::default(),
         &indices,
         DagStrategy::QemEndpoints,
         &|| Err(invalid("cancelled")),
     )
-    .expect_err("cancelled");
+    .err()
+    .expect("cancelled");
     assert!(error.to_string().contains("cancelled"));
 }

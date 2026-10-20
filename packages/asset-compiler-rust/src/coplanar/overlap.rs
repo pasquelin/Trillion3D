@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_primitive::triangles::read;
 use trillion3d_math::aabb::{aabb_of, corners};
 use trillion3d_math::vec2::{barycentric, double_area};
 use trillion3d_math::vec3::point_checked;
@@ -37,15 +38,10 @@ pub fn intersection(a: &Rect, b: &Rect) -> Option<Rect> {
     Some((low, high))
 }
 
-/// The triangles of one surface, read back from the source once. `None` when the primitive carries
-/// more triangles than the stage is allowed to hold, which is reported rather than guessed at.
-pub fn footprint(
-    inputs: &CoplanarInputs<'_>,
-    world: &crate::compiler_world::Mat4,
-    surface: &Surface,
-    bounds: &CoplanarBounds,
-) -> Result<Option<Footprint>> {
-    let primitive = &inputs.primitives[surface.primitive];
+/// A compiled primitive's source positions and triangles (`triangles::read`), read once for every
+/// surface it holds. `None` when its mesh is not in the source.
+pub fn source(inputs: &CoplanarInputs<'_>, primitive: usize) -> Result<Option<Source>> {
+    let primitive = &inputs.primitives[primitive];
     let mesh = required_index(primitive.get("mesh"), "primitive.mesh")?;
     let part = required_index(primitive.get("primitive"), "primitive.primitive")?;
     let Some(old_mesh) = inputs.source_mesh.get(&mesh).copied() else {
@@ -59,39 +55,32 @@ pub fn footprint(
         part,
         "primitive",
     )?;
-    let positions = accessor(
-        inputs.g,
-        inputs.bin,
-        required_index(
-            source
-                .get("attributes")
-                .and_then(Value::as_object)
-                .and_then(|a| a.get("POSITION")),
-            "primitive.attributes.POSITION",
-        )?,
-        None,
-    )?;
-    let indices: Vec<u32> = match source.get("indices") {
-        Some(value) => accessor(
-            inputs.g,
-            inputs.bin,
-            required_index(Some(value), "primitive.indices")?,
-            None,
-        )?
-        .collect_u32()?,
-        None => (0..positions.count as u32).collect(),
-    };
+    let (positions, indices, _) = read(inputs.g, inputs.bin, source, None)?;
+    Ok(Some((positions.collect_f32()?, indices)))
+}
+
+/// Positions, three floats each, and triangle indices.
+pub type Source = (Vec<f32>, Vec<u32>);
+
+/// The triangles of one surface, from its primitive's `source`. `None` when the primitive carries
+/// more triangles than the stage is allowed to hold, which is reported rather than guessed at.
+pub fn footprint(
+    inputs: &CoplanarInputs<'_>,
+    world: &crate::compiler_world::Mat4,
+    surface: &Surface,
+    (xyz, indices): &Source,
+    bounds: &CoplanarBounds,
+) -> Result<Option<Footprint>> {
     if indices.len() / 3 > bounds.max_triangles_per_surface {
         return Ok(None);
     }
-    let xyz = positions.collect_f32()?;
     let (u, v) = plane::plane_frame(surface.normal);
     let mut points = Vec::new();
     for triangle in indices.as_chunks::<3>().0 {
         (inputs.cancelled)()?;
         let mut corners = [[0.0f64; 3]; 3];
         for (slot, id) in triangle.iter().enumerate() {
-            let Some(corner) = point_checked(&xyz, *id) else {
+            let Some(corner) = point_checked(xyz, *id) else {
                 return Ok(None);
             };
             corners[slot] = trillion3d_math::matrix::transform_point(world, corner);

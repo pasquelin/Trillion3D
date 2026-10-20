@@ -22,3 +22,40 @@ pub(super) fn root(meters_per_unit: f64, z_up: bool) -> [f64; 16] {
         ],
     }
 }
+
+/// A node's local matrix as glTF writes it: `None` for the identity, which a node omits, and for
+/// a matrix with a NaN or infinite component, which no node can carry — reported once.
+pub(super) fn node_matrix(
+    matrix: [f64; 16],
+    report: &mut crate::import::Report,
+) -> Option<[f64; 16]> {
+    if !matrix.iter().all(|value| value.is_finite()) {
+        report.add(super::codes::TRANSFORM_INVALID);
+        return None;
+    }
+    (matrix != trillion3d_math::matrix::IDENTITY).then_some(matrix)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use trillion3d_math::matrix::{translation, IDENTITY};
+
+    #[test]
+    fn node_matrix_omits_the_identity_and_reports_a_non_finite_matrix() {
+        let mut report = crate::import::Report::default();
+        assert_eq!(node_matrix(IDENTITY, &mut report), None);
+        let moved = translation([0.0, 1.0, 0.0]);
+        assert_eq!(node_matrix(moved, &mut report), Some(moved));
+        assert!(report.unsupported.is_empty());
+        let mut broken = moved;
+        broken[5] = f64::NAN;
+        assert_eq!(node_matrix(broken, &mut report), None);
+        broken[5] = f64::INFINITY;
+        assert_eq!(node_matrix(broken, &mut report), None);
+        assert_eq!(
+            report.unsupported[super::super::codes::TRANSFORM_INVALID],
+            2
+        );
+    }
+}

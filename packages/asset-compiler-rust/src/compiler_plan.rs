@@ -1,5 +1,8 @@
 use super::*;
 
+mod view_refs;
+pub(super) use view_refs::{for_each_view_ref, remap_view_refs};
+
 pub(super) struct BufferPlan {
     pub accessors: BTreeSet<usize>,
     pub jobs: Vec<(usize, usize)>,
@@ -9,8 +12,9 @@ pub(super) struct BufferPlan {
     pub estimated_working_bytes: usize,
     /// The workers the job runs: its threads, as many as the budget holds beside the rest, one at least.
     pub threads: usize,
-    /// Consecutive ranges of `jobs` whose working sets fit the job's budget together.
-    pub waves: Vec<std::ops::Range<usize>>,
+    /// Each of `jobs`' working set, and the room they share (`compiler_budget::admission`).
+    pub working: Vec<usize>,
+    pub room: usize,
 }
 
 /// Bytes an accessor will occupy once decoded into a dense array: `count` elements
@@ -37,14 +41,7 @@ fn primitive_accessors(p: &Value, accessors: &mut BTreeSet<usize>) -> Result<()>
     if let Some(indices) = p.get("indices") {
         accessors.insert(required_index(Some(indices), "primitive.indices")?);
     }
-    let attributes = p
-        .get("attributes")
-        .and_then(Value::as_object)
-        .ok_or_else(|| invalid("primitive.attributes is required"))?;
-    if !attributes.contains_key("POSITION") {
-        return Err(invalid("primitive.attributes.POSITION is required"));
-    }
-    for a in attributes.values() {
+    for a in attributes(p)?.values() {
         accessors.insert(required_index(Some(a), "primitive attribute")?);
     }
     for target in p
@@ -117,31 +114,19 @@ pub(super) fn plan_buffers(
         decoded_bytes = decoded_bytes
             .checked_add(dense_bytes(acc)?)
             .ok_or_else(|| invalid("Working set overflow"))?;
-        if acc.get("bufferView").is_some() {
-            views.insert(required_index(
-                acc.get("bufferView"),
-                "accessor.bufferView",
-            )?);
-        }
-        if let Some(sparse) = acc.get("sparse") {
-            let ind_bv = required_index(
-                sparse.get("indices").and_then(|i| i.get("bufferView")),
-                "sparse.indices.bufferView",
-            )?;
-            let val_bv = required_index(
-                sparse.get("values").and_then(|v| v.get("bufferView")),
-                "sparse.values.bufferView",
-            )?;
-            views.insert(ind_bv);
-            views.insert(val_bv);
-        }
+        for_each_view_ref(acc, "accessor.bufferView", |view| {
+            views.insert(view);
+        })?;
     }
-    if let Some(images) = g.get("images").and_then(Value::as_array) {
-        for image in images {
-            if image.get("bufferView").is_some() {
-                views.insert(required_index(image.get("bufferView"), "image.bufferView")?);
-            }
-        }
+    for image in g
+        .get("images")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        for_each_view_ref(image, "image.bufferView", |view| {
+            views.insert(view);
+        })?;
     }
     let view_map: BTreeMap<usize, usize> = views
         .iter()
@@ -157,7 +142,8 @@ pub(super) fn plan_buffers(
             )?)
             .ok_or_else(|| invalid("Working set overflow"))?;
     }
-    // Index buffers alone can refuse a job (no order lowers them); the rest only shrinks waves.
+    // Index buffers alone can refuse a job (no order lowers them); the rest only lowers how many
+    // run at once.
     let (mut retained, mut working) = (0usize, Vec::with_capacity(jobs.len()));
     for (old, primitive) in &jobs {
         let p = item(
@@ -190,8 +176,8 @@ pub(super) fn plan_buffers(
             "Estimated working set exceeds configured budget",
         ));
     }
-    let held = committed.saturating_add(retained); // what is left sizes the waves
-    let waves = compiler_budget::waves::waves(&working, o.ram_budget_bytes().saturating_sub(held));
+    let held = committed.saturating_add(retained); // what is left is the primitives' room
+    let room = o.ram_budget_bytes().saturating_sub(held);
     Ok(BufferPlan {
         accessors,
         jobs,
@@ -200,6 +186,7 @@ pub(super) fn plan_buffers(
         view_map,
         estimated_working_bytes: held.saturating_add(working.iter().copied().max().unwrap_or(0)),
         threads,
-        waves,
+        working,
+        room,
     })
 }

@@ -63,11 +63,7 @@ impl Builder {
 /// A face index outside the positions, or a parameter index outside its table, refuses the file.
 fn key(geometry: &Geometry, face: usize, corner: usize) -> Result<(u32, u32, u32)> {
     let invalid = |what| CompilerError::new(TOPOLOGY_INVALID, what);
-    let vertex = geometry
-        .corners
-        .get(corner)
-        .copied()
-        .and_then(|index| usize::try_from(index).ok())
+    let vertex = vertex_of(geometry, corner)
         .filter(|vertex| (vertex + 1) * 3 <= geometry.positions.len())
         .ok_or_else(|| invalid("alembic: a face index falls outside the position table"))?;
     let slot = |param: Option<&GeomParam>| match param {
@@ -81,6 +77,13 @@ fn key(geometry: &Geometry, face: usize, corner: usize) -> Result<(u32, u32, u32
         ));
     };
     Ok((vertex as u32, normal, uv))
+}
+
+/// The vertex a corner names, as an index; `None` for a corner outside the face indices or a
+/// negative index.
+fn vertex_of(geometry: &Geometry, corner: usize) -> Option<usize> {
+    let index = geometry.corners.get(corner).copied()?;
+    usize::try_from(index).ok()
 }
 
 /// Writes the values of a new vertex.
@@ -99,16 +102,9 @@ fn push(geometry: &Geometry, (vertex, normal, uv): (u32, u32, u32), out: &mut Ve
 /// The position of a corner's vertex, as doubles, as the cutter reads it. A corner outside the
 /// tables yields the origin: `corner` has already refused the file whose arrays contradict.
 fn point(geometry: &Geometry, corner: usize) -> [f64; 3] {
-    let vertex = geometry
-        .corners
-        .get(corner)
-        .copied()
-        .and_then(|index| usize::try_from(index).ok())
-        .unwrap_or_default();
-    geometry
-        .positions
-        .get(vertex * 3..vertex * 3 + 3)
-        .map_or([0.0; 3], |axes| {
-            [f64::from(axes[0]), f64::from(axes[1]), f64::from(axes[2])]
-        })
+    let vertex = vertex_of(geometry, corner).unwrap_or_default();
+    u32::try_from(vertex)
+        .ok()
+        .and_then(|vertex| trillion3d_math::vec3::point_checked(&geometry.positions, vertex))
+        .unwrap_or_default()
 }

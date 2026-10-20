@@ -13,7 +13,6 @@ use crate::le::u32_at;
 use std::{borrow::Cow, io::Read};
 
 pub(super) const MAGIC: &[u8] = b"BLENDER";
-const GZIP: &[u8] = b"\x1f\x8b";
 const ZSTD: &[u8] = b"\x28\xb5\x2f\xfd";
 /// The only sixty-four-bit block variant this reader knows how to read.
 const WIDE_VARIANT: u32 = 1;
@@ -49,12 +48,12 @@ fn within(length: usize, ceiling: usize) -> Result<()> {
 
 /// Undoes the wrapping: a bare file is borrowed as-is, a gzip or Zstandard stream is decompressed
 /// under the ceiling.
-pub(super) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Cow<'_, [u8]>> {
+pub(crate) fn unwrap(raw: &[u8], ceiling: usize) -> Result<Cow<'_, [u8]>> {
     if raw.starts_with(MAGIC) {
         return Ok(Cow::Borrowed(raw));
     }
     let mut out = Vec::new();
-    if raw.starts_with(GZIP) {
+    if raw.starts_with(crate::plugins::scene::archive::GZIP_MAGIC) {
         flate2::read::MultiGzDecoder::new(raw)
             .take((ceiling as u64).saturating_add(1))
             .read_to_end(&mut out)

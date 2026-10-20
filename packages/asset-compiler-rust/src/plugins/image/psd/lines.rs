@@ -79,18 +79,10 @@ impl<'a> Lines<'a> {
 
     /// Compressed length that the table gives this line.
     fn count(&self, index: usize) -> std::result::Result<usize, &'static str> {
-        let field = self
-            .counts
-            .get(index * self.count_bytes..)
-            .and_then(|rest| rest.get(..self.count_bytes))
-            .ok_or(DATA_TRUNCATED)?;
-        match field {
-            [high, low] => Ok(usize::from(u16::from_be_bytes([*high, *low]))),
-            [a, b, c, d] => {
-                usize::try_from(u32::from_be_bytes([*a, *b, *c, *d])).map_err(|_| DATA_TRUNCATED)
-            }
-            _ => Err(DATA_TRUNCATED),
-        }
+        let at = index * self.count_bytes;
+        crate::le::uint_at(self.counts, at, self.count_bytes, true)
+            .and_then(|count| usize::try_from(count).ok())
+            .ok_or(DATA_TRUNCATED)
     }
 }
 

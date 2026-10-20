@@ -7,7 +7,7 @@
 //! defines — no extra rounding or filter is added here — and returns one pixel per thirty-two-bit
 //! word, bytes B, G, R, A in memory. The only thing this module then does is put those bytes back
 //! into the contract order, R, G, B, A.
-use super::DecodedImage;
+use super::{pixel_surface_bytes, DecodedImage, RGBA8_PIXEL_BYTES};
 
 /// Signature of a block decoder: the level's bytes, its dimensions, the returned pixels.
 pub(super) type BlockDecode = fn(&[u8], usize, usize, &mut [u32]) -> Result<(), &'static str>;
@@ -34,11 +34,16 @@ pub(super) enum Order {
 }
 
 impl Layout {
+    /// 4 × 4 blocks of `bytes` each, expanded by `decode`.
+    pub(super) const fn blocks(bytes: usize, decode: BlockDecode) -> Self {
+        Layout::Blocks { bytes, decode }
+    }
+
     /// Bytes occupied by a level of this size.
     pub(super) fn level_bytes(self, width: u32, height: u32) -> u64 {
         match self {
             Layout::Blocks { bytes, .. } => surface_bytes(width, height, bytes as u64),
-            Layout::Pixels(_) => rgba8_bytes(width, height),
+            Layout::Pixels(_) => pixel_surface_bytes(width, height, RGBA8_PIXEL_BYTES),
         }
     }
 
@@ -57,6 +62,20 @@ impl Layout {
             }
             Layout::Pixels(order) => from_pixels(order, level, width * height, truncated),
         }
+    }
+
+    /// Level 0, `width` × `height`, as the image a driver returns (`rgba8`): the one glue of
+    /// the drivers that receive GPU blocks, once their level's bytes are plain. The caller has
+    /// bounded the image against its ceiling before reading them.
+    pub(super) fn decode(
+        self,
+        level: &[u8],
+        width: u32,
+        height: u32,
+        truncated: &'static str,
+    ) -> std::result::Result<DecodedImage, &'static str> {
+        let rgba = self.rgba8(level, width as usize, height as usize, truncated)?;
+        image(width, height, rgba, truncated)
     }
 }
 
@@ -91,9 +110,7 @@ fn from_pixels(
 /// than overflowing: absurd dimensions give an absurd need, hence a refusal.
 pub(crate) fn surface_bytes(width: u32, height: u32, block_bytes: u64) -> u64 {
     let (across, down) = blocks_of(width, height);
-    u64::from(across)
-        .saturating_mul(u64::from(down))
-        .saturating_mul(block_bytes)
+    pixel_surface_bytes(across, down, block_bytes)
 }
 
 /// Texels along a block's side.
@@ -102,14 +119,6 @@ pub(crate) const BLOCK_SIDE: u32 = 4;
 /// Blocks across and down a `width` × `height` level: a partial block at an edge is a whole one.
 pub(crate) fn blocks_of(width: u32, height: u32) -> (u32, u32) {
     (width.div_ceil(BLOCK_SIDE), height.div_ceil(BLOCK_SIDE))
-}
-
-/// Bytes of a `width` × `height` surface of uncompressed pixels, four bytes each; saturating, as
-/// `surface_bytes`.
-pub(crate) fn rgba8_bytes(width: u32, height: u32) -> u64 {
-    u64::from(width)
-        .saturating_mul(u64::from(height))
-        .saturating_mul(4)
 }
 
 /// Expands level 0 of a 4 × 4 block surface. The decoder works one block row at a time into a

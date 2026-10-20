@@ -4,7 +4,7 @@
 //! `dwFourCC`, the DX10 header's `dxgiFormat`, or — for an uncompressed surface — its bit
 //! masks. All three paths arrive here and return `None` for anything not on the list: it is
 //! the caller that turns that into a named refusal.
-use crate::plugins::image::blocks::{BlockDecode, Layout, Order};
+use crate::plugins::image::blocks::{Layout, Order};
 use crate::plugins::image::Transfer;
 use texture2ddecoder::{decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5, decode_bc7};
 
@@ -35,7 +35,7 @@ pub(super) enum Codec {
 impl Codec {
     /// This codec's layout: the only table that links a declared codec to its bytes.
     pub(super) fn layout(self) -> Layout {
-        let blocks = |bytes, decode: BlockDecode| Layout::Blocks { bytes, decode };
+        let blocks = Layout::blocks;
         match self {
             Codec::Bc1 => blocks(8, decode_bc1a),
             Codec::Bc2 => blocks(16, decode_bc2),

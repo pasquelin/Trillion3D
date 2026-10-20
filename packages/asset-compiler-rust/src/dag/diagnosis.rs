@@ -1,19 +1,10 @@
-//! Diagnosis of a stalled group: why its clusters stay roots, decided by experiment on the group
-//! itself, with no threshold.
+//! Diagnosis of a stalled group: the counts that explain why its clusters stay roots.
 //!
-//! Two things hold a position still: a position another group of the level also uses is locked so
-//! the cut stays watertight, and a position the group writes under several texture coordinates is
-//! a seam corner the reduction protects, so a coarse level never draws one side of a seam with the
-//! other's texture. The reduction that stalled is rerun with each constraint lifted in
-//! turn: with no lock, if it then advances the border shared with the neighbours held the group
-//! (`border-locked`); with no lock and every position copy welded across the seams of every
-//! texture set, if it then advances the seams held it (`seam-locked`); if neither advances, the
-//! surface itself resists the halving (`unreducible`). The reruns only diagnose: their result is
-//! dropped, the group stays stalled and the DAG is the one built without them.
-use super::border::live_triangles;
-use super::solved::{advances, Hold};
-use super::stopped::Stop;
+//! A group stalls when what the simplifier left does not fit its parents at any target cluster
+//! size down to half a cluster (`solved.rs`): its cause is `unreducible`, its census the seam,
+//! locked and island counts of its triangles.
 use super::*;
+use trillion3d_page_codec::encode::vertices::first_use;
 
 /// Position counts of a group, over its live triangles.
 struct Census {
@@ -38,8 +29,7 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
             .or_insert((copy, false, locked));
         entry.1 |= entry.0 != copy;
     }
-    let islands = super::texture::copy_islands(input.weld_seam, live);
-    let islands = islands.values().collect::<WordSet<_>>().len();
+    let islands = islands(live, input.weld_seam);
     let seam = positions.values().filter(|p| p.1).count();
     let locked = positions.values().filter(|p| p.2).count();
     Census {
@@ -49,33 +39,17 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
     }
 }
 
-/// Names why the group stalled. Its live triangles are rerun without locks, then without locks on
-/// positions welded across seams.
-pub(super) fn cause(
-    input: &GroupReductionInput,
-    live: &[u32],
-    children: usize,
-    stop: Stop,
-) -> Result<StallCause> {
-    let unlocked = Hold {
-        locked: false,
-        seams: true,
-    };
-    let advances = |indices: &[u32]| advances(input, indices, unlocked, children);
-    Ok(match stop {
-        Stop::TooSmall => StallCause::TooSmall,
-        Stop::BorderLost => StallCause::BorderLost,
-        Stop::NoCollapse if advances(live)? => StallCause::BorderLocked,
-        Stop::NoCollapse => {
-            let welded = live_triangles(live.iter().map(|&i| input.weld[i as usize]));
-            // Without a texture set, or without a seam, the weld changes nothing: same rerun.
-            if welded != live && advances(&welded)? {
-                StallCause::SeamLocked
-            } else {
-                StallCause::Unreducible
-            }
-        }
-    })
+/// Connected components of `live` over its corners welded by `weld`.
+fn islands(live: &[u32], weld: &[u32]) -> usize {
+    let (local, corners) = first_use(live.iter().map(|&v| weld[v as usize]));
+    let mut join = crate::join::Join::new(local.len());
+    for tri in corners.as_chunks::<3>().0 {
+        join.unite(tri[0], tri[1]);
+        join.unite(tri[0], tri[2]);
+    }
+    (0..local.len() as u32)
+        .filter(|&k| join.root(k) == k)
+        .count()
 }
 
 /// The stalled group's outcome under a cause already known: its live triangles and census.

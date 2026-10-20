@@ -169,14 +169,16 @@ fn a_test_gate_holds_for_the_inline_modules_inside() {
 }
 
 // Behaviour: the compiler links the page codec and the maths, each once, the maths reached through
-// the codec as well as directly; the maths' golden harness and tests are no production source.
+// the codec as well as directly, and the patched BC7 encoder it vendors; the maths' golden harness
+// and tests are no production source.
 #[test]
 fn the_compiler_links_the_codec_and_the_maths_without_their_tests() {
     assert_eq!(
         path_dependencies().unwrap(),
         [
             PathBuf::from("../math/rust"),
-            PathBuf::from("../page-codec-wasm")
+            PathBuf::from("../page-codec-wasm"),
+            PathBuf::from("vendor/block_compression")
         ]
     );
     let mut sources = Vec::new();

@@ -22,8 +22,8 @@ fn read_job(job: &Value) -> std::result::Result<Options, String> {
 fn parse_accepts_five_to_eight_args() {
     let five = parse(&["s", "c", "slice", "12", "/assets/"]).expect("five");
     assert_eq!(five.threads, machine_threads());
-    assert_eq!(five.ram_budget_mb, 256);
-    assert_eq!(five.simplification, "none");
+    assert_eq!(five.ram_budget_mb, crate::DEFAULT_RAM_BUDGET_MB);
+    assert_eq!(five.simplification, "qem-endpoints");
     let seven = parse(&["s", "c", "full", "12", "4", "128", "/a/"]).expect("seven");
     assert_eq!(seven.threads, 4);
     assert_eq!(seven.ram_budget_mb, 128);
@@ -31,8 +31,8 @@ fn parse_accepts_five_to_eight_args() {
     let unnamed = parse(&["s", "c", "full", "12", "", "128", "/a/"]).expect("unnamed threads");
     assert_eq!(unnamed.threads, machine_threads());
     assert_eq!(unnamed.ram_budget_mb, 128);
-    let eight = parse(&["s", "c", "full", "12", "4", "128", "/a/", "qem-endpoints"]);
-    assert_eq!(eight.expect("eight").simplification, "qem-endpoints");
+    let eight = parse(&["s", "c", "full", "12", "4", "128", "/a/", "none"]);
+    assert_eq!(eight.expect("eight").simplification, "none");
     // A value out of its choices is refused by the one check of a job's values, whichever form
     // named it, and the refusal names the field.
     let bicubic = parse(&["s", "c", "full", "12", "4", "128", "/a/", "bicubic"]);
@@ -84,7 +84,7 @@ fn an_unknown_job_field_is_refused_by_name() {
     let refused = read_job(&old).err().expect("refused");
     assert!(refused.contains("triangles"), "{refused}");
     let named =
-        json!({"id":"a","source":"s","cache":"c","resourceBaseUrl":"/a/","texturesFormat":"none"});
+        json!({"id":"a","source":"s","cache":"c","resourceBaseUrl":"/a/","texturesFormat":"bc7"});
     read_job(&named).expect("named");
 }
 // Behaviour: a text field holding another type is refused by name, never read as absent: a
@@ -105,20 +105,29 @@ fn a_mistyped_text_field_is_refused_by_name() {
     read_job(&json!({"source":"s","cache":"c","resourceBaseUrl":"/a/","scope":null}))
         .expect("null");
 }
-// Behaviour: a cook writes every block family unless told otherwise — each device then streams
-// the blocks it samples, PNG the last fallback —, one family by name, or none.
+// Behaviour: a cook writes the stored BC family alone unless told otherwise — a device without
+// it decodes BC —, the stored one and one family by name, or every family under `all`; no value
+// leaves the stored family out.
 #[test]
-fn every_block_family_is_cooked_by_default() {
+fn the_stored_block_family_alone_is_cooked_by_default() {
     use crate::texture_preview::BlockFormat;
     let formats = |extra: &[&str]| {
         parse(&[&["s", "c", "slice", "12", "/a/"][..], extra].concat()).map(|o| o.texture_formats)
     };
-    assert_eq!(formats(&[]), Ok(BlockFormat::ALL.to_vec()));
+    assert_eq!(formats(&[]), Ok(vec![BlockFormat::STORED]));
+    assert_eq!(
+        formats(&["--textures-format=all"]),
+        Ok(BlockFormat::ALL.to_vec())
+    );
     assert_eq!(
         formats(&["--textures-format=etc2"]),
-        Ok(vec![BlockFormat::Etc2])
+        Ok(vec![BlockFormat::STORED, BlockFormat::Etc2])
     );
-    assert_eq!(formats(&["--textures-format=none"]), Ok(Vec::new()));
+    assert_eq!(
+        formats(&["--textures-format=bc7"]),
+        Ok(vec![BlockFormat::STORED])
+    );
+    assert!(formats(&["--textures-format=none"]).is_err());
     assert!(formats(&["--textures-format=both"]).is_err());
 }
 // Behaviour: a count of values no form takes is refused with the usage, each run of fields a short
@@ -146,6 +155,7 @@ fn one_refusal_names_each_missing_value_and_every_choice() {
     let usage = parse(&["s"]).err().expect("usage");
     for name in BlockFormat::ALL.map(BlockFormat::name) {
         assert!(refused.as_ref().err().expect("both").contains(name));
-        assert!(usage.contains(&format!("|{name}|")), "{usage}");
     }
+    let families = BlockFormat::ALL.map(BlockFormat::name).join("|");
+    assert!(usage.contains(&format!("all|{families}")), "{usage}");
 }

@@ -50,8 +50,18 @@ fn derived(hidden: bool) -> [Value; 7] {
         physics["instances"].clone(),
         json!(bodies),
         json!(oracle),
-        tables["nodes"][1]["visible"].clone(),
+        visibility(&tables),
     ]
+}
+
+/// What the tables say of node 1's visibility: its core entry's, or visible when it is placed —
+/// a cell holds visible nodes alone (`compiler_tables/partition.rs`).
+fn visibility(tables: &Value) -> Value {
+    let nodes = tables["nodes"].as_array().expect("nodes");
+    let entry = nodes
+        .iter()
+        .find(|node| node["sourceNode"] == json!("00000001"));
+    entry.map_or(json!(true), |node| node["visible"].clone())
 }
 
 #[test]

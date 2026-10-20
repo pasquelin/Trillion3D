@@ -115,3 +115,23 @@ pub(super) fn flatten_buffer_views(g: &mut Value, offsets: &[usize], bin_len: us
     g["buffers"] = json!([{"byteLength":bin_len}]);
     Ok(())
 }
+
+/// Appends `data` to `bytes` at the next four-aligned offset, and its view of buffer 0 to `views`;
+/// returns the view's rank.
+pub(crate) fn append_view(
+    bytes: &mut Vec<u8>,
+    views: &mut Vec<Value>,
+    data: &[u8],
+    target: Option<u32>,
+) -> usize {
+    let pad = crate::shared_math::pad_to_4(bytes.len());
+    bytes.extend(std::iter::repeat_n(0u8, pad));
+    let offset = bytes.len();
+    bytes.extend_from_slice(data);
+    let mut view = json!({"buffer":0,"byteOffset":offset,"byteLength":data.len()});
+    if let Some(t) = target {
+        view["target"] = json!(t);
+    }
+    views.push(view);
+    views.len() - 1
+}

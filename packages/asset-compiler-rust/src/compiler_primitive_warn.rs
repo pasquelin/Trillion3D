@@ -30,20 +30,10 @@ pub(super) fn level_report(dag: &[crate::dag::DagCluster], depth: usize) -> Vec<
             continue;
         }
         let clusters = errors.len();
-        let (min, median, max) = super::compiler_primitive_dag::level_error_stats(&mut errors);
+        let (min, median, max) = trillion3d_math::scalar::min_median_max(&mut errors);
         stats.push(json!({"level":level,"clusters":clusters,"triangles":triangles,"roots":roots,"rootTriangles":root_triangles,"errorMin":min,"errorMedian":median,"errorMax":max}));
     }
     stats
-}
-
-/// The root cover's triangles a primitive's DAG report publishes: its levels' root triangles
-/// summed, what the primitive draws at its coarsest. Never the report's top-level `rootTriangles`,
-/// the stall summary's level-0 triangles nothing replaces, which is zero once the DAG climbs.
-pub(crate) fn root_cover_triangles(dag: &Value) -> usize {
-    let levels = dag["levels"].as_array().into_iter().flatten();
-    levels
-        .filter_map(|l| l["rootTriangles"].as_u64())
-        .sum::<u64>() as usize
 }
 
 /// The four numbers a warning judges, read once on the DAG.
@@ -94,7 +84,7 @@ pub(super) fn dag_warnings(
         "pages": pages,
         "groups": crate::dag::GroupTally::total(tallies).json(),
     });
-    super::compiler_primitive_stalls::merge(&mut warning, stalls.json());
+    crate::json::merge(&mut warning, stalls.json());
     vec![warning]
 }
 
@@ -123,15 +113,14 @@ mod tests {
     use super::*;
     use crate::dag::{DagStrategy, GroupTally, StallCause};
 
-    fn stalled(seam_locked: usize) -> GroupTally {
-        GroupTally {
-            seam_locked,
-            ..GroupTally::default()
-        }
+    fn stalled(unreducible: usize) -> GroupTally {
+        let mut tally = GroupTally::default();
+        tally.stalled[StallCause::Unreducible as usize] = unreducible;
+        tally
     }
     const SEAMS: StallSummary = StallSummary {
         root_triangles: 12_544,
-        cause: Some(StallCause::SeamLocked),
+        cause: Some(StallCause::Unreducible),
         seam: 300,
         locked: 40,
         islands: 98,
@@ -160,9 +149,9 @@ mod tests {
         let warnings = warn(98, 0, 98, 98, &[stalled(4)]);
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0]["code"], "DAG_FLAT");
-        assert_eq!(warnings[0]["groups"]["seamLocked"], 4);
+        assert_eq!(warnings[0]["groups"]["unreducible"], 4);
         assert_eq!(warnings[0]["roots"], 98);
-        assert_eq!(warnings[0]["cause"], "seam-locked");
+        assert_eq!(warnings[0]["cause"], "unreducible");
         assert_eq!(warnings[0]["rootTriangles"], 12_544);
         let exact = DagShape {
             level0: 98,

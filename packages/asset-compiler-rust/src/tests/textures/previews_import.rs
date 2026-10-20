@@ -7,6 +7,7 @@
 //! images share a folder; it therefore cannot see a resolution root that moves.
 //! This test looks only at that: do the previews find the bytes of an image left
 //! at the source.
+use super::previews_source::encode;
 use super::*;
 
 /// The golden FBX fixture, copied into a throwaway folder with real images beside
@@ -31,14 +32,9 @@ fn fbx_with_external_images() -> (PathBuf, Options) {
 /// for its pyramid to carry several levels. All that counts here is that a
 /// registry decoder can reread it.
 fn png_bytes(tint: u8) -> Vec<u8> {
-    let image = image::RgbaImage::from_fn(40, 24, |x, y| {
+    encode(image::RgbaImage::from_fn(40, 24, |x, y| {
         image::Rgba([(x * 255 / 39) as u8, (y * 255 / 23) as u8, tint, 255])
-    });
-    let mut out = Vec::new();
-    image
-        .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)
-        .expect("png");
-    out
+    }))
 }
 
 // Behaviour: images of a converted scene resolve under the source folder, never

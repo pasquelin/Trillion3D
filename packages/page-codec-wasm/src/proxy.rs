@@ -9,8 +9,6 @@ pub mod bvh;
 pub mod simplify;
 pub mod wide;
 
-use trillion3d_math::aabb::longest_side;
-
 /// The node columns `build_columns` leaves besides the triangles and albedos it rewrites in place,
 /// and the rank each triangle of its leaf order had among the triangles it was given.
 pub struct Built {
@@ -113,8 +111,7 @@ pub fn cut_columns(indices: &[u32], positions: &[f32]) -> CutColumns {
 /// (`cut_columns`): one builder, one structure.
 pub fn columns_of(mut triangles: Vec<f32>, albedo: u32) -> CutColumns {
     triangles.truncate(triangles.len() / PROXY_TRIANGLE_FLOATS * PROXY_TRIANGLE_FLOATS);
-    let [x, y, z, xx, yy, zz] = bvh::extent(&triangles);
-    let longest = longest_side([x, y, z], [xx, yy, zz]);
+    let longest = crate::bits::grid::positions_extent(&triangles);
     let cell = simplify::plan_cell(
         &triangles,
         longest * PROXY_CUT_CELL_SHARE,

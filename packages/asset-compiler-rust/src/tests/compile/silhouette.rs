@@ -5,14 +5,18 @@
 //! keeps, per sample, the nearest FRONT face, back faces culled as the renderer culls them. Where
 //! the source covers a whole disc of the cut's error around a sample, the cut must draw a front
 //! face within that disc, no further than the error behind the source: a wall wider than the error
-//! is neither pruned nor turned away, and a seam narrower than the error may open. Separately, no
-//! cut triangle may face against the normals of the source vertices it names.
+//! is neither pruned nor turned away, and a seam narrower than the error may open. The rest of the
+//! mesh, drawn beside the cut, covers for a part the cut removed in front of it, as the cook
+//! measures a removal against it (`physics_cook/hausdorff/backdrop.rs`). Separately, no
+//! cut triangle wider than the error may face against the normals its page decodes at its
+//! corners: a narrower one draws under a pixel wherever the cut is drawn (`dag/quality.rs`).
+use super::silhouette_grid::Grid;
 use super::*;
 use crate::proxy::cut::in_cut;
 use trillion3d_math::triangle::triangle_cross;
-use trillion3d_math::vecn::dot;
+use trillion3d_math::vecn::{dot, length, sub};
 
-type Point = [f64; 3];
+pub(super) type Point = [f64; 3];
 
 /// One source primitive: its vertices and, per corner, the vertex it draws.
 pub(in crate::tests) struct Mesh {
@@ -21,134 +25,63 @@ pub(in crate::tests) struct Mesh {
     pub indices: Vec<u32>,
 }
 
-/// Samples of one view: a square grid over the source's projection, `step` apart.
-struct Grid {
-    axis: usize,
-    sign: f64,
-    origin: [f64; 2],
-    step: f64,
-    size: [usize; 2],
-}
-
-impl Grid {
-    fn plane(&self) -> [usize; 2] {
-        [(self.axis + 1) % 3, (self.axis + 2) % 3]
-    }
-    /// Nearest front-facing depth per sample (`sign · p[axis]`, larger is nearer), `-inf` where
-    /// no front face covers it.
-    fn raster(&self, mesh: &Mesh, indices: &[u32]) -> Vec<f64> {
-        let [u, v] = self.plane();
-        let mut depth = vec![f64::NEG_INFINITY; self.size[0] * self.size[1]];
-        for t in indices.chunks(3) {
-            let p = [0, 1, 2].map(|k| mesh.positions[t[k] as usize]);
-            if self.sign * triangle_cross(p[0], p[1], p[2])[self.axis] <= 0.0 {
-                continue;
-            }
-            let area = (p[1][u] - p[0][u]) * (p[2][v] - p[0][v])
-                - (p[2][u] - p[0][u]) * (p[1][v] - p[0][v]);
-            let cell = |a: usize, x: f64| (x - self.origin[a]) / self.step;
-            let range = |a: usize, c: usize| {
-                let values = p.map(|q| cell(a, q[c]));
-                let low = values
-                    .iter()
-                    .copied()
-                    .fold(f64::INFINITY, f64::min)
-                    .ceil()
-                    .max(0.0);
-                let high = values
-                    .iter()
-                    .copied()
-                    .fold(f64::NEG_INFINITY, f64::max)
-                    .floor();
-                low as usize..(high + 1.0).clamp(0.0, self.size[a] as f64) as usize
-            };
-            for i in range(0, u) {
-                for j in range(1, v) {
-                    let (x, y) = (
-                        self.origin[0] + i as f64 * self.step,
-                        self.origin[1] + j as f64 * self.step,
-                    );
-                    let edge = |a: Point, b: Point| {
-                        (b[u] - a[u]) * (y - a[v]) - (x - a[u]) * (b[v] - a[v])
-                    };
-                    let w =
-                        [edge(p[1], p[2]), edge(p[2], p[0]), edge(p[0], p[1])].map(|e| e / area);
-                    if w.iter().any(|&w| w < -1e-9) {
-                        continue;
-                    }
-                    let z = self.sign
-                        * (w[0] * p[0][self.axis]
-                            + w[1] * p[1][self.axis]
-                            + w[2] * p[2][self.axis]);
-                    let slot = &mut depth[i * self.size[1] + j];
-                    *slot = slot.max(z);
-                }
-            }
-        }
-        depth
-    }
-    /// `fold` of `values` over the square of `radius` samples around each sample, separably.
-    fn filter(&self, values: &[f64], radius: usize, fold: fn(f64, f64) -> f64) -> Vec<f64> {
-        let [n, m] = self.size;
-        let pass = |input: &[f64], along_rows: bool| -> Vec<f64> {
-            let mut out = input.to_vec();
-            for i in 0..n {
-                for j in 0..m {
-                    let (c, len) = if along_rows { (i, n) } else { (j, m) };
-                    for k in c.saturating_sub(radius)..(c + radius + 1).min(len) {
-                        let at = if along_rows { k * m + j } else { i * m + k };
-                        out[i * m + j] = fold(out[i * m + j], input[at]);
-                    }
-                }
-            }
-            out
+impl Mesh {
+    /// The primitives of `meshes` as one mesh.
+    pub fn merged<'a>(meshes: impl IntoIterator<Item = &'a Mesh>) -> Mesh {
+        let mut all = Mesh {
+            positions: Vec::new(),
+            normals: Vec::new(),
+            indices: Vec::new(),
         };
-        pass(&pass(values, true), false)
+        for mesh in meshes {
+            let base = all.positions.len() as u32;
+            all.indices.extend(mesh.indices.iter().map(|&v| v + base));
+            all.positions.extend_from_slice(&mesh.positions);
+            all.normals.extend_from_slice(&mesh.normals);
+        }
+        all
     }
 }
 
-/// The source vertices a cooked page draws, three per triangle, from its index object.
-pub(in crate::tests) fn page_indices(objects: &Path, page: &Value) -> Vec<u32> {
-    let raw = fs::read(objects.join(format!("{}.bin", page["sha256"].as_str().expect("sha"))));
-    raw.expect("index object")
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|b| u32::from_le_bytes(*b))
-        .collect()
-}
-
-/// Every cut of `primitive`, finest first: its threshold and the source indices it draws, the
-/// pages `proxy::cut::in_cut` selects.
-pub(in crate::tests) fn page_cuts(objects: &Path, primitive: &Value) -> Vec<(f64, Vec<u32>)> {
+/// Every cut of `primitive`, finest first: its threshold and what it draws, the pages
+/// `proxy::cut::in_cut` selects, each drawing its mesh of `drawn` (`cooked_pages::drawn`).
+pub(in crate::tests) fn page_cuts(drawn: &[Mesh], primitive: &Value) -> Vec<(f64, Mesh)> {
     let pages = primitive["pages"].as_array().expect("pages");
-    let indices: Vec<Vec<u32>> = pages
-        .iter()
-        .map(|page| page_indices(objects, page))
-        .collect();
     let error = |page: &Value, key: &str| page[key].as_f64().unwrap_or(f64::INFINITY);
     let mut thresholds: Vec<f64> = pages.iter().map(|p| error(p, "lodError")).collect();
     thresholds.sort_by(f64::total_cmp);
     thresholds.dedup();
-    let cut = |t: f64| -> Vec<u32> {
-        let drawn = pages.iter().zip(&indices);
+    let cut = |t: f64| -> Mesh {
+        let drawn = pages.iter().zip(drawn);
         let drawn = drawn.filter(|(p, _)| in_cut(error(p, "lodError"), error(p, "parentError"), t));
-        drawn.flat_map(|(_, i)| i.iter().copied()).collect()
+        Mesh::merged(drawn.map(|(_, mesh)| mesh))
     };
     thresholds.into_iter().map(|t| (t, cut(t))).collect()
 }
 
-/// Each cut of `primitive` against `mesh`, its source, one line per defect.
-pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Mesh) -> Vec<String> {
+/// Each cut of `primitive`, whose pages draw the meshes of `drawn` as they decode, against
+/// `mesh`, its source, drawn beside `rest`, the source of the rest of its mesh: one line per
+/// defect.
+pub(in crate::tests) fn cut_defects(
+    drawn: &[Mesh],
+    primitive: &Value,
+    mesh: &Mesh,
+    rest: &Mesh,
+) -> Vec<String> {
     let (low, high) = trillion3d_math::aabb::aabb_of(mesh.positions.iter().copied());
     let diagonal = trillion3d_math::aabb::diagonal(low, high);
     let mut defects = Vec::new();
-    for (t, cut) in page_cuts(objects, primitive) {
-        for c in cut.chunks(3) {
-            let p = [0, 1, 2].map(|k| mesh.positions[c[k] as usize]);
-            let n = [0, 1, 2].map(|k| mesh.normals[c[k] as usize]);
+    for (t, cut) in page_cuts(drawn, primitive) {
+        for c in cut.indices.chunks(3) {
+            let p = [0, 1, 2].map(|k| cut.positions[c[k] as usize]);
+            let n = [0, 1, 2].map(|k| cut.normals[c[k] as usize]);
             let facing = triangle_cross(p[0], p[1], p[2]);
-            if dot(facing, std::array::from_fn(|a| n[0][a] + n[1][a] + n[2][a])) < 0.0 {
+            let longest = [(0, 1), (1, 2), (2, 0)]
+                .map(|(a, b)| length(sub(p[b], p[a])))
+                .into_iter()
+                .fold(0.0, f64::max);
+            let wide = length(facing) > t * longest;
+            if wide && dot(facing, std::array::from_fn(|a| n[0][a] + n[1][a] + n[2][a])) < 0.0 {
                 defects.push(format!("cut {t}: triangle {p:?} faces against its normals"));
             }
         }
@@ -169,7 +102,10 @@ pub(in crate::tests) fn cut_defects(objects: &Path, primitive: &Value, mesh: &Me
                     size,
                 };
                 let source = grid.raster(mesh, &mesh.indices);
-                let drawn = grid.raster(mesh, &cut);
+                let behind = grid.raster(rest, &rest.indices);
+                let drawn: Vec<f64> = (grid.raster(&cut, &cut.indices).into_iter().zip(behind))
+                    .map(|(own, rest)| own.max(rest))
+                    .collect();
                 let solid = grid.filter(&source, radius, f64::min);
                 let reach = grid.filter(&drawn, radius, f64::max);
                 let slack = t + 2.0 * step;

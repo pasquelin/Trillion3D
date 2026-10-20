@@ -25,15 +25,7 @@ impl ScenePlugin for Gltf {
         head.starts_with(b"glTF")
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        let [file] = request.inputs else {
-            return Err(CompilerError::new(
-                "SOURCE_FORMAT_AMBIGUOUS",
-                format!(
-                    "gltf: a source directory carries exactly one .gltf or .glb, found {}",
-                    request.inputs.len()
-                ),
-            ));
-        };
+        let file = super::single_input(request.inputs, self.name(), ".gltf or .glb")?;
         let name = file
             .file_name()
             .and_then(|s| s.to_str())

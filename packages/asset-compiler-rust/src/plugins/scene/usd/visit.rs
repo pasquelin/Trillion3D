@@ -24,10 +24,11 @@ pub(super) fn visit(
     scale: f64,
 ) -> Option<usize> {
     if depth > MAX_DEPTH {
-        world.refuse(world::XFORM_UNSUPPORTED);
+        world.scene.report.add(world::XFORM_UNSUPPORTED);
         return None;
     }
-    world.check()?;
+    // Cancellation, checked at each prim: the walk stops, `convert` then refuses.
+    crate::plugins::scene::cancel::going(world.cancelled)?;
     if !prim.is_active().unwrap_or(true) {
         world.count("inactive", 1);
         return None;
@@ -41,7 +42,7 @@ pub(super) fn visit(
     let type_name = prim.type_name().ok().flatten();
     let type_name = type_name.as_ref().map_or("", |name| name.as_str());
     if let Some(reason) = world::refusal(type_name) {
-        world.refuse(reason);
+        world.scene.report.add(reason);
         return None;
     }
     if type_name == "GeomSubset" {
@@ -65,19 +66,16 @@ fn is_light(type_name: &str) -> bool {
 /// descendant never comes back to visible under an invisible prim, so the walk stops there and
 /// the whole branch leaves the scene.
 fn invisible(world: &mut World<'_>, prim: &usd::Prim) -> bool {
-    let Some((value, sampled)) = read::first(&prim.attribute("visibility")) else {
+    let Some(value) = world.first(prim, "visibility") else {
         return false;
     };
-    if sampled {
-        world.refuse(world::TIME_SAMPLE);
-    }
     read::text(&value).as_deref() == Some(INVISIBLE)
 }
 
 /// What this prim brings to the report without changing the scene.
 fn report(world: &mut World<'_>, prim: &usd::Prim) {
     if layer::variants(world, prim) {
-        world.refuse(world::VARIANTS);
+        world.scene.report.add(world::VARIANTS);
     }
     let unresolved = layer::unresolved(world, prim);
     world.scene.report.add_count(world::COMPOSITION, unresolved);

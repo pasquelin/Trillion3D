@@ -36,19 +36,25 @@ fn stable(value: &Value) -> Value {
 }
 
 /// Images the scene cites by relative URI, in its order, with the fingerprint of
-/// the file found. `null` means absence: an image that appears changes identity as
-/// much as one whose bytes change. Embedded images are not here — their bytes are
-/// already those of the binary.
-fn linked_images(g: &Value, image_root: &Path) -> Vec<Value> {
+/// the file found, read from the table taken once for the compilation
+/// (`texture_preview::source::ImageShas`). `null` means absence: an image that
+/// appears changes identity as much as one whose bytes change. Embedded images
+/// are not here — their bytes are already those of the binary.
+fn linked_images(
+    g: &Value,
+    image_root: &Path,
+    shas: &crate::texture_preview::source::ImageShas,
+) -> Vec<Value> {
     let Some(images) = g.get("images").and_then(Value::as_array) else {
         return Vec::new();
     };
     images
         .iter()
-        .filter_map(|image| {
+        .enumerate()
+        .filter_map(|(index, image)| {
             let uri = image.get("uri").and_then(Value::as_str)?;
-            let path = crate::uri::resolve_under(image_root, uri).ok()?;
-            Some(json!({"uri":uri,"sha256":hash_file(&path).ok()}))
+            crate::uri::resolve_under(image_root, uri).ok()?;
+            Some(json!({"uri":uri,"sha256":shas.get(index)}))
         })
         .collect()
 }
@@ -56,27 +62,37 @@ fn linked_images(g: &Value, image_root: &Path) -> Vec<Value> {
 /// Cache key: identity of the source, of the resources it consumes, and the
 /// options that decide the product. A consumer that reuses by this key finds the
 /// same bytes. `image_root` is the root where relative image URIs resolve, named
-/// by the router. `cutouts` is what an answer has REALLY changed in the scene:
+/// by the router; `shas` the fingerprint of each image. `cutouts` is what an answer has REALLY changed in the scene:
 /// bindings reclassified as cutout, which change how their primitives are ranked
 /// and therefore the product bytes. An answer with no effect — "glass", refusal,
 /// a texture the scene does not use — does not move the key.
 pub(super) fn cache_key(
     o: &Options,
     loaded: &RuntimeSource,
-    image_root: &Path,
+    (image_root, shas): (&Path, &crate::texture_preview::source::ImageShas),
     cutouts: &[Value],
 ) -> Result<String> {
     let source = hash(&serde_json::to_vec(&stable(&loaded.manifest))?);
-    let images = linked_images(&loaded.g, image_root);
+    let images = linked_images(&loaded.g, image_root, shas);
     let bin_hash = &loaded.bin_hash;
-    let material = json!({
+    let mut material = json!({
         "source":source,"binary":bin_hash,"images":images,
         "compiler":COMPILER_VERSION,"implementation":implementation_hash(),
         "plugins":plugins::fingerprint(),"scope":o.scope,"budget":o.triangle_budget,
         "resourceBase":o.resource_base,"simplification":o.simplification,
         "textureFormats":o.texture_formats.iter().map(|f| f.name()).collect::<Vec<_>>(),
+        "hlod":o.hlod.as_ref().map_or(Value::Null, |hlod| hlod.named.clone()),
         "errorModel":DAG_ERROR_MODEL,"cutouts":cutouts,
     });
+    // The material settings, only when the job names some: a job naming none keeps its key.
+    if let Some(named) = o
+        .materials
+        .as_ref()
+        .ok()
+        .and_then(MaterialOptions::identity)
+    {
+        material["materials"] = named;
+    }
     keyed(material, crate::physics_cook::JOLT_COMMIT)
 }
 

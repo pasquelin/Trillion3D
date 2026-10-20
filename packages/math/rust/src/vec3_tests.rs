@@ -19,7 +19,7 @@ fn length_is_the_root_of_the_squares_powi_or_product_alike() {
 fn the_single_precision_forms_round_in_f32() {
     let v = [1.0f32, 2.0, 2.0];
     assert_eq!(length(v), 3.0);
-    assert_eq!(divide_f32(v, 3.0), [1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0]);
+    assert_eq!(divide(v, 3.0), [1.0 / 3.0, 2.0 / 3.0, 2.0 / 3.0]);
     // Rounded in `f32` at each step, not once from `f64`: some vectors land a float apart.
     let apart = (1..1000)
         .map(|i| [i as f32 * 0.37, 1.0 / i as f32, 0.1])

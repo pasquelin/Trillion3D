@@ -47,28 +47,19 @@ impl Textures {
     }
 }
 
+/// The texture of the asset `guid` names, when an image driver reads it under the served
+/// directory — else the one refusal of every driver (`SceneTables::image_found`) —, sampled as its
+/// `.meta` declares.
 fn resolve(guid: &str, scene: &mut SceneTables, project: &Project) -> Option<usize> {
-    let Some(asset) = project.asset(guid) else {
-        scene
-            .report
-            .add(crate::plugins::scene::codes::TEXTURE_MISSING);
-        return None;
-    };
+    let root = &project.source_dir;
+    let asset = project.asset(guid);
+    let relative = asset.and_then(|asset| relative_under(root, asset));
+    let written = asset.map_or_else(|| guid.to_string(), |a| a.to_string_lossy().into_owned());
+    let image = scene.image_found(root, relative, &written)?;
+    // A texture found is an asset's.
+    let asset = asset?;
     let name = asset.file_name()?.to_string_lossy().to_string();
-    let Some(decoder) = crate::plugins::image::by_extension(asset) else {
-        scene.report.add("unity-texture-format");
-        scene
-            .report
-            .notes
-            .push(format!("texture outside the image registry: {name}"));
-        return None;
-    };
-    let Some(relative) = relative_under(&project.source_dir, asset) else {
-        scene.report.add("unity-texture-outside-source");
-        return None;
-    };
     let sampler = sampler(asset, &name, scene);
-    let image = scene.image(relative, decoder.mime());
     Some(scene.texture(image, sampler))
 }
 

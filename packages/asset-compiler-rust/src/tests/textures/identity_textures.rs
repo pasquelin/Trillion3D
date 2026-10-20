@@ -3,6 +3,7 @@
 //! that names it. A red PNG replaced by a blue PNG would therefore leave the key intact
 //! while `clusters.bin` changed, and a consumer that reuses by the key would keep the
 //! previous previews.
+use super::previews_source::encode;
 use super::*;
 
 /// A solid 8×8 PNG, whose colour distinguishes two files of the same name.
@@ -12,15 +13,11 @@ fn png(color: [u8; 4]) -> Vec<u8> {
 
 /// A solid square PNG of the given side: above 64 texels its levels are baked as files.
 pub(in crate::tests) fn png_sized(side: u32, colour: [u8; 4]) -> Vec<u8> {
-    let image = image::RgbaImage::from_pixel(side, side, image::Rgba(colour));
-    let mut bytes = Vec::new();
-    image
-        .write_to(
-            &mut std::io::Cursor::new(&mut bytes),
-            image::ImageFormat::Png,
-        )
-        .expect("png");
-    bytes
+    encode(image::RgbaImage::from_pixel(
+        side,
+        side,
+        image::Rgba(colour),
+    ))
 }
 
 /// The fixture, whose only material carries a base colour linked to `color.png`.

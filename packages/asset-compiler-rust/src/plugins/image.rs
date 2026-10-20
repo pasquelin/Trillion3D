@@ -64,10 +64,18 @@ pub(super) fn word(bytes: &[u8], at: usize) -> u32 {
     crate::le::u32_at(bytes, at).expect("a header field inside the length that was checked")
 }
 
+/// Bytes of a `width` × `height` surface of uncompressed pixels, `per_pixel` bytes each.
+/// `saturating_mul` keeps a lying dimension honest, where an overflowing multiply would let it
+/// through: absurd dimensions give an absurd need, hence a refusal.
+fn pixel_surface_bytes(width: u32, height: u32, per_pixel: u64) -> u64 {
+    u64::from(width)
+        .saturating_mul(u64::from(height))
+        .saturating_mul(per_pixel)
+}
+
 /// The allocation ceiling of a surface, checked before decoding anything, at `pixel_bytes` bytes
-/// per pixel. `saturating_mul` keeps the comparison honest when a dimension is lying, where an
-/// overflowing multiply would let it through. Emptiness is not judged here: `dds` and `ktx2` refuse
-/// it when reading their header, the float drivers in `float_budget`.
+/// per pixel. Emptiness is not judged here: `dds` and `ktx2` refuse it when reading their header,
+/// the pixel drivers in `budget`.
 fn surface_budget(
     width: u32,
     height: u32,
@@ -75,29 +83,27 @@ fn surface_budget(
     max_alloc: u64,
     too_large: &'static str,
 ) -> std::result::Result<(), &'static str> {
-    if u64::from(width)
-        .saturating_mul(u64::from(height))
-        .saturating_mul(pixel_bytes)
-        > max_alloc
-    {
+    if pixel_surface_bytes(width, height, pixel_bytes) > max_alloc {
         return Err(too_large);
     }
     Ok(())
 }
 
-/// What a float driver checks before allocating anything: an image of at least one pixel whose
-/// surface fits under the received ceiling, counted at sixteen bytes per pixel. An overrun is a
-/// report reason — the calling driver's — never an attempted allocation then a panic.
-fn float_budget(
+/// What a pixel driver checks before allocating anything: an image of at least one pixel whose
+/// surface fits under the received ceiling, counted at `pixel_bytes` bytes per pixel (sixteen for
+/// the float drivers). An overrun is a report reason — the calling driver's — never an attempted
+/// allocation then a panic.
+fn budget(
     width: u32,
     height: u32,
+    pixel_bytes: u64,
     max_alloc: u64,
     too_large: &'static str,
 ) -> std::result::Result<(), &'static str> {
     if width == 0 || height == 0 {
         return Err("image-empty");
     }
-    surface_budget(width, height, FLOAT_PIXEL_BYTES, max_alloc, too_large)
+    surface_budget(width, height, pixel_bytes, max_alloc, too_large)
 }
 
 /// An image driver. It never returns an empty image and never panics: an unexpected byte is a
@@ -111,9 +117,7 @@ pub trait ImageDecoder: Plugin + Sync {
     fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
         let extension = self.extensions().first().ok_or("image-format-unknown")?;
         let format = image::ImageFormat::from_extension(extension).ok_or("image-format-unknown")?;
-        image::ImageReader::with_format(std::io::Cursor::new(bytes), format)
-            .into_dimensions()
-            .map_err(|_| "image-decode-failed")
+        crate_image::dimensions(bytes, format, None)
     }
     /// Expanded container payload held alongside pixels, before any codec runs.
     fn expanded_payload_bytes(&self, _bytes: &[u8]) -> std::result::Result<usize, &'static str> {

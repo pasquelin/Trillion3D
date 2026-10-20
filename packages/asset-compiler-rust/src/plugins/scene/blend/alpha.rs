@@ -13,6 +13,7 @@
 //! whether the surface blends. It is the file's SDNA that says which of the two cases applies,
 //! never a version number written here.
 use super::*;
+use crate::plugins::scene::Transparency;
 
 /// The image channel glTF reads as opacity: the alpha of the base-colour texture.
 const ALPHA_CHANNEL: &str = "Alpha";
@@ -24,13 +25,6 @@ const CLIP: i64 = 3;
 /// Opacity taken from an image the base colour does not hold, or from a computation.
 const ALPHA_TEXTURE: &str = "blend-alpha-texture-unsupported";
 
-/// What the `Alpha` input gave: the factor that enters `baseColorFactor`, and whether an image's
-/// alpha still modulates it.
-pub(super) struct Alpha {
-    pub(super) factor: f32,
-    textured: bool,
-}
-
 /// The shader's opacity, knowing the base-colour input and the texture it gave. A linked input
 /// wins over the written value: when the alpha of the base-colour texture carries the opacity,
 /// the factor is one and lets the image through.
@@ -40,15 +34,16 @@ pub(super) fn of(
     base: Option<&At<'_>>,
     coloured: bool,
     out: &mut Out,
-) -> Alpha {
+) -> Transparency {
     let Some(socket) = shading::socket(node, "Alpha") else {
-        return Alpha {
+        return Transparency {
             factor: 1.0,
             textured: false,
         };
     };
-    let declared = Alpha {
-        factor: shading::value(&socket, 1.0)[0],
+    // Widened from the file's f32: exact, and narrowed back exactly where it is written.
+    let declared = Transparency {
+        factor: f64::from(shading::value(&socket, 1.0)[0]),
         textured: false,
     };
     let Some(link) = tree.link(&socket) else {
@@ -67,16 +62,16 @@ pub(super) fn of(
             .add(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
         return declared;
     }
-    Alpha {
+    Transparency {
         factor: 1.0,
         textured: true,
     }
 }
 
 /// The material's transparency mode, written in glTF when it is not opaque.
-pub(super) fn mode(material: &At<'_>, alpha: &Alpha, gltf: &mut Value) {
+pub(super) fn mode(material: &At<'_>, alpha: Transparency, gltf: &mut Value) {
     if material.has(RENDER_METHOD) {
-        if alpha.textured || alpha.factor < 1.0 {
+        if alpha.blends() {
             gltf["alphaMode"] = json!("BLEND");
         }
         return;

@@ -40,37 +40,34 @@ fn exact_measurements_round_trip_without_display_rounding_or_changed_answers() {
         by_image: read_answers(Path::new("decoupes.json"), &parsed).unwrap(),
         measurements: MeasureCache::read(&parsed),
     };
-    let reused = decisions.measurements.get("image-a", &image).expect("hit");
+    let reused = decisions.measurements.known("image-a").expect("hit");
     assert_eq!(reused.texels, measured.texels);
-    assert_eq!(bits(&reused), bits(&measured));
+    assert_eq!(bits(reused), bits(&measured));
     assert_eq!(reused.report(), measured.report());
     assert_eq!(reused.looks_like_cutout(), measured.looks_like_cutout());
     assert_eq!(decisions.verdict("image-a"), Some(true));
     let rewritten = build_sheet(&[], &decisions);
     assert_eq!(rewritten["textures"]["image-a"]["cutout"], true);
-    let again = MeasureCache::read(&rewritten)
-        .get("image-a", &image)
-        .unwrap();
+    let reread = MeasureCache::read(&rewritten);
+    let again = reread.known("image-a").unwrap();
     assert_eq!(
-        bits(&again),
+        bits(again),
         bits(&measured),
         "unused images retain exact measurements"
     );
 }
 
+// Another image is another fingerprint, hence a miss: its dimensions need no check of their own.
 #[test]
-fn changed_source_dimensions_or_algorithm_and_old_sheets_are_cache_misses() {
+fn changed_source_or_algorithm_and_old_sheets_are_cache_misses() {
     let image = image();
     let sheet = cached(&measure(&image));
     let cache = MeasureCache::read(&sheet);
-    assert!(cache.get("different-image", &image).is_none());
-    assert!(cache.get("image-a", &image::RgbaImage::new(2, 2)).is_none());
+    assert!(cache.known("different-image").is_none());
     for fingerprint in [Value::Null, json!("previous-algorithm")] {
         let mut changed = sheet.clone();
         changed["measurementAlgorithm"] = fingerprint;
-        assert!(MeasureCache::read(&changed)
-            .get("image-a", &image)
-            .is_none());
+        assert!(MeasureCache::read(&changed).known("image-a").is_none());
         assert!(read_answers(Path::new("decoupes.json"), &changed).unwrap()["image-a"]);
     }
     let mut rows = serde_json::Map::new();
@@ -96,9 +93,7 @@ fn corrupt_optional_measurements_are_ignored_but_invalid_answers_still_fail() {
         stored["values"][field] = value;
         stored["checksum"] = json!(checksum("image-a", &stored["values"]));
         assert!(
-            MeasureCache::read(&invalid)
-                .get("image-a", &image)
-                .is_none(),
+            MeasureCache::read(&invalid).known("image-a").is_none(),
             "{field}"
         );
         assert!(read_answers(Path::new("decoupes.json"), &invalid).unwrap()["image-a"]);
@@ -114,9 +109,9 @@ fn integrity_check_rejects_changed_values_or_a_record_moved_to_another_image() {
     let mut sheet = cached(&measure(&image));
     let original = sheet["textures"]["image-a"].clone();
     sheet["textures"]["image-b"] = original;
-    assert!(MeasureCache::read(&sheet).get("image-b", &image).is_none());
+    assert!(MeasureCache::read(&sheet).known("image-b").is_none());
     sheet["textures"]["image-a"]["measurement"]["values"]["atContour"] = json!(0.125);
-    assert!(MeasureCache::read(&sheet).get("image-a", &image).is_none());
+    assert!(MeasureCache::read(&sheet).known("image-a").is_none());
 }
 
 /// The key a compiler whose whole source hashes to `implementation` stamps on its sheet.
@@ -135,13 +130,11 @@ fn a_measurement_is_reused_by_the_same_implementation_only() {
     let image = image();
     let measured = measure(&image);
     let same = MeasureCache::read(&stamped_by(crate::implementation_hash(), &measured));
-    let reused = same
-        .get("image-a", &image)
-        .expect("same implementation: a hit");
-    assert_eq!(bits(&reused), bits(&measured));
+    let reused = same.known("image-a").expect("same implementation: a hit");
+    assert_eq!(bits(reused), bits(&measured));
     let helper_changed = stamped_by("a compiler whose helper changed", &measured);
     assert!(MeasureCache::read(&helper_changed)
-        .get("image-a", &image)
+        .known("image-a")
         .is_none());
     assert!(read_answers(Path::new("decoupes.json"), &helper_changed).unwrap()["image-a"]);
 }
@@ -168,7 +161,8 @@ fn freshly_measured_rows_publish_reusable_values_without_answering_for_the_user(
     let encoded = serde_json::to_vec(&sheet).unwrap();
     let parsed = parse_sheet(Path::new("decoupes.json"), &encoded).unwrap();
     let reused = MeasureCache::read(&parsed)
-        .get("image-a", &image)
+        .known("image-a")
+        .cloned()
         .expect("the next compilation should use the published measurement");
     assert_eq!(bits(&reused), bits(&shape));
 }

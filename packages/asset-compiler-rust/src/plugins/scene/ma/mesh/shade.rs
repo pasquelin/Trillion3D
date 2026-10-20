@@ -30,9 +30,12 @@ pub(super) fn fill(
         }
     }
     if !written.is_empty() {
-        world.refuse(crate::plugins::scene::codes::NORMALS_DROPPED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::NORMALS_DROPPED);
     }
-    world.refuse(report::NORMALS_COMPUTED);
+    world.scene.report.add(report::NORMALS_COMPUTED);
     compute(surface, polygons, edges, corners, world.cancelled)
 }
 
@@ -98,7 +101,7 @@ fn compute(
         at += loops.len();
     }
     surface.shading = Shading::Corner;
-    (!cancel::stopped(cancelled, 0)).then_some(())
+    cancel::going(cancelled)
 }
 
 /// Is the edge this corner carries hard? Maya writes three numbers per edge — its two vertices,

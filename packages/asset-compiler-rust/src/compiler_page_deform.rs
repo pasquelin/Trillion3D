@@ -10,14 +10,7 @@ pub(crate) fn page_deformation(
     validated: &BTreeSet<usize>,
 ) -> Result<Deformation> {
     let read = |id: &Value, name: &str, width: usize| -> Result<Vec<f32>> {
-        let a = accessor(g, bin, required_index(Some(id), name)?, Some(validated))?;
-        if a.count != count || a.width != width {
-            return Err(CompilerError::new(
-                "INVALID_PAGE_ATTRIBUTE",
-                format!("{name} count or width differs from POSITION"),
-            ));
-        }
-        a.collect_f32()
+        page_accessor((g, bin, validated), (id, name), count, &[width])?.collect_f32()
     };
     let attributes = p.get("attributes").and_then(Value::as_object);
     let set = |rank: usize| -> Result<Option<(Vec<f32>, Vec<f32>)>> {

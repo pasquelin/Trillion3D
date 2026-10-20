@@ -7,6 +7,7 @@
 
 use super::log2::{ceil_log2, floor_log2};
 use super::{MAX_BITS, MAX_EXPONENT};
+use trillion3d_math::aabb::{aabb_of, longest_side};
 
 /// A tile spans 2^1 = 2 m of the world, in 2^16 steps: primitives wider than 2 m sit on 2^-15 m
 /// (30.5 µm), the finest the page field allows below that (`finest_exponent`). The grid is the
@@ -112,7 +113,7 @@ pub fn page_uv_exponent(grid: i32, values: &[f32]) -> i32 {
 /// position grid is set by, measured the same way by both cuts.
 pub fn positions_extent(positions: &[f32]) -> f64 {
     let b = crate::proxy::bvh::extent(positions);
-    trillion3d_math::aabb::longest_side([b[0], b[1], b[2]], [b[3], b[4], b[5]])
+    longest_side([b[0], b[1], b[2]], [b[3], b[4], b[5]])
 }
 
 /// The widest range of either texture coordinate a page holds: over the corners of each of
@@ -122,16 +123,11 @@ pub fn positions_extent(positions: &[f32]) -> f64 {
 pub fn widest_uv_span(uvs: &[f32], corners: &[u32], ranges: &[[u32; 2]]) -> f64 {
     let pairs = uvs.as_chunks::<2>().0;
     let span = |vertices: &mut dyn Iterator<Item = usize>| {
-        let (mut low, mut high) = ([f64::INFINITY; 2], [f64::NEG_INFINITY; 2]);
-        for uv in vertices.filter_map(|v| pairs.get(v)) {
-            for axis in 0..2 {
-                low[axis] = low[axis].min(f64::from(uv[axis]));
-                high[axis] = high[axis].max(f64::from(uv[axis]));
-            }
-        }
-        (0..2)
-            .map(|axis| high[axis] - low[axis])
-            .fold(0.0, f64::max)
+        let points = vertices
+            .filter_map(|v| pairs.get(v))
+            .map(|uv| uv.map(f64::from));
+        let (low, high) = aabb_of::<2>(points);
+        longest_side(low, high)
     };
     if ranges.is_empty() {
         return span(&mut (0..pairs.len()));

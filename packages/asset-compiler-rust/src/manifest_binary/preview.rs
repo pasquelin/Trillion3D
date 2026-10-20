@@ -26,28 +26,28 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
         // entry, plain or coverage, never both.
         let key = (preview.texture, preview.kind.atlas().word());
         if previous.is_some_and(|last| last >= key) {
-            return Err(bad(format!(
+            return Err(MANIFEST.bad(format!(
                 "Texture preview {} does not follow the previous (texture, atlas) pair",
                 preview.texture
             )));
         }
         previous = Some(key);
         if preview.width == 0 || preview.height == 0 {
-            return Err(bad(format!(
+            return Err(MANIFEST.bad(format!(
                 "Texture preview {} declares an empty source image",
                 preview.texture
             )));
         }
         let first = preview_first_level(preview.width, preview.height);
         if preview.first_level != first {
-            return Err(bad(format!(
+            return Err(MANIFEST.bad(format!(
                 "Texture preview {} declares first level {}, expected {first}",
                 preview.texture, preview.first_level
             )));
         }
         let bytes = preview_pixel_bytes(preview.width, preview.height);
         if preview.pixels.len() != bytes {
-            return Err(bad(format!(
+            return Err(MANIFEST.bad(format!(
                 "Texture preview {} carries {} pixel bytes, expected {bytes}",
                 preview.texture,
                 preview.pixels.len()
@@ -67,7 +67,7 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
         words.u32(length);
         words.u32(preview.kind.word());
         if preview.baked_levels > first {
-            return Err(bad(format!(
+            return Err(MANIFEST.bad(format!(
                 "Texture preview {} bakes {} levels but the sidecar starts at level {first}",
                 preview.texture, preview.baked_levels
             )));
@@ -78,7 +78,7 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
         }
         offset = offset
             .checked_add(length)
-            .ok_or_else(|| bad("Texture preview pixels exceed four gigabytes"))?;
+            .ok_or_else(|| MANIFEST.bad("Texture preview pixels exceed four gigabytes"))?;
         columns[TEXTURE_PREVIEW_SHA].sha(&preview.sha256)?;
         columns[TEXTURE_PREVIEW_PIXELS].raw(&preview.pixels);
         for ((column, blocks), layout) in TEXTURE_PREVIEW_BLOCKS
@@ -91,7 +91,7 @@ pub(super) fn encode_previews(previews: &[TexturePreview], columns: &mut [Column
                 None => 0,
             };
             if blocks.len() != block_bytes {
-                return Err(bad(format!(
+                return Err(MANIFEST.bad(format!(
                     "Texture preview {} carries {} block bytes, expected {block_bytes}",
                     preview.texture,
                     blocks.len()

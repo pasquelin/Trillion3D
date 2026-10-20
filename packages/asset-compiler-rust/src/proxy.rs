@@ -1,5 +1,4 @@
-use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::world_matrices;
+use crate::compiler_validate::values;
 use crate::texture_preview::TexturePreview;
 use crate::Result;
 use serde_json::Value;
@@ -69,6 +68,8 @@ pub struct ProxyInputs<'a> {
     /// the primitives were cut by.
     pub mesh_scales: &'a BTreeMap<usize, f64>,
     pub primitives: &'a [Value],
+    /// Node transforms and primitives by mesh, computed once for the job (`placement::Placement`).
+    pub placement: &'a placement::Placement,
     /// Per compiled primitive: coarse cut vertices, in object space.
     pub cuts: &'a [Vec<f32>],
     /// Per compiled primitive: threshold cut requested, in meters.
@@ -81,17 +82,16 @@ pub struct ProxyInputs<'a> {
 /// colour of its material. A primitive placed ten times is one proxy: the engine places it, a ray has the
 /// node's world to apply.
 pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
-    let world = world_matrices(inputs.g)?;
+    let placement::Placement { world, by_mesh } = inputs.placement;
     let nodes = values(inputs.g, "nodes")?;
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
-    let by_mesh = placement::primitives_by_mesh(inputs.primitives);
     // The largest scale each placed primitive is placed at, and the world extent of its placements.
     let mut scales: BTreeMap<usize, f64> = BTreeMap::new();
     let mut bounds = EMPTY_FLAT;
     for node_id in inputs.shown {
-        let node = item(nodes, *node_id, "node")?;
-        let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
-        let Some(mesh_index) = inputs.mesh_map.get(&old_mesh).copied() else {
+        let Some((_, old_mesh, mesh_index)) =
+            crate::compiler_nodes::compiled_mesh(nodes, *node_id, inputs.mesh_map)?
+        else {
             continue;
         };
         let Some(indices) = by_mesh.get(&(mesh_index as u64)) else {

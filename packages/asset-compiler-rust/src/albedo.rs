@@ -5,6 +5,7 @@
 //! two material reads instead of light transport. Only a texture average separates
 //! them — the proxy reads it in the preview the compiler already reduced, the
 //! oracle remakes it on the source image — and the caller supplies it.
+use crate::compiler_materials::MaterialFactors;
 use serde_json::Value;
 use std::collections::BTreeMap;
 use trillion3d_math::scalar::unit_to_byte;
@@ -32,28 +33,6 @@ pub fn pack(colour: [f64; 3]) -> u32 {
     byte(colour[0]) | (byte(colour[1]) << 8) | (byte(colour[2]) << 16) | (255 << 24)
 }
 
-fn factor(material: &Value) -> [f64; 3] {
-    material
-        .pointer("/pbrMetallicRoughness/baseColorFactor")
-        .and_then(Value::as_array)
-        .map(|values| {
-            let read = |axis: usize| values.get(axis).and_then(Value::as_f64).unwrap_or(1.0);
-            [read(0), read(1), read(2)]
-        })
-        .unwrap_or([1.0, 1.0, 1.0])
-}
-
-/// A pure metal has no diffuse albedo: what it reflects is specular, and this
-/// lot's diffuse bounce does not carry it. The diffuse share is therefore
-/// `1 - metallic`, exactly like the shader.
-fn diffuse_share(material: &Value) -> f64 {
-    1.0 - material
-        .pointer("/pbrMetallicRoughness/metallicFactor")
-        .and_then(Value::as_f64)
-        .unwrap_or(1.0)
-        .clamp(0.0, 1.0)
-}
-
 /// Palette of a scene. `mean` returns the linear mean colour of a base-colour
 /// texture, or nothing when it is unreadable; the material factor then stands
 /// alone.
@@ -69,8 +48,12 @@ pub fn palette(g: &Value, mut mean: impl FnMut(u64) -> Option<[f64; 3]>) -> Pale
         .unwrap_or(&[]);
     let mut colours = Vec::with_capacity(materials.len());
     for material in materials {
-        let base = factor(material);
-        let share = diffuse_share(material);
+        // A pure metal has no diffuse albedo: what it reflects is specular, and this lot's diffuse
+        // bounce does not carry it. The diffuse share is therefore `1 - metallic`, exactly like
+        // the shader.
+        let factors = MaterialFactors::of(material);
+        let base = factors.base_colour;
+        let share = 1.0 - factors.metallic.clamp(0.0, 1.0);
         let tint = material
             .pointer("/pbrMetallicRoughness/baseColorTexture/index")
             .and_then(Value::as_u64)

@@ -32,7 +32,7 @@ use crate::import::{Report, SceneTables};
 use crate::plugins::scene::codes::{FILE_INVALID, SIZE_UNSUPPORTED};
 use crate::CompilerError;
 use serde_json::json;
-use std::{collections::HashMap, fs, sync::atomic::Ordering, time::Instant};
+use std::{collections::HashMap, fs, time::Instant};
 
 mod attr;
 mod build;
@@ -93,22 +93,7 @@ impl ScenePlugin for Ma {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(HEADER.as_bytes())
     }
-    fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        convert::convert(request, self).map(|directory| request.converted(directory))
+    fn convert(&self, request: &SceneRequest<'_>) -> Result<PathBuf> {
+        convert::convert(request, self)
     }
-}
-
-/// The requested file. A directory that carries several `.ma` is an ambiguity: the compiler
-/// does not choose the scene in the caller's place, who names a precise file as source.
-fn source_file(inputs: &[PathBuf]) -> Result<&Path> {
-    if let [one] = inputs {
-        return Ok(one.as_path());
-    }
-    Err(CompilerError::new(
-        "SOURCE_FORMAT_AMBIGUOUS",
-        format!(
-            "ma: name the Maya ASCII file to compile; this source carries {} of them",
-            inputs.len()
-        ),
-    ))
 }

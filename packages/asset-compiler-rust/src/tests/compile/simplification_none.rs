@@ -44,17 +44,16 @@ fn simplification_none_builds_no_coarse_level() {
     );
 }
 
-// Behaviour: `qem-endpoints` keeps the DAG of the linked simplifier, and never leaves more roots
-// than 127. Under 0.25 (`meshopt` 0.6) the count depends on the machine: 125 on aarch64, 127 on
-// x86_64, the simplifier's floating-point results differing between the two. The depth and the
-// exact level-zero cover are the same everywhere.
+// Behaviour: `qem-endpoints` climbs to one root cluster: the simplifier always reaches its
+// target, so no group stalls and the DAG ends on a single cluster, at most 128 triangles. Each
+// level halves the 64 level-zero clusters at best, so it takes at least six levels.
 #[test]
 fn simplification_qem_endpoints_keeps_its_dag() {
     let (depth, roots, level_zero) = dag_of("qem-endpoints");
-    assert_eq!(depth, 6, "depth unchanged");
+    assert!(depth >= 6, "depth {depth}: a level halves at best");
     assert_eq!(level_zero, 8192, "level zero covers the whole source");
     assert!(
-        roots <= 127,
-        "{roots} roots, more than the simplifier's older version left"
+        roots <= 128,
+        "{roots} root triangles: more than one cluster"
     );
 }

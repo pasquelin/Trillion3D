@@ -4,9 +4,9 @@
 //! `JOINTS_n`, `WEIGHTS_n` and `targets`.
 use super::cells::{gather, Cell};
 use super::skin::skin_fields;
+use super::vertices::first_use;
 use super::{EncodeError, Result};
 use crate::deform::{Morph, Skin, MAX_MORPH_TARGETS, RAW_F32, WEIGHT_BITS};
-use crate::hash::WordMap;
 use crate::writer::BitWriter;
 use crate::{FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE};
 /// One morph target of a primitive: its position displacement per vertex, three floats each, and
@@ -67,16 +67,10 @@ impl PageDeformation {
 /// Each vertex's cells with the rank of its deformation fields among the distinct rows, and
 /// those rows by rank: two vertices then merge only when they also deform alike.
 pub fn join(cells: Vec<Cell>, fields: &[Vec<u32>]) -> (Vec<Cell>, Vec<&[u32]>) {
-    let mut ranks = WordMap::<&[u32], u32>::default();
-    let mut table = Vec::new();
-    let cells = (cells.into_iter().zip(fields))
-        .map(|(cell, row)| {
-            let extra = *ranks.entry(row).or_insert_with(|| {
-                table.push(row.as_slice());
-                table.len() as u32 - 1
-            });
-            Cell { extra, ..cell }
-        })
+    let rows = fields.iter().take(cells.len()).map(Vec::as_slice);
+    let (table, ranks) = first_use(rows);
+    let cells = (cells.into_iter().zip(ranks))
+        .map(|(cell, extra)| Cell { extra, ..cell })
         .collect();
     (cells, table)
 }

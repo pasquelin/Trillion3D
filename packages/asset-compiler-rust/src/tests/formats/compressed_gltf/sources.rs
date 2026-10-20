@@ -42,8 +42,7 @@ pub(super) fn meshopt() -> SourcePair {
 
 pub(super) fn draco() -> SourcePair {
     let dir = golden_dir("gltf/compressed-box");
-    let compressed: Value =
-        serde_json::from_slice(&fs::read(dir.join("Box.gltf")).unwrap()).unwrap();
+    let compressed: Value = read_json(&dir.join("Box.gltf"));
     let encoded = fs::read(dir.join("Box.bin")).unwrap();
     let mut mesh = Mesh::new();
     MeshDecoder::new()

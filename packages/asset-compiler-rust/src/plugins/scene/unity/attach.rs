@@ -79,10 +79,8 @@ impl Builder<'_, '_> {
         if !materials.is_empty() {
             bind(&mut copy, materials);
         }
-        self.world.scene.meshes.push(copy);
         let triangles = self.world.scene.mesh_triangles[mesh];
-        self.world.scene.mesh_triangles.push(triangles);
-        self.world.scene.meshes.len() - 1
+        self.world.scene.mesh(copy, triangles)
     }
 }
 

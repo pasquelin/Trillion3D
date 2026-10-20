@@ -10,7 +10,10 @@ const NARROWEST_BITS: [u64; 4] = [
 
 /// Whether `cone` holds every non-degenerate face normal of `indices` over `pos`.
 fn holds(cone: [f64; 4], pos: &[f32], indices: &[u32]) -> bool {
-    widest_angle(&faces(pos, indices), [cone[0], cone[1], cone[2]]) <= cone[3]
+    widest_angle(
+        &faces(&face_crosses(pos, indices)),
+        [cone[0], cone[1], cone[2]],
+    ) <= cone[3]
 }
 
 #[test]
@@ -46,31 +49,21 @@ fn no_face_or_cancelling_faces_leave_the_cone_open() {
     assert_eq!(triangle_cone(&pos, &[0, 1, 2, 0, 2, 1]), OPEN_CONE);
 }
 
+/// The grid turns a face: a sheet whose heights sit a fraction of a step off zero decodes with one
+/// corner a whole step up. The cone of the source's faces then misses the decoded ones; the page's,
+/// measured by the encoder on what it decodes to, holds them.
 #[test]
-fn each_cluster_gets_the_cone_of_its_own_triangles() {
-    let pos = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-    let indices = [0, 1, 2, 0, 3, 1, 0, 2, 3];
-    let mut out = [0.0; 8];
-    assert_eq!(
-        cluster_cones(&pos, &indices, &[0, 3, 3, 9], &mut out),
-        Some(())
-    );
-    assert_eq!(out[..4], triangle_cone(&pos, &indices[..3]));
-    assert_eq!(out[4..], triangle_cone(&pos, &indices[3..]));
-}
-
-#[test]
-fn a_range_or_an_index_outside_the_input_writes_nothing() {
-    let pos = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    let mut out = [7.0; 4];
-    assert_eq!(cluster_cones(&pos, &[0, 1, 3], &[0, 3], &mut out), None);
-    assert_eq!(cluster_cones(&pos, &[0, 1, 2], &[0, 6], &mut out), None);
-    assert_eq!(cluster_cones(&pos, &[0, 1, 2], &[3, 0], &mut out), None);
-    assert_eq!(
-        cluster_cones(&pos, &[0, 1, 2], &[0, 3, 0, 3], &mut out),
-        None
-    );
-    assert_eq!(out, [7.0; 4]);
+fn a_page_takes_the_cone_of_the_faces_it_decodes_to() {
+    let pos: [f32; 12] = [
+        0.0, 0.0, 0.0, 0.25, 0.0, 0.04, 0.0, 0.25, 0.0, 0.25, 0.25, 0.01,
+    ];
+    let indices = [0, 1, 2, 2, 1, 3];
+    let page = crate::encode::encode(&indices, &pos, &[], -4, 0).expect("encoded");
+    let decoded = crate::unpack::decode(&page.bytes, usize::MAX).expect("decoded");
+    let (drawn, corners) = (decoded.attribute(0).expect("positions"), decoded.indices());
+    assert!(!holds(triangle_cone(&pos, &indices), drawn, corners));
+    assert!(holds(page.cone, drawn, corners));
+    assert_eq!(page.cone, triangle_cone(drawn, corners));
 }
 
 /// Bumpy sheets to free clouds, signed zeros and non-finite positions: the cone holds every face.
@@ -97,7 +90,7 @@ fn a_random_mesh_gets_a_cone_holding_every_face() {
         assert!(holds(cone, &pos, &indices), "case {case}: {cone:?}");
         // Never looser than the summed normals' cone: narrower, or open where that one is too wide
         // to cull anything.
-        let faces = faces(&pos, &indices);
+        let faces = faces(&face_crosses(&pos, &indices));
         let sum = faces.iter().fold([0.0; 3], |s, &(c, len)| {
             [0, 1, 2].map(|k| s[k] + c[k] / len)
         });

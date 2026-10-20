@@ -1,13 +1,20 @@
 use crate::coplanar::plane::*;
 use trillion3d_math::vecn::dot;
 
+/// `plane_of_triangles` on the crosses and the box a page record measures.
+fn plane_of(indices: &[u32], positions: &[f32], ratio: f64) -> Option<ClusterPlane> {
+    let crosses = trillion3d_page_codec::normal_cone::face_crosses(positions, indices);
+    let bounds = crate::dag::bounds::cluster_bounds(positions, indices);
+    plane_of_triangles((indices, positions), &crosses, bounds, ratio)
+}
+
 // Behavior 1: plane_of_triangles yields plane for flat cluster, None otherwise.
 #[test]
 fn plane_of_triangles_returns_plane_for_flat_cluster() {
     // Simple square in Z = 0 plane
     let indices = [0, 1, 2, 0, 2, 3];
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0];
-    let result = plane_of_triangles(&indices, &positions, 1e-5);
+    let result = plane_of(&indices, &positions, 1e-5);
     assert!(result.is_some());
     let plane = result.unwrap();
     assert!((plane.normal[2]).abs() > 0.9); // Normal pointe principalement en Z
@@ -23,7 +30,7 @@ fn plane_of_triangles_returns_none_when_one_vertex_exceeds_tolerance() {
         0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, // Triangle 2 : Z=0
         2.0, 0.0, 0.0, 3.0, 0.0, 0.0, 2.5, 0.5, 1.0, // Triangle 3 : sorta du plan
     ];
-    let result = plane_of_triangles(&indices, &positions, 1e-5);
+    let result = plane_of(&indices, &positions, 1e-5);
     assert!(result.is_none());
 }
 
@@ -35,7 +42,7 @@ fn plane_of_triangles_returns_none_for_non_parallel_normal() {
         0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, // Triangle plat en Z=0
         2.0, 0.0, 0.0, 3.0, 0.0, 1.0, 2.0, 1.0, 0.0, // Tilted triangle
     ];
-    let result = plane_of_triangles(&indices, &positions, 1e-5);
+    let result = plane_of(&indices, &positions, 1e-5);
     assert!(result.is_none());
 }
 
@@ -145,8 +152,7 @@ fn world_plane_scales_area_by_matrix() {
     // Two coplanar surfaces with different instance matrices must have transformed areas
     let indices = [0, 1, 2];
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
-    use crate::coplanar::plane::plane_of_triangles;
-    if let Some(p1) = plane_of_triangles(&indices, &positions, 1e-5) {
+    if let Some(p1) = plane_of(&indices, &positions, 1e-5) {
         // Area should be 0.5 (triangle unit)
         assert!(p1.area > 0.0 && p1.area < 1.0);
     }

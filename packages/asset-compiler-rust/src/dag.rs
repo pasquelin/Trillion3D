@@ -1,27 +1,27 @@
 //! Virtualized-geometry cluster DAG.
 //!
-//! Level 0 is a spatial partition of the source triangles into small clusters. Every level after
+//! Level 0 is a partition of the source triangles' graph into small clusters. Every level after
 //! that groups 8 to 32 neighbouring clusters, simplifies the merged group with its border locked,
 //! and re-splits the result into clusters of the same size. Each cluster therefore carries two
 //! monotone quantities: `lod_error`, the error of the group that produced it, and `parent_error`,
 //! the error of the group that replaces it. A flat runtime cut `parent_error > t >= lod_error`
 //! then covers the surface exactly once.
 //!
-//! Indices keep pointing at the source vertices. Normals and every texture set count in the
-//! simplification error (`attributes.rs`), and the cook refuses a DAG whose error drops from a
-//! cluster to its parent or whose coarse level bends a normal past its bound (`quality.rs`).
+//! Indices point at the source vertices, then at the vertices a reduction placed (`grown.rs`).
+//! Normals, every texture set and the colour count in the simplification error (`attributes.rs`),
+//! and the cook refuses a DAG whose error drops from a cluster to its parent (`quality.rs`).
 use crate::perf::{Phase, Timer};
 use crate::{invalid, Result};
 use rayon::prelude::*;
-use trillion3d_page_codec::hash::{word_map, WordMap, WordSet};
+use trillion3d_page_codec::hash::{word_map, WordMap};
 
 /// Triangles per cluster. Matches the page budget used by the exact path.
 pub const DAG_CLUSTER_TRIANGLES: usize = 128;
-/// Vertex limit of a cluster; a 128 triangle cluster never needs more.
-pub const DAG_CLUSTER_VERTICES: usize = 255;
-/// Fewest clusters a group holds, short of its level's only group; the DAG warnings and the stall report read it. Grouping keeps it
-/// with no merge pass: it splits only above `DAG_GROUP_MAX`, each half keeping
-/// 3/8 of 33 clusters or more (`refine_bisection`), so a smaller group is its level's only one.
+/// Vertex limit of an encoded cluster. The partition never reads it: a cluster over it is halved
+/// once every level is built (`clusters::constrain_wide`).
+pub const DAG_CLUSTER_VERTICES: usize = 256;
+/// Fewest and most clusters a group holds (`groups::group_clusters`), short of its level's only
+/// group; the DAG warnings and the stall report read them.
 pub const DAG_GROUP_MIN: usize = 8;
 pub const DAG_GROUP_MAX: usize = 32;
 /// 2x reduction per level bounds the depth of a 2^24 triangle mesh.
@@ -35,7 +35,8 @@ pub enum DagStrategy {
     /// `none`: level zero only, exact partition of source triangles. No group
     /// reduced, no cluster replaced, each stays root.
     ExactClusters,
-    /// `qem-endpoints`: coarse levels, each group simplified by the linked `meshopt` simplifier, border locked.
+    /// `qem-endpoints`: coarse levels, each group simplified by our QEM simplifier
+    /// (Garland & Heckbert 1997, `qem_simplifier.rs`), its shared positions locked.
     QemEndpoints,
 }
 impl DagStrategy {
@@ -88,10 +89,8 @@ struct GroupReduction {
     sphere: [f64; 4],
     clusters: Vec<Vec<u32>>,
     source_rank: u32,
-    /// Reduction had to lock additional triangles to preserve border.
-    relocked: bool,
-    /// The vertices the reduction placed (`solved.rs`); `None` once `grown` has taken them.
-    placed: Option<grown::Placed>,
+    /// The vertices the reduction placed (`solved.rs`).
+    placed: grown::Placed,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
 ///
@@ -113,50 +112,33 @@ struct GroupReductionInput<'a> {
     attributes: DagAttributes<'a>,
     /// Those the simplifier weighs (`DagAttributes::weighted`), built once per level.
     weighted: &'a [crate::qem::Attribute<'a>],
-    /// Normal deviation this group's reduction may not exceed (`quality::deviation_bound`).
-    normal_bound: f64,
     locks: &'a [bool],
-    /// Per source vertex, on a texture seam: protected from permissive collapses. Empty without
-    /// a texture set.
-    seams: &'a [bool],
-    /// Per vertex, its texture island (`charts::vertex_islands`); empty without a texture set.
-    islands: &'a [u32],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
     /// Canonical vertex by position and every carried attribute (`attributes::weld_exact`).
     exact: &'a [u32],
-    /// Canonical vertex by position and every texture set: seams, diagnosis, normal copies.
+    /// Canonical vertex by position and every texture set: the diagnosis's census.
     weld_seam: &'a [u32],
-    /// Per vertex, the extent of its part in the source (`vanished::part_extents`).
-    extents: &'a [f64],
 }
 pub(crate) mod attributes;
-pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
-pub(crate) mod charts;
 pub(crate) mod clusters;
 mod diagnosis;
 pub(crate) mod groups;
 mod grown;
 mod levels;
-mod measured;
 mod placed;
 pub(crate) mod quality;
 pub(crate) mod reduce;
-mod retries;
 mod solved;
-mod stopped;
 mod tally;
 #[cfg(test)]
 mod tests;
-mod texture;
-pub(crate) mod vanished;
 mod welds;
 
 pub use attributes::DagAttributes;
-use bounds::*;
-pub use build::{build_dag_from_roots, build_dag_tallied, DagBuild};
+pub use build::{build_dag, DagBuild};
 use clusters::*;
 use groups::*;
 pub use grown::Grown;

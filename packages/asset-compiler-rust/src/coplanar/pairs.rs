@@ -15,6 +15,7 @@ pub fn find_overlaps(
         left: vec![0u64; bounds.grid * bounds.grid / 64],
         right: vec![0u64; bounds.grid * bounds.grid / 64],
         prints: BTreeMap::new(),
+        sources: BTreeMap::new(),
     };
     let total = groups.len();
     for (done, members) in groups.into_iter().enumerate() {
@@ -68,6 +69,8 @@ struct Search {
     left: Vec<u64>,
     right: Vec<u64>,
     prints: BTreeMap<usize, Option<overlap::Footprint>>,
+    /// Per primitive, its source triangles: read once, whatever planes and instances it lies in.
+    sources: BTreeMap<usize, Option<overlap::Source>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -95,12 +98,20 @@ fn test_pair(
     }
     for index in [one, two] {
         if let std::collections::btree_map::Entry::Vacant(slot) = state.prints.entry(index) {
-            let print = overlap::footprint(
-                inputs,
-                &world[surfaces[index].node],
-                &surfaces[index],
-                bounds,
-            )?;
+            let surface = &surfaces[index];
+            let source = match state.sources.entry(surface.primitive) {
+                std::collections::btree_map::Entry::Occupied(read) => read.into_mut(),
+                std::collections::btree_map::Entry::Vacant(unread) => {
+                    unread.insert(overlap::source(inputs, surface.primitive)?)
+                }
+            };
+            let print = match source {
+                Some(source) => {
+                    let world = &world[surface.node];
+                    overlap::footprint(inputs, world, surface, source, bounds)?
+                }
+                None => None,
+            };
             if print.is_none() {
                 counts.unread_surfaces += 1;
             }

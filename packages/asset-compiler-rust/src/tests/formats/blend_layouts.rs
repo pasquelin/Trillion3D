@@ -7,15 +7,14 @@ use super::*;
 
 const VERSIONS: [&str; 3] = ["3.3", "4.4", "5.2"];
 
-/// The values of an accessor, as the little-endian words the binary carries; none when the
+/// The values of an accessor, as the bits of the floats the binary carries; none when the
 /// primitive has no such attribute.
 fn words(gltf: &Value, bin: &[u8], accessor: &Value) -> Vec<u32> {
     let Some(rank) = accessor.as_u64() else {
         return Vec::new();
     };
-    let (bytes, _) = crate::tests::ngons::accessor(gltf, bin, rank as usize);
-    let words = bytes.as_chunks::<4>().0;
-    words.iter().map(|word| u32::from_le_bytes(*word)).collect()
+    let floats = accessor_floats(gltf, bin, rank as usize);
+    floats.into_iter().map(f32::to_bits).collect()
 }
 
 /// What the scene of one fixture comes out as: each node with its mesh and matrix, each primitive
@@ -39,7 +38,11 @@ fn digest(version: &str) -> Value {
                     let attributes = &primitive["attributes"];
                     json!({
                         "material": primitive["material"],
-                        "indices": words(&gltf, &bin, &primitive["indices"]),
+                        "indices": accessor_indices(
+                            &gltf,
+                            &bin,
+                            primitive["indices"].as_u64().expect("indices") as usize,
+                        ),
                         "positions": words(&gltf, &bin, &attributes["POSITION"]),
                         "normals": words(&gltf, &bin, &attributes["NORMAL"]),
                         "uvs": words(&gltf, &bin, &attributes["TEXCOORD_0"]),

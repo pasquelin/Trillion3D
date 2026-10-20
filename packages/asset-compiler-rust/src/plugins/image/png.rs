@@ -116,13 +116,13 @@ fn declarations(bytes: &[u8]) -> (Transfer, Vec<&'static str>) {
             ANIMATION_CHUNK => notes.push(ANIMATION),
             PROFILE_CHUNK => {
                 described = true;
-                notes.extend(icc::note(name(data)));
+                // The profile's name, before the first null: the profile itself is compressed,
+                // and its name is what the specification writes in the clear.
+                notes.extend(icc::note(crate::le::until_nul(data)));
             }
             SRGB_CHUNK => described = true,
             GAMMA_CHUNK => {
-                gamma = data
-                    .get(..4)
-                    .map(|value| u32::from_be_bytes([value[0], value[1], value[2], value[3]]));
+                gamma = crate::le::be32_at(data, 0);
             }
             _ => {}
         }
@@ -135,12 +135,4 @@ fn declarations(bytes: &[u8]) -> (Transfer, Vec<&'static str>) {
             (Transfer::Srgb, notes)
         }
     }
-}
-
-/// Name of a profile, the part of the `iCCP` chunk that precedes the first null byte. The
-/// profile itself is compressed: its name is all this driver reads, and it is what the
-/// specification asks it to write in the clear.
-fn name(chunk: &[u8]) -> &[u8] {
-    let end = chunk.iter().position(|byte| *byte == 0);
-    &chunk[..end.unwrap_or(chunk.len())]
 }

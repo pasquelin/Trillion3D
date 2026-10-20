@@ -1,5 +1,5 @@
-//! Correctness of `scene-tables.json` beyond the fields the engine record reads: the lights the
-//! nodes hang, a blended surface, and the physical extensions a surface declares, written under
+//! Correctness of `scene-tables.json` beyond the fields the engine record reads: the cameras the
+//! nodes carry (their lamps are `lights.json`'s alone), a blended surface, and the physical extensions a surface declares, written under
 //! the host's own parameter names so that nothing a surface declares is lost on the way.
 //!
 //! Provenance of every case: the glTF the compilation itself publishes as `source.gltf`, built
@@ -7,25 +7,30 @@
 //! field it comes from.
 use super::*;
 
-use super::scene_tables::published;
+use super::scene_tables::{published, published_folder};
 
 #[test]
-fn the_lights_and_cameras_are_carried_as_the_document_declares_them() {
-    let (_root, tables) = published(|gltf| {
+fn the_cameras_are_carried_as_declared_and_the_lamps_only_by_lights_json() {
+    // A lamp of a type `KHR_lights_punctual` does not name sits beside two it does: the compile
+    // goes through, `lights.json` counts it rejected, and the tables read no lamp of their own.
+    let (_root, directory) = published_folder(|gltf| {
         gltf["extensionsUsed"] = json!(["KHR_lights_punctual"]);
         gltf["extensions"] = json!({"KHR_lights_punctual":{"lights":[
             {"name":"lamp","type":"spot","color":[1.0,0.5,0.25],"intensity":3.0,"range":9.0,
                 "spot":{"innerConeAngle":0.1,"outerConeAngle":0.5}},
             {"type":"directional"},
+            {"type":"area"},
         ]}});
         gltf["nodes"] = json!([
-            {"mesh":0,"children":[1,2]},
+            {"mesh":0,"children":[1,2,3]},
             {"extensions":{"KHR_lights_punctual":{"light":0}}},
             {"extensions":{"KHR_lights_punctual":{"light":1}},"camera":0},
+            {"extensions":{"KHR_lights_punctual":{"light":2}}},
         ]);
         gltf["cameras"] =
             json!([{"name":"eye","type":"perspective","perspective":{"yfov":0.8,"znear":0.1}}]);
     });
+    let tables = read_json(&directory.join("scene-tables.json"));
     assert_eq!(tables["nodes"][2]["camera"], json!(0));
     assert_eq!(
         tables["cameras"][0],
@@ -33,19 +38,22 @@ fn the_lights_and_cameras_are_carried_as_the_document_declares_them() {
             "ymag":null,"znear":0.1,"zfar":null}),
         "a camera as declared, its silent fields silent"
     );
-    assert_eq!(tables["nodes"][1]["light"], json!(0));
-    assert_eq!(tables["nodes"][2]["light"], json!(1));
-    assert_eq!(
-        tables["lights"][0],
-        json!({"name":"lamp","type":"spot","color":[1.0,0.5,0.25],"intensity":3.0,"range":9.0,
-            "innerConeAngle":0.1,"outerConeAngle":0.5})
+    assert!(
+        tables.get("lights").is_none(),
+        "no second reading of a lamp"
     );
-    // Silent fields stay silent: the reader applies the specification's defaults, as the host does.
-    assert_eq!(
-        tables["lights"][1],
-        json!({"name":"","type":"directional","color":null,"intensity":null,"range":null,
-            "innerConeAngle":null,"outerConeAngle":null})
-    );
+    let nodes = tables["nodes"].as_array().expect("nodes");
+    assert!(nodes.iter().all(|node| node.get("light").is_none()));
+    let lights = read_json(&directory.join("lights.json"));
+    let kinds: Vec<&str> = lights["lights"]
+        .as_array()
+        .expect("lights")
+        .iter()
+        .filter_map(|light| light["kind"].as_str())
+        .collect();
+    assert_eq!(kinds, ["spot", "directional"]);
+    assert_eq!(lights["lights"][0]["color"], json!([1.0, 0.5, 0.25]));
+    assert_eq!(lights["rejected"], json!({"light-unsupported-type":1}));
 }
 
 #[test]

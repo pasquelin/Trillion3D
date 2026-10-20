@@ -9,7 +9,7 @@ use super::*;
 /// Reads the file and writes its conversion into the cache.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
-    let file = source_file(request.inputs)?;
+    let file = single_input(request.inputs, NAME, ".ma")?;
     let bytes = usize::try_from(size(file)?).unwrap_or(usize::MAX);
     (request.progress)(json!({"phase":"import-source","step":"scan","plugin":NAME,"bytes":bytes}));
     let source = fs::read(file)?;
@@ -17,12 +17,14 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let mut document = document::read(&text(file, source)?)?;
     let graph = shading::resolve(&mut document);
     let mut scene = SceneTables::new(plugin);
-    scene.read_file(
-        &file.file_name().unwrap_or_default().to_string_lossy(),
-        bytes,
-        &digest,
-    );
-    carry(&document.report, &mut scene.report);
+    scene.read_source(file, bytes, &digest);
+    // Both stages count the same reasons, and the manifest publishes only one table of them.
+    let read = &document.report;
+    let counts = read
+        .unsupported
+        .iter()
+        .map(|(reason, count)| (reason.as_str(), *count));
+    scene.report.merge(counts, read.notes.iter().cloned());
     build::scene(&document, &graph, &mut scene, request);
     super::finish(
         scene,
@@ -58,13 +60,4 @@ fn text(file: &Path, bytes: Vec<u8>) -> Result<String> {
             format!("ma: {} is not valid UTF-8 text", file.display()),
         )
     })
-}
-
-/// Pours the document-read report into the scene's: both stages count the same reasons, and the
-/// manifest publishes only one table of them.
-fn carry(from: &Report, into: &mut Report) {
-    for (reason, count) in &from.unsupported {
-        into.add_count(reason, *count);
-    }
-    into.notes.extend(from.notes.iter().cloned());
 }

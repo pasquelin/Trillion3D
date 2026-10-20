@@ -41,6 +41,11 @@ yaml-rust2 = { version = "0.13", default-features = false }
 # notices retained alongside dependency). Pure Rust, without `std` or editor SDK: the entire
 # reconstruction defined by the specification, nothing more.
 texture2ddecoder = "0.1.2"
+# BC7 block encoding of every baked level (MIT, hasenbanck/block_compression): a pure Rust port of
+# Intel's ISPC texture compressor, all eight BC7 modes searched — partitions, separate alpha —, CPU
+# only (`wgpu` left out), deterministic. Pinned version: it decides the cooked bytes. Built from the
+# copy in `vendor/block_compression` (`[patch.crates-io]` below), patched where it fails.
+block_compression = { version = "=0.10.0", default-features = false, features = ["bc7"] }
 # OpenEXR reading (BSD-3-Clause, `johannesvollmer/exrs`, pure Rust without `unsafe`, notices
 # retained alongside dependency), for the `exr` driver. Pinned version: names the driver and
 # participates in cache identity. No editor code or SDK, no C library.
@@ -73,10 +78,25 @@ draco-core = { version = "=2.1.0", default-features = false, features = ["decode
 # heaps, so the Rayon workers allocating pages and clusters at once do not queue on the system
 # allocator's locks. It places memory, never computes: the cooked bytes are the same.
 mimalloc = { version = "0.1", default-features = false }
+# The HLOD option's regular expressions (`compiler_args/hlod.rs`, MIT OR Apache-2.0,
+# rust-lang/regex): the small engine without Unicode tables, matching node, mesh and material names.
+# Pinned: the version the lock already carries.
+regex-lite = "=0.1.9"
+# A vertex's few edges held in place (MIT OR Apache-2.0, servo/rust-smallvec), the HLOD
+# simplifier's topology (`compiler_world_roots/flatten/simplify.rs`). Pinned: the version the lock
+# already carries.
+smallvec = "=1.16.1"
 
 # The reader of the reference values the compiler's mirrored packings are tested against.
 [dev-dependencies]
 trillion3d-math = { path = "../math/rust", features = ["golden"] }
+
+# `block_compression` 0.10.0 as published (git 454e069802a600b8e225fb2c9dca3049630b8523), its MIT
+# licence kept, with one fix: `encode/common.rs:compute_axis` starts its power iteration from the
+# covariance row of the largest diagonal instead of grey, which a block varying orthogonally to grey
+# nulls — a red-to-green ramp came out flat in mode 6.
+[patch.crates-io]
+block_compression = { path = "vendor/block_compression" }
 
 [build-dependencies]
 sha2 = "0.10"
@@ -87,6 +107,10 @@ sha2 = "0.10"
 [profile.dev]
 debug = "line-tables-only"
 incremental = false
+# The BC7 encoder searches every mode of every block: unoptimised, a test's atlas takes minutes.
+# Its arithmetic is the same at any level, so the bytes the tests compare do not change.
+[profile.dev.package.block_compression]
+opt-level = 3
 
 [profile.release]
 lto = "thin"

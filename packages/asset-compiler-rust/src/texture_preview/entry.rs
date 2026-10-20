@@ -34,17 +34,22 @@ pub struct TexturePreview {
     pub width: u32,
     pub height: u32,
     pub source: PreviewSource,
+    /// The chain's key (`GateSheet::key`): the folder of its level files, the `{sha}` of the
+    /// level template.
     pub sha256: String,
+    /// The fingerprint of the source image's bytes: what the cutout sheet names it by.
+    pub image_sha256: String,
     /// Atlas entry serves: same texture can have one per atlas.
     pub kind: AtlasKind,
     pub first_level: u32,
-    /// Levels written in cache as PNG files, 0 to `baked_levels - 1`: `first_level`
-    /// when chain complete, 0 when nothing could be written.
+    /// Levels written in cache as files of the stored family, 0 to `baked_levels - 1`:
+    /// `first_level` when chain complete, 0 when the job cooks no stored family or nothing
+    /// could be written.
     pub baked_levels: u32,
     pub pixels: Vec<u8>,
     /// What each family holds of the chain, `BlockFormat::ALL` order: a layout
-    /// when the gate kept it, `None` when the chain stays lossless in that
-    /// family — not cooked, or under the bar.
+    /// when kept — the stored family's when it passes and its files were written —,
+    /// `None` when the chain is not in that family — not cooked, or under the bar.
     pub layouts: [Option<Layout>; FAMILIES],
     /// The same tail in each family's blocks, `BlockFormat::ALL` order; empty
     /// where the layout is `None`.

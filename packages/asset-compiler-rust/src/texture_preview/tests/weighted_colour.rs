@@ -119,19 +119,26 @@ fn a_plain_and_a_coverage_chain_of_one_image_never_share_files() {
     source.save(dir.join("map.png")).expect("save");
     let (plain, _) = stage_scene(&dir, &scene("OPAQUE"));
     let (weighted, _) = stage_scene(&dir, &scene("MASK"));
-    assert_eq!(plain[0].sha256, weighted[0].sha256, "one image");
+    assert_eq!(plain[0].image_sha256, weighted[0].image_sha256, "one image");
     let kinds = [plain[0].kind, weighted[0].kind];
     assert_eq!(kinds, [AtlasKind::Color, AtlasKind::Coverage(128)]);
     let native = dir.join("cache").join("native");
-    let levels = kinds.map(|kind| {
-        let path = native.join(level_path(&plain[0].sha256, kind, 1, LOSSLESS));
-        let decoded = image::open(&path).expect("readable png").to_rgba8();
-        assert_eq!(
-            decoded.as_raw(),
-            &reduce::chain(&source, kind)[1],
-            "{kind:?}"
+    let levels = [&plain[0], &weighted[0]].map(|entry| {
+        let kind = entry.kind;
+        let path = native.join(level_path(&entry.sha256, kind, 1, "bc7"));
+        let level = &reduce::chain(&source, kind)[1];
+        let (w, h) = preview_level_size(source.width(), source.height(), 1);
+        let encoded = blocks::encode_level(
+            level,
+            w,
+            h,
+            BlockFormat::Bc7,
+            Layout::Rgba,
+            blocks::Effort::Fast,
         );
-        decoded
+        let file = fs::read(&path).expect("block level");
+        assert_eq!(file, tile_records(&encoded, w, h), "{kind:?}");
+        file
     });
     assert_ne!(levels[0], levels[1], "each scene reads its own level");
 }

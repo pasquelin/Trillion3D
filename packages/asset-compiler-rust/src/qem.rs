@@ -1,37 +1,15 @@
 //! What the region simplifier (`solve`, the one, `qem_solve.rs`) is handed: a region compacted from
 //! the level's vertices, its vertex flags and its weighed attributes.
-use trillion3d_page_codec::hash::word_map;
-/// Region-local vertex buffer plus the table that maps a local index back to its source index,
-/// renumbered through one hash map sized by the region's corners, whatever the mesh around it.
+use trillion3d_page_codec::encode::vertices::first_use;
+/// Region-local vertex buffer plus the table that maps a local index back to its source index:
+/// the corners renumbered by first use, as a page's (`first_use`); a vertex past `positions` is
+/// placed at the origin.
 pub(crate) fn compact_region(positions: &[f32], indices: &[u32]) -> (Vec<f32>, Vec<u32>, Vec<u32>) {
-    let vertex_count = positions.len() / 3;
-    // Region cannot renumber more vertices than corners or mesh
-    // contains: both lists start at bound instead of doubling en route.
-    let bound = indices.len().min(vertex_count.max(1));
-    let mut compact_pos = Vec::with_capacity(bound * 3);
-    let mut remap = Vec::with_capacity(bound);
-    let mut compact_idx = Vec::with_capacity(indices.len());
-    let push = |source: u32, compact_pos: &mut Vec<f32>, remap: &mut Vec<u32>| {
+    let (remap, compact_idx) = first_use(indices.iter().copied());
+    let mut compact_pos = Vec::with_capacity(remap.len() * 3);
+    for &source in &remap {
         let i = source as usize * 3;
-        if i + 2 < positions.len() {
-            compact_pos.extend_from_slice(&positions[i..i + 3]);
-        } else {
-            compact_pos.extend_from_slice(&[0.0, 0.0, 0.0]);
-        }
-        remap.push(source);
-    };
-    let mut map = word_map(indices.len());
-    for &source in indices {
-        let id = match map.get(&source) {
-            Some(&id) => id,
-            None => {
-                let id = remap.len() as u32;
-                map.insert(source, id);
-                push(source, &mut compact_pos, &mut remap);
-                id
-            }
-        };
-        compact_idx.push(id);
+        compact_pos.extend_from_slice(positions.get(i..i + 3).unwrap_or(&[0.0; 3]));
     }
     (compact_pos, compact_idx, remap)
 }
@@ -46,18 +24,65 @@ pub(crate) fn welded_region(positions: &[f32], corners: &[u32]) -> (Vec<f32>, Ve
     let (xyz, local, _) = compact_region(positions, &welded);
     (xyz, local, welded)
 }
-/// The simplifier's per-vertex flags: the vertex does not move.
-pub const VERTEX_LOCK: u8 = 1;
-/// The vertex keeps its attribute discontinuity (a texture seam) under permissive mode.
-pub const VERTEX_PROTECT: u8 = 2;
-
 /// One per-vertex attribute counted in the simplification error: `width` floats per source
-/// vertex, each weighted by `weight` against the positions normalised to the region's extent.
+/// vertex, each weighted by `weight` in the simplifier's frame, where the mean triangle is a
+/// quarter to a half of a unit across (`qem_solve.rs`).
 #[derive(Clone, Copy)]
 pub struct Attribute<'a> {
     pub values: &'a [f32],
     pub width: usize,
     pub weight: f32,
+    pub role: Role,
+}
+
+/// What an attribute is to the simplifier: a normal is renormalised and a colour clamped after a
+/// solve, a texture set marks its mirrored triangles (`qem_solve_prepare.rs`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Role {
+    Normal,
+    Color,
+    Texture,
+}
+
+/// Where the attributes a solve corrects sit among a vertex's attribute floats: the normal's
+/// three, renormalised — the pages draw unit normals, and a solved one is a blend —, and the
+/// colour's, clamped to [0, 1], the range a page stores. The pages carry no tangent.
+#[derive(Clone, Copy, Default)]
+pub struct Corrected {
+    pub normal: Option<usize>,
+    pub color: Option<(usize, usize)>,
+}
+impl Corrected {
+    /// The first normal and the first colour among `attributes`, by their floats' offsets.
+    pub fn of(attributes: &[Attribute]) -> Self {
+        let mut corrected = Self::default();
+        let mut at = 0;
+        for a in attributes {
+            match a.role {
+                Role::Normal if corrected.normal.is_none() => corrected.normal = Some(at),
+                Role::Color if corrected.color.is_none() => corrected.color = Some((at, a.width)),
+                _ => {}
+            }
+            at += a.width;
+        }
+        corrected
+    }
+    pub fn apply(&self, attributes: &mut [f32]) {
+        if let Some(at) = self.normal {
+            // A blend shorter than 1e-4 has no direction to keep: it stays as solved.
+            let n = &mut attributes[at..at + 3];
+            let square_sum = n[0] * n[0] + n[1] * n[1] + n[2] * n[2];
+            if square_sum > 1e-8 {
+                let scale = 1.0 / square_sum.sqrt();
+                n.iter_mut().for_each(|x| *x *= scale);
+            }
+        }
+        if let Some((at, width)) = self.color {
+            for c in &mut attributes[at..at + width] {
+                *c = c.clamp(0.0, 1.0);
+            }
+        }
+    }
 }
 
 /// Vertex `source`'s `width` values of `values`, appended to `out`: the one compaction of an

@@ -10,8 +10,8 @@
 //! below. The `cdylib` is the SDK's one WebAssembly module, `kernels.wasm` (`pnpm run build:wasm`,
 //! one shipped resource, one instantiation and one linear memory on the browser side): the page
 //! encoder and the grid rules (`wasm_encode.rs`), the page decoder (`wasm_decode.rs`), the math-foundation batch kernels (`math.rs` and
-//! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone of the
-//! pages the world cuts at run time (`normal_cone.rs`, `wasm_cone.rs`), and the one hand-off of
+//! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone the
+//! encoder measures of every page (`normal_cone.rs`), and the one hand-off of
 //! the answers sized only once built (`held.rs`).
 mod attributes;
 pub mod bits;
@@ -30,6 +30,7 @@ mod page_error;
 pub use page_error::PageError;
 pub mod min_ball;
 pub mod normal_cone;
+pub mod partition;
 mod positions;
 pub mod proxy;
 pub mod reach;
@@ -39,8 +40,6 @@ pub mod triangles;
 mod unpack;
 #[cfg(target_arch = "wasm32")]
 mod wasm_clusters;
-#[cfg(target_arch = "wasm32")]
-mod wasm_cone;
 #[cfg(target_arch = "wasm32")]
 mod wasm_culling;
 #[cfg(target_arch = "wasm32")]

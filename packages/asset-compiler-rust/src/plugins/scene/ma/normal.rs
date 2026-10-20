@@ -27,7 +27,7 @@ pub(super) fn through_bump(world: &mut World<'_>, shader: usize) -> Option<Value
         .and_then(Attr::scalar)
         .unwrap_or_default();
     if interp != TANGENT {
-        world.refuse(match interp == OBJECT {
+        world.scene.report.add(match interp == OBJECT {
             true => report::BUMP_OBJECT,
             false => report::BUMP_HEIGHT,
         });

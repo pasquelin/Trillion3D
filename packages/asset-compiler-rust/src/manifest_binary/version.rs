@@ -27,7 +27,15 @@
 /// `page-codec-wasm/src/clusters.rs` (the spatial rule) and the culling tree a page order follows
 /// is built by the one builder of `page-codec-wasm/src/culling.rs`, each split on the axis of least
 /// cost: the DAG, its nodes and its pages differ from a version-11 cook's for the same source.
-pub const MANIFEST_BINARY_VERSION: u32 = 12;
+/// Version 13 lays every geometry page in a streaming bundle of the compile's geometry containers:
+/// a bundle names its file, by rank in the manifest's `geometryFiles`, its offset and its digest,
+/// a page its bundle and its place there, and the index objects and the per-page digests are gone;
+/// a version-12 reader would look for objects that no longer exist, so it refuses. 13 also rounded
+/// the clusters the one clusterer cut free, its upper cuts across the longest side (both since
+/// replaced by the parts of the triangles' graph, `page-codec-wasm/src/partition.rs`): the
+/// level-0 clusters, hence every page, differ from a version-12 cook's for the same source; and it measures each page's cone on the positions the page decodes
+/// to (`page-codec-wasm/src/encode.rs:decoded_cone`), not the source's, so the cone column differs.
+pub const MANIFEST_BINARY_VERSION: u32 = 13;
 /// 'W','G','M','B' read as a little-endian u32.
 pub const MANIFEST_BINARY_MAGIC: u32 = 0x424d_4757;
 pub const MANIFEST_BINARY_HEADER_WORDS: usize = 4;

@@ -9,7 +9,7 @@ pub(super) fn decode(bytes: &[u8], width: u32, height: u32, format: BlockFormat)
 
 /// The RGBA layout of a level in one family.
 fn encoded(rgba: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8> {
-    encode_level(rgba, width, height, format, Layout::Rgba)
+    encode_level(rgba, width, height, format, Layout::Rgba, Effort::Fast)
 }
 
 pub(super) fn psnr(a: &[u8], b: &[u8]) -> f64 {
@@ -116,8 +116,11 @@ fn encoding_is_deterministic() {
     let source = photo(32, 32);
     for format in BlockFormat::ALL {
         for layout in [Layout::Rgba, Layout::TwoChannel] {
-            let once = encode_level(&source, 32, 32, format, layout);
-            assert_eq!(once, encode_level(&source, 32, 32, format, layout));
+            let once = encode_level(&source, 32, 32, format, layout, Effort::Fast);
+            assert_eq!(
+                once,
+                encode_level(&source, 32, 32, format, layout, Effort::Fast)
+            );
             assert_eq!(once.len(), 64 * BLOCK_BYTES);
         }
     }
@@ -176,12 +179,23 @@ fn the_nearest_rung_shortcut_matches_a_full_search_on_both_ladders() {
 }
 
 // Behaviour: a red-to-green ramp, orthogonal to a grey seed, keeps its axis (was flat, 14 dB).
+// Sixteen equal steps on one block land on BC7 mode 6's sixteen weights: 45 dB at every effort,
+// once the encoder's axis search no longer starts from grey (`vendor/block_compression`,
+// `compute_axis`) — before, its one-subset modes came out flat and partitions won at 33 to 35.
 #[test]
 fn a_ramp_orthogonal_to_the_grey_diagonal_keeps_its_axis() {
     let ramp = |t: u8| [t * 16, 255 - t * 16, 128, 255];
     let rgba: Vec<u8> = (0..16u8).flat_map(ramp).collect();
-    for (format, floor) in [(BlockFormat::Bc7, 45.0), (BlockFormat::Astc, 30.0)] {
-        let quality = psnr(&decode(&encoded(&rgba, 4, 4, format), 4, 4, format), &rgba);
-        assert!(quality >= floor, "{format:?}: {quality:.1} dB");
+    let quality = |format, effort| {
+        let blocks = encode_level(&rgba, 4, 4, format, Layout::Rgba, effort);
+        psnr(&decode(&blocks, 4, 4, format), &rgba)
+    };
+    for (format, effort, floor) in [
+        (BlockFormat::Bc7, Effort::Fast, 45.0),
+        (BlockFormat::Bc7, Effort::Slow, 45.0),
+        (BlockFormat::Astc, Effort::Fast, 30.0),
+    ] {
+        let measured = quality(format, effort);
+        assert!(measured >= floor, "{format:?} {effort:?}: {measured:.1} dB");
     }
 }

@@ -1,4 +1,3 @@
-use super::tests::TEMPLATES;
 use super::*;
 use crate::texture_preview::{AtlasKind, Layout, PreviewSource};
 
@@ -10,6 +9,7 @@ fn preview(texture: u32, width: u32, height: u32, fill: u8) -> TexturePreview {
         height,
         source: PreviewSource::Uri,
         sha256: std::iter::repeat_n('a', 64).collect(),
+        image_sha256: std::iter::repeat_n('b', 64).collect(),
         kind: AtlasKind::Color,
         first_level: preview_first_level(width, height),
         baked_levels: preview_first_level(width, height),
@@ -48,8 +48,8 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         lossless_astc(2, 64, 64, 7),
         preview(3, 8, 8, 222),
     ];
-    let (_, bytes) = split(&json!({"primitives": []}), &TEMPLATES, &previews).expect("split");
-    let word = |at: usize| u32::from_le_bytes(bytes[at..at + 4].try_into().unwrap());
+    let (_, bytes) = split(&json!({"primitives": []}), &previews).expect("split");
+    let word = |at: usize| super::tests::word(&bytes, at);
     let column = |index: usize| {
         let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
         (word(at) as usize, word(at + 4) as usize)
@@ -131,10 +131,10 @@ fn encode_previews_rejects_the_wrong_block_byte_length() {
 // refused outright, never read as if it had new section.
 #[test]
 fn a_sidecar_of_an_older_version_is_refused() {
-    let (_, bytes) = split(&json!({"primitives": []}), &TEMPLATES, &[]).expect("split");
+    let (_, bytes) = split(&json!({"primitives": []}), &[]).expect("split");
     let mut old = bytes.clone();
     old[4..8].copy_from_slice(&3u32.to_le_bytes());
-    assert!(digests(&old).is_err());
+    assert!(texture_levels(&old).is_err());
 }
 
 // Behavior 9 (c): pair (texture, atlas) that does not advance refused — same texture

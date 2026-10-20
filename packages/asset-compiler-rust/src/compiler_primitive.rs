@@ -26,7 +26,32 @@ pub(super) struct CompiledPrimitive {
     pub proxy_cut: Vec<f32>,
     pub proxy_threshold: f64,
     pub collision: Value,
-    pub root_cover: crate::compiler_world_roots::RootCover,
+    pub source_cover: crate::compiler_world_roots::SourceCover,
+    /// The groups its far field may draw as voxels.
+    pub voxel_seed: crate::voxel::VoxelSeed,
+    /// The run of its pages' bytes, which the geometry containers take (`compiler_geometry_files.rs`).
+    pub page_run: Option<PageRun>,
+}
+/// Whether the engine draws `material` blended, sorted back to front and never merged with another
+/// surface: `alphaMode` `BLEND` once the cutout decisions have rewritten the scene
+/// (`cutout::apply_decisions`), or a transmission, whatever its mode (`transmissive_material`). The one
+/// test of a primitive's `pass`.
+pub(crate) fn drawn_blended(material: Option<&Value>) -> bool {
+    transmissive_material(material)
+        || material.is_some_and(|m| AlphaMode::of(m) == AlphaMode::Blend)
+}
+/// Whether primitive `p` draws triangles (`mode` 4, the default).
+fn triangle_mode(p: &Value) -> Result<bool> {
+    Ok(optional_index(p.get("mode"), "primitive.mode", 4)? == 4)
+}
+/// The material primitive `p` names, if any.
+fn primitive_material<'g>(g: &'g Value, p: &Value) -> Result<Option<&'g Value>> {
+    match p.get("material") {
+        Some(material) => {
+            Ok(values(g, "materials")?.get(required_index(Some(material), "primitive.material")?))
+        }
+        None => Ok(None),
+    }
 }
 /// `compile_primitive` of one planned `(mesh, primitive)` job, its error naming the job.
 pub(super) fn compile_job(
@@ -50,6 +75,7 @@ pub(super) fn compile_primitive(
         scene_triangles,
         validated,
         progress,
+        ..
     } = inputs;
     check(o)?;
     let p = item(
@@ -57,7 +83,7 @@ pub(super) fn compile_primitive(
         *primitive,
         "primitive",
     )?;
-    if optional_index(p.get("mode"), "primitive.mode", 4)? != 4 {
+    if !triangle_mode(p)? {
         return Err(CompilerError::new(
             "UNSUPPORTED_PRIMITIVE",
             "Only static triangles are supported",
@@ -68,49 +94,25 @@ pub(super) fn compile_primitive(
         let _t = perf::Timer::new(perf::Phase::Decode);
         positions.collect_f32()?
     };
-    let topology = {
-        let _t = perf::Timer::new(perf::Phase::Topology);
-        crate::topology::classify_topology(&index_values, positions.count)?
-    };
-    let material = if let Some(material) = p.get("material") {
-        let id = required_index(Some(material), "primitive.material")?;
-        values(g, "materials")?.get(id)
-    } else {
-        None
-    };
+    let material = primitive_material(g, p)?;
     // Skin and morph pages share the GPU deformation stage before cut/raster.
-    let unsplit = unsplit_material(material);
-    let clustered_blend = !unsplit
-        && material
-            .and_then(|m| m.get("alphaMode"))
-            .and_then(Value::as_str)
-            == Some("BLEND");
+    let blended = drawn_blended(material);
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let attributes = if unsplit {
-        Vec::new()
-    } else {
-        compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?
-    };
+    let attributes = compiler_page_record::page_attributes(g, bin, p, positions.count, validated)?;
     let mut deformation =
-        compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?;
+        compiler_page_record::page_deformation(g, bin, p, positions.count, validated)?;
     geometry_page_deform::declare_soft(&mut deformation, g, *old, &pos)?;
     let carried = carried_attributes(&attributes, material);
-    let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
-    let store = |slice: &[u32], pos: &[f32], carried: &[&_], origin: &[u32], exponent: i32| {
+    let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, blended);
+    let encode = |slice: &[u32], pos: &[f32], carried: &[&_], origin: &[u32], exponent: i32| {
         let exponents = (exponent, uv_exponent);
-        compiler_page_object::store_page(
-            o,
-            slice,
-            (pos, carried),
-            (&deformation, origin),
-            exponents,
-        )
+        compiler_page_record::encode_page(slice, (pos, carried), (&deformation, origin), exponents)
     };
-    // Transparent primitives join the DAG too: their draw order is restored at runtime from the
-    // recorded source rank, so spatial clustering does not scramble the blend order.
-    let dag_primitive = !unsplit;
+    // Every primitive joins the DAG, a blended one too, transmissive or not: its draw order is
+    // restored at runtime from the recorded source rank, so spatial clustering does not scramble
+    // the blend order, and the water pass composes its pages over the backdrop as any.
     let scale = mesh_scales.get(old).copied();
     let demand = crate::proxy::cut::cut_demand(
         scale,
@@ -123,41 +125,40 @@ pub(super) fn compile_primitive(
         cluster_planes,
         proxy_cut,
         proxy_threshold,
-        reused,
+        page_run,
         dag_report,
         timings,
         warnings,
         culling_report,
         structure_report,
-        stream_report,
         position_exponent,
         collision,
-        root_cover,
-    } = if dag_primitive {
-        build_dag_primitive(
-            o,
-            &pos,
-            &carried,
-            &index_values,
-            demand,
-            clustered_blend,
-            trillion3d_page_codec::bits::grid::tile_log2(scale),
-            &store,
-        )?
-    } else {
-        DagResult::default()
-    };
+        source_cover,
+        voxel_seed,
+    } = build_dag_primitive(
+        o,
+        &pos,
+        &carried,
+        &index_values,
+        demand,
+        blended,
+        crate::voxel::ShapePreservation::of(item(mesh_values, *old, "mesh")?),
+        (trillion3d_page_codec::bits::grid::tile_log2(scale), scale),
+        &encode,
+    )?;
     let event = primitive_event(mesh, *primitive, pages.len(), timings, warnings);
     progress(event);
     let quantization =
-        compiler_page_object::quantization_report(&pages, position_exponent, uv_exponent);
-    let reach = geometry_page_deform::reach_for_pass(&deformation, &pos, unsplit);
+        compiler_page_record::quantization_report(&pages, position_exponent, uv_exponent);
+    let reach = geometry_page_deform::reach(&deformation, &pos);
     Ok(CompiledPrimitive {
+        page_run,
         cluster_planes,
         proxy_cut,
         collision,
-        root_cover,
+        source_cover,
+        voxel_seed,
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0), // back in metres for the report
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"deformation":reach,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if blended {"clustered-blend"} else {"exact-clusters"},"clusterStrategy":DAG_CLUSTER_STRATEGY,"dag":dag_report,"culling":culling_report,"structure":structure_report,"pages":pages,"quantization":quantization,"deformation":reach}),
     })
 }

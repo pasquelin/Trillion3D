@@ -37,16 +37,17 @@ fn emit(nodes: &[Node], at: usize, bounds: &mut Vec<f32>, children: &mut Vec<u32
     // Internal child writes own node further in `children`; words at this
     // location already reserved, so each child places as soon as link known.
     // A root that is a leaf is its own one child.
-    let kids = match nodes[at].children.as_slice() {
-        [] => std::slice::from_ref(&at),
+    let own = [at as u32];
+    let kids = match nodes[at].children() {
+        [] => &own[..],
         kids => kids,
     };
     for (index, &kid) in kids.iter().enumerate() {
-        let node = &nodes[kid];
-        let (offset, count) = if node.children.is_empty() {
+        let node = &nodes[kid as usize];
+        let (offset, count) = if node.children().is_empty() {
             (node.first as u32, node.count as u32)
         } else {
-            (emit(nodes, kid, bounds, children), 0)
+            (emit(nodes, kid as usize, bounds, children), 0)
         };
         let child = Child {
             low: node.low,

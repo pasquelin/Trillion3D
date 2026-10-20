@@ -3,6 +3,7 @@
 //! JavaScript (why: `packages/page-codec-wasm/src/wasm_math.rs`), with its `Math.min` and `Math.max`
 //! (`js`).
 
+use crate::aabb::corner;
 use crate::js::{js_max, js_min};
 use crate::matrix::MATRIX_VALUES;
 
@@ -46,9 +47,7 @@ pub fn box_transform_batch(out: &mut [f64], boxes: &[f64], mats: &[f64], n: usiz
 fn corner_walk(out: &mut [f64], lo: [f64; 3], hi: [f64; 3], m: &[f64]) {
     let mut corners = [0f64; CORNER_VALUES];
     for i in 0..8usize {
-        let lx = if i & 1 != 0 { hi[0] } else { lo[0] };
-        let ly = if i & 2 != 0 { hi[1] } else { lo[1] };
-        let lz = if i & 4 != 0 { hi[2] } else { lo[2] };
+        let [lx, ly, lz] = corner(lo, hi, i);
         let mw = 1.0 / (m[3] * lx + m[7] * ly + m[11] * lz + m[15]);
         let at = i * 3;
         corners[at] = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) * mw;

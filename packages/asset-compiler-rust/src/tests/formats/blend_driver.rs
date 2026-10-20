@@ -3,7 +3,7 @@
 //! `blend_golden.rs`.
 use super::*;
 use plugins::scene::{route, PreparedScene, Routed, SceneRequest};
-use std::io::{Read, Write};
+use std::io::Write;
 
 /// File of the CC0 fixture, as Blender wrote it: compressed with Zstandard.
 fn source() -> PathBuf {
@@ -28,15 +28,14 @@ pub(super) fn converted(from: &Path, cache: &Path) -> PathBuf {
     };
     match prepared.expect("conversion") {
         PreparedScene::Converted { directory, .. } => directory,
-        PreparedScene::Manifest | PreparedScene::InPlace(_) => {
+        PreparedScene::Manifest | PreparedScene::InPlace(_) | PreparedScene::Extracted { .. } => {
             panic!("the blend driver always converts")
         }
     }
 }
 
 pub(super) fn scene_gltf(directory: &Path) -> Value {
-    serde_json::from_slice(&fs::read(directory.join("model.gltf")).expect("model.gltf"))
-        .expect("model.gltf is valid JSON")
+    read_json(&directory.join("model.gltf"))
 }
 
 // Behaviour 29: the shared scene comes out as one mesh instanced three times,
@@ -130,29 +129,12 @@ fn a_packed_image_is_carried_through_byte_for_byte() {
     fs::remove_dir_all(cache).expect("cleanup");
 }
 
-/// Bytes of the fixture file once unpacked. Blender writes its Zstandard in several
-/// frames, preceded by a skippable frame: the test chains them as the driver does.
+/// Bytes of the fixture file once unpacked: Blender writes its Zstandard in several frames,
+/// preceded by a skippable frame, which the driver's own unwrapping chains (`envelope::unwrap`).
 fn unpacked() -> Vec<u8> {
     let raw = fs::read(source()).expect("source");
-    let mut rest = &raw[..];
-    let mut out = Vec::new();
-    while rest.len() >= 4 {
-        let magic = u32::from_le_bytes(rest[..4].try_into().expect("magic number"));
-        if magic & 0xFFFF_FFF0 == 0x184D_2A50 {
-            let length = u32::from_le_bytes(rest[4..8].try_into().expect("length")) as usize;
-            rest = &rest[8 + length..];
-            continue;
-        }
-        if magic != 0xFD2F_B528 {
-            break;
-        }
-        let mut frame = rest;
-        let mut decoder = ruzstd::StreamingDecoder::new(&mut frame).expect("trame Zstandard");
-        decoder.read_to_end(&mut out).expect("unpack");
-        drop(decoder);
-        rest = frame;
-    }
-    out
+    let unpacked = plugins::scene::blend::envelope::unwrap(&raw, usize::MAX).expect("unpack");
+    unpacked.into_owned()
 }
 
 /// First index where `needle` appears in `haystack`.

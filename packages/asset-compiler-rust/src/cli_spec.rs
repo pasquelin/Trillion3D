@@ -1,5 +1,5 @@
 //! Reading a batch file: what each job asks for, and what the batch budget allows
-//! to admit in parallel. Split from its execution to keep the repository line limit.
+//! to admit in parallel. `cli_batch` runs them.
 use super::Cancellation;
 use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
@@ -49,7 +49,7 @@ fn cache_identity(path: &Path) -> PathBuf {
         }
     }
 }
-/// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangleBudget":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..,"texturesFormat":..}]}`,
+/// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangleBudget":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..,"texturesFormat":..,"hlod":{..},"temporalAntialiasing":"high","responsive":{..},"materials":{..}}]}`,
 /// each job read by `job_options`, as the command line's one job is; a job's scope defaults to `full`.
 /// Per-job RAM defaults to the batch budget divided by the admitted concurrency, which is itself
 /// lowered until the jobs running at the same time fit in that budget.

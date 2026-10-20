@@ -12,7 +12,7 @@ fn cancelled_import_reports_cancelled() {
 }
 
 fn objects_on_disk(cache: &Path) -> BTreeSet<String> {
-    fs::read_dir(cache.join("native/objects"))
+    fs::read_dir(objects_dir(cache))
         .expect("objects")
         .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
         .collect()
@@ -39,9 +39,9 @@ fn a_sidecar_of_another_version_stops_the_prune_without_removing_anything() {
     };
     let error = compile(&slice, |_| {}).expect_err("the prune refuses an unreadable sidecar");
     assert_eq!(error.code, "UNSUPPORTED_FORMAT", "{error}");
-    assert_eq!(
-        objects_on_disk(&options.cache),
-        before,
+    // The slice stores its own geometry container before the prune; nothing stored is removed.
+    assert!(
+        objects_on_disk(&options.cache).is_superset(&before),
         "an incompatible sidecar removes nothing"
     );
     fs::remove_dir_all(root).expect("cleanup");

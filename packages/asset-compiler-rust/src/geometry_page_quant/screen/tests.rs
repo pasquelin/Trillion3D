@@ -67,13 +67,14 @@ fn sponza() -> std::path::PathBuf {
 #[ignore = "needs Sponza under .mesure/assets: node bench/runner/assets/assets.ts --only sponza"]
 fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
     let path = sponza();
-    let g: Value = serde_json::from_slice(&std::fs::read(&path).expect("Sponza.gltf")).unwrap();
+    let g: Value = crate::tests::fixtures::read_json(&path);
     let bin = std::fs::read(path.with_file_name("Sponza.bin")).expect("Sponza.bin");
     let nodes = crate::values(&g, "nodes").unwrap();
     let chosen: BTreeSet<usize> = (0..nodes.len())
         .filter(|&n| nodes[n].get("mesh").is_some())
         .collect();
-    let scales = crate::proxy::placement::mesh_scales(&g, &chosen).unwrap();
+    let world = crate::compiler_world::world_matrices(&g).unwrap();
+    let scales = crate::proxy::placement::mesh_scales(&g, &chosen, &world).unwrap();
     let materials = crate::values(&g, "materials").unwrap();
     let validated = BTreeSet::new();
     let mut pages = Vec::new();
@@ -83,9 +84,6 @@ fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
                 .get("material")
                 .and_then(Value::as_u64)
                 .map(|i| &materials[i as usize]);
-            if crate::unsplit_material(material) {
-                continue;
-            }
             let accessor = |id: &Value| {
                 let id = id.as_u64().expect("accessor index") as usize;
                 crate::accessor(&g, &bin, id, None).unwrap()
@@ -93,7 +91,7 @@ fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
             let positions = accessor(&p["attributes"]["POSITION"]);
             let pos = positions.collect_f32().unwrap();
             let indices = accessor(&p["indices"]).collect_u32().unwrap();
-            let attributes = crate::compiler_page_object::page_attributes(
+            let attributes = crate::compiler_page_record::page_attributes(
                 &g,
                 &bin,
                 p,
@@ -102,10 +100,7 @@ fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
             )
             .unwrap();
             let carried = crate::carried_attributes(&attributes, material);
-            let blended = material
-                .and_then(|m| m.get("alphaMode"))
-                .and_then(Value::as_str)
-                == Some("BLEND");
+            let blended = crate::compiler_primitive::drawn_blended(material);
             let scale = scales.get(&m).copied();
             pages.extend(measure(&Primitive {
                 positions: &pos,

@@ -7,18 +7,11 @@
 //! `opacity` wired onto that texture passes through as-is; another image cannot be folded into
 //! it without recomposing a third, which would invent bytes.
 use super::*;
+use crate::plugins::scene::Transparency;
 
 /// Channel where glTF reads an image's opacity: the alpha of the base-colour texture, and that
 /// alone. Another channel of the same image does not fit there without recomposing bytes.
 const ALPHA_CHANNEL: &str = "outputs:a";
-
-/// What the surface opacity yielded: the factor that enters `baseColorFactor`, and whether an
-/// image's alpha still modulates it.
-#[derive(Clone, Copy)]
-pub(super) struct Opacity {
-    pub(super) factor: f64,
-    textured: bool,
-}
 
 /// Surface opacity, given the `diffuseColor` connection and the already filled
 /// `pbrMetallicRoughness`. A connected input wins over the written value: when the base-colour
@@ -28,9 +21,9 @@ pub(super) fn of(
     shader: &usd::Prim,
     pbr: &Value,
     diffuse: Option<&sdf::Path>,
-) -> Opacity {
+) -> Transparency {
     let factor = material::scalar(shader, "opacity").unwrap_or(1.0);
-    let written = Opacity {
+    let written = Transparency {
         factor,
         textured: false,
     };
@@ -40,7 +33,7 @@ pub(super) fn of(
     let carried = diffuse.map(sdf::Path::prim_path) == Some(target.prim_path())
         && pbr.get("baseColorTexture").is_some();
     if !carried {
-        world.refuse(world::OPACITY_TEXTURE);
+        world.scene.report.add(world::OPACITY_TEXTURE);
         return written;
     }
     // The image is the one glTF will carry; the channel remains, because glTF reads only one.
@@ -50,21 +43,24 @@ pub(super) fn of(
         .split_property()
         .is_some_and(|(_, name)| name == ALPHA_CHANNEL)
     {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
         return written;
     }
-    Opacity {
+    Transparency {
         factor: 1.0,
         textured: true,
     }
 }
 
 /// Transparency mode of this material.
-pub(super) fn mode(shader: &usd::Prim, opacity: Opacity) -> &'static str {
+pub(super) fn mode(shader: &usd::Prim, opacity: Transparency) -> &'static str {
     if cutoff(shader).is_some() {
         return "MASK";
     }
-    match opacity.textured || opacity.factor < 1.0 {
+    match opacity.blends() {
         true => "BLEND",
         false => "OPAQUE",
     }

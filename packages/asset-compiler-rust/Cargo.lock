@@ -61,6 +61,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "block_compression"
+version = "0.10.0"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -924,6 +931,7 @@ name = "trillion3d-compiler"
 version = "0.8.0"
 dependencies = [
  "basisu",
+ "block_compression",
  "draco-core",
  "exr",
  "flate2",
@@ -934,9 +942,11 @@ dependencies = [
  "mimalloc",
  "openusd",
  "rayon",
+ "regex-lite",
  "ruzstd",
  "serde_json",
  "sha2",
+ "smallvec",
  "tar",
  "texture2ddecoder",
  "trillion3d-math",

@@ -1,56 +1,84 @@
-//! The world super-roots in a compilation: a partitioned world publishes them beside its
-//! cells, one entry per cell, and its cook report carries the pinned top's bytes.
+//! The world's HLOD in a compilation: a partitioned world publishes it beside its cells, one entry
+//! per HLOD 0 cell, each cell naming its own.
 //!
 //! Provenance: the synthetic grid world of `partition.rs`, the fixture triangle placed 48 × 48
-//! times, which outgrows one stream unit and is split into cells.
+//! times, which spans several grid cells.
 use super::partition::{cells, grid};
 use super::*;
-use crate::compiler_world_roots::{WORLD_ROOTS_BIN, WORLD_ROOTS_FILE, WORLD_TOP_BUDGET_BYTES};
+use crate::compiler_world_roots::decoded::table;
+use crate::compiler_world_roots::{WORLD_ROOTS_BIN, WORLD_ROOTS_FILE};
 
-#[test]
-fn a_partitioned_world_publishes_its_super_roots_cell_by_cell() {
-    let side = 48;
-    let (_root, mut options) = fixture();
+/// The fixture triangle placed `side` × `side` times, wearing `materials` — its first, if any —,
+/// compiled whole and simplified: its result and its cache's directory. Each placement is scaled
+/// twice.
+fn grid_world(side: usize, materials: Value) -> (PathBuf, Value, PathBuf) {
+    let (root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["accessors"][0]["min"] = json!([0.0, 0.0, 0.0]);
     gltf["accessors"][0]["max"] = json!([1.0, 1.0, 0.0]);
-    gltf["nodes"] = json!(grid(side, 4.0, 1.0));
+    gltf["nodes"] = json!(grid(side, 4.0, 2.0));
     gltf["scenes"] = json!([{"nodes": (0..side * side).collect::<Vec<_>>()}]);
+    if materials.as_array().is_some_and(|all| !all.is_empty()) {
+        gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
+    }
+    gltf["materials"] = materials;
     write_gltf(&options, &gltf, None);
     options.scope = "full".into();
     options.simplification = "qem-endpoints".into();
+    options.hlod = Ok(crate::tests::fixtures::hlod_chain());
     let result = compile(&options, |_| {}).expect("compile");
     let directory = options.key_directory(result["key"].as_str().expect("key"));
-    // The table's records (`compiler_world_roots/records.rs`): header words, then the bundles,
-    // pages, cells (16 bytes: first object, count, each node's first in the pool) and objects.
-    let table = fs::read(directory.join(WORLD_ROOTS_FILE)).expect("table");
-    let word = |at: usize| u32::from_le_bytes(table[at..at + 4].try_into().expect("word")) as usize;
-    assert_eq!(&table[..4], b"WRTB");
+    (root, result, directory)
+}
+
+#[test]
+fn a_partitioned_world_publishes_its_hlod_cell_by_cell() {
+    let side = 48;
+    let (_root, result, directory) = grid_world(side, json!([]));
+    // The table as a load reads it (`compiler_world_roots/decoded.rs`): its header, then each
+    // HLOD cell's bundles, its parent, layer and bounds.
+    let table = table(&fs::read(directory.join(WORLD_ROOTS_FILE)).expect("table"));
     let report = &result["worldRoots"];
-    let pinned = report["pinnedTopBytes"].as_u64().expect("published") as usize;
-    assert!(pinned > 0 && pinned <= WORLD_TOP_BUDGET_BYTES, "{report}");
-    assert_eq!(pinned, word(16));
     let partition = cells(&directory);
     assert!(partition.len() > 1, "the world is split");
-    assert_eq!(report["cells"], json!(partition.len()));
-    let (bundles, pages, world) = (word(20), word(24), word(28));
-    assert_eq!(world, partition.len());
-    let (cell_at, mut nodes) = (80 + bundles * 56 + pages * 24, Vec::new());
-    let object_at = cell_at + world * 16;
-    for at in 0..world {
-        let body = read_json(&directory.join(format!("scene-cell-{at}.json")));
-        let (first, count) = (word(cell_at + at * 16), word(cell_at + at * 16 + 4));
-        assert_eq!(count, body["nodes"].as_array().expect("nodes").len());
-        nodes.extend((first..first + count).map(|object| word(object_at + object * 24) as u64));
+    let hlod = table["hlod"].as_array().expect("hlod");
+    assert_eq!(report["chainCells"], json!(hlod.len()));
+    // The chain: HLOD 0 cells first, each layer's cells after, the HLOD 2 cells the top's.
+    let layers: Vec<u64> = hlod
+        .iter()
+        .map(|h| h["level"].as_u64().expect("level"))
+        .collect();
+    assert!(layers.windows(2).all(|w| w[0] <= w[1]), "{layers:?}");
+    assert_eq!(layers.last(), Some(&2));
+    for h in hlod {
+        let top = h["level"] == json!(2);
+        assert_eq!(h["parent"].is_null(), top, "{h}");
     }
-    nodes.sort_unstable();
-    let placed: Vec<u64> = (0..(side * side) as u64).collect();
-    assert_eq!(
-        nodes, placed,
-        "every placement once, in the cell that places it"
-    );
+    let mut nodes = Vec::new();
+    for cell in &partition {
+        assert!(cell["hlod"][0].as_u64().expect("its HLOD 0 cell") < hlod.len() as u64);
+        let body = read_json(&directory.join(cell["url"].as_str().expect("url")));
+        nodes.extend(body["nodes"].as_array().expect("nodes").iter().cloned());
+    }
+    assert_eq!(nodes.len(), side * side, "every placement once");
     let payload = fs::read(directory.join(WORLD_ROOTS_BIN)).expect("payload");
-    let digest: String = table[48..80].iter().map(|b| format!("{b:02x}")).collect();
-    assert_eq!(digest, hash(&payload));
-    assert_eq!(word(40) + (word(44) << 32), payload.len());
+    assert_eq!(
+        table["payload"],
+        json!({"bytes": payload.len(), "sha256": hash(&payload)})
+    );
+}
+
+/// A blended primitive is drawn sorted, and approximated into its HLOD 1 all the same: the
+/// approximation takes every primitive of a cell whatever its blend mode (`SourceCover::of`), the
+/// same world, blended, publishes its HLOD, every HLOD 0 cell built.
+#[test]
+fn a_blended_world_publishes_its_hlod_too() {
+    let (_root, result, directory) = grid_world(48, json!([{"alphaMode":"BLEND"}]));
+    assert_eq!(result["primitives"][0]["pass"], "clustered-blend");
+    let report = &result["worldRoots"];
+    assert!(report["hlodCells"].as_u64().unwrap_or(0) > 0, "{report}");
+    assert_eq!(report["builtCells"], report["chainCells"], "{report}");
+    assert_eq!(report["layers"], json!(3), "HLOD 1 to HLOD 3 built");
+    assert!(directory.join(WORLD_ROOTS_FILE).exists());
+    assert!(cells(&directory).len() > 1, "the world is still split");
 }

@@ -5,7 +5,7 @@ use crate::proxy::tracer::World;
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::Path;
-use trillion3d_math::matrix::transform_point;
+use trillion3d_math::matrix::transform_point_f32;
 use trillion3d_page_codec::proxy::bvh;
 
 fn bad(message: impl Into<String>) -> CompilerError {
@@ -27,10 +27,8 @@ fn place_primitive(
     let points = positions.collect_f32()?;
     for index in &indices {
         let at = *index as usize * 3;
-        let placed = transform_point(matrix, [0, 1, 2].map(|axis| f64::from(points[at + axis])));
-        world.triangles.push(placed[0] as f32);
-        world.triangles.push(placed[1] as f32);
-        world.triangles.push(placed[2] as f32);
+        let placed = transform_point_f32(matrix, [0, 1, 2].map(|axis| points[at + axis]));
+        world.triangles.extend(placed);
     }
     world.tags.resize(world.triangles.len() / 9, colour);
     Ok(())

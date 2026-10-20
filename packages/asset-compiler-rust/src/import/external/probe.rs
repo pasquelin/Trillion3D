@@ -8,8 +8,7 @@ use super::*;
 /// bytes elsewhere open different files. Final key stays per-content.
 fn probe_path(cache: &Path, base: &str, root: &Path) -> PathBuf {
     let stamp = hash(format!("{base}\n{}", root.to_string_lossy()).as_bytes());
-    let folder = cache.join("native").join("imports-externes");
-    folder.join(format!("{stamp}.json"))
+    crate::probes_dir(cache).join(format!("{stamp}.json"))
 }
 
 /// Files previous conversion of same inputs here opened, re-hashed.

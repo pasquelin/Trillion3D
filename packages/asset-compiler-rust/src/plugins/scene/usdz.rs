@@ -49,9 +49,11 @@ impl ScenePlugin for Usdz {
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
         let source = archive::only_input(request, self)?;
-        let layer = layout(source)?;
+        // The central directory is read once: the layout is judged on it, then it extracts.
+        let mut opened = archive::zip_reader::open(source)?;
+        let layer = layout(source, &mut opened)?;
         archive::container(request, self, Some(&layer), |file, root| {
-            archive::zip_reader::extract(request, file, root)
+            archive::zip_reader::extract(request, opened, file, root)
         })
     }
 }
@@ -61,8 +63,7 @@ impl ScenePlugin for Usdz {
 /// announced is refused too, that is a local header the reader could not place. The
 /// specification then wants the **first** entry to be the package's USD layer: it is the one
 /// that carries the scene, and everything that follows it is only a resource.
-fn layout(source: &Path) -> Result<String> {
-    let mut archive = archive::zip_reader::open(source)?;
+fn layout(source: &Path, archive: &mut archive::zip_reader::Opened) -> Result<String> {
     let mut first: Option<String> = None;
     for index in 0..archive.len() {
         let entry = archive

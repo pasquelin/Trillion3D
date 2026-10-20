@@ -8,7 +8,7 @@
 //! corner, then the value at that rank.
 use super::archive::{meta_value, Archive};
 use super::property::{Properties, POD_F32, POD_I32, POD_U32};
-use super::values::{f32s, i32s, u32s};
+use crate::le::words;
 use crate::plugins::scene::spread::Spread;
 use crate::Result;
 
@@ -93,9 +93,9 @@ impl Geometry {
             return Ok(None);
         };
         let mut out = Geometry {
-            positions: f32s(positions),
-            counts: i32s(counts),
-            corners: i32s(corners),
+            positions: words(positions, f32::from_le_bytes).collect(),
+            counts: words(counts, i32::from_le_bytes).collect(),
+            corners: words(corners, i32::from_le_bytes).collect(),
             normals: None,
             uv: None,
             dropped: Vec::new(),
@@ -155,9 +155,9 @@ fn read_param(
         };
         let indices = compound
             .sample(archive, ".indices", POD_U32, Some(1))?
-            .map(u32s);
+            .map(|bytes| words(bytes, u32::from_le_bytes).collect());
         return Ok(Some(GeomParam {
-            values: f32s(values),
+            values: words(values, f32::from_le_bytes).collect(),
             width,
             indices,
             scope,
@@ -166,7 +166,7 @@ fn read_param(
     Ok(geom
         .sample(archive, name, POD_F32, Some(width as u8))?
         .map(|values| GeomParam {
-            values: f32s(values),
+            values: words(values, f32::from_le_bytes).collect(),
             width,
             indices: None,
             scope,

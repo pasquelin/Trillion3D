@@ -2,10 +2,7 @@ use super::*;
 
 /// The farthest point of `points` from `centre`: the radius a ball there needs.
 fn reach(points: &[[f64; 3]], centre: [f64; 3]) -> f64 {
-    points
-        .iter()
-        .map(|&p| length(sub(p, centre)))
-        .fold(0.0, f64::max)
+    farthest(centre, points.iter().map(|&p| (p, 0.0)))
 }
 
 fn close(ball: Ball, centre: [f64; 3], radius: f64) -> bool {

@@ -2,6 +2,7 @@
 //! cause the builder named, so a primitive left with many roots says why.
 use super::*;
 use crate::dag::{DagCluster, DagStall, DagStrategy, GroupTally, StallCause};
+use crate::json::merge;
 
 /// The summary's fields, the keys `StallSummary::json` writes, copied into each stall table row.
 const SUMMARY_FIELDS: [&str; 5] = [
@@ -63,20 +64,12 @@ impl StallSummary {
     }
 }
 
-/// Copies every field of `fields`, an object, into `target`, an object.
-pub(super) fn merge(target: &mut Value, fields: Value) {
-    if let (Some(target), Value::Object(fields)) = (target.as_object_mut(), fields) {
-        target.extend(fields);
-    }
-}
-
 /// The DAG report of a primitive and its warnings.
 pub(super) fn dag_report(
     strategy: DagStrategy,
     dag: &[DagCluster],
     tallies: &[GroupTally],
     stalls: &[DagStall],
-    quality: &[crate::dag::quality::LevelQuality],
 ) -> (Value, Vec<Value>) {
     let shape = compiler_primitive_warn::DagShape::of(dag);
     let summary = StallSummary::of(dag, stalls);
@@ -89,13 +82,7 @@ pub(super) fn dag_report(
             level
         })
         .collect();
-    let mut levels = compiler_primitive_warn::level_report(dag, shape.depth);
-    for row in &mut levels {
-        let level = row["level"].as_u64().unwrap_or(0) as usize;
-        if let Some(q) = quality.iter().find(|q| q.level == level) {
-            row["normalDeviationMax"] = json!(q.normal_deviation);
-        }
-    }
+    let levels = compiler_primitive_warn::level_report(dag, shape.depth);
     let warnings = compiler_primitive_warn::dag_warnings(strategy, &shape, tallies, &summary);
     let mut report = json!({
         "depth": shape.depth,
@@ -151,7 +138,7 @@ mod tests {
     #[test]
     fn the_table_ranks_level0_roots_and_skips_coarsest_group_stalls() {
         let primitive = |mesh: usize, roots: usize, stalls: usize| {
-            json!({"mesh":mesh,"primitive":0,"dag":{"rootTriangles":roots,"cause":"seam-locked",
+            json!({"mesh":mesh,"primitive":0,"dag":{"rootTriangles":roots,"cause":"unreducible",
                 "stalls":vec![json!({}); stalls]}})
         };
         let mut primitives = vec![primitive(0, 5_000, 0), primitive(1, 0, 1)];
@@ -161,7 +148,7 @@ mod tests {
         assert_eq!(rows.len(), WORST);
         assert_eq!(rows[0]["mesh"], 13);
         assert_eq!(rows[0]["index"], 13);
-        assert_eq!(rows[0]["cause"], "seam-locked");
+        assert_eq!(rows[0]["cause"], "unreducible");
         assert!(rows.iter().all(|r| r["mesh"] != 0 && r["mesh"] != 1));
         assert_eq!(worst_stalls(&[primitive(1, 0, 1)]), json!([]));
     }

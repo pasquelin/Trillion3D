@@ -72,14 +72,12 @@ pub(in crate::tests) fn matrix(node: &Value) -> Vec<f64> {
 /// Normals of a primitive of the intermediate scene, read from the binary written beside it.
 pub(in crate::tests) fn normals(run: &GoldenRun, gltf: &Value, part: &Value) -> Vec<[f32; 3]> {
     let rank = part["attributes"]["NORMAL"].as_u64().expect("NORMAL") as usize;
-    let accessor = &gltf["accessors"][rank];
-    let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("view") as usize];
     let uri = gltf["buffers"][0]["uri"].as_str().expect("the binary");
     let bytes = fs::read(run.prepared_dir("ma").join(uri)).expect("the sidecar");
-    let from = (view["byteOffset"].as_u64().unwrap_or(0)
-        + accessor["byteOffset"].as_u64().unwrap_or(0)) as usize;
-    let count = accessor["count"].as_u64().expect("count") as usize;
-    float_triples(&bytes[from..], count)
+    accessor_floats(gltf, &bytes, rank)
+        .as_chunks::<3>()
+        .0
+        .to_vec()
 }
 
 /// Do two normals look alike to the millionth?

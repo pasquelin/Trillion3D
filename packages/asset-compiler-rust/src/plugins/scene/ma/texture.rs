@@ -43,7 +43,10 @@ pub(super) fn connected(world: &mut World<'_>, node: usize, names: &[&str]) -> O
 pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
     let document = world.document;
     if document.nodes[node].kind != "file" {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
     let written = document.nodes[node]
@@ -56,16 +59,9 @@ pub(super) fn of(world: &mut World<'_>, node: usize) -> Option<Value> {
 
 /// Rank of the image, poured on first request, or nothing when the file does not read.
 fn image(world: &mut World<'_>, written: &str) -> Option<usize> {
-    let images = world.images;
-    let Some((relative, mime)) = candidates(written)
-        .into_iter()
-        .find_map(|path| crate::import::readable(images, &path).map(|mime| (path, mime)))
-    else {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_MISSING);
-        world.scene.image_unreadable(written);
-        return None;
-    };
-    Some(world.scene.image(relative, mime))
+    world
+        .scene
+        .image_found(world.images, candidates(written), written)
 }
 
 /// Paths where to look up the image under the root, in order: the written path when it is
@@ -102,13 +98,13 @@ fn sampler(world: &mut World<'_>, node: usize) -> usize {
             .iter()
             .any(|names| place.attr(names).and_then(Attr::flag) == Some(true))
         {
-            world.refuse(report::TEXTURE_MIRROR);
+            world.scene.report.add(report::TEXTURE_MIRROR);
         }
         if PLACEMENTS
             .iter()
             .any(|(names, neutral)| moved(place, names, *neutral))
         {
-            world.refuse(report::TEXTURE_TRANSFORM);
+            world.scene.report.add(report::TEXTURE_TRANSFORM);
         }
     }
     let repeats = |names: &[&str]| match place

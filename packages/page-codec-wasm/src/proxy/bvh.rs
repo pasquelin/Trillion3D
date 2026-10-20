@@ -4,19 +4,26 @@
 //! past its subtree: the GPU's quantized wide records (`wide::encode`) and the CPU tracer's
 //! stackless skip list (`flatten`) are two writings of this one tree.
 use super::{PROXY_CHILDREN, PROXY_LEAF_TRIANGLES, PROXY_TRIANGLE_FLOATS};
-use crate::split::bisect_least_cost;
-use trillion3d_math::aabb::{aabb_of, aabb_of_f32};
-use trillion3d_math::scalar::mean;
+use crate::split::{bisect_least_cost, centres_and_boxes, Boxed};
+use trillion3d_math::aabb::aabb_of_f32;
 
-/// A node: its bounds, and either a triangle range (a leaf) or its children's ranks; `escape` is
-/// the rank past its subtree in preorder.
+/// A node: its bounds, and either a triangle range (a leaf) or its two to four children's ranks,
+/// held in place; `escape` is the rank past its subtree in preorder.
 pub struct Node {
     pub low: [f32; 3],
     pub high: [f32; 3],
     pub first: usize,
     pub count: usize,
-    pub children: Vec<usize>,
+    kids: [u32; PROXY_CHILDREN],
+    kid_count: u8,
     pub escape: usize,
+}
+
+impl Node {
+    /// Its children's ranks in preorder, none for a leaf.
+    pub fn children(&self) -> &[u32] {
+        &self.kids[..usize::from(self.kid_count)]
+    }
 }
 
 /// Bounds of a triangle range, read once per node.
@@ -31,23 +38,12 @@ fn bounds_of(triangles: &[f32], order: &[usize], range: (usize, usize)) -> ([f32
     }))
 }
 
-/// Triangle centroids, the `mean` of the three corners axis by axis, and boxes: what the median
-/// splits, and what its cost weighs.
-type Boxed = (Vec<[f64; 3]>, Vec<([f64; 3], [f64; 3])>);
 fn boxed(triangles: &[f32]) -> Boxed {
     let corners = |t: &[f32; PROXY_TRIANGLE_FLOATS]| {
         [0, 3, 6].map(|corner| [0, 1, 2].map(|axis| f64::from(t[corner + axis])))
     };
     let triangles = triangles.as_chunks::<PROXY_TRIANGLE_FLOATS>().0;
-    let centres = triangles
-        .iter()
-        .map(|t| {
-            let c = corners(t);
-            [0, 1, 2].map(|axis| mean(c.map(|p| p[axis])))
-        })
-        .collect();
-    let boxes = triangles.iter().map(|t| aabb_of(corners(t))).collect();
-    (centres, boxes)
+    centres_and_boxes(triangles.iter().map(corners))
 }
 
 /// The parts a node of `range` splits into: its two halves at the median on the axis of least
@@ -87,14 +83,17 @@ fn split(
         high,
         first: range.0,
         count: range.1 - range.0,
-        children: Vec::new(),
+        kids: [0; PROXY_CHILDREN],
+        kid_count: 0,
         escape: 0,
     });
     if range.1 - range.0 > PROXY_LEAF_TRIANGLES {
         nodes[at].count = 0;
         for part in parts(boxed, order, range) {
-            let child = split(triangles, boxed, order, part, nodes);
-            nodes[at].children.push(child);
+            let child = split(triangles, boxed, order, part, nodes) as u32;
+            let node = &mut nodes[at];
+            node.kids[usize::from(node.kid_count)] = child;
+            node.kid_count += 1;
         }
     }
     nodes[at].escape = nodes.len();
@@ -121,16 +120,34 @@ pub fn build_ordered(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> (Vec<No
         (0, count),
         &mut nodes,
     );
-    let mut sorted = Vec::with_capacity(triangles.len());
-    let mut colours = Vec::with_capacity(albedo.len());
-    for slot in &order {
-        let base = slot * PROXY_TRIANGLE_FLOATS;
-        sorted.extend_from_slice(&triangles[base..base + PROXY_TRIANGLE_FLOATS]);
-        colours.push(albedo[*slot]);
-    }
-    *triangles = sorted;
-    *albedo = colours;
+    permute(triangles, albedo, &order);
     (nodes, order)
+}
+
+/// Slot `i` of `triangles` and `albedo` given what slot `order[i]` held, in place, cycle by cycle:
+/// no second copy of the soup.
+fn permute(triangles: &mut [f32], albedo: &mut [u32], order: &[usize]) {
+    let records = triangles.as_chunks_mut::<PROXY_TRIANGLE_FLOATS>().0;
+    let mut placed = vec![false; order.len()];
+    for start in 0..order.len() {
+        if placed[start] {
+            continue;
+        }
+        let (record, colour) = (records[start], albedo[start]);
+        let mut at = start;
+        loop {
+            placed[at] = true;
+            let from = order[at];
+            if from == start {
+                records[at] = record;
+                albedo[at] = colour;
+                break;
+            }
+            records[at] = records[from];
+            albedo[at] = albedo[from];
+            at = from;
+        }
+    }
 }
 
 /// World extent of proxy. Empty proxy keeps zero extent, never infinite.

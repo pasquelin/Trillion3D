@@ -7,8 +7,7 @@ pub struct ClusterPlane {
     pub area: f64,
 }
 
-use trillion3d_math::aabb::{extend_aabb, longest_side};
-use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::aabb::longest_side;
 use trillion3d_math::vec3::{cross, frame_across, point_checked, unit_unless_zero};
 use trillion3d_math::vecn::{add, dot, length, scale};
 
@@ -31,28 +30,20 @@ const SIGN_EPSILON: f64 = 1e-9;
 
 /// The plane a set of triangles lies in, or `None` when they do not share one. Every vertex must sit
 /// within `tolerance` of the plane and every triangle normal must be parallel to it: a cluster that
-/// merely looks flat from far away is not a coplanar surface.
+/// merely looks flat from far away is not a coplanar surface. `crosses` are the triangles' own
+/// (`normal_cone::face_crosses`) and `(low, high)` the box of their vertices
+/// (`dag::bounds::cluster_bounds`), both measured once for the page record.
 pub fn plane_of_triangles(
-    indices: &[u32],
-    positions: &[f32],
+    (indices, positions): (&[u32], &[f32]),
+    crosses: &[[f64; 3]],
+    (low, high): ([f64; 3], [f64; 3]),
     tolerance_ratio: f64,
 ) -> Option<ClusterPlane> {
     let corner = |id: u32| point_checked(positions, id);
     let mut accumulated = [0.0f64; 3];
     let mut area = 0.0f64;
-    let mut low = [f64::INFINITY; 3];
-    let mut high = [f64::NEG_INFINITY; 3];
     let (triangles, _) = indices.as_chunks::<3>();
-    for triangle in triangles {
-        let (a, b, c) = (
-            corner(triangle[0])?,
-            corner(triangle[1])?,
-            corner(triangle[2])?,
-        );
-        for point in [a, b, c] {
-            extend_aabb(&mut low, &mut high, point);
-        }
-        let normal = triangle_cross(a, b, c);
+    for &normal in crosses {
         let double_area = length(normal);
         if double_area <= 0.0 {
             continue;
@@ -76,18 +67,12 @@ pub fn plane_of_triangles(
         }
     }
     offset /= weight;
-    for triangle in triangles {
-        let (a, b, c) = (
-            corner(triangle[0])?,
-            corner(triangle[1])?,
-            corner(triangle[2])?,
-        );
-        for point in [a, b, c] {
-            if (dot(normal, point) - offset).abs() > tolerance {
+    for (triangle, &face) in triangles.iter().zip(crosses) {
+        for &id in triangle {
+            if (dot(normal, corner(id)?) - offset).abs() > tolerance {
                 return None;
             }
         }
-        let face = triangle_cross(a, b, c);
         let face_length = length(face);
         if face_length > 0.0 && dot(face, normal).abs() < face_length * PARALLEL_COSINE {
             return None;

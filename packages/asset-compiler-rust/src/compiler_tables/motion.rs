@@ -18,15 +18,6 @@ fn floats(g: &Value, bin: &[u8], id: &Value, name: &str) -> Result<Vec<Value>> {
     Ok(values.into_iter().map(short).collect())
 }
 
-/// A node rank `name` holds, refused past the node count.
-fn node(value: Option<&Value>, name: &str, nodes: usize) -> Result<usize> {
-    let rank = required_index(value, name)?;
-    if rank >= nodes {
-        return Err(invalid(format!("{name} index is out of bounds")));
-    }
-    Ok(rank)
-}
-
 /// Every skin of the document: its name, its joints and skeleton root as node ranks, and its
 /// inverse bind matrices — sixteen numbers a joint, column-major — or `null` for identities.
 pub(super) fn skin_table(g: &Value, bin: &[u8]) -> Result<Vec<Value>> {
@@ -40,10 +31,10 @@ pub(super) fn skin_table(g: &Value, bin: &[u8]) -> Result<Vec<Value>> {
         .map(|skin| {
             let joints = values(skin, "joints")?
                 .iter()
-                .map(|joint| node(Some(joint), "skin.joints", nodes))
+                .map(|joint| bounded(joint, "skin.joints", nodes))
                 .collect::<Result<Vec<_>>>()?;
             let skeleton = match skin.get("skeleton") {
-                Some(root) => Some(node(Some(root), "skin.skeleton", nodes)?),
+                Some(root) => Some(bounded(root, "skin.skeleton", nodes)?),
                 None => None,
             };
             let matrices = match skin.get("inverseBindMatrices") {
@@ -123,7 +114,7 @@ fn clip_channel(
     let times = floats(g, bin, required(sampler, "input")?, "sampler.input")?;
     let values = floats(g, bin, required(sampler, "output")?, "sampler.output")?;
     Ok(
-        json!({"node": node(Some(target), "channel.target.node", nodes)?, "path": path,
+        json!({"node": bounded(target, "channel.target.node", nodes)?, "path": path,
         "interpolation": interpolation, "times": times, "values": values}),
     )
 }

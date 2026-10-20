@@ -1,4 +1,8 @@
 use super::*;
+mod finish;
+mod primitives;
+mod products;
+use {finish::finish_job, primitives::compile_primitives, products::stage_products};
 pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     check(o)?;
     validate_compile_options(o)?;
@@ -15,7 +19,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Where relative image URIs resolve, read before a converted scene moves `o.source` away.
     let image_root = routed.scene.images(&o.source);
     let imported;
-    let o = if let PreparedScene::Converted { directory, .. } = &routed.scene {
+    let o = if let PreparedScene::Converted { directory, .. }
+    | PreparedScene::Extracted { directory, .. } = &routed.scene
+    {
         imported = Options {
             source: directory.clone(),
             ..o.clone()
@@ -37,20 +43,39 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         selected_triangles,
         meshes,
         mesh_map,
-        skinned_meshes,
     } = compiler_select::select_nodes(o, &loaded.g, &scene_nodes)?;
     let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // What the cuts of the proxy share its budget over: the meshes, each once, not their instances.
     let unique_triangles = compiler_select::unique_triangles(&loaded.g, &chosen)?;
+    // The pool is born and dies with this job: its workers adopt its counters, not a neighbour's.
+    let pool = phases.pool(o.threads)?;
+    // The materials the compiled meshes use, and the fingerprint of every image read: each
+    // taken once, for the key, the cutout candidates and the bake.
+    let used_materials = texture_preview::collect::used_materials(&loaded.g, &meshes)?;
+    let image_shas = pool.install(|| {
+        texture_preview::source::ImageShas::of(&loaded.g, bin, &image_root, &used_materials)
+    });
     // Cutouts, answered or measured, go to masked before any material is read (`cutout.rs`).
-    let cutouts =
-        cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &mut decisions)?;
+    // Their decodes are admitted beside the source the plan will commit: the document parsed
+    // and the binary.
+    let resident = loaded
+        .g_bytes_len
+        .saturating_mul(2)
+        .saturating_add(bin.len());
+    let cutouts = pool.install(|| {
+        cutout::apply_decisions(
+            (o, resident),
+            &mut loaded.g,
+            (bin, &image_root),
+            (&used_materials, &image_shas),
+            &mut decisions,
+        )
+    })?;
     let g = &loaded.g;
     // Identity of the product, not the raw bytes of what the source declares:
     // conversion timings leave it, images the scene cites enter it, answers too.
-    let key = compiler_identity::cache_key(o, &loaded, &image_root, &cutouts.applied)?;
-    // The pool is born and dies with this job: its workers adopt its counters, not a neighbour's.
-    let pool = phases.pool(o.threads)?;
+    let key =
+        compiler_identity::cache_key(o, &loaded, (&image_root, &image_shas), &cutouts.applied)?;
     // A folder already holding this product is proven, then kept as is (`compiler_reuse.rs`).
     if let Some(reused) = compiler_reuse::reuse(o, &key, &pool, &progress)? {
         return compiler_reuse::finish(o, &key, reused, started, &loaded.manifest, &progress);
@@ -64,7 +89,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         view_map,
         estimated_working_bytes,
         threads,
-        waves,
+        working,
+        room,
     } = plan_buffers(o, g, bin, loaded.g_bytes_len, &meshes)?;
     // Fewer workers than the job's threads where its budget holds no more (`plan_buffers`).
     let pool = if threads < o.threads {
@@ -79,31 +105,31 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len(),"sharedMeshNodes":shared_nodes,"unsupported":loaded.manifest["unsupported"]}),
     );
     let cluster_start = Instant::now();
-    // Compact per-page index storage is bounded independently from source size. Metadata is retained.
-    // Each mesh's world scale, read before the loop: the proxy threshold is in metres.
-    let mesh_scales = proxy::placement::mesh_scales(g, &chosen)?;
-    let primitive_inputs = PrimitiveInputs {
-        o,
-        g,
-        bin,
-        mesh_values: values(g, "meshes")?,
-        mesh_map: &mesh_map,
-        mesh_scales: &mesh_scales,
-        scene_triangles: unique_triangles,
-        validated: &accessors,
-        progress: &progress,
-    };
-    // Primitives compile in waves whose working sets fit the job's budget together (`plan_buffers`).
-    let compiled: Vec<CompiledPrimitive> = pool.install(|| {
-        compiler_budget::waves::run_waves(&waves, |i| compile_job(&primitive_inputs, &jobs[i]))
-    })?;
-    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds, collisions, covers) =
-        compiler_coplanar::split_compiled(compiled);
-    let bootstrap_bundles = {
+    let (world, mesh_scales, compiled, waited) = compile_primitives(
+        (o, g, bin, &pool),
+        (&jobs, &working, room),
+        (&chosen, &mesh_map, unique_triangles, &accessors),
+        &progress,
+    )?;
+    let compiler_coplanar::SplitCompiled {
+        mut primitives,
+        cluster_planes,
+        proxy_cuts,
+        proxy_thresholds,
+        collisions,
+        covers,
+        voxel_seeds,
+        runs,
+    } = compiler_coplanar::split_compiled(compiled);
+    validate_cluster_errors(&primitives)?;
+    let geometry_files = {
         let _t = perf::Timer::new(perf::Phase::PageWrite);
-        share_bootstrap_bundles(o, &mut primitives)?
+        write_geometry_files(o, &mut primitives, runs)?
     };
-    progress(json!({"phase":"bootstrap","completed":bootstrap_bundles,"total":bootstrap_bundles}));
+    let files = geometry_files.len();
+    progress(json!({"phase":"geometry","completed":files,"total":files}));
+    // Primitives no later stage adds, removes or moves to another mesh: placed once, here.
+    let placement = proxy::placement::Placement::new(world, &primitives);
     let scene = compiler_coplanar::DepthLayerScene {
         o,
         g,
@@ -111,6 +137,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         shown: &shown,
         mesh_map: &mesh_map,
         cluster_planes: &cluster_planes,
+        placement: &placement,
     };
     let coplanar_report =
         compiler_coplanar::stage_depth_layers(&scene, &mut primitives, &progress)?;
@@ -135,7 +162,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             g,
             bin,
             image_root: &image_root,
-            meshes: &meshes,
+            used_materials: &used_materials,
+            image_shas: &image_shas,
             view_map: &view_map,
             decisions: &decisions,
             applied: &cutouts,
@@ -143,59 +171,38 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         },
         &progress,
     )?;
-    // Resident proxy then impostors: coarse cuts and previews in hand, node hierarchy still there.
-    let (scene_proxy, impostors) = impostor::stage_stand_ins(
-        (&pool, o, bin, &skinned_meshes),
-        &proxy::ProxyInputs {
-            g,
-            shown: &shown,
-            mesh_map: &mesh_map,
-            mesh_scales: &mesh_scales,
-            primitives: &primitives,
-            cuts: &proxy_cuts,
-            thresholds: &proxy_thresholds,
-            previews: &texture_previews,
-        },
+    let mut staged = stage_products(
+        (
+            &pool,
+            &scene,
+            &directory,
+            &image_root,
+            estimated_working_bytes,
+        ),
+        (&voxel_seeds, &mesh_scales),
+        (&primitives, &geometry_files, covers, &collisions),
+        (&proxy_cuts, &proxy_thresholds, &texture_previews),
+        (&scene_nodes, &hidden, &source),
+        (source_bin, source_gltf),
         &progress,
     )?;
-    // The proxy is its own cache object: a manifest stays readable without its tens of megabytes.
-    let proxy_bytes = scene_proxy.encode();
-    let proxy_sha = hash(&proxy_bytes);
-    let proxy_descriptor =
-        scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
-    // Cache products, each under its own name: lights, node and material tables, physics.
-    let lights = stage_scene_lights(g, bin, (&scene_nodes, &hidden), &directory, &progress)?;
-    let paged = write_mesh_pages(&primitives, &directory)?;
-    let (tables, cells) = stage_scene_tables((g, bin), &source, &paged, &directory, &progress)?;
-    let placed = (&primitives[..], covers);
-    let (world_products, world_report) =
-        stage_world_roots((o, &pool), (&source, &directory), placed, &cells)?;
-    let (physics_file, physics) = stage_physics(&scene, &primitives, &collisions, &directory)?;
-    let mut products = vec![tables, source_bin, source_gltf, lights, physics_file];
-    products.extend(world_products);
-    let unsupported = compiler_format::unsupported(&o.simplification);
-    let cache_format = compiler_format::cache_format(&primitives);
-    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"impostors":impostors,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"worldRoots":world_report,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"compileWaves":waves.len(),"peakRssBytes":perf::rss::peak_bytes(),"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
-    publish(
-        &Publication {
-            o,
-            key: &key,
-            directory: &directory,
-            cache_format,
-            proxy_bytes: &proxy_bytes,
-            proxy_sha: &proxy_sha,
-            products: &products,
-            previews: &texture_previews,
-            mesh_pages: &paged,
-        },
-        &result,
-    )?;
-    // Prune belongs to the job: the manifest carries `compileMs`, the caller `wallMs` after it.
-    let prune_start = Instant::now();
-    let keep = Keep::of_result(&result, &texture_previews)?;
-    let pruned = prune_cache(o, &key, keep, &progress)?;
-    result["metrics"]["pruneMs"] = json!(shared_math::elapsed_ms(prune_start));
-    result["metrics"]["wallMs"] = json!(shared_math::elapsed_ms(started));
-    progress(json!({"phase":"complete","completed":1,"total":1,"pruned":pruned}));
-    Ok(result)
+    // The world's flattened materials' textures join the scene's: one texture section.
+    let mut texture_previews = texture_previews;
+    texture_previews.append(&mut staged.world_previews);
+    let reports = (
+        routed.plugin.map(plugins::provenance),
+        coplanar_report,
+        texture_preview_report,
+        cutout_report,
+    );
+    finish_job(
+        (o, &key, &directory),
+        staged,
+        (&primitives, &geometry_files, &texture_previews),
+        reports,
+        (selected_triangles, &chosen, manifest),
+        (&phases, started, cluster_start, import_ms),
+        (bin, offset, threads, estimated_working_bytes, waited),
+        &progress,
+    )
 }

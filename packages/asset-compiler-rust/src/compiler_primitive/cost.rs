@@ -4,7 +4,7 @@
 //! `working` lives while the primitive compiles and is freed when it returns: the DAG's index
 //! lists and clusters, the per-vertex arrays of its welds, and what the collider cook and the page
 //! packing hold beside it, since both run side by side on the finished DAG. `retained` stays until
-//! the job ends: the manifest record of every page (`compiler_page_object::page_record`), its
+//! the job ends: the manifest record of every page (`compiler_page_record::page_record`), its
 //! culling and structure entries, its cluster plane, and the record's serialized text when the
 //! manifest is published. The decoded accessors and the primitive's index buffer are already
 //! charged by `plan_buffers`, and so is what one worker holds whatever the scene (`WORKER_BYTES`).
@@ -19,14 +19,12 @@ use trillion3d_page_codec::encode::cells::Cell;
 #[cfg(test)]
 mod tests;
 
-/// Entries of one page record, nested objects included: 20 top-level fields, the 2 of its normal
-/// cone and the 8 of its geometry object.
-const PAGE_ENTRIES: usize = 30;
+/// Entries of one page record, nested objects included: 17 top-level fields, its bundle and place
+/// there among them, the 2 of its normal cone and the 6 of its geometry object.
+const PAGE_ENTRIES: usize = 25;
 /// Numbers held in the record's arrays: `min`, `max`, cone axis (3 each), `sphere` and
 /// `parentSphere` (4 each).
 const PAGE_ARRAY_VALUES: usize = 17;
-/// Text of the record's two object names and two SHA-256 digests.
-const PAGE_TEXT_BYTES: usize = 2 * ("../../objects/".len() + 64 + ".bin".len()) + 2 * 64;
 /// Longest key of a record, and the longest text of a JSON number (`f64` round trip).
 const KEY_BYTES: usize = "quantizationError".len();
 const NUMBER_BYTES: usize = 24;
@@ -48,11 +46,16 @@ const GRID_TRIANGLE_BYTES: usize =
 /// held, the one tried and its concatenation. A height field (`height.rs`) holds a few words per
 /// vertex and its square of samples, under that charge for any grid not far from square.
 const COLLIDER_TRIANGLE_BYTES: usize = 2 * GRID_TRIANGLE_BYTES + 3 * 3 * size_of::<u32>();
-/// Per DAG cluster, the page packing (`compiler_primitive_bundle.rs`): its culling rank, page,
-/// bundle and packing entry with up to four parent bundles, and its record, first in its bundle,
-/// then in page order.
-const PACKING_CLUSTER_BYTES: usize =
-    size_of::<[usize; 8]>() + size_of::<Vec<usize>>() + 2 * size_of::<Value>();
+/// A geometry page's bytes, about four bytes a corner: cooked caches measure 1.5 KB at the median
+/// for a full cluster.
+const ENCODED_PAGE_BYTES: usize = 3 * DAG_CLUSTER_TRIANGLES * size_of::<u32>();
+/// Per DAG cluster, the primitive's pages (`compiler_primitive_pages.rs`): its record and encoded
+/// bytes, its rank, bundle and place there, its packing entry with up to four parent bundles, and
+/// its bytes copied into the run.
+const PACKING_CLUSTER_BYTES: usize = size_of::<(Value, Vec<u8>)>()
+    + size_of::<[usize; 8]>()
+    + size_of::<Vec<usize>>()
+    + 2 * ENCODED_PAGE_BYTES;
 
 /// Per triangle of a tile, what Jolt allocates while it cooks the tile's `MeshShape`
 /// (`physics_cook::mesh_shape`): its settings' copy of the mesh, the sanitize pass, the AABB tree
@@ -64,26 +67,26 @@ const JOLT_TRIANGLE_BYTES: usize = 320;
 const TILE_BYTES: usize = TILE_TRIANGLES
     * (3 * (size_of::<u32>() + 3 * size_of::<f32>() + hashed(size_of::<(u32, u32)>()))
         + JOLT_TRIANGLE_BYTES);
-/// A bundle being packed: its payload, one page over and above it, and that page being encoded
-/// (`encode::encode`): per corner, its local and remapped indices; per vertex, its source
-/// index and remap entry, its cell, its unique copy and rank entry, its remap and its output bits,
-/// its distinct position and rank entry, its stored copy and its link (`stored_positions`).
-const BUNDLE_BYTES: usize = STREAM_BUNDLE_BYTES
-    + 3 * DAG_CLUSTER_TRIANGLES
-        * (3 * size_of::<u32>()
-            + 3 * size_of::<u32>()
-            + hashed(size_of::<(u32, u32)>())
-            + 3 * size_of::<Cell>()
-            + hashed(size_of::<(Cell, u32)>())
-            + 2 * size_of::<[u32; 3]>()
-            + hashed(size_of::<([u32; 3], u32)>())
-            + size_of::<u32>());
-/// What one worker holds whatever the scene, one tile or one bundle at a time; `plan_buffers`
+/// A page being encoded (`encode::encode`): per corner, its local and remapped indices; per
+/// vertex, its source index and remap entry, its cell, its unique copy and rank entry, its remap
+/// and its output bits, its distinct position and rank entry, its stored copy and its link
+/// (`stored_positions`).
+const PAGE_ENCODE_BYTES: usize = 3
+    * DAG_CLUSTER_TRIANGLES
+    * (3 * size_of::<u32>()
+        + 3 * size_of::<u32>()
+        + hashed(size_of::<(u32, u32)>())
+        + 3 * size_of::<Cell>()
+        + hashed(size_of::<(Cell, u32)>())
+        + 2 * size_of::<[u32; 3]>()
+        + hashed(size_of::<([u32; 3], u32)>())
+        + size_of::<u32>());
+/// What one worker holds whatever the scene, one tile or one page at a time; `plan_buffers`
 /// charges it once per thread, since every primitive of a wave shares the pool's workers.
-pub(crate) const WORKER_BYTES: usize = if TILE_BYTES > BUNDLE_BYTES {
+pub(crate) const WORKER_BYTES: usize = if TILE_BYTES > PAGE_ENCODE_BYTES {
     TILE_BYTES
 } else {
-    BUNDLE_BYTES
+    PAGE_ENCODE_BYTES
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -98,11 +101,9 @@ pub(crate) struct PrimitiveCost {
 /// costs at most twice its key and value; the serialized text follows the same fields.
 fn page_bytes() -> usize {
     let record = 2 * PAGE_ENTRIES * (size_of::<(String, Value)>() + KEY_BYTES)
-        + PAGE_ARRAY_VALUES * size_of::<Value>()
-        + PAGE_TEXT_BYTES;
-    let text = PAGE_ENTRIES * (KEY_BYTES + NUMBER_BYTES + 4)
-        + PAGE_ARRAY_VALUES * (NUMBER_BYTES + 1)
-        + PAGE_TEXT_BYTES;
+        + PAGE_ARRAY_VALUES * size_of::<Value>();
+    let text =
+        PAGE_ENTRIES * (KEY_BYTES + NUMBER_BYTES + 4) + PAGE_ARRAY_VALUES * (NUMBER_BYTES + 1);
     // One culling node per cluster at most, and its child and output links in the structure.
     let links = (CULLING_STRIDE + 2) * size_of::<Value>() + size_of::<Option<ClusterPlane>>();
     record + text + links
@@ -130,15 +131,6 @@ pub(crate) fn of_counts(triangles: usize, vertices: usize) -> Option<PrimitiveCo
 
 /// Cost of the glTF primitive `p`.
 pub(crate) fn of(g: &Value, p: &Value) -> Result<PrimitiveCost> {
-    let position = p
-        .get("attributes")
-        .and_then(|a| a.get("POSITION"))
-        .ok_or_else(|| invalid("primitive.attributes.POSITION is required"))?;
-    let accessor = item(
-        values(g, "accessors")?,
-        required_index(Some(position), "primitive.attributes.POSITION")?,
-        "accessor",
-    )?;
-    let vertices = required_index(accessor.get("count"), "accessor.count")?;
+    let vertices = required_index(position_accessor(g, p)?.get("count"), "accessor.count")?;
     of_counts(primitive_triangles(g, p)?, vertices).ok_or_else(|| invalid("Working set overflow"))
 }

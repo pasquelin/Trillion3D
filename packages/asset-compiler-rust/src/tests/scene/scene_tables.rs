@@ -21,21 +21,30 @@ pub(in crate::tests) fn tables_of(options: &Options) -> Value {
 }
 /// A full-scope compilation of the fixture, altered by the case before it is written back.
 pub(in crate::tests) fn published(alter: impl FnOnce(&mut Value)) -> (PathBuf, Value) {
+    let (root, directory) = published_folder(alter);
+    (root, read_json(&directory.join("scene-tables.json")))
+}
+/// The same compilation, answering the folder it wrote: its other products are read beside.
+pub(in crate::tests) fn published_folder(alter: impl FnOnce(&mut Value)) -> (PathBuf, PathBuf) {
     let (root, mut options) = fixture();
     let mut gltf = read_gltf(&options);
     with_bounds(&mut gltf);
     alter(&mut gltf);
     write_gltf(&options, &gltf, None);
     options.scope = "full".into();
-    let tables = tables_of(&options);
-    (root, tables)
+    let result = compile(&options, |_| {}).expect("compile");
+    (
+        root,
+        options.key_directory(result["key"].as_str().expect("key")),
+    )
 }
 
 #[test]
 fn the_node_table_carries_every_node_and_its_local_pose() {
     // A parent that moves its two children: the pose written is the one each node declares, which
-    // the runtime composes itself — the same bits the document gives.
-    let (_root, tables) = published(|gltf| {
+    // the runtime composes itself — the same bits the document gives. The children, placed meshes,
+    // lie in a cell under their core parent (`compiler_tables/partition.rs`).
+    let (_root, directory) = published_folder(|gltf| {
         gltf["scenes"] = json!([{"name":"stage","nodes":[0]}]);
         gltf["nodes"] = json!([
             {"name":"root","translation":[10.0,0.0,0.0],"children":[1,2]},
@@ -43,36 +52,33 @@ fn the_node_table_carries_every_node_and_its_local_pose() {
             {"name":"right","mesh":0,"matrix":[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,2.0,0.0,1.0]},
         ]);
     });
+    let tables = read_json(&directory.join("scene-tables.json"));
     assert_eq!(tables["scene"], json!({"name":"stage","nodes":[0]}));
     let nodes = tables["nodes"].as_array().expect("nodes");
-    assert_eq!(nodes.len(), 3, "every node, drawn or not: {tables}");
-    assert_eq!(
-        nodes[0]["children"],
-        json!([1, 2]),
-        "the hierarchy is in the table"
-    );
+    assert_eq!(nodes.len(), 1, "the core keeps the parent: {tables}");
     assert_eq!(nodes[0]["translation"], json!([10.0, 0.0, 0.0]));
     assert_eq!(nodes[0]["mesh"], Value::Null);
     assert_eq!(
-        nodes[1]["mesh"],
-        json!(0),
-        "two nodes naming one mesh: instancing"
-    );
-    assert_eq!(nodes[2]["mesh"], json!(0));
-    assert_eq!(
-        nodes[2]["matrix"][13],
-        json!(2.0),
-        "a matrix pose is kept as a matrix"
-    );
-    assert_eq!(
-        nodes[1]["matrix"],
-        Value::Null,
-        "no pose declared, none invented"
-    );
-    assert_eq!(
-        nodes[1]["visible"],
+        nodes[0]["visible"],
         json!(true),
         "no KHR_node_visibility: visible"
+    );
+    let placed = super::partition::cell_nodes(&directory);
+    assert_eq!(placed.len(), 2, "every child, in a cell");
+    assert!(
+        placed
+            .iter()
+            .all(|node| node["parent"] == json!(0) && node["mesh"] == json!(0)),
+        "two nodes naming one mesh under the parent: instancing"
+    );
+    let matrix = |node: &Value| node["matrix"].clone();
+    assert!(
+        placed.iter().any(|node| matrix(node)[13] == json!(2.0)),
+        "a matrix pose is kept as a matrix"
+    );
+    assert!(
+        placed.iter().any(|node| matrix(node) == Value::Null),
+        "no pose declared, none invented"
     );
 }
 
@@ -120,14 +126,21 @@ fn the_tables_describe_the_published_scene_and_not_the_input() {
     gltf["nodes"] = json!([{"mesh":1},{"mesh":1}]);
     write_gltf(&options, &gltf, None);
     options.triangle_budget = 1;
-    let tables = tables_of(&options);
-    // The node left out keeps its place in the graph and draws nothing.
+    let result = compile(&options, |_| {}).expect("compile");
+    let directory = options.key_directory(result["key"].as_str().expect("key"));
+    let tables = read_json(&directory.join("scene-tables.json"));
+    // The node left out keeps its place in the graph and draws nothing; the one kept is placed, in
+    // a cell.
+    let placed = super::partition::cell_nodes(&directory);
     assert_eq!(
-        tables["nodes"][0]["mesh"],
-        json!(0),
+        placed
+            .iter()
+            .map(|node| node["mesh"].clone())
+            .collect::<Vec<_>>(),
+        [json!(0)],
         "the rank the published scene uses"
     );
-    assert_eq!(tables["nodes"][1]["mesh"], Value::Null, "{tables}");
+    assert_eq!(tables["nodes"][0]["mesh"], Value::Null, "{tables}");
     assert_eq!(
         tables["document"]["meshes"].as_array().map(Vec::len),
         Some(1),

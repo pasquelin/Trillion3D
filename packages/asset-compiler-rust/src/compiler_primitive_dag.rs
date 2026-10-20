@@ -1,8 +1,6 @@
 use super::*;
-use crate::compiler_world_roots::RootCover;
-use trillion3d_math::scalar::median_in_place;
+use crate::compiler_world_roots::SourceCover;
 use trillion3d_page_codec::culling::{build_culling_bvh, CULLING_STRIDE};
-#[derive(Default)]
 pub(super) struct DagResult {
     pub pages: Vec<Value>,
     /// The plane each cluster lies in, by page index, when it lies in one. Read by the coplanar
@@ -12,7 +10,8 @@ pub(super) struct DagResult {
     pub proxy_cut: Vec<f32>,
     /// Error threshold, in metres, that this cut requested to fit its budget share.
     pub proxy_threshold: f64,
-    pub reused: i32,
+    /// The run of its pages' bytes (`compiler_primitive_pages.rs`), none without pages.
+    pub page_run: Option<PageRun>,
     pub dag_report: Value,
     /// Stage milliseconds, reported only in progress events so caches remain reproducible.
     pub timings: Value,
@@ -20,38 +19,19 @@ pub(super) struct DagResult {
     pub warnings: Vec<Value>,
     pub culling_report: Value,
     pub structure_report: Value,
-    pub stream_report: Value,
     /// Grid the primitive's pages were quantized on.
     pub position_exponent: i32,
     /// The primitive's cooked collision (`physics_cook::cook_primitive`).
     pub collision: Value,
-    /// Its roots, which the world super-roots continue (`compiler_world_roots`).
-    pub root_cover: RootCover,
-}
-/// Minimum, median and maximum of a DAG level's errors. Three order statistics
-/// do not need a full sort: a partial selection puts at the median rank the exact
-/// element a sort would have put there — `total_cmp` is a total order — and the
-/// two halves it leaves bound the minimum and the maximum. The three published
-/// numbers are bit-identical to those of a full sort.
-pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
-    let median = median_in_place(errors);
-    let (lower, upper) = errors.split_at(errors.len() / 2);
-    let min = lower
-        .iter()
-        .copied()
-        .chain([median])
-        .min_by(f64::total_cmp)
-        .unwrap_or(median);
-    let max = upper[1..]
-        .iter()
-        .copied()
-        .chain([median])
-        .max_by(f64::total_cmp)
-        .unwrap_or(median);
-    (min, median, max)
+    /// Its level-0 geometry, which the world HLOD merges (`compiler_world_roots`).
+    pub source_cover: SourceCover,
+    /// The groups its far field may draw as voxels (`voxel`).
+    pub voxel_seed: crate::voxel::VoxelSeed,
 }
 /// `tile_log2` is the primitive's tile of the world in object units: its pages' grid follows it
-/// (`geometry_page_quant::tile`).
+/// (`geometry_page_quant::tile`). `scale` is the largest world scale its mesh is placed at, which
+/// brings its bundles' bands to metres (`lay_bundles`). A `blended` primitive is drawn sorted; its source
+/// cover merges into the world's HLOD as any (`SourceCover::of`).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_dag_primitive(
     o: &Options,
@@ -60,33 +40,46 @@ pub(super) fn build_dag_primitive(
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
     blended: bool,
-    tile_log2: i32,
-    store_packed: &(impl Fn(&[u32], &[f32], &[&encode::Attribute], &[u32], i32) -> Result<(Value, bool)>
+    shape: crate::voxel::ShapePreservation,
+    (tile_log2, scale): (i32, Option<f64>),
+    encode_packed: &(impl Fn(
+        &[u32],
+        &[f32],
+        &[&encode::Attribute],
+        &[u32],
+        i32,
+    ) -> Result<compiler_page_record::EncodedPage>
           + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let attributes = crate::dag::DagAttributes { carried };
     let mut laps = perf::Laps::start();
-    let (dag, groups, tallies, stalls, grown) =
-        crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
+    let crate::dag::DagBuild {
+        clusters: dag,
+        groups,
+        tallies,
+        stalls,
+        grown,
+    } = crate::dag::build_dag(pos, attributes, index_values, strategy, &|| check(o))?;
     laps.lap("dagMs");
     let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
     let attributes = crate::dag::DagAttributes { carried: &carried };
-    let quality =
-        compiler_primitive_checks::check_dag(&dag, pos, attributes.normals(), index_values)?;
+    compiler_primitive_checks::check_dag(&dag, index_values)?;
+    let voxel_seed = crate::voxel::VoxelSeed::of(&dag, &groups, pos, index_values, shape);
     // The proxy coarse cut is read here, where the DAG and the positions are both
     // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
     let (dag_report, warnings) =
-        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, &quality);
+        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls);
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
         blended,
         tile_log2,
     );
-    let snapped = grown.as_ref().map(|grown| grown.snapped(position_exponent));
-    let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
+    // The pages quantize every vertex, placed or not, from where it truly is: their error bounds
+    // it.
+    let carried = attributes.carried;
     // One box per cluster, over the drawn positions, for the hierarchy and the page record alike.
     let clusters = crate::dag::bounds::culling_clusters(pos, &dag);
     let culled = perf::Timer::new(perf::Phase::Culling);
@@ -108,26 +101,23 @@ pub(super) fn build_dag_primitive(
             let origin = grown
                 .as_ref()
                 .map_or(&[][..], |grown| grown.origin.as_slice());
-            let store =
-                |slice: &[u32]| store_packed(slice, pos, carried, origin, position_exponent);
-            bundle_dag_pages(o, (&dag, &groups, &clusters), &order, pos, &store)
+            let encode =
+                |slice: &[u32]| encode_packed(slice, pos, carried, origin, position_exponent);
+            // Metres per object unit, by the one rule a tile and a proxy follow.
+            let metres = 1.0 / trillion3d_page_codec::bits::grid::object_units(1.0, scale);
+            dag_pages(
+                o,
+                (&dag, &groups, &clusters),
+                (&order, metres),
+                pos,
+                &encode,
+            )
         }),
     );
     let collision = collision?;
-    let (pages, reused, stream_report) = paged?;
-    // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
-    // and the only place the partition and the positions are both in hand.
-    let cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>> = order
-        .par_iter()
-        .map(|&slot| {
-            crate::coplanar::plane::plane_of_triangles(
-                &dag[slot].indices,
-                pos,
-                crate::coplanar::CoplanarBounds::default().flatness_ratio,
-            )
-        })
-        .collect();
-    let root_cover = RootCover::of(strategy, &dag, (pos, carried), &pages, &page_of);
+    let (pages, cluster_planes, page_run) = paged?;
+    let merged = crate::compiler_world_roots::merge_lod_error(o, scale);
+    let source_cover = SourceCover::of(strategy, &dag, (pos, carried), merged);
     let mut roots: Vec<usize> = dag
         .iter()
         .enumerate()
@@ -166,33 +156,15 @@ pub(super) fn build_dag_primitive(
         cluster_planes,
         proxy_cut,
         proxy_threshold,
-        reused,
+        page_run,
         dag_report,
         timings: laps.report(),
         warnings,
         culling_report,
         structure_report,
-        stream_report,
         position_exponent,
         collision,
-        root_cover,
+        source_cover,
+        voxel_seed,
     })
-}
-#[cfg(test)]
-mod tests {
-    // Edge cases of `level_error_stats`, moved from the retired compute bench: the statistics
-    // follow `f64::total_cmp`, so signed zeros, infinities and NaN each keep one place.
-    #[test]
-    fn level_error_stats_orders_hostile_errors_by_total_cmp() {
-        let mut errors = [f64::NAN, 1.5, f64::NEG_INFINITY];
-        let (min, median, max) = super::level_error_stats(&mut errors);
-        assert_eq!(min, f64::NEG_INFINITY);
-        assert_eq!(median.to_bits(), 1.5f64.to_bits());
-        assert!(max.is_nan(), "a positive NaN sorts past +inf");
-        let (min, median, max) = super::level_error_stats(&mut [0.0, -0.0]);
-        assert_eq!(
-            [min, median, max].map(f64::to_bits),
-            [-0.0f64, 0.0, 0.0].map(f64::to_bits)
-        );
-    }
 }

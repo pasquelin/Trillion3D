@@ -4,20 +4,16 @@
 //! Texture written here in PNG rather than committed: shape tested,
 //! reading in code expresses measured property better than binary file.
 use super::*;
+use crate::tests::textures::previews_source::encode;
 use trillion3d_math::scalar::unit_to_byte_f32;
 
 /// Leaf: full disc with 3-pixel softened edge, empty background.
 fn sheet_png() -> Vec<u8> {
-    let image = image::RgbaImage::from_fn(64, 64, |x, y| {
+    encode(image::RgbaImage::from_fn(64, 64, |x, y| {
         let (dx, dy) = (x as f32 - 31.5, y as f32 - 31.5);
         let rayon = (dx * dx + dy * dy).sqrt();
         image::Rgba([40, 120, 40, unit_to_byte_f32((21.0 - rayon) / 3.0)])
-    });
-    let mut png = Vec::new();
-    image
-        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
-        .expect("png");
-    png
+    }))
 }
 
 /// Textured quad with material declared in blend, ready to compile.

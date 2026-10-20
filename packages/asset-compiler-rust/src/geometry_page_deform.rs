@@ -3,7 +3,7 @@
 //! declares.
 mod reach;
 mod soft;
-pub use reach::reach_for_pass;
+pub use reach::reach;
 pub use soft::declare_soft;
 #[cfg(test)]
 #[path = "geometry_page_deform_tests.rs"]

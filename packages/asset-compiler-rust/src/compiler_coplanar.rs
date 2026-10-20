@@ -1,32 +1,44 @@
 use super::*;
 
-/// The compiled primitives and, beside them, the plane of each of their clusters, the coarse cut
-/// its proxy keeps, its collision and its root cover. None travels inside the primitive: each is
-/// read once by a later stage.
-pub(super) type SplitCompiled = (
-    Vec<Value>,
-    Vec<Vec<Option<coplanar::ClusterPlane>>>,
-    Vec<Vec<f32>>,
-    Vec<f64>,
-    Vec<Value>,
-    Vec<crate::compiler_world_roots::RootCover>,
-);
+/// The compiled primitives and, beside each, what a later stage reads once: none travels inside the
+/// primitive.
+pub(super) struct SplitCompiled {
+    pub primitives: Vec<Value>,
+    /// The plane of each of its clusters, which the coplanar stage stacks.
+    pub cluster_planes: Vec<Vec<Option<coplanar::ClusterPlane>>>,
+    /// The coarse cut its proxy keeps, in object space, and the threshold it requested, in metres.
+    pub proxy_cuts: Vec<Vec<f32>>,
+    pub proxy_thresholds: Vec<f64>,
+    pub collisions: Vec<Value>,
+    /// Its level-0 geometry, which the world HLOD merges (`compiler_world_roots`).
+    pub covers: Vec<crate::compiler_world_roots::SourceCover>,
+    /// The groups its far field may draw as voxels.
+    pub voxel_seeds: Vec<crate::voxel::VoxelSeed>,
+    /// The run of its pages' bundles, which the geometry containers take; `None` without pages.
+    pub runs: Vec<Option<PageRun>>,
+}
 pub(super) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled {
-    let mut primitives = Vec::with_capacity(compiled.len());
-    let mut planes = Vec::with_capacity(compiled.len());
-    let mut cuts = Vec::with_capacity(compiled.len());
-    let mut thresholds = Vec::with_capacity(compiled.len());
-    let mut collisions = Vec::with_capacity(compiled.len());
-    let mut covers = Vec::with_capacity(compiled.len());
+    let mut split = SplitCompiled {
+        primitives: Vec::with_capacity(compiled.len()),
+        cluster_planes: Vec::with_capacity(compiled.len()),
+        proxy_cuts: Vec::with_capacity(compiled.len()),
+        proxy_thresholds: Vec::with_capacity(compiled.len()),
+        collisions: Vec::with_capacity(compiled.len()),
+        covers: Vec::with_capacity(compiled.len()),
+        voxel_seeds: Vec::with_capacity(compiled.len()),
+        runs: Vec::with_capacity(compiled.len()),
+    };
     for entry in compiled {
-        primitives.push(entry.value);
-        planes.push(entry.cluster_planes);
-        cuts.push(entry.proxy_cut);
-        thresholds.push(entry.proxy_threshold);
-        collisions.push(entry.collision);
-        covers.push(entry.root_cover);
+        split.runs.push(entry.page_run);
+        split.primitives.push(entry.value);
+        split.cluster_planes.push(entry.cluster_planes);
+        split.proxy_cuts.push(entry.proxy_cut);
+        split.proxy_thresholds.push(entry.proxy_threshold);
+        split.collisions.push(entry.collision);
+        split.covers.push(entry.source_cover);
+        split.voxel_seeds.push(entry.voxel_seed);
     }
-    (primitives, planes, cuts, thresholds, collisions, covers)
+    split
 }
 
 /// Everything the stage reads that is not the primitives it writes into.
@@ -38,6 +50,8 @@ pub(super) struct DepthLayerScene<'a> {
     pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub cluster_planes: &'a [Vec<Option<coplanar::ClusterPlane>>],
+    /// Node transforms and primitives by mesh, computed once for the job.
+    pub placement: &'a proxy::placement::Placement,
 }
 
 /// Stacks the coplanar opaque surfaces of the whole scene and writes the layer it decided on every
@@ -55,6 +69,7 @@ pub(super) fn stage_depth_layers(
         shown,
         mesh_map,
         cluster_planes,
+        placement,
     } = *scene;
     let _t = perf::Timer::new(perf::Phase::Coplanar);
     let bounds = coplanar::CoplanarBounds::default();
@@ -73,7 +88,7 @@ pub(super) fn stage_depth_layers(
         cancelled: &cancelled,
         progress: &progress,
     };
-    let assigned = coplanar::assign_depth_layers(&inputs, &bounds)?;
+    let assigned = coplanar::assign_depth_layers(&inputs, &bounds, &placement.world)?;
     for (index, layers) in assigned.layers.iter().enumerate() {
         for (page, layer) in layers.iter().enumerate() {
             if *layer == 0 {

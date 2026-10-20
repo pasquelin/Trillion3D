@@ -10,9 +10,10 @@
 //! left, glTF at the top left, so `v` becomes `1 - v`. That is the convention of the ma, alembic
 //! and usd drivers, and it leaves the image bytes intact.
 use super::*;
-use crate::import::{primitive, Vertices};
+use crate::import::{primitive, Corner, Vertices};
 use crate::plugins::scene::cancel;
 use crate::plugins::scene::corners::{gltf_uv, Corners};
+use trillion3d_math::vec3::point_checked;
 
 /// A primitive under construction: the one corner builder, keyed by the vertex and the bits of
 /// the corner's normal and texture coordinate.
@@ -38,7 +39,7 @@ pub(super) fn mesh_json(
         group.begin();
         for (rank, vertex) in geometry.face(face).iter().enumerate() {
             let (key, corner) = corner(geometry, normals, first + rank);
-            let point = slice3(&geometry.positions, *vertex as usize).map(f64::from);
+            let point = point_checked(&geometry.positions, *vertex).unwrap_or([0.0; 3]);
             group.corner(key, point, |out| corner.write(out));
         }
         let uncut = group.uncut;
@@ -92,21 +93,6 @@ fn corner(geometry: &Geometry, normals: &[f32], corner: usize) -> ([u32; 6], Cor
             uv,
         },
     )
-}
-
-/// What the vertex of a corner carries.
-struct Corner {
-    position: [f32; 3],
-    normal: [f32; 3],
-    uv: Option<[f32; 2]>,
-}
-
-impl Corner {
-    fn write(self, out: &mut Vertices) {
-        out.positions.extend(self.position);
-        out.normals.extend(self.normal);
-        out.uvs.extend(self.uv.into_iter().flatten());
-    }
 }
 
 /// The three floats of a rank, or three zeros when the array does not carry them.

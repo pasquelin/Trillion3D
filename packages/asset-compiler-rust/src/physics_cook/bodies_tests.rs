@@ -2,8 +2,7 @@
 //! declared, a shapeless one given one hull and weighed exactly at cook time, both listed in
 //! `physics.json` beside the static ground their nodes still are.
 use super::mass_tests::{assert_boxes, cube, FACES, UNIT};
-use super::stage_physics;
-use crate::compiler_coplanar::DepthLayerScene;
+use super::tests::cook_scene;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -37,24 +36,12 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
             rigid(json!({"motion":{}})),
             {"mesh":1,"extensions":{"KHR_physics_rigid_bodies":{"motion":{"isKinematic":true}}}}],
     });
-    let root =
-        std::path::Path::new(env!("OUT_DIR")).join(format!("body-cook-{}", std::process::id()));
-    let o = crate::texture_preview::tests::options(&root);
-    std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
     let (chosen, mesh_map) = (BTreeSet::from([0, 1, 2, 3, 4, 7]), BTreeMap::from([(0, 0)]));
-    let scene = DepthLayerScene {
-        o: &o,
-        g: &g,
-        bin: &bin,
-        shown: &chosen,
-        mesh_map: &mesh_map,
-        cluster_planes: &[],
-    };
-    let primitive = json!({"mesh":0,"primitive":0});
+    let primitives = [json!({"mesh":0,"primitive":0})];
     let collision = json!({"kind":"mesh","tiles":[],"triangles":12});
-    stage_physics(&scene, &[primitive], &[collision], &root).unwrap();
-    let written: Value =
-        serde_json::from_slice(&std::fs::read(root.join("physics.json")).unwrap()).unwrap();
+    let compiled = (&chosen, &mesh_map);
+    let (root, o, written) =
+        cook_scene("body-cook", (&g, &bin), compiled, &primitives, &[collision]);
     let bodies = written["bodies"].as_array().unwrap();
     let [declared, shapeless, offset, kinematic] = bodies.as_slice() else {
         panic!("four bodies: {}", written["bodies"]);

@@ -26,14 +26,14 @@ impl Bound {
     /// Factor to write where glTF has one; a `scale` that does not fold into it is counted.
     pub(super) fn factor(&self, world: &mut World<'_>) -> f64 {
         self.scale.unwrap_or_else(|| {
-            world.refuse(world::TEXTURE_SCALE);
+            world.scene.report.add(world::TEXTURE_SCALE);
             1.0
         })
     }
     /// Slot alone, where glTF has no factor: a `scale` that is not one is counted.
     pub(super) fn plain(self, world: &mut World<'_>) -> Value {
         if self.scale != Some(1.0) {
-            world.refuse(world::TEXTURE_SCALE);
+            world.scene.report.add(world::TEXTURE_SCALE);
         }
         self.value
     }
@@ -43,19 +43,28 @@ impl Bound {
 /// colour or a datum — on which depends the colour space the file must carry.
 pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -> Option<Bound> {
     let shader = world.stage.prim(target.prim_path()).ok()?;
-    let id = read::first(&shader.attribute("info:id")).and_then(|(value, _)| read::text(&value));
+    let id = read::text_attribute(&shader, "info:id");
     if id.as_deref() != Some(UV_TEXTURE) {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
     let (value, _) = read::first(&shader.attribute("inputs:file"))?;
     let file = read::asset(&value)?;
     if file.as_str().contains(UDIM) {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
         return None;
     }
     if uv_set(world, &shader).as_deref().unwrap_or(UV_SET) != UV_SET {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
     }
     let index = image(world, file)?;
     sampling::colour_space(world, &shader, colour);
@@ -68,16 +77,10 @@ pub(super) fn resolve(world: &mut World<'_>, target: &sdf::Path, colour: bool) -
 
 /// Rank of the image, poured on first request, or `None` when the file does not read.
 fn image(world: &mut World<'_>, file: &sdf::AssetPath) -> Option<usize> {
-    let Some(relative) = under_root(world, file) else {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_MISSING);
-        return None;
-    };
-    let Some(mime) = crate::import::readable(world.images, &relative) else {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_MISSING);
-        world.scene.image_unreadable(&relative);
-        return None;
-    };
-    Some(world.scene.image(relative, mime))
+    let relative = under_root(world, file);
+    world
+        .scene
+        .image_found(world.images, relative, file.as_str())
 }
 
 /// Path of the image under the root where the compiler will reread its bytes. An asset path
@@ -98,12 +101,7 @@ fn under_root(world: &World<'_>, asset: &sdf::AssetPath) -> Option<String> {
 
 /// Coordinate set the primvar reader wired onto `inputs:st` names.
 fn uv_set(world: &World<'_>, shader: &usd::Prim) -> Option<String> {
-    let target = shader
-        .attribute("inputs:st")
-        .connections()
-        .ok()?
-        .into_iter()
-        .next()?;
+    let target = material::connection(shader, "inputs:st")?;
     let reader = world.stage.prim(target.prim_path()).ok()?;
-    read::first(&reader.attribute("inputs:varname")).and_then(|(value, _)| read::text(&value))
+    read::text_attribute(&reader, "inputs:varname")
 }

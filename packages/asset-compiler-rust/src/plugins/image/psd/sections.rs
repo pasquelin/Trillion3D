@@ -73,7 +73,7 @@ fn profile(bytes: &[u8]) -> Option<&'static str> {
         if !head.starts_with(RESOURCE) {
             return None;
         }
-        let id = u16::from_be_bytes([head[4], head[5]]);
+        let id = crate::le::be16_at(head, 4)?;
         let name = usize::from(*rest.get(RESOURCE_HEAD)?) + 1;
         let at = RESOURCE_HEAD + name.next_multiple_of(2);
         let length = field(rest.get(at..)?, NARROW)?;
@@ -103,20 +103,14 @@ fn layers(bytes: &[u8], wide: usize) -> (bool, u32) {
 fn count(bytes: &[u8], wide: usize) -> Option<i16> {
     let section = field(bytes, wide).and_then(|length| bytes.get(wide..wide + length))?;
     let info = field(section, wide)?;
-    let count = section
-        .get(wide..wide + COUNT_BYTES)
-        .filter(|_| info >= COUNT_BYTES)?;
-    Some(i16::from_be_bytes([count[0], count[1]]))
+    let count = crate::le::be16_at(section, wide).filter(|_| info >= COUNT_BYTES)?;
+    Some(count as i16)
 }
 
 /// Length that a field of `width` bytes carries at the front of these bytes, big-endian like
 /// the whole format. A missing field or a length that does not fit in a `usize` return `None`.
 fn field(bytes: &[u8], width: usize) -> Option<usize> {
-    let field = bytes.get(..width)?;
-    let length = field
-        .iter()
-        .fold(0u64, |value, byte| value << 8 | u64::from(*byte));
-    usize::try_from(length).ok()
+    usize::try_from(crate::le::uint_at(bytes, 0, width, true)?).ok()
 }
 
 /// A length-prefixed section, skipped by its length.

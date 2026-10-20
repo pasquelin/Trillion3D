@@ -1,183 +1,223 @@
-//! Every cooked page of a primitive decoded back and held against the source it names.
+//! Every cooked page of a primitive decoded back and held against the source it was cooked from.
 //!
-//! A page passes when it decodes, when each decoded corner is the source position its index object
-//! names, within the page's quantization error — the exact pages as the coarse ones, so an encode or
-//! decode that moves a vertex fails on every level —, when every corner lies in the page's
-//! published bounds and sphere, and, for a coarse page, when every vertex it uses belongs to the
-//! children of the group that produced it and every point of its triangles lies near that
-//! children's surface: within their longest edge plus the group error.
-use super::silhouette::page_indices;
+//! A page names no source index: each decoded corner is matched to a source vertex. A coarse
+//! corner that decodes bit for bit onto a corner of its group's children takes that child corner's
+//! vertex — a position the simplification kept —; every other corner takes the source vertex
+//! nearest its position, the nearest normal among equally near ones (`Source::nearest`). A page
+//! passes when it decodes, when every corner lies in the page's published bounds and sphere, when
+//! each corner of an exact page lies within the page's quantization error of its vertex — an
+//! encode or decode that moves a vertex fails there —, and, for a coarse page, when every point of
+//! its triangles lies near its group's children: within their longest edge plus the group error.
+pub(in crate::tests) use super::cooked_page_defects::cooked_page_defects;
+use super::cooked_scene::CookedScene;
+use super::silhouette::Mesh;
 use super::*;
-use std::collections::HashSet;
+use std::collections::HashMap;
 use trillion3d_math::vec3::point_checked;
 
-type Point = [f64; 3];
+pub(super) type Point = [f64; 3];
 
 /// Euclidean distance, on the crate's own vector helpers.
-fn distance(a: Point, b: Point) -> f64 {
+pub(super) fn distance(a: Point, b: Point) -> f64 {
     trillion3d_math::vecn::length(trillion3d_math::vecn::sub(a, b))
 }
 
-/// One decoded page: its source indices and, per corner, the decoded position.
-struct Decoded {
-    source: Vec<u32>,
-    corners: Vec<Point>,
-    error: f64,
+/// One decoded page: per corner, the source vertex it was matched to, the decoded position and,
+/// when the page carries them, the decoded normal.
+pub(in crate::tests) struct PageCorners {
+    pub source: Vec<u32>,
+    pub corners: Vec<Point>,
+    pub normals: Option<Vec<Point>>,
+    pub error: f64,
 }
 
-fn decode_page(objects: &Path, page: &Value) -> std::result::Result<Decoded, String> {
-    let sha = page["geometry"]["sha256"].as_str().unwrap_or("");
-    let bytes =
-        fs::read(objects.join(format!("{sha}.bin"))).map_err(|e| format!("page object: {e}"))?;
-    let decoded =
-        trillion3d_page_codec::decode(&bytes, usize::MAX).map_err(|e| format!("decode: {e:?}"))?;
-    let source = page_indices(objects, page);
-    if decoded.index_count != source.len() {
-        return Err(format!(
-            "{} decoded indices for {} source",
-            decoded.index_count,
-            source.len()
-        ));
-    }
-    let position = decoded.attribute(0).expect("position");
-    let corners = decoded
-        .indices()
-        .iter()
-        .map(|&i| std::array::from_fn(|c| f64::from(position[i as usize * 3 + c])))
-        .collect();
-    Ok(Decoded {
-        source,
-        corners,
-        error: f64::from(decoded.quantization_error),
-    })
+/// A primitive's source vertices, bucketed on a grid so a corner finds its nearest in a few cells.
+pub(in crate::tests) struct Source<'a> {
+    positions: &'a [f32],
+    normals: Option<&'a [f32]>,
+    cell: f64,
+    cells: HashMap<[i64; 3], Vec<u32>>,
 }
 
-/// The defects of one cooked primitive against its source `positions`, flat `xyz`, one line each;
-/// empty when every page is sound.
-pub(in crate::tests) fn cooked_page_defects(
-    objects: &Path,
-    primitive: &Value,
-    positions: &[f32],
-) -> Vec<String> {
-    let pages = primitive["pages"].as_array().expect("pages");
-    let mut defects = Vec::new();
-    let decoded: Vec<Option<Decoded>> = pages
-        .iter()
-        .enumerate()
-        .map(|(id, page)| {
-            decode_page(objects, page)
-                .map_err(|e| defects.push(format!("page {id}: {e}")))
-                .ok()
-        })
-        .collect();
-    for (id, (page, d)) in pages.iter().zip(&decoded).enumerate() {
-        let Some(d) = d else { continue };
-        let min: Vec<f64> = (0..3)
-            .map(|a| page["min"][a].as_f64().expect("min"))
-            .collect();
-        let max: Vec<f64> = (0..3)
-            .map(|a| page["max"][a].as_f64().expect("max"))
-            .collect();
-        let sphere: Vec<f64> = (0..4)
-            .map(|a| page["sphere"][a].as_f64().expect("sphere"))
-            .collect();
-        let slack = |p: Point| 2.0 * d.error + 1e-5 * p.iter().map(|v| v.abs()).fold(1.0, f64::max);
-        for (&s, &p) in d.source.iter().zip(&d.corners) {
-            let Some(expected) = point_checked(positions, s) else {
-                defects.push(format!("page {id}: vertex {s} is past the source"));
-                continue;
-            };
-            if distance(p, expected) > d.error + slack(p) {
-                defects.push(format!(
-                    "page {id}: vertex {s} decodes {p:?}, source {expected:?}"
-                ));
-            }
-            if (0..3).any(|a| p[a] < min[a] - slack(p) || p[a] > max[a] + slack(p)) {
-                defects.push(format!("page {id}: vertex {s} at {p:?} outside its bounds"));
-            }
-            if distance(p, [sphere[0], sphere[1], sphere[2]]) > sphere[3] + slack(p) {
-                defects.push(format!("page {id}: vertex {s} at {p:?} outside its sphere"));
-            }
+impl<'a> Source<'a> {
+    /// The source of flat `positions` and, when it has them, `normals`.
+    pub fn new(positions: &'a [f32], normals: Option<&'a [f32]>) -> Self {
+        let points = positions.as_chunks::<3>().0;
+        let (low, high) = trillion3d_math::aabb::aabb_of(points.iter().map(|p| p.map(f64::from)));
+        let diagonal = trillion3d_math::aabb::diagonal(low, high);
+        // About one vertex a cell over the box's volume.
+        let cell = (diagonal / (points.len() as f64).cbrt().max(1.0)).max(1e-9);
+        let mut cells: HashMap<[i64; 3], Vec<u32>> = HashMap::new();
+        for (index, p) in points.iter().enumerate() {
+            let key = p.map(|v| (f64::from(v) / cell).floor() as i64);
+            cells.entry(key).or_default().push(index as u32);
+        }
+        Self {
+            positions,
+            normals,
+            cell,
+            cells,
         }
     }
-    defects.extend(coarse_defects(primitive, pages, &decoded, positions));
-    defects
-}
 
-/// A coarse page against the children of the group that produced it: its vertices are theirs, and
-/// its triangles stay within their longest edge plus the group error of their vertices.
-fn coarse_defects(
-    primitive: &Value,
-    pages: &[Value],
-    decoded: &[Option<Decoded>],
-    positions: &[f32],
-) -> Vec<String> {
-    let groups = primitive["structure"]["groups"].as_array().expect("groups");
-    let mut defects = Vec::new();
-    for (index, group) in groups.iter().enumerate() {
-        let ids = |key: &str| -> Vec<usize> {
-            group[key]
-                .as_array()
-                .expect(key)
-                .iter()
-                .map(|v| v.as_u64().expect("id") as usize)
-                .collect()
-        };
-        let children: Vec<&Decoded> = ids("children")
-            .iter()
-            .filter_map(|&c| decoded[c].as_ref())
-            .collect();
-        let vertices: HashSet<u32> = children
-            .iter()
-            .flat_map(|d| d.source.iter().copied())
-            .collect();
-        let points: Vec<Point> = vertices
-            .iter()
-            .filter_map(|&s| point_checked(positions, s))
-            .collect();
-        let longest = children
-            .iter()
-            .flat_map(|d| {
-                d.corners
-                    .chunks(3)
-                    .flat_map(|t| (0..3).map(move |k| distance(t[k], t[(k + 1) % 3])))
-            })
-            .fold(0.0, f64::max);
-        let error = group["error"].as_f64().expect("error");
-        for output in ids("outputs") {
-            let Some(d) = decoded[output].as_ref() else {
-                continue;
+    /// The source vertex nearest `p` and its distance; among those as near, the one whose normal
+    /// lies nearest `n`.
+    fn nearest(&self, p: Point, n: Option<Point>) -> (u32, f64) {
+        let score = |index: u32| {
+            let at = point_checked(self.positions, index).expect("a source vertex");
+            let turn = match (
+                n,
+                self.normals
+                    .and_then(|normals| point_checked(normals, index)),
+            ) {
+                (Some(n), Some(own)) => distance(n, own),
+                _ => 0.0,
             };
-            assert_eq!(
-                pages[output]["source"].as_u64(),
-                Some(index as u64),
-                "output {output}"
-            );
-            if let Some(s) = d.source.iter().find(|s| !vertices.contains(s)) {
-                defects.push(format!(
-                    "page {output}: vertex {s} is not one of group {index}'s"
-                ));
+            (distance(p, at), turn)
+        };
+        let better = |a: (f64, f64), b: (f64, f64)| {
+            let tie = 1e-6 * p.iter().map(|v| v.abs()).fold(1.0, f64::max);
+            if (a.0 - b.0).abs() <= tie {
+                a.1 < b.1
+            } else {
+                a.0 < b.0
             }
-            for t in d.corners.chunks(3) {
-                let samples =
-                    [0, 1, 2].map(|k| trillion3d_math::aabb::centre(t[k], t[(k + 1) % 3]));
-                let centroid = std::array::from_fn(|a| {
-                    trillion3d_math::scalar::mean([t[0][a], t[1][a], t[2][a]])
-                });
-                for sample in samples.into_iter().chain([centroid]) {
-                    let near = points
-                        .iter()
-                        .map(|&p| distance(p, sample))
-                        .fold(f64::INFINITY, f64::min);
-                    if near > longest + 2.0 * error + d.error * 4.0 + 1e-4 {
-                        defects.push(format!(
-                            "page {output}: triangle {t:?} leaves group {index} by {near} (edge {longest}, error {error})"
-                        ));
-                        break;
+        };
+        let key = p.map(|v| (v / self.cell).floor() as i64);
+        let mut best: Option<(u32, (f64, f64))> = None;
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                for dz in -1..=1 {
+                    let cell = [key[0] + dx, key[1] + dy, key[2] + dz];
+                    for &index in self.cells.get(&cell).into_iter().flatten() {
+                        let own = score(index);
+                        if best.is_none_or(|(_, b)| better(own, b)) {
+                            best = Some((index, own));
+                        }
                     }
                 }
             }
         }
+        // Nothing within a cell: a corner far off its source, searched against every vertex.
+        let found = best.filter(|(_, (d, _))| *d <= self.cell).or_else(|| {
+            let count = (self.positions.len() / 3) as u32;
+            (0..count)
+                .map(|index| (index, score(index)))
+                .reduce(|a, b| if better(b.1, a.1) { b } else { a })
+        });
+        let (index, (d, _)) = found.expect("a source vertex");
+        (index, d)
     }
-    defects
+}
+
+/// `bytes`, one geometry page, decoded and matched to `source`.
+pub(in crate::tests) fn page_corners(
+    bytes: &[u8],
+    source: &Source,
+) -> std::result::Result<PageCorners, String> {
+    let decoded =
+        trillion3d_page_codec::decode(bytes, usize::MAX).map_err(|e| format!("decode: {e:?}"))?;
+    let position = decoded.attribute(0).expect("position");
+    // Rank 1 is the normal, absent on a page that carries none.
+    let normal = decoded.attribute(1);
+    let at = |values: &[f32], i: u32| -> Point {
+        std::array::from_fn(|c| f64::from(values[i as usize * 3 + c]))
+    };
+    let corners: Vec<Point> = decoded.indices().iter().map(|&i| at(position, i)).collect();
+    let normals: Option<Vec<Point>> =
+        normal.map(|n| decoded.indices().iter().map(|&i| at(n, i)).collect());
+    let source = (corners.iter().enumerate())
+        .map(|(k, &p)| source.nearest(p, normals.as_ref().map(|n| n[k])).0)
+        .collect();
+    Ok(PageCorners {
+        source,
+        corners,
+        normals,
+        error: f64::from(decoded.quantization_error),
+    })
+}
+
+/// Each coarse corner of `pages` that decodes bit for bit onto a corner of its group's children,
+/// matched again to that child corner's vertex, the same normal first: a position the
+/// simplification kept is the children's vertex, not whichever source vertex lies nearest it —
+/// the garden's rings write one column at z = 0 and again at z = −5.9e-17, a single point to the
+/// nearest-vertex match. Groups run finest first, so a child is matched before its outputs.
+fn rematch(primitive: &Value, pages: &mut [std::result::Result<PageCorners, String>]) {
+    let groups = primitive["structure"]["groups"].as_array().expect("groups");
+    let level = |page: usize| primitive["pages"][page]["level"].as_u64().unwrap_or(0);
+    let ids = |group: &Value, key: &str| -> Vec<usize> {
+        let list = group[key].as_array().expect(key).iter();
+        list.map(|v| v.as_u64().expect("id") as usize).collect()
+    };
+    let mut order: Vec<&Value> = groups.iter().collect();
+    order.sort_by_key(|&group| ids(group, "outputs").first().map_or(0, |&o| level(o)));
+    let bits = |p: Point| p.map(f64::to_bits);
+    for group in order {
+        // Per decoded child corner, its normal and its vertex.
+        let mut kept: HashMap<[u64; 3], Vec<(Option<[u64; 3]>, u32)>> = HashMap::new();
+        for child in ids(group, "children") {
+            let Some(Ok(d)) = pages.get(child) else {
+                continue;
+            };
+            for (k, (&s, &p)) in d.source.iter().zip(&d.corners).enumerate() {
+                let n = d.normals.as_ref().map(|n| bits(n[k]));
+                kept.entry(bits(p)).or_default().push((n, s));
+            }
+        }
+        for output in ids(group, "outputs") {
+            let Some(Ok(d)) = pages.get_mut(output) else {
+                continue;
+            };
+            for k in 0..d.corners.len() {
+                let Some(candidates) = kept.get(&bits(d.corners[k])) else {
+                    continue;
+                };
+                let n = d.normals.as_ref().map(|n| bits(n[k]));
+                let same = candidates.iter().find(|(own, _)| *own == n);
+                d.source[k] = same.unwrap_or(&candidates[0]).1;
+            }
+        }
+    }
+}
+
+/// What each page of `pages` draws, as it decodes: its corners, three per triangle, each with the
+/// page's own normal — zero on a page that carries none. What a cut is made of.
+pub(in crate::tests) fn drawn(pages: &[std::result::Result<PageCorners, String>]) -> Vec<Mesh> {
+    let each = pages.iter().map(|page| {
+        let d = page.as_ref().expect("a decoded page");
+        let count = d.corners.len();
+        Mesh {
+            positions: d.corners.clone(),
+            normals: (d.normals.clone()).unwrap_or_else(|| vec![[0.0; 3]; count]),
+            indices: (0..count as u32).collect(),
+        }
+    });
+    each.collect()
+}
+
+/// Every page of cooked `primitive` in `scene`, decoded from its container and matched to the
+/// primitive's source, a coarse corner the children kept to their vertex (`rematch`).
+pub(in crate::tests) fn cooked_pages(
+    scene: &CookedScene,
+    primitive: &Value,
+) -> Vec<std::result::Result<PageCorners, String>> {
+    let (positions, normals) = (scene.positions(primitive), scene.normals(primitive));
+    let source = Source::new(&positions, normals.as_deref());
+    let cache = scene
+        .objects
+        .parent()
+        .and_then(Path::parent)
+        .expect("the cache");
+    let pages = primitive["pages"].as_array().expect("pages");
+    let mut read: Vec<_> = pages
+        .iter()
+        .map(|page| {
+            page_corners(
+                &geometry_page(cache, &scene.result, primitive, page),
+                &source,
+            )
+        })
+        .collect();
+    rematch(primitive, &mut read);
+    read
 }

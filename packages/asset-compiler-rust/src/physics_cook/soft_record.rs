@@ -18,10 +18,11 @@ const FOOTPRINT: f64 = 0.25;
 const MAX_SWELL: f64 = 0.1;
 /// The step a cooked volume's skin is reckoned at (`heldPressure`): the engine's fixed step
 /// (`PHYSICS_STEP`), the page's unless its address asks another, for a volume is cooked before any
-/// page steps it; the solver's substeps of a soft body per step, and Earth's pull.
+/// page steps it; the solver's substeps of a soft body per step, and Earth's pull, the standard
+/// one (`GRAVITY_PRESETS.earth`).
 const STEP: f64 = 1.0 / 60.0;
 const SUBSTEPS: f64 = 5.0;
-const EARTH: f64 = 9.81;
+const EARTH: f64 = 9.80665;
 
 /// What a node declares of its soft body: its options once read (`SoftSettings`).
 pub(super) struct SoftDeclared {

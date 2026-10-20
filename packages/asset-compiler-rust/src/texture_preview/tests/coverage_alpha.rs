@@ -113,7 +113,7 @@ fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
             .map(|m| json!({"attributes": {}, "material": m}))
             .collect();
         let g = json!({"materials": materials, "meshes": [{"primitives": primitives}]});
-        atlas_textures(&g, &BTreeSet::from([0])).expect("collect")[0].kind
+        atlas_textures(&g, &used(&g, 0))[0].kind
     };
     let masked = vec![material("MASK", 0.5, 0), material("MASK", 0.25, 0)];
     assert_eq!(kind_of(masked.clone()), AtlasKind::Coverage(64));

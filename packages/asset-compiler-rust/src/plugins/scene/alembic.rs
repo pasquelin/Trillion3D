@@ -18,7 +18,6 @@
 //! `.arbGeomParams`, which carries whatever the exporter chose to put there.
 use super::*;
 use crate::plugins::scene::codes::{FILE_INVALID, SIZE_UNSUPPORTED};
-use crate::{hash_file, CompilerError};
 use serde_json::json;
 use std::time::Instant;
 
@@ -32,7 +31,6 @@ mod property;
 mod scene;
 #[cfg(test)]
 mod tests;
-mod values;
 mod walk;
 mod xform;
 
@@ -79,7 +77,7 @@ impl ScenePlugin for Alembic {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(ogawa::MAGIC)
     }
-    fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        convert::convert(request, self).map(|directory| request.converted(directory))
+    fn convert(&self, request: &SceneRequest<'_>) -> Result<PathBuf> {
+        convert::convert(request, self)
     }
 }

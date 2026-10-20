@@ -56,16 +56,7 @@ pub(crate) struct Bin {
 }
 impl Bin {
     pub(crate) fn view(&mut self, data: &[u8], target: Option<u32>) -> usize {
-        let pad = crate::shared_math::pad_to_4(self.bytes.len());
-        self.bytes.extend(std::iter::repeat_n(0u8, pad));
-        let offset = self.bytes.len();
-        self.bytes.extend_from_slice(data);
-        let mut view = json!({"buffer":0,"byteOffset":offset,"byteLength":data.len()});
-        if let Some(t) = target {
-            view["target"] = json!(t);
-        }
-        self.views.push(view);
-        self.views.len() - 1
+        crate::compiler_buffers::append_view(&mut self.bytes, &mut self.views, data, target)
     }
 }
 pub(crate) fn f32_bytes(values: &[f32]) -> Vec<u8> {
@@ -91,6 +82,18 @@ impl Report {
         if count > 0 {
             *self.unsupported.entry(kind.to_string()).or_insert(0) += count;
         }
+    }
+    /// Pours another stage's report into this one: its counts add up under their own codes, its
+    /// notes follow these. The one merge of a document read's report, or of a model's manifest.
+    pub(crate) fn merge<'a>(
+        &mut self,
+        counts: impl IntoIterator<Item = (&'a str, usize)>,
+        notes: impl IntoIterator<Item = String>,
+    ) {
+        for (kind, count) in counts {
+            self.add_count(kind, count);
+        }
+        self.notes.extend(notes);
     }
 }
 
@@ -147,8 +150,8 @@ use materials::*;
 use mesh::*;
 use motion::*;
 use opacity::*;
-pub(crate) use primitive::{primitive, Vertices};
+pub(crate) use primitive::{primitive, Corner, Vertices};
 pub use runner::import_source;
-pub(crate) use tables::{readable, SceneTables};
+pub(crate) use tables::SceneTables;
 use textures::*;
 pub(crate) use write::{borrowed_tables, write_scene, Converted, Tables};

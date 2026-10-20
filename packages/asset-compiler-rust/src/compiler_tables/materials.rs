@@ -6,6 +6,7 @@
 //! would build it.
 use super::physical::physical_params;
 use super::*;
+use crate::compiler_materials::{sampled_set, AlphaMode, MaterialFactors};
 use crate::compiler_validate::number_or;
 
 pub(super) fn triple(value: Option<&Value>, default: [f64; 3]) -> [f64; 3] {
@@ -45,11 +46,7 @@ pub(crate) fn slot(info: Option<&Value>) -> Value {
     };
     let transform = extension(info, "KHR_texture_transform");
     let own = info.get("texCoord").and_then(Value::as_u64).unwrap_or(0);
-    let tex_coord = transform
-        .and_then(|t| t.get("texCoord"))
-        .and_then(Value::as_u64)
-        .unwrap_or(own);
-    json!({"texture":index,"texCoord":tex_coord,"slotTexCoord":own,"transform":uv_transform(transform)})
+    json!({"texture":index,"texCoord":sampled_set(info),"slotTexCoord":own,"transform":uv_transform(transform)})
 }
 /// Surface parameters of one glTF material, in the fields the engine record carries.
 ///
@@ -71,27 +68,25 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
     // The host reads no attenuation distance as “no attenuation”, and so does a declared zero,
     // which its own reader turns into an infinity before the engine sees it.
     let far = number_or(volume.and_then(|v| v.get("attenuationDistance")), 0.0);
-    let alpha_mode = match m.get("alphaMode").and_then(Value::as_str) {
-        Some("MASK") => "MASK",
-        Some("BLEND") => "BLEND",
-        _ => "OPAQUE",
-    };
-    let cutoff = match alpha_mode {
-        "MASK" => number_or(m.get("alphaCutoff"), crate::cutout::CUTOUT_ALPHA),
+    let alpha = AlphaMode::of(m);
+    let cutoff = match alpha {
+        AlphaMode::Mask(cutoff) => cutoff,
         _ => 0.0,
     };
+    let factors = MaterialFactors::of(m);
+    let [red, green, blue, opacity] = factors.base_colour;
     let unlit = extension(m, "KHR_materials_unlit").is_some();
     let (physical, extras) = physical_params(m);
     let mut entry = json!({
         "name": m.get("name").and_then(Value::as_str).unwrap_or(""),
         "kind": if unlit { "unlit" } else if physical { "physical" } else { "standard" },
-        "alphaMode": alpha_mode,
-        "opacity": of("baseColorFactor").and_then(Value::as_array).map_or(1.0, |factor| number_or(factor.get(3), 1.0)),
+        "alphaMode": alpha.name(),
+        "opacity": opacity,
         "extensions": if unlit { json!({}) } else { Value::Object(extras) },
         "lit": true,
-        "baseColor": triple(of("baseColorFactor"), [1.0; 3]),
-        "metalness": number_or(of("metallicFactor"), 1.0),
-        "roughness": number_or(of("roughnessFactor"), 1.0),
+        "baseColor": [red, green, blue],
+        "metalness": factors.metallic,
+        "roughness": factors.roughness,
         "doubleSided": m.get("doubleSided").and_then(Value::as_bool).unwrap_or(false),
         "backSide": false,
         "alphaTest": cutoff,
@@ -106,11 +101,11 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
         "aoIntensity": number_or(occlusion.and_then(|o| o.get("strength")), 1.0),
         "emissive": emissive,
         "emissiveMap": slot(m.get("emissiveTexture")),
-        "transmission": number_or(
-            extension(m, "KHR_materials_transmission").and_then(|e| e.get("transmissionFactor")),
-            0.0,
-        ),
+        "transmission": factors.transmission,
         "ior": number_or(extension(m, "KHR_materials_ior").and_then(|e| e.get("ior")), 1.5),
+        // Whether the material declares `KHR_materials_ior`: only then does it refract; without
+        // it a transmissive surface is drawn thin, its index never assumed.
+        "hasIor": extension(m, "KHR_materials_ior").is_some(),
         "thickness": number_or(volume.and_then(|v| v.get("thicknessFactor")), 0.0),
         "attenuationDistance": far,
         "attenuationColor": triple(volume.and_then(|v| v.get("attenuationColor")), [1.0; 3]),
@@ -133,6 +128,7 @@ pub(super) fn material_entry(m: &Value, derivative: bool) -> Value {
             ("emissiveMap", Value::Null),
             ("transmission", json!(0.0)),
             ("ior", json!(1.5)),
+            ("hasIor", json!(false)),
             ("thickness", json!(0.0)),
             ("attenuationDistance", json!(0.0)),
             ("attenuationColor", json!([1.0, 1.0, 1.0])),

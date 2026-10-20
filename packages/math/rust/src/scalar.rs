@@ -113,6 +113,22 @@ pub fn median_in_place(values: &mut [f64]) -> f64 {
         .1
 }
 
+/// Minimum, median (`median_in_place`) and maximum of `values` in `total_cmp` order. Three order
+/// statistics need no full sort: the selection puts at the median rank the exact element a sort
+/// would have put there, and the two halves it leaves bound the minimum and the maximum, so the
+/// three are bit-identical to a full sort's. Panics when `values` is empty.
+pub fn min_median_max(values: &mut [f64]) -> (f64, f64, f64) {
+    let median = median_in_place(values);
+    let (lower, upper) = values.split_at(values.len() / 2);
+    let min = (lower.iter().copied().chain([median]))
+        .min_by(f64::total_cmp)
+        .unwrap_or(median);
+    let max = (upper[1..].iter().copied().chain([median]))
+        .max_by(f64::total_cmp)
+        .unwrap_or(median);
+    (min, median, max)
+}
+
 /// `mean` in single precision.
 #[inline]
 pub fn mean_f32(values: impl IntoIterator<Item = f32>) -> f32 {
@@ -120,6 +136,16 @@ pub fn mean_f32(values: impl IntoIterator<Item = f32>) -> f32 {
         .into_iter()
         .fold((-0.0f32, 0usize), |(sum, count), v| (sum + v, count + 1));
     sum / count as f32
+}
+
+/// The bits of `value`, `-0` written as `+0`: two coordinates that compare equal weld alike.
+#[inline]
+pub fn normalized_bits(value: f32) -> u32 {
+    if value == 0.0 {
+        0
+    } else {
+        value.to_bits()
+    }
 }
 
 #[cfg(test)]

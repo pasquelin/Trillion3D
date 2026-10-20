@@ -1,11 +1,11 @@
 //! The primitive's vertex arrays as its DAG grows them: the source's, then, level by level,
 //! every vertex a solved reduction placed (`solved.rs`, `placed.rs`).
-use super::attributes::key;
+use super::attributes::{key, Key};
 use super::placed::Local;
 use super::welds::{Columns, Welds};
-use super::{DagAttributes, GroupReduction, GroupReductionInput};
+use super::{DagAttributes, GroupReductionInput};
 use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::hash::WordMap;
+use trillion3d_page_codec::hash::{word_map, WordMap};
 use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 /// The source's positions and carried attributes followed by every placed vertex. The pages,
@@ -29,33 +29,26 @@ impl Grown {
             None => (positions, attributes.carried.to_vec()),
         }
     }
-    /// The positions, the placed ones on the pages' grid of 2^`exponent`, as the pages draw them.
-    pub fn snapped(&self, exponent: i32) -> Vec<f32> {
-        let step = f64::from(trillion3d_page_codec::bits::pow2(exponent));
-        let placed = self.positions.len() - 3 * self.origin.len();
-        let snap = |x: f32| ((f64::from(x) / step).round() * step) as f32;
-        let at = |(i, &x): (usize, &f32)| if i < placed { x } else { snap(x) };
-        self.positions.iter().enumerate().map(at).collect()
-    }
-    /// Appends the vertices `reduction` placed, if any, after those already placed at its level,
-    /// whose vertex count was `base`; the reduction's clusters and the welds follow. The first
-    /// placement copies the source's arrays once; a solve that moved nothing, never.
+    /// Appends the vertices a reduction `placed`, if any, after those already placed at its
+    /// level, whose vertex count was `base`; the reduction's `clusters` and the welds follow. The
+    /// first placement copies the source's arrays once; a solve that moved nothing, never.
     pub(super) fn place(
         grown: &mut Option<Grown>,
         welds: &mut Welds,
-        reduction: &mut GroupReduction,
+        placed: Placed,
+        clusters: &mut [Vec<u32>],
         base: u32,
     ) {
-        let (positions, attributes) = (welds.positions, welds.attributes);
-        let Some(placed) = reduction.placed.take().filter(|p| !p.origins.is_empty()) else {
+        if placed.origins.is_empty() {
             return;
-        };
+        }
+        let (positions, attributes) = (welds.positions, welds.attributes);
         let offset = grown
             .as_ref()
             .map_or(0, |g| (g.positions.len() / 3) as u32 - base);
         let source = (positions.len() / 3) as u32;
         let shift = |v: u32| if v >= base { v + offset } else { v };
-        for v in reduction.clusters.iter_mut().flatten() {
+        for v in clusters.iter_mut().flatten() {
             *v = shift(*v);
         }
         let grown = grown.get_or_insert_with(|| Grown {
@@ -69,11 +62,11 @@ impl Grown {
                 .map_or(o, |p| grown.origin[p as usize]);
             grown.origin.push(origin);
         }
-        grown.positions.extend_from_slice(&placed.positions);
-        for (attribute, values) in grown.carried.iter_mut().zip(&placed.carried) {
-            attribute.values.extend_from_slice(values);
+        grown.positions.extend(placed.positions);
+        for (attribute, values) in grown.carried.iter_mut().zip(placed.carried) {
+            attribute.values.extend(values);
         }
-        welds.extend(placed, shift);
+        welds.extend(placed.columns, shift);
     }
 }
 
@@ -92,11 +85,11 @@ impl Local<'_> {
     /// copied from the vertex it was solved from.
     pub fn placed(&self, input: &GroupReductionInput, base: u32) -> Placed {
         let carried = input.attributes.carried;
-        let weighed = input.attributes.weighed();
+        let weighted = input.weighted;
         // Where each carried attribute sits in a solved row: the simplifier's order.
         let offset = |a: &Attribute| {
-            let at = weighed.iter().position(|&w| std::ptr::eq(w, a))?;
-            Some(weighed[..at].iter().map(|w| w.width).sum::<usize>())
+            let at = (weighted.iter()).position(|w| std::ptr::eq(w.values, &a.values[..]))?;
+            Some(weighted[..at].iter().map(|w| w.width).sum::<usize>())
         };
         let placed = (self.n..self.n + self.origin.len()).map(|id| id as u32);
         let values: Vec<Vec<f32>> = carried
@@ -124,61 +117,42 @@ impl Local<'_> {
             })
             .collect();
         let origins: Vec<u32> = placed.map(|id| self.from(id) as u32).collect();
-        // Per placed vertex, the canonical vertex of what `by` keys: the source vertex it was
-        // solved from where their keys agree, else the first placed vertex with its key.
-        let canonical = |by: fn(u32) -> bool, of: &[u32]| -> Vec<u32> {
+        // The keys `by` names of the placed vertices and of the level's vertices.
+        let (at, level_positions) = (&positions[..], input.positions);
+        let keys = |by: fn(u32) -> bool| {
             let (own, source): (Vec<_>, Vec<_>) = (carried.iter())
                 .zip(&values)
                 .filter(|(a, _)| by(a.flag))
                 .map(|(a, v)| ((&v[..], a.width), (&a.values[..], a.width)))
                 .unzip();
-            let mut seen: WordMap<Vec<u32>, u32> = WordMap::default();
-            let mut out = Vec::with_capacity(origins.len());
-            for (k, &g) in origins.iter().enumerate() {
-                let g = g as usize;
-                let placed = key(&positions, k, own.iter().copied());
-                out.push(
-                    match placed == key(input.positions, g, source.iter().copied()) {
-                        true => of[g],
-                        false => *seen.entry(placed).or_insert(base + k as u32),
-                    },
-                );
-            }
-            out
+            let placed = move |k: usize| key(at, k, own.iter().copied());
+            let level = move |v: usize| key(level_positions, v, source.iter().copied());
+            (placed, level)
         };
-        // Without a texture set there is no seam: the seam weld is the position weld.
-        let textured = !input.seams.is_empty();
+        // Per placed vertex, the canonical vertex of what `by` keys: the region's source vertex
+        // with its key, else the first placed vertex with it — vertices equal in every float the
+        // pages store are one vertex to the next level.
+        let canonical = |by: fn(u32) -> bool, of: &[u32]| -> Vec<u32> {
+            let (placed, level) = keys(by);
+            let mut seen: WordMap<Key, u32> = word_map(self.n + origins.len());
+            for &v in self.remap {
+                let v = v as usize;
+                seen.entry(level(v)).or_insert(of[v]);
+            }
+            (0..origins.len())
+                .map(|k| *seen.entry(placed(k)).or_insert(base + k as u32))
+                .collect()
+        };
+        let weld_seam = canonical(|flag| flag == FLAG_UV || flag == FLAG_UV1, input.weld_seam);
         let exact = canonical(|_| true, input.exact);
-        let (weld_seam, seams) = match textured {
-            false => (Vec::new(), Vec::new()),
-            true => {
-                let uv = |flag| flag == FLAG_UV || flag == FLAG_UV1;
-                let weld_seam = canonical(uv, input.weld_seam);
-                let mut split: WordMap<u32, (u32, bool)> = WordMap::default();
-                for (&w, &s) in weld.iter().zip(&weld_seam) {
-                    let entry = split.entry(w).or_insert((s, false));
-                    entry.1 |= entry.0 != s;
-                }
-                let seam = |w: u32| split[&w].1 || (w < base && input.seams[w as usize]);
-                let seams = weld.iter().map(|&w| seam(w)).collect();
-                (weld_seam, seams)
-            }
-        };
-        let islands = origins
-            .iter()
-            .filter_map(|&g| input.islands.get(g as usize));
-        let islands = islands.copied().collect();
         Placed {
             positions,
             carried: values,
             origins,
             columns: Columns {
                 weld_seam,
-                extents: self.extents[self.n..].to_vec(),
                 weld,
                 exact,
-                seams,
-                islands,
             },
         }
     }

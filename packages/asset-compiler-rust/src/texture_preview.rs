@@ -5,15 +5,17 @@
 //! rest on GPU. Between 64 px and source no level existed: texture
 //! needing 256 px had to load and decode 2048², residence could
 //! not keep up with screen. Here, every level exists: tail in sidecar,
-//! RGBA8; levels above are lossless PNGs in cache, one file per level,
-//! addressed by source byte hash and chain (`textures/<sha>/<srgb|linear|srgb-coverage[-<C>]>-<k>.png`),
-//! shared across scenes sharing image, never rewritten if present. Beside each
-//! PNG, when a quality gate lets it, the same level block-compressed in the
-//! families the cook asked for — every one by default: BC for desktop cards,
-//! ASTC and ETC2 for mobile ones — and the tail carried in those blocks too
-//! (`blocks.rs`): one byte per texel in the pool instead of four, and no
-//! visible loss, since a chain the read-back cannot reproduce within the bar
-//! stays lossless.
+//! RGBA8 and in each kept family's blocks; levels above are GPU block files in
+//! cache, one file per level, addressed by source byte hash and chain
+//! (`textures/<sha>/<srgb|linear|srgb-coverage[-<C>]>-<k>.<format>`), shared
+//! across scenes sharing image, never rewritten if present. Every chain the
+//! quality gate lets is stored in BC (`blocks.rs`: BC7, BC5 for a normal map) —
+//! one byte per texel in the pool instead of four, each tile record deflated on
+//! disk —, which a device without BC decodes to RGBA8; a chain under the bar
+//! keeps no level file, the engine loads its source image, lossless. Beside it,
+//! when the gate lets them, the families the cook asked for — every one by
+//! default: ASTC and ETC2 for mobile cards —, and the tail carried in those
+//! blocks too.
 //!
 //! Reduction rule matches GPU (`reduce.rs`): baking instead of
 //! regenerating does not change image. Covers both engine atlases — base color
@@ -25,7 +27,7 @@
 //! baking memory instead refuses the job before decoding; it never drops an image.
 use super::*;
 
-mod admission;
+pub(crate) mod admission;
 pub(crate) mod bake;
 mod bake_write;
 pub(crate) mod blocks;
@@ -57,19 +59,26 @@ pub use levels::*;
 /// level file out in tile records, one HTTP Range each (#962, `tile_records`);
 /// the manifest's `textures.version` names it for the engine. Version 7 adds
 /// the ETC2 family (ETC2 RGBA8, EAC RG11): a third block column and layout
-/// word, and every family cooked by default.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 7;
-pub(crate) use bake_write::png;
-pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
+/// word, and every family cooked by default. Version 8 stores every level in BC, no PNG: BC7
+/// searched in every mode, a chain under the bar left to its source image, each tile record of a
+/// block level file deflated behind a head of record ends (`tile_records`). Version 9 encodes each
+/// BC7 block whose fast read-back misses the gate's bars again with the slow search (`Effort`), and
+/// keys a chain's folder by its source and the sheet that decides its bytes (`GateSheet::key`):
+/// two readings of one image under other channels or cuts never share a file. Version 10 moves
+/// the BC7 bytes of most blocks: the vendored encoder's axis search starts from the covariance's
+/// widest row instead of grey (`block_compression`, `compute_axis`), which every block's search
+/// goes through — the ones varying orthogonally to grey, flat before, gain the most.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 10;
+pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout, FAMILIES};
-pub(crate) use curves::linear_to_srgb;
+pub(crate) use curves::{linear_table, linear_to_srgb};
 pub use reduce::AtlasKind;
 /// Baked level template path, relative to `native/`; `bake_write::level_path`
-/// populates. `{format}` is `png`, or a block format's name.
+/// populates. `{format}` is a block format's file name (`BlockFormat::file_name`).
 pub fn level_template() -> String {
     format!(
-        "{}/{{sha}}/{{kind}}-{{level}}.{{format}}",
-        bake_write::texture_version_dir()
+        "{}/{{kind}}-{{level}}.{{format}}",
+        bake_write::image_dir("{sha}")
     )
 }
 /// Largest side sidecar level can have. Choice bounds section: at most
@@ -91,19 +100,23 @@ pub(super) struct PreviewInputs<'a> {
     /// Resolution root of intermediate scene images, named by `plugins::scene`:
     /// source folder, or extracted folder of container — never cache folder.
     pub image_root: &'a Path,
-    pub meshes: &'a BTreeSet<usize>,
+    /// Materials of the compiled meshes (`collect::used_materials`), read once per compilation.
+    pub used_materials: &'a BTreeSet<usize>,
     pub view_map: &'a BTreeMap<usize, usize>,
     /// Textures whose alpha to measure on pass, designated by `cutout`: this step
     /// knows what it decodes, not what cutout is.
     pub to_measure: &'a BTreeSet<usize>,
     pub measurements: &'a crate::cutout::MeasureCache,
+    /// The fingerprint of every image the step reads, taken once before the cutout step
+    /// (`source::ImageShas`): the bake addresses its files by it, never hashes again.
+    pub image_shas: &'a source::ImageShas,
 }
 
 /// Calculates chain for each atlas texture of retained meshes, single image decode
 /// once regardless of citing textures. Returns entries sorted by texture then
 /// atlas, candidate cutout alpha shape — measured in this decode,
 /// never second —, and step report. Images processed in parallel on
-/// caller pool, in waves admitted by their image working sets and retained tails.
+/// caller pool, as many at once as their working sets and retained tails admit.
 pub(super) fn stage_texture_previews(
     inputs: &PreviewInputs<'_>,
     progress: &(impl Fn(Value) + Sync),
@@ -112,7 +125,7 @@ pub(super) fn stage_texture_previews(
     BTreeMap<usize, crate::cutout::AlphaShape>,
     Value,
 )> {
-    let wanted = collect::atlas_textures(inputs.g, inputs.meshes)?;
+    let wanted = collect::atlas_textures(inputs.g, inputs.used_materials);
     let (Some(textures), Some(images)) = (
         inputs.g.get("textures").and_then(Value::as_array),
         inputs.g.get("images").and_then(Value::as_array),

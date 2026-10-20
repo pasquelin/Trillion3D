@@ -13,7 +13,18 @@ const SLICE: usize = 4096;
 /// True when the token is raised, reread at the start of each slice. `done` is the number of
 /// work items already visited by this mesh stage.
 pub(super) fn stopped(cancelled: &AtomicBool, done: usize) -> bool {
-    done.is_multiple_of(SLICE) && cancelled.load(Ordering::Relaxed)
+    done.is_multiple_of(SLICE) && raised(cancelled)
+}
+
+/// Whether the token is raised: the one read of it, a relaxed load.
+pub(crate) fn raised(cancelled: &AtomicBool) -> bool {
+    cancelled.load(Ordering::Relaxed)
+}
+
+/// `None` once the token is raised: a walk stops there with `?` and leaves the refusal to the
+/// driver that started it (`check`).
+pub(crate) fn going(cancelled: &AtomicBool) -> Option<()> {
+    (!raised(cancelled)).then_some(())
 }
 
 /// Refusal that a cancelled compilation carries, the same for every stage and driver.
@@ -23,7 +34,7 @@ pub(crate) fn refusal() -> CompilerError {
 
 /// Refuses as cancelled when the token is raised: the one check of every stage and driver.
 pub(crate) fn check(cancelled: &AtomicBool) -> crate::Result<()> {
-    match cancelled.load(Ordering::Relaxed) {
+    match raised(cancelled) {
         true => Err(refusal()),
         false => Ok(()),
     }

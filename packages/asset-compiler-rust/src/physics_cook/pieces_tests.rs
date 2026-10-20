@@ -31,10 +31,14 @@ fn cooked(name: &str, nodes: Value) -> (Vec<u8>, BTreeSet<String>) {
     });
     let root =
         std::path::Path::new(env!("OUT_DIR")).join(format!("pieces-{name}-{}", std::process::id()));
-    let o = crate::texture_preview::tests::options(&root);
+    let o = crate::tests::fixtures::options_in(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
     let count = g["nodes"].as_array().unwrap().len();
     let (chosen, mesh_map) = ((0..count).collect(), BTreeMap::from([(0, 0)]));
+    let placement = crate::proxy::placement::Placement::new(
+        crate::compiler_world::world_matrices(&g).unwrap(),
+        &[],
+    );
     let scene = DepthLayerScene {
         o: &o,
         g: &g,
@@ -42,6 +46,7 @@ fn cooked(name: &str, nodes: Value) -> (Vec<u8>, BTreeSet<String>) {
         shown: &chosen,
         mesh_map: &mesh_map,
         cluster_planes: &[],
+        placement: &placement,
     };
     stage_physics(&scene, &[], &[], &root).unwrap();
     let written = std::fs::read(root.join("physics.json")).unwrap();

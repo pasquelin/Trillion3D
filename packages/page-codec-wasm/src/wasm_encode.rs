@@ -7,6 +7,7 @@
 use crate::encode::deformation::{Deformation, MorphTarget};
 use crate::encode::{encode_deformed, Attribute};
 use crate::held::hold;
+use crate::wasm_math::{view, view_mut};
 use crate::{Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// Words of a request block. Offsets are bytes in linear memory, 0 for an absent array.
@@ -39,7 +40,8 @@ pub mod request {
 pub const META_WORDS: usize = 16;
 /// The answer's words on success, the header of the page written or checked (`answer_header`):
 /// its `vertex_count`, `index_count`, `flags`, decoded bytes, quantization error (float bits),
-/// morph targets and skin influences. On refusal, word 0 is the length of the refusal's code and
+/// morph targets and skin influences; `encode_page` adds the page's normal cone (`Encoded::cone`),
+/// `[x, y, z, angle]` as four float64, low word first, from `CONE`. On refusal, word 0 is the length of the refusal's code and
 /// its ASCII bytes follow from byte 4 (`refuse`).
 pub mod meta {
     pub const VERTEX_COUNT: usize = 0;
@@ -49,10 +51,7 @@ pub mod meta {
     pub const QUANTIZATION_ERROR: usize = 4;
     pub const MORPH_TARGETS: usize = 5;
     pub const SKIN_INFLUENCES: usize = 6;
-}
-
-unsafe fn floats<'a>(offset: u32, count: usize) -> &'a [f32] {
-    core::slice::from_raw_parts(offset as *const f32, count)
+    pub const CONE: usize = 7;
 }
 
 /// Writes the page `request` describes. Returns 0, its header answered in `meta` and the page held;
@@ -63,13 +62,10 @@ unsafe fn floats<'a>(offset: u32, count: usize) -> &'a [f32] {
 /// `META_WORDS` words, and every offset the request names in one holding the counts it states.
 #[no_mangle]
 pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
-    let r = core::slice::from_raw_parts(request as *const u32, REQUEST_WORDS);
+    let r: &[u32] = view(request, REQUEST_WORDS);
     let vertices = r[request::VERTEX_COUNT] as usize;
-    let indices = core::slice::from_raw_parts(
-        r[request::INDICES] as *const u32,
-        r[request::INDEX_COUNT] as usize,
-    );
-    let positions = floats(r[request::POSITIONS], vertices * 3);
+    let indices = view(r[request::INDICES], r[request::INDEX_COUNT] as usize);
+    let positions = view::<f32>(r[request::POSITIONS], vertices * 3);
     let mut attributes = Vec::new();
     for (word, flag, width) in [
         (request::NORMALS, FLAG_NORMAL, 3),
@@ -85,7 +81,7 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
             attributes.push(Attribute {
                 flag,
                 width,
-                values: floats(r[word], vertices * width).to_vec(),
+                values: view::<f32>(r[word], vertices * width).to_vec(),
             });
         }
     }
@@ -96,17 +92,17 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
         let count = vertices * influences;
         deformation.influences = influences;
         deformation.skin = Some((
-            core::slice::from_raw_parts(r[request::JOINTS] as *const u32, count).to_vec(),
-            floats(r[request::WEIGHTS], count).to_vec(),
+            view::<u32>(r[request::JOINTS], count).to_vec(),
+            view::<f32>(r[request::WEIGHTS], count).to_vec(),
         ));
     }
     let targets = r[request::TARGET_COUNT] as usize;
     if targets != 0 {
-        let table = core::slice::from_raw_parts(r[request::TARGETS] as *const u32, targets * 2);
+        let table: &[u32] = view(r[request::TARGETS], targets * 2);
         for target in table.chunks(2) {
             deformation.targets.push(MorphTarget {
-                position: floats(target[0], vertices * 3).to_vec(),
-                normal: (target[1] != 0).then(|| floats(target[1], vertices * 3).to_vec()),
+                position: view::<f32>(target[0], vertices * 3).to_vec(),
+                normal: (target[1] != 0).then(|| view::<f32>(target[1], vertices * 3).to_vec()),
             });
         }
     }
@@ -117,6 +113,12 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
     match encode_deformed(indices, positions, &carried, (&deformation, &[]), exponents) {
         Ok(page) => {
             answer_header(meta, &page.header);
+            let words = view_mut::<u32>(meta, META_WORDS);
+            for (at, value) in page.cone.iter().enumerate() {
+                let bits = value.to_bits();
+                words[meta::CONE + at * 2] = bits as u32;
+                words[meta::CONE + at * 2 + 1] = (bits >> 32) as u32;
+            }
             hold(page.bytes);
             0
         }
@@ -129,7 +131,7 @@ pub unsafe extern "C" fn encode_page(request: u32, meta: u32) -> u32 {
 /// # Safety
 /// `answer` must lie in a live `arena_alloc` reservation of `META_WORDS` words.
 pub(crate) unsafe fn answer_header(answer: u32, header: &Header) {
-    let words = core::slice::from_raw_parts_mut(answer as *mut u32, META_WORDS);
+    let words = view_mut::<u32>(answer, META_WORDS);
     words[meta::VERTEX_COUNT] = header.vertex_count as u32;
     words[meta::INDEX_COUNT] = header.index_count as u32;
     words[meta::FLAGS] = header.flags;
@@ -148,6 +150,6 @@ pub(crate) unsafe fn refuse(meta: u32, code: &str) -> u32 {
     let code = code.as_bytes();
     assert!(code.len() <= (META_WORDS - 1) * 4);
     *(meta as *mut u32) = code.len() as u32;
-    core::slice::from_raw_parts_mut((meta + 4) as *mut u8, code.len()).copy_from_slice(code);
+    view_mut(meta + 4, code.len()).copy_from_slice(code);
     1
 }

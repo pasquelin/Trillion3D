@@ -41,10 +41,7 @@ fn opaque_exact(primitive: &Value, materials: &[Value]) -> bool {
     };
     // MASK cuts its own holes per pixel: biasing it would move a cutout against the surface it
     // shares a plane with. BLEND never reaches this stage at all.
-    matches!(
-        material.get("alphaMode").and_then(Value::as_str),
-        None | Some("OPAQUE")
-    ) && !unsplit_material(Some(material))
+    AlphaMode::of(material) == AlphaMode::Opaque && !transmissive_material(Some(material))
 }
 
 fn priority_of(node: &Value, mesh: Option<&Value>) -> i64 {
@@ -83,9 +80,9 @@ pub fn collect(
                 json!({"phase":"coplanar","step":"surfaces","completed":order,"total":inputs.shown.len()}),
             );
         }
-        let node = item(nodes, *node_id, "node")?;
-        let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
-        let Some(mesh_index) = inputs.mesh_map.get(&old_mesh).copied() else {
+        let Some((node, old_mesh, mesh_index)) =
+            crate::compiler_nodes::compiled_mesh(nodes, *node_id, inputs.mesh_map)?
+        else {
             continue;
         };
         let priority = priority_of(node, meshes.get(old_mesh));

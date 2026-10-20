@@ -1,8 +1,9 @@
 //! The normal cone of a cluster: the axis and half-angle that bound its triangles' normals, by
-//! which the WebGPU cut rejects a cluster that faces away. Cooked here once per page into the
-//! manifest (`docs/FORMAT.md`, `pages[].cone`), so the runtime reads no vertex for it; and built
-//! by the same function, through the SDK module (`wasm_cone.rs`), for the pages the world cuts at
-//! run time (`packages/sdk-browser/src/world/page/runtimeCut.ts`). This is the only cone builder.
+//! which the WebGPU cut rejects a cluster that faces away. Built by the page encoder over the
+//! positions the page decodes to (`encode::decoded_cone`), the triangles the GPU draws, for a
+//! cooked page into the manifest (`docs/FORMAT.md`, `pages[].cone`), so the runtime reads no vertex
+//! for it, and for a page the world cuts at run time through the SDK module (`wasm_encode.rs`,
+//! `packages/sdk-browser/src/world/page/runtimeCut.ts`). This is the only cone builder.
 //!
 //! One cone is built: the narrowest, whose axis points at the centre of the smallest ball holding
 //! the unit face normals (`min_ball`). Below a half-turn it is the smallest cap holding them, so
@@ -28,27 +29,28 @@ pub(crate) const ANGLE_MARGIN_ULPS: usize = 4;
 /// A cone that never rejects (`OPEN_CONE`): axis +Z, half-angle π.
 pub const OPEN_CONE: [f64; 4] = [0.0, 0.0, 1.0, std::f64::consts::PI];
 
-/// The cross product of a triangle's two edges from its first corner, in float64.
-fn face_cross(pos: &[f32], triangle: [u32; 3]) -> [f64; 3] {
-    let [a, b, c] = triangle.map(|vertex| point(pos, vertex));
-    triangle_cross(a, b, c)
+/// Per triangle of `indices`, the cross product of its two edges from its first corner over `pos`,
+/// in float64: what the cone and any other face measure of a cluster (the compiler's plane) share.
+pub fn face_crosses(pos: &[f32], indices: &[u32]) -> Vec<[f64; 3]> {
+    (indices.as_chunks::<3>().0.iter())
+        .map(|triangle| {
+            let [a, b, c] = triangle.map(|vertex| point(pos, vertex));
+            triangle_cross(a, b, c)
+        })
+        .collect()
 }
 
 /// The bounding cone of the normals of `indices`' triangles over `pos`, as `[x, y, z, angle]`: the
 /// narrowest (`narrowest_cone`). Degenerate faces are skipped; with none left, a normal that is not
 /// a number, or normals that cancel out, the cone is open.
 pub fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
-    narrowest_cone(&faces(pos, indices)).unwrap_or(OPEN_CONE)
+    narrowest_cone(&faces(&face_crosses(pos, indices))).unwrap_or(OPEN_CONE)
 }
 
 /// Each non-degenerate face's cross product and its length, once.
-fn faces(pos: &[f32], indices: &[u32]) -> Vec<([f64; 3], f64)> {
-    indices
-        .as_chunks::<3>()
-        .0
-        .iter()
-        .filter_map(|&triangle| {
-            let c = face_cross(pos, triangle);
+fn faces(crosses: &[[f64; 3]]) -> Vec<([f64; 3], f64)> {
+    (crosses.iter())
+        .filter_map(|&c| {
             let len = hypot(c);
             (len > 0.0).then_some((c, len))
         })
@@ -104,27 +106,6 @@ fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
         true => cone,
         false => OPEN_CONE,
     })
-}
-
-/// The cone of each cluster `[start, end)` of `ranges` over `indices`, written as four floats per
-/// cluster into `out`: what the world's run-time cut asks of the SDK module (`wasm_cone.rs`).
-/// `None`, with `out` untouched, when a range or an index falls outside what it was given.
-pub fn cluster_cones(pos: &[f32], indices: &[u32], ranges: &[u32], out: &mut [f64]) -> Option<()> {
-    let vertices = pos.len() / 3;
-    let clusters = ranges.as_chunks::<2>().0;
-    let fits = |&[start, end]: &[u32; 2]| {
-        start <= end
-            && indices
-                .get(start as usize..end as usize)
-                .is_some_and(|c| c.iter().all(|&v| (v as usize) < vertices))
-    };
-    if out.len() < clusters.len() * 4 || !clusters.iter().all(fits) {
-        return None;
-    }
-    for (&[start, end], cone) in clusters.iter().zip(out.as_chunks_mut::<4>().0) {
-        *cone = triangle_cone(pos, &indices[start as usize..end as usize]);
-    }
-    Some(())
 }
 
 #[cfg(test)]

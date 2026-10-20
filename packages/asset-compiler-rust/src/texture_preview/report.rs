@@ -1,7 +1,8 @@
 //! The stage report: the bar, how many chains each family holds in each
-//! layout, the kept chains' decibels, and — one line each, with their figures —
-//! the chains that stay lossless in the family, refused by the gate or not
-//! delivered by the cook (the notes say which).
+//! layout, the kept chains' decibels, and — one line each, with their figures,
+//! under `lossless` — the chains a family does not hold, refused by the gate or
+//! not delivered by the cook (the notes say which): the device decodes the
+//! stored BC chain for them, or the source image when its BC files did not write.
 use super::blocks::quality::{GATE_DB, GATE_MAX_DELTA};
 use super::blocks::Layout;
 use super::collect::AtlasTexture;
@@ -50,6 +51,8 @@ pub(super) fn report(
         .sum();
     let baked: u32 = previews.iter().map(|entry| entry.baked_levels).sum();
     let mut encoded = serde_json::Map::new();
+    // `lossless` names the chains a family does not hold, refused or not delivered: the word the
+    // report always carried, kept for the readers of the manifest, whatever the family.
     for format in &o.texture_formats {
         let (kept, lossless): (Vec<&Gate>, Vec<&Gate>) = gates
             .iter()

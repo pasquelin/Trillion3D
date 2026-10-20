@@ -94,7 +94,7 @@ fn outcome(mesh: &Mesh, exponent: i32) -> (String, usize) {
                 hash.update(word.to_le_bytes());
             }
             (
-                format!("{:x}", hash.finalize())[..16].to_string(),
+                crate::hex_of(hash.finalize())[..16].to_string(),
                 page.bytes.len(),
             )
         }

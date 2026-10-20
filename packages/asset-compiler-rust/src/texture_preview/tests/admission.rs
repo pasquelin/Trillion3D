@@ -8,6 +8,7 @@ fn run(root: &Path, ram: usize, cancelled: bool) -> Result<Vec<TexturePreview>> 
     let g = json!({"materials":[{"pbrMetallicRoughness":{"baseColorTexture":{"index":0}}},
         {"occlusionTexture":{"index":1}}],"meshes":[{"primitives":[{"material":0},{"material":1}]}],
         "textures":[{"source":0},{"source":1}],"images":[{"uri":"a.png"},{"uri":"b.png"}]});
+    let (used, shas) = read_once(&g, &[], root, &BTreeSet::from([0]));
     rayon::ThreadPoolBuilder::new()
         .num_threads(4)
         .build()
@@ -20,10 +21,11 @@ fn run(root: &Path, ram: usize, cancelled: bool) -> Result<Vec<TexturePreview>> 
                     g: &g,
                     bin: &[],
                     image_root: root,
-                    meshes: &BTreeSet::from([0]),
+                    used_materials: &used,
                     view_map: &BTreeMap::new(),
                     to_measure: &BTreeSet::new(),
                     measurements: crate::cutout::MeasureCache::EMPTY,
+                    image_shas: &shas,
                 },
                 &|_| {},
             )
@@ -65,7 +67,7 @@ fn constrained_waves_preserve_mips_and_block_tails_byte_for_byte() {
         assert_eq!(a.blocks, b.blocks);
         assert_eq!(a.layouts, b.layouts);
         for level in 0..a.baked_levels {
-            let path = level_path(&a.sha256, a.kind, level, LOSSLESS);
+            let path = level_path(&a.sha256, a.kind, level, "bc7");
             assert_eq!(
                 fs::read(root.join("cache-2/native").join(&path)).unwrap(),
                 fs::read(root.join("cache-64/native").join(&path)).unwrap()

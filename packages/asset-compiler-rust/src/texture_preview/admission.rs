@@ -1,10 +1,11 @@
-//! Texture waves share one job's RAM allowance; completed tails stay charged.
+//! The textures share one job's RAM allowance (`compiler_budget::admission`); completed tails stay
+//! charged.
 //!
 //! An image whose working set, or the tails retained for the sidecar, exceed that allowance
 //! refuses the job (`RAM_ADMISSION_BUDGET_EXCEEDED`): it is never baked at a lower resolution nor
 //! replaced by white, either of which would publish less image than the source holds.
 use super::*;
-use std::ops::Range;
+use crate::compiler_budget::admission::{alone, run_admitted, Room};
 use std::sync::atomic::AtomicUsize;
 mod cost;
 #[cfg(test)]
@@ -15,6 +16,12 @@ struct Cost {
     working: usize,
     retained: usize,
 }
+
+/// The cost of an image whose head does not read: it is never decoded.
+const NOTHING: Cost = Cost {
+    working: 0,
+    retained: 0,
+};
 type Outcome = std::result::Result<bake::Baked, (&'static str, usize)>;
 
 fn refused() -> CompilerError {
@@ -28,11 +35,11 @@ fn remaining_budget(budget: usize, reserved: usize) -> Result<usize> {
     budget.checked_sub(reserved).ok_or_else(refused)
 }
 
-/// Reserve every output tail before admitting temporary buffers, then cut the images into the
-/// compiler's shared waves (`compiler_budget::waves`) within what is left. No later wave can
-/// borrow memory already committed to the final sidecar, even if a codec eventually rejects its
-/// lossy tail and returns fewer bytes; an image wider than that room is refused, never baked alone.
-fn admit(costs: &[Cost], budget: usize) -> Result<Vec<Range<usize>>> {
+/// The room the images' working sets share: what `budget` leaves once every output tail is
+/// reserved. No image can borrow memory already committed to the final sidecar, even if a codec
+/// eventually rejects its lossy tail and returns fewer bytes; an image wider than that room is
+/// refused, never baked alone.
+fn admit(costs: &[Cost], budget: usize) -> Result<usize> {
     let retained = costs
         .iter()
         .try_fold(0usize, |sum, c| sum.checked_add(c.retained))
@@ -42,15 +49,87 @@ fn admit(costs: &[Cost], budget: usize) -> Result<Vec<Range<usize>>> {
     if working.iter().any(|&bytes| bytes > room) {
         return Err(refused());
     }
-    Ok(compiler_budget::waves::waves(&working, room))
+    Ok(room)
 }
 
-fn execute<T: Send>(
+/// The bytes one RGBA8 image `size` texels square holds while it is cooked from its pixels in
+/// hand (`bake::cook_decoded`) for `families` block families: its working set and its tails
+/// (`cost::estimate`).
+pub(crate) fn cook_bytes(size: u32, families: usize) -> usize {
+    let pixels = (size as usize)
+        .saturating_mul(size as usize)
+        .saturating_mul(4);
+    let cost = cost::estimate(size, size, pixels, 1, families);
+    cost.working.saturating_add(cost.retained)
+}
+
+/// `work` over every image of `costs`, as many at once as their working sets fit the room
+/// `budget` leaves (`admit`), the results in the images' order.
+fn execute<T: Send + Sync>(
     costs: &[Cost],
     budget: usize,
     work: impl Fn(usize) -> Result<T> + Sync,
 ) -> Result<Vec<T>> {
-    compiler_budget::waves::run_waves(&admit(costs, budget)?, work)
+    let room = admit(costs, budget)?;
+    let inputs = alone(costs.len());
+    Ok(run_admitted(
+        &inputs,
+        Room::Fixed(room),
+        |i, _| costs[i].working,
+        |i, _| work(i),
+    )?
+    .0)
+}
+
+/// The dimensions of an image and its encoded bytes plus what its driver expands them to, read
+/// from its head without decoding: what every cost below is estimated from.
+fn head(
+    (g, bin, image_root): (&Value, &[u8], &Path),
+    image: Option<&Value>,
+) -> std::result::Result<(u32, u32, usize), &'static str> {
+    let image = image.ok_or("image-out-of-bounds")?;
+    source::with_image_bytes(g, bin, image_root, image, |bytes, _| {
+        let driver = crate::plugins::image::by_head(bytes).ok_or("image-format-unknown")?;
+        let (width, height) = driver.dimensions(bytes)?;
+        if width == 0 || height == 0 {
+            return Err("image-empty");
+        }
+        let payload = bytes
+            .len()
+            .saturating_add(driver.expanded_payload_bytes(bytes)?);
+        Ok((width, height, payload))
+    })
+}
+
+/// Decodes `images`, as many at once as the job's allowance less `reserved` admits, `work`
+/// measuring each and dropping its pixels: the cutout step's decodes take the same admission as the bake's, and
+/// an image too wide for it refuses the job here as it would there. An image whose head does not
+/// read costs nothing; `work` names its failure.
+pub(crate) fn decode_admitted<T: Send + Sync>(
+    o: &Options,
+    reserved: usize,
+    source: (&Value, &[u8], &Path),
+    images: &[usize],
+    work: impl Fn(usize) -> T + Sync,
+) -> Result<Vec<T>> {
+    let declared = source.0.get("images").and_then(Value::as_array);
+    let costs: Vec<Cost> = images
+        .iter()
+        .map(|&index| {
+            head(source, declared.and_then(|images| images.get(index)))
+                .map_or(NOTHING, |(width, height, payload)| {
+                    cost::decoding(width, height, payload)
+                })
+        })
+        .collect();
+    execute(
+        &costs,
+        remaining_budget(o.ram_budget_bytes(), reserved)?,
+        |at| {
+            check(o)?;
+            Ok(work(images[at]))
+        },
+    )
 }
 
 pub(super) fn bake(
@@ -62,46 +141,25 @@ pub(super) fn bake(
     let jobs: Vec<_> = by_image.iter().collect();
     let mut costs = Vec::with_capacity(jobs.len());
     let mut refusals = Vec::with_capacity(jobs.len());
+    let source = (inputs.g, inputs.bin, inputs.image_root);
     for (&index, readers) in &jobs {
         check(inputs.o)?;
-        let described = images
-            .get(index)
-            .ok_or("image-out-of-bounds")
-            .and_then(|image| {
-                source::with_image_bytes(
-                    inputs.g,
-                    inputs.bin,
-                    inputs.image_root,
-                    image,
-                    |bytes, _| {
-                        let driver =
-                            crate::plugins::image::by_head(bytes).ok_or("image-format-unknown")?;
-                        let (width, height) = driver.dimensions(bytes)?;
-                        if width == 0 || height == 0 {
-                            return Err("image-empty");
-                        }
-                        Ok(cost::estimate(
-                            width,
-                            height,
-                            bytes
-                                .len()
-                                .saturating_add(driver.expanded_payload_bytes(bytes)?),
-                            readers.len(),
-                            inputs.o.texture_formats.len(),
-                        ))
-                    },
-                )
-            });
+        let described = head(source, images.get(index)).map(|(width, height, payload)| {
+            cost::estimate(
+                width,
+                height,
+                payload,
+                readers.len(),
+                inputs.o.texture_formats.len(),
+            )
+        });
         match described {
             Ok(cost) => {
                 costs.push(cost);
                 refusals.push(None);
             }
             Err(reason) => {
-                costs.push(Cost {
-                    working: 0,
-                    retained: 0,
-                });
+                costs.push(NOTHING);
                 refusals.push(Some(reason));
             }
         }

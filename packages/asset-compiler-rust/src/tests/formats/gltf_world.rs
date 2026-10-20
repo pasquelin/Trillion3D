@@ -47,7 +47,7 @@ fn nested_and_instanced_nodes_cook_at_their_world_placement() {
     // Meshes: the node table the runtime reads, composed into world matrices.
     // The table writes an absent field as `null`, which a glTF node leaves out.
     let tables = read_json(&directory.join("scene-tables.json"));
-    let nodes: Vec<Value> = tables["nodes"]
+    let mut nodes: Vec<Value> = tables["nodes"]
         .as_array()
         .expect("nodes")
         .iter()
@@ -57,6 +57,23 @@ fn nested_and_instanced_nodes_cook_at_their_world_placement() {
             Value::Object(node)
         })
         .collect();
+    // The placed meshes, each in a cell under its core parent: joined to the graph as its children.
+    for mut placed in crate::tests::scene::partition::cell_nodes(&directory) {
+        let parent = placed["parent"].as_u64();
+        let node = placed.as_object_mut().expect("node");
+        node.remove("parent");
+        node.retain(|_, value| !value.is_null());
+        if let Some(parent) = parent {
+            let rank = nodes.len();
+            let children = nodes[parent as usize]
+                .as_object_mut()
+                .expect("parent")
+                .entry("children")
+                .or_insert(json!([]));
+            children.as_array_mut().expect("children").push(json!(rank));
+        }
+        nodes.push(placed);
+    }
     let worlds = world_matrices(&json!({ "nodes": nodes })).expect("world");
     let mut drawn: Vec<Triangle> = (0..nodes.len())
         .filter(|id| nodes[*id].get("mesh").is_some())

@@ -23,15 +23,15 @@ impl DagCluster {
     }
 }
 
-/// Clusters, kept groups, one tally per level, the stalled groups with their level, and the arrays
-/// grown with every vertex a seam-locked solve placed (`Grown`).
-pub type DagBuild = (
-    Vec<DagCluster>,
-    Vec<DagGroup>,
-    Vec<GroupTally>,
-    Vec<DagStall>,
-    Option<Grown>,
-);
+/// A built DAG: its clusters, the groups kept, one tally per level, the stalled groups with their
+/// level, and the arrays grown with every vertex a solve placed (`Grown`).
+pub struct DagBuild {
+    pub clusters: Vec<DagCluster>,
+    pub groups: Vec<DagGroup>,
+    pub tallies: Vec<GroupTally>,
+    pub stalls: Vec<DagStall>,
+    pub grown: Option<Grown>,
+}
 
 /// Builds cluster DAG. `strategy` decides whether coarse levels exist: in
 /// `ExactClusters` build yields level zero alone, without group or reduction, so
@@ -41,8 +41,8 @@ pub type DagBuild = (
 /// error; a position written under several texture coordinates is a seam no collapse crosses.
 ///
 /// Returns the clusters, the groups kept, one tally per level and every stalled group with its
-/// level, in level order.
-pub fn build_dag_tallied(
+/// level, in level order (`DagBuild`).
+pub fn build_dag(
     positions: &[f32],
     attributes: DagAttributes,
     indices: &[u32],
@@ -77,39 +77,18 @@ pub fn build_dag_tallied(
         dag.push(DagCluster::leaf(cluster, 0.0, sphere, source_rank));
     }
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
-    if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-        return Ok((dag, Vec::new(), Vec::new(), Vec::new(), None));
-    }
-    super::levels::coarsen(positions, attributes, indices, dag, checkpoint)
-}
-
-/// Continues the DAG above clusters that already exist: the root clusters of placed objects, in
-/// world space, each with the error and the sphere it was published at (`compiler_world_roots`):
-/// a parent's sphere then holds the published one, never a tighter sphere of the triangles.
-/// Level 0 is those clusters as given, in order; the levels above them are built exactly as a primitive's,
-/// with the same grouping, the same simplification and the same monotone error, and `attributes`
-/// — the normals, texture sets and colour the roots' pages carry — count in it as in a
-/// primitive's, a texture seam protected the same way: the super-roots carry them on.
-pub fn build_dag_from_roots(
-    positions: &[f32],
-    attributes: DagAttributes,
-    roots: Vec<(Vec<u32>, f64, [f64; 4])>,
-    checkpoint: &(dyn Fn() -> Result<()> + Sync),
-) -> Result<DagBuild> {
-    checkpoint()?;
-    let indices: Vec<u32> = roots.iter().flat_map(|(c, ..)| c.iter().copied()).collect();
-    let dag: Vec<DagCluster> = roots
-        .into_iter()
-        .enumerate()
-        .map(|(rank, (indices, lod_error, sphere))| {
-            DagCluster::leaf(indices, lod_error, sphere, rank as u32)
-        })
-        .collect();
-    if dag.len() < 2 {
-        return Ok((dag, Vec::new(), Vec::new(), Vec::new(), None));
-    }
-    if attributes.uv_sets().len() > 2 {
-        return Err(invalid("a page carries at most two texture sets"));
-    }
-    super::levels::coarsen(positions, attributes, &indices, dag, checkpoint)
+    let mut build = if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
+        DagBuild {
+            clusters: dag,
+            groups: Vec::new(),
+            tallies: Vec::new(),
+            stalls: Vec::new(),
+            grown: None,
+        }
+    } else {
+        super::levels::coarsen(positions, attributes, indices, dag, checkpoint)?
+    };
+    // The encoder's vertex cap, once every level is built: the partition never read it.
+    constrain_wide(&mut build.clusters, &mut build.groups);
+    Ok(build)
 }

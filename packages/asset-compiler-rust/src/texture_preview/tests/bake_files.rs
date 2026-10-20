@@ -21,12 +21,11 @@ fn stage(dir: &Path) -> (Vec<TexturePreview>, Value) {
 
 // Behavior 9: 256 px image read by both atlases decoded once, yielding two
 // entries, one per atlas; each writes levels above tail — 256 and 128 px, i.e.
-// `first_level` files — under `textures/v7/<sha>/<atlas>-<k>.png`, sidecar tail starts
-// at 64 px. PNG is lossless: re-read, gives exact level bytes. Beside each PNG,
-// the same level in the cooked family's blocks when the gate keeps the chain
-// — a smooth ramp passes —, one byte per texel; and the tail in blocks too.
+// `first_level` files — under `textures/v10/<chain>/<atlas>-<k>.bc7`, sidecar tail starts
+// at 64 px: each the level's BC7 blocks, laid out in deflated tile records, no
+// other file; and the tail in blocks too.
 #[test]
-fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
+fn levels_above_the_tail_are_written_once_per_atlas_in_the_stored_blocks() {
     let dir = scratch("texture-preview", "bake-files");
     // A ramp along one direction: one segment per block holds it, the gate keeps it.
     let source = rgba_from(256, 256, |x, _| [x as u8, 255 - x as u8, 77, 255]);
@@ -36,7 +35,7 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
     assert_eq!(previews[0].kind, AtlasKind::Color);
     assert_eq!(previews[1].kind, AtlasKind::Data);
     assert_eq!(
-        previews[0].sha256, previews[1].sha256,
+        previews[0].image_sha256, previews[1].image_sha256,
         "same image, same fingerprint"
     );
     assert_eq!(
@@ -46,38 +45,36 @@ fn levels_above_the_tail_are_written_once_per_atlas_as_lossless_png() {
     assert_eq!(previews[0].baked_levels, 2);
     assert_eq!(report["bakedLevels"], json!(4));
     let native = dir.join("cache").join("native");
-    for (kind, expected) in [
-        (AtlasKind::Color, &previews[0]),
-        (AtlasKind::Data, &previews[1]),
+    // The channels each atlas's reader measures: the opaque base colour's RGB, occlusion's R.
+    for (kind, expected, channels) in [
+        (AtlasKind::Color, &previews[0], [true, true, true, false]),
+        (AtlasKind::Data, &previews[1], [true, false, false, false]),
     ] {
+        // The level files are the chain encoder's: fast, or slow when the fast chain fails.
+        let chain = reduce::chain(&source, kind);
+        let sizes: Vec<(u32, u32)> = preview_level_sizes(256, 256).collect();
+        let codec = (BlockFormat::Bc7, Layout::Rgba);
+        let (fast, measure) = blocks::quality::fast_chain(&chain, &sizes, codec, channels, &[]);
+        let encoded = if measure.passes() {
+            fast
+        } else {
+            blocks::quality::slow_chain(&chain, &sizes, codec, &fast, channels, &[]).0
+        };
         for level in 0..2u32 {
-            let path = native.join(level_path(&expected.sha256, kind, level, LOSSLESS));
-            assert!(path.exists(), "{} must exist", path.display());
-            let decoded = image::open(&path).expect("readable png").to_rgba8();
             let (w, h) = preview_level_size(256, 256, level);
-            assert_eq!((decoded.width(), decoded.height()), (w, h));
-            let chain = reduce::chain(&source, kind);
-            assert_eq!(
-                decoded.as_raw(),
-                &chain[level as usize],
-                "lossless level {level}"
-            );
-            let encoded =
-                blocks::encode_level(&chain[level as usize], w, h, BlockFormat::Bc7, Layout::Rgba);
+            let encoded = &encoded[level as usize];
             let blocks = fs::read(native.join(level_path(&expected.sha256, kind, level, "bc7")))
                 .expect("block level");
-            assert_eq!(blocks, tile_records(&encoded, w, h), "tile records");
+            assert_eq!(blocks, tile_records(encoded, w, h), "tile records");
             assert!(!native
                 .join(level_path(&expected.sha256, kind, level, "astc"))
                 .exists());
         }
-        for format in [LOSSLESS, "bc7"] {
-            let missing = native.join(level_path(&expected.sha256, kind, 2, format));
-            assert!(
-                !missing.exists(),
-                "the tail remains in the sidecar, not as a file"
-            );
-        }
+        let missing = native.join(level_path(&expected.sha256, kind, 2, "bc7"));
+        assert!(
+            !missing.exists(),
+            "the tail remains in the sidecar, not as a file"
+        );
         assert_eq!(expected.layouts, [Some(Layout::Rgba), None, None]);
         assert_eq!(expected.blocks[0].len(), preview_block_bytes(256, 256));
         assert!(expected.blocks[1].is_empty());
@@ -101,9 +98,9 @@ fn an_existing_level_file_is_left_untouched() {
         &previews[0].sha256,
         AtlasKind::Color,
         0,
-        LOSSLESS,
+        "bc7",
     ));
-    let stamp = b"not a png, and no one should touch it";
+    let stamp = b"not blocks, and no one should touch them";
     fs::write(&path, stamp).expect("overwrite");
     let modified = fs::metadata(&path)
         .expect("meta")

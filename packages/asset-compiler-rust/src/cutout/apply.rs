@@ -6,7 +6,11 @@
 //! material transmitting light — tinted glass keeps thickness — and material
 //! whose alpha factor is already partial, where opacity does not come from texture.
 use super::*;
-use crate::texture_preview::{collect, source};
+use crate::compiler_materials::MaterialFactors;
+use crate::texture_preview::{admission, source};
+
+mod candidates;
+use candidates::{candidates, Candidate};
 
 /// What step did.  enters product identity: a "window" answer,
 /// refusal, or answer targeting texture this scene does not use changes no bytes
@@ -32,23 +36,19 @@ impl CutoutApplied {
     }
 }
 
-/// Candidate binding: material declared in blend whose base color carries a texture.
-struct Candidate {
-    material: usize,
-    texture: usize,
-    image: usize,
-    image_sha: String,
-}
-
+/// Reclassifies the candidates an answer, or else their measurement, names cutout. `used` are the
+/// materials of the compiled meshes and `shas` the fingerprint of each image
+/// (`source::ImageShas`), both taken once for the whole compilation. The images to measure decode
+/// under the job's allowance less `reserved`, what the job already holds.
 pub(crate) fn apply_decisions(
+    (o, reserved): (&Options, usize),
     g: &mut Value,
-    bin: &[u8],
-    image_root: &Path,
-    meshes: &BTreeSet<usize>,
+    (bin, image_root): (&[u8], &Path),
+    (used, shas): (&BTreeSet<usize>, &source::ImageShas),
     decisions: &mut Decisions,
 ) -> Result<CutoutApplied> {
-    let candidates = candidates(g, bin, image_root, meshes)?;
-    let measured = measure_unanswered(g, bin, image_root, &candidates, decisions);
+    let candidates = candidates(g, used, shas);
+    let measured = measure_unanswered((o, reserved), (g, bin, image_root), &candidates, decisions)?;
     let (mut applied, mut refused) = (Vec::new(), Vec::new());
     let mut materials_by_texture: BTreeMap<usize, BTreeSet<usize>> = BTreeMap::new();
     for candidate in &candidates {
@@ -90,44 +90,56 @@ pub(crate) fn apply_decisions(
 
 /// The verdict of each image no answer names, by its fingerprint: its stored measurement, or
 /// the image decoded and measured once — kept with the others, so the preview step measures it
-/// no more. An image that does not decode to RGBA8 has none, and stays blend.
+/// no more. The images left to measure decode side by side, each from its borrowed bytes, as many
+/// at once as the bake's admission runs (`admission::decode_admitted`); their pixels are dropped at
+/// once, since holding them until the bake would hold every one through the geometry compile,
+/// which no budget counts. An image that does not decode to RGBA8 has none, and stays blend.
 fn measure_unanswered(
-    g: &Value,
-    bin: &[u8],
-    image_root: &Path,
+    admitted: (&Options, usize),
+    source: (&Value, &[u8], &Path),
     candidates: &[Candidate],
     decisions: &mut Decisions,
-) -> BTreeMap<String, bool> {
+) -> Result<BTreeMap<String, bool>> {
     let mut verdicts = BTreeMap::new();
+    let mut unmeasured = BTreeMap::new();
+    for Candidate {
+        image, image_sha, ..
+    } in candidates
+    {
+        if decisions.verdict(image_sha).is_some() || verdicts.contains_key(image_sha) {
+            continue;
+        }
+        match decisions.measurements.known(image_sha) {
+            Some(shape) => {
+                verdicts.insert(image_sha.clone(), shape.looks_like_cutout());
+            }
+            None => {
+                unmeasured.entry(image_sha).or_insert(*image);
+            }
+        }
+    }
+    let (g, bin, image_root) = source;
     let images = g.get("images").and_then(Value::as_array);
-    for candidate in candidates {
-        let sha = &candidate.image_sha;
-        if decisions.verdict(sha).is_some() || verdicts.contains_key(sha) {
-            continue;
-        }
-        if let Some(shape) = decisions.measurements.known(sha) {
-            verdicts.insert(sha.clone(), shape.looks_like_cutout());
-            continue;
-        }
-        let decoded = images
-            .and_then(|images| images.get(candidate.image))
-            .and_then(|image| source::raw_image_bytes(g, bin, image_root, image).ok())
-            .and_then(|(bytes, _)| {
-                crate::plugins::image::decode(&bytes, crate::texture_preview::PREVIEW_MAX_ALLOC)
-                    .ok()
-            });
-        let Some(crate::plugins::image::DecodedImage::Rgba8(pixels)) = decoded.map(|d| d.image)
-        else {
-            continue;
+    let (shas, indices): (Vec<&String>, Vec<usize>) = unmeasured.into_iter().unzip();
+    let measured = admission::decode_admitted(admitted.0, admitted.1, source, &indices, |image| {
+        let image = images?.get(image)?;
+        let decoded = source::with_image_bytes(g, bin, image_root, image, |bytes, _| {
+            crate::plugins::image::decode(bytes, crate::texture_preview::PREVIEW_MAX_ALLOC)
+        });
+        let crate::plugins::image::DecodedImage::Rgba8(pixels) = decoded.ok()?.image else {
+            return None;
         };
-        let shape = {
-            let _t = perf::Timer::new(perf::Phase::TextureAlpha);
-            measure(&pixels)
+        let _t = perf::Timer::new(perf::Phase::TextureAlpha);
+        Some(measure(&pixels))
+    })?;
+    for (sha, shape) in shas.into_iter().zip(measured) {
+        let Some(shape) = shape else {
+            continue;
         };
         verdicts.insert(sha.clone(), shape.looks_like_cutout());
         decisions.measurements.insert(sha.clone(), shape);
     }
-    verdicts
+    Ok(verdicts)
 }
 
 /// Why material stays in blend despite answer, or  when nothing opposes.
@@ -136,83 +148,11 @@ fn refusal(g: &Value, material: usize) -> Option<&'static str> {
         .get("materials")
         .and_then(Value::as_array)
         .and_then(|materials| materials.get(material))?;
-    if unsplit_material(Some(material)) {
+    if transmissive_material(Some(material)) {
         return Some("transmission");
     }
-    let factor = material
-        .pointer("/pbrMetallicRoughness/baseColorFactor")
-        .and_then(Value::as_array)
-        .and_then(|factor| factor.get(3))
-        .and_then(Value::as_f64);
-    if factor.is_some_and(|alpha| alpha < 1.0) {
+    if MaterialFactors::of(material).base_colour[3] < 1.0 {
         return Some("alpha-factor");
     }
     None
-}
-
-/// Candidate bindings of scene, each with image fingerprint. A shared image
-/// read and hashed only once IN THIS STEP — preview step re-reads same bytes
-/// to decode, total pass measured at 0.08 s on , not justifying
-/// holding bytes in memory between the two. Unreadable image is not a
-/// candidate, preview step will name it in report as it already does.
-fn candidates(
-    g: &Value,
-    bin: &[u8],
-    image_root: &Path,
-    meshes: &BTreeSet<usize>,
-) -> Result<Vec<Candidate>> {
-    let (Some(materials), Some(textures), Some(images)) = (
-        g.get("materials").and_then(Value::as_array),
-        g.get("textures").and_then(Value::as_array),
-        g.get("images").and_then(Value::as_array),
-    ) else {
-        return Ok(Vec::new());
-    };
-    // Reading and hashing candidate images is what this step costs before measurement: a
-    // shared image is read once, and counter reports what pass is worth.
-    let _t = perf::Timer::new(perf::Phase::CutoutScan);
-    let mut hashes: BTreeMap<usize, String> = BTreeMap::new();
-    let mut found = Vec::new();
-    for id in collect::used_materials(g, meshes)? {
-        let Some(material) = materials.get(id) else {
-            continue;
-        };
-        if material.get("alphaMode").and_then(Value::as_str) != Some("BLEND") {
-            continue;
-        }
-        let Some(texture) =
-            collect::texture_index(material.pointer("/pbrMetallicRoughness/baseColorTexture"))
-        else {
-            continue;
-        };
-        let Some(image) = textures
-            .get(texture)
-            .and_then(|texture| texture.get("source"))
-            .and_then(Value::as_u64)
-            .map(|image| image as usize)
-        else {
-            continue;
-        };
-        let sha = match hashes.get(&image) {
-            Some(known) => known.clone(),
-            None => {
-                let Some(bytes) = images
-                    .get(image)
-                    .and_then(|image| source::raw_image_bytes(g, bin, image_root, image).ok())
-                else {
-                    continue;
-                };
-                let sha = hash(&bytes.0);
-                hashes.insert(image, sha.clone());
-                sha
-            }
-        };
-        found.push(Candidate {
-            material: id,
-            texture,
-            image,
-            image_sha: sha,
-        });
-    }
-    Ok(found)
 }

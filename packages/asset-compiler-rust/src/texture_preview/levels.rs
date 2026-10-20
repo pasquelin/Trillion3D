@@ -84,19 +84,41 @@ fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
     })
 }
 
-/// A row-major block level (`encode_level`) as its file holds it (version 6):
-/// its tile records, one HTTP Range each, laid out as the engine reads
-/// them (`packages/sdk-browser/src/texture/tileRecords.ts`).
+/// A row-major block level (`quality::encode_chain`) as its file holds it (version 8 on): its tile records,
+/// laid out as the engine reads them (`packages/sdk-browser/src/texture/tileRecords.ts`), each
+/// compressed alone by raw DEFLATE — the browser's own `DecompressionStream('deflate-raw')`
+/// inflates it, no decoder downloaded —, after a head of one little-endian `u32` per record: the
+/// end of its bytes, counted from the end of the head. The head's length follows from the level's
+/// size, so one HTTP Range reads it and one more reads a tile.
 pub fn tile_records(blocks: &[u8], width: u32, height: u32) -> Vec<u8> {
+    use flate2::{write::DeflateEncoder, Compression};
+    use rayon::prelude::*;
+    use std::io::Write;
     let bytes = super::blocks::BLOCK_BYTES;
     let row = crate::plugins::image::blocks::blocks_of(width, height).0 as usize * bytes;
-    let mut out = Vec::with_capacity(blocks.len() * 9 / 8);
-    for (y0, y1) in record_spans(height) {
-        for (x0, x1) in record_spans(width) {
+    let spans: Vec<((usize, usize), (usize, usize))> = record_spans(height)
+        .flat_map(|ys| record_spans(width).map(move |xs| (ys, xs)))
+        .collect();
+    let records: Vec<Vec<u8>> = spans
+        .par_iter()
+        .map(|&((y0, y1), (x0, x1))| {
+            let mut deflate = DeflateEncoder::new(Vec::new(), Compression::best());
             for by in y0..y1 {
-                out.extend_from_slice(&blocks[by * row + x0 * bytes..by * row + x1 * bytes]);
+                let line = &blocks[by * row + x0 * bytes..by * row + x1 * bytes];
+                deflate.write_all(line).expect("a vector takes every byte");
             }
-        }
+            deflate.finish().expect("a vector takes every byte")
+        })
+        .collect();
+    let mut out =
+        Vec::with_capacity(records.len() * 4 + records.iter().map(Vec::len).sum::<usize>());
+    let mut end = 0u32;
+    for record in &records {
+        end += record.len() as u32;
+        out.extend_from_slice(&end.to_le_bytes());
+    }
+    for record in records {
+        out.extend_from_slice(&record);
     }
     out
 }

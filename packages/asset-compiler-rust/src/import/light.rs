@@ -25,7 +25,8 @@ pub(crate) struct LightSource {
     /// Shadow flag of formats that carry one; absent when the source says nothing,
     /// and the compiler then lets the light cast its shadow.
     pub(crate) casts_shadow: Option<bool>,
-    /// Radius of the emissive envelope the source declares, in world metres.
+    /// Radius of the emissive envelope the source declares, in world metres; written only when
+    /// finite and positive.
     pub(crate) emitter_radius: Option<f64>,
 }
 
@@ -44,7 +45,8 @@ impl LightSource {
         if let Some(shadow) = self.casts_shadow {
             extras.insert("castsShadow".into(), json!(shadow));
         }
-        if let Some(radius) = self.emitter_radius {
+        // A radius that is not finite and positive describes no envelope: the compiler derives one.
+        if let Some(radius) = self.emitter_radius.filter(|r| r.is_finite() && *r > 0.0) {
             extras.insert("emitterRadius".into(), json!(radius));
         }
         if !extras.is_empty() {

@@ -7,9 +7,11 @@ use split::Region;
 use std::{fmt::Write as _, ops::Range};
 
 mod cells;
+mod page;
 mod read;
 mod rows;
 pub(crate) use cells::*;
+pub(crate) use page::*;
 pub(crate) use read::*;
 pub(crate) use rows::*;
 
@@ -35,33 +37,10 @@ pub(crate) const CELL_PAGES: Kind = Kind {
     records: "cells",
 };
 
-/// Writes `body` as a page of `kind` in `directory`, boxed by the union of `boxes`; its slot.
-pub(crate) fn write_page(
-    kind: &Kind,
-    directory: &Path,
-    body: &Value,
-    boxes: &[Box6],
-) -> Result<String> {
-    let bytes = serde_json::to_vec(body)?;
-    let sha256 = hash(&bytes);
-    atomic(
-        &directory.join(format!("{}{sha256}.json", kind.prefix)),
-        &bytes,
-    )?;
-    let mut bounds = EMPTY_FLAT;
-    for record in boxes {
-        grow_flat(&mut bounds, record);
-    }
-    let mut slot = format!("{sha256}{:08x}", bytes.len());
-    for value in bounds {
-        write!(slot, "{:016x}", value.to_bits()).expect("a string takes any write");
-    }
-    Ok(slot)
-}
-
-/// The region page over a range of records, its version aside; `true` when it is written, not
-/// only measured: only then does it write the files beside it.
-pub(crate) type Leaf<'a> = dyn Fn(Range<usize>, bool) -> Result<Value> + 'a;
+/// The region page over a range of records, its version aside: measured, given `None`; given the
+/// page measured, the page written, as is or finished by the files it writes beside it — only
+/// then does it write them.
+pub(crate) type Leaf<'a> = dyn Fn(Range<usize>, Option<Value>) -> Result<Value> + 'a;
 /// What an index page and the root list beside each page they name, from that page's range of
 /// records, under `parents`: for the cell index, the core parents its cells hang under.
 pub(crate) type Beside<'a> = dyn Fn(Range<usize>) -> String + 'a;
@@ -82,6 +61,8 @@ pub(crate) struct Pager<'a> {
     beside: Option<&'a Beside<'a>>,
     /// Whether each range measured is a region page.
     measured: BTreeMap<(usize, usize), bool>,
+    /// The region pages measured and not yet written: each is written as it was measured.
+    bodies: BTreeMap<(usize, usize), Value>,
     /// Every page written and its slot, a region page with the records it lists: the region pages
     /// in record order, each index page after the pages it lists.
     pub written: Vec<(Option<Range<usize>>, String)>,
@@ -100,7 +81,7 @@ impl<'a> Pager<'a> {
     ) -> Result<Self> {
         let mut starts = vec![0];
         for record in records {
-            starts.push(starts[starts.len() - 1] + serde_json::to_vec(record)?.len() + 1);
+            starts.push(starts[starts.len() - 1] + json_len(record)? + 1);
         }
         let mut pager = Pager {
             kind,
@@ -111,21 +92,23 @@ impl<'a> Pager<'a> {
             leaf,
             beside,
             measured: BTreeMap::new(),
+            bodies: BTreeMap::new(),
             written: Vec::new(),
         };
-        pager.empty = serde_json::to_vec(&pager.region(0..0, false)?)?.len();
+        pager.empty = json_len(&pager.region(0..0, None)?)?;
         Ok(pager)
     }
 
-    /// The region page over `records`, its version stamped; its files written when `written`.
-    fn region(&self, records: Range<usize>, written: bool) -> Result<Value> {
-        let mut body = (self.leaf)(records, written)?;
+    /// The region page over `records`, its version stamped; given its `measured` page, written.
+    fn region(&self, records: Range<usize>, measured: Option<Value>) -> Result<Value> {
+        let mut body = (self.leaf)(records, measured)?;
         body["version"] = json!(self.kind.version);
         Ok(body)
     }
 
     /// Whether `region` is a region page: one record, or records whose page fits `PAGE_BYTES`. Its
-    /// page is measured once, and only when its records and the commas between them would fit.
+    /// page is measured once, and only when its records and the commas between them would fit;
+    /// one that fits is kept for `write`.
     fn fits(&mut self, region: &Region) -> Result<bool> {
         let (cells, one) = (&region.cells, region.halves.is_none());
         let key = (cells.start, cells.end);
@@ -134,8 +117,14 @@ impl<'a> Pager<'a> {
         }
         let least = self.empty + self.starts[cells.end] - self.starts[cells.start];
         let fits = one
-            || least.saturating_sub(1) <= PAGE_BYTES
-                && serde_json::to_vec(&self.region(cells.clone(), false)?)?.len() <= PAGE_BYTES;
+            || least.saturating_sub(1) <= PAGE_BYTES && {
+                let body = self.region(cells.clone(), None)?;
+                let fits = json_len(&body)? <= PAGE_BYTES;
+                if fits {
+                    self.bodies.insert(key, body);
+                }
+                fits
+            };
         self.measured.insert(key, fits);
         Ok(fits)
     }
@@ -173,7 +162,11 @@ impl<'a> Pager<'a> {
         let leaf = self.fits(region)?;
         let mut body = json!({"version": self.kind.version});
         if leaf {
-            body = self.region(cells.clone(), true)?;
+            let measured = match self.bodies.remove(&(cells.start, cells.end)) {
+                Some(measured) => measured,
+                None => self.region(cells.clone(), None)?,
+            };
+            body = self.region(cells.clone(), Some(measured))?;
         } else {
             let (slots, listed) = self.slots(region)?;
             body["pages"] = json!(slots);

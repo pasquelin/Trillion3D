@@ -6,9 +6,9 @@
 //! compiler reads. Format-independent: only population depends on format.
 //! Nothing written alongside source.
 use super::*;
+use crate::plugins::scene::corners::Corners;
 use crate::plugins::scene::{scene_output_fields, SceneOutput};
 pub(crate) mod media;
-pub(crate) use media::readable;
 
 use crate::gltf_codes::DEFAULT_FILTER;
 
@@ -50,10 +50,38 @@ impl SceneTables {
     pub(crate) fn count(&mut self, what: &'static str, by: usize) {
         *self.counts.entry(what).or_insert(0) += by;
     }
+    /// Adds a light to the `KHR_lights_punctual` table and returns its rank: the one way every
+    /// driver writes a light, in the extension's own fields (`LightSource::json`).
+    pub(crate) fn light(&mut self, source: &crate::import::LightSource) -> usize {
+        self.lights.push(source.json());
+        self.lights.len() - 1
+    }
     /// Adds node and returns rank.
     pub(crate) fn node(&mut self, node: Value) -> usize {
         self.nodes.push(node);
         self.nodes.len() - 1
+    }
+    /// Adds mesh of `triangles` triangles and returns rank.
+    pub(crate) fn mesh(&mut self, mesh: Value, triangles: usize) -> usize {
+        self.meshes.push(mesh);
+        self.mesh_triangles.push(triangles);
+        self.meshes.len() - 1
+    }
+    /// Adds mesh `name` of the primitives its parts yielded, each with its triangle count, and
+    /// returns rank; a mesh none of whose parts yielded one is counted as `refused`, not added.
+    pub(crate) fn mesh_of_parts(
+        &mut self,
+        name: &str,
+        parts: Vec<(Value, usize)>,
+        refused: &str,
+    ) -> Option<usize> {
+        if parts.is_empty() {
+            self.report.add(refused);
+            return None;
+        }
+        let triangles = parts.iter().map(|(_, count)| count).sum();
+        let primitives: Vec<Value> = parts.into_iter().map(|(primitive, _)| primitive).collect();
+        Some(self.mesh(json!({"name": name, "primitives": primitives}), triangles))
     }
     /// Sampler per repeat mode pair, filtered as glTF default.
     /// Format clamping one axis and repeating other carries two modes: confusing them
@@ -103,6 +131,11 @@ impl SceneTables {
         self.key_material
             .push_str(&format!("\n{name}:{bytes}:{digest}"));
     }
+    /// `read_file` of a source `file`, named by its file name.
+    pub(crate) fn read_source(&mut self, file: &Path, bytes: usize, digest: &str) {
+        let name = file.file_name().unwrap_or_default().to_string_lossy();
+        self.read_file(&name, bytes, digest);
+    }
     /// Notes driver-imported model: cache folder key is already fingerprint
     /// of its bytes, reused directly without re-reading file.
     pub(crate) fn read_model(&mut self, name: &str, plugin: &str, key: &str) {
@@ -112,12 +145,15 @@ impl SceneTables {
     }
 
     /// A driver's material part written as a primitive, with its triangle count; `None` when
-    /// the part drew no triangle.
-    pub(crate) fn part_primitive(
+    /// the part drew no triangle. The faces its cut had to fan are counted (`NGON_UNCUT`).
+    pub(crate) fn part_primitive<K>(
         &mut self,
-        out: &Vertices,
+        corners: Corners<K>,
         material: Option<usize>,
     ) -> Option<(Value, usize)> {
+        let uncut = crate::plugins::scene::codes::NGON_UNCUT;
+        self.report.add_count(uncut, corners.uncut);
+        let out = &corners.vertices;
         if out.indices.is_empty() {
             return None;
         }

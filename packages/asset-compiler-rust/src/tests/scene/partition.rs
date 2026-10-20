@@ -67,18 +67,13 @@ pub(super) fn cells(directory: &Path) -> Vec<Value> {
     records.into_values().collect()
 }
 
-#[test]
-fn a_scene_whose_placements_fit_one_unit_keeps_its_node_table_whole() {
-    let (_root, tables, dir) = compiled(grid(4, 4.0, 1.0), false);
-    assert_eq!(tables["version"], json!(7));
-    // Every node is in the core: the tables name the pages of every mesh they draw (#751).
-    super::mesh_pages::assert_mesh_pages(&dir, &tables);
-    assert_eq!(
-        tables["partition"],
-        Value::Null,
-        "nothing to read by distance"
-    );
-    assert_eq!(tables["nodes"].as_array().expect("nodes").len(), 16);
+/// Every node the cells of the tables in `directory` place, cell after cell: its core parent, its
+/// mesh and its pose, as a cell writes it.
+pub(in crate::tests) fn cell_nodes(directory: &Path) -> Vec<Value> {
+    let cell = |record: Value| read_json(&directory.join(record["url"].as_str().expect("url")));
+    (cells(directory).into_iter().map(cell))
+        .flat_map(|body| body["nodes"].as_array().expect("nodes").clone())
+        .collect()
 }
 
 #[test]

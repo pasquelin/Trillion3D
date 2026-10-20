@@ -9,7 +9,7 @@ fn budget(cancelled: &AtomicBool) -> Budget<'_> {
 pub(super) fn box_source() -> (Value, Binary) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/formats/gltf/compressed-box");
-    let g = serde_json::from_slice(&fs::read(root.join("Box.gltf")).unwrap()).unwrap();
+    let g = crate::tests::fixtures::read_json(&root.join("Box.gltf"));
     (g, Binary::Owned(fs::read(root.join("Box.bin")).unwrap()))
 }
 #[test]
@@ -55,7 +55,7 @@ fn draco_reference_box_reaches_existing_accessors() {
         );
         assert!((length - 1.).abs() < 0.02);
     }
-    for ids in indices.collect_u32().unwrap().chunks_exact(3) {
+    for ids in indices.collect_u32().unwrap().as_chunks::<3>().0 {
         assert!(ids.iter().all(|&i| i < 24));
         assert!(ids[0] != ids[1] && ids[1] != ids[2] && ids[2] != ids[0]);
     }

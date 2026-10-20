@@ -103,8 +103,9 @@ fn thin_strip(seed: u64) -> Case {
 }
 
 /// Parallel slats a quad wide, disjoint, each short enough that a cluster spans several: the
-/// group borders cut the slats and lock their vertices.
-fn slats(seed: u64) -> Case {
+/// group borders cut the slats and lock their vertices, and the last groups keep more vertices
+/// than a cluster holds however few triangles they keep (`dag::solved`, `vertex_target`).
+pub(super) fn slats(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let (count, length) = (rng.between(48, 96), rng.between(24, 48));
     let (mut positions, mut indices) = (Vec::new(), Vec::new());

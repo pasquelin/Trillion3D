@@ -32,9 +32,7 @@ impl<'a> Iterator for Chunks<'a> {
     type Item = (&'a [u8], &'a [u8]);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let head = self.rest.get(..CHUNK_HEADER)?;
-        let length =
-            usize::try_from(u32::from_be_bytes([head[0], head[1], head[2], head[3]])).ok()?;
+        let length = usize::try_from(crate::le::be32_at(self.rest, 0)?).ok()?;
         let end = CHUNK_HEADER.checked_add(length)?;
         let data = self.rest.get(CHUNK_HEADER..end)?;
         let kind = &self.rest[4..CHUNK_HEADER];

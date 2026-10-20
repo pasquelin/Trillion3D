@@ -3,8 +3,11 @@
 //! pages hold, every page and sidecar of the manifest against its slot, every object it names against its
 //! content-addressed name, every baked texture level it names by its presence.
 use super::*;
-use compiler_manifest_pages::{read_manifest, Paged};
+use compiler_manifest_pages::read_manifest;
 use compiler_reuse::{Check, Reused};
+
+mod textures;
+pub(super) use textures::check_textures;
 
 /// The folder under `key`, checked head to objects. The first failed check names
 /// the reason and stops the proof: the job then recompiles.
@@ -23,33 +26,42 @@ pub(super) fn prove(
     if !o.cache.join(cutout::DECISIONS_FILE).is_file() {
         return Err("cutout answer sheet is missing".into());
     }
-    // Objects live in the sidecar columns alone, each sidecar proven as its page is read, and
-    // read once: the digests and levels proven are what prune keeps.
-    let Paged { manifest, sidecars } = read_manifest(directory, &root)?;
-    let (mut objects, mut levels) = (BTreeSet::new(), Vec::new());
-    for sidecar in &sidecars {
-        objects.extend(manifest_binary::digests(sidecar).map_err(|e| e.message)?);
-        levels.extend(manifest_binary::texture_levels(sidecar).map_err(|e| e.message)?);
+    // The objects are named by the manifest's head by the rule prune keeps them by
+    // (`object_descriptors`), the chains by the sidecar columns (`baked_chains`), each sidecar proven as its page is read, and read once: the digests and
+    // levels proven are what prune keeps.
+    let paged = read_manifest(directory, &root)?;
+    let levels = compiler_prune::baked_chains(&paged).map_err(|e| e.message)?;
+    let manifest = paged.manifest;
+    let mut objects = BTreeMap::new();
+    for descriptor in compiler_prune::object_descriptors(&manifest) {
+        // A digest forms a path, and the proof removes an object that does not hash to it.
+        let sha256 = (descriptor["sha256"].as_str())
+            .filter(|sha256| manifest_binary::is_digest(sha256))
+            .ok_or("an object is not named by a digest")?;
+        let bytes = objects.entry(sha256.to_string()).or_insert(None);
+        *bytes = bytes.or(descriptor["bytes"].as_u64());
     }
     let record = manifest[compiler_publish::FILES_FIELD].as_object().cloned();
     let mut files = compiler_tables::cell_records(directory)?; // The manifest's records win.
     files.extend(record.ok_or("manifest records no files")?);
     let mut items = record_items(directory, &files)?;
     let files = items.len();
-    items.extend(objects.iter().map(|digest| Item {
+    items.extend(objects.iter().map(|(digest, &bytes)| Item {
         path: object_path(o, digest),
         sha256: digest.clone(),
-        bytes: None,
+        bytes,
         what: format!("object {digest}"),
     }));
     let sizes = prove_all(o, pool, &items)?;
     let (file_bytes, object_bytes) = sizes.split_at(files);
-    let native = o.cache.join("native");
-    let texture_levels = check_textures(&native, &manifest, &levels)?;
+    let texture_levels = check_textures(&native_dir(&o.cache), &manifest, &levels)?;
     let textures = levels.into_iter().map(|level| level.sha256).collect();
     Ok(Reused {
         report: json!({"files":files,"fileBytes":file_bytes.iter().sum::<u64>(),"objects":objects.len(),"objectBytes":object_bytes.iter().sum::<u64>(),"textureLevels":texture_levels}),
-        keep: Keep { objects, textures },
+        keep: Keep {
+            objects: objects.into_keys().collect(),
+            textures,
+        },
         manifest,
         format,
     })
@@ -114,8 +126,9 @@ fn record_items(directory: &Path, files: &serde_json::Map<String, Value>) -> Che
         .collect()
 }
 
-/// One file against its fingerprint and, when recorded, its size, in a single
-/// read pass. Returns the size read.
+/// One file against its size, when recorded, then its fingerprint: a file of
+/// another size is refused on its metadata, never read; one that does not hash to
+/// its fingerprint is removed. Returns the size read.
 fn proven(o: &Options, item: &Item) -> Check<u64> {
     check(o).map_err(|e| e.message)?;
     let Item {
@@ -124,21 +137,29 @@ fn proven(o: &Options, item: &Item) -> Check<u64> {
         bytes,
         what,
     } = item;
-    let (found, size) = hash_file_sized(path).map_err(|e| format!("{what}: {e}"))?;
-    if bytes.is_some_and(|expected| expected != size) {
-        return Err(format!(
-            "{what} is {size} bytes, not what the manifest recorded"
-        ));
+    if let Some(expected) = *bytes {
+        let size = fs::metadata(path)
+            .map_err(|e| format!("{what}: {e}"))?
+            .len();
+        if size != expected {
+            return Err(format!(
+                "{what} is {size} bytes, not what the manifest recorded"
+            ));
+        }
     }
+    let (found, size) = hash_file_sized(path).map_err(|e| format!("{what}: {e}"))?;
     if found != *sha256 {
+        // The store trusts an object by its name and length: one that rotted in place goes, so the
+        // compile that follows writes it again instead of keeping it.
+        let _ = fs::remove_file(path);
         return Err(format!("{what} does not match its fingerprint"));
     }
     Ok(size)
 }
 
 /// Every item side by side on the job's pool, once for files and objects alike:
-/// the same check the compile path applies before it reuses an object
-/// (`compiler_page_object.rs`). Returns the sizes, in item order.
+/// hashed whole, where the compile path trusts an object by its name and length
+/// (`compiler_storage::store_digest`). Returns the sizes, in item order.
 fn prove_all(o: &Options, pool: &rayon::ThreadPool, items: &[Item]) -> Check<Vec<u64>> {
     pool.install(|| {
         items
@@ -146,52 +167,4 @@ fn prove_all(o: &Options, pool: &rayon::ThreadPool, items: &[Item]) -> Check<Vec
             .map(|item| proven(o, item))
             .collect::<Check<_>>()
     })
-}
-
-/// Every baked level the sidecar names, by presence: the compile path trusts a
-/// level file by its name too — the source-image fingerprint and the atlas say
-/// what it holds. A bake the compile could not finish — a level that failed to
-/// write leaves `baked` under `first`, and the report says so — is not proven: the
-/// compile path would bake it again, the reuse never would. Several textures
-/// read one image, so a level file is counted once. Returns the files found.
-pub(super) fn check_textures(
-    native: &Path,
-    manifest: &Value,
-    levels: &[manifest_binary::BakedLevels],
-) -> Check<usize> {
-    if !manifest["texturePreviews"]["notes"][texture_preview::LEVEL_WRITE_FAILED].is_null() {
-        return Err("a texture level failed to write when the folder was compiled".into());
-    }
-    let mut files = BTreeSet::new();
-    for entry in levels {
-        let kind = texture_preview::AtlasKind::from_word(entry.kind)
-            .ok_or(format!("sidecar names atlas {}", entry.kind))?;
-        if entry.baked < entry.first {
-            return Err(format!("texture {} was not fully baked", entry.sha256));
-        }
-        let mut formats = vec![texture_preview::LOSSLESS];
-        for (family, word) in texture_preview::BlockFormat::ALL.iter().zip(entry.layouts) {
-            match texture_preview::Layout::from_word(word) {
-                Some(Some(layout)) => formats.push(family.file_name(layout)),
-                Some(None) => {}
-                None => return Err(format!("sidecar names layout {word}")),
-            }
-        }
-        for level in 0..entry.baked {
-            for format in &formats {
-                files.insert(texture_preview::level_path(
-                    &entry.sha256,
-                    kind,
-                    level,
-                    format,
-                ));
-            }
-        }
-    }
-    for file in &files {
-        if !native.join(file).is_file() {
-            return Err(format!("texture level {file} is missing"));
-        }
-    }
-    Ok(files.len())
 }

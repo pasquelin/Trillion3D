@@ -7,16 +7,16 @@
 //! not convert, it says rather than hiding. Descent continues under a skipped object: only an
 //! `Xform` carries a transform, so nothing is moved by walking through it.
 use super::archive::{Archive, Object, MAX_DEPTH};
-use super::geom::Geometry;
 use super::kind::{kind_of, Kind};
-use super::mesh::{parts, FaceSet};
-use super::property::{Properties, POD_BOOL, POD_F64, POD_I32, POD_U8};
+use super::property::{Properties, POD_BOOL, POD_F64, POD_U8};
 use super::scene::Scene;
-use super::values::{f64s, i32s};
 use super::xform;
+use crate::le::words;
 use crate::Result;
 use serde_json::json;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+
+mod surface;
 
 /// What a walk has at hand.
 pub(super) struct World<'a> {
@@ -45,7 +45,7 @@ impl World<'_> {
                 .add(crate::plugins::scene::codes::HIERARCHY_TOO_DEEP);
             return Ok(Vec::new());
         }
-        if self.cancelled.load(Ordering::Relaxed) {
+        if crate::plugins::scene::cancel::raised(self.cancelled) {
             return Ok(Vec::new());
         }
         let kind = kind_of(&object.meta);
@@ -81,14 +81,13 @@ impl World<'_> {
             let ops = properties.sample(self.archive, ".ops", POD_U8, None)?;
             let values = properties.sample(self.archive, ".vals", POD_F64, None)?;
             self.animated(&properties, ".vals");
-            let matrix = xform::matrix(ops.unwrap_or_default(), &f64s(values.unwrap_or_default()))?;
-            if matrix != trillion3d_math::matrix::IDENTITY && xform::is_finite(&matrix) {
+            let matrix = xform::matrix(
+                ops.unwrap_or_default(),
+                &words(values.unwrap_or_default(), f64::from_le_bytes).collect::<Vec<_>>(),
+            )?;
+            let report = &mut self.scene.tables.report;
+            if let Some(matrix) = crate::plugins::scene::axes::node_matrix(matrix, report) {
                 node["matrix"] = json!(matrix);
-            } else if !xform::is_finite(&matrix) {
-                self.scene
-                    .tables
-                    .report
-                    .add(crate::plugins::scene::codes::TRANSFORM_INVALID);
             }
             inherits = properties
                 .sample(self.archive, ".inherits", POD_BOOL, Some(1))?
@@ -109,101 +108,6 @@ impl World<'_> {
             .report
             .add("alembic-transform-not-inherited");
         Ok(Vec::new())
-    }
-
-    /// The node of a mesh: its surface split by its face sets, and what it attaches.
-    fn mesh_node(
-        &mut self,
-        object: &Object,
-        kind: Kind,
-        children: &[Object],
-        attached: Vec<usize>,
-    ) -> Result<Vec<usize>> {
-        if kind == Kind::SubD {
-            self.scene.tables.report.add("alembic-subd-as-polygons");
-        }
-        let Some(geom) = self
-            .top(object)?
-            .map(|top| top.compound(self.archive, ".geom"))
-            .transpose()?
-            .flatten()
-        else {
-            self.scene
-                .tables
-                .report
-                .add(crate::plugins::scene::codes::MESH_INVALID);
-            return Ok(attached);
-        };
-        self.animated(&geom, "P");
-        let Some(geometry) = Geometry::read(self.archive, &geom)? else {
-            self.scene
-                .tables
-                .report
-                .add(crate::plugins::scene::codes::MESH_INVALID);
-            return Ok(attached);
-        };
-        for reason in &geometry.dropped {
-            self.scene.tables.report.add(reason);
-        }
-        if geometry.normals.is_none() {
-            self.scene.tables.report.add("alembic-normals-missing");
-        }
-        let facesets = self.facesets(children)?;
-        let (parts, counted) = parts(&geometry, &facesets, self.cancelled)?;
-        self.scene
-            .tables
-            .report
-            .add_count("alembic-face-in-two-facesets", counted.overlaps);
-        self.scene.tables.report.add_count(
-            crate::plugins::scene::codes::DEGENERATE_FACE,
-            counted.degenerate,
-        );
-        self.scene
-            .tables
-            .report
-            .add_count(crate::plugins::scene::codes::NGON_UNCUT, counted.uncut);
-        if parts.is_empty() {
-            self.scene
-                .tables
-                .report
-                .add(crate::plugins::scene::codes::MESH_EMPTY);
-            return Ok(attached);
-        }
-        let mesh = self.scene.mesh(&object.name, &parts, &facesets);
-        let mut node = json!({ "name": object.name, "mesh": mesh });
-        if !attached.is_empty() {
-            node["children"] = json!(attached);
-        }
-        self.scene.tables.count("meshInstances", 1);
-        self.scene.tables.count("faceSets", facesets.len());
-        Ok(vec![self.scene.tables.node(node)])
-    }
-
-    /// The face sets of a mesh, in the order the file declares them.
-    fn facesets(&mut self, children: &[Object]) -> Result<Vec<FaceSet>> {
-        let mut out = Vec::new();
-        for child in children
-            .iter()
-            .filter(|c| kind_of(&c.meta) == Kind::FaceSet)
-        {
-            let Some(faces) = self
-                .top(child)?
-                .map(|top| top.compound(self.archive, ".faceset"))
-                .transpose()?
-                .flatten()
-                .map(|properties| properties.sample(self.archive, ".faces", POD_I32, Some(1)))
-                .transpose()?
-                .flatten()
-            else {
-                self.scene.tables.report.add("alembic-faceset-invalid");
-                continue;
-            };
-            out.push(FaceSet {
-                name: child.name.clone(),
-                faces: i32s(faces),
-            });
-        }
-        Ok(out)
     }
 
     /// A property with several samples is animated: this driver reads the first and says so.

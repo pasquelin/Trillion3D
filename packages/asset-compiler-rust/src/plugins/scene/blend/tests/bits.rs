@@ -11,7 +11,7 @@ const ROOF: &str = "d69cd9fe25f1404f21749971265c8e853e7c098b623e939dcc4793120382
 /// SHA-256 of the bits, in order: one string that moves with any of them.
 fn digest(bits: impl IntoIterator<Item = u32>) -> String {
     let bytes: Vec<u8> = bits.into_iter().flat_map(u32::to_le_bytes).collect();
-    crate::compiler_validate::hash(&bytes)
+    crate::compiler_digest::hash(&bytes)
 }
 
 /// The fixture with all edges soft and each object posed in its own rotation mode: quaternion,
@@ -53,9 +53,7 @@ fn posed() -> Vec<u8> {
 fn written_bits(bytes: &[u8]) -> Vec<u32> {
     let (root, directory) = output::converted(bytes, "bits-poses", RAM_BUDGET);
     let directory = directory.expect("conversion");
-    let gltf: Value =
-        serde_json::from_slice(&fs::read(directory.join("model.gltf")).expect("gltf"))
-            .expect("gltf");
+    let gltf = read_json(&directory.join("model.gltf"));
     let uri = gltf["buffers"][0]["uri"].as_str().expect("the binary");
     let bin = fs::read(directory.join(uri)).expect("the binary");
     fs::remove_dir_all(&root).expect("cleanup");
@@ -69,18 +67,11 @@ fn written_bits(bytes: &[u8]) -> Vec<u32> {
         .collect();
     let parts = gltf["meshes"].as_array().expect("meshes").iter();
     for part in parts.flat_map(|mesh| mesh["primitives"].as_array().expect("primitives")) {
-        let accessor =
-            &gltf["accessors"][part["attributes"]["NORMAL"].as_u64().expect("NORMAL") as usize];
-        let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("view") as usize];
-        let from = (view["byteOffset"].as_u64().unwrap_or(0)
-            + accessor["byteOffset"].as_u64().unwrap_or(0)) as usize;
-        let count = accessor["count"].as_u64().expect("count") as usize * 3;
+        let rank = part["attributes"]["NORMAL"].as_u64().expect("NORMAL") as usize;
         bits.extend(
-            bin[from..from + count * 4]
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|word| u32::from_le_bytes(*word)),
+            accessor_floats(&gltf, &bin, rank)
+                .into_iter()
+                .map(f32::to_bits),
         );
     }
     bits

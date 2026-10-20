@@ -1,6 +1,6 @@
-//! Prune of baked texture levels: a `textures/<sha>/` folder that no surviving
-//! manifest names goes away, like a page object. Split out of `compiler_prune.rs`
-//! to keep the repository line limit.
+//! Prune of the PNG chains' storage — a texture's levels: a
+//! `textures/<sha>/` folder that no surviving manifest names (`compiler_prune::baked_chains`)
+//! goes away, like an object.
 use super::*;
 
 /// Removes under `native/textures/` every fingerprint folder that `keep` names for

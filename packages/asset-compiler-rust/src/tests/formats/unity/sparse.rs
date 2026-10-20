@@ -3,7 +3,7 @@
 //! of a sparse accessor and a primitive's morph targets would keep naming the model's ranks.
 //! A model alone would then compile, and the same model placed after a built-in cube
 //! — whose views take the first ranks — would be refused or read another mesh's bytes.
-use super::project::{cube, game_object, triangle_bin, white_mat, UnityProject};
+use super::project::{cube, game_object, white_mat, UnityProject};
 use super::*;
 
 const MAT: &str = "000000000000000000000000000000a1";
@@ -80,46 +80,13 @@ fn compile_after_cube(tag: &str) -> (Value, Vec<u8>) {
     (merged, bytes)
 }
 
-/// Bytes of a view.
-fn view_bytes<'a>(gltf: &Value, bin: &'a [u8], view: usize) -> &'a [u8] {
-    let view = &gltf["bufferViews"][view];
-    let at = view["byteOffset"].as_u64().unwrap_or(0) as usize;
-    let length = view["byteLength"].as_u64().expect("byteLength") as usize;
-    &bin[at..at + length]
-}
-
-/// Points of an accessor, its sparse replacement applied: what the format declares,
-/// and what no merge has the right to change.
+/// Points of an accessor, its sparse replacement applied by the compiler's one reader: what the
+/// format declares, and what no merge has the right to change.
 fn resolved(gltf: &Value, bin: &[u8], accessor: usize) -> Vec<[f32; 3]> {
-    let accessor = &gltf["accessors"][accessor];
-    let count = accessor["count"].as_u64().expect("count") as usize;
-    let view = accessor["bufferView"].as_u64().expect("bufferView") as usize;
-    let mut out = float_triples(view_bytes(gltf, bin, view), count);
-    if let Some(sparse) = accessor.get("sparse") {
-        let replaced = sparse["count"].as_u64().expect("sparse.count") as usize;
-        let ranks = view_bytes(
-            gltf,
-            bin,
-            sparse["indices"]["bufferView"]
-                .as_u64()
-                .expect("sparse.indices.bufferView") as usize,
-        );
-        let values = float_triples(
-            view_bytes(
-                gltf,
-                bin,
-                sparse["values"]["bufferView"]
-                    .as_u64()
-                    .expect("sparse.values.bufferView") as usize,
-            ),
-            replaced,
-        );
-        for slot in 0..replaced {
-            let rank = u16::from_le_bytes([ranks[slot * 2], ranks[slot * 2 + 1]]) as usize;
-            out[rank] = values[slot];
-        }
-    }
-    out
+    accessor_floats(gltf, bin, accessor)
+        .as_chunks::<3>()
+        .0
+        .to_vec()
 }
 
 /// Primitive of the mesh poured by the model, in the merged scene.

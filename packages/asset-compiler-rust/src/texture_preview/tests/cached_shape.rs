@@ -27,11 +27,8 @@ fn a_cached_alpha_shape_skips_the_analysis_and_a_miss_measures_the_image() {
         "textures": [{"source": 0}],
         "images": [{"uri": "leaf.png"}],
     });
-    let (meshes, view_map, to_measure) = (
-        BTreeSet::from([0usize]),
-        BTreeMap::new(),
-        BTreeSet::from([0usize]),
-    );
+    let (view_map, to_measure) = (BTreeMap::new(), BTreeSet::from([0usize]));
+    let (used, shas) = read_once(&g, &[], &dir, &BTreeSet::from([0usize]));
     let shape_with = |measurements: &crate::cutout::MeasureCache| {
         let inputs = PreviewInputs {
             o: &o,
@@ -39,10 +36,11 @@ fn a_cached_alpha_shape_skips_the_analysis_and_a_miss_measures_the_image() {
             g: &g,
             bin: &[],
             image_root: &dir,
-            meshes: &meshes,
+            used_materials: &used,
             view_map: &view_map,
             to_measure: &to_measure,
             measurements,
+            image_shas: &shas,
         };
         let (_, shapes, _) = stage_texture_previews(&inputs, &silent).expect("stage");
         bits(&shapes[&0])

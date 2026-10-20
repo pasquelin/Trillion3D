@@ -1,5 +1,5 @@
 //! A primitive's triangles as every reader takes them — the compiler, the physics cook, the
-//! impostor's source and the reference tracer: its float `POSITION` accessor, and its index list —
+//! traced surfaces and the reference tracer: its float `POSITION` accessor, and its index list —
 //! an unsigned `SCALAR` accessor of whole triangles naming vertices `POSITION` carries, or the
 //! positions in order when the primitive has none.
 use super::*;
@@ -59,4 +59,30 @@ pub(crate) fn read<'a>(
         ));
     }
     Ok((positions, index_values, triangle_count))
+}
+
+/// The triangle primitives of mesh `mesh` (mode 4, the default), as declared, each with its index
+/// among the mesh's primitives.
+pub(crate) fn mesh_primitives(
+    g: &Value,
+    mesh: usize,
+) -> Result<impl Iterator<Item = (usize, &Value)>> {
+    let primitives = values(item(values(g, "meshes")?, mesh, "mesh")?, "primitives")?;
+    Ok(primitives
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| p.get("mode").is_none_or(|m| m == 4)))
+}
+
+/// Positions and triangles of every triangle primitive of mesh `mesh`, one list each, a
+/// primitive's indices moved past the positions before its own.
+pub(crate) fn mesh_triangles(g: &Value, bin: &[u8], mesh: usize) -> Result<(Vec<f32>, Vec<u32>)> {
+    let (mut pos, mut triangles) = (Vec::new(), Vec::new());
+    for (_, p) in mesh_primitives(g, mesh)? {
+        let base = (pos.len() / 3) as u32;
+        let (positions, local, _) = read(g, bin, p, None)?;
+        pos.extend(positions.collect_f32()?);
+        triangles.extend(local.iter().map(|i| i + base));
+    }
+    Ok((pos, triangles))
 }

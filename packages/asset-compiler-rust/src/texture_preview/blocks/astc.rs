@@ -43,13 +43,9 @@ pub fn encode(texels: &Texels, segment: Endpoints) -> [u8; 16] {
     let mut at = ENDPOINT_BIT;
     let values: [u8; 8] = std::array::from_fn(|i| if i % 2 == 0 { l0[i / 2] } else { l1[i / 2] });
     ise::append(&mut bits, &mut at, &values);
-    // Weights are read from the top of the block downward, the first at bit 127.
-    for (index, &r) in rung.iter().enumerate() {
-        for bit in 0..3 {
-            if (r >> bit) & 1 == 1 {
-                bits |= 1u128 << (127 - (index as u32 * 3 + bit));
-            }
-        }
+    let mut stream = 0;
+    for &r in &rung {
+        ise::append_weights(&mut bits, &mut stream, r, 3);
     }
     bits.to_le_bytes()
 }

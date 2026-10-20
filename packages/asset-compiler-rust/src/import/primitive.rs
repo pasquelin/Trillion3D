@@ -31,6 +31,23 @@ impl Vertices {
     }
 }
 
+/// What the vertex of a face corner carries, as the scene drivers that build their geometry
+/// read it: a position, a normal and, when the mesh has them, a texture coordinate.
+pub(crate) struct Corner {
+    pub(crate) position: [f32; 3],
+    pub(crate) normal: [f32; 3],
+    pub(crate) uv: Option<[f32; 2]>,
+}
+
+impl Corner {
+    /// Pours the vertex into `out`.
+    pub(crate) fn write(self, out: &mut Vertices) {
+        out.positions.extend(self.position);
+        out.normals.extend(self.normal);
+        out.uvs.extend(self.uv.into_iter().flatten());
+    }
+}
+
 /// Writes vertices into `bin`, pushes accessors, returns citing glTF primitive.
 /// `material` is material index, `None` when primitive has no material.
 ///

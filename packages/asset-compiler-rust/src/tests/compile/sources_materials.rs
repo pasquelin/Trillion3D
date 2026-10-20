@@ -60,9 +60,7 @@ fn compile_accepts_a_gltf_file_path() {
 #[test]
 fn compile_accepts_glb_without_manifest() {
     let (root, options) = fixture();
-    let mut gltf: Value =
-        serde_json::from_slice(&fs::read(options.source.join("mesh.gltf")).expect("read"))
-            .expect("json");
+    let mut gltf: Value = read_json(&options.source.join("mesh.gltf"));
     let bin = fs::read(options.source.join("mesh.bin")).expect("bin");
     gltf["buffers"][0]
         .as_object_mut()
@@ -77,27 +75,29 @@ fn compile_accepts_glb_without_manifest() {
     assert_eq!(result["selectedTriangles"], 1);
     fs::remove_dir_all(root).expect("cleanup");
 }
+/// A transmission is paged as any blend: clusters, a DAG and quantized pages, its draw order kept
+/// by the source rank its pages record.
 #[test]
-fn compile_leaves_transmission_unsplit() {
+fn compile_pages_transmission_as_a_blend() {
     let (root, options) = fixture();
     let mut gltf = read_gltf(&options);
     gltf["materials"] = json!([{"alphaMode":"BLEND","extensions":{"KHR_materials_transmission":{"transmissionFactor":1.0},"KHR_materials_volume":{"thicknessFactor":0.02}}}]);
     gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
     write_gltf(&options, &gltf, None);
     let result = compile(&options, |_| {}).expect("compile");
-    assert_eq!(result["primitives"][0]["pass"], "shared-blend");
-    assert!(result["primitives"][0]["pages"]
+    assert_eq!(result["primitives"][0]["pass"], "clustered-blend");
+    assert!(!result["primitives"][0]["pages"]
         .as_array()
         .expect("pages")
         .is_empty());
-    // No page, no grid: the primitive claims no quantization.
-    assert!(result["primitives"][0]["quantization"].is_null());
+    // Its pages are quantized on the primitive's grid.
+    assert!(!result["primitives"][0]["quantization"].is_null());
     fs::remove_dir_all(root).expect("cleanup");
 }
-/// The four material classes and how each is ranked. Transmission enters through
-/// the same door as skin — a one-piece primitive, outside the DAG — and its
-/// arrival displaces none of the other three: opaque and cutout stay exact
-/// clusters, blend stays clustered. Nothing is read but material properties.
+/// The four material classes and how each is ranked. A transmission, whatever its alpha mode, is
+/// drawn blended, so it is paged as a blend, and its arrival displaces none of the other three:
+/// opaque and cutout stay exact clusters, blend stays clustered. Nothing is read but material
+/// properties.
 #[test]
 fn compile_ranks_every_material_class_by_its_own_property() {
     for (material, pass, paged) in [
@@ -109,9 +109,9 @@ fn compile_ranks_every_material_class_by_its_own_property() {
         ),
         (json!({"alphaMode":"BLEND"}), "clustered-blend", true),
         (
-            json!({"alphaMode":"BLEND","extensions":{"KHR_materials_transmission":{"transmissionFactor":0.6}}}),
-            "shared-blend",
-            false,
+            json!({"extensions":{"KHR_materials_transmission":{"transmissionFactor":0.6}}}),
+            "clustered-blend",
+            true,
         ),
     ] {
         let (root, options) = fixture();
@@ -159,15 +159,11 @@ fn compile_opaque_source_emits_the_base_cache_and_blend_the_next_format() {
     gltf["meshes"][0]["primitives"][0]["material"] = json!(0);
     let source_manifest = write_gltf(&options, &gltf, None);
     let blend = compile(&options, |_| {}).expect("blend compile");
-    assert_eq!(blend["schema"], json!(CLUSTERED_BLEND_FORMAT_VERSION));
     assert_eq!(
         blend["formatVersion"],
         json!(CLUSTERED_BLEND_FORMAT_VERSION)
     );
-    let pointer: Value = serde_json::from_slice(
-        &fs::read(options.cache.join("native/slice/manifest.json")).expect("pointer"),
-    )
-    .expect("json");
+    let pointer: Value = read_json(&options.cache.join("native/slice/manifest.json"));
     assert_eq!(
         pointer["formatVersion"],
         json!(CLUSTERED_BLEND_FORMAT_VERSION)

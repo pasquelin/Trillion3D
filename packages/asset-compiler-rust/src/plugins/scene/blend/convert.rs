@@ -11,7 +11,7 @@ use crate::import::SceneTables;
 /// Reads the file and writes its conversion into the cache. Nothing is written next to the source.
 pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Result<PathBuf> {
     let started = Instant::now();
-    let source = single(request.inputs)?;
+    let source = single_input(request.inputs, NAME, ".blend")?;
     // The file is mapped, never copied: its pages stay the system's to evict. The job's RAM budget
     // bounds what is decoded from it — the unpacked bytes of a wrapped file, then the scene binary.
     let raw = crate::map_source(source)?;
@@ -48,9 +48,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
     let active = active::objects(&file);
     let mut outside = 0;
     for block in file.of(*b"OB\0\0") {
-        if request.cancelled.load(Ordering::Relaxed) {
-            return Err(cancel::refusal());
-        }
+        cancel::check(request.cancelled)?;
         let Some(object) = file.view(block) else {
             continue;
         };
@@ -70,10 +68,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         .add_count("blend-object-outside-scene", outside);
     // The key holds the digest of the file read: an unchanged file is rewritten identically, at
     // the same place.
-    scene
-        .out
-        .scene
-        .read_file(&name_of(source), raw.len(), &digest);
+    scene.out.scene.read_source(source, raw.len(), &digest);
     super::finish(
         scene.out.scene,
         request,
@@ -82,26 +77,6 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         started,
         &format!("blend: {} carries no mesh object", source.display()),
     )
-}
-
-/// The file to compile. Two `.blend` in a directory is an ambiguity the driver does not settle
-/// in the caller's place.
-fn single(inputs: &[PathBuf]) -> Result<&Path> {
-    match inputs {
-        [one] => Ok(one.as_path()),
-        [] => Err(CompilerError::new(
-            "SOURCE_FORMAT_UNKNOWN",
-            "blend: no .blend file in this source",
-        )),
-        many => Err(CompilerError::new(
-            "SOURCE_FORMAT_AMBIGUOUS",
-            format!(
-                "blend: this directory carries {} .blend files ({}); name the one to compile by giving its file as the source",
-                many.len(),
-                many.iter().map(name_of).collect::<Vec<String>>().join(", ")
-            ),
-        )),
-    }
 }
 
 fn name_of(path: impl AsRef<Path>) -> String {

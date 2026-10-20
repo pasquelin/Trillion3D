@@ -108,7 +108,7 @@ fn a_dense_convex_mesh_is_cut_into_closed_pieces() {
         }
     }
     let root = std::path::Path::new(env!("OUT_DIR")).join(format!("sphere-{}", std::process::id()));
-    let o = crate::texture_preview::tests::options(&root);
+    let o = crate::tests::fixtures::options_in(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
     // Positions of another mesh sharing the accessor, used by no triangle: never a seed's corner.
     pos.extend(vec![10.0f32; 300_000]);

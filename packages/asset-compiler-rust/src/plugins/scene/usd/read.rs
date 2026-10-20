@@ -107,6 +107,12 @@ pub(super) fn integers(value: &sdf::Value) -> Option<Vec<i64>> {
     })
 }
 
+/// An attribute of `prim` read as `text` (`first`, sampled or not) — `subdivisionScheme`,
+/// `orientation`, `info:id`, a wrap mode.
+pub(super) fn text_attribute(prim: &usd::Prim, name: &str) -> Option<String> {
+    first(&prim.attribute(name)).and_then(|(value, _)| text(&value))
+}
+
 /// Text: a token or a string, which USD uses one for the other depending on the schemas.
 pub(super) fn text(value: &sdf::Value) -> Option<String> {
     Some(match value {

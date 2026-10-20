@@ -23,15 +23,16 @@ pub(super) fn sampler(world: &mut World<'_>, shader: &usd::Prim) -> usize {
 /// Wrap mode of one axis. `black` borders the image with transparent and `useMetadata` lets the
 /// file decide: glTF has neither, the texture repeats and the count says so.
 fn wrap(world: &mut World<'_>, shader: &usd::Prim, axis: &str) -> u32 {
-    let mode = read::first(&shader.attribute(axis))
-        .and_then(|(value, _)| read::text(&value))
-        .unwrap_or_default();
+    let mode = read::text_attribute(shader, axis).unwrap_or_default();
     match mode.as_str() {
         "clamp" => CLAMP_TO_EDGE,
         "mirror" => MIRRORED_REPEAT,
         "" | "repeat" => REPEAT,
         _ => {
-            world.refuse(crate::plugins::scene::codes::TEXTURE_WRAP_UNSUPPORTED);
+            world
+                .scene
+                .report
+                .add(crate::plugins::scene::codes::TEXTURE_WRAP_UNSUPPORTED);
             REPEAT
         }
     }
@@ -64,14 +65,13 @@ fn channels(shader: &usd::Prim, name: &str, neutral: f64) -> [f64; 4] {
 /// read as linear lightens the surface, a datum read as a colour curves it. The driver does not
 /// re-encode the bytes; it counts the mismatch.
 pub(super) fn colour_space(world: &mut World<'_>, shader: &usd::Prim, colour: bool) {
-    let declared = read::first(&shader.attribute("inputs:sourceColorSpace"))
-        .and_then(|(value, _)| read::text(&value));
+    let declared = read::text_attribute(shader, "inputs:sourceColorSpace");
     let contrary = match declared.as_deref() {
         Some(RAW) => colour,
         Some(SRGB) => !colour,
         _ => false,
     };
     if contrary {
-        world.refuse(world::TEXTURE_COLOUR_SPACE);
+        world.scene.report.add(world::TEXTURE_COLOUR_SPACE);
     }
 }

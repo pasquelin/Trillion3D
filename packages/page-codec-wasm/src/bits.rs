@@ -9,7 +9,7 @@ mod log2;
 mod oct;
 mod quant;
 pub(crate) use oct::oct_decode_stream;
-pub use quant::{dequant, quantization_error, quantize, Quant, QuantRefusal};
+pub use quant::{dequant, grid_cell, quantization_error, quantize, Quant, QuantRefusal};
 
 /// Widest field of the format: a 24-bit field read at any bit offset spans two words at most.
 pub const MAX_BITS: u32 = 24;

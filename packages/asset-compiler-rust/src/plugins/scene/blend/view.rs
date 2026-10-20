@@ -105,11 +105,7 @@ impl<'a> At<'a> {
         } else {
             bytes
         };
-        let end = bytes
-            .iter()
-            .position(|byte| *byte == 0)
-            .unwrap_or(bytes.len());
-        String::from_utf8_lossy(&bytes[..end]).into_owned()
+        String::from_utf8_lossy(crate::le::until_nul(bytes)).into_owned()
     }
     /// A nested structure, typed by the type the SDNA gives the field.
     pub(super) fn inner(&self, name: &str) -> Option<At<'a>> {

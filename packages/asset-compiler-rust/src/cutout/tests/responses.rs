@@ -1,6 +1,8 @@
 //! Answer reading, and what an answer changes in scene.
 use super::*;
 use crate::tests::directories::scratch;
+use crate::tests::textures::previews_source::encode;
+use crate::texture_preview::{collect, source};
 
 fn write_sheet(directory: &Path, sheet: &Value) {
     fs::write(
@@ -23,7 +25,11 @@ fn scene() -> (Value, Vec<u8>, String) {
 }
 
 fn appliquer(g: &mut Value, bin: &[u8], decisions: &mut Decisions) -> CutoutApplied {
-    apply_decisions(g, bin, Path::new("."), &BTreeSet::from([0usize]), decisions).expect("apply")
+    let root = Path::new(".");
+    let used = collect::used_materials(g, &BTreeSet::from([0usize])).expect("used");
+    let shas = source::ImageShas::of(g, bin, root, &used);
+    let o = crate::tests::fixtures::options_in(root);
+    apply_decisions((&o, 0), g, (bin, root), (&used, &shas), decisions).expect("apply")
 }
 
 /// Writes a sheet answering `cutout` for the texture `sha`, reads it back and applies it.
@@ -38,12 +44,9 @@ fn answer(directory: &Path, g: &mut Value, bin: &[u8], sha: &str, cutout: bool) 
 
 /// The scene with its image the PNG of a `side`-square whose alpha `alpha` gives per texel.
 fn png_scene(side: u32, alpha: impl Fn(u32, u32) -> u8) -> (Value, Vec<u8>) {
-    let image =
-        image::RgbaImage::from_fn(side, side, |x, y| image::Rgba([90, 140, 60, alpha(x, y)]));
-    let mut bin = Vec::new();
-    image::DynamicImage::ImageRgba8(image)
-        .write_to(&mut std::io::Cursor::new(&mut bin), image::ImageFormat::Png)
-        .expect("png");
+    let bin = encode(image::RgbaImage::from_fn(side, side, |x, y| {
+        image::Rgba([90, 140, 60, alpha(x, y)])
+    }));
     let (mut g, _, _) = scene();
     g["bufferViews"][0]["byteLength"] = json!(bin.len());
     g["images"][0]["mimeType"] = json!("image/png");

@@ -11,6 +11,7 @@ fn apercu(texture: u32, image: u32, sha256: &str) -> TexturePreview {
         height: 1,
         source: PreviewSource::Uri,
         sha256: sha256.into(),
+        image_sha256: sha256.into(),
         kind: AtlasKind::Color,
         first_level: 0,
         baked_levels: 0,

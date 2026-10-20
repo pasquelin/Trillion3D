@@ -70,7 +70,7 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
     let slots = 1_391; // FORMAT.md, and the index-page root below
     for (options, tables, directory) in &worlds {
         let manifest = fs::read(directory.join(MANIFEST_FILE)).expect("clusters.json");
-        assert_eq!(manifest.len(), 1_719, "the manifest's root, FORMAT.md");
+        assert_eq!(manifest.len(), 1_707, "the manifest's root, FORMAT.md");
         let root = &tables["partition"];
         let paged = json!({"version": root["version"], "pages": root["pages"]});
         assert_eq!(size(&paged), slots, "the root's slots, whatever the world");
@@ -86,10 +86,11 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         fs::remove_dir_all(options.source.parent().expect("root")).expect("cleanup");
     }
     // Sixteen times the area at the same density: the whole tables keep their bytes, the root's
-    // lists with them: 1 739 bytes, one mesh placed under the scene (FORMAT.md).
+    // lists with them: 1 816 bytes, one mesh placed under the scene and no HLOD named — the main
+    // grid's range and the HLOD 0 grid's alone (FORMAT.md).
     let (small, large) = (size(&worlds[0].1), size(&worlds[1].1));
     assert_eq!(small, large, "the core does not grow with the world");
-    assert_eq!(size(&worlds[0].1["partition"]), 1_739, "the grids' root");
+    assert_eq!(size(&worlds[0].1["partition"]), 1_816, "the grids' root");
 }
 
 #[test]
@@ -104,10 +105,10 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     // The root names every page by its fingerprint: the cell index's pages, each naming its
     // mesh pages, byte for byte.
     let named = hash(&serde_json::to_vec(&root).expect("json"));
-    let pages = "c6e64442f38810675ffe89f5c75d8d303dc20de30476b238c6b6abe077acf0fa";
+    let pages = "2349d283d832ed920514d366461b4bd0925bf15fd62362b06dae32d47a984415";
     assert_eq!(
         named, pages,
-        "the index and region pages of partition version 4"
+        "the index and region pages of partition version 6"
     );
     let written = files(&directory, "scene-page-");
     let index = written.iter().filter(|(_, page)| page["pages"].is_array());

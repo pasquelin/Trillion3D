@@ -26,7 +26,10 @@ pub(super) fn occlusion(world: &mut World<'_>, shader: &usd::Prim, out: &mut Val
         .split_property()
         .is_some_and(|(_, name)| name == OCCLUSION_CHANNEL)
     {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
     }
     out["occlusionTexture"] = bound.plain(world);
 }
@@ -36,16 +39,19 @@ pub(super) fn occlusion(world: &mut World<'_>, shader: &usd::Prim, out: &mut Val
 /// Nothing is approximated by another input; each is counted by name.
 pub(super) fn counted(world: &mut World<'_>, shader: &usd::Prim) {
     if specular(shader) {
-        world.refuse(world::SPECULAR_WORKFLOW);
+        world.scene.report.add(world::SPECULAR_WORKFLOW);
     }
     if material::scalar(shader, "clearcoat").is_some_and(|coat| coat > 0.0) {
-        world.refuse(world::CLEARCOAT);
+        world.scene.report.add(world::CLEARCOAT);
     }
     if material::scalar(shader, "ior").is_some_and(|ior| ior != DEFAULT_IOR) {
-        world.refuse(crate::plugins::scene::codes::IOR_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::IOR_UNSUPPORTED);
     }
     if written_normal(shader) {
-        world.refuse(world::NORMAL_VALUE);
+        world.scene.report.add(world::NORMAL_VALUE);
     }
 }
 

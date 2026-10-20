@@ -1,14 +1,33 @@
-//! Triangles and polygons in space: the edge cross product and area, the longest edge, an edge's key, the barycentric weights, the
+//! Triangles and polygons in space: the edge cross product, unit normal and area, the side a moved corner
+//! leaves it facing, the longest edge, an edge's key, the centroid, the barycentric weights, the
 //! closest point to a query, a ray's hit, and Newell's polygon normal.
 
 use crate::real::Real;
-use crate::vec3::{cross, point};
+use crate::vec3::{cross, normalized_or, point};
 use crate::vecn::{dot, length, sub};
 
 /// `(b − a) × (c − a)`: the normal of the triangle by its winding, twice its area long.
 #[inline]
 pub fn triangle_cross(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64; 3] {
     cross(sub(b, a), sub(c, a))
+}
+
+/// The unit normal of the triangle by its winding (`triangle_cross`), `+y` for a triangle too
+/// small to give one (`normalized_or`).
+#[inline]
+pub fn face_normal(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64; 3] {
+    normalized_or(triangle_cross(a, b, c), [0.0, 1.0, 0.0])
+}
+
+/// How triangle `corners` keeps its side once corner `k` moves to `p`, in the caller's precision:
+/// the dot of its normal, `(b − a) × (c − a)`, and the same normal with corner `k` at `p`. Positive
+/// while it faces the same way; zero or negative once it folds over.
+#[inline]
+pub fn facing<T: Real>(corners: [[T; 3]; 3], k: usize, p: [T; 3]) -> T {
+    let normal = |[a, b, c]: [[T; 3]; 3]| cross(sub(b, a), sub(c, a));
+    let mut moved = corners;
+    moved[k] = p;
+    dot(normal(corners), normal(moved))
 }
 
 /// The longest edge of the triangle `tri` of corner ids over `positions`, three `f32` a corner.
@@ -26,6 +45,12 @@ pub fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
 pub fn edge_key(a: u32, b: u32) -> u64 {
     let (lo, hi) = if a < b { (a, b) } else { (b, a) };
     (u64::from(lo) << 32) | u64::from(hi)
+}
+
+/// The centroid of the triangle of `corners`: their `mean`, axis by axis.
+#[inline]
+pub fn centroid(corners: [[f64; 3]; 3]) -> [f64; 3] {
+    [0, 1, 2].map(|k| crate::scalar::mean(corners.map(|p| p[k])))
 }
 
 /// The area of the triangle, `length(triangle_cross) / 2`.

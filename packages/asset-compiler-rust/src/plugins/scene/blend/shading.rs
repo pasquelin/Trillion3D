@@ -94,13 +94,11 @@ pub(super) fn normal_texture(
     images: &mut Images,
     out: &mut Out,
 ) -> Result<Option<usize>> {
-    let Some(source) = socket(node, "Normal").and_then(|normal| tree.source(&normal)) else {
+    let Some(source) =
+        socket(node, "Normal").and_then(|normal| tree.typed_source(&normal, NORMAL_MAP, out))
+    else {
         return Ok(None);
     };
-    if source.text("idname") != NORMAL_MAP {
-        out.scene.report.add("blend-shader-input-unconverted");
-        return Ok(None);
-    }
     socket(&source, "Color").map_or(Ok(None), |color| texture(&color, tree, root, images, out))
 }
 
@@ -112,13 +110,9 @@ pub(super) fn texture(
     images: &mut Images,
     out: &mut Out,
 ) -> Result<Option<usize>> {
-    let Some(source) = tree.source(socket) else {
+    let Some(source) = tree.typed_source(socket, TEX_IMAGE, out) else {
         return Ok(None);
     };
-    if source.text("idname") != TEX_IMAGE {
-        out.scene.report.add("blend-shader-input-unconverted");
-        return Ok(None);
-    }
     source
         .follow("id")
         .map_or(Ok(None), |image| images.texture(&image, root, out))
@@ -165,6 +159,21 @@ impl<'a> Tree<'a> {
     /// The node that feeds this input, if there is one.
     pub(super) fn source(&self, socket: &At<'a>) -> Option<At<'a>> {
         self.link(socket).map(|link| link.node)
+    }
+    /// The node linked on `socket` when its type is `idname`; one of another type is counted
+    /// unconverted. `None` when nothing feeds it, or a node of another type does.
+    pub(super) fn typed_source(
+        &self,
+        socket: &At<'a>,
+        idname: &str,
+        out: &mut Out,
+    ) -> Option<At<'a>> {
+        let source = self.source(socket)?;
+        if source.text("idname") != idname {
+            out.scene.report.add("blend-shader-input-unconverted");
+            return None;
+        }
+        Some(source)
     }
     /// The link that feeds this input: its node and the output it leaves.
     pub(super) fn link(&self, socket: &At<'a>) -> Option<Link<'a>> {

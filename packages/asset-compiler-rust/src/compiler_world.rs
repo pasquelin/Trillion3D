@@ -6,64 +6,47 @@ use trillion3d_math::matrix::{compose_trs, multiply_matrix4_from_zero, IDENTITY}
 
 /// A glTF node transform, column-major like the format itself.
 pub(super) type Mat4 = [f64; 16];
-/// A scene graph deeper than this is refused rather than followed: a cycle would never end.
-const MAX_DEPTH: usize = 256;
 
-fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Vec<f64>>> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
-    let items = value
-        .as_array()
-        .ok_or_else(|| invalid(format!("node.{what} is not an array")))?;
-    if items.len() != length {
-        return Err(invalid(format!("node.{what} needs {length} numbers")));
-    }
-    items
-        .iter()
-        .map(|item| {
-            item.as_f64()
-                .filter(|v| v.is_finite())
-                .ok_or_else(|| invalid(format!("node.{what} holds a non-finite number")))
-        })
-        .collect::<Result<Vec<f64>>>()
-        .map(Some)
+/// The node's field `key`, `N` finite numbers named `label`; `default` when the node leaves it out.
+fn field<const N: usize>(
+    node: &Value,
+    key: &str,
+    label: &str,
+    default: [f64; N],
+) -> Result<[f64; N]> {
+    node.get(key)
+        .map_or(Ok(default), |value| GLTF.numbers(Some(value), label))
 }
 
 /// `matrix` when the node carries one, otherwise translation · rotation · scale, as glTF defines it.
 pub(super) fn local_matrix(node: &Value) -> Result<Mat4> {
-    if let Some(values) = numbers(node.get("matrix"), 16, "matrix")? {
-        let mut matrix = IDENTITY;
-        matrix.copy_from_slice(&values);
-        return Ok(matrix);
+    if let Some(matrix) = node.get("matrix") {
+        return GLTF.numbers(Some(matrix), "node.matrix");
     }
-    let t = numbers(node.get("translation"), 3, "translation")?.unwrap_or(vec![0., 0., 0.]);
-    let r = numbers(node.get("rotation"), 4, "rotation")?.unwrap_or(vec![0., 0., 0., 1.]);
-    let s = numbers(node.get("scale"), 3, "scale")?.unwrap_or(vec![1., 1., 1.]);
     Ok(compose_trs(
-        [t[0], t[1], t[2]],
-        [r[0], r[1], r[2], r[3]],
-        [s[0], s[1], s[2]],
+        field(node, "translation", "node.translation", [0., 0., 0.])?,
+        field(node, "rotation", "node.rotation", [0., 0., 0., 1.])?,
+        field(node, "scale", "node.scale", [1., 1., 1.])?,
     ))
 }
 
 /// World transform of every node, by node index. A node glTF never reaches keeps the identity, and
-/// nothing reads it: only the nodes a scene names carry a mesh the compiler selected.
+/// nothing reads it: only the nodes a scene names carry a mesh the compiler selected. The walk
+/// starts at the roots of a forest (`hierarchy_roots` refuses a node of two parents), so no cycle
+/// is reachable from them and every node is visited once, however deep: the cycles no root reaches
+/// are refused before any publication (`check_acyclic`).
 pub(super) fn world_matrices(g: &Value) -> Result<Vec<Mat4>> {
     let nodes = values(g, "nodes")?;
     let mut world = vec![IDENTITY; nodes.len()];
-    let mut stack: Vec<(usize, Mat4, usize)> = crate::compiler_nodes::hierarchy_roots(nodes)?
+    let mut stack: Vec<(usize, Mat4)> = crate::compiler_nodes::hierarchy_roots(nodes)?
         .into_iter()
-        .map(|id| (id, IDENTITY, 0usize))
+        .map(|id| (id, IDENTITY))
         .collect();
-    while let Some((id, parent, depth)) = stack.pop() {
-        if depth > MAX_DEPTH {
-            return Err(invalid("Node hierarchy is deeper than the supported limit"));
-        }
+    while let Some((id, parent)) = stack.pop() {
         let matrix = multiply_matrix4_from_zero(&parent, &local_matrix(&nodes[id])?);
         world[id] = matrix;
         for child in crate::compiler_nodes::children_of(nodes, id)? {
-            stack.push((child, matrix, depth + 1));
+            stack.push((child, matrix));
         }
     }
     Ok(world)

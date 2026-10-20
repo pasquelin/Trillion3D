@@ -76,4 +76,20 @@ impl<K: Hash + Eq> Corners<K> {
         }
         Some(())
     }
+
+    /// One whole face: its `(key, point, value)` corners in walk order, `write` pouring a value
+    /// the first time its key is met, then the cut. `None` when cancelled, as `cut`.
+    pub(crate) fn face<V>(
+        &mut self,
+        corners: impl IntoIterator<Item = (K, [f64; 3], V)>,
+        write: impl Fn(&mut Vertices, V),
+        cancelled: &AtomicBool,
+        reversed: bool,
+    ) -> Option<()> {
+        self.begin();
+        for (key, point, value) in corners {
+            self.corner(key, point, |vertices| write(vertices, value));
+        }
+        self.cut(cancelled, reversed)
+    }
 }

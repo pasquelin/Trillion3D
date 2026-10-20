@@ -14,7 +14,7 @@
 //! here. The external decoder brought them back to eight bits by truncation and read their
 //! index field backwards; the neighbouring module says which of the two defects does what.
 use super::eac;
-use crate::plugins::image::blocks::{BlockDecode, Layout, Order};
+use crate::plugins::image::blocks::{Layout, Order};
 use crate::plugins::image::Transfer;
 use texture2ddecoder::{
     decode_astc, decode_bc1, decode_bc1a, decode_bc2, decode_bc3, decode_bc4, decode_bc5,
@@ -43,7 +43,7 @@ pub(super) fn transfer(format: u32) -> Option<Transfer> {
 /// Layout of this `vkFormat`: the only table that links a declared format to its bytes. The
 /// `_SRGB` variants carry the same bytes as their `_UNORM`; `SRGB` says which.
 pub(super) fn layout(format: u32) -> Option<Layout> {
-    let blocks = |bytes, decode: BlockDecode| Layout::Blocks { bytes, decode };
+    let blocks = Layout::blocks;
     Some(match format {
         // R8G8B8A8_UNORM, R8G8B8A8_SRGB
         37 | 43 => Layout::Pixels(Order::Rgba),

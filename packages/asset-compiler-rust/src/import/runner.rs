@@ -61,7 +61,7 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     // alone, says which external files the read will open.
     let root = source_root(inputs);
     let root = fs::canonicalize(&root).unwrap_or(root);
-    let imports = cache.join("native").join("imports");
+    let imports = crate::imports_dir(cache);
     // The previous conversion's record gives the key without re-reading the source.
     // When it is wrong — a library that changes name — conversion writes the true
     // key and corrects it.

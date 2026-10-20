@@ -1,3 +1,4 @@
+use crate::le::words;
 use crate::proxy::{
     stage_proxy, ProxyInputs, SceneProxy, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC,
     SCENE_PROXY_VERSION,
@@ -13,13 +14,6 @@ pub(crate) fn plate() -> Vec<f32> {
     vec![0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.5]
 }
 
-fn words(bytes: &[u8]) -> Vec<u32> {
-    bytes
-        .chunks(4)
-        .map(|w| u32::from_le_bytes([w[0], w[1], w[2], w[3]]))
-        .collect()
-}
-
 /// Three nodes in a line: a parent carrying the mesh 1 twice-over (nodes 1 and 3) and the mesh 0 once.
 fn staged() -> SceneProxy {
     let g = json!({"nodes": [
@@ -29,13 +23,16 @@ fn staged() -> SceneProxy {
         {"mesh": 2, "translation": [0.0, 0.0, 30.0]},
     ]});
     let primitives = [json!({"mesh": 0}), json!({"mesh": 1}), json!({"mesh": 1})];
+    let world = crate::compiler_world::world_matrices(&g).expect("world");
+    let mesh_scales = crate::proxy::placement::mesh_scales(&g, &BTreeSet::from([1, 2, 3]), &world)
+        .expect("scales");
     stage_proxy(&ProxyInputs {
         g: &g,
         shown: &BTreeSet::from([1, 2, 3]),
         mesh_map: &BTreeMap::from([(0, 0), (2, 1)]),
-        mesh_scales: &crate::proxy::placement::mesh_scales(&g, &BTreeSet::from([1, 2, 3]))
-            .expect("scales"),
+        mesh_scales: &mesh_scales,
         primitives: &primitives,
+        placement: &crate::proxy::placement::Placement::new(world, &primitives),
         cuts: &[plate(), plate(), Vec::new()],
         thresholds: &[0.05, 0.05, 0.05],
         previews: &[],
@@ -71,7 +68,7 @@ fn a_mesh_placed_twice_is_built_once_in_its_own_space() {
 #[test]
 fn the_file_is_the_header_the_table_and_the_columns_it_counts() {
     let proxy = staged();
-    let w = words(&proxy.encode());
+    let w: Vec<u32> = words(&proxy.encode(), u32::from_le_bytes).collect();
     assert_eq!(w[0], SCENE_PROXY_MAGIC);
     assert_eq!(w[1], SCENE_PROXY_VERSION);
     assert_eq!(w[2] as usize, proxy.meshes.len());
@@ -104,7 +101,7 @@ fn a_scene_that_places_nothing_writes_the_header_alone() {
     let proxy = SceneProxy::default();
     let bytes = proxy.encode();
     assert_eq!(bytes.len(), SCENE_PROXY_HEADER_WORDS * 4);
-    let w = words(&bytes);
+    let w: Vec<u32> = words(&bytes, u32::from_le_bytes).collect();
     assert_eq!((w[2], w[3], w[4]), (0, 0, 0));
 }
 

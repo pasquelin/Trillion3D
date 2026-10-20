@@ -72,7 +72,7 @@ impl Ogawa {
         // The three bytes after `Ogawa`: the freeze flag, then the version on sixteen bits
         // big-endian — the format writes `00 01` for version one, which reading backwards would
         // yield two hundred and fifty-six.
-        let Some(&[frozen, high, low]) = map.get(5..8) else {
+        let (Some(&frozen), Some(version)) = (map.get(5), crate::le::be16_at(&map, 6)) else {
             return Err(invalid(format!("{name}: header is truncated")));
         };
         if frozen != FROZEN {
@@ -81,7 +81,6 @@ impl Ogawa {
                 format!("{name}: this Alembic archive was never frozen; the writer left it open, and what it holds is a work in progress"),
             ));
         }
-        let version = u16::from_be_bytes([high, low]);
         if version != VERSION {
             return Err(CompilerError::new(
                 VERSION_UNSUPPORTED,
@@ -164,5 +163,10 @@ impl Ogawa {
     /// The file size, published in the provenance report.
     pub(super) fn bytes(&self) -> usize {
         self.map.len()
+    }
+
+    /// The file's fingerprint, hashed from the map already open: the file is not read again.
+    pub(super) fn sha256(&self) -> String {
+        crate::hash(&self.map)
     }
 }

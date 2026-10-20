@@ -3,7 +3,7 @@
 //! A cluster is only drawn instead of its parents, the outputs of the group that replaces it. A
 //! bundle therefore depends on the bundles holding those parents, and the list it carries is closed
 //! transitively up to the pinned root cover, or up to a root packed past it — in the world DAG, a
-//! root one cell alone needs (`compiler_world_roots/top.rs`), which nothing replaces and its cell
+//! root one cell alone needs (`compiler_world_roots/pack.rs`), which nothing replaces and its cell
 //! holds: the runtime installs a bundle after
 //! every bundle on the list, so the nearest resident ancestor of a cluster is at most one level
 //! above it.

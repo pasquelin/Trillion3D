@@ -3,6 +3,7 @@
 //! **modifying** the source between two compilations or giving it a name nothing
 //! in the corpus carries.
 use super::*;
+use crate::tests::textures::previews_source::encode;
 
 // Behaviour: the cache key covers the material library. The same OBJ, of which
 // only the `.mtl` changes, yields another key and another colour — never the previous scene.
@@ -73,11 +74,9 @@ fn a_truncated_library_is_counted_by_its_name() {
 fn a_texture_name_that_needs_escaping_stays_rereadable() {
     let (root, mut options) = fixture();
     options.source = obj_source(&root, "obj", "newmtl Uni\nKd 1 1 1\nmap_Kd color%red.png\n");
-    let image = image::RgbaImage::from_fn(8, 8, |x, y| image::Rgba([x as u8, y as u8, 7, 255]));
-    let mut png = Vec::new();
-    image
-        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
-        .expect("png");
+    let png = encode(image::RgbaImage::from_fn(8, 8, |x, y| {
+        image::Rgba([x as u8, y as u8, 7, 255])
+    }));
     fs::write(options.source.with_file_name("color%red.png"), &png).expect("texture");
     let (result, key) = compile_with_import_key(&options);
     let gltf = read_json(

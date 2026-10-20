@@ -9,9 +9,6 @@ use crate::atomic;
 use serde_json::json;
 use std::fs;
 
-/// Marker of a finished extraction, beside the extracted directory and never inside it: until it
-/// is written, the directory is a work in progress that nobody rereads.
-const MARKER: &str = "archive.json";
 /// The extracted directory, under the extraction key: the marker keeps it company without polluting it.
 const CONTENT: &str = "content";
 /// The directory where extraction writes while it lasts: it becomes the extracted directory in a
@@ -24,12 +21,12 @@ pub(in super::super) fn container(
     request: &SceneRequest<'_>,
     plugin: &dyn ScenePlugin,
     pinned: Option<&str>,
-    extract: impl Fn(&Path, &Path) -> Result<(usize, u64)>,
+    extract: impl FnOnce(&Path, &Path) -> Result<(usize, u64)>,
 ) -> Result<PreparedScene> {
     let file = only_input(request, plugin)?;
     let directory = extraction_dir(request, plugin, &crate::hash_file(file)?);
-    let (content, marker) = (directory.join(CONTENT), directory.join(MARKER));
-    let extracted = ready(&marker);
+    let (content, marker) = (directory.join(CONTENT), directory.join(super::MARKER));
+    let extracted = super::extracted(&directory);
     if extracted.is_none() {
         let counts = whole(&directory, &content, |staging| extract(file, staging))?;
         (request.progress)(
@@ -55,7 +52,7 @@ pub(in super::super) fn container(
 fn whole(
     directory: &Path,
     content: &Path,
-    extract: impl Fn(&Path) -> Result<(usize, u64)>,
+    extract: impl FnOnce(&Path) -> Result<(usize, u64)>,
 ) -> Result<(usize, u64)> {
     let staging = directory.join(STAGING);
     let _ = fs::remove_dir_all(&staging);
@@ -73,14 +70,9 @@ fn whole(
     }
 }
 
-/// The chain of an extraction already done, or nothing if the extraction must be (re)done.
-fn ready(marker: &Path) -> Option<Value> {
-    let marker: Value = serde_json::from_slice(&fs::read(marker).ok()?).ok()?;
-    (marker["status"] == "ready").then(|| marker["chain"].clone())
-}
-
 /// Routes the extracted directory and has it produce the intermediate scene. Yields the retained
-/// inner driver, `None` when the directory already carried its manifest — a reused extraction.
+/// inner driver, `None` when the directory carries its manifest — the archive shipped its
+/// intermediate scene.
 fn compose(
     request: &SceneRequest<'_>,
     extracted: &Path,
@@ -89,7 +81,10 @@ fn compose(
     // A format that names its own source leaves nothing for the router to choose: the other
     // extracted files are its resources, never candidate scenes.
     let (root, source) = match pinned {
-        Some(name) => (extracted.to_path_buf(), safe_join(extracted, name)?),
+        Some(name) => (
+            extracted.to_path_buf(),
+            extracted.join(safe_relative(name, &['/']).ok_or_else(|| escape(name))?),
+        ),
         None => {
             let root = single_root(extracted);
             (root.clone(), root)
@@ -98,16 +93,14 @@ fn compose(
     match route(&source)? {
         Routed::Manifest => Ok((PreparedScene::converted(root.clone(), &root), None)),
         Routed::Driver(inner, inputs) => {
-            let inner_request = SceneRequest {
-                source: &source,
-                inputs: &inputs,
-                cache: request.cache,
-                cancelled: request.cancelled,
-                progress: request.progress,
-                ram_budget: request.ram_budget,
-            };
+            let inner_request = request.nested(&source, &inputs);
+            // A glTF left in place by its driver is read next to the source; in an archive, the
+            // source is the archive and not the extracted directory, which is named instead.
             let scene = match inner.prepare(&inner_request)? {
-                PreparedScene::InPlace(name) => stage_in_place(&root, &name, request)?,
+                PreparedScene::InPlace(file) => PreparedScene::Extracted {
+                    directory: root,
+                    file,
+                },
                 converted => converted,
             };
             Ok((scene, Some(inner)))
@@ -122,25 +115,6 @@ fn chain(container: &dyn ScenePlugin, inner: Option<&dyn ScenePlugin>) -> Value 
         crate::plugins::provenance(container),
         inner.map(crate::plugins::provenance)
     ])
-}
-
-/// A glTF left in place by its driver is read next to the source; in an archive, the source is
-/// the archive and not the extracted directory. The container therefore writes in this directory
-/// the manifest the compiler would itself compute for this scene — the same bytes, therefore the
-/// same cache identity as outside an archive — and yields the directory as an intermediate scene.
-/// This scene's images are those extraction wrote beside it: the extracted directory is their root.
-fn stage_in_place(root: &Path, name: &str, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-    let loaded = crate::load_model_file(
-        root,
-        name,
-        None,
-        &crate::compressed::Budget {
-            limit: request.ram_budget,
-            cancelled: request.cancelled,
-        },
-    )?;
-    atomic(&root.join(crate::MANIFEST_POINTER), &loaded.manifest_bytes)?;
-    Ok(PreparedScene::converted(root.to_path_buf(), root))
 }
 
 /// A single root directory — `kit/` in `kit.zip` — is walked through: the archive ships the

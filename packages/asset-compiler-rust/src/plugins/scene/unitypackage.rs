@@ -15,7 +15,7 @@
 //! its pure-Rust backend and `tar` without `xattr`. No editor code, SDK or library enters here,
 //! and nothing is decrypted or circumvented.
 use super::*;
-use crate::{is_safe_source_name, CompilerError};
+use crate::{is_safe_source_name, safe_relative, CompilerError};
 use flate2::read::GzDecoder;
 use std::{
     collections::BTreeMap,
@@ -26,8 +26,6 @@ use std::{
 pub(super) static UNITYPACKAGE: UnityPackage = UnityPackage;
 pub(super) struct UnityPackage;
 
-/// gzip magic number: every package starts there.
-const GZIP_MAGIC: &[u8] = b"\x1f\x8b";
 /// Target path of the asset in the project, first line of the file.
 const PATHNAME: &str = "pathname";
 /// File bytes. Its absence in a GUID directory names a project directory.
@@ -52,7 +50,8 @@ impl Plugin for UnityPackage {
 
 impl ScenePlugin for UnityPackage {
     fn accepts_head(&self, head: &[u8]) -> bool {
-        head.starts_with(GZIP_MAGIC)
+        // Every package starts with the gzip magic number.
+        head.starts_with(archive::GZIP_MAGIC)
     }
     fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
         archive::container(request, self, None, |file, root| {
@@ -70,7 +69,7 @@ struct Target {
 }
 
 /// Where members wait for their GUID's `pathname`, which may come after them. The name holds
-/// `..`, which `safe_join` refuses: no target path of the package can land there.
+/// `..`, which `safe_relative` refuses: no target path of the package can land there.
 const PENDING: &str = "..pending";
 
 /// One pass over the decompressed `stream`: each member is written as read, to the pending area
@@ -112,7 +111,7 @@ pub(super) fn unpack<R: Read>(
             PATHNAME => {
                 let path = first_line(&mut entry).map_err(unreadable(source))?;
                 // Judged here, by the same rule as any archive entry, before it names a write.
-                archive::safe_join(root, &path)?;
+                safe_relative(&path, &['/']).ok_or_else(|| archive::escape(&path))?;
                 targets.entry(guid).or_default().path = path;
                 continue;
             }
@@ -124,11 +123,7 @@ pub(super) fn unpack<R: Read>(
             targets.entry(guid.clone()).or_default().file = true;
         }
         let file = pending.join(entries.to_string());
-        let mut out = fs::File::create(&file)?;
-        let room = archive::LIMITS.bytes - written;
-        written += std::io::copy(&mut Read::take(&mut entry, room + 1), &mut out)
-            .map_err(unreadable(source))?;
-        archive::under_byte_limit(written)?;
+        archive::write_entry(&mut entry, &file, &mut written, source)?;
         members.push((guid, meta, file));
     }
     ended(archive, source)?;
@@ -142,15 +137,17 @@ pub(super) fn unpack<R: Read>(
             continue;
         };
         // The editor's `.meta` sits beside what it describes, project directory included.
-        let path = if *meta {
-            archive::safe_join(root, &format!("{}.meta", target.path))?
-        } else {
-            archive::safe_join(root, &target.path)?
+        let path = match meta {
+            true => format!("{}.meta", target.path),
+            false => target.path.clone(),
         };
+        let path = root.join(safe_relative(&path, &['/']).ok_or_else(|| archive::escape(&path))?);
         land(file, &path)?;
     }
     for target in targets.values().filter(|target| !target.file) {
-        fs::create_dir_all(archive::safe_join(root, &target.path)?)?;
+        let path =
+            safe_relative(&target.path, &['/']).ok_or_else(|| archive::escape(&target.path))?;
+        fs::create_dir_all(root.join(path))?;
     }
     fs::remove_dir_all(&pending)?;
     Ok((entries, written))

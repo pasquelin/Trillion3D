@@ -21,9 +21,9 @@ fn one_island(seed: u64) -> Case {
 }
 
 /// Every triangle its own chart in an atlas: three vertices per triangle, none shared, so every
-/// position is a seam corner written as many times as it has triangles. No endpoint collapse can
-/// move: the groups are `seam-locked` and reduce with solved vertices (`dag/solved.rs`).
-fn island_per_face(seed: u64) -> Case {
+/// position is a seam corner written as many times as it has triangles. Each copy is a wedge of
+/// its own and keeps its own coordinates through every merge (`qem_simplifier.rs`).
+pub(super) fn island_per_face(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let sheet = Sheet::new(&mut rng, NX, NY, amplitude);
@@ -48,9 +48,9 @@ fn island_per_face(seed: u64) -> Case {
     case
 }
 
-/// One chart per brick: every vertex is a seam corner, nothing shares a texture coordinate. Only
-/// welding the seams frees the groups: `seam-locked`, reduced with solved vertices.
-fn island_per_brick(seed: u64) -> Case {
+/// One chart per brick: every vertex is a seam corner, nothing shares a texture coordinate. The
+/// copies merge as wedges, each with its own coordinates (`qem_simplifier.rs`).
+pub(super) fn island_per_brick(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);
     let bricks = Exploded::new(&mut rng, NX, NY, amplitude);
@@ -129,8 +129,8 @@ fn tiled_beyond_unit(seed: u64) -> Case {
 
 /// Flat-shaded bricks under a continuous first set and a per-brick second set: `TEXCOORD_1`
 /// has seams the first set does not. Every vertex is a seam corner of that second set, so the
-/// weld that respects it merges nothing: `seam-locked`, and each coarse copy of a brick corner
-/// carries second-set coordinates solved for it rather than its neighbour's.
+/// weld that respects it merges nothing, and each coarse copy of a brick corner carries
+/// second-set coordinates solved for its own wedge rather than its neighbour's.
 fn second_set_with_own_seams(seed: u64) -> Case {
     let mut rng = seeded(seed);
     let amplitude = amplitude(&mut rng);

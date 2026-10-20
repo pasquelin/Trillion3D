@@ -7,11 +7,8 @@
 
 use crate::unpack::decode_into;
 use crate::wasm_encode::{answer_header, refuse};
+use crate::wasm_math::{view, view_mut};
 use crate::Header;
-
-unsafe fn page<'a>(data: u32, length: u32) -> &'a [u8] {
-    core::slice::from_raw_parts(data as *const u8, length as usize)
-}
 
 /// Reads the page's header and gates it: magic, version, grids, and counts that measure exactly
 /// `length` bytes under `max_decoded_bytes`. Returns 0 and fills `answer`, or 1 with the
@@ -27,7 +24,7 @@ pub unsafe extern "C" fn page_check(
     max_decoded_bytes: u32,
     answer: u32,
 ) -> u32 {
-    match Header::parse(page(data, length), max_decoded_bytes as usize) {
+    match Header::parse(view(data, length as usize), max_decoded_bytes as usize) {
         Ok(header) => {
             answer_header(answer, &header);
             0
@@ -50,12 +47,12 @@ pub unsafe extern "C" fn page_unpack(
     answer: u32,
     out: u32,
 ) -> u32 {
-    let bytes = page(data, length);
+    let bytes = view(data, length as usize);
     let header = match Header::parse(bytes, max_decoded_bytes as usize) {
         Ok(header) => header,
         Err(refusal) => return refuse(answer, refusal.code()),
     };
-    let out = core::slice::from_raw_parts_mut(out as *mut u32, header.decoded_bytes() / 4);
+    let out = view_mut(out, header.decoded_bytes() / 4);
     match decode_into(bytes, &header, out) {
         Ok(()) => 0,
         Err(refusal) => refuse(answer, refusal.code()),

@@ -70,11 +70,8 @@ impl Importer<'_> {
             casts_shadow: Some(light.cast_shadows),
             emitter_radius: None,
         };
-        self.scene.lights.push(source.json());
-        self.scene.nodes.push(crate::import::light_node(
-            &node.element.name,
-            json!(matrix),
-            self.scene.lights.len() - 1,
-        ));
+        let rank = self.scene.light(&source);
+        let node = crate::import::light_node(&node.element.name, json!(matrix), rank);
+        self.scene.nodes.push(node);
     }
 }

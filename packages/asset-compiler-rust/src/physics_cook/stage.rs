@@ -10,7 +10,6 @@ use super::{
     PIECES_FORMAT_VERSION,
 };
 use crate::compiler_coplanar::DepthLayerScene;
-use crate::compiler_world::world_matrices;
 use crate::{product, required_index, values, Product, Result, COMPILER_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -63,14 +62,14 @@ pub(crate) fn stage_physics(
         bin,
         shown,
         mesh_map,
+        placement,
         ..
     } = scene;
-    let world = world_matrices(g)?;
+    let crate::proxy::placement::Placement { world, by_mesh } = placement;
     let nodes = values(g, "nodes")?;
     let (colliders, slot, refused) = gathered(primitives, collisions);
-    let (soft_bodies, soft_refused, soft) = soft_bodies(o, (g, bin), shown, &world)?;
-    let (bodies, bodies_refused) = declared_bodies(o, (g, bin), (shown, &soft), &world)?;
-    let by_mesh = crate::proxy::placement::primitives_by_mesh(primitives);
+    let (soft_bodies, soft_refused, soft) = soft_bodies(o, (g, bin), shown, world)?;
+    let (bodies, bodies_refused) = declared_bodies(o, (g, bin), (shown, &soft), world)?;
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
     // Every drawn node but a soft body is static ground, as drawn: a node the source declares
     // moving is placed too, beside its `bodies` entry, until the page restores that body.
@@ -117,7 +116,7 @@ pub(crate) fn stage_physics(
         "colliders":colliders,"instances":instances,"bodies":bodies,"softBodies":soft_bodies,"report":report,
     });
     let mut objects = BTreeSet::new();
-    crate::compiler_prune::referenced_objects(&document, None, &mut objects)?;
+    crate::compiler_prune::referenced_objects(&document, &mut objects);
     let written = product(directory, PHYSICS_FILE, &serde_json::to_vec(&document)?)?;
     let objects: Vec<Value> = objects
         .into_iter()

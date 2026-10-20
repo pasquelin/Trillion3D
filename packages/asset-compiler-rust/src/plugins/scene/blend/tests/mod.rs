@@ -4,6 +4,7 @@
 //! for the patch, `fidelite`, `matiere` and `normales` for what it proves. The golden scene is
 //! compared in `src/tests/formats/blend_golden.rs`.
 use super::*;
+use crate::tests::fixtures::{accessor_floats, accessor_indices, read_json};
 use crate::tests::ngons::{rendered_area, U_RING};
 use std::fs;
 
@@ -156,18 +157,9 @@ fn a_concave_polygon_keeps_its_own_area() {
         None
     );
     let primitive = &mesh["primitives"][0];
-    let positions: Vec<f32> = read(&out, &primitive["attributes"]["POSITION"])
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|word| f32::from_le_bytes(*word))
-        .collect();
-    let indices: Vec<u32> = read(&out, &primitive["indices"])
-        .as_chunks::<4>()
-        .0
-        .iter()
-        .map(|word| u32::from_le_bytes(*word))
-        .collect();
+    let positions = written(&out, &primitive["attributes"]["POSITION"], accessor_floats);
+    // The driver writes 16-bit indices where the vertices fit: read as the accessor declares.
+    let indices = written(&out, &primitive["indices"], accessor_indices);
     let area = rendered_area(&positions, &indices);
     assert!(
         (area - 7.0).abs() < 1e-5,
@@ -175,19 +167,15 @@ fn a_concave_polygon_keeps_its_own_area() {
     );
 }
 
-/// The bytes of an accessor of the scene under construction, by the binary view it cites.
-fn read<'a>(out: &'a Out, accessor: &Value) -> &'a [u8] {
-    let rank = accessor.as_u64().expect("accessor") as usize;
-    let view = out.scene.accessors[rank]["bufferView"]
-        .as_u64()
-        .expect("view") as usize;
-    let from = out.scene.bin.views[view]["byteOffset"]
-        .as_u64()
-        .expect("start") as usize;
-    let length = out.scene.bin.views[view]["byteLength"]
-        .as_u64()
-        .expect("length") as usize;
-    &out.scene.bin.bytes[from..from + length]
+/// The values of an accessor of the scene under construction, read by `reader` — the compiler's
+/// one accessor reader — over its accessors, views and binary.
+fn written<T>(out: &Out, accessor: &Value, reader: fn(&Value, &[u8], usize) -> Vec<T>) -> Vec<T> {
+    let tables = json!({"accessors":out.scene.accessors,"bufferViews":out.scene.bin.views});
+    reader(
+        &tables,
+        &out.scene.bin.bytes,
+        accessor.as_u64().expect("accessor") as usize,
+    )
 }
 
 /// Non-cancelled normal computation shared by the Blender geometry fixtures.

@@ -33,6 +33,18 @@ impl CookedScene {
         positions.expect("positions")
     }
 
+    /// The source normals of cooked `primitive`, flat `xyz`, when it has them.
+    pub fn normals(&self, primitive: &Value) -> Option<Vec<f32>> {
+        let at = |key: &str| primitive[key].as_u64().expect(key) as usize;
+        let written = &self.gltf["meshes"][at("mesh")]["primitives"][at("primitive")];
+        written["attributes"].get("NORMAL")?;
+        Some(
+            self.source(primitive, Some("NORMAL"))
+                .collect_f32()
+                .expect("normals"),
+        )
+    }
+
     /// The source indices of cooked `primitive`.
     pub fn indices(&self, primitive: &Value) -> Vec<u32> {
         self.source(primitive, None).collect_u32().expect("indices")
@@ -85,7 +97,7 @@ pub(in crate::tests) fn cook_scene(
     options.simplification = simplification.into();
     options.texture_formats = Vec::new();
     let result = compile(&options, |_| {}).expect("compile");
-    let objects = options.cache.join("native/objects");
+    let objects = objects_dir(&options.cache);
     CookedScene {
         root,
         objects,
@@ -106,8 +118,7 @@ pub(in crate::tests) fn cook_fixture(
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(folder);
-    let document: Value =
-        serde_json::from_slice(&fs::read(source.join(gltf)).expect("gltf")).expect("json");
+    let document: Value = read_json(&source.join(gltf));
     let bin = fs::read(source.join(format!("{tag}.bin"))).expect("bin");
     // Images read from files beside the glTF; one in a buffer view or a data URI travels with it.
     let files = document["images"].as_array().into_iter().flatten();

@@ -1,20 +1,14 @@
 //! Textures an OBJ library names are not opened by the reader: their mere
 //! existence nevertheless decides the intermediate glTF. Left out of import
 //! identity, an image added, removed or replaced would leave the previous scene in service.
+use super::previews_source::encode;
 use super::*;
 
 /// A readable PNG, whose colour distinguishes two files of the same name.
 fn png(teinte: u8) -> Vec<u8> {
-    let image =
-        image::RgbaImage::from_fn(8, 8, |x, y| image::Rgba([teinte, x as u8, y as u8, 255]));
-    let mut bytes = Vec::new();
-    image
-        .write_to(
-            &mut std::io::Cursor::new(&mut bytes),
-            image::ImageFormat::Png,
-        )
-        .expect("png");
-    bytes
+    encode(image::RgbaImage::from_fn(8, 8, |x, y| {
+        image::Rgba([teinte, x as u8, y as u8, 255])
+    }))
 }
 
 /// The source: an OBJ, its library that names `color.png`, and the path of that image.

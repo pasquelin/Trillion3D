@@ -127,3 +127,18 @@ fn median_in_place_takes_the_upper_middle_rank_and_partitions_around_it() {
     assert!(values[4..].iter().all(|&v| v >= 5.0));
     assert_eq!(median_in_place(&mut [2.0]), 2.0);
 }
+
+// The statistics follow `f64::total_cmp`, so signed zeros, infinities and NaN each keep one place.
+#[test]
+fn min_median_max_orders_hostile_values_by_total_cmp() {
+    let mut values = [f64::NAN, 1.5, f64::NEG_INFINITY];
+    let (min, median, max) = min_median_max(&mut values);
+    assert_eq!(min, f64::NEG_INFINITY);
+    assert_eq!(median.to_bits(), 1.5f64.to_bits());
+    assert!(max.is_nan(), "a positive NaN sorts past +inf");
+    let (min, median, max) = min_median_max(&mut [0.0, -0.0]);
+    assert_eq!(
+        [min, median, max].map(f64::to_bits),
+        [-0.0f64, 0.0, 0.0].map(f64::to_bits)
+    );
+}

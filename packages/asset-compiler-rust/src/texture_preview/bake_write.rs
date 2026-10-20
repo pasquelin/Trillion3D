@@ -1,15 +1,12 @@
-//! The files of a baked chain: every level above the sidecar tail, once as a
-//! lossless PNG and, when the gate kept a family, once in that family's blocks,
-//! under one folder per source fingerprint. A file already there is left as-is
-//! — the fingerprint, the atlas, the level and the format say its content is
-//! the right one, and rewriting it would cost encoding a 2048² on every
-//! compilation of a scene that shares the image. The reduction-rule version in
-//! the path keeps that promise honest.
+//! The files of a baked chain: every level above the sidecar tail, once in each
+//! family the chain is kept in — the stored BC one always —, under one folder
+//! per source fingerprint — the one storage of chains. A file already there is left as-is — the
+//! fingerprint, the atlas, the level and the format say its content is the
+//! right one, and rewriting it would cost encoding a 2048² on every compilation
+//! of a scene that shares the image. The reduction-rule version in the path
+//! keeps that promise honest.
 use super::reduce::AtlasKind;
 use super::*;
-use image::codecs::png::{CompressionType, FilterType, PngEncoder};
-use image::{ExtendedColorType, ImageEncoder};
-use std::borrow::Cow;
 
 /// Where an image's levels live in the cache, relative to `native/`: one folder
 /// per reduction-rule version, then one per fingerprint, one file per atlas, per
@@ -20,12 +17,14 @@ pub const TEXTURE_DIR: &str = "textures";
 pub fn texture_version_dir() -> String {
     format!("{TEXTURE_DIR}/v{TEXTURE_PREVIEW_VERSION}")
 }
+/// The folder of one image's files, relative to `native/`: its levels (`level_template`) and the
+/// gate's verdicts (`verdict.rs`) all live there.
+pub(super) fn image_dir(sha256: &str) -> String {
+    format!("{}/{sha256}", texture_version_dir())
+}
 /// Report note of a level file that could not be written; the entry then
 /// carries no baked level, or no blocks of the family that failed.
 pub const LEVEL_WRITE_FAILED: &str = "texture-level-write-failed";
-
-/// The lossless format's name in a level path, beside the block formats'.
-pub const LOSSLESS: &str = "png";
 
 /// File of a level, relative to `native/`: the template published in the
 /// manifest, filled. One truth, the same the engine applies on its side.
@@ -37,28 +36,20 @@ pub fn level_path(sha256: &str, kind: AtlasKind, level: u32, format: &str) -> St
         .replace("{format}", format)
 }
 
-pub(crate) fn png(pixels: &[u8], (w, h): (u32, u32)) -> Result<Vec<u8>> {
-    let mut encoded = Vec::with_capacity(pixels.len() / 2);
-    PngEncoder::new_with_quality(&mut encoded, CompressionType::Default, FilterType::Adaptive)
-        .write_image(pixels, w, h, ExtendedColorType::Rgba8)
-        .map_err(|e| CompilerError::new("TEXTURE_ENCODE_FAILED", e.to_string()))?;
-    Ok(encoded)
-}
-
-/// Writes the files of the levels above the sidecar tail, `encode` giving each
-/// level's bytes — owned or borrowed — only when its file is missing; returns
-/// how many levels exist at the end. The path is the level's, in `format`.
-pub(super) fn write_levels<'a>(
+/// Writes the files of levels `0..count` of a chain — a texture's above its sidecar tail —,
+/// `encode` giving each level's file bytes only when it is missing;
+/// returns `count`. The path is the level's, in `format`.
+pub(crate) fn write_levels(
     o: &Options,
     sha256: &str,
     kind: AtlasKind,
     (width, height): (u32, u32),
     format: &str,
-    encode: impl Fn(usize, (u32, u32)) -> Result<Cow<'a, [u8]>>,
+    count: u32,
+    encode: impl Fn(usize, (u32, u32)) -> Result<Vec<u8>>,
 ) -> Result<u32> {
-    let native = o.cache.join("native");
-    let first = preview_first_level(width, height);
-    for level in 0..first as usize {
+    let native = native_dir(&o.cache);
+    for level in 0..count as usize {
         let _t = perf::Timer::new(perf::Phase::TextureWrite);
         let path = native.join(level_path(sha256, kind, level as u32, format));
         if !path.exists() {
@@ -69,18 +60,5 @@ pub(super) fn write_levels<'a>(
             atomic(&path, &bytes)?;
         }
     }
-    Ok(first)
-}
-
-/// The lossless levels above the tail, PNG-encoded when missing.
-pub(super) fn write_lossless(
-    o: &Options,
-    sha256: &str,
-    kind: AtlasKind,
-    levels: &[Vec<u8>],
-    size: (u32, u32),
-) -> Result<u32> {
-    write_levels(o, sha256, kind, size, LOSSLESS, |level, dims| {
-        png(&levels[level], dims).map(Cow::Owned)
-    })
+    Ok(count)
 }

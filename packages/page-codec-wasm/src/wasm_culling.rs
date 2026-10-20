@@ -7,6 +7,7 @@
 
 use crate::culling::{build_culling_bvh, CullingCluster, CULLING_RECORD_FLOATS, CULLING_STRIDE};
 use crate::held::hold;
+use crate::wasm_math::view;
 
 /// Builds the hierarchy of `count` clusters, a record of `CULLING_RECORD_FLOATS` `f64` each at
 /// `records` (`CullingCluster::record`).
@@ -17,10 +18,7 @@ use crate::held::hold;
 /// `records` and `meta` must lie in live `arena_alloc` reservations of the sizes they state.
 #[no_mangle]
 pub unsafe extern "C" fn culling_build(records: u32, count: u32, meta: u32) -> u32 {
-    let records = core::slice::from_raw_parts(
-        records as *const f64,
-        count as usize * CULLING_RECORD_FLOATS,
-    );
+    let records: &[f64] = view(records, count as usize * CULLING_RECORD_FLOATS);
     let clusters: Option<Vec<CullingCluster>> = records
         .chunks_exact(CULLING_RECORD_FLOATS)
         .map(CullingCluster::from_record)

@@ -1,6 +1,5 @@
 //! Publication of a compiled job: the resident proxy, the manifest's pages and
-//! their sidecars, its root, then the scope pointer. Split out of
-//! `compiler_build.rs` to keep the repository line limit.
+//! their sidecars, its root, then the scope pointer.
 use super::*;
 use crate::compiler_manifest_pages::{write_manifest, MeshPages};
 use crate::texture_preview::TexturePreview;
@@ -37,13 +36,24 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
         "version": texture_preview::TEXTURE_PREVIEW_VERSION,
     });
     let directory = inputs.directory;
-    atomic(&directory.join(proxy::SCENE_PROXY_FILE), inputs.proxy_bytes)?;
-    let proxy = Product {
-        name: proxy::SCENE_PROXY_FILE.to_string(),
-        sha256: inputs.proxy_sha.to_string(),
-        bytes: inputs.proxy_bytes.len() as u64,
-    };
+    let proxy = product_of(
+        directory,
+        proxy::SCENE_PROXY_FILE,
+        inputs.proxy_bytes,
+        inputs.proxy_sha,
+    )?;
     slim[FILES_FIELD] = files_record(inputs.products.iter().chain([&proxy]));
+    // The scene's temporal anti-aliasing level, only when the job names it: the runtime's
+    // `'scene'` setting, below the quality, the page and the editor.
+    if let Some(level) = inputs
+        .o
+        .materials
+        .as_ref()
+        .ok()
+        .and_then(MaterialOptions::level)
+    {
+        slim[TEMPORAL_AA_FIELD] = json!(level);
+    }
     write_manifest(result, slim, inputs.previews, inputs.mesh_pages, directory)?;
     write_pointer(inputs.o, inputs.key, inputs.cache_format)
 }
@@ -66,9 +76,12 @@ fn files_record<'a>(products: impl Iterator<Item = &'a Product>) -> Value {
 /// The scope pointer: the only stable entry of a cache, written once the key
 /// folder it names is complete — whether this job wrote it or proved it.
 pub(super) fn write_pointer(o: &Options, key: &str, cache_format: u32) -> Result<()> {
-    let pointer = json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":o.scope,"url":format!("{key}/{MANIFEST_FILE}")});
-    atomic(
-        &o.scope_directory().join(crate::MANIFEST_POINTER),
-        &serde_json::to_vec(&pointer)?,
-    )
+    let pointer = scope_pointer(key, &o.scope, cache_format);
+    atomic(&o.pointer_path(), &serde_json::to_vec(&pointer)?)
+}
+
+/// The document of the scope pointer naming `key`, the one `write_pointer` writes and the one a
+/// host is handed when the job ends (`main.rs`), which adds the run's own report to it.
+pub fn scope_pointer(key: &str, scope: &str, cache_format: u32) -> Value {
+    json!({"status":"ready","formatVersion":cache_format,"compiler":"native-rust","key":key,"scope":scope,"url":format!("{key}/{MANIFEST_FILE}")})
 }

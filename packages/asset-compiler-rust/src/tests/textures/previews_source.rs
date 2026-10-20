@@ -78,7 +78,8 @@ fn encode_glow() -> Vec<u8> {
     out
 }
 
-fn encode(image: image::RgbaImage) -> Vec<u8> {
+/// `image` as a PNG: the one in-memory encoder of the tests' images.
+pub(crate) fn encode(image: image::RgbaImage) -> Vec<u8> {
     let mut out = Vec::new();
     image
         .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)

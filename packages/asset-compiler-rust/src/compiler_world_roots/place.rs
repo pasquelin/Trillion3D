@@ -1,24 +1,18 @@
-//! The object roots placed in world space for the world builds (`merge.rs`): one level-0 cluster
-//! per placed object — every root cluster of its cover, the largest error, a sphere holding each
-//! root's —, so the world DAG stands in for an object whole or not at all. With them, the
-//! attributes their pages carry, in one layout a world page is written in: normals by the inverse
-//! transpose of the object's matrix, texture sets as they are, colour four-wide. A mirrored
-//! object's triangles turn back to the front: a world page is drawn under the identity.
+//! The source covers placed in world space for the world's HLOD builds (`world.rs`) — the objects
+//! HLOD 1 approximates and every layer's bake reads —, each component read through its transform,
+//! since one shell is built over objects placed apart: positions by
+//! the object's matrix, normals by its inverse transpose, texture sets as they are, colour
+//! four-wide, in the one layout a world page is written in. A mirrored object's triangles turn back
+//! to the front: a world page is drawn under the identity.
 use super::*;
 use crate::proxy::placement::place;
-use trillion3d_math::linear::{cofactor_direction, determinant, max_stretch};
-use trillion3d_math::matrix::transform_point;
+use trillion3d_math::linear::{cofactor_direction, determinant};
 use trillion3d_math::vec3::unit;
 use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::min_ball::ball_of_balls;
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, OPTIONAL};
 
-/// Root clusters as the builder takes them: triangles, and the error and sphere each was
-/// published at.
-pub(super) type Roots = Vec<(Vec<u32>, f64, [f64; 4])>;
-
 /// The layout `cover` carries: the flags of the attributes its pages carry.
-pub(super) fn layout_of(cover: &RootCover) -> u32 {
+pub(super) fn layout_of(cover: &SourceCover) -> u32 {
     cover.carried.iter().fold(0, |flags, a| flags | a.flag)
 }
 
@@ -36,66 +30,62 @@ pub(super) fn empty(layout: u32) -> Vec<Attribute> {
         .collect()
 }
 
-/// `cover`'s attributes on its vertices placed by `matrix`, appended to `out` (`empty`'s order).
-fn place_attributes(cover: &RootCover, matrix: &Mat4, mirrored: bool, out: &mut [Attribute]) {
-    let vertices = cover.positions.len() / 3;
-    for target in out.iter_mut() {
-        let Some(source) = cover.carried.iter().find(|a| a.flag == target.flag) else {
+/// `carried` on `vertices` laid out as `layout` lays a world vertex out (`empty`'s order, each at
+/// its width there): each attribute `carried` holds moved in, zeros for one it lacks, the others
+/// dropped.
+pub(super) fn conform(mut carried: Vec<Attribute>, layout: u32, vertices: usize) -> Vec<Attribute> {
+    (empty(layout).into_iter())
+        .map(|mut target| {
+            target.values = match carried.iter().position(|a| a.flag == target.flag) {
+                Some(at) => std::mem::take(&mut carried[at].values),
+                None => vec![0.0; vertices * target.width],
+            };
             target
-                .values
-                .resize(target.values.len() + vertices * target.width, 0.0);
-            continue;
-        };
-        let w = source.width;
-        for v in 0..vertices {
-            let value = &source.values[v * w..v * w + w];
-            match target.flag {
-                FLAG_NORMAL => {
-                    let n = [0, 1, 2].map(|a| f64::from(value[a]));
-                    let turned =
-                        cofactor_direction(matrix, n).map(|x| if mirrored { -x } else { x });
-                    let n = unit(turned).unwrap_or(n);
-                    target.values.extend(n.map(|x| x as f32));
-                }
-                FLAG_COLOR => {
-                    target.values.extend_from_slice(value);
-                    target.values.extend(std::iter::repeat_n(1.0, 4 - w));
-                }
-                _ => target.values.extend_from_slice(value),
-            }
-        }
-    }
+        })
+        .collect()
 }
 
-/// The objects of `members` placed in world space, one level-0 cluster each, with the attributes
-/// of `layout` on their vertices; and the instance each cluster comes from.
-pub(super) fn gather(
-    instances: &[Instance],
-    members: &[usize],
-    layout: u32,
-) -> (Vec<f32>, Vec<Attribute>, Roots, Vec<usize>) {
-    let (mut positions, mut carried) = (Vec::new(), empty(layout));
-    let (mut roots, mut origins) = (Vec::new(), Vec::new());
-    for &instance in members {
-        let placed = &instances[instance];
-        let base = (positions.len() / 3) as u32;
-        let mirrored = determinant(&placed.matrix) < 0.0;
-        place(&placed.cover.positions, &placed.matrix, &mut positions);
-        place_attributes(placed.cover, &placed.matrix, mirrored, &mut carried);
-        let scale = max_stretch(&placed.matrix);
-        let (mut indices, mut error, mut spheres) = (Vec::new(), 0.0f64, Vec::new());
-        for root in &placed.cover.clusters {
-            for &[a, b, c] in root.indices.as_chunks::<3>().0 {
-                let corners = if mirrored { [a, c, b] } else { [a, b, c] };
-                indices.extend(corners.map(|v| v + base));
+/// `cover`'s attributes on its vertices placed by `matrix` (`conform`'s order): normals turned by
+/// its cofactor — back to the front when it mirrors —, colours four-wide, the others as they are.
+fn place_attributes(cover: &SourceCover, matrix: &Mat4, mirrored: bool) -> Vec<Attribute> {
+    let vertices = cover.positions.len() / 3;
+    let placed = (cover.carried.iter())
+        .map(|source| {
+            let w = source.width;
+            let values = &source.values[..vertices * w];
+            let values = match source.flag {
+                FLAG_NORMAL => (values.chunks_exact(w))
+                    .flat_map(|value| {
+                        let n = [0, 1, 2].map(|a| f64::from(value[a]));
+                        let turned =
+                            cofactor_direction(matrix, n).map(|x| if mirrored { -x } else { x });
+                        unit(turned).unwrap_or(n).map(|x| x as f32)
+                    })
+                    .collect(),
+                FLAG_COLOR => (values.chunks_exact(w))
+                    .flat_map(|value| value.iter().copied().chain(std::iter::repeat_n(1.0, 4 - w)))
+                    .collect(),
+                _ => values.to_vec(),
+            };
+            Attribute {
+                flag: source.flag,
+                width: w,
+                values,
             }
-            error = error.max(root.error * scale);
-            let [x, y, z, radius] = root.sphere;
-            let [x, y, z] = transform_point(&placed.matrix, [x, y, z]);
-            spheres.push([x, y, z, radius * scale]);
-        }
-        roots.push((indices, error, ball_of_balls(&spheres)));
-        origins.push(instance);
-    }
-    (positions, carried, roots, origins)
+        })
+        .collect();
+    conform(placed, layout_of(cover), vertices)
+}
+
+/// The object `placed` in world space: its positions, the attributes of its cover on them, and
+/// its triangles, turned back when its matrix mirrors.
+pub(super) fn gather(placed: &Instance) -> (Vec<f32>, Vec<Attribute>, Vec<u32>) {
+    let mut positions = Vec::new();
+    let mirrored = determinant(&placed.matrix) < 0.0;
+    place(&placed.cover.positions, &placed.matrix, &mut positions);
+    let carried = place_attributes(placed.cover, &placed.matrix, mirrored);
+    let indices = (placed.cover.indices.as_chunks::<3>().0.iter())
+        .flat_map(|&[a, b, c]| if mirrored { [a, c, b] } else { [a, b, c] })
+        .collect();
+    (positions, carried, indices)
 }

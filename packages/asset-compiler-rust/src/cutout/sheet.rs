@@ -44,17 +44,17 @@ pub(crate) fn entries(
             continue;
         };
         let weight = weights.get(&texture).copied().unwrap_or(0);
-        if let Some(known) = by_image.get_mut(&preview.sha256) {
+        if let Some(known) = by_image.get_mut(&preview.image_sha256) {
             known.weight += weight;
             continue;
         }
         by_image.insert(
-            preview.sha256.clone(),
+            preview.image_sha256.clone(),
             Entry {
-                sha256: preview.sha256.clone(),
+                sha256: preview.image_sha256.clone(),
                 name: image_name(images, preview.image as usize),
                 shape: shape.clone(),
-                answer: decisions.verdict(&preview.sha256),
+                answer: decisions.verdict(&preview.image_sha256),
                 weight,
             },
         );

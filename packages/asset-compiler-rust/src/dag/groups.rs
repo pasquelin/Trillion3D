@@ -1,100 +1,81 @@
-use trillion3d_page_codec::split::{bisect_least_cost, sort_along};
+use super::clusters::Pool;
+use super::*;
+pub use trillion3d_page_codec::clusters::vertex_bounds;
+use trillion3d_page_codec::partition::{Islands, Partitioner};
 
-/// Groups of at most `max` clusters, each cluster given by its bounding sphere: the median split
-/// of every tree over boxed things (`bisect_least_cost`, the spheres' boxes weighed), each cut then
-/// refined along the clusters' shared edges.
+/// The cost of a shared edge between two clusters a group's simplification made together, and
+/// between any other two; every pair that shares an edge adds `LINK_COST`, a locality link
+/// `LOCALITY_COST`.
+const SIBLING_EDGE_COST: i64 = 12;
+const EDGE_COST: i64 = 16;
+const LINK_COST: i64 = 4;
+const LOCALITY_COST: i64 = 1;
+
+/// The groups of a level's clusters (`lists`, indexing `positions`), parts of `DAG_GROUP_MIN` to
+/// `DAG_GROUP_MAX` clusters of the clusters' graph (`Partitioner`): two clusters that share edges
+/// (`adjacency`, `cluster_adjacency`) are joined at `EDGE_COST` per edge — `SIBLING_EDGE_COST`
+/// when one group made both (`sources`) — plus `LINK_COST`; a cluster of a small island links its
+/// nearest clusters of other islands at `LOCALITY_COST` (`Partitioner::locality_links`, by the
+/// centres of the clusters' boxes within `bounds`, the box of the source's positions). A level of
+/// at most `DAG_GROUP_MAX` clusters is one group. Each group's members in partition order, the
+/// groups in that order.
 pub fn group_clusters(
-    spheres: &[[f64; 4]],
+    lists: &[&[u32]],
+    positions: &[f32],
+    bounds: ([f32; 3], [f32; 3]),
+    sources: &[Option<usize>],
     adjacency: &[Vec<(u32, u32)>],
-    max: usize,
 ) -> Vec<Vec<usize>> {
-    let centres: Vec<[f64; 3]> = spheres.iter().map(|s| [s[0], s[1], s[2]]).collect();
-    let bounds = |id: usize| {
-        let [x, y, z, r] = spheres[id];
-        ([x - r, y - r, z - r], [x + r, y + r, z + r])
-    };
-    let mut groups = Vec::new();
-    let mut side = vec![0u8; centres.len()];
-    // Single membership table for all cuts: cleared on entry each call.
-    let mut present = vec![false; centres.len()];
-    let mut members: Vec<usize> = (0..centres.len()).collect();
-    let mut stack = vec![(0usize, members.len())];
-    while let Some((from, to)) = stack.pop() {
-        let len = to - from;
-        if len == 0 {
-            continue;
-        }
-        if len <= max {
-            groups.push(members[from..to].to_vec());
-            continue;
-        }
-        let slice = &mut members[from..to];
-        let middle = len / 2;
-        let axis = bisect_least_cost(slice, &centres, bounds, middle);
-        // The refinement visits the members in their order on the axis: each half sorted on it,
-        // the order a full sort of the group gives.
-        sort_along(&mut slice[..middle], &centres, axis);
-        sort_along(&mut slice[middle..], &centres, axis);
-        for (i, &m) in slice.iter().enumerate() {
-            side[m] = if i < middle { 0 } else { 1 };
-        }
-        refine_bisection(slice, &mut side, adjacency, len * 3 / 8, &mut present);
-        slice.sort_unstable_by_key(|&m| (side[m], m));
-        let split = from + slice.iter().filter(|&&m| side[m] == 0).count();
-        stack.push((from, split));
-        stack.push((split, to));
+    let n = lists.len();
+    if n <= DAG_GROUP_MAX {
+        return vec![(0..n).collect()];
     }
-    groups.sort_unstable_by_key(|group| group.first().copied().unwrap_or(usize::MAX));
-    groups
+    let mut islands = Islands::new(n);
+    for (id, neighbours) in adjacency.iter().enumerate() {
+        for &(other, _) in neighbours {
+            islands.union(id as u32, other);
+        }
+    }
+    let centres: Vec<[f32; 3]> = lists
+        .iter()
+        .map(|list| box_centre(positions, list))
+        .collect();
+    let mut partitioner = Partitioner::new(n, DAG_GROUP_MIN, DAG_GROUP_MAX);
+    partitioner.locality_links(&mut islands, bounds, |c| centres[c as usize]);
+    let graph = partitioner.graph(LOCALITY_COST, |c, links| {
+        let source = sources[c as usize];
+        for &(other, shared) in &adjacency[c as usize] {
+            let siblings = source.is_some() && source == sources[other as usize];
+            let per_edge = if siblings {
+                SIBLING_EDGE_COST
+            } else {
+                EDGE_COST
+            };
+            links.push((other, shared as i64 * per_edge + LINK_COST));
+        }
+    });
+    partitioner.partition(graph, &Pool);
+    (partitioner.parts.iter())
+        .map(|part| {
+            (partitioner.ranks[part.clone()].iter())
+                .map(|&c| c as usize)
+                .collect()
+        })
+        .collect()
 }
 
-/// `present` arrives and leaves entirely `false`: cut marks only own members,
-/// replacing per-call reconstructed `HashSet` with reused indexed table.
-pub(crate) fn refine_bisection(
-    slice: &[usize],
-    side: &mut [u8],
-    adjacency: &[Vec<(u32, u32)>],
-    floor: usize,
-    present: &mut [bool],
-) {
-    for &m in slice.iter() {
-        present[m] = true;
-    }
-    let mut counts = [0usize; 2];
-    for &m in slice.iter() {
-        counts[side[m] as usize] += 1;
-    }
-    for _ in 0..2 {
-        let mut moved = false;
-        for &m in slice.iter() {
-            let here = side[m] as usize;
-            if counts[here] <= floor {
-                continue;
-            }
-            let mut internal = 0i64;
-            let mut external = 0i64;
-            for &(other, weight) in adjacency.get(m).map(|v| v.as_slice()).unwrap_or(&[]) {
-                if !present.get(other as usize).copied().unwrap_or(false) {
-                    continue;
-                }
-                if side[other as usize] as usize == here {
-                    internal += weight as i64;
-                } else {
-                    external += weight as i64;
-                }
-            }
-            if external > internal {
-                side[m] = 1 - side[m];
-                counts[here] -= 1;
-                counts[1 - here] += 1;
-                moved = true;
+/// The centre of the box of the vertices a cluster names, in `f32`.
+fn box_centre(positions: &[f32], list: &[u32]) -> [f32; 3] {
+    let mut low = [f32::INFINITY; 3];
+    let mut high = [f32::NEG_INFINITY; 3];
+    for &v in list {
+        let i = v as usize * 3;
+        if let Some(p) = positions.get(i..i + 3) {
+            for k in 0..3 {
+                low[k] = low[k].min(p[k]);
+                high[k] = high[k].max(p[k]);
             }
         }
-        if !moved {
-            break;
-        }
     }
-    for &m in slice.iter() {
-        present[m] = false;
-    }
+    [0, 1, 2].map(|k| 0.5 * (low[k] + high[k]))
 }

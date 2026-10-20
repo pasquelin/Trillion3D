@@ -3,15 +3,17 @@ use crate::proxy::tracer::{trace, World};
 use rayon::prelude::*;
 use trillion3d_math::vecn::{dot, length, scale, sub};
 
+/// A ray's origin off the surface at `point`, lifted along its normal `n`: a ray leaving a face
+/// does not hit that face again.
+pub(super) fn lifted(point: [f64; 3], n: [f64; 3]) -> [f64; 3] {
+    std::array::from_fn(|axis| point[axis] + n[axis] * 1e-3)
+}
+
 /// Irradiance of declared lights at a point: same physical attenuation and cones
 /// as the shader, with ray-traced shadows on source triangles instead of shadow maps.
 pub fn direct(world: &World, lights: &[OracleLight], point: [f64; 3], n: [f64; 3]) -> [f64; 3] {
     let mut total = [0.0f64; 3];
-    let offset = [
-        point[0] + n[0] * 1e-3,
-        point[1] + n[1] * 1e-3,
-        point[2] + n[2] * 1e-3,
-    ];
+    let offset = lifted(point, n);
     for light in lights {
         let (to_light, attenuation, span) = if light.kind == KIND_SUN {
             (scale(light.direction, -1.0), 1.0, f64::INFINITY)

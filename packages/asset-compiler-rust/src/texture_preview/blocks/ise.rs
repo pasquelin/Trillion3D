@@ -144,3 +144,14 @@ pub fn append(bits: &mut u128, at: &mut u32, values: &[u8]) {
         }
     }
 }
+
+/// Appends the low `width` bits of `value` to the weight stream, `at` stream bits written so far:
+/// weights are read from the top of the block downward, the first stream bit at bit 127.
+pub fn append_weights(bits: &mut u128, at: &mut u32, value: u8, width: u32) {
+    for bit in 0..width {
+        if (value >> bit) & 1 == 1 {
+            *bits |= 1u128 << (127 - (*at + bit));
+        }
+    }
+    *at += width;
+}

@@ -25,7 +25,6 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     fs,
     rc::Rc,
-    sync::atomic::Ordering,
     time::Instant,
 };
 use yaml_rust2::yaml::Yaml;
@@ -95,8 +94,8 @@ impl ScenePlugin for Unity {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.windows(12).any(|window| window == b"tag:unity3d.")
     }
-    fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        convert(request, self).map(|directory| request.converted(directory))
+    fn convert(&self, request: &SceneRequest<'_>) -> Result<PathBuf> {
+        convert(request, self)
     }
     /// A Unity project is recognised at directory level: as soon as a scene lives under it, the
     /// whole tree is the source, and models stored in it are its inputs, never competing
@@ -111,14 +110,6 @@ impl ScenePlugin for Unity {
 struct World<'a> {
     scene: &'a mut SceneTables,
     project: &'a Project,
-    cache: &'a Path,
-    cancelled: &'a AtomicBool,
-    progress: &'a (dyn Fn(Value) + Sync),
-    ram_budget: usize,
-}
-impl World<'_> {
-    /// Cancellation, checked at each object: the walk stops, `convert` then refuses.
-    fn check(&self) -> Option<()> {
-        (!self.cancelled.load(Ordering::Relaxed)).then_some(())
-    }
+    /// The job's request: its cache, cancellation, progress and budget serve each model.
+    request: &'a SceneRequest<'a>,
 }

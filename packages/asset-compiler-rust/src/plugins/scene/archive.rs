@@ -7,7 +7,7 @@
 //! refusals, directory-escape refusal, extraction key. Its `container` submodule holds the common
 //! sequence — extract, mark, route. A second container therefore only adds its reading.
 use super::*;
-use crate::{hash, is_safe_source_name, CompilerError};
+use crate::{archives_dir, hash, safe_relative, CompilerError};
 
 mod container;
 #[cfg(test)]
@@ -33,6 +33,8 @@ pub(super) const LIMITS: Limits = Limits {
     bytes: 8 * 1024 * 1024 * 1024,
 };
 
+/// The gzip magic number, that a `.unitypackage` and an older `.blend` start with.
+pub(super) const GZIP_MAGIC: &[u8] = b"\x1f\x8b";
 /// An entry leaves the extraction directory: absolute path, parent climb, named volume.
 pub(super) const PATH_ESCAPE: &str = "ARCHIVE_PATH_ESCAPE";
 /// The archive cannot be read: truncated, corrupted, or a compression format this binary does not have.
@@ -57,33 +59,29 @@ pub(super) fn extraction_dir(
     digest: &str,
 ) -> PathBuf {
     let key = hash(format!("{}:{}:{digest}", container.name(), container.version()).as_bytes());
-    request.cache.join("native").join("archives").join(key)
+    archives_dir(request.cache).join(key)
 }
 
-/// The path of an entry under the extraction root. An absolute entry, one that climbs, that names
-/// a volume or that carries a backslash designates a file outside the root: that is directory
-/// escape by the archive, refused before any byte is written.
-pub(super) fn safe_join(root: &Path, name: &str) -> Result<PathBuf> {
-    let refused = || {
-        CompilerError::new(
-            PATH_ESCAPE,
-            format!("archive entry {name:?} escapes the extraction directory"),
-        )
-    };
-    if name.starts_with('/') || name.contains('\\') || name.contains(':') {
-        return Err(refused());
-    }
-    let mut out = root.to_path_buf();
-    for part in name.split('/').filter(|part| !part.is_empty()) {
-        if !is_safe_source_name(part) {
-            return Err(refused());
-        }
-        out.push(part);
-    }
-    if out == root {
-        return Err(refused());
-    }
-    Ok(out)
+/// Marker of a finished extraction, beside the extracted directory and never inside it: until it
+/// is written, the directory is a work in progress that nobody rereads, and prune removes it.
+pub(crate) const MARKER: &str = "archive.json";
+
+/// The chain of the extraction at `directory` (an `extraction_dir`) once it is finished, or
+/// nothing while it must be (re)done.
+pub(crate) fn extracted(directory: &Path) -> Option<serde_json::Value> {
+    let marker: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(directory.join(MARKER)).ok()?).ok()?;
+    (marker["status"] == "ready").then(|| marker["chain"].clone())
+}
+
+/// The refusal of an entry that names no path under the extraction root — absolute, climbing,
+/// naming a volume, carrying a backslash or empty (`safe_relative`, the one rule of a path under
+/// a root): directory escape by the archive, refused before any byte is written.
+pub(super) fn escape(name: &str) -> CompilerError {
+    CompilerError::new(
+        PATH_ESCAPE,
+        format!("archive entry {name:?} escapes the extraction directory"),
+    )
 }
 
 /// The only archive this container received. A directory that holds several is an ambiguity: the
@@ -92,17 +90,8 @@ pub(super) fn only_input<'a>(
     request: &SceneRequest<'a>,
     plugin: &dyn ScenePlugin,
 ) -> Result<&'a Path> {
-    let [file] = request.inputs else {
-        let kind = plugin.extensions().first().copied().unwrap_or_default();
-        return Err(CompilerError::new(
-            "SOURCE_FORMAT_AMBIGUOUS",
-            format!(
-                "{}: a source directory carries exactly one .{kind}, found {}",
-                plugin.name(),
-                request.inputs.len()
-            ),
-        ));
-    };
+    let kind = plugin.extensions().first().copied().unwrap_or_default();
+    let file = super::single_input(request.inputs, plugin.name(), &format!(".{kind}"))?;
     Ok(file)
 }
 
@@ -115,6 +104,23 @@ pub(super) fn check(request: &SceneRequest<'_>) -> Result<()> {
 /// method this binary does not ship. The reader's reason travels as-is.
 pub(super) fn unreadable(source: &Path, error: impl std::fmt::Display) -> CompilerError {
     CompilerError::new(UNREADABLE, format!("{}: {error}", source.to_string_lossy()))
+}
+
+/// Writes one entry's payload to `path`, at most one byte past the room the ceiling leaves, and
+/// adds it to `written`: an entry that lies about its size is stopped by the same count. The
+/// payload is read here: an entry that does not unpack is an unreadable archive, not a disk
+/// failure.
+pub(super) fn write_entry(
+    entry: &mut impl std::io::Read,
+    path: &Path,
+    written: &mut u64,
+    source: &Path,
+) -> Result<()> {
+    let mut file = std::fs::File::create(path)?;
+    let room = LIMITS.bytes - *written;
+    *written += std::io::copy(&mut std::io::Read::take(entry, room + 1), &mut file)
+        .map_err(|error| unreadable(source, error))?;
+    under_byte_limit(*written)
 }
 
 /// The refusal of a well-formed archive that carries no entry.

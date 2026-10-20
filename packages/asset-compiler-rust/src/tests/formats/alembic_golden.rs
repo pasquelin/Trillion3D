@@ -141,34 +141,17 @@ fn alembic_digest(run: &GoldenRun) -> Value {
 /// flipped second coordinate show in the clear, number by number.
 fn first_primitive(gltf: &Value, run: &GoldenRun) -> Value {
     let bytes = fs::read(run.prepared_dir("alembic").join("model.bin")).expect("model.bin");
-    // Start of an accessor in the binary, and the element count it announces.
-    let span = |id: &Value| {
-        let accessor = &gltf["accessors"][id.as_u64().expect("accesseur") as usize];
-        let view = &gltf["bufferViews"][accessor["bufferView"].as_u64().expect("view") as usize];
-        let at = view["byteOffset"].as_u64().unwrap_or(0) as usize;
-        (at, accessor["count"].as_u64().expect("count") as usize)
-    };
     let primitive = &gltf["meshes"][0]["primitives"][0];
-    let floats = |name: &str, width: usize| {
-        let (at, count) = span(&primitive["attributes"][name]);
-        (0..count * width)
-            .map(|index| {
-                let word = &bytes[at + index * 4..at + index * 4 + 4];
-                f64::from(f32::from_le_bytes(word.try_into().expect("mot")))
-            })
-            .collect::<Vec<f64>>()
+    let rank = |id: &Value| id.as_u64().expect("accesseur") as usize;
+    let floats = |name: &str| {
+        let floats = accessor_floats(gltf, &bytes, rank(&primitive["attributes"][name]));
+        floats.into_iter().map(f64::from).collect::<Vec<f64>>()
     };
-    let (at, count) = span(&primitive["indices"]);
-    let indices: Vec<u16> = (0..count)
-        .map(|index| {
-            let word = &bytes[at + index * 2..at + index * 2 + 2];
-            u16::from_le_bytes(word.try_into().expect("mot"))
-        })
-        .collect();
+    let indices = accessor_indices(gltf, &bytes, rank(&primitive["indices"]));
     json!({
-        "positions": floats("POSITION", 3),
-        "normals": floats("NORMAL", 3),
-        "texcoords": floats("TEXCOORD_0", 2),
+        "positions": floats("POSITION"),
+        "normals": floats("NORMAL"),
+        "texcoords": floats("TEXCOORD_0"),
         "indices": indices,
     })
 }

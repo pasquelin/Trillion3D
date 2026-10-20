@@ -40,7 +40,7 @@ impl Surface {
         let sampled =
             normals.as_ref().is_some_and(|(_, s)| *s) || uvs.as_ref().is_some_and(|(_, s)| *s);
         if sampled {
-            world.refuse(world::TIME_SAMPLE);
+            world.scene.report.add(world::TIME_SAMPLE);
         }
         Self {
             points,
@@ -48,7 +48,7 @@ impl Surface {
             faces,
             normals: normals.map(|(primvar, _)| primvar),
             uvs: uvs.map(|(primvar, _)| primvar),
-            reversed: mesh::scheme(prim, "orientation").as_deref() == Some("leftHanded"),
+            reversed: read::text_attribute(prim, "orientation").as_deref() == Some("leftHanded"),
             holes,
         }
     }
@@ -76,29 +76,23 @@ impl Surface {
                 .map(|offset| self.key(start + offset, *face))
                 .collect();
             let Some(keys) = keys.filter(|keys| keys.len() >= 3) else {
-                world.refuse(world::FACE_INVALID);
+                world.scene.report.add(world::FACE_INVALID);
                 continue;
             };
-            out.begin();
-            for (offset, (key, values)) in keys.into_iter().enumerate() {
-                out.corner(key, self.point(start + offset), |vertices| {
-                    vertices.positions.extend(values.position);
-                    vertices.normals.extend(values.normal.into_iter().flatten());
-                    vertices.uvs.extend(values.uv.into_iter().flatten());
-                });
-            }
+            let corners = keys
+                .into_iter()
+                .enumerate()
+                .map(|(offset, (key, values))| (key, self.point(start + offset), values));
             // The cutter rereads the token per face slice: a single huge mesh stops too. What
             // is placed stays, and `convert` then refuses the whole scene.
-            let uncut = out.uncut;
-            if out.cut(cancelled, self.reversed).is_none() {
+            if out
+                .face(corners, Values::write, cancelled, self.reversed)
+                .is_none()
+            {
                 break;
             }
-            if out.uncut != uncut {
-                world.refuse(crate::plugins::scene::codes::NGON_UNCUT);
-            }
         }
-        let out = out.vertices;
-        world.scene.part_primitive(&out, part.material)
+        world.scene.part_primitive(out, part.material)
     }
 
     /// Position of a corner, as a double, as the polygon cut reads it. A corner outside the
@@ -150,6 +144,15 @@ struct Values {
     position: [f32; 3],
     normal: Option<[f32; 3]>,
     uv: Option<[f32; 2]>,
+}
+
+impl Values {
+    /// Pours the vertex into `vertices`.
+    fn write(vertices: &mut Vertices, values: Self) {
+        vertices.positions.extend(values.position);
+        vertices.normals.extend(values.normal.into_iter().flatten());
+        vertices.uvs.extend(values.uv.into_iter().flatten());
+    }
 }
 
 /// A normal brought back to length one; a null normal becomes glTF's up axis.

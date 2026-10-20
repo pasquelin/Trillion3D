@@ -29,12 +29,8 @@ pub(super) fn composite<'a>(
     if rest.is_empty() {
         return Err(COMPOSITE_MISSING);
     }
-    let marker = rest.get(..MARKER_BYTES).ok_or(DATA_TRUNCATED)?;
-    Ok((
-        declared,
-        u16::from_be_bytes([marker[0], marker[1]]),
-        &rest[MARKER_BYTES..],
-    ))
+    let marker = crate::le::be16_at(rest, 0).ok_or(DATA_TRUNCATED)?;
+    Ok((declared, marker, &rest[MARKER_BYTES..]))
 }
 
 /// RGBA8 image of the composite. The buffer starts all at `u8::MAX`: the mode's colour

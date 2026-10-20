@@ -85,7 +85,8 @@ impl Builder<'_, '_> {
                 .add(crate::plugins::scene::codes::HIERARCHY_TOO_DEEP);
             return None;
         }
-        self.world.check()?;
+        // Cancellation, checked at each object: the walk stops, `convert` then refuses.
+        crate::plugins::scene::cancel::going(self.world.request.cancelled)?;
         let entry = document.get(id)?;
         if entry.class_id == PREFAB_INSTANCE {
             return self.prefab_instance(document, id, changes, depth);

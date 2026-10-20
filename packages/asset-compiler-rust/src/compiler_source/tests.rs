@@ -27,7 +27,7 @@ fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
     assert_eq!(loaded.bin_hash, hash(&[1, 2, 3, 4]));
     drop(loaded);
     let manifest = crate::compiler_runtime::runtime_manifest("one.glb", "bad", &[], 0, 0);
-    let refusal = load_model_file(&dir, "one.glb", Some((manifest, Vec::new())), &budget)
+    let refusal = load_model_file(&dir, "one.glb", Some(manifest), &budget)
         .err()
         .expect("hash refusal");
     assert_eq!(refusal.code, "SOURCE_HASH_MISMATCH");

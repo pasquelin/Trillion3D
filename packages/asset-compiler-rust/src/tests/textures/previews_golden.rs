@@ -10,13 +10,13 @@ use super::*;
 /// outside reader, without borrowing the writer's private constants: a rank that
 /// moves is a format change, not a detail.
 const HEADER_WORDS: usize = 4;
-const TEXTURE_PREVIEW_U32: usize = 21;
-const TEXTURE_PREVIEW_SHA: usize = 22;
-const TEXTURE_PREVIEW_PIXELS: usize = 23;
+const TEXTURE_PREVIEW_U32: usize = 19;
+const TEXTURE_PREVIEW_SHA: usize = 20;
+const TEXTURE_PREVIEW_PIXELS: usize = 21;
 /// The tails block-compressed, the BC family, ASTC 4 × 4 then ETC2: no offset
 /// written, one contiguous range per entry the family kept, whose length follows
 /// from its dimensions; nothing for an entry whose layout word says lossless.
-const TEXTURE_PREVIEW_BLOCKS: [(&str, usize); 3] = [("bc7", 24), ("astc", 25), ("etc2", 26)];
+const TEXTURE_PREVIEW_BLOCKS: [(&str, usize); 3] = [("bc7", 22), ("astc", 23), ("etc2", 24)];
 /// Numbers per entry: texture, image, width, height, kind and provenance view,
 /// first level, level count, pixel start and length, atlas, levels baked to
 /// files, then the layout word of each family.

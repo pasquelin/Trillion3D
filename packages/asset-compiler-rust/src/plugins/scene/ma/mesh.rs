@@ -52,7 +52,10 @@ fn read(world: &mut World<'_>, node: usize) -> Option<Surface> {
     let document = world.document;
     let mesh = &document.nodes[node];
     let Some(written) = mesh.attr(&["vt", "vrts"]) else {
-        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     };
     let positions: Vec<[f64; 3]> = value::elements(written.numbers()).collect();
@@ -74,7 +77,10 @@ fn read(world: &mut World<'_>, node: usize) -> Option<Surface> {
         .collect();
     let corners: usize = polygons.iter().map(|face| face.edges.len()).sum();
     if positions.is_empty() || polygons.is_empty() || corners > MAX_ELEMENTS {
-        world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::MESH_INVALID);
         return None;
     }
     let (loops, uv_slots) = resolve(world, polygons, &edges, positions.len());
@@ -111,22 +117,31 @@ fn resolve(
             .collect();
         match (ring, face.hole) {
             (_, true) => {
-                world.refuse(report::FACE_HOLE);
+                world.scene.report.add(report::FACE_HOLE);
                 loops.push(Vec::new());
             }
             (None, _) => {
-                world.refuse(crate::plugins::scene::codes::MESH_INVALID);
+                world
+                    .scene
+                    .report
+                    .add(crate::plugins::scene::codes::MESH_INVALID);
                 loops.push(Vec::new());
             }
             (Some(ring), _) if ring.len() < 3 => {
-                world.refuse(crate::plugins::scene::codes::DEGENERATE_FACE);
+                world
+                    .scene
+                    .report
+                    .add(crate::plugins::scene::codes::DEGENERATE_FACE);
                 loops.push(Vec::new());
             }
             (Some(ring), _) => loops.push(ring),
         }
         let carried = face.uv_set == 0 && face.uvs.len() == face.edges.len();
         if !carried && !face.uvs.is_empty() {
-            world.refuse(crate::plugins::scene::codes::UV_DROPPED);
+            world
+                .scene
+                .report
+                .add(crate::plugins::scene::codes::UV_DROPPED);
         }
         slots.push(if carried {
             face.uvs.clone()

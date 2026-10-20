@@ -1,5 +1,5 @@
 use super::geometry::albedo_of;
-use super::trace::{direct, scene_reach};
+use super::trace::{direct, lifted, scene_reach};
 use super::OracleJob;
 use crate::proxy::tracer::{surface_at, trace, World};
 use std::f64::consts::PI;
@@ -49,11 +49,7 @@ pub fn indirect(
     seed: u64,
 ) -> [f64; 3] {
     let reach = scene_reach(world);
-    let origin = [
-        point[0] + n[0] * 1e-3,
-        point[1] + n[1] * 1e-3,
-        point[2] + n[2] * 1e-3,
-    ];
+    let origin = lifted(point, n);
     let mut total = [0.0f64; 3];
     for sample in 0..samples {
         // Stratified sampling on first number, mixed on second: hemisphere coverage

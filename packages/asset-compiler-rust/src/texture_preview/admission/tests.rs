@@ -2,7 +2,7 @@ use super::*;
 use std::sync::{atomic::AtomicUsize, Barrier};
 
 #[test]
-fn a_wave_bounds_live_work_and_keeps_input_order() {
+fn the_room_bounds_live_work_and_keeps_input_order() {
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(4)
         .build()
@@ -29,21 +29,15 @@ fn a_wave_bounds_live_work_and_keeps_input_order() {
     assert_eq!(results, [0, 1, 2, 3]);
 }
 
-// Behaviour: texture waves are the compiler's shared waves (`compiler_budget::waves`), cut on the
-// room alone: images that fit together are one wave however many there are, with no barrier.
+// Behaviour: the images' room is what the budget leaves once every tail is reserved.
 #[test]
-fn texture_waves_are_the_shared_planners_cut() {
+fn the_room_is_what_the_tails_leave() {
     let costs = [Cost {
         working: 5,
         retained: 1,
     }; 16];
-    let fitting = admit(&costs, 100).unwrap();
-    assert_eq!((fitting.len(), fitting[0].clone()), (1, 0..16));
-    let working = [5; 16];
-    assert_eq!(
-        admit(&costs, 60).unwrap(),
-        compiler_budget::waves::waves(&working, 60 - 16)
-    );
+    assert_eq!(admit(&costs, 100).unwrap(), 100 - 16);
+    assert_eq!(admit(&costs, 60).unwrap(), 60 - 16);
 }
 
 #[test]
@@ -52,10 +46,10 @@ fn source_and_geometry_reservation_reduces_texture_concurrency() {
         working: 30,
         retained: 10,
     }; 2];
-    assert_eq!(admit(&costs, 100).unwrap().len(), 1);
+    assert_eq!(admit(&costs, 100).unwrap(), 80);
     assert_eq!(
         admit(&costs, remaining_budget(100, 40).unwrap()).unwrap(),
-        [0..1, 1..2]
+        40
     );
     assert_eq!(
         remaining_budget(100, 101).unwrap_err().code,
@@ -97,7 +91,7 @@ fn impossible_image_or_retained_tails_fail_before_work() {
 }
 
 #[test]
-fn varying_weights_and_thin_images_keep_every_wave_within_its_allowance() {
+fn varying_weights_and_thin_images_keep_within_the_allowance() {
     let costs = [
         Cost {
             working: 60,
@@ -116,7 +110,7 @@ fn varying_weights_and_thin_images_keep_every_wave_within_its_allowance() {
             retained: 5,
         },
     ];
-    assert_eq!(admit(&costs, 100).unwrap(), [0..2, 2..4]);
+    assert_eq!(admit(&costs, 100).unwrap(), 80);
     let cost = cost::estimate(1, 16384, 128, 3, 2);
     assert_eq!(
         cost.retained,

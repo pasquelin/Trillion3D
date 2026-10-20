@@ -5,7 +5,7 @@ use super::cut::{collision_cut, tolerance};
 use super::hausdorff;
 use super::tests::cluster;
 use crate::dag::bounds::culling_clusters;
-use crate::dag::{build_dag_tallied, DagAttributes, DagCluster, DagStrategy};
+use crate::dag::{build_dag, DagAttributes, DagCluster, DagStrategy};
 use crate::tests::scene_document::ENGINE_SCENES;
 use crate::tests::thin_shapes::ThinShapes;
 use serde_json::Value;
@@ -17,7 +17,7 @@ fn engine_scene(folder: &str, gltf: &str, tag: &str) -> Vec<(Vec<f32>, Vec<u32>)
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .join(folder);
-    let g: Value = serde_json::from_slice(&std::fs::read(dir.join(gltf)).unwrap()).unwrap();
+    let g: Value = crate::tests::fixtures::read_json(&dir.join(gltf));
     let bin = std::fs::read(dir.join(format!("{tag}.bin"))).unwrap();
     let read = |id: &Value| crate::accessor(&g, &bin, id.as_u64().unwrap() as usize, None).unwrap();
     let meshes = g["meshes"].as_array().unwrap();
@@ -66,7 +66,10 @@ fn every_collider_holds_its_tolerance() {
     for (name, pos, source) in collider_sources() {
         let strategy = DagStrategy::named("qem-endpoints");
         let attributes = DagAttributes::default();
-        let (dag, ..) = build_dag_tallied(&pos, attributes, &source, strategy, &|| Ok(())).unwrap();
+        let built = build_dag(&pos, attributes, &source, strategy, &|| Ok(())).unwrap();
+        let (dag, grown) = (built.clusters, built.grown);
+        // The clusters index the source's vertices, then those the reductions placed.
+        let pos = grown.map_or(pos, |grown| grown.positions);
         let t = tolerance(&dag);
         if t == 0.0 {
             continue;

@@ -1,5 +1,17 @@
 use super::*;
 
+/// Node `id` of `nodes`, the source mesh it places and that mesh's compiled rank in `mesh_map`;
+/// `None` when the mesh was not compiled. The one walk from a shown node to its compiled mesh.
+pub(crate) fn compiled_mesh<'a>(
+    nodes: &'a [Value],
+    id: usize,
+    mesh_map: &BTreeMap<usize, usize>,
+) -> Result<Option<(&'a Value, usize, usize)>> {
+    let node = item(nodes, id, "node")?;
+    let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
+    Ok(mesh_map.get(&old_mesh).map(|&mesh| (node, old_mesh, mesh)))
+}
+
 /// Child indices of a node, bounded to the node array. The only place `children`
 /// is read: the hierarchy is walked twice — for world matrices, for the rendered
 /// scene — and only one of the two reads is allowed to exist.
@@ -11,11 +23,7 @@ pub(super) fn children_of(nodes: &[Value], id: usize) -> Result<Vec<usize>> {
         .map(Vec::as_slice)
         .unwrap_or(&[])
     {
-        let index = required_index(Some(child), "node.children")?;
-        if index >= nodes.len() {
-            return Err(invalid("node.children index is out of bounds"));
-        }
-        out.push(index);
+        out.push(bounded(child, "node.children", nodes.len())?);
     }
     Ok(out)
 }
@@ -91,12 +99,10 @@ pub(super) fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
         return hierarchy_roots(nodes);
     };
     let named = match g.get("scene") {
-        Some(value) => required_index(Some(value), "scene")?,
+        Some(value) => bounded(value, "scene", scenes.len())?,
         None => 0,
     };
-    let scene = scenes
-        .get(named)
-        .ok_or_else(|| invalid("scene index is out of bounds"))?;
+    let scene = &scenes[named];
     let mut roots = Vec::new();
     for entry in scene
         .get("nodes")
@@ -104,11 +110,7 @@ pub(super) fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
         .map(Vec::as_slice)
         .unwrap_or(&[])
     {
-        let id = required_index(Some(entry), "scene.nodes")?;
-        if id >= nodes.len() {
-            return Err(invalid("scene.nodes index is out of bounds"));
-        }
-        roots.push(id);
+        roots.push(bounded(entry, "scene.nodes", nodes.len())?);
     }
     Ok(roots)
 }

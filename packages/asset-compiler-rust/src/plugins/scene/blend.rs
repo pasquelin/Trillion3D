@@ -45,7 +45,7 @@ use crate::{hash, CompilerError};
 use serde_json::{json, Value};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    sync::atomic::{AtomicBool, Ordering},
+    sync::atomic::AtomicBool,
     time::Instant,
 };
 
@@ -56,7 +56,7 @@ mod build;
 mod bytes;
 mod convert;
 mod dna;
-mod envelope;
+pub(crate) mod envelope;
 mod file;
 mod images;
 mod layers;
@@ -112,7 +112,7 @@ impl ScenePlugin for Blend {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(envelope::MAGIC)
     }
-    fn prepare(&self, request: &SceneRequest<'_>) -> Result<PreparedScene> {
-        convert::convert(request, self).map(|directory| request.converted(directory))
+    fn convert(&self, request: &SceneRequest<'_>) -> Result<PathBuf> {
+        convert::convert(request, self)
     }
 }

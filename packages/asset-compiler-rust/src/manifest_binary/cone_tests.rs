@@ -1,4 +1,4 @@
-use super::tests::{column, sample, TEMPLATES};
+use super::tests::{column, sample};
 use super::*;
 
 /// The four numbers page `page` writes in the cone column.
@@ -21,7 +21,7 @@ fn every_page_writes_its_cone_and_a_page_without_one_writes_the_open_cone() {
     ];
     let angle: f64 = 1.7498532116605978;
     manifest["primitives"][0]["pages"][0]["cone"] = json!({"axis": axis, "angle": angle});
-    let (_, bytes) = split(&manifest, &TEMPLATES, &[]).expect("split");
+    let (_, bytes) = split(&manifest, &[]).expect("split");
     let cone = cone_of(&bytes, 0);
     assert_eq!(cone[..3], axis);
     assert_eq!(cone[3].to_bits(), angle.to_bits());
@@ -35,7 +35,7 @@ fn every_page_writes_its_cone_and_a_page_without_one_writes_the_open_cone() {
 fn a_cone_without_three_axis_numbers_is_refused() {
     let mut manifest = sample();
     manifest["primitives"][0]["pages"][0]["cone"] = json!({"axis": [0.0, 1.0], "angle": 0.5});
-    let error = split(&manifest, &TEMPLATES, &[]).unwrap_err();
+    let error = split(&manifest, &[]).unwrap_err();
     assert_eq!(error.code, "INVALID_MANIFEST");
     assert!(
         error.message.contains("page.cone.axis"),

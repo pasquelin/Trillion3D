@@ -15,25 +15,6 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
-/// `grid(n)` laid out one texture island per quad, each under its own unit square: every position
-/// is a seam corner. Positions, coordinates, triangles.
-pub(super) fn island_per_quad(n: usize) -> (Vec<f32>, Vec<f32>, Vec<u32>) {
-    let (grid_positions, grid_indices) = grid(n);
-    let (mut positions, mut uvs, mut indices) = (Vec::new(), Vec::new(), Vec::new());
-    for quad in grid_indices.chunks(6) {
-        let base = (positions.len() / 3) as u32;
-        // The quad's corners a, a + 1, a + w, a + 1 + w.
-        let corners = [quad[0], quad[1], quad[2], quad[4]];
-        for (rank, &corner) in corners.iter().enumerate() {
-            let at = corner as usize * 3;
-            positions.extend_from_slice(&grid_positions[at..at + 3]);
-            uvs.extend([(rank & 1) as f32, (rank >> 1) as f32]);
-        }
-        indices.extend([base, base + 1, base + 2, base + 1, base + 3, base + 2]);
-    }
-    (positions, uvs, indices)
-}
-
 /// A grid rolled onto a cylinder of radius 8: a smooth curved surface.
 pub(super) fn cylinder(n: usize) -> (Vec<f32>, Vec<u32>) {
     let (mut positions, indices) = grid(n);
@@ -44,19 +25,19 @@ pub(super) fn cylinder(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
-/// The indices of the clusters `ids`, one list.
-pub(super) fn indices_of(dag: &[DagCluster], ids: &[usize]) -> Vec<u32> {
-    ids.iter()
-        .flat_map(|&id| dag[id].indices.iter().copied())
-        .collect()
-}
-
-/// Full mesh DAG, no UVs, no cancel point.
+/// Full mesh DAG, no UVs, no cancel point, and the positions its clusters index: the source's,
+/// then every vertex a reduction placed.
 pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],
-) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
-    let (dag, groups, tallies, ..) = build_dag_tallied(
+) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>, Vec<f32>) {
+    let DagBuild {
+        clusters: dag,
+        groups,
+        tallies,
+        grown,
+        ..
+    } = build_dag(
         positions,
         DagAttributes::default(),
         indices,
@@ -64,13 +45,15 @@ pub(super) fn build_of(
         &|| Ok(()),
     )
     .expect("dag");
-    (dag, groups, tallies)
+    let drawn = grown.map_or_else(|| positions.to_vec(), |grown| grown.positions);
+    (dag, groups, tallies, drawn)
 }
 
+/// A grid's DAG: the positions its clusters index, the source triangles and the clusters.
 pub(super) fn build(n: usize) -> (Vec<f32>, Vec<u32>, Vec<DagCluster>) {
     let (positions, indices) = grid(n);
-    let (dag, _, _) = build_of(&positions, &indices);
-    (positions, indices, dag)
+    let (dag, _, _, drawn) = build_of(&positions, &indices);
+    (drawn, indices, dag)
 }
 
 /// A grid's positions and indices, its level-zero clusters, and the groups made of them.
@@ -87,12 +70,10 @@ pub(super) fn grouped(n: usize) -> Grouped {
     let clusters =
         cluster_triangles(&positions, &indices, DAG_CLUSTER_TRIANGLES).expect("clusters");
     let lists: Vec<&[u32]> = clusters.iter().map(|c| c.as_slice()).collect();
-    let adjacency = cluster_adjacency(&lists);
-    let spheres: Vec<[f64; 4]> = clusters
-        .iter()
-        .map(|c| point_sphere(&positions, c))
-        .collect();
-    let groups = group_clusters(&spheres, &adjacency, DAG_GROUP_MAX);
+    let adjacency = cluster_adjacency(&lists, &weld_positions(&positions, &indices));
+    let sources = vec![None; clusters.len()];
+    let bounds = vertex_bounds(&positions);
+    let groups = group_clusters(&lists, &positions, bounds, &sources, &adjacency);
     Grouped {
         positions,
         indices,
@@ -101,34 +82,15 @@ pub(super) fn grouped(n: usize) -> Grouped {
     }
 }
 
-/// Every cut of `dag`, finest first: its threshold and the clusters the runtime draws at it.
-fn cuts(dag: &[DagCluster]) -> Vec<(f64, Vec<&DagCluster>)> {
-    let mut thresholds: Vec<f64> = dag.iter().map(|c| c.lod_error).collect();
-    thresholds.sort_by(f64::total_cmp);
-    thresholds.dedup();
-    let cut = |t| {
-        dag.iter()
-            .filter(|c| crate::proxy::cut::selected(c, t))
-            .collect()
-    };
-    thresholds.into_iter().map(|t| (t, cut(t))).collect()
-}
-
 mod part1;
 mod part10;
-mod part11;
-mod part12;
 mod part13;
-mod part14;
 mod part15;
 mod part16;
-mod part17;
 mod part18;
+mod part19;
 mod part2;
 mod part3;
 mod part4;
-mod part5;
 mod part6;
 mod part7;
-mod part8;
-mod part9;

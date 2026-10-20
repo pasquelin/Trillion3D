@@ -5,9 +5,10 @@
 //! Files are named by content.
 use super::*;
 use crate::compiler_tables::partition::pages::*;
-use crate::manifest_binary::{columns, Templates, MANIFEST_BINARY_VERSION};
+use crate::manifest_binary::{Encoded, MANIFEST_BINARY_VERSION};
 use crate::texture_preview::TexturePreview;
 use serde_json::Map;
+use std::ops::Range;
 
 mod mesh;
 pub(crate) use mesh::*;
@@ -20,38 +21,37 @@ pub(crate) const MANIFEST_PAGES: Kind = Kind {
 };
 /// The fields the root keeps: what names the product, whatever the world.
 #[rustfmt::skip]
-const FIXED: [&str; 6] = ["status", "formatVersion", "schema", "scope", "key", "compilerVersion"];
+const FIXED: [&str; 5] = ["status", "formatVersion", "scope", "key", "compilerVersion"];
 
 /// The file of the sidecar whose fingerprint is `sha256`.
 pub(crate) fn sidecar_file(sha256: &str) -> String {
     format!("{}{sha256}.bin", MANIFEST_PAGES.prefix)
 }
 
-/// Where a manifest's per-page URLs point: the shared objects, by fingerprint.
-pub(crate) const TEMPLATES: Templates = Templates {
-    page: crate::compiler_storage::OBJECT_URL,
-    geometry: crate::compiler_storage::OBJECT_URL,
-    bundle: crate::compiler_storage::OBJECT_URL,
-};
-
-/// The page of `primitives` under `top` and `previews`, without the run's report, naming its
-/// sidecar: written in `directory` when one is given, its fingerprint returned; else only measured,
-/// under a fingerprint of zeros.
+/// The page of the `encoded` primitives in `range` under `top` and `previews`, naming its sidecar:
+/// written in `directory` when one is given, its fingerprint returned; else only measured, under a
+/// fingerprint of zeros.
 fn columned(
     top: &Map<String, Value>,
-    primitives: &[Value],
+    (encoded, range): (&Encoded, Range<usize>),
     previews: &[TexturePreview],
     directory: Option<&Path>,
 ) -> Result<(Value, String)> {
-    let (page, bytes) = columns(top, primitives, &TEMPLATES, previews)?;
-    let mut page = without_run_report(page);
-    let sha256 = directory.map_or_else(|| "0".repeat(64), |_| hash(&bytes));
+    let (mut page, bytes) = encoded.page(top, range, previews, directory.is_some())?;
+    let sha256 = seal(&mut page, &bytes, directory)?;
+    Ok((page, sha256))
+}
+
+/// Names in `page` its sidecar of `bytes`, written in `directory` when one is given, its
+/// fingerprint returned; else only measured, under a fingerprint of zeros, of the same width.
+fn seal(page: &mut Value, bytes: &[u8], directory: Option<&Path>) -> Result<String> {
+    let sha256 = directory.map_or_else(|| "0".repeat(64), |_| hash(bytes));
     if let Some(directory) = directory {
-        atomic(&directory.join(sidecar_file(&sha256)), &bytes)?;
+        atomic(&directory.join(sidecar_file(&sha256)), bytes)?;
     }
     page["binary"]["url"] = json!(sidecar_file(&sha256));
     page["binary"]["sha256"] = json!(&sha256);
-    Ok((page, sha256))
+    Ok(sha256)
 }
 
 /// Writes the manifest `result` as pages in `directory` — `extra` among its fields, the texture
@@ -64,8 +64,9 @@ pub(crate) fn write_manifest(
     mesh: &MeshPages,
     directory: &Path,
 ) -> Result<()> {
-    let mut top = result.as_object().expect("a manifest").clone();
-    top.remove(MANIFEST_PAGES.records);
+    let fields = result.as_object().expect("a manifest").iter();
+    let fields = fields.filter(|(field, _)| *field != MANIFEST_PAGES.records);
+    let mut top: Map<String, Value> = fields.map(|(k, v)| (k.clone(), v.clone())).collect();
     if let Some(Value::Object(metrics)) = top.get_mut("metrics") {
         metrics.retain(|name, _| !is_run_measure(name));
     }
@@ -76,7 +77,9 @@ pub(crate) fn write_manifest(
     for field in FIXED {
         root.extend(top.remove_entry(field));
     }
-    let (mut head, sha256) = columned(&top, &[], previews, Some(directory))?;
+    // The head lists no primitive: no bundle to name a geometry container.
+    let none = Encoded::new(&[], 0)?;
+    let (mut head, sha256) = columned(&top, (&none, 0..0), previews, Some(directory))?;
     head["version"] = json!(MANIFEST_PAGES.version);
     let slot = write_page(&MANIFEST_PAGES, directory, &head, &[])?;
     let mut kept = mesh.kept.clone();
@@ -109,11 +112,8 @@ pub(crate) struct Paged {
 fn read_sidecar(directory: &Path, binary: &Value) -> std::result::Result<Vec<u8>, String> {
     let sha256 = binary["sha256"].as_str().unwrap_or_default();
     let name = sidecar_file(sha256);
-    let data = fs::read(directory.join(&name)).map_err(|e| format!("{name}: {e}"))?;
-    if Some(data.len() as u64) != binary["bytes"].as_u64() || hash(&data) != sha256 {
-        return Err(format!("{name} is not the sidecar its page names"));
-    }
-    Ok(data)
+    let mismatch = "is not the sidecar its page names";
+    read_proven(directory, &name, binary["bytes"].as_u64(), sha256, mismatch)
 }
 
 /// The manifest whose root is `root`, in `directory`, each page and sidecar proven by its size and

@@ -58,10 +58,10 @@ pub(super) fn sparse_layout(
     if iv.get("byteStride").is_some() || vv.get("byteStride").is_some() {
         return Err(invalid("sparse bufferViews cannot have a stride"));
     }
-    if io % index_bytes != 0
-        || vo % bytes != 0
-        || out.indices_offset % index_bytes != 0
-        || out.values_offset % bytes != 0
+    if !io.is_multiple_of(index_bytes)
+        || !vo.is_multiple_of(bytes)
+        || !out.indices_offset.is_multiple_of(index_bytes)
+        || !out.values_offset.is_multiple_of(bytes)
     {
         return Err(invalid("sparse alignment is invalid"));
     }

@@ -4,7 +4,7 @@
 //! morph target's largest displacement. The runtime inflates a deformed cluster's bounds by them,
 //! so culling never drops a visible deformed cluster.
 use crate::min_ball::point_sphere;
-use trillion3d_math::vecn::length;
+use trillion3d_math::sphere::farthest;
 
 /// For each joint up to the highest weighted one, the smallest ball `[x, y, z, radius]` of the
 /// rest `positions` it moves with a positive weight (`point_sphere`, the one sphere of a vertex
@@ -40,10 +40,6 @@ pub fn joint_balls(
 
 /// A morph target's largest displacement: the longest of its `offsets`, three floats a vertex.
 pub fn target_radius(offsets: &[f32]) -> f64 {
-    offsets
-        .as_chunks::<3>()
-        .0
-        .iter()
-        .map(|d| length(d.map(f64::from)))
-        .fold(0.0, f64::max)
+    let displacements = offsets.as_chunks::<3>().0.iter();
+    farthest([0.0; 3], displacements.map(|d| (d.map(f64::from), 0.0)))
 }

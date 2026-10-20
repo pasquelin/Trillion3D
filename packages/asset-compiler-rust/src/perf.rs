@@ -38,7 +38,6 @@ macro_rules! phases {
 
 phases! {
  decode=>Decode=>"decodeMs",
- topology=>Topology=>"topologyMs",
  weld=>Weld=>"weldMs",
  cluster_level0=>ClusterLevel0=>"clusterLevel0Ms",
  adjacency=>Adjacency=>"adjacencyMs",
@@ -47,8 +46,6 @@ phases! {
  simplify=>Simplify=>"simplifyMs",
  resplit=>Resplit=>"resplitMs",
  culling=>Culling=>"cullingMs",
- page_bytes=>PageBytes=>"pageBytesMs",
- page_hash=>PageHash=>"pageHashMs",
  page_write=>PageWrite=>"pageWriteMs",
  page_packed=>PagePacked=>"pagePackedMs",
  coplanar=>Coplanar=>"coplanarMs",
@@ -58,7 +55,7 @@ phases! {
  texture_bake=>TextureBake=>"textureBakeMs",
  texture_write=>TextureWrite=>"textureWriteMs",
  cutout_scan=>CutoutScan=>"cutoutScanMs",
- impostors=>Impostors=>"impostorsMs",
+ voxels=>Voxels=>"voxelsMs",
 }
 
 thread_local! {
@@ -92,6 +89,15 @@ impl JobPhases {
     }
     pub fn report(&self) -> Value {
         self.0.report()
+    }
+}
+
+/// A pool of `threads` workers, each carrying the counters the current thread carries, if any:
+/// the work a job's thread hands to a pool of its own still feeds that job's phases.
+pub fn pool_beside(threads: usize) -> Result<rayon::ThreadPool, rayon::ThreadPoolBuildError> {
+    match CURRENT.with(|current| current.borrow().clone()) {
+        Some(phases) => JobPhases(phases).pool(threads),
+        None => rayon::ThreadPoolBuilder::new().num_threads(threads).build(),
     }
 }
 

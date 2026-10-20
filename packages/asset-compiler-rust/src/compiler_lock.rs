@@ -1,7 +1,7 @@
 use super::*;
 
-/// Lock name in `<cache>/native`. Prune only walks `slice`, `full`, `imports` and
-/// `objects`: a file placed next to them cannot be deleted by a compilation.
+/// Lock name in `<cache>/native`. Prune only walks the scopes and the folders `compiler_storage`
+/// names: a file placed next to them cannot be deleted by a compilation.
 const CACHE_LOCK_FILE: &str = ".lock";
 /// Beyond this, a waiting compilation gives up rather than waiting forever.
 const WAIT: std::time::Duration = std::time::Duration::from_secs(30);
@@ -36,7 +36,7 @@ fn wait() -> std::time::Duration {
 
 impl CacheLock {
     pub(super) fn acquire(o: &Options) -> Result<Self> {
-        let native = o.cache.join("native");
+        let native = native_dir(&o.cache);
         fs::create_dir_all(&native)?;
         let file = fs::OpenOptions::new()
             .write(true)

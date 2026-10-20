@@ -45,10 +45,8 @@ pub(crate) fn read_slot(
         return Ok(None);
     }
     let name = format!("{}{}.json", kind.prefix, &text[..64]);
-    let data = fs::read(directory.join(&name)).map_err(|e| format!("{name}: {e}"))?;
-    if data.len() != bytes || hash(&data) != text[..64] {
-        return Err(format!("{name} is not the page its slot names"));
-    }
+    let mismatch = "is not the page its slot names";
+    let data = read_proven(directory, &name, Some(bytes as u64), &text[..64], mismatch)?;
     let page: Value = serde_json::from_slice(&data).map_err(|e| format!("{name}: {e}"))?;
     if page["version"] != json!(kind.version) {
         return Err(format!("{name} is of another version"));
@@ -79,4 +77,20 @@ pub(crate) fn read_leaves(
         }
     }
     Ok(())
+}
+
+/// The file `name` in `directory`, proven by its size and fingerprint; "`name` `mismatch`" when
+/// it is not the one they describe (an absent size never is).
+pub(crate) fn read_proven(
+    directory: &Path,
+    name: &str,
+    bytes: Option<u64>,
+    sha256: &str,
+    mismatch: &str,
+) -> std::result::Result<Vec<u8>, String> {
+    let data = fs::read(directory.join(name)).map_err(|e| format!("{name}: {e}"))?;
+    if Some(data.len() as u64) != bytes || hash(&data) != sha256 {
+        return Err(format!("{name} {mismatch}"));
+    }
+    Ok(data)
 }

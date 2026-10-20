@@ -24,10 +24,7 @@ fn box_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
     let points: Vec<[f64; 3]> = indices.iter().map(|&v| point(positions, v)).collect();
     let (low, high) = trillion3d_math::aabb::aabb_of(points.iter().copied());
     let c = trillion3d_math::aabb::centre(low, high);
-    let r = points
-        .iter()
-        .map(|&p| length(sub(p, c)))
-        .fold(0.0, f64::max);
+    let r = trillion3d_math::sphere::farthest(c, points.iter().map(|&p| (p, 0.0)));
     [c[0], c[1], c[2], r]
 }
 
@@ -78,7 +75,10 @@ fn a_point_sphere_holds_every_vertex_and_is_never_larger_than_the_box_one() {
         );
         assert!(holds_vertices(sphere, &positions, &indices), "case {case}");
         // The smallest ball, up to the rounding of its re-measured radius.
-        assert!(sphere[3] <= base[3] * (1.0 + 1e-12), "case {case}");
+        assert!(
+            sphere[3] <= base[3] * (1.0 + 1e-12),
+            "case {case}: {sphere:?} over the box sphere {base:?}"
+        );
         tighter += usize::from(sphere[3] < base[3]);
     }
     assert!(tighter > 200, "{tighter} spheres tightened");
@@ -111,9 +111,17 @@ fn a_ball_of_balls_holds_every_ball_and_is_the_smallest() {
             .collect();
         let (ball, merged) = (ball_of_balls(&spheres), merged(&spheres));
         // Never larger than the sequential merge nor the box-centred sphere it replaced, up to the
-        // containment margin.
-        assert!(ball[3] <= merged[3] + 1e-9, "case {case}");
-        assert!(ball[3] <= box_centred(&spheres) + 1e-9, "case {case}");
+        // containment margin, relative to the distance from the origin (`CONTAINMENT_MARGIN`).
+        let margin = 1e-9 * (1.0 + far);
+        assert!(
+            ball[3] <= merged[3] + margin,
+            "case {case}: {ball:?} over the merge {merged:?}"
+        );
+        let boxed = box_centred(&spheres);
+        assert!(
+            ball[3] <= boxed + margin,
+            "case {case}: {ball:?} over the box-centred {boxed}"
+        );
         for &s in spheres.iter().filter(|s| s[3] >= 0.0) {
             assert!(holds(ball, [s[0], s[1], s[2]], s[3], 0.0), "case {case}");
         }
@@ -136,14 +144,23 @@ fn a_ball_of_balls_holds_every_ball_and_is_the_smallest() {
 #[test]
 fn every_sphere_holds_its_cluster_and_children() {
     for (positions, indices) in [grid(96), ball(160)] {
-        let (dag, groups, _) = build_of(&positions, &indices);
+        // The clusters index the source's vertices, then those the reductions placed.
+        let (dag, groups, _, drawn) = build_of(&positions, &indices);
         for cluster in dag.iter().filter(|c| c.level == 0) {
             assert_eq!(cluster.sphere, point_sphere(&positions, &cluster.indices));
             assert!(holds_vertices(cluster.sphere, &positions, &cluster.indices));
         }
         for group in &groups {
-            let children: Vec<[f64; 4]> = group.children.iter().map(|&id| dag[id].sphere).collect();
-            assert_eq!(group.sphere, ball_of_balls(&children));
+            // The children's balls and the ball of the triangles the group drew: the solved
+            // positions may leave the children's balls, and one sphere both projects the error
+            // and bounds what is drawn (`reduce.rs`).
+            let mut balls: Vec<[f64; 4]> =
+                group.children.iter().map(|&id| dag[id].sphere).collect();
+            let drawn_by: Vec<u32> = (group.outputs.iter())
+                .flat_map(|&id| dag[id].indices.iter().copied())
+                .collect();
+            balls.push(point_sphere(&drawn, &drawn_by));
+            assert_eq!(group.sphere, ball_of_balls(&balls));
             for &id in &group.children {
                 // A ball left on the merge keeps its rounding (1.1e-13 m).
                 let [x, y, z, r] = dag[id].sphere;
@@ -151,7 +168,7 @@ fn every_sphere_holds_its_cluster_and_children() {
                 assert_eq!(dag[id].parent_sphere, group.sphere);
             }
             for &id in &group.outputs {
-                assert!(holds_vertices(group.sphere, &positions, &dag[id].indices));
+                assert!(holds_vertices(group.sphere, &drawn, &dag[id].indices));
             }
             // A group under the floor is its level's only one, with no group to join.
             let peers = groups.iter().filter(|g| g.level == group.level).count();

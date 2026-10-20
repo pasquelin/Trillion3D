@@ -105,41 +105,28 @@ pub(super) fn parse_glb_parts(bytes: &[u8]) -> Result<(Value, std::ops::Range<us
         bin.unwrap_or(0..0),
     ))
 }
+/// The triangles of the glTF primitive `p`: its indices', else its unindexed positions', a
+/// positive multiple of three.
 pub(super) fn primitive_triangles(g: &Value, p: &Value) -> Result<usize> {
-    let attributes = p
-        .get("attributes")
-        .and_then(Value::as_object)
-        .ok_or_else(|| invalid("primitive.attributes is required"))?;
-    if !attributes.contains_key("POSITION") {
-        return Err(invalid("primitive.attributes.POSITION is required"));
-    }
-    let accessors = values(g, "accessors")?;
-    if let Some(index_v) = p.get("indices") {
-        let id = required_index(Some(index_v), "primitive.indices")?;
-        let count = required_index(
-            item(accessors, id, "accessor")?.get("count"),
-            "accessor.count",
-        )?;
-        if count == 0 || count % 3 != 0 {
-            return Err(CompilerError::new(
-                "INVALID_TRIANGLES",
-                "Index count must be a positive multiple of three",
-            ));
+    let position = position_accessor(g, p)?;
+    let (accessor, refused): (_, fn() -> CompilerError) = match p.get("indices") {
+        Some(indices) => {
+            let id = required_index(Some(indices), "primitive.indices")?;
+            let refused = || {
+                let message = "Index count must be a positive multiple of three";
+                CompilerError::new("INVALID_TRIANGLES", message)
+            };
+            (item(values(g, "accessors")?, id, "accessor")?, refused)
         }
-        Ok(count / 3)
-    } else {
-        let id = required_index(attributes.get("POSITION"), "primitive.attributes.POSITION")?;
-        let count = required_index(
-            item(accessors, id, "accessor")?.get("count"),
-            "accessor.count",
-        )?;
-        if count == 0 || count % 3 != 0 {
-            return Err(invalid(
-                "Unindexed POSITION count must be a positive multiple of three",
-            ));
-        }
-        Ok(count / 3)
+        None => (position, || {
+            invalid("Unindexed POSITION count must be a positive multiple of three")
+        }),
+    };
+    let count = required_index(accessor.get("count"), "accessor.count")?;
+    if count == 0 || count % 3 != 0 {
+        return Err(refused());
     }
+    Ok(count / 3)
 }
 pub(super) fn node_triangles(g: &Value, node: &Value) -> Result<usize> {
     let mesh_id = required_index(node.get("mesh"), "node.mesh")?;

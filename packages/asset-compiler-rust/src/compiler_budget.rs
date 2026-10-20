@@ -6,7 +6,7 @@
 //! count what it commits: two workers each given the floor share must not commit
 //! twice that share, whatever total the batch announced.
 use crate::{Options, MIN_RAM_BUDGET_MB};
-pub mod waves;
+pub mod admission;
 
 /// Concurrency a total budget can hold, and the share then given to a job that
 /// does not request one. A total under a single job's floor is refused: nothing
@@ -49,20 +49,12 @@ pub fn fit_workers(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{atomic::AtomicBool, Arc};
 
     fn job(id: &str, ram_budget_mb: usize) -> (String, Options) {
         let options = Options {
-            source: "s".into(),
-            cache: "c".into(),
-            resource_base: "/assets/".into(),
-            scope: "full".into(),
             triangle_budget: crate::DEFAULT_TRIANGLE_BUDGET,
-            threads: 1,
             ram_budget_mb,
-            simplification: "none".into(),
-            texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
-            cancelled: Arc::new(AtomicBool::new(false)),
+            ..crate::tests::fixtures::options("s".into(), "c".into())
         };
         (id.to_string(), options)
     }

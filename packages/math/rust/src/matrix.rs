@@ -101,6 +101,13 @@ pub fn transform_point(matrix: &[f64; MATRIX_VALUES], point: [f64; 3]) -> [f64; 
     out
 }
 
+/// A float32 `point` placed by `transform_point`: widened to `f64`, transformed, each axis
+/// rounded once back to `f32`.
+#[inline]
+pub fn transform_point_f32(matrix: &[f64; MATRIX_VALUES], point: [f32; 3]) -> [f32; 3] {
+    transform_point(matrix, point.map(f64::from)).map(|v| v as f32)
+}
+
 /// `direction` under the linear part of the column-major `matrix`, row by row
 /// `(m₀·x + m₄·y) + m₈·z`: no translation.
 #[inline]
@@ -132,9 +139,9 @@ pub fn translation(by: [f64; 3]) -> [f64; MATRIX_VALUES] {
     out
 }
 
-/// Scaling by `by`, axis by axis.
-pub fn scaling(by: [f64; 3]) -> [f64; MATRIX_VALUES] {
-    let mut out = IDENTITY;
+/// Scaling by `by`, axis by axis, in the precision of `by`.
+pub fn scaling<T: Real>(by: [T; 3]) -> [T; MATRIX_VALUES] {
+    let mut out = crate::rotation::identity();
     for axis in 0..3 {
         out[axis * 4 + axis] = by[axis];
     }

@@ -14,6 +14,7 @@
 //! Maya shader declares a cutoff threshold, so never `MASK` — cutting a transparent would be a
 //! fidelity loss.
 use super::*;
+use crate::plugins::scene::Transparency;
 use trillion3d_math::scalar::mean;
 
 /// glTF material of this shader, poured into the tables on first request.
@@ -35,13 +36,13 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
     let (document, graph) = (world.document, world.graph);
     let node = &document.nodes[shader];
     if !report::is_shader(&node.kind) {
-        world.refuse(report::MATERIAL_UNSUPPORTED);
+        world.scene.report.add(report::MATERIAL_UNSUPPORTED);
         return None;
     }
     let standard = node.kind == "standardSurface";
     let (name, (alpha, uneven)) = (node.name.clone(), alpha(node, standard));
     if uneven {
-        world.refuse(report::TRANSPARENCY_COLOUR);
+        world.scene.report.add(report::TRANSPARENCY_COLOUR);
     }
     let metallic = match standard {
         true => number(node, &["mt", "metalness"], 0.0).clamp(0.0, 1.0),
@@ -55,16 +56,20 @@ fn build(world: &mut World<'_>, shader: usize) -> Option<usize> {
     if let Some(texture) = normal::through_bump(world, shader) {
         out["normalTexture"] = texture;
     }
-    let veiled = opacity_texture(world, shader, standard);
-    out["alphaMode"] = json!(if alpha < 1.0 || veiled {
-        "BLEND"
-    } else {
-        "OPAQUE"
-    });
+    let textured = opacity_texture(world, shader, standard);
+    let blends = Transparency {
+        factor: alpha,
+        textured,
+    }
+    .blends();
+    out["alphaMode"] = json!(if blends { "BLEND" } else { "OPAQUE" });
     let packed = (standard && graph.input(shader, &["mt", "metalness"]).is_some())
         || graph.input(shader, &["sr", "specularRoughness"]).is_some();
     if packed {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
     }
     world.scene.materials.push(out);
     Some(world.scene.materials.len() - 1)
@@ -121,7 +126,10 @@ fn emission(world: &mut World<'_>, shader: usize, standard: bool, out: &mut Valu
         },
     };
     if lit.iter().any(|channel| *channel > 1.0) {
-        world.refuse(crate::plugins::scene::codes::EMISSION_CLAMPED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::EMISSION_CLAMPED);
     }
     if lit.iter().any(|channel| *channel > 0.0) {
         out["emissiveFactor"] = json!(lit.map(|channel| channel.clamp(0.0, 1.0)));
@@ -139,13 +147,12 @@ fn alpha(node: &Node, standard: bool) -> (f64, bool) {
     let Some(colour) = node.attr(names).and_then(Attr::triple) else {
         return (1.0, false);
     };
-    let mean = mean(colour);
     let uneven = colour.iter().any(|channel| *channel != colour[0]);
     let alpha = match standard {
-        true => mean,
-        false => 1.0 - mean,
+        true => mean(colour).clamp(0.0, 1.0),
+        false => crate::plugins::scene::opacity_from_transparency(colour, 1.0),
     };
-    (alpha.clamp(0.0, 1.0), uneven)
+    (alpha, uneven)
 }
 
 /// Roughness that the shader model yields.
@@ -183,7 +190,10 @@ fn opacity_texture(world: &mut World<'_>, shader: usize, standard: bool) -> bool
         false => graph.input(shader, &["c", "color"]),
     };
     if base.map(|(node, _)| node) != Some(source) {
-        world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
+        world
+            .scene
+            .report
+            .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
     }
     true
 }

@@ -72,9 +72,7 @@ pub(crate) fn scene_source(
         "counts": counts, "meshes": meshes, "materials": materials,
         "importMs": crate::shared_math::elapsed_ms(started),
     });
-    if let (Some(source), Value::Object(extra)) = (source.as_object_mut(), extra) {
-        source.extend(extra);
-    }
+    crate::json::merge(&mut source, extra);
     source
 }
 

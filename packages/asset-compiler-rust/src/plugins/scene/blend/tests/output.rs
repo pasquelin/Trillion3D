@@ -9,9 +9,7 @@ use std::sync::atomic::AtomicBool;
 pub(super) fn compiled(bytes: &[u8], tag: &str) -> (Value, Value) {
     let (root, directory) = converted(bytes, tag, RAM_BUDGET);
     let directory = directory.expect("conversion");
-    let read = |name: &str| -> Value {
-        serde_json::from_slice(&fs::read(directory.join(name)).expect(name)).expect(name)
-    };
+    let read = |name: &str| read_json(&directory.join(name));
     let pair = (read("model.gltf"), read("manifest.json"));
     fs::remove_dir_all(&root).expect("cleanup");
     pair

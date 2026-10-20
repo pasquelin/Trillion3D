@@ -1,15 +1,17 @@
-//! The world-roots table and DAG as fixed-size little-endian records (docs/FORMAT.md,
-//! World super-roots): `world-roots.table`, what a load reads — the bundles, pages, cells and
-//! placed objects —, and `world-roots.dag`, what the world stream reads on its first use — every
-//! world cluster and the group list. A reader views each record at its rank on the bytes,
+//! The world-roots table and DAG as fixed-size little-endian records (docs/FORMAT.md, World
+//! HLOD): `world-roots.table`, what a load reads — the bundles, the pages and the HLOD cells —, and
+//! `world-roots.dag`, what the world stream reads on its first use — every world cluster and the
+//! group list. A reader views each record at its rank on the bytes,
 //! as it views a page in its bundle: never one string of the whole world, which a JavaScript
 //! engine refuses past 512 MiB (the open world's table was 866 MiB as JSON). The cook writes them
 //! straight from its world, never through a document of it.
 //!
-//! Every variable list (a bundle's or an object's dependencies, an object's roots, a group's
-//! children and outputs) lies in a `u32` pool after the records, a record naming its first word
-//! and its length.
+//! Every variable list (a bundle's dependencies, an HLOD cell's bundles, a group's children and
+//! outputs)
+//! lies in a `u32` pool after the records, a record naming its first word and its length.
 use super::*;
+use crate::compiler_page_bundles::Bundle;
+use crate::compiler_tables::partition::HlodNode;
 use crate::manifest_binary::format::Column;
 
 pub(crate) const TABLE_MAGIC: &[u8; 4] = b"WRTB";
@@ -74,16 +76,6 @@ impl Records {
         self.word(count);
         Ok(())
     }
-    /// `values` in the pool, none written `u32::MAX`: its first word and its length.
-    pub(super) fn pooled_nullable(&mut self, values: &[Option<usize>]) -> Result<()> {
-        let first = self.pool.len() as u32;
-        for &value in values {
-            self.pool.push(nullable(value)?);
-        }
-        self.word(first);
-        self.word(values.len() as u32);
-        Ok(())
-    }
     /// The pool's length written at byte `at`, then the pool after the records.
     pub(super) fn end(mut self, at: usize) -> Vec<u8> {
         let words = (self.pool.len() as u32).to_le_bytes();
@@ -95,16 +87,7 @@ impl Records {
     }
 }
 
-/// A written bundle: its place in the binary, its count of pages and the bundles it needs.
-pub(super) struct Bundle {
-    pub offset: usize,
-    pub bytes: usize,
-    pub count: usize,
-    pub dependencies: Vec<usize>,
-    pub sha256: [u8; 32],
-}
-
-/// A super-root's page: its bundle, its offset there, its level, its length and its error.
+/// A world page: its bundle, its offset there, its level, its length and its error.
 pub(super) struct Page {
     pub bundle: usize,
     pub offset: usize,
@@ -113,48 +96,22 @@ pub(super) struct Page {
     pub lod_error: f64,
 }
 
-/// A placed object of a cell: its node, its primitive, the bundles of its own roots and every
-/// world bundle they need. The roots' list is written and no reader reads it: it stays in the
-/// record until the next version of the format.
-pub(super) struct Object {
-    pub node: usize,
-    pub primitive: usize,
-    pub roots: Vec<usize>,
-    pub dependencies: BTreeSet<usize>,
-}
-
-/// A cell's objects, and each of its nodes' first object among them (none for a node without).
-pub(super) struct Cell {
-    pub objects: Vec<Object>,
-    pub nodes: Vec<Option<usize>>,
-}
-
-/// What the table's header names beside its records: the budget, the pinned bundles and bytes.
-pub(super) struct Top {
-    pub budget: usize,
-    pub pinned: usize,
-    pub pinned_bytes: usize,
-}
-
-/// `world-roots.table` of the world's `bundles`, `pages` and `cells` over `payload`: an 80-byte
-/// header (magic, version, budget, pinned bundles, pinned bytes, the five counts, the binary's
-/// length as two words, then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages
-/// (bundle, offset, level and length, then the error as `f64`), 16-byte cells (first object, count,
-/// then each node's first object in the pool, `u32::MAX` for none), 24-byte objects and the pool.
+/// `world-roots.table` of the world's `bundles`, `pages` and HLOD cells over `payload`: a 64-byte
+/// header (magic, version, the three counts, the pool's length, the binary's length as two words,
+/// then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages (bundle, offset, level
+/// and length, then the error as `f64`), 64-byte HLOD cells of the chain, leaves first (the bundles
+/// holding its roots, in the pool; the cell its next level's actor lies in, `u32::MAX` for a cell
+/// whose actor is its chain's top, always loaded; its level; then as `f64` the bounds it streams
+/// by) and the pool.
 pub(super) fn encode_table(
-    top: &Top,
-    (bundles, pages, cells): (&[Bundle], &[Page], &[Cell]),
+    (bundles, pages, (hlod, tree)): (&[Bundle], &[Page], (&[BTreeSet<usize>], &[HlodNode])),
     payload: &[u8],
 ) -> Result<Vec<u8>> {
-    let objects: usize = cells.iter().map(|cell| cell.objects.len()).sum();
     let mut r = Records::default();
     r.out.raw(TABLE_MAGIC);
     r.word(WORLD_ROOTS_VERSION);
-    for value in [top.budget, top.pinned, top.pinned_bytes] {
-        r.word(index(value)?);
-    }
-    for count in [bundles.len(), pages.len(), cells.len(), objects] {
-        r.word(count as u32);
+    for count in [bundles.len(), pages.len(), hlod.len()] {
+        r.word(index(count)?);
     }
     let pool_words = r.out.bytes.len();
     r.word(0); // the pool's length, known once every list is in it
@@ -163,8 +120,8 @@ pub(super) fn encode_table(
     r.word((length >> 32) as u32);
     r.out.raw(&digest_bytes(payload));
     for bundle in bundles {
-        r.word(bundle.offset as u32);
-        r.word((bundle.offset as u64 >> 32) as u32);
+        r.word(bundle.start as u32);
+        r.word((bundle.start as u64 >> 32) as u32);
         r.word(index(bundle.bytes)?);
         r.word(index(bundle.count)?);
         r.pooled(bundle.dependencies.iter())?;
@@ -176,18 +133,11 @@ pub(super) fn encode_table(
         }
         r.float(page.lod_error);
     }
-    let mut first = 0u32;
-    for cell in cells {
-        r.word(first);
-        r.word(cell.objects.len() as u32);
-        r.pooled_nullable(&cell.nodes)?;
-        first += cell.objects.len() as u32;
-    }
-    for object in cells.iter().flat_map(|cell| &cell.objects) {
-        r.word(index(object.node)?);
-        r.word(index(object.primitive)?);
-        r.pooled(object.roots.iter())?;
-        r.pooled(object.dependencies.iter())?;
+    for (held, node) in hlod.iter().zip(tree) {
+        r.pooled(held.iter())?;
+        r.word(nullable(node.parent)?);
+        r.word(index(node.level)?);
+        r.floats(Some(&node.shown));
     }
     Ok(r.end(pool_words))
 }

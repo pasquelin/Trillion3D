@@ -42,21 +42,21 @@ pub(super) fn variants(world: &World<'_>, prim: &usd::Prim) -> bool {
 
 /// Number of arcs written on this prim — references and payloads — whose target file is not there.
 pub(super) fn unresolved(world: &World<'_>, prim: &usd::Prim) -> usize {
-    let references = match field(world, prim, "references") {
-        Some(sdf::Value::ReferenceListOp(op)) => {
-            op.iter().map(|arc| arc.asset_path.clone()).collect()
+    // Each field holds its own list type: `references` a reference list, `payload` a payload list.
+    let assets = |name: &str| -> Vec<String> {
+        match field(world, prim, name) {
+            Some(sdf::Value::ReferenceListOp(op)) => {
+                op.iter().map(|arc| arc.asset_path.clone()).collect()
+            }
+            Some(sdf::Value::PayloadListOp(op)) => {
+                op.iter().map(|arc| arc.asset_path.clone()).collect()
+            }
+            _ => Vec::new(),
         }
-        _ => Vec::new(),
     };
-    let payloads = match field(world, prim, "payload") {
-        Some(sdf::Value::PayloadListOp(op)) => {
-            op.iter().map(|arc| arc.asset_path.clone()).collect()
-        }
-        _ => Vec::new(),
-    };
-    references
+    assets("references")
         .into_iter()
-        .chain(payloads)
+        .chain(assets("payload"))
         .filter(|asset| !asset.is_empty())
         .filter(|asset| !anchored(world.images, asset).is_file())
         .count()

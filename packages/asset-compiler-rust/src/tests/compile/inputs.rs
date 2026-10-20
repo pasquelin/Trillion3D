@@ -41,8 +41,8 @@ fn compile_writes_pages_and_namespaced_pointer() {
     let geometry = &result["primitives"][0]["pages"][0]["geometry"];
     assert!(geometry.get("formatVersion").is_none());
     assert!(result["primitives"][0]["quantization"]["positionExponent"].is_number());
-    let page = fs::read(directory.join(geometry["url"].as_str().expect("page URL")))
-        .expect("geometry page");
+    let primitive = &result["primitives"][0];
+    let page = geometry_page(&options.cache, &result, primitive, &primitive["pages"][0]);
     let decoded = trillion3d_page_codec::decode(&page, 1 << 20).expect("decode");
     assert_eq!(decoded.indices(), [0, 1, 2]);
     fs::remove_dir_all(root).expect("cleanup");
@@ -62,8 +62,7 @@ fn compile_rejects_cancel_hash_and_format() {
         "SOURCE_HASH_MISMATCH"
     );
     let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
+    let mut manifest: Value = read_json(&manifest_path);
     manifest["formatVersion"] = json!(999);
     fs::write(
         &manifest_path,

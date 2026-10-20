@@ -1,34 +1,29 @@
 //! Why a group stalls, and the group tally per outcome, level by level, as published in the DAG
 //! report.
 
-/// Why a group did not produce a coarser level. Its clusters then become roots. Every cause is a
-/// property of the group, decided by rerunning its stalled reduction with a constraint lifted:
-/// none compares a number to a threshold.
+/// Why a group did not produce a coarser level. Its clusters then become roots.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StallCause {
-    /// Fewer than two live triangles: nothing to halve.
-    TooSmall,
-    /// Rerun with no lock it still stalls, and with no lock on positions welded across the
-    /// seams of every texture set it advances: the texture seams hold the group.
-    SeamLocked,
-    /// Rerun with no lock it advances: the positions shared with the neighbouring groups hold it.
-    BorderLocked,
-    /// Neither rerun advances: the surface itself resists the halving.
+    /// No target cluster size down to half a cluster re-splits what the simplifier left into the
+    /// group's parents.
     Unreducible,
-    /// A locked position disappeared on every retry.
-    BorderLost,
     /// The simplifier returned a non-finite error.
     UnusableError,
 }
 impl StallCause {
+    /// Every cause, in the order the tally counts them.
+    pub const ALL: [StallCause; 2] = [Self::Unreducible, Self::UnusableError];
+    /// The key the tally's JSON counts the cause under.
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Unreducible => "unreducible",
+            Self::UnusableError => "unusableError",
+        }
+    }
     /// The name the report, the CLI and the corpus give the cause.
     pub fn name(self) -> &'static str {
         match self {
-            Self::TooSmall => "too-small",
-            Self::SeamLocked => "seam-locked",
-            Self::BorderLocked => "border-locked",
             Self::Unreducible => "unreducible",
-            Self::BorderLost => "border-lost",
             Self::UnusableError => "unusable-error",
         }
     }
@@ -47,58 +42,37 @@ pub struct GroupOutcome {
     pub islands: usize,
 }
 
-/// Per-level tally of group outcomes, reported by the compiler so a stalled DAG is visible.
-/// `relocked` counts, among the reduced groups, those that needed extra locks.
+/// Per-level tally of group outcomes, reported by the compiler so a stalled DAG is visible: the
+/// groups reduced, and the stalled ones per cause (`StallCause as usize`).
 #[derive(Clone, Copy, Default, Debug)]
 pub struct GroupTally {
     pub reduced: usize,
-    pub relocked: usize,
-    pub too_small: usize,
-    pub seam_locked: usize,
-    pub border_locked: usize,
-    pub unreducible: usize,
-    pub border_lost: usize,
-    pub unusable_error: usize,
+    pub stalled: [usize; StallCause::ALL.len()],
 }
 impl GroupTally {
-    /// Tally in JSON, one key per field: single form written by report and warning,
+    /// Tally in JSON, one key per outcome: single form written by report and warning,
     /// so added field missing nowhere.
     pub fn json(&self) -> serde_json::Value {
-        serde_json::json!({
-            "reduced": self.reduced,
-            "relocked": self.relocked,
-            "tooSmall": self.too_small,
-            "seamLocked": self.seam_locked,
-            "borderLocked": self.border_locked,
-            "unreducible": self.unreducible,
-            "borderLost": self.border_lost,
-            "unusableError": self.unusable_error,
+        let mut out = serde_json::Map::new();
+        out.insert("reduced".into(), self.reduced.into());
+        for cause in StallCause::ALL {
+            out.insert(cause.key().into(), self.stalled[cause as usize].into());
+        }
+        serde_json::Value::Object(out)
+    }
+    /// Sum of multiple levels, outcome by outcome.
+    pub fn total(tallies: &[GroupTally]) -> GroupTally {
+        tallies.iter().fold(GroupTally::default(), |mut a, t| {
+            a.reduced += t.reduced;
+            a.stalled
+                .iter_mut()
+                .zip(t.stalled)
+                .for_each(|(x, y)| *x += y);
+            a
         })
     }
-    /// Sum of multiple levels, field by field.
-    pub fn total(tallies: &[GroupTally]) -> GroupTally {
-        tallies
-            .iter()
-            .fold(GroupTally::default(), |a, t| GroupTally {
-                reduced: a.reduced + t.reduced,
-                relocked: a.relocked + t.relocked,
-                too_small: a.too_small + t.too_small,
-                seam_locked: a.seam_locked + t.seam_locked,
-                border_locked: a.border_locked + t.border_locked,
-                unreducible: a.unreducible + t.unreducible,
-                border_lost: a.border_lost + t.border_lost,
-                unusable_error: a.unusable_error + t.unusable_error,
-            })
-    }
     pub(super) fn record(&mut self, cause: StallCause) {
-        *match cause {
-            StallCause::TooSmall => &mut self.too_small,
-            StallCause::SeamLocked => &mut self.seam_locked,
-            StallCause::BorderLocked => &mut self.border_locked,
-            StallCause::Unreducible => &mut self.unreducible,
-            StallCause::BorderLost => &mut self.border_lost,
-            StallCause::UnusableError => &mut self.unusable_error,
-        } += 1;
+        self.stalled[cause as usize] += 1;
     }
 }
 

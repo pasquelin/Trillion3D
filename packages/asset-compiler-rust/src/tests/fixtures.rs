@@ -1,39 +1,41 @@
+pub(super) use super::fixture_shapes::{cube_fixture, grid_fixture_displaced};
+pub(crate) use super::fixture_shapes::{grid_indices, portable_sin, triangle_bin, triangle_gltf};
 use super::*;
 
-pub(super) fn cube_fixture() -> (PathBuf, Options) {
-    let mut bin = Vec::new();
-    for value in [
-        0f32, 0., 0., 1., 0., 0., 1., 1., 0., 0., 1., 0., 0., 0., 1., 1., 0., 1., 1., 1., 1., 0.,
-        1., 1.,
-    ] {
-        bin.extend_from_slice(&value.to_le_bytes());
-    }
-    for value in [
-        0u32, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 4, 5, 0, 5, 1, 3, 2, 6, 3, 6, 7, 1, 5, 6, 1, 6,
-        2, 0, 3, 7, 0, 7, 4,
-    ] {
-        bin.extend_from_slice(&value.to_le_bytes());
-    }
-    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"cube.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":96},{"buffer":0,"byteOffset":96,"byteLength":144}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":8},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":36}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    gltf_fixture("cube", &gltf, &bin)
-}
 /// Writes `<tag>.gltf`, `<tag>.bin` and the manifest of a scene into a scratch source folder, its
 /// mesh nodes and triangles counted from the document as the compiler counts them, and returns it
 /// with the options every simplified fixture compiles with. The document's only buffer must name
 /// `<tag>.bin`.
 pub(super) fn gltf_fixture(tag: &str, gltf: &Value, bin: &[u8]) -> (PathBuf, Options) {
+    let (gltf_name, bin_name) = (format!("{tag}.gltf"), format!("{tag}.bin"));
+    let (root, source, cache) = write_fixture(tag, (&gltf_name, gltf), (&bin_name, bin));
+    let options = Options {
+        triangle_budget: 150000,
+        simplification: "qem-endpoints".into(),
+        ..options(source, cache)
+    };
+    (root, options)
+}
+
+/// Writes `gltf_name`, `bin_name` and the manifest of a scene into the source folder of a scratch
+/// root named after `tag`, its mesh nodes and triangles counted from the document as the compiler
+/// counts them: the root, its source and its cache folder.
+pub(super) fn write_fixture(
+    tag: &str,
+    (gltf_name, gltf): (&str, &Value),
+    (bin_name, bin): (&str, &[u8]),
+) -> (PathBuf, PathBuf, PathBuf) {
     let (mesh_nodes, triangles) = source_stats(gltf).expect("source stats");
     let root = scratch("fixture", tag);
     let source = root.join("source");
     let cache = root.join("cache");
     fs::create_dir_all(&source).expect("source");
     let gltf_bytes = serde_json::to_vec(gltf).expect("gltf");
-    let (gltf_name, bin_name) = (format!("{tag}.gltf"), format!("{tag}.bin"));
-    fs::write(source.join(&gltf_name), &gltf_bytes).expect("gltf write");
-    fs::write(source.join(&bin_name), bin).expect("bin write");
-    let sidecars = [(bin_name, hash(bin))];
+    fs::write(source.join(gltf_name), &gltf_bytes).expect("gltf write");
+    fs::write(source.join(bin_name), bin).expect("bin write");
+    let sidecars = [(bin_name.to_string(), hash(bin))];
     let manifest = runtime_manifest(
-        &gltf_name,
+        gltf_name,
         &hash(&gltf_bytes),
         &sidecars,
         mesh_nodes,
@@ -41,82 +43,68 @@ pub(super) fn gltf_fixture(tag: &str, gltf: &Value, bin: &[u8]) -> (PathBuf, Opt
     );
     let manifest_bytes = serde_json::to_vec(&manifest).expect("manifest");
     fs::write(source.join("manifest.json"), manifest_bytes).expect("manifest write");
-    (root, simplified_options(source, cache))
+    (root, source, cache)
 }
-/// The options both fixtures compile with: simplification on, the BC family cooked.
-fn simplified_options(source: PathBuf, cache: PathBuf) -> Options {
+
+/// The options a test compiles `source` into `cache` with, a field it needs changed by struct
+/// update: the full scope, simplification off, a budget of one triangle, one thread, 64 MiB and
+/// the BC family.
+pub(crate) fn options(source: PathBuf, cache: PathBuf) -> Options {
     Options {
         source,
         cache,
         resource_base: "/assets/".into(),
         scope: "full".into(),
-        triangle_budget: 150000,
+        triangle_budget: 1,
         threads: 1,
         ram_budget_mb: 64,
-        simplification: "qem-endpoints".into(),
+        simplification: "none".into(),
         texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
+        hlod: crate::Hlod::read(None),
+        materials: crate::MaterialOptions::read(None, None, None),
         cancelled: Arc::new(AtomicBool::new(false)),
     }
 }
-const HALF_PI: f32 = std::f32::consts::FRAC_PI_2;
 
-/// A sine built from additions, multiplications and divisions only (Bhaskara's approximation), so
-/// the fixture's vertices are bit-identical on every platform. `f32::sin` is not: each libm rounds
-/// differently at the last bit, and a greedy DAG build turns that bit into a different root count.
-pub(crate) fn portable_sin(t: f32) -> f32 {
-    let tau = std::f32::consts::TAU;
-    let x = t.rem_euclid(tau);
-    let (x, sign) = if x > std::f32::consts::PI {
-        (x - std::f32::consts::PI, -1.0)
-    } else {
-        (x, 1.0)
-    };
-    let a = x * (std::f32::consts::PI - x);
-    sign * 16.0 * a / (5.0 * std::f32::consts::PI * std::f32::consts::PI - 4.0 * a)
+/// The chain the world tests build: HLOD 0 instanced, then three approximated layers, each building
+/// the next's actors, every placed object in it.
+pub(crate) fn hlod_chain() -> crate::Hlod {
+    let chain = serde_json::json!({
+        "layers": [
+            {"name": "hlod0", "builder": "instanced", "parent": "hlod1"},
+            {"name": "hlod1", "builder": "approximate", "parent": "hlod2"},
+            {"name": "hlod2", "builder": "approximate", "parent": "hlod3"},
+            {"name": "hlod3", "builder": "approximate"}
+        ],
+        "default": "hlod0"
+    });
+    crate::Hlod::read(Some(&chain)).expect("the chain reads")
 }
 
-/// Two triangles per quad of an `nx × ny` grid, corners named by `vertex(x, y)`: the one
-/// quad split every grid fixture of the crate shares.
-pub(crate) fn grid_indices(nx: usize, ny: usize, vertex: impl Fn(usize, usize) -> u32) -> Vec<u32> {
-    let mut indices = Vec::with_capacity(nx * ny * 6);
-    for y in 0..ny {
-        for x in 0..nx {
-            let (a, b, c, d) = (
-                vertex(x, y),
-                vertex(x + 1, y),
-                vertex(x, y + 1),
-                vertex(x + 1, y + 1),
-            );
-            indices.extend([a, b, c, b, d, c]);
-        }
-    }
-    indices
+/// `options` for a source folder that holds its own cache, in `cache` beside the files.
+pub(crate) fn options_in(source: &Path) -> Options {
+    options(source.to_path_buf(), source.join("cache"))
 }
 
-pub(super) fn grid_fixture_displaced(nx: usize, ny: usize, amplitude: f32) -> (PathBuf, Options) {
-    let mut positions = Vec::new();
-    for y in 0..=ny {
-        for x in 0..=nx {
-            positions.extend([
-                x as f32,
-                y as f32,
-                portable_sin(x as f32 * 0.31) * portable_sin(y as f32 * 0.27 + HALF_PI) * amplitude,
-            ]);
-        }
-    }
-    let indices = grid_indices(nx, ny, |x, y| (y * (nx + 1) + x) as u32);
-    let mut bin = Vec::new();
-    for value in &positions {
-        bin.extend_from_slice(&value.to_le_bytes());
-    }
-    for value in &indices {
-        bin.extend_from_slice(&value.to_le_bytes());
-    }
-    let pos_bytes = positions.len() * 4;
-    let index_bytes = indices.len() * 4;
-    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"grid.bin","byteLength":bin.len()}],"bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":pos_bytes},{"buffer":0,"byteOffset":pos_bytes,"byteLength":index_bytes}],"accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":positions.len()/3},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":indices.len()}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    gltf_fixture("grid", &gltf, &bin)
+/// The JSON document at `path`.
+pub(crate) fn read_json(path: &Path) -> Value {
+    serde_json::from_slice(&fs::read(path).expect("read")).expect("json")
 }
+
+/// The values of accessor `rank` of `gltf` over `bin`, flat, read by the compiler's one reader
+/// (`collect_f32`): its offsets, stride and sparse replacement as the document declares them.
+pub(crate) fn accessor_floats(gltf: &Value, bin: &[u8], rank: usize) -> Vec<f32> {
+    let values = accessor(gltf, bin, rank, None).expect("accessor");
+    values.collect_f32().expect("floats")
+}
+
+/// The indices of accessor `rank` of `gltf` over `bin`, read by the compiler's one reader
+/// (`collect_u32`) at the width their component declares.
+pub(crate) fn accessor_indices(gltf: &Value, bin: &[u8], rank: usize) -> Vec<u32> {
+    let values = accessor(gltf, bin, rank, None).expect("accessor");
+    values.collect_u32().expect("indices")
+}
+
 pub(crate) fn encode_glb(gltf: &Value, bin: &[u8]) -> Vec<u8> {
     let mut json = serde_json::to_vec(gltf).expect("json");
     while !json.len().is_multiple_of(4) {

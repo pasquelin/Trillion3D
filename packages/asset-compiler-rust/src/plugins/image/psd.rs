@@ -120,11 +120,10 @@ impl ImageDecoder for Psd {
     /// rest of the header is judged at decode, so that a defect comes out there by its name
     /// rather than as an unknown format.
     fn accepts_head(&self, head: &[u8]) -> bool {
-        head.len() >= SIGNATURE.len() + 2
-            && head.starts_with(SIGNATURE)
+        head.starts_with(SIGNATURE)
             && matches!(
-                u16::from_be_bytes([head[4], head[5]]),
-                VERSION_PSD | VERSION_PSB
+                crate::le::be16_at(head, SIGNATURE.len()),
+                Some(VERSION_PSD | VERSION_PSB)
             )
     }
     fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
@@ -163,8 +162,9 @@ fn header(bytes: &[u8]) -> std::result::Result<(Header, &[u8]), &'static str> {
     if !head.starts_with(SIGNATURE) || head[6..12].iter().any(|byte| *byte != 0) {
         return Err(HEADER_INVALID);
     }
-    let word = |at: usize| u16::from_be_bytes([head[at], head[at + 1]]);
-    let long = |at: usize| u32::from_be_bytes([head[at], head[at + 1], head[at + 2], head[at + 3]]);
+    // `head` holds the whole header: every field below lies inside it.
+    let word = |at: usize| crate::le::be16_at(head, at).unwrap_or(0);
+    let long = |at: usize| crate::le::be32_at(head, at).unwrap_or(0);
     let psb = match word(4) {
         VERSION_PSD => false,
         VERSION_PSB => true,

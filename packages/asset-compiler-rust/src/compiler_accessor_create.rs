@@ -26,14 +26,6 @@ pub(super) fn accessor<'a>(
             ))
         }
     };
-    let sparse = layout.sparse.map(|sparse| SparseAccessor {
-        count: sparse.count,
-        indices_bin: bin,
-        indices_offset: sparse.indices_offset,
-        indices_component: sparse.indices_component,
-        values_bin: bin,
-        values_offset: sparse.values_offset,
-    });
     Ok(Accessor {
         bin,
         base: layout.base.unwrap_or(0),
@@ -44,6 +36,6 @@ pub(super) fn accessor<'a>(
         width,
         normalized: layout.normalized,
         has_buffer_view: layout.base.is_some(),
-        sparse,
+        sparse: layout.sparse,
     })
 }

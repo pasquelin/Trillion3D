@@ -105,7 +105,7 @@ fn principled_json(
         .transpose()?
         .flatten();
     let alpha = alpha::of(node, tree, base.as_ref(), linked.is_some(), out);
-    let mut color = [0.8, 0.8, 0.8, alpha.factor.clamp(0.0, 1.0)];
+    let mut color = [0.8, 0.8, 0.8, (alpha.factor as f32).clamp(0.0, 1.0)];
     for (axis, slot) in color.iter_mut().take(3).enumerate() {
         *slot = declared.get(axis).copied().unwrap_or(0.8);
     }
@@ -117,7 +117,7 @@ fn principled_json(
         color[..3].fill(1.0);
     }
     pbr["baseColorFactor"] = json!(color);
-    alpha::mode(material, &alpha, gltf);
+    alpha::mode(material, alpha, gltf);
     shading::emission(node, tree, root, images, out, gltf)?;
     if let Some(index) = shading::normal_texture(node, tree, root, images, out)? {
         gltf["normalTexture"] = json!({"index": index});

@@ -1,36 +1,29 @@
-//! World super-roots: the root cover at the scale of the world, not of the object.
-//!
-//! Every primitive ends at its own roots, so an open world that pins every object's roots pins
-//! memory that grows with the world. At cook, the objects placed in each cell of the partition
-//! (`compiler_tables/partition.rs`) — each one level-0 cluster, its whole root cover (`place.rs`) —
-//! are grouped per material and attribute layout through the DAG builder
-//! (`dag::build_dag_from_roots`) into the cell's super-roots, with the same grouping, the same
-//! simplification, the same monotone error and the same attributes as inside an object: normals,
-//! texture sets and colour, so a super-root wears its material's own textures. The super-roots of
-//! every cell of a material continue the same way up to a small world top. An object nothing
-//! grouped stands alone: a copy of it is its own root (`world.rs`). The world DAG is packed and
-//! linked like a primitive's: the top is pinned, and every object's root bundles depend on the
-//! super-roots above them up to the top — or up to a root one cell alone needs, a lone object's
-//! copy among them, held with that cell and never pinned (`top.rs`), so the pinned top grows with
-//! the materials, never the objects. A
-//! super-root's page is a `WGP3` page (`pages.rs`), drawn as any page. The cook publishes the
-//! pinned top's bytes and refuses a world whose top exceeds [`WORLD_TOP_BUDGET_BYTES`], naming the
-//! cell that pins the most.
+//! The world's HLOD chains, each layer the parent of the one below: HLOD 0 is an instanced layer —
+//! the source meshes themselves, batched: the placed objects' own pages, nothing to build —; each
+//! layer above it builds its actors per cell of the level below (`compiler_tables/partition/
+//! hlod.rs`): at HLOD 1 of the cell's objects, above it of the actors under it, approximated by a
+//! closed shell or merged, given unique texture coordinates and the materials of the objects under
+//! it baked into one atlas, a chain's top always loaded (`flatten.rs`, `world.rs`). Each actor is its own DAG; its
+//! clusters wear its flattened material, a material of the published scene like any other, named
+//! by the actor's rank (`dag_records.rs`, the scene tables' `hlodMaterials`). Each cluster names
+//! its HLOD cell, whose switch shows it in place of the cells below once the view is far enough,
+//! and its layer. Nothing is pinned: each HLOD cell holds its own roots' bundles (`pack.rs`). An
+//! HLOD page is a `WGP3` page (`pages.rs`), drawn as any page.
 use super::*;
-use crate::compiler_world::{world_matrices, Mat4};
+use crate::compiler_tables::partition::{CellMembers, HlodNode};
+use crate::compiler_world::Mat4;
 use crate::dag::DagStrategy;
+use crate::proxy::placement::Placement;
 
 #[cfg(test)]
-mod alone_tests;
-#[cfg(test)]
 mod attribute_tests;
-mod cells;
 mod cover;
 #[cfg(test)]
 mod culling_tests;
 mod dag_records;
 #[cfg(test)]
-mod decoded;
+pub(crate) mod decoded;
+pub(crate) mod flatten;
 mod merge;
 mod pack;
 mod pages;
@@ -40,42 +33,60 @@ mod records;
 mod table_tests;
 #[cfg(test)]
 mod tests;
-mod top;
 mod world;
-#[cfg(test)]
-use cover::RootCluster;
-pub(crate) use cover::RootCover;
+pub(crate) use cover::SourceCover;
 
 /// Version of the world-roots products: 2 since their records, 3 since an object root names its
 /// object by its table rank, 4 since a placed object is one level-0 cluster and a super-root a
 /// `WGP3` page carrying its attributes, 5 since a cell names each node's first object, 6 since the
-/// DAG lies in the order of the world's culling hierarchy and carries its nodes.
-pub(crate) const WORLD_ROOTS_VERSION: u32 = 6;
-/// The table a load reads: bundles, pages, cells and placed objects, as records (`records.rs`).
+/// DAG lies in the order of the world's culling hierarchy and carries its nodes, 7 since a placed
+/// object's record no longer lists its own roots' bundles, 8 since a placed object is written at
+/// error 0 and every band and ceiling raised by the world grid's displacement, and a blended
+/// primitive enters no world DAG, 9 since a placed object stands at its coarsest level and the
+/// world's levels count on from it, 10 since the world is HLOD 1: one merged DAG per HLOD 0
+/// cell from its objects' full geometry, each cluster naming its cell and layer, the table its
+/// cells' bundles and nothing pinned, 11 since the chain runs HLOD 1 to HLOD 3, each table cell
+/// naming its parent, layer and bounds, 12 since each actor above HLOD 0 wears its own flattened
+/// material, a cluster naming its actor's rank in the scene tables' `hlodMaterials` where it named
+/// the primitive whose material it wore, 13 since a merged layer's actor may wear a material of
+/// the scene or another actor's flattened one, its rank in `hlodMaterials` naming it, and the
+/// world's pages carry every attribute its actors carry, 14 since a cluster no longer names its HLOD
+/// layer — its cell's level, which the table carries, gives it.
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 14;
+/// The table a load reads: bundles, pages and HLOD cells, as records (`records.rs`).
 pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
 /// The world clusters and groups the world stream reads on its first use, as records.
 pub(crate) const WORLD_ROOTS_DAG: &str = "world-roots.dag";
-/// The super-root bundles, end to end: each bundle's range and digest is in the table.
+/// The HLOD bundles, end to end: each bundle's range and digest is in the table.
 pub(crate) const WORLD_ROOTS_BIN: &str = "world-roots.bin";
-/// The most bytes the world's pinned top may hold, whatever the world's size: four bootstrap
-/// bundles. A world over it is refused at cook, its cell named.
-pub(crate) const WORLD_TOP_BUDGET_BYTES: usize = 4 * BOOTSTRAP_BUNDLE_BYTES;
 
-/// One primitive of one placed object: its cell, its node and the node's rank among its cell's —
-/// the order the cell's file places them in —, the primitive's rank in the manifest, its material,
-/// its world matrix and the root cover it places.
+/// One primitive of one placed object: its HLOD 0 cell, its material, its world matrix and the
+/// source cover it places.
 pub(crate) struct Instance<'a> {
-    pub cell: usize,
-    pub node: usize,
-    pub slot: usize,
-    pub primitive: usize,
+    pub hlod: usize,
     pub material: Option<u64>,
     pub matrix: Mat4,
-    pub cover: &'a RootCover,
+    pub cover: &'a SourceCover,
 }
 
-/// The super-root bundles end to end, the table and the DAG records that describe them
-/// (`records.rs`), and the cook report.
+/// The object-space error at which a merged layer of HLOD 1 takes the LOD of a source whose mesh
+/// is placed at most at `scale` (`LodSelection::Calculate`): the least deviation of the job's
+/// merged layers that build HLOD 1 actors, at the distance HLOD 1 is first seen from
+/// (`flatten::deviation`), over the scale — the finest cut any of its placements needs. `None`
+/// when no merged layer takes the sources' own LODs.
+pub(crate) fn merge_lod_error(o: &Options, scale: Option<f64>) -> Option<f64> {
+    let layers = &o.hlod.as_ref().ok()?.layers;
+    let error = (layers.iter())
+        .filter(|layer| layer.builder == crate::HlodBuilder::Instanced)
+        .filter_map(|layer| layer.parent.map(|parent| &layers[parent]))
+        .filter(|parent| parent.builder == crate::HlodBuilder::Merge)
+        .map(|parent| flatten::deviation(parent, world::min_visible(1)))
+        .reduce(f64::min)?;
+    Some(error / scale.filter(|s| *s > 0.0).unwrap_or(1.0))
+}
+
+/// The HLOD bundles end to end, and the table and the DAG records that describe them
+/// (`records.rs`), with the cook report.
 pub(crate) struct Cooked {
     pub payload: Vec<u8>,
     pub table: Vec<u8>,
@@ -83,45 +94,104 @@ pub(crate) struct Cooked {
     pub report: Value,
 }
 
-/// The world super-roots of `instances` spread over `cells` cells, refused when their pinned
-/// top exceeds `budget` bytes.
+/// The world's HLOD layers of `instances` over the chain of HLOD cells `tree`, built by `builder`,
+/// and their actors.
 pub(crate) fn cook(
     instances: &[Instance],
-    cells: usize,
-    budget: usize,
-    checkpoint: &(dyn Fn() -> Result<()> + Sync),
-) -> Result<Cooked> {
-    let world = world::world_dag(instances, checkpoint)?;
-    pack::pack_world(&world, instances, cells, budget)
+    tree: &[HlodNode],
+    builder: &world::Builder,
+) -> Result<(Cooked, Vec<world::Actor>)> {
+    let (world, actors, failures, measures) = world::world_dag(instances, tree, builder)?;
+    let mut cooked = pack::pack_world(&world, tree)?;
+    let per_layer = |f: &dyn Fn(&world::Actor) -> usize| -> Vec<usize> {
+        (1..=measures.stages.len())
+            .map(|level| {
+                (actors
+                    .iter()
+                    .filter(|a| tree[a.cell].actor_level() == level))
+                .map(f)
+                .sum()
+            })
+            .collect()
+    };
+    cooked.report["actorTriangles"] = json!(per_layer(&|a| a.triangles));
+    cooked.report["actors"] = json!(per_layer(&|_| 1));
+    cooked.report["atlasTextures"] = json!(actors.iter().map(|a| a.images().len()).sum::<usize>());
+    // Every cell whose actor could not be made, with the reason: none is dropped unsaid.
+    cooked.report["actorFailures"] = json!(failures
+        .iter()
+        .map(|&(layer, cell, reason)| json!({"layer": layer, "cell": cell, "reason": reason}))
+        .collect::<Vec<_>>());
+    // What the run measured of itself — per level each step's milliseconds and its shells'
+    // triangles after each step, over the whole the cores it kept busy and its estimates over
+    // what its memory grew by —: what its estimates are calibrated by, the job's metrics, never
+    // its products.
+    let stage = |k: usize| measures.stages.iter().map(|s| s[k]).collect::<Vec<_>>();
+    cooked.report["metrics"] = json!({
+        "hlodStepMs": measures.steps(),
+        "hlodParallelism": measures.parallelism,
+        "hlodEstimateOverPeak": measures.estimate_over_peak,
+        "hlodSolidTriangles": stage(0),
+        "hlodClosedTriangles": stage(1),
+        "hlodFastTriangles": stage(2),
+        "hlodFirstPassTriangles": stage(3),
+        "hlodToleranceTriangles": stage(4),
+        "hlodFailedStageTriangles": measures.failed_stages,
+        "hlodMaxActorTriangles": measures.most_triangles,
+        "hlodToneGap": measures.tone_gap,
+    });
+    Ok((cooked, actors))
 }
 
-/// Compilation stage: the super-roots of the objects the partition placed, `cells` naming the
-/// published nodes of each cell. Written as `world-roots.bin`, `world-roots.table` and
-/// `world-roots.dag`; the report
-/// goes to the manifest. Exact clusters carry no simplification, so no super-root either. The
-/// builds run on the job's `pool`: its threads, its phase counters.
+/// What the world stage hands back: its products, its report, the published scene with the
+/// flattened materials and their glTF ranks, and their textures' chains.
+pub(super) struct Staged {
+    pub products: Vec<Product>,
+    pub report: Value,
+    pub materials: crate::compiler_tables::WorldMaterials,
+    pub previews: Vec<crate::texture_preview::TexturePreview>,
+}
+
+/// Compilation stage: the HLOD layers of the objects the partition placed, `cells` naming the
+/// published nodes of each cell, its HLOD 0 cell and the chain, `placement` their transforms and
+/// the primitives of each mesh, computed once for the job; `source` the input scene, its binary
+/// and its image root, whose materials the actors above HLOD 0 flatten. Written as
+/// `world-roots.bin`, `world-roots.table` and `world-roots.dag`, an atlas image a PNG only where
+/// its chain is not whole (`flatten::publish`); the report goes to the manifest, its measures to
+/// the job's metrics. Exact clusters are never simplified, so no HLOD is built of them. The
+/// builds run on the job's `pool`: its threads, its phase counters, in the job's RAM allowance
+/// less the `reserved` bytes the geometry holds.
 pub(super) fn stage_world_roots(
-    (o, pool): (&Options, &rayon::ThreadPool),
+    (o, pool, reserved): (&Options, &rayon::ThreadPool, usize),
     (published, directory): (&Value, &Path),
-    (primitives, covers): (&[Value], Vec<RootCover>),
-    cells: &[Vec<usize>],
-) -> Result<(Vec<Product>, Value)> {
-    if DagStrategy::named(&o.simplification) == DagStrategy::ExactClusters {
-        return Ok((Vec::new(), Value::Null));
+    (primitives, covers, placement): (&[Value], Vec<SourceCover>, &Placement),
+    cells: &CellMembers,
+    source: (&Value, &[u8], &Path),
+) -> Result<Staged> {
+    let nothing = || Staged {
+        products: Vec::new(),
+        report: Value::Null,
+        materials: None,
+        previews: Vec::new(),
+    };
+    let hlod = o.hlod()?;
+    // A job naming no HLOD builds no actor; neither does a job of exact clusters.
+    if DagStrategy::named(&o.simplification) == DagStrategy::ExactClusters || hlod.layers.is_empty()
+    {
+        return Ok(nothing());
     }
-    let world = world_matrices(published)?;
+    let Placement { world, by_mesh } = placement;
     let nodes = values(published, "nodes")?;
-    let by_mesh = crate::proxy::placement::primitives_by_mesh(primitives);
     let mut instances = Vec::new();
-    for (cell, members) in cells.iter().enumerate() {
-        for (slot, &node) in members.iter().enumerate() {
+    // Only the objects in a layer: no other is decoded, estimated, approximated nor baked.
+    let assigned = (cells.nodes.iter().zip(&cells.hlod))
+        .filter(|&(_, &leaf)| cells.tree[leaf].layer.is_some());
+    for (members, &hlod) in assigned {
+        for &node in members {
             let mesh = nodes.get(node).and_then(|n| n["mesh"].as_u64());
             for &primitive in mesh.and_then(|m| by_mesh.get(&m)).into_iter().flatten() {
                 instances.push(Instance {
-                    cell,
-                    node,
-                    slot,
-                    primitive,
+                    hlod,
                     material: primitives[primitive]["material"].as_u64(),
                     matrix: world[node],
                     cover: &covers[primitive],
@@ -129,16 +199,105 @@ pub(super) fn stage_world_roots(
             }
         }
     }
-    if instances.iter().all(|i| i.cover.clusters.is_empty()) {
-        return Ok((Vec::new(), Value::Null));
+    if instances.iter().all(|i| i.cover.indices.is_empty()) {
+        return Ok(nothing());
     }
-    let cooked = pool.install(|| {
-        cook(&instances, cells.len(), WORLD_TOP_BUDGET_BYTES, &|| {
-            check(o)
-        })
+    let materials: BTreeSet<Option<u64>> = instances.iter().map(|i| i.material).collect();
+    let (cooked, actors) = pool.install(|| {
+        let library = flatten::Library::new(source, &materials, (o, reserved))?;
+        // The room is the job's allowance whole: the admission measures what the process holds,
+        // the geometry `reserved` with it (`compiler_budget::admission::Room::Measured`).
+        let builder = world::Builder {
+            checkpoint: &|| check(o),
+            library: &library,
+            o,
+            hlod,
+            room: o.ram_budget_bytes(),
+        };
+        cook(&instances, &cells.tree, &builder)
     })?;
-    let bin = product(directory, WORLD_ROOTS_BIN, &cooked.payload)?;
-    let table = product(directory, WORLD_ROOTS_FILE, &cooked.table)?;
-    let dag = product(directory, WORLD_ROOTS_DAG, &cooked.dag)?;
-    Ok((vec![bin, table, dag], cooked.report))
+    let mut report = cooked.report;
+    // Each object whose mark won over a rule naming another layer, and each node marked but not
+    // placed: told, never an error.
+    let name = |node: usize| {
+        nodes
+            .get(node)
+            .and_then(|n| n["name"].as_str())
+            .unwrap_or("")
+    };
+    let overruled = cells.overruled.iter().map(|&(node, layer, ruled)| {
+        format!(
+            "node {node} {}: its mark puts it in {}, over the rule naming {}",
+            name(node),
+            hlod.layers[layer].name,
+            hlod.layers[ruled].name
+        )
+    });
+    let unplaced = (cells.unplaced.iter()).map(|&node| {
+        format!(
+            "node {node} {}: marked, but animated, a parent or hidden: no HLOD takes it",
+            name(node)
+        )
+    });
+    report["assignmentWarnings"] = json!(overruled.chain(unplaced).collect::<Vec<_>>());
+    let mut products = vec![
+        product(directory, WORLD_ROOTS_BIN, &cooked.payload)?,
+        product(directory, WORLD_ROOTS_FILE, &cooked.table)?,
+        product(directory, WORLD_ROOTS_DAG, &cooked.dag)?,
+    ];
+    // The actors wearing their own flattened material, published; the others wear a material of
+    // the scene or another actor's (`world::Wears`).
+    let mut flattened: Vec<flatten::publish::Published> = Vec::new();
+    let mut wears: Vec<Option<flatten::mesh_merge::Material>> = Vec::with_capacity(actors.len());
+    for actor in actors {
+        match actor.wears {
+            world::Wears::Flattened(images) => {
+                let level = cells.tree[actor.cell].actor_level();
+                let name = format!("HLOD {level} cell {}", actor.cell);
+                flattened.push(flatten::publish::Published { name, images });
+                wears.push(None);
+            }
+            world::Wears::Merged(material) => wears.push(Some(material)),
+        }
+    }
+    let name = |material: &flatten::publish::Published, image: &flatten::publish::Image| {
+        format!(
+            "{}-{}.png",
+            material.name.replace(' ', "-").to_lowercase(),
+            image.role.name()
+        )
+    };
+    // Only an image whose chain lacks a level is written: a whole chain stands in for its source.
+    for material in &flattened {
+        for image in &material.images {
+            if let Some(png) = &image.png {
+                products.push(product(directory, &name(material, image), png)?);
+            }
+        }
+    }
+    let mut scene = published.clone();
+    let (flat_ranks, previews) = flatten::publish::place(&mut scene, &mut flattened, &name);
+    // Each actor's glTF material, by its rank: its own flattened one, the scene's it wears — glTF's
+    // default material written out once for a source that names none —, or the one the actor it
+    // names wears, made before it.
+    let mut flat_ranks = flat_ranks.into_iter();
+    let mut default = None;
+    let mut ranks: Vec<usize> = Vec::with_capacity(wears.len());
+    for worn in wears {
+        let rank = match worn {
+            None => flat_ranks.next().expect("a rank per flattened material"),
+            Some(flatten::mesh_merge::Material::Source(Some(id))) => id as usize,
+            Some(flatten::mesh_merge::Material::Source(None)) => {
+                *default.get_or_insert_with(|| flatten::publish::default_material(&mut scene))
+            }
+            Some(flatten::mesh_merge::Material::Actor(k)) => ranks[k],
+        };
+        ranks.push(rank);
+    }
+    Ok(Staged {
+        products,
+        report,
+        materials: Some((scene, ranks)),
+        previews,
+    })
 }

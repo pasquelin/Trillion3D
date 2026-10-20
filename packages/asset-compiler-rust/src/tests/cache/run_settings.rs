@@ -1,5 +1,5 @@
 //! One scene, one output whatever the run: its threads and RAM budget change how fast and
-//! in how much memory a compile runs — the pool's width, the waves its primitives are cut into —
+//! in how much memory a compile runs — the pool's width, how many primitives run at once —
 //! never the bytes it writes; the run's result reports them, the manifest head does not.
 use super::deterministic::fingerprints;
 use super::reuse::textured;
@@ -40,8 +40,9 @@ fn one_and_four_threads_write_the_same_bytes() {
 }
 
 // Behaviour: under a small RAM budget the two primitives, whose kept page records leave no room for
-// both, compile one wave each instead of being refused, under a large one together, and both
-// write the same files, byte for byte; each result reports its budget and waves.
+// both, compile one after the other instead of being refused, under a large one together, and
+// both write the same files, byte for byte; each result reports its budget and the primitives the
+// room made wait.
 #[test]
 fn a_small_and_a_large_ram_budget_write_the_same_bytes() {
     let (root, options) = two_grids();
@@ -53,8 +54,8 @@ fn a_small_and_a_large_ram_budget_write_the_same_bytes() {
         "{}",
         tight["metrics"]
     );
-    assert_eq!(tight["metrics"]["compileWaves"], 2, "{}", tight["metrics"]);
-    assert_eq!(roomy["metrics"]["compileWaves"], 1, "{}", roomy["metrics"]);
+    assert_eq!(tight["metrics"]["compileWaited"], 1, "{}", tight["metrics"]);
+    assert_eq!(roomy["metrics"]["compileWaited"], 0, "{}", roomy["metrics"]);
     assert_eq!(tight["metrics"]["ramBudgetMb"], 64);
     assert_eq!(roomy["metrics"]["ramBudgetMb"], 1024);
     assert!(!small.is_empty(), "the compile wrote files");

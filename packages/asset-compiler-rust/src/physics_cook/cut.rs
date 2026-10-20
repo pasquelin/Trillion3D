@@ -14,13 +14,13 @@
 //! stored under the SHA-256 of its bytes like a page.
 use super::{hausdorff, height, mesh_shape};
 use crate::dag::DagCluster;
-use crate::{hash, object_intact, object_path, store_object, Options, Result};
+use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::{json, Value};
-use std::collections::HashMap;
 use trillion3d_math::aabb::extend_aabb_f32;
 use trillion3d_math::scalar::median_in_place;
 use trillion3d_page_codec::culling::CullingNode;
+use trillion3d_page_codec::encode::vertices::first_use;
 
 /// Most triangles one tile holds: the grain the worker streams by (its bytes stay near 100 kB).
 pub(crate) const TILE_TRIANGLES: usize = 4096;
@@ -71,29 +71,18 @@ fn tile_ranges(
 
 /// Stores a cooked shape as a content-addressed object; returns its descriptor.
 pub(crate) fn store_shape(o: &Options, bytes: &[u8]) -> Result<Value> {
-    let digest = hash(bytes);
-    let target = object_path(o, &digest);
-    if object_intact(&target, &digest)?.is_none() {
-        store_object(&target, bytes)?;
-    }
-    Ok(
-        json!({"url":crate::compiler_storage::object_url(&digest),"sha256":digest,"bytes":bytes.len()}),
-    )
+    Ok(crate::compiler_storage::store_descriptor(o, bytes)?.0)
 }
 
 /// One tile: its triangles gathered, their vertices compacted, cooked and stored.
 fn tile(o: &Options, pos: &[f32], triangles: &[u32]) -> Result<Value> {
-    let mut remap = HashMap::new();
-    let (mut vertices, mut indices) = (Vec::new(), Vec::with_capacity(triangles.len()));
+    let (used, indices) = first_use(triangles.iter().copied());
+    let mut vertices = Vec::with_capacity(used.len() * 3);
     let (mut min, mut max) = ([f32::MAX; 3], [f32::MIN; 3]);
-    for &source in triangles {
-        let index = *remap.entry(source).or_insert_with(|| {
-            let at = source as usize * 3;
-            extend_aabb_f32(&mut min, &mut max, std::array::from_fn(|a| pos[at + a]));
-            vertices.extend_from_slice(&pos[at..at + 3]);
-            (vertices.len() / 3 - 1) as u32
-        });
-        indices.push(index);
+    for source in used {
+        let at = source as usize * 3;
+        extend_aabb_f32(&mut min, &mut max, std::array::from_fn(|a| pos[at + a]));
+        vertices.extend_from_slice(&pos[at..at + 3]);
     }
     let mut descriptor = store_shape(o, &mesh_shape(&vertices, &indices)?)?;
     descriptor["triangles"] = json!(indices.len() / 3);

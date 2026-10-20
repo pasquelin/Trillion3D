@@ -72,7 +72,9 @@ impl MeasureCache {
         )
     }
 
-    /// The shape stored for the image `sha`, before it is decoded.
+    /// The shape stored for the image `sha`, the one lookup: the fingerprint names the bytes,
+    /// hence the size they decode to, and the cutout step asks it before decoding as the bake
+    /// does after.
     pub(crate) fn known(&self, sha: &str) -> Option<&AlphaShape> {
         self.0.get(sha)
     }
@@ -80,13 +82,6 @@ impl MeasureCache {
     /// Keeps `shape` for the image `sha`: the preview step reads it instead of measuring again.
     pub(crate) fn insert(&mut self, sha: String, shape: AlphaShape) {
         self.0.insert(sha, shape);
-    }
-
-    pub(crate) fn get(&self, sha: &str, image: &image::RgbaImage) -> Option<AlphaShape> {
-        self.0
-            .get(sha)
-            .filter(|shape| shape.texels == u64::from(image.width()) * u64::from(image.height()))
-            .cloned()
     }
 
     /// Retain valid measurements even if a scene no longer references the image: rows the scene

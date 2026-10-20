@@ -19,18 +19,18 @@ pub fn runtime_manifest(
 pub(super) fn load_model_file(
     dir: &Path,
     name: &str,
-    declared: Option<(Value, Vec<u8>)>,
+    declared: Option<Value>,
     budget: &compressed::Budget<'_>,
 ) -> Result<RuntimeSource> {
     if !is_safe_source_name(name) {
         return Err(invalid("manifest.runtime.file is required"));
     }
-    if let Some((ref manifest, _)) = &declared {
+    if let Some(manifest) = &declared {
         validate_manifest(manifest)?;
     }
     let file_bytes = map_source(&dir.join(name))?;
     let source_hash = hash(&file_bytes);
-    if let Some((ref manifest, _)) = &declared {
+    if let Some(manifest) = &declared {
         let expected = manifest
             .pointer("/runtime/sha256")
             .and_then(Value::as_str)
@@ -42,7 +42,6 @@ pub(super) fn load_model_file(
             ));
         }
     }
-    let declared_ref = declared.as_ref().map(|(m, _)| m);
     // Bytes of the glTF itself: a GLB's BIN chunk is charged once, as the job's binary.
     let Document {
         mut g,
@@ -50,23 +49,27 @@ pub(super) fn load_model_file(
         mut offsets,
         sidecars,
         json_bytes: g_bytes_len,
-    } = read_document(dir, file_bytes, declared_ref)?;
+    } = read_document(dir, file_bytes, declared.as_ref())?;
     let binary = compressed::meshopt_views(&mut g, binary, &mut offsets, budget)?;
     flatten_buffer_views(&mut g, &offsets, binary.bytes().len())?;
     let binary = compressed::draco_primitives(&mut g, binary, budget)?;
     expand_gpu_instances(&mut g, binary.bytes())?;
-    let bin_hash = hash(binary.bytes());
-    let (manifest, manifest_bytes) = if let Some(pair) = declared {
-        pair
-    } else {
-        let (mesh_nodes, triangles) = source_stats(&g)?;
-        let manifest = runtime_manifest(name, &source_hash, &sidecars, mesh_nodes, triangles);
-        let manifest_bytes = serde_json::to_vec(&manifest)?;
-        (manifest, manifest_bytes)
+    // A binary still mapped is one sidecar no codec rewrote — a rewrite owns its bytes: its digest
+    // was taken when it was read (`concat_gltf_buffers`), and is not taken twice. A GLB's BIN chunk,
+    // buffers joined or decoded views are hashed here, the only time.
+    let bin_hash = match (&binary, sidecars.as_slice()) {
+        (Binary::Mapped(_), [(_, digest)]) => digest.clone(),
+        _ => hash(binary.bytes()),
+    };
+    let manifest = match declared {
+        Some(manifest) => manifest,
+        None => {
+            let (mesh_nodes, triangles) = source_stats(&g)?;
+            runtime_manifest(name, &source_hash, &sidecars, mesh_nodes, triangles)
+        }
     };
     Ok(RuntimeSource {
         manifest,
-        manifest_bytes,
         g,
         g_bytes_len,
         binary,
@@ -83,18 +86,18 @@ pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<Runt
     };
     match prepared {
         PreparedScene::InPlace(name) if o.source.is_file() => load_model_file(
-            o.source
-                .parent()
-                .filter(|p| !p.as_os_str().is_empty())
-                .unwrap_or_else(|| Path::new(".")),
+            crate::compiler_safe_path::parent_or_dot(&o.source),
             name,
             None,
             &budget,
         ),
-        PreparedScene::InPlace(name) => load_model_file(&o.source, name, None, &budget),
+        // An extracted scene has moved `o.source` onto its directory, like a converted one.
+        PreparedScene::InPlace(name) | PreparedScene::Extracted { file: name, .. } => {
+            load_model_file(&o.source, name, None, &budget)
+        }
         PreparedScene::Manifest | PreparedScene::Converted { .. } => {
-            let manifest_bytes = fs::read(o.source.join(crate::MANIFEST_POINTER))?;
-            let manifest: Value = serde_json::from_slice(&manifest_bytes)?;
+            let manifest: Value =
+                serde_json::from_slice(&fs::read(o.source.join(crate::MANIFEST_POINTER))?)?;
             validate_manifest(&manifest)?;
             let gltf_file = manifest
                 .get("runtime")
@@ -102,12 +105,7 @@ pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<Runt
                 .and_then(Value::as_str)
                 .map(str::to_owned)
                 .ok_or_else(|| invalid("manifest.runtime.file is required"))?;
-            load_model_file(
-                &o.source,
-                &gltf_file,
-                Some((manifest, manifest_bytes)),
-                &budget,
-            )
+            load_model_file(&o.source, &gltf_file, Some(manifest), &budget)
         }
     }
 }

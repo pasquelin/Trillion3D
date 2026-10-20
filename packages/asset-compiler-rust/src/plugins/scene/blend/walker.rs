@@ -70,11 +70,7 @@ impl Scene<'_> {
             "name": short(object, "Object"), "mesh": index,
             "matrix": object::world(object),
         });
-        self.out.scene.nodes.push(node);
-        let rank = self.out.scene.nodes.len() - 1;
-        if let Some(children) = self.out.scene.nodes[0]["children"].as_array_mut() {
-            children.push(json!(rank));
-        }
+        self.under_root(node);
         self.out.scene.count("meshInstances", 1);
         Ok(())
     }
@@ -89,11 +85,12 @@ impl Scene<'_> {
         else {
             return;
         };
-        self.out
-            .scene
-            .nodes
-            .push(crate::import::light_node(&name, json!(matrix), light));
-        let rank = self.out.scene.nodes.len() - 1;
+        self.under_root(crate::import::light_node(&name, json!(matrix), light));
+    }
+
+    /// Adds `node` to the scene, one more child of the root.
+    fn under_root(&mut self, node: Value) {
+        let rank = self.out.scene.node(node);
         if let Some(children) = self.out.scene.nodes[0]["children"].as_array_mut() {
             children.push(json!(rank));
         }
@@ -125,9 +122,7 @@ impl Scene<'_> {
         // check follows the pour: it bounds the binary, not the peak of building this mesh.
         let added = self.out.scene.bin.bytes.len() - before;
         self.out.fit("mesh", &name, before, added)?;
-        self.out.scene.meshes.push(json);
-        self.out.scene.mesh_triangles.push(triangles);
-        let built = Some(self.out.scene.meshes.len() - 1);
+        let built = Some(self.out.scene.mesh(json, triangles));
         self.meshes.insert(mesh.old, built);
         self.out.scene.count("meshes", 1);
         Ok(built)

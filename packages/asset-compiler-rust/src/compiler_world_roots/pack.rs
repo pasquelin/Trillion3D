@@ -1,129 +1,62 @@
-//! The world DAG in streaming bundles, packed and linked as a primitive's are (`pack_bundles`,
-//! `compiler_bundle_dependencies.rs`): the top first, pinned, then the roots each cell holds, then
-//! every level from the coarsest. The top is the roots several cells share; the roots one cell
-//! alone needs (`top.rs`) lie in bundles of that cell's held roots alone, every level together,
-//! which that cell depends on (`cells.rs`).
-//! The object roots of level 0 are packed too, last, only to take their dependency lists: their
-//! pages are the objects' own, never written twice.
-//!
-//! With `M` the materials and layouts the world wears, `N` its lone objects and `w` the bytes of
-//! one copy: the pinned top is `Σ_M top bytes = O(M)`, whatever the objects, read at load and held
-//! all session; the copies, `N·w` over the world, and every other root of one cell, are held only
-//! with their cells, placed or far, `O(roots of the held cells)`, bounded by the plan's reach,
-//! never by the world.
-use super::cells::object_dependencies;
+//! The world DAG in streaming bundles (`compiler_page_bundles.rs`), linked by
+//! `compiler_bundle_dependencies.rs`: nothing pinned — every root is its HLOD 0 cell's, packed in
+//! bundles of that cell's roots alone (`pack_bundles`, `held`), held while its actor is loaded: an HLOD
+//! actor streams with its own cell, so its pages come and go with that cell's range alone — then every level from the coarsest, each page's bundle needing its parents' up to its cell's
+//! roots.
 use super::dag_records::encode_dag;
 use super::merge::WorldDag;
-use super::pages::encode_pages;
-use super::records::{encode_table, Bundle, Page, Top};
-use super::top::{held_by, refuse_over_budget};
+use super::records::{encode_table, Page};
 use super::*;
-use crate::compiler_primitive_bundle::index_bytes;
-use trillion3d_page_codec::encode::Encoded;
+use crate::compiler_page_bundles::lay_bundles;
+use crate::compiler_tables::partition::HlodNode;
 
-/// Packs `world`, checks that every page reaches the pinned top or a root its cell holds, refuses a
-/// top over `budget`, and returns the payload of the super-root bundles with the table and the DAG
-/// records that describe them, written straight from the world (`records.rs`).
-pub(super) fn pack_world(
-    world: &WorldDag,
-    instances: &[Instance],
-    cells: usize,
-    budget: usize,
-) -> Result<Cooked> {
+/// Packs `world` and lays its pages (`lay_bundles`: every page reaches its HLOD 0 cell's roots),
+/// and returns the payload of the bundles with the table and the DAG records that describe them,
+/// written straight from the world (`records.rs`); `tree` the partition's chain of HLOD cells.
+pub(super) fn pack_world(world: &WorldDag, tree: &[HlodNode]) -> Result<Cooked> {
     let (dag, groups) = (&world.clusters, &world.groups);
-    let encoded = encode_pages(world)?;
     // The world lies in its culling order already (`WorldDag::in_culling_order`): rank is slot.
     let order: Vec<usize> = (0..dag.len()).collect();
-    let bound = dependency_bound(dag, groups);
-    // A super-root weighs its written page; a placed object, never written, its corners.
-    let corners = index_bytes(dag);
-    let weight = |slot: usize| {
-        encoded[slot]
-            .as_ref()
-            .map_or_else(|| corners(slot), page_len)
-    };
-    // A root one cell alone needs closes its level in that cell's own bundles.
-    let held_by = held_by(world)?;
-    let held = |slot: usize| held_by[slot];
-    let (bundles, pinned, bundle_of) = pack_bundles(dag, groups, &order, bound, (&weight, &held))?;
-    let closed = close_dependencies(&direct_dependencies(dag, groups, &bundle_of, bundles.len()))?;
-    verify_dependencies(dag, groups, &order, &bundle_of, &closed, pinned)?;
-    // Level 0 is the placed objects alone, packed last: their bundles are never written.
-    let written = bundles
+    let pages = world
+        .pages
         .iter()
-        .position(|members| {
-            members
-                .iter()
-                .all(|&rank| world.origins[order[rank]].is_some())
+        .map(|page| Some(page.bytes.as_slice()))
+        .collect();
+    let held = |slot: usize| dag[slot].is_root().then(|| world.hlod(slot));
+    // World pages are in world space: their bands are in metres already.
+    let laid = lay_bundles((dag, groups), &order, pages, &held, 1.0)?;
+    // Each page in the binary's order, by its bundle and its offset there.
+    let mut written: Vec<(usize, (usize, usize))> = (laid.at.iter().enumerate())
+        .filter_map(|(slot, at)| at.map(|at| (slot, at)))
+        .collect();
+    written.sort_unstable_by_key(|&(_, at)| at);
+    let pages: Vec<Page> = (written.into_iter())
+        .map(|(slot, (bundle, offset))| Page {
+            bundle,
+            offset,
+            level: dag[slot].level,
+            bytes: world.pages[slot].bytes.len(),
+            lod_error: dag[slot].lod_error,
         })
-        .unwrap_or(bundles.len());
-    let (mut payload, mut records, mut pages, mut top) =
-        (Vec::new(), Vec::new(), Vec::new(), Vec::new());
-    // Where each super-root's page lies in the binary, by world rank: what a cluster record names
-    // for a runtime that builds its `DagRoot` pages.
-    let mut located: Vec<Option<(usize, usize)>> = vec![None; dag.len()];
-    for (index, members) in bundles.iter().enumerate().take(written) {
-        let start = payload.len();
-        for &rank in members {
-            let (slot, offset) = (order[rank], payload.len());
-            let (cluster, page) = (&dag[slot], written_page(&encoded, slot)?);
-            payload.extend_from_slice(&page.bytes);
-            if index < pinned {
-                top.push((slot, page.bytes.len()));
-            }
-            located[slot] = Some((index, offset - start));
-            pages.push(Page {
-                bundle: index,
-                offset: offset - start,
-                level: cluster.level,
-                bytes: page.bytes.len(),
-                lod_error: cluster.lod_error,
-            });
-        }
-        let bytes = &payload[start..];
-        records.push(Bundle {
-            offset: start,
-            bytes: bytes.len(),
-            count: members.len(),
-            dependencies: closed[index].clone(),
-            sha256: digest_bytes(bytes),
-        });
+        .collect();
+    // Each HLOD cell holds the bundles of its roots.
+    let mut hlod: Vec<BTreeSet<usize>> = vec![BTreeSet::new(); tree.len()];
+    for slot in (0..dag.len()).filter(|&slot| dag[slot].is_root()) {
+        hlod[world.hlod(slot)].insert(laid.bundle_of[slot]);
     }
-    let pinned_bytes: usize = top.iter().map(|(_, bytes)| bytes).sum();
-    refuse_over_budget(world, &top, (pinned_bytes, budget))?;
-    let (objects, ranks, outside) =
-        object_dependencies(world, instances, &bundle_of, &closed, cells)?;
-    let dag = encode_dag((world, instances), (&located, &encoded), &ranks)?;
-    let top_of = Top {
-        budget,
-        pinned,
-        pinned_bytes,
-    };
-    let table = encode_table(&top_of, (&records, &pages, &objects), &payload)?;
-    // The objects the world build placed nothing for are told by node: they draw their own pages.
-    let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,"cells":cells,
-        "superRoots":pages.len(),"topPages":top.len(),"pinnedBundles":pinned,
-        "pinnedTopBytes":pinned_bytes,"budgetBytes":budget,"dependencyBound":bound,
-        "outsideWorld":outside});
+    let dag_bytes = encode_dag(world, &laid.at)?;
+    let table = encode_table((&laid.bundles, &pages, (&hlod, tree)), &laid.payload)?;
+    let roots = dag.iter().filter(|c| c.is_root()).count();
+    let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,
+        "hlodCells":tree.iter().filter(|node| node.level == 0).count(),"chainCells":tree.len(),
+        "builtCells":hlod.iter().filter(|h| !h.is_empty()).count(),
+        "layers":world.cells.iter().map(|&cell| tree[cell].actor_level()).max(),
+        "pages":pages.len(),"roots":roots,"bundles":laid.bundles.len(),
+        "dependencyBound":laid.bound});
     Ok(Cooked {
-        payload,
+        payload: laid.payload,
         table,
-        dag,
+        dag: dag_bytes,
         report,
-    })
-}
-
-/// A written page's length.
-fn page_len(page: &Encoded) -> usize {
-    page.bytes.len()
-}
-
-/// The page of super-root `slot`: every cluster of a written bundle is one.
-fn written_page(encoded: &[Option<Encoded>], slot: usize) -> Result<&Encoded> {
-    encoded[slot].as_ref().ok_or_else(|| {
-        CompilerError::new(
-            "INVALID_WORLD_ROOTS",
-            format!("world cluster {slot} has no page in a written bundle"),
-        )
     })
 }

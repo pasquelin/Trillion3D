@@ -9,7 +9,8 @@ use trillion3d_page_codec::bits::grid::{
 };
 #[cfg(test)]
 mod screen;
-pub mod tile;
+#[cfg(test)]
+mod tile;
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
 /// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold: a coarser

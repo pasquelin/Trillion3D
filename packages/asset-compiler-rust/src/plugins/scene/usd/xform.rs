@@ -26,7 +26,7 @@ pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
     for entry in &order {
         let entry = entry.as_str();
         if entry == RESET {
-            world.refuse(world::XFORM_UNSUPPORTED);
+            world.scene.report.add(world::XFORM_UNSUPPORTED);
             continue;
         }
         let (inverted, name) = match entry.strip_prefix(INVERT) {
@@ -35,13 +35,13 @@ pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
         };
         match operation(world, prim, name, inverted) {
             Some(op) => out = multiply_matrix4_from_zero(&out, &op),
-            None => world.refuse(world::XFORM_UNSUPPORTED),
+            None => world.scene.report.add(world::XFORM_UNSUPPORTED),
         }
     }
     if out.iter().all(|value| value.is_finite()) {
         return out;
     }
-    world.refuse(world::XFORM_INVALID);
+    world.scene.report.add(world::XFORM_INVALID);
     IDENTITY
 }
 
@@ -53,10 +53,7 @@ fn operation(
     inverted: bool,
 ) -> Option<[f64; 16]> {
     let kind = name.strip_prefix(PREFIX)?.split(':').next()?;
-    let (value, sampled) = read::first(&prim.attribute(name))?;
-    if sampled {
-        world.refuse(world::TIME_SAMPLE);
-    }
+    let value = world.first(prim, name)?;
     match kind {
         "translate" => {
             let t = read::triple(&value)?;

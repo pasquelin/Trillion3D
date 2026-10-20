@@ -37,21 +37,14 @@ pub fn encode(texels: &Texels) -> [u8; 16] {
         at += 8;
     }
     bits |= PLANE_2_CHANNEL << (128 - WEIGHT_BITS - 2);
-    // Weights interleave the two planes per texel and are read from the top of
-    // the block downward, the first stream bit at bit 127.
+    // Weights interleave the two planes per texel.
     let weights: [u8; 32] = std::array::from_fn(|i| if i % 2 == 0 { x[i / 2] } else { y[i / 2] });
     let mut stream = 0u32;
     for group in weights.chunks(3) {
         let mut quints = [0u8; 3];
         quints[..group.len()].copy_from_slice(group);
         let packed = ise::packed_quints(quints);
-        let width = [3, 5, 7][group.len() - 1];
-        for bit in 0..width {
-            if (packed >> bit) & 1 == 1 {
-                bits |= 1u128 << (127 - (stream + bit));
-            }
-        }
-        stream += width;
+        ise::append_weights(&mut bits, &mut stream, packed, [3, 5, 7][group.len() - 1]);
     }
     debug_assert_eq!(stream, WEIGHT_BITS);
     bits.to_le_bytes()

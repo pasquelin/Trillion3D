@@ -89,7 +89,7 @@ fn an_opacity_map_shared_with_base_colour_binds_without_a_report() {
 /// Classic FBX convention, isolated: `TransparentColor` is a transparency, not an opacity.
 #[test]
 fn transparent_color_black_means_opaque() {
-    use crate::import::opacity::opacity_from_transparency as opacity;
+    use crate::plugins::scene::opacity_from_transparency as opacity;
     // The form of a water material: black colour, full factor.
     assert_eq!(opacity([0.0, 0.0, 0.0], 1.0), 1.0);
     assert_eq!(opacity([1.0, 1.0, 1.0], 0.25), 0.75);

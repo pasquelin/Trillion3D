@@ -1,5 +1,6 @@
 use super::*;
 use crate::tests::directories::scratch;
+use crate::tests::fixtures::options_in as options;
 
 mod admission;
 mod atlas_rule;
@@ -19,21 +20,8 @@ mod median_alpha;
 mod tile_records;
 mod weighted_colour;
 
-/// Minimal `Options` a stage needs; only `cancelled`, `source` and `cache` ever matter to these tests.
-pub(crate) fn options(source: &Path) -> Options {
-    Options {
-        source: source.to_path_buf(),
-        cache: source.join("cache"),
-        resource_base: "/assets/".into(),
-        scope: "full".into(),
-        triangle_budget: 1,
-        threads: 1,
-        ram_budget_mb: 64,
-        simplification: "none".into(),
-        texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
-        cancelled: Arc::new(AtomicBool::new(false)),
-    }
-}
+/// Minimal `Options` a stage needs, its cache under `source`; only `cancelled`, `source` and
+/// `cache` ever matter to these tests.
 pub(super) fn rgba_from(
     width: u32,
     height: u32,
@@ -67,6 +55,24 @@ pub(super) fn level_bytes(width: u32, height: u32, pixels: &[u8], index: usize) 
 }
 /// Progress ignored by these tests.
 pub(super) fn silent(_: Value) {}
+
+/// The materials mesh `mesh` of `g` uses: what `atlas_textures` reads.
+pub(super) fn used(g: &Value, mesh: usize) -> BTreeSet<usize> {
+    collect::used_materials(g, &BTreeSet::from([mesh])).expect("used materials")
+}
+
+/// What a compilation reads once before the step, for the scene `g` whose `meshes` are compiled:
+/// the materials they use and the fingerprint of every image the step reads.
+pub(super) fn read_once(
+    g: &Value,
+    bin: &[u8],
+    image_root: &Path,
+    meshes: &BTreeSet<usize>,
+) -> (BTreeSet<usize>, crate::texture_preview::source::ImageShas) {
+    let used = collect::used_materials(g, meshes).expect("used materials");
+    let shas = crate::texture_preview::source::ImageShas::of(g, bin, image_root, &used);
+    (used, shas)
+}
 /// Step run on source folder and scene, mesh 0 retained, nothing to measure,
 /// the BC family cooked: shared by end-to-end tests. Returns entries and report.
 pub(super) fn stage_scene(dir: &Path, g: &Value) -> (Vec<TexturePreview>, Value) {
@@ -82,7 +88,8 @@ pub(super) fn stage_scene_in(
         texture_formats,
         ..options(dir)
     };
-    let (meshes, view_map) = (BTreeSet::from([0usize]), BTreeMap::new());
+    let view_map = BTreeMap::new();
+    let (used, shas) = read_once(g, &[], dir, &BTreeSet::from([0usize]));
     let (previews, _, report) = stage_texture_previews(
         &PreviewInputs {
             o: &o,
@@ -90,10 +97,11 @@ pub(super) fn stage_scene_in(
             g,
             bin: &[],
             image_root: dir,
-            meshes: &meshes,
+            used_materials: &used,
             view_map: &view_map,
             to_measure: &BTreeSet::new(),
             measurements: crate::cutout::MeasureCache::EMPTY,
+            image_shas: &shas,
         },
         &silent,
     )

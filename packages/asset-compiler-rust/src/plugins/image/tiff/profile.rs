@@ -47,16 +47,8 @@ struct Ifd<'a> {
 impl Ifd<'_> {
     /// An unsigned integer of `width` bytes, in the order the header declares.
     fn uint(&self, at: usize, width: usize) -> Option<u32> {
-        let mut value = 0;
-        for (index, byte) in self.bytes.get(at..at + width)?.iter().enumerate() {
-            let rank = if self.big_endian {
-                width - 1 - index
-            } else {
-                index
-            };
-            value |= u32::from(*byte) << (8 * rank);
-        }
-        Some(value)
+        // Widths 1, 2 and 4 only: the narrowing is exact.
+        crate::le::uint_at(self.bytes, at, width, self.big_endian).map(|value| value as u32)
     }
 
     /// Values of an entry. They live in the field's four bytes when they fit — left-aligned —,

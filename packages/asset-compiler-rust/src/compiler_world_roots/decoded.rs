@@ -1,8 +1,30 @@
 //! The tests' reading of the records the cook wrote (`records.rs`, `dag_records.rs`): the table
 //! and the DAG decoded back from their bytes, as a reader views them, into one document whose keys
-//! name each field, so a test reads what a load reads.
+//! name each field, so a test reads what a load reads. Every record's stride is named here once.
 use super::records::{DAG_MAGIC, TABLE_MAGIC};
 use super::*;
+
+/// The table's header, bundle, page and HLOD cell strides (`encode_table`).
+const TABLE_STRIDES: [usize; 4] = [64, 56, 24, 64];
+/// The DAG's header, cluster, group and culling-node strides (`encode_dag`).
+const DAG_STRIDES: [usize; 4] = [24, 184, 64, 120];
+
+/// The byte after `counts` records of `strides` past its header: where the pool begins.
+fn pool_at(strides: &[usize], counts: &[usize]) -> usize {
+    strides[0]
+        + (strides[1..].iter().zip(counts))
+            .map(|(s, n)| s * n)
+            .sum::<usize>()
+}
+
+/// The pool of `pool` words fills `bytes` exactly after its records at `at`.
+fn filled(bytes: &[u8], at: usize, pool: usize) {
+    assert_eq!(
+        bytes.len(),
+        at + pool * 4,
+        "records, then the pool, fill the file"
+    );
+}
 
 /// A cursor over little-endian records and the pool after them.
 struct Reader<'a> {
@@ -21,9 +43,12 @@ impl Reader<'_> {
             n => json!(n),
         }
     }
-    fn float(&mut self) -> Value {
+    fn f64(&mut self) -> f64 {
         self.at += 8;
-        let value = f64::from_le_bytes(self.bytes[self.at - 8..self.at].try_into().unwrap());
+        f64::from_le_bytes(self.bytes[self.at - 8..self.at].try_into().unwrap())
+    }
+    fn float(&mut self) -> Value {
+        let value = self.f64();
         if value.is_nan() {
             Value::Null
         } else {
@@ -55,19 +80,20 @@ impl Reader<'_> {
     }
 }
 
-/// The table's bundles, pages, cells and objects, as `encode_table` lays them.
-fn table(bytes: &[u8]) -> Value {
+/// The table's bundles, pages and HLOD cells, as `encode_table` lays them, with its pool's length
+/// in words.
+pub(crate) fn table(bytes: &[u8]) -> Value {
     assert_eq!(&bytes[..4], TABLE_MAGIC);
     let mut r = Reader {
         bytes,
         at: 4,
         pool: 0,
     };
-    let [version, budget, pinned, pinned_bytes, bundles, pages, cells, objects, _pool] =
-        [(); 9].map(|_| r.word() as usize);
+    let [version, bundles, pages, hlod, pool] = [(); 5].map(|_| r.word() as usize);
     let length = r.word() as u64 | (r.word() as u64) << 32;
     let sha256 = r.digest();
-    r.pool = 80 + bundles * 56 + pages * 24 + cells * 16 + objects * 24;
+    r.pool = pool_at(&TABLE_STRIDES, &[bundles, pages, hlod]);
+    filled(bytes, r.pool, pool);
     let bundles: Vec<Value> = (0..bundles)
         .map(|_| {
             let offset = r.word() as u64 | (r.word() as u64) << 32;
@@ -81,45 +107,39 @@ fn table(bytes: &[u8]) -> Value {
                 "lodError":r.float()})
         })
         .collect();
-    let cells: Vec<(usize, usize, Value)> = (0..cells)
-        .map(|_| (r.word() as usize, r.word() as usize, r.pooled()))
+    let hlod: Vec<Value> = (0..hlod)
+        .map(|_| json!({"bundles":r.pooled(),"parent":r.index(),"level":r.word(),"bounds":r.floats(6)}))
         .collect();
-    let objects: Vec<Value> = (0..objects)
-        .map(|_| {
-            json!({"node":r.word(),"primitive":r.word(),"roots":r.pooled(),
-                "dependencies":r.pooled()})
-        })
-        .collect();
-    let cells: Vec<Value> = (cells.into_iter())
-        .map(|(first, count, nodes)| json!({"objects":objects[first..first + count],"nodes":nodes}))
-        .collect();
-    json!({"version":version,"budgetBytes":budget,"pinned":pinned,"pinnedTopBytes":pinned_bytes,
-        "payload":{"bytes":length,"sha256":sha256},"bundles":bundles,"pages":pages,"cells":cells})
+    json!({"version":version,"payload":{"bytes":length,"sha256":sha256},"bundles":bundles,
+        "pages":pages,"hlod":hlod,"poolWords":pool})
 }
 
-/// The DAG's clusters and groups, as `encode_dag` lays them; its culling nodes are read by
-/// `table_tests.rs`.
-fn dag(bytes: &[u8]) -> (Value, Value) {
+/// The DAG's clusters, groups and culling nodes (each its fifteen `f64`, `CullingNode::flat`), as
+/// `encode_dag` lays them, with its pool's length in words.
+fn dag(bytes: &[u8]) -> Value {
     assert_eq!(&bytes[..4], DAG_MAGIC);
     let mut r = Reader {
         bytes,
         at: 4,
         pool: 0,
     };
-    let [version, clusters, groups, _pool, nodes] = [(); 5].map(|_| r.word() as usize);
+    let [version, clusters, groups, pool, nodes] = [(); 5].map(|_| r.word() as usize);
     assert_eq!(version, WORLD_ROOTS_VERSION as usize);
-    r.pool = 24 + clusters * 176 + groups * 64 + nodes * 120;
+    r.pool = pool_at(&DAG_STRIDES, &[clusters, groups, nodes]);
+    filled(bytes, r.pool, pool);
     let clusters: Vec<Value> = (0..clusters)
         .map(|slot| {
             let mut c = json!({"cluster":slot,"level":r.word(),"triangles":r.word(),
-                "primitive":r.index(),"bundle":r.index(),"offset":r.index(),"origin":r.index(),
-                "lodError":r.float(),"parentError":r.float(),"sphere":r.floats(4),
+                "material":r.index(),"bundle":r.index(),"offset":r.index(),"hlod":r.word(),
+                "pad":[r.word(), r.word()],"lodError":r.float(),"parentError":r.float(),"sphere":r.floats(4),
                 "parentSphere":r.floats(4),"min":r.floats(3),"max":r.floats(3)});
             let facts = [(); 5].map(|_| r.word());
+            let error = f32::from_le_bytes(r.bytes[r.at..r.at + 4].try_into().expect("an f32"));
             r.at += 4;
             if facts[0] > 0 {
                 c["page"] = json!({"pageBytes":facts[0],"vertexCount":facts[1],
-                    "indexCount":facts[2],"flags":facts[3],"uncompressedBytes":facts[4]});
+                    "indexCount":facts[2],"flags":facts[3],"uncompressedBytes":facts[4],
+                    "quantizationError":error});
             }
             c
         })
@@ -134,14 +154,20 @@ fn dag(bytes: &[u8]) -> (Value, Value) {
             group
         })
         .collect();
-    (json!(clusters), json!(groups))
+    let culling: Vec<Vec<f64>> = (0..nodes)
+        .map(|_| (0..15).map(|_| r.f64()).collect())
+        .collect();
+    json!({"clusters":clusters,"groups":groups,"culling":culling,"poolWords":pool})
 }
 
-/// What a load reads of `cooked`: its table, with the DAG's `clusters` and `groups`.
+/// What a load reads of `cooked`: its table, with the DAG's `clusters`, `groups`, `culling` nodes
+/// and `dagPoolWords`.
 pub(super) fn decoded(cooked: &Cooked) -> Value {
     let mut out = table(&cooked.table);
-    let (clusters, groups) = dag(&cooked.dag);
-    out["clusters"] = clusters;
-    out["groups"] = groups;
+    let mut dag = dag(&cooked.dag);
+    for key in ["clusters", "groups", "culling"] {
+        out[key] = dag[key].take();
+    }
+    out["dagPoolWords"] = dag["poolWords"].take();
     out
 }

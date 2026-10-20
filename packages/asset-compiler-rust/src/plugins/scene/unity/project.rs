@@ -69,7 +69,7 @@ impl Project {
             meta_files: 0,
         };
         let complete = walk(root, &mut |path, name| {
-            if cancelled.load(Ordering::Relaxed) {
+            if crate::plugins::scene::cancel::raised(cancelled) {
                 return false;
             }
             if name.ends_with(".meta") {
@@ -132,10 +132,5 @@ pub(super) fn assets_root(scene: &Path) -> PathBuf {
             found = Some(ancestor.to_path_buf());
         }
     }
-    found.unwrap_or_else(|| {
-        scene
-            .parent()
-            .filter(|parent| !parent.as_os_str().is_empty())
-            .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
-    })
+    found.unwrap_or_else(|| crate::compiler_safe_path::parent_or_dot(scene).to_path_buf())
 }

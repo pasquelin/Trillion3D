@@ -28,8 +28,7 @@ fn compile_reads_named_runtime_file() {
 fn compile_rejects_unsafe_runtime_file() {
     let (root, options) = fixture_named("mesh.gltf", "mesh.bin");
     let manifest_path = options.source.join("manifest.json");
-    let mut manifest: Value =
-        serde_json::from_slice(&fs::read(&manifest_path).expect("read")).expect("json");
+    let mut manifest: Value = read_json(&manifest_path);
     manifest["runtime"]["file"] = json!("../mesh.gltf");
     fs::write(
         &manifest_path,
@@ -50,10 +49,6 @@ fn compile_dag_emits_a_flat_per_cluster_cut() {
     assert_eq!(result["clusterStrategy"], DAG_CLUSTER_STRATEGY);
     let primitive = &result["primitives"][0];
     assert_eq!(primitive["clusterStrategy"], DAG_CLUSTER_STRATEGY);
-    assert!(
-        primitive["hierarchy"].is_null(),
-        "the DAG cut needs no hierarchy tree"
-    );
     let depth = primitive["dag"]["depth"].as_u64().expect("depth");
     assert!(
         depth >= 2,

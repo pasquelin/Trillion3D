@@ -6,14 +6,28 @@ use super::tests_two_channel::normals;
 use super::*;
 
 fn two_channels(rgba: &[u8], width: u32, height: u32) -> Vec<u8> {
-    let level = encode_level(rgba, width, height, BlockFormat::Etc2, Layout::TwoChannel);
+    let level = encode_level(
+        rgba,
+        width,
+        height,
+        BlockFormat::Etc2,
+        Layout::TwoChannel,
+        Effort::Fast,
+    );
     assert_eq!(level.len(), level_block_bytes(width, height));
     decode::decode_level(&level, width, height, BlockFormat::Etc2, Layout::TwoChannel)
         .expect("decodable")
 }
 
 fn rgba(source: &[u8], width: u32, height: u32) -> Vec<u8> {
-    let level = encode_level(source, width, height, BlockFormat::Etc2, Layout::Rgba);
+    let level = encode_level(
+        source,
+        width,
+        height,
+        BlockFormat::Etc2,
+        Layout::Rgba,
+        Effort::Fast,
+    );
     assert_eq!(level.len(), level_block_bytes(width, height));
     decode(&level, width, height, BlockFormat::Etc2)
 }

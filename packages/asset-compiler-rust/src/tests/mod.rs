@@ -3,6 +3,7 @@ mod base;
 pub(crate) mod directories;
 /// The RAM budget, in bytes, a test driver request runs under.
 pub(crate) const RAM_BUDGET: usize = 1 << 30;
+mod fixture_shapes;
 pub(crate) mod fixtures;
 pub(crate) mod golden;
 mod golden_digest;
@@ -23,7 +24,7 @@ mod lights;
 pub(crate) mod ngons;
 mod scene;
 pub(crate) mod scene_document;
-mod textures;
+pub(crate) mod textures;
 pub(crate) mod thin_shapes;
 mod twins;
 mod weld;

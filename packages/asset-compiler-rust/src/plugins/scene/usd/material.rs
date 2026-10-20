@@ -11,6 +11,7 @@
 //! mesh that brings it, and two meshes that declare it differently on the same `Material` get
 //! two glTF materials — a single one would necessarily have betrayed one.
 use super::*;
+use crate::plugins::scene::Transparency;
 
 /// Identifier of the surface node this driver reads.
 const PREVIEW_SURFACE: &str = "UsdPreviewSurface";
@@ -47,7 +48,7 @@ pub(super) fn resolve(
 fn build(world: &mut World<'_>, path: &sdf::Path, double_sided: bool) -> Option<usize> {
     let material = world.stage.prim(path.clone()).ok()?;
     let Some(shader) = surface_shader(world, &material) else {
-        world.refuse(world::SURFACE_UNSUPPORTED);
+        world.scene.report.add(world::SURFACE_UNSUPPORTED);
         return None;
     };
     let mut pbr = json!({});
@@ -95,13 +96,13 @@ pub(super) fn double_sided(world: &mut World<'_>) -> Option<usize> {
 fn surface_shader(world: &World<'_>, material: &usd::Prim) -> Option<usd::Prim> {
     let target = connection(material, "outputs:surface")?;
     let shader = world.stage.prim(target.prim_path()).ok()?;
-    let id = read::first(&shader.attribute("info:id")).and_then(|(value, _)| read::text(&value));
+    let id = read::text_attribute(&shader, "info:id");
     (id.as_deref() == Some(PREVIEW_SURFACE)).then_some(shader)
 }
 
 /// Base colour and its alpha: the connected texture wins over the written colour, and opacity
 /// enters the fourth channel of the factor, as glTF expects.
-fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> opacity::Opacity {
+fn base_colour(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value) -> Transparency {
     let diffuse = connection(shader, "inputs:diffuseColor");
     let textured = diffuse
         .as_ref()
@@ -139,7 +140,10 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
         }
         (None, None) => None,
         _ => {
-            world.refuse(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
+            world
+                .scene
+                .report
+                .add(crate::plugins::scene::codes::TEXTURE_UNSUPPORTED);
             None
         }
     };
@@ -158,7 +162,10 @@ fn metallic_roughness(world: &mut World<'_>, shader: &usd::Prim, pbr: &mut Value
                 .is_some_and(|(_, name)| name == channel)
         });
         if !placed {
-            world.refuse(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
+            world
+                .scene
+                .report
+                .add(crate::plugins::scene::codes::TEXTURE_CHANNEL_UNSUPPORTED);
         }
     }
 }

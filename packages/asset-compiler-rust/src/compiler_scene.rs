@@ -93,26 +93,7 @@ pub(super) fn write_source_scene(inputs: SourceSceneInputs<'_>) -> Result<(Value
     let mut output_accessors = Vec::new();
     for id in accessors {
         let mut a = item(values(&source, "accessors")?, *id, "accessor")?.clone();
-        if a.get("bufferView").is_some() {
-            let old = required_index(a.get("bufferView"), "accessor.bufferView")?;
-            a["bufferView"] = json!(*view_map
-                .get(&old)
-                .ok_or_else(|| invalid("Missing bufferView mapping"))?);
-        }
-        if let Some(sparse) = a.get_mut("sparse").and_then(Value::as_object_mut) {
-            if let Some(indices) = sparse.get_mut("indices").and_then(Value::as_object_mut) {
-                let old = required_index(indices.get("bufferView"), "sparse.indices.bufferView")?;
-                indices["bufferView"] = json!(*view_map
-                    .get(&old)
-                    .ok_or_else(|| invalid("Missing bufferView mapping"))?);
-            }
-            if let Some(vals) = sparse.get_mut("values").and_then(Value::as_object_mut) {
-                let old = required_index(vals.get("bufferView"), "sparse.values.bufferView")?;
-                vals["bufferView"] = json!(*view_map
-                    .get(&old)
-                    .ok_or_else(|| invalid("Missing bufferView mapping"))?);
-            }
-        }
+        remap_view_refs(&mut a, "accessor.bufferView", view_map)?;
         output_accessors.push(a);
     }
     source["accessors"] = Value::Array(output_accessors);

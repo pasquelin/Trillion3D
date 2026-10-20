@@ -5,6 +5,7 @@
 use crate::bits::grid::{
     positions_extent, primitive_grid_exponent, tile_log2, uv_grid_exponent, widest_uv_span,
 };
+use crate::wasm_math::{view, view_mut, view_or_empty};
 
 /// The position and texture grids of `vertex_count` `positions` (× 3 floats) and their `uvs`
 /// (× 2 floats, 0 for none), written as two signed words at `out`. The texture span is measured
@@ -29,25 +30,13 @@ pub unsafe extern "C" fn grid_exponents(
     out: u32,
 ) {
     let count = vertex_count as usize;
-    let positions = match count {
-        0 => &[][..],
-        _ => core::slice::from_raw_parts(positions as *const f32, count * 3),
-    };
-    let ranges: &[[u32; 2]] = match range_count {
-        0 => &[],
-        n => core::slice::from_raw_parts(ranges as *const [u32; 2], n as usize),
-    };
+    let positions = view_or_empty(positions, count * 3);
+    let ranges: &[[u32; 2]] = view_or_empty(ranges, range_count as usize);
     let corners = ranges.iter().map(|r| r[1]).max().unwrap_or(0) as usize;
-    let indices = match corners {
-        0 => &[][..],
-        n => core::slice::from_raw_parts(indices as *const u32, n),
-    };
+    let indices = view_or_empty(indices, corners);
     let span = match (uvs, count) {
         (0, _) | (_, 0) => 0.0,
-        _ => {
-            let uvs = core::slice::from_raw_parts(uvs as *const f32, count * 2);
-            widest_uv_span(uvs, indices, ranges)
-        }
+        _ => widest_uv_span(view(uvs, count * 2), indices, ranges),
     };
     let blended = blended != 0;
     let known = |value: f64| (!value.is_nan()).then_some(value);
@@ -58,7 +47,7 @@ pub unsafe extern "C" fn grid_exponents(
         blended,
         tile,
     );
-    let out = core::slice::from_raw_parts_mut(out as *mut i32, 2);
+    let out = view_mut::<i32>(out, 2);
     out[0] = position;
     out[1] = uv_grid_exponent(span, blended);
 }

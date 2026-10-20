@@ -7,6 +7,7 @@
 
 use crate::clusters::{cluster, Caps, Clustered};
 use crate::held::hold;
+use crate::wasm_math::view;
 
 /// `cluster_build`'s order word for clusters free to reorder the triangles (`clusters.rs`).
 pub const CLUSTER_SPATIAL: u32 = 0;
@@ -31,9 +32,9 @@ pub unsafe extern "C" fn cluster_build(
     caps: u32,
     meta: u32,
 ) -> u32 {
-    let indices = core::slice::from_raw_parts(indices as *const u32, index_count as usize);
-    let positions = core::slice::from_raw_parts(positions as *const f32, vertex_count as usize * 3);
-    let caps = core::slice::from_raw_parts(caps as *const u32, 2);
+    let indices = view(indices, index_count as usize);
+    let positions = view(positions, vertex_count as usize * 3);
+    let caps: &[u32] = view(caps, 2);
     let caps = Caps {
         triangles: caps[0] as usize,
         vertices: caps[1] as usize,

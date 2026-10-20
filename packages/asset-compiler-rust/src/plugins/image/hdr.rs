@@ -13,7 +13,9 @@
 //! run-length compression (marker `1,1,1,n`) as well as new (header `2,2,width`).
 //! Refused and named: `32-bit_rle_xyze`, which is another colour space, and any orientation
 //! other than top-to-bottom left-to-right, which would require flipping the image.
-use super::{float_budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer};
+use super::{
+    budget, DecodedImage, ImageDecoded, ImageDecoder, Plugin, Transfer, FLOAT_PIXEL_BYTES,
+};
 
 mod scanlines;
 
@@ -77,7 +79,7 @@ impl ImageDecoder for Hdr {
         max_alloc: u64,
     ) -> std::result::Result<ImageDecoded, &'static str> {
         let (width, height, body) = header(bytes)?;
-        float_budget(width, height, max_alloc, TOO_LARGE)?;
+        budget(width, height, FLOAT_PIXEL_BYTES, max_alloc, TOO_LARGE)?;
         let data = scanlines::decode(body, width, height)?;
         Ok(ImageDecoded::new(
             DecodedImage::RgbaF32 {

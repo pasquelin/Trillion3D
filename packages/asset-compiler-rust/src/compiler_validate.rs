@@ -1,7 +1,102 @@
 use super::*;
 
+mod options;
+pub(super) use options::validate_compile_options;
+
 pub(super) fn invalid(message: impl Into<String>) -> CompilerError {
-    CompilerError::new("INVALID_GLTF", message)
+    GLTF.bad(message)
+}
+/// The typed readers of a JSON document — the one family, whatever the document —, each refusal
+/// named under the document's error code.
+pub(crate) struct Fields(pub(crate) &'static str);
+/// The readers of the source glTF.
+pub(super) const GLTF: Fields = Fields("INVALID_GLTF");
+/// The readers of a job's options.
+pub(crate) const OPTIONS: Fields = Fields("INVALID_OPTIONS");
+impl Fields {
+    pub(crate) fn bad(&self, message: impl Into<String>) -> CompilerError {
+        CompilerError::new(self.0, message)
+    }
+    pub(crate) fn object<'a>(
+        &self,
+        value: &'a Value,
+        what: &str,
+    ) -> Result<&'a serde_json::Map<String, Value>> {
+        value
+            .as_object()
+            .ok_or_else(|| self.bad(format!("{what} is not an object")))
+    }
+    pub(crate) fn array<'a>(&self, value: &'a Value, what: &str) -> Result<&'a Vec<Value>> {
+        value
+            .as_array()
+            .ok_or_else(|| self.bad(format!("{what} is not an array")))
+    }
+    pub(crate) fn number(&self, value: Option<&Value>, what: &str) -> Result<f64> {
+        finite(value).ok_or_else(|| self.bad(format!("{what} is not a finite number")))
+    }
+    /// `N` finite numbers, exactly.
+    pub(crate) fn numbers<const N: usize>(
+        &self,
+        value: Option<&Value>,
+        what: &str,
+    ) -> Result<[f64; N]> {
+        let refused = || self.bad(format!("{what} is not {N} finite numbers"));
+        let items = value
+            .and_then(Value::as_array)
+            .filter(|items| items.len() == N);
+        let items = items.ok_or_else(refused)?;
+        let mut numbers = [0.0; N];
+        for (number, item) in numbers.iter_mut().zip(items) {
+            *number = finite(Some(item)).ok_or_else(refused)?;
+        }
+        Ok(numbers)
+    }
+    pub(crate) fn integer(&self, value: Option<&Value>, what: &str) -> Result<i64> {
+        value
+            .and_then(Value::as_i64)
+            .ok_or_else(|| self.bad(format!("{what} is not an integer")))
+    }
+    pub(crate) fn index(&self, value: Option<&Value>, what: &str) -> Result<usize> {
+        let raw = value
+            .and_then(Value::as_u64)
+            .ok_or_else(|| self.bad(format!("{what} must be an unsigned integer")))?;
+        usize::try_from(raw).map_err(|_| self.bad(format!("{what} is too large")))
+    }
+    pub(crate) fn text<'a>(&self, value: Option<&'a Value>, what: &str) -> Result<&'a str> {
+        value
+            .and_then(Value::as_str)
+            .ok_or_else(|| self.bad(format!("{what} is not a string")))
+    }
+    pub(crate) fn boolean(&self, value: Option<&Value>, what: &str) -> Result<bool> {
+        value
+            .and_then(Value::as_bool)
+            .ok_or_else(|| self.bad(format!("{what} is not a boolean")))
+    }
+    /// `value` as an object holding only `fields`: one it does not know is refused by name.
+    pub(crate) fn known<'a>(
+        &self,
+        value: &'a Value,
+        fields: &[&str],
+        what: &str,
+    ) -> Result<&'a serde_json::Map<String, Value>> {
+        let map = self.object(value, what)?;
+        match map.keys().find(|key| !fields.contains(&key.as_str())) {
+            Some(key) => Err(self.bad(format!("{what} has no field {key}: {}", fields.join(", ")))),
+            None => Ok(map),
+        }
+    }
+    /// What `read` reads of `value`, `None` when it is absent or null.
+    pub(crate) fn optional<'a, T>(
+        &self,
+        value: Option<&'a Value>,
+        what: &str,
+        read: impl FnOnce(&Self, Option<&'a Value>, &str) -> Result<T>,
+    ) -> Result<Option<T>> {
+        match value {
+            None | Some(Value::Null) => Ok(None),
+            present => read(self, present, what).map(Some),
+        }
+    }
 }
 impl CompilerError {
     /// The same refusal, naming the source glTF mesh and primitive it was raised in: page ids
@@ -15,16 +110,34 @@ impl CompilerError {
     }
 }
 pub(super) fn required_index(v: Option<&Value>, field: &str) -> Result<usize> {
-    let raw = v
-        .and_then(Value::as_u64)
-        .ok_or_else(|| invalid(format!("{field} must be an unsigned integer")))?;
-    usize::try_from(raw).map_err(|_| invalid(format!("{field} is too large")))
+    GLTF.index(v, field)
+}
+/// `required_index`, refused unless below `len`: "`field` index is out of bounds".
+pub(super) fn bounded(v: &Value, field: &str, len: usize) -> Result<usize> {
+    let index = required_index(Some(v), field)?;
+    if index < len {
+        Ok(index)
+    } else {
+        Err(invalid(format!("{field} index is out of bounds")))
+    }
 }
 pub(super) fn optional_index(v: Option<&Value>, field: &str, default: usize) -> Result<usize> {
-    match v {
-        Some(value) => required_index(Some(value), field),
-        None => Ok(default),
+    v.map_or(Ok(default), |value| GLTF.index(Some(value), field))
+}
+/// The attributes of the glTF primitive `p`: refused without them, or without `POSITION`.
+pub(super) fn attributes(p: &Value) -> Result<&serde_json::Map<String, Value>> {
+    let attributes = p.get("attributes").and_then(Value::as_object);
+    let attributes = attributes.ok_or_else(|| invalid("primitive.attributes is required"))?;
+    if !attributes.contains_key("POSITION") {
+        return Err(invalid("primitive.attributes.POSITION is required"));
     }
+    Ok(attributes)
+}
+/// The accessor of the glTF primitive `p`'s `POSITION` among `g`'s.
+pub(super) fn position_accessor<'a>(g: &'a Value, p: &Value) -> Result<&'a Value> {
+    let position = attributes(p)?.get("POSITION");
+    let id = required_index(position, "primitive.attributes.POSITION")?;
+    item(values(g, "accessors")?, id, "accessor")
 }
 /// A JSON number as the compiler reads one: finite, `None` when absent, not a number or not finite.
 pub(crate) fn finite(value: Option<&Value>) -> Option<f64> {
@@ -44,132 +157,64 @@ pub(super) fn item<'a>(items: &'a [Value], id: usize, field: &str) -> Result<&'a
         .get(id)
         .ok_or_else(|| invalid(format!("{field} index {id} is out of bounds")))
 }
-/// The lowercase hexadecimal of a digest's bytes: the one spelling of a content address.
-pub(super) fn hex_of(digest: impl AsRef<[u8]>) -> String {
-    digest.as_ref().iter().map(|b| format!("{b:02x}")).collect()
-}
-/// The SHA-256 of `b`, its 32 bytes: the one digest of bytes, raw or spelt by `hash`.
-pub(super) fn digest_bytes(b: &[u8]) -> [u8; 32] {
-    Sha256::digest(b).into()
-}
-pub(super) fn hash(b: &[u8]) -> String {
-    hex_of(digest_bytes(b))
-}
-pub(super) fn hash_file(p: &Path) -> Result<String> {
-    Ok(hash_file_read(p)?.0)
-}
-/// File fingerprint and last byte, from a single read pass: a caller wanting to
-/// know how file ends does not have to re-open it afterwards. `None` for empty file.
-pub(super) fn hash_file_tail(p: &Path) -> Result<(String, Option<u8>)> {
-    let (sha256, last, _) = hash_file_read(p)?;
-    Ok((sha256, last))
-}
-/// File fingerprint and size from the same pass: a proof of thousands of objects
-/// does not stat each one after reading it.
-pub(super) fn hash_file_sized(p: &Path) -> Result<(String, u64)> {
-    let (sha256, _, bytes) = hash_file_read(p)?;
-    Ok((sha256, bytes))
-}
-fn hash_file_read(p: &Path) -> Result<(String, Option<u8>, u64)> {
-    hash_open(File::open(p)?)
-}
-/// Fingerprint, last byte and size of an open file: a caller that opened it
-/// itself, to read its absence from the open, hashes it from here.
-pub(super) fn hash_open(mut f: File) -> Result<(String, Option<u8>, u64)> {
-    let mut h = Sha256::new();
-    let mut block = [0u8; 65536];
-    let mut last = None;
-    let mut bytes = 0u64;
-    loop {
-        let n = f.read(&mut block)?;
-        if n == 0 {
-            break;
-        }
-        h.update(&block[..n]);
-        last = Some(block[n - 1]);
-        bytes += n as u64;
-    }
-    Ok((hex_of(h.finalize()), last, bytes))
-}
-/// Whether `name` is one relative path segment, as a source file and its sidecar must be: no
-/// `/`, `\`, `..` or NUL, under 256 bytes. Anything else, a path escape first, is refused.
-pub(super) fn is_safe_source_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() < 256
-        && name != "."
-        && name != ".."
-        && !name.contains('/')
-        && !name.contains('\\')
-        && !name.contains("..")
-        && !name.contains('\0')
-}
-/// Resource path under served root, sanitized. An absolute path, path naming
-/// a volume, or with unsafe filename segment — climbing above
-/// root — has none: resource counted missing rather than read out of source folder.
-/// `separators` specifies segment separators in original format.
-pub(super) fn safe_relative(file: &str, separators: &[char]) -> Option<String> {
-    if file.starts_with('/') || file.contains(':') {
-        return None;
-    }
-    let mut parts: Vec<&str> = Vec::new();
-    for part in file
-        .split(separators)
-        .filter(|part| !part.is_empty() && *part != ".")
-    {
-        if !is_safe_source_name(part) {
-            return None;
-        }
-        parts.push(part);
-    }
-    (!parts.is_empty()).then(|| parts.join("/"))
-}
-
-pub(super) fn triangle_fingerprint<'a>(triangles: impl Iterator<Item = &'a [u32]>) -> u64 {
-    let mut total = 0u64;
-    for tri in triangles {
-        let mut corners = [tri[0], tri[1], tri[2]];
-        corners.sort_unstable();
-        let mut hash = trillion3d_math::GOLDEN;
-        for corner in corners {
-            hash = (hash ^ corner as u64).wrapping_mul(0x100_0000_01b3);
-            hash ^= hash >> 29;
-        }
-        total = total.wrapping_add(hash);
-    }
-    total
-}
-
-/// The one check of a job's values, whichever form named them (`compiler_args.rs`): the bounds
-/// and the choices `compilerAbi.ts` declares, printed into `shared_math/abi.rs`.
-pub(super) fn validate_compile_options(o: &Options) -> Result<()> {
-    let refusal = if !SCOPES.contains(&o.scope.as_str()) {
-        Some(format!(
-            "{} must be {}",
-            job_field::SCOPE,
-            SCOPES.join(" or ")
-        ))
-    } else if o.triangle_budget == 0 {
-        Some(format!("{} must be positive", job_field::TRIANGLE_BUDGET))
-    } else if o.threads == 0 || o.threads > MAX_THREADS {
-        Some(format!("{} must be 1 to {MAX_THREADS}", job_field::THREADS))
-    } else if o.ram_budget_mb < MIN_RAM_BUDGET_MB {
-        Some(format!(
-            "{} must be at least {MIN_RAM_BUDGET_MB}",
-            job_field::RAM_BUDGET_MB
-        ))
-    } else if o.resource_base.is_empty() {
-        Some(format!("{} is required", job_field::RESOURCE_BASE_URL))
-    } else if !SIMPLIFICATIONS.contains(&o.simplification.as_str()) {
-        Some(format!(
-            "{} must be {}",
-            job_field::SIMPLIFICATION,
-            SIMPLIFICATIONS.join(" or ")
-        ))
-    } else {
-        None
+/// The promise a cache makes its reader (`primitiveUsesClusterErrors`, sdk-core): every primitive
+/// is drawn from pages, and each page carries its own screen-error band — a finite error of at least
+/// zero, measured through a sphere of four finite numbers whose radius is at least zero. A primitive
+/// that breaks it is refused here, before a file is written: the compiler fails, it never
+/// publishes a cache the runtime would refuse.
+pub(super) fn validate_cluster_errors(primitives: &[Value]) -> Result<()> {
+    let band = |page: &Value| {
+        let error = finite(page.get("lodError")).is_some_and(|e| e >= 0.0);
+        let sphere = page.get("sphere").and_then(Value::as_array);
+        error
+            && sphere.is_some_and(|s| {
+                s.len() == 4
+                    && s.iter().all(|v| finite(Some(v)).is_some())
+                    && finite(s.get(3)).is_some_and(|r| r >= 0.0)
+            })
     };
-    match refusal {
-        Some(message) => Err(CompilerError::new("INVALID_OPTIONS", message)),
-        None => Ok(()),
+    for primitive in primitives {
+        let pages = primitive.get("pages").and_then(Value::as_array);
+        if pages.is_some_and(|pages| !pages.is_empty() && pages.iter().all(band)) {
+            continue;
+        }
+        let (mesh, index) = (&primitive["mesh"], &primitive["primitive"]);
+        return Err(CompilerError::new(
+            "INCOMPLETE_CLUSTER_DAG",
+            format!("Mesh {mesh} primitive {index}: a page carries no cluster error band; the runtime draws none"),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A primitive of `pages`, each `lodError` and `sphere` as given.
+    fn primitive(pages: Value) -> Value {
+        json!({"mesh": 1, "primitive": 2, "pages": pages})
+    }
+
+    // Behaviour: a primitive with no page, or a page without a sound error band, fails the compile
+    // by name; one whose every page carries its band passes.
+    #[test]
+    fn a_primitive_without_an_error_band_on_every_page_is_refused() {
+        let sound = json!({"lodError": 0.0, "sphere": [0.0, 0.0, 0.0, 1.0]});
+        assert!(validate_cluster_errors(&[primitive(json!([sound.clone()]))]).is_ok());
+        for pages in [
+            json!([]),
+            Value::Null,
+            json!([sound.clone(), {"sphere": [0.0, 0.0, 0.0, 1.0]}]),
+            json!([{"lodError": -1.0, "sphere": [0.0, 0.0, 0.0, 1.0]}]),
+            json!([{"lodError": 0.5, "sphere": [0.0, 0.0, 0.0]}]),
+            json!([{"lodError": 0.5, "sphere": [0.0, 0.0, 0.0, -1.0]}]),
+            json!([{"lodError": 0.5, "sphere": [0.0, null, 0.0, 1.0]}]),
+        ] {
+            let refused =
+                validate_cluster_errors(&[primitive(pages.clone())]).expect_err("refused");
+            assert_eq!(refused.code, "INCOMPLETE_CLUSTER_DAG", "{pages}");
+            assert!(refused.message.contains("Mesh 1 primitive 2"), "{pages}");
+        }
     }
 }

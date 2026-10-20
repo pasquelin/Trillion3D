@@ -1,9 +1,8 @@
 use super::*;
-use crate::compiler_validate::finite;
+use crate::compiler_validate::Fields;
 
-pub(super) fn bad(message: impl Into<String>) -> CompilerError {
-    CompilerError::new("INVALID_MANIFEST", message)
-}
+/// The readers of a manifest, each refusal an invalid manifest.
+pub(super) const MANIFEST: Fields = Fields("INVALID_MANIFEST");
 
 #[derive(Default)]
 pub(crate) struct Column {
@@ -27,7 +26,7 @@ impl Column {
     /// then one slice per entry, costs the reader far less than re-encoding 32 raw bytes each time.
     pub(super) fn sha(&mut self, value: &str) -> Result<()> {
         if !is_digest(value) {
-            return Err(bad(format!(
+            return Err(MANIFEST.bad(format!(
                 "Object digest is not 64 lowercase hexadecimal characters: {value}"
             )));
         }
@@ -43,29 +42,6 @@ impl Column {
     }
 }
 
-pub(super) fn object<'a>(value: &'a Value, what: &str) -> Result<&'a Map<String, Value>> {
-    value
-        .as_object()
-        .ok_or_else(|| bad(format!("{what} is not an object")))
-}
-pub(super) fn array<'a>(value: &'a Value, what: &str) -> Result<&'a Vec<Value>> {
-    value
-        .as_array()
-        .ok_or_else(|| bad(format!("{what} is not an array")))
-}
-pub(super) fn number(value: Option<&Value>, what: &str) -> Result<f64> {
-    finite(value).ok_or_else(|| bad(format!("{what} is not a finite number")))
-}
-pub(super) fn integer(value: Option<&Value>, what: &str) -> Result<i64> {
-    value
-        .and_then(Value::as_i64)
-        .ok_or_else(|| bad(format!("{what} is not an integer")))
-}
-pub(super) fn text<'a>(value: Option<&'a Value>, what: &str) -> Result<&'a str> {
-    value
-        .and_then(Value::as_str)
-        .ok_or_else(|| bad(format!("{what} is not a string")))
-}
 /// `length` numbers of an array, written straight into the column: no intermediate `Vec`
 /// per sphere or per bounds pair, identical bytes to value-by-value writes.
 pub(crate) fn vector_into(
@@ -74,49 +50,37 @@ pub(crate) fn vector_into(
     what: &str,
     column: &mut Column,
 ) -> Result<()> {
-    let items = array(value.ok_or_else(|| bad(format!("{what} is absent")))?, what)?;
+    let items = MANIFEST.array(
+        value.ok_or_else(|| MANIFEST.bad(format!("{what} is absent")))?,
+        what,
+    )?;
     if items.len() != length {
-        return Err(bad(format!(
+        return Err(MANIFEST.bad(format!(
             "{what} has {} numbers, expected {length}",
             items.len()
         )));
     }
-    for (i, item) in items.iter().enumerate() {
-        // Faulty entry name constructed only when there is one: building it always would
-        // format a string per valid number, sphere after sphere, page after page.
-        let Some(value) = item.as_f64() else {
-            return Err(bad(format!("{what}[{i}] is not a number")));
-        };
-        column.f64(value);
-    }
-    Ok(())
+    numbers_into(items, what, column)
 }
-/// All numbers of an array, written straight into the column. Like `vector_into`, name of
-/// faulty entry is constructed only when there is one: building it always would format a
-/// string per valid number, culling node after culling node, primitive after primitive.
+/// All numbers of an array, written straight into the column. The name of a faulty entry is
+/// constructed only when there is one: building it always would format a string per valid
+/// number, sphere after sphere, culling node after culling node.
 pub(crate) fn numbers_into(items: &[Value], what: &str, column: &mut Column) -> Result<()> {
     for (i, item) in items.iter().enumerate() {
         let Some(value) = item.as_f64() else {
-            return Err(bad(format!("{what}[{i}] is not a number")));
+            return Err(MANIFEST.bad(format!("{what}[{i}] is not a number")));
         };
         column.f64(value);
-    }
-    Ok(())
-}
-pub(super) fn templated(template: &str, url: &str, sha: &str) -> Result<()> {
-    if template.replace("{sha}", sha) != url {
-        return Err(bad(format!(
-            "Object url {url} does not follow the template {template}"
-        )));
     }
     Ok(())
 }
 pub(super) fn as_i32(value: i64, what: &str) -> Result<i32> {
-    i32::try_from(value).map_err(|_| bad(format!("{what} does not fit a 32-bit integer: {value}")))
+    i32::try_from(value)
+        .map_err(|_| MANIFEST.bad(format!("{what} does not fit a 32-bit integer: {value}")))
 }
 pub(super) fn as_u32(value: i64, what: &str) -> Result<u32> {
     u32::try_from(value).map_err(|_| {
-        bad(format!(
+        MANIFEST.bad(format!(
             "{what} does not fit an unsigned 32-bit integer: {value}"
         ))
     })

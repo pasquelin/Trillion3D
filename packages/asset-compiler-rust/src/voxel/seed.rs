@@ -1,0 +1,212 @@
+//! What a primitive's DAG hands the voxel stage: the groups that may be drawn as voxels, each with
+//! what the voxel rule weighs — its children's area, vertices and errors, the clusters its
+//! reduction plans (`num_parents`), its triangles' error — and the level-0 triangles it stands for.
+//!
+//! A group may be drawn as voxels only on a mesh whose shape preservation is `Voxelize`
+//! (`ShapePreservation`), the author's opt-in, and then every group may: the stage keeps its
+//! voxels when they beat its triangles, or always when a child is voxels (`stage.rs`). Above the
+//! roots, where the DAG stops, one more group stands for them all and every triangle — the
+//! primitive's share of its mesh's far group, voxel levels that keep coarsening past a voxel root
+//! (`stage.rs`). Each level-0 cluster belongs to one
+//! group of each level above it: a group's outputs share its clusters, each to the output nearest
+//! it, so siblings stand for disjoint triangles.
+use super::ERROR_PER_SIZE;
+use crate::dag::{DagCluster, DagGroup, DAG_CLUSTER_TRIANGLES};
+use std::collections::HashMap;
+use trillion3d_math::triangle::triangle_area;
+use trillion3d_math::vec3::point;
+use trillion3d_math::vecn::{distance2, mean};
+
+pub(crate) struct SeedGroup {
+    /// Rank among the primitive's DAG groups, as the structure report lists them; one past the
+    /// last for the group above the roots.
+    pub group: usize,
+    pub level: usize,
+    /// The error of its triangles' reduction, infinite above the roots.
+    pub error: f64,
+    /// Each child's source group, `None` at level 0, and error.
+    pub children: Vec<(Option<usize>, f64)>,
+    /// Each output's centre and the group it is a child of — one past the last DAG group for a
+    /// root, the group above the roots —; none above the roots.
+    pub parents: Vec<([f64; 3], usize)>,
+    /// Its children's area and vertices, and the clusters its reduction plans: its children's
+    /// triangles over two clusters, rounded up, since a reduction halves them (one above the
+    /// roots).
+    pub area: f64,
+    pub vertices: usize,
+    pub num_parents: usize,
+    /// The level-0 triangles it stands for, ranks in the primitive's triangle list.
+    pub triangles: Vec<u32>,
+}
+
+impl SeedGroup {
+    /// The seed of a group of `children`, still without parents and triangles.
+    fn of(
+        dag: &[DagCluster],
+        pos: &[f32],
+        (group, level, error): (usize, usize, f64),
+        children: &[usize],
+    ) -> Self {
+        let mut seed = SeedGroup {
+            group,
+            level,
+            error,
+            children: Vec::with_capacity(children.len()),
+            parents: Vec::new(),
+            area: 0.0,
+            vertices: 0,
+            num_parents: 0,
+            triangles: Vec::new(),
+        };
+        let mut triangles = 0;
+        for &c in children {
+            let child = &dag[c];
+            let mut corners = child.indices.clone();
+            corners.sort_unstable();
+            corners.dedup();
+            seed.vertices += corners.len();
+            let corner = |t: &[u32], k: usize| point(pos, t[k]);
+            seed.area += (child.indices.chunks_exact(3))
+                .map(|t| triangle_area(corner(t, 0), corner(t, 1), corner(t, 2)))
+                .sum::<f64>();
+            seed.children.push((child.source, child.lod_error));
+            triangles += child.triangles();
+        }
+        seed.num_parents = triangles.div_ceil(DAG_CLUSTER_TRIANGLES * 2);
+        seed
+    }
+
+    /// The voxel budget: three for every four of its children's vertices, so the voxels cost about
+    /// what the triangles they replace do.
+    pub fn target_voxels(&self) -> usize {
+        (self.vertices * 3 / 4).max(1)
+    }
+
+    /// The first voxel side: the budget spread over the children's area, times ¾, never
+    /// finer than the error its children are drawn at allows.
+    pub fn first_side(&self, child_error: f64) -> f64 {
+        let spread = (self.area / self.target_voxels() as f64).sqrt() * 0.75;
+        spread.max(child_error / ERROR_PER_SIZE)
+    }
+}
+
+/// A mesh's shape preservation, read per mesh from its glTF `extras.shapePreservation` (`"none"`,
+/// the default, or `"voxelize"`), where the compiler reads every per-mesh build setting
+/// (`coplanar::surface`). Any other word reads as `None`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ShapePreservation {
+    #[default]
+    None,
+    Voxelize,
+}
+
+impl ShapePreservation {
+    /// The setting of glTF mesh `mesh`.
+    pub(crate) fn of(mesh: &serde_json::Value) -> Self {
+        let named = mesh
+            .pointer("/extras/shapePreservation")
+            .and_then(|v| v.as_str());
+        match named {
+            Some("voxelize") => Self::Voxelize,
+            _ => Self::None,
+        }
+    }
+}
+
+/// The groups of one primitive that may be drawn as voxels, in level order, the group above its
+/// roots last — every group, or none (`of`) —, and every DAG group's error, at which its children
+/// are replaced while it is drawn as triangles.
+#[derive(Default)]
+pub(crate) struct VoxelSeed {
+    pub groups: Vec<SeedGroup>,
+    pub errors: Vec<f64>,
+}
+
+impl VoxelSeed {
+    /// The seed of a DAG: `pos` the arrays its clusters index, `indices` its level-0 triangles,
+    /// `shape` its mesh's setting. Empty unless `Voxelize`: voxels are tried on no other mesh.
+    pub(crate) fn of(
+        dag: &[DagCluster],
+        groups: &[DagGroup],
+        pos: &[f32],
+        indices: &[u32],
+        shape: ShapePreservation,
+    ) -> Self {
+        if shape != ShapePreservation::Voxelize {
+            return Self::default();
+        }
+        let mut seeded = Vec::with_capacity(groups.len() + 1);
+        for (g, group) in groups.iter().enumerate() {
+            let rank = (g, group.level, group.error);
+            let mut seed = SeedGroup::of(dag, pos, rank, &group.children);
+            let parent = |o: usize| (centre(&dag[o], pos), dag[o].group.unwrap_or(groups.len()));
+            seed.parents = group.outputs.iter().map(|&o| parent(o)).collect();
+            seeded.push(seed);
+        }
+        if !seeded.is_empty() {
+            own_triangles(dag, groups, (pos, indices), &mut seeded);
+        }
+        let roots: Vec<usize> = (0..dag.len()).filter(|&c| dag[c].is_root()).collect();
+        let level = dag.iter().map(|c| c.level).max().unwrap_or(0) + 1;
+        let mut above = SeedGroup::of(dag, pos, (groups.len(), level, f64::INFINITY), &roots);
+        above.num_parents = 1;
+        above.triangles = (0..(indices.len() / 3) as u32).collect();
+        seeded.push(above);
+        Self {
+            groups: seeded,
+            errors: groups.iter().map(|g| g.error).collect(),
+        }
+    }
+}
+
+/// The mean of a cluster's corners.
+fn centre(c: &DagCluster, pos: &[f32]) -> [f64; 3] {
+    mean(c.indices.iter().map(|&v| point(pos, v)))
+}
+
+/// Fills each seeded group's level-0 triangles: every cluster holds the level-0 clusters it stands
+/// for, a level-0 cluster itself; a group gathers its children's and hands each to its output
+/// nearest it, centre to centre.
+fn own_triangles(
+    dag: &[DagCluster],
+    groups: &[DagGroup],
+    (pos, indices): (&[f32], &[u32]),
+    seeded: &mut [SeedGroup],
+) {
+    let centres: Vec<[f64; 3]> = dag.iter().map(|c| centre(c, pos)).collect();
+    let distance = |a: usize, b: usize| distance2(centres[a], centres[b]);
+    let mut own: Vec<Vec<u32>> = (dag.iter().enumerate())
+        .map(|(slot, c)| match c.level {
+            0 => vec![slot as u32],
+            _ => Vec::new(),
+        })
+        .collect();
+    // A triangle's rank by its corners; a repeated triangle takes its first rank.
+    let rank: HashMap<[u32; 3], u32> = (indices.chunks_exact(3).enumerate().rev())
+        .map(|(t, c)| ([c[0], c[1], c[2]], t as u32))
+        .collect();
+    let mut next = seeded.iter_mut().peekable();
+    for (g, group) in groups.iter().enumerate() {
+        let leaves: Vec<u32> = (group.children.iter())
+            .flat_map(|&c| std::mem::take(&mut own[c]))
+            .collect();
+        for &leaf in &leaves {
+            let nearest = (group.outputs.iter()).min_by(|&&a, &&b| {
+                distance(leaf as usize, a).total_cmp(&distance(leaf as usize, b))
+            });
+            if let Some(&output) = nearest {
+                own[output].push(leaf);
+            }
+        }
+        if let Some(seed) = next.next_if(|s| s.group == g) {
+            let corners = leaves
+                .iter()
+                .flat_map(|&l| dag[l as usize].indices.chunks_exact(3));
+            let mut triangles: Vec<u32> = corners
+                .filter_map(|c| rank.get(&[c[0], c[1], c[2]]).copied())
+                .collect();
+            triangles.sort_unstable();
+            seed.triangles = triangles;
+        }
+    }
+}
