@@ -73,7 +73,7 @@ export type TimingImage = {
  * parts take their timestamps one after the other from one range of `queryCount`: a pass follows
  * its part's last one while no other part took any since, and opens a run of its own at the next
  * aligned timestamp otherwise — a command buffer encoded and submitted while another is open (the
- * roots' before a cut, `../../placement/rootPasses.ts`) is timed beside it, neither truncated. A
+ * roots' before a cut, `../../placement/roots/rootPasses.ts`) is timed beside it, neither truncated. A
  * pass past the range is not timed and the image says it is truncated. A part's place among the
  * image's submissions is the order it finishes in, as every part is submitted once finished.
  */

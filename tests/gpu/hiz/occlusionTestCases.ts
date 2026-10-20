@@ -4,15 +4,15 @@ import { DEPTH_CLEAR } from '../../../packages/sdk-browser/src/camera/depthConve
 import {
   packHizPyramid,
   type PackedHiz,
-} from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/oracle.fixture.ts'
 import {
   HIZ_CULL_FARTHEST,
   hizRoute,
-} from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pyramidTexture.ts'
 import {
   VERDICT_KEPT,
   VERDICT_REJECTED,
-} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+} from '../../../packages/sdk-browser/src/geometry/partition/gpu/contract.ts'
 
 const WIDTH = 33,
   HEIGHT = 19

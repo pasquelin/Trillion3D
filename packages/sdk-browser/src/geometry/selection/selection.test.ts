@@ -1,0 +1,120 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as G from '../../scene/host/graph/graph.fixture.ts'
+import { collectClusterPages } from './collect.ts'
+import { rootCoverage } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
+import { packDagSelection } from '../dag/pack/pack.ts'
+import { kernelUniforms } from '../dag/selection/selectionHelpers.fixture.ts'
+import { blendFixture, camera } from './blend.fixture.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
+import { evaluateDagSelectionKernel } from '../dag/oracle/oracle.fixture.ts'
+import { graphDraws } from './drawSource.ts'
+
+test('clustered blend pages retain their source and only select the intersecting part of a mesh', () => {
+  const fixture = blendFixture()
+  const { roots, allPages } = collectClusterPages(
+    fixture.source,
+    graphDraws(fixture.source, fixture.associations),
+    fixture.metadata,
+    fixture.indices,
+  )
+  assert.equal(allPages.length, 2)
+  for (const page of allPages) {
+    assert.equal(page.transparent, true)
+    assert.equal(page.drawSource?.node, fixture.mesh)
+  }
+  const selected = selectVisiblePages(roots, engineCamera(camera()), {
+    pixelError: 100,
+    viewport: [960, 540],
+    held: createHeldResidency(),
+  })
+  assert.deepEqual(
+    selected.shown.map((page) => page.url),
+    ['near'],
+  )
+  assert.equal(selected.displayedTriangles, 1)
+  assert.equal(selected.complete, true)
+  assert.deepEqual(
+    rootCoverage(roots).map((page) => page.url),
+    ['near', 'far'],
+  )
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
+
+test('clustered blend never reports missing exact coverage as resident', () => {
+  const fixture = blendFixture()
+  fixture.indices.delete('near')
+  const { roots } = collectClusterPages(
+    fixture.source,
+    graphDraws(fixture.source, fixture.associations),
+    fixture.metadata,
+    fixture.indices,
+    { allowMissing: true },
+  )
+  const selected = selectVisiblePages(roots, engineCamera(camera()), {
+    held: createHeldResidency(),
+  })
+  assert.equal(selected.complete, false)
+  assert.deepEqual(
+    selected.wanted.map((page) => page.url),
+    ['near'],
+  )
+  assert.deepEqual(selected.shown, [])
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
+
+test('double-sided blend pages survive backface cones in CPU and packed GPU selection', () => {
+  const fixture = blendFixture()
+  const { roots, allPages } = collectClusterPages(
+    fixture.source,
+    graphDraws(fixture.source, fixture.associations),
+    fixture.metadata,
+    fixture.indices,
+  )
+  allPages[0].cone = { axis: [0, 0, -1], angle: 0 }
+  const cam = camera(),
+    packed = packDagSelection(roots)
+  const cpu = selectVisiblePages(roots, engineCamera(cam), {})
+  const gpu = evaluateDagSelectionKernel(packed, kernelUniforms(packed, roots, cam, 0, [960, 540]))
+  assert.deepEqual(
+    cpu.shown.map((page) => page.url),
+    ['near'],
+  )
+  assert.deepEqual(
+    gpu.pageIds.map((id) => packed.pageUrlOf(id)),
+    ['near'],
+  )
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
+
+test('clustered blend classification remains explicit if material transparency was disabled', () => {
+  const fixture = blendFixture(G.basicSurface())
+  const collected = collectClusterPages(
+    fixture.source,
+    graphDraws(fixture.source, fixture.associations),
+    fixture.metadata,
+    fixture.indices,
+  )
+  assert.equal(collected.allPages[0].transparent, true)
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
+
+test('a transparent material on `exact-clusters` pages is collected as transparent', () => {
+  const fixture = blendFixture()
+  fixture.metadata.primitives[0].pass = 'exact-clusters'
+  const collected = collectClusterPages(
+    fixture.source,
+    graphDraws(fixture.source, fixture.associations),
+    fixture.metadata,
+    fixture.indices,
+  )
+  assert.equal(collected.allPages[0].transparent, true)
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})

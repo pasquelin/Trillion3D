@@ -2,16 +2,16 @@
 // paged prototype, and three camera regimes. Both sides of the bench each build a copy, so
 // neither benefits from the state the other leaves.
 import * as THREE from 'three'
-import { basicSurface } from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
-import { uniformStride } from '../../../../packages/sdk-browser/src/residency/pools.ts'
+import { basicSurface } from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
+import { surfaceOf } from '../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
+import { uniformStride } from '../../../../packages/sdk-browser/src/session/memory/pools.ts'
 import {
   createWebgpuBlendState,
   type BlendGpuItem,
   type WebgpuBlendState,
-} from '../../../../packages/sdk-browser/src/webgpu/blend/state.ts'
-import { refreshBlendPlan } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
-import { buildBlendStatics } from '../../../../packages/sdk-browser/src/webgpu/blend/statics.ts'
+} from '../../../../packages/sdk-browser/src/blend/state.ts'
+import { refreshBlendPlan } from '../../../../packages/sdk-browser/src/blend/plan/plan.ts'
+import { buildBlendStatics } from '../../../../packages/sdk-browser/src/blend/statics.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { planReference } from '../../../oracles/browser/transparent-orders.ts'
 import { frustumExcludesBox } from '../../../../packages/math/src/geometry/frustum/box.ts'
@@ -109,7 +109,7 @@ function imageA(x: number) {
     instances = new Uint32Array(PAGINES * CLUSTERS)
   for (let p = 0; p < counts.length; p++) {
     // The frame's cut selects no page of a placement past the frustum: the compaction, which
-    // lists the cut's clusters, counts none for it (`webgpu/transparent/compact.ts`).
+    // lists the cut's clusters, counts none for it (`blend/transparent/compact.ts`).
     const tenues = 1 + Math.floor(alea() * CLUSTERS),
       box = boxOf(p)
     if (frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])) continue
@@ -142,7 +142,7 @@ for (let e = 0; e < spans.length / 2; e++) {
 /** One side of the bench: its blend state, its plan in the host format, and its output buffers. */
 export function benchSide(side: THREE.Side) {
   const blendState: WebgpuBlendState = createWebgpuBlendState()
-  // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/webgpu/blend/plan.test.ts`: only the
+  // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/blend/plan/plan.test.ts`: only the
   // fields the blend order reads are populated, not a full GPU `BlendGpuItem`.
   blendState.blendGpu.push(...(batisItems(side) as unknown as BlendGpuItem[]))
   blendState.table = {

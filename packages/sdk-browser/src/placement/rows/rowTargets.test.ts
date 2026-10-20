@@ -1,0 +1,99 @@
+// The rows the CPU names to the rows pass (`rowTargets.ts`): a row named twice takes one entry, its
+// bits joined; while every row is derived the staled rows alone are kept; and a command buffer
+// holding the pass that is dropped names its staled rows again — the old code staled every page.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { nameCastRow, deriveRootRows } from './rowWords.ts'
+import {
+  deriveEveryRow,
+  partsMadeAnew,
+  rowWordsDropped,
+  target,
+  targetsTaken,
+} from './rowTargets.ts'
+import { ROW_NAMED, ROW_STALES } from './rowWordsWgsl.ts'
+
+/** A runtime whose rows pass derives the rows named alone. */
+function session() {
+  const rt = {} as Pick<WebgpuPagesRuntime, 'rowWords'>
+  deriveRootRows(rt, 0)
+  rt.rowWords!.all = false
+  rt.rowWords!.roots.clear()
+  return rt.rowWords!
+}
+
+const listed = (state: ReturnType<typeof session>) =>
+  [...state.targets.subarray(0, state.count)].map((word) => [
+    word & ROW_NAMED,
+    (word & ROW_STALES) !== 0,
+  ])
+
+test('a row named twice is listed once, its bits joined and counted once', () => {
+  const state = session(),
+    rt = { rowWords: state }
+  nameCastRow(rt, 4)
+  nameCastRow(rt, 4)
+  target(state, 4)
+  target(state, 7)
+  assert.deepEqual(listed(state), [
+    [4, true],
+    [7, false],
+  ])
+  assert.equal(state.stales, 1)
+})
+
+test('every row derived keeps the staled rows alone, and still lists a row staled then', () => {
+  const state = session()
+  target(state, 1)
+  nameCastRow({ rowWords: state }, 2)
+  deriveEveryRow(state)
+  assert.deepEqual(listed(state), [[2, true]])
+  target(state, 3)
+  nameCastRow({ rowWords: state }, 5)
+  assert.deepEqual(listed(state), [
+    [2, true],
+    [5, true],
+  ])
+  assert.equal(state.stales, 2)
+})
+
+test('a dropped command buffer that held the pass names its staled rows again, every row derived', () => {
+  const state = session(),
+    held = {} as GPUCommandEncoder
+  nameCastRow({ rowWords: state }, 6)
+  target(state, 8)
+  targetsTaken(state, held)
+  assert.deepEqual([state.count, state.stales, state.all], [0, 0, false])
+  rowWordsDropped(state, {} as GPUCommandEncoder)
+  assert.deepEqual([state.count, state.all], [0, false], 'another buffer dropped: nothing')
+  rowWordsDropped(state, held)
+  assert.equal(state.all, true)
+  assert.deepEqual(listed(state), [[6, true]], 'staled again from the spheres it held')
+  rowWordsDropped(state, held)
+  assert.equal(state.count, 1, 'once')
+})
+
+test('a buffer the pass binds made anew keeps the staled rows alone; new spheres keep none', () => {
+  const state = session()
+  target(state, 1)
+  nameCastRow({ rowWords: state }, 2)
+  partsMadeAnew(state, false)
+  assert.equal(state.all, true)
+  assert.deepEqual(listed(state), [[2, true]], 'the other row derived once, with all')
+  assert.equal(state.stales, 1)
+  target(state, 3)
+  nameCastRow({ rowWords: state }, 4)
+  partsMadeAnew(state, true)
+  assert.deepEqual([state.all, state.count, state.stales], [true, 0, 0])
+})
+
+test('a root named twice before a follow is listed once: its pages are walked once', () => {
+  const state = session(),
+    rt = { rowWords: state }
+  deriveRootRows(rt, 3)
+  deriveRootRows(rt, 1)
+  deriveRootRows(rt, 3)
+  // One changed list (`createChangedRuns`): each root marked once, taken in increasing order.
+  assert.deepEqual([...state.roots.take()], [1, 3])
+})

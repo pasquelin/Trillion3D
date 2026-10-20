@@ -1,7 +1,4 @@
-import {
-  createWebgpuBindIdentity,
-  type WebgpuBindIdentity,
-} from '../../webgpu/core/bindIdentity.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../bind/bindIdentity.ts'
 
 /** What a render pass and a render bundle encoder both take: the draw stream a bundle records. */
 export type RenderCommands = GPURenderCommandsMixin & GPUBindingCommandsMixin

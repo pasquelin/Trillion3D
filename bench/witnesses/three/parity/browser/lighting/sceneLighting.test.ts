@@ -10,7 +10,7 @@ import {
   pointLight,
   ambientLight,
   lightProbe,
-} from '../../../../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
+} from '../../../../../../packages/sdk-browser/src/scene/host/graph/graphLights.fixture.ts'
 import type { Light } from '../../../../../../packages/sdk-core/src/world/light/light.ts'
 import { installSceneLighting } from '../../../sceneLighting.ts'
 import { lighting } from '../../../displayObjects.ts'

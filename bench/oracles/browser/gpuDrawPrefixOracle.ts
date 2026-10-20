@@ -1,5 +1,5 @@
 /**
- * Oracle: faithful, line-by-line ports of the `prefixGroups` kernel of packages/sdk-browser/src/gpu/draw/shader.ts.
+ * Oracle: faithful, line-by-line ports of the `prefixGroups` kernel of packages/sdk-browser/src/visibility/draw/shader.ts.
  *
  * `prefixSerial` is the one-thread kernel (`@workgroup_size(1)`): it walks slots in order and
  * advances a single cursor. `prefixScan` is the kernel shader.ts carries: the slots in order, an
@@ -15,7 +15,7 @@
  * `prefixGroups` (it short-circuits the whole compaction with the CPU oracle `evaluateDrawCompact`),
  * so equivalence of the kernels is proved here by direct transcription and comparison.
  */
-import { drawGroupWords } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
+import { drawGroupWords } from '../../../packages/sdk-browser/src/visibility/draw/contract.ts'
 
 const WORKGROUP = 64
 const U32 = (n: number) => n >>> 0

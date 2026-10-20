@@ -6,32 +6,32 @@
 // conformal: a cluster under a uniform scale and a rotation, back to the camera, stays rejected.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
 import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
 import { Euler } from '../../../packages/sdk-core/src/world/math/euler.ts'
 import { Matrix3 } from '../../../packages/sdk-core/src/world/math/matrix3.ts'
-import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import type { NormalCone } from '../../../packages/sdk-browser/src/geometry/cone/cone.ts'
 import {
   coneContextFor,
   coneCullsPageWith,
   createConeContext,
-} from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/cone/cone.fixture.ts'
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/geometry/cut/cut.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
+import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { signedArea } from '../../../bench/oracles/browser/cpu-image/projection.ts'
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/geometry/dag/oracle/oracle.fixture.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
 import { OPEN_CONE, triangleCone } from '../../kit/reference/cone.ts'
 import { project } from '../../kit/device/cameraRig.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import type { SelectionCase } from './selectionCase.ts'
-import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/geometry/dag/culling.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]
 const POSITIONS = [0, 0, 0, 1e6, 0, -1e6, 0, 1e6, 0, 0, 0, 0, -1e6, 0, -1e6, 0, -1e6, 0]

@@ -123,7 +123,7 @@ export { type SceneNodeOptions, SCENE_MODEL_VERSION } from './scene/core/nodeCon
 export type { SceneState } from './scene/core/nodeContracts.ts'
 export { SceneRoot, createSceneRoot } from './scene/core/root.ts'
 export type { AlphaMode, LinearRgb, Material, Side } from './contracts/material.ts'
-export type { SoftBodyType } from './physics/soft.ts'
+export type { SoftBodyType } from './physics/soft/soft.ts'
 export type { Texture, TextureFilter, WrapMode } from './texture/contract.ts'
 /** How a texture record's numbers are read, the word its `colorSpace` holds. */
 export type { ColorSpace } from './world/constants/index.ts'

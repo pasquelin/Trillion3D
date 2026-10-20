@@ -2,11 +2,11 @@
 // measurer's orbit, wheel turns, camera poses, or the events a person played recorded frame by
 // frame (`../recorder.js`) — in named segments, each measured and optionally captured on its own.
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
-import type { World } from '../../../packages/sdk-browser/src/world/core/world.ts'
+import type { World } from '../../../packages/sdk-browser/src/session/world/world.ts'
 import { WORLD_SCENARIO } from './worldScenario.ts'
 import type { BenchBrowser } from '../page/dom.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 /** A point on the canvas as shares of its width and height, so a scenario plays at any size. */
 type At = [x: number, y: number]

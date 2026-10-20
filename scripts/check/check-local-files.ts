@@ -1,5 +1,5 @@
-import { REPOSITORY_ROOT } from '../repository-files.ts'
-import { gitPathsSync } from '../git-paths.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
+import { gitPathsSync } from '../git/git-paths.ts'
 
 /** Check the index too: force-adding an ignored file must not bypass the policy. */
 export function trackedIgnoredFiles(root: string): string[] {

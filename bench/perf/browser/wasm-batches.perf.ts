@@ -9,12 +9,12 @@ import {
   createMultiplyLot,
   type BoxTransformLot,
   type MultiplyLot,
-} from '../../../packages/sdk-browser/src/page/decode/batch/batchRuntime.ts'
-import type { MathLot } from '../../../packages/sdk-browser/src/page/decode/batch/batchLot.ts'
+} from '../../../packages/sdk-browser/src/geometry/decode/batchRuntime.ts'
+import type { MathLot } from '../../../packages/sdk-browser/src/geometry/decode/batchLot.ts'
 import {
   boxesByLoop,
   productsByLoop,
-} from '../../../packages/sdk-browser/src/page/decode/batch/batchOracles.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/decode/batchOracles.fixture.ts'
 import { TAILLES, fillsBoxes, remplitMatrices } from './support/wasmBatchCases.ts'
 
 /** The oracle's boxes for `lot`. */
@@ -40,7 +40,7 @@ async function benchLot<T extends MathLot & { readonly out: Float64Array }>(
   }
   return measure({
     name: `lots-wasm ${operation}`,
-    fichier: 'packages/sdk-browser/src/page/decode/batch/batchRuntime.ts',
+    fichier: 'packages/sdk-browser/src/geometry/decode/batchRuntime.ts',
     cas,
     calculation: (lot) => {
       lot.run()

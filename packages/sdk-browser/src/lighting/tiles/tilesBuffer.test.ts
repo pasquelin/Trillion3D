@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createGpuLightTiles } from './tiles.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
-import { storageBufferCap } from '../../residency/pools.ts'
+import { storageBufferCap } from '../../session/memory/pools.ts'
 
 test('the light tiles grow by the one rule, retired after the submit, held when they fit', async () => {
   const fake = fakeDevice()

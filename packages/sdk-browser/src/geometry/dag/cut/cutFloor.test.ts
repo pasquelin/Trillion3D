@@ -1,0 +1,97 @@
+// Top-down pruning removes no cluster the cut would have kept.
+//
+// The descent drops a subtree whose error FLOOR exceeds the threshold: none of its
+// clusters is fine enough, so none would have been kept. The bound is a lower bound, and an
+// OVERESTIMATED lower bound silently drops geometry — that is the batch's only risk, and it is
+// what this file forbids.
+//
+// The reference is not another formula: it is the SAME oracle, every node opened. The cut
+// obtained with the full page-by-page descent must be the one the pruned descent returns.
+// Both read the same f32 records: what separates them is the pruning, and nothing else.
+import test from 'node:test'
+import { asHostLibrary } from '../../../session/host/resources.ts'
+import assert from 'node:assert/strict'
+import * as G from '../../../scene/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
+import { packDagSelection } from '../pack/pack.ts'
+import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts'
+import { engineCamera } from '../../../camera/camera.fixture.ts'
+import { dagRecords, worldOf } from '../records.fixture.ts'
+import { dagViewFrames } from '../oracle/math.fixture.ts'
+import { NODE_CEIL } from '../nodeLayout.ts'
+import { DAG_NODE_FLOATS } from '../types.ts'
+import { createDagOraclePredicates } from '../oracle/predicates.fixture.ts'
+import { descenteComptee } from './cutFrontier.fixture.ts'
+import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
+import { packedWorldsToRenderOrigin } from '../pack/pack.fixture.ts'
+import { evaluateDagSelectionKernel } from '../oracle/oracle.fixture.ts'
+
+const pages = scenePages(4096, 8)
+const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
+
+/** The cut a descent WITHOUT pruning would return: every node opened, so the only remaining
+ *  filter is the one `dagWanted` sets per cluster — frustum, cone, error band. */
+function coupeSansElagage(packed: ReturnType<typeof packDagSelection>, uniforms: unknown) {
+  const frames = dagViewFrames(packed, uniforms as Parameters<typeof dagViewFrames>[1])
+  const records = dagRecords(packed)
+  const { coneRejects, visible, draws } = createDagOraclePredicates({
+    packed,
+    records,
+    // Every (placement, node) kept: no verdict filters a page.
+    nodeFlags: { at: () => 0 },
+    ...frames,
+  })
+  const retenues: number[] = []
+  for (let i = 0; i < packed.pageCount; i++) {
+    const w = worldOf(records, i)
+    if (visible(i) && draws(i, frames.pixelError, true, true) && !coneRejects(i, w))
+      retenues.push(i)
+  }
+  return retenues
+}
+
+const POSES: Array<[string, number, number]> = [
+  ['front', 0, 16],
+  ['oblique', 9, 14],
+  ['far', 0, 60],
+  ['contact', 1.5, 3],
+]
+const SEUILS = [0.25, 1, 4]
+
+test('the one hierarchy: top-down pruning removes no kept cluster', () => {
+  const roots = sceneRoots(
+    pages,
+    Array.from({ length: 4 }, () => new Matrix4()),
+  )
+  const packed = packDagSelection(roots)
+  // The same packing with every replacement ceiling withdrawn: what the descent walks when
+  // no node certifies a too-fine subtree. The ceiling must spare some of that walk.
+  const sansPlafond = { ...packed, nodes: packed.nodes.slice() }
+  for (let n = 0; n < packed.nodeCount; n++) sansPlafond.nodes[n * DAG_NODE_FLOATS + NODE_CEIL] = -1
+  let elagages = 0,
+    plafonnes = 0
+  for (const [nom, x, z] of POSES)
+    for (const threshold of SEUILS) {
+      for (let w = 0; w < roots.length; w++)
+        asHostLibrary<Matrix4>(roots[w].world).makeTranslation(
+          (w % 2) * 6.5 - 3.25,
+          Math.floor(w / 2) * 6.5 - 3.25,
+          0,
+        )
+      cam.position.set(x, 0, z)
+      cam.lookAt(x, 0, 0)
+      cam.updateMatrixWorld()
+      const uniforms = cameraSelectionUniforms(engineCamera(cam), threshold, [1280, 720])
+      packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
+      const expected = coupeSansElagage(packed, uniforms)
+      const actual = [...evaluateDagSelectionKernel(packed, uniforms).pageIds].sort((a, b) => a - b)
+      assert.deepEqual(actual, expected, `${nom} at ${threshold} px`)
+      elagages += descenteComptee(packed, uniforms, true).plancherCoupe
+      plafonnes +=
+        descenteComptee(sansPlafond, uniforms).visites - descenteComptee(packed, uniforms).visites
+    }
+  // Without pruning the proof would be empty: the threshold says the bound did cut somewhere.
+  assert.ok(elagages > 0, `no subtree pruned: the proof covers nothing`)
+  // Same for the ceiling: the builder writes it into every hierarchy.
+  assert.ok(plafonnes > 0, `no too-fine subtree pruned: the ceiling covers nothing`)
+})

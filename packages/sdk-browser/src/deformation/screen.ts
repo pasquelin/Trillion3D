@@ -1,11 +1,11 @@
 import { boxCenter } from '../../../math/src/geometry/box.ts'
 import { focalPixels } from '../../../math/src/projection/camera.ts'
-import { rootWorldBox, worldStretch } from '../page/selection/rootWorld.ts'
+import { rootWorldBox, worldStretch } from '../geometry/selection/rootWorld.ts'
 import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
-import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
+import { viewDepthOf, viewLateralOf } from '../geometry/selection/projection.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
+import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
 
 type Roots = readonly (ClusterRoot<PageRec> | undefined)[]
 

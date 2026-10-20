@@ -26,5 +26,35 @@ export { COMPILER_LINE_LIMIT } from '../sdk-node/src/compiler/lines.mts'
 export { createBatchProgress, createTerminalProgress } from '../sdk-node/src/cli/progress.mts'
 export { createCompilationJob, prepare, prepareMany } from '../sdk-node/src/index.mts'
 export { getSdkProvenance } from '../sdk-node/src/compiler/provenance.mts'
+export { HLOD_QUALITIES, resolveHlod } from '../sdk-core/src/contracts/hlodOptions.ts'
+export type {
+  HlodExpert,
+  HlodGroup,
+  HlodMatch,
+  HlodOptions,
+  HlodPattern,
+  HlodQuality,
+  HlodSimple,
+} from '../sdk-core/src/contracts/hlodOptions.ts'
+export type {
+  HlodBuilder,
+  HlodLayer,
+  TemporalAntialiasingLevel,
+} from '../sdk-core/src/contracts/compilerAbi.ts'
+export {
+  resolveMaterials,
+  resolveResponsive,
+  resolveTemporalAntialiasing,
+  temporalAntialiasingShare,
+} from '../sdk-core/src/contracts/materialOptions.ts'
+export type {
+  MaterialSettings,
+  MaterialsOption,
+  ResponsiveOption,
+  TemporalAntialiasingOption,
+  TemporalAntialiasingShare,
+} from '../sdk-core/src/contracts/materialOptions.ts'
 export { resolveCompilerExecutable } from '../sdk-node/src/compiler/executable.mts'
+export { resolveVoxelize } from '../sdk-core/src/contracts/voxelizeOptions.ts'
+export type { VoxelizeOption } from '../sdk-core/src/contracts/voxelizeOptions.ts'
 export { reviewCutouts } from '../sdk-node/src/cutout/review.mts'

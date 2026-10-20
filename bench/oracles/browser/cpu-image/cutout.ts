@@ -2,11 +2,11 @@
 import {
   surfaceOpacity,
   type PageSurface,
-} from '../../../../packages/sdk-browser/src/page/surface.ts'
+} from '../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/mapTexel.fixture.ts'
 import { perspectiveBary } from './math.ts'
 import { textureRgba, type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import type { HostAttributes } from '../../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostAttributes } from '../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { lineDash } from './line.ts'
 import type { triangleAt } from './projection.ts'
 

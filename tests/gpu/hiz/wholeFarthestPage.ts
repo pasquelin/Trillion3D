@@ -1,4 +1,4 @@
-// The depth pyramid's three layers on the machine's device (`gpu/hiz/shader.ts`): the occluders'
+// The depth pyramid's three layers on the machine's device (`hiz/gpu/shader.ts`): the occluders'
 // depth built by `encodePyramid`, then a finished depth, nearer where more was drawn, by
 // `encodeNearest`. The pyramid texture is read back whole and compared with the oracle's
 // reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit; the finished depth's farthest
@@ -7,20 +7,20 @@ import { fromF32Bits } from '../../../packages/math/src/float/bits.ts'
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { standaloneHiz } from '../../kit/device/standaloneHiz.ts'
-import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
+import type { Pyramid } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pyramid.ts'
 import {
   packHizPyramid,
   packWholeFarthest,
   hizPackedFrom,
-} from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
-import { pyramidBytes } from '../../../packages/sdk-browser/src/gpu/hiz/oracle.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/oracle.fixture.ts'
+import { pyramidBytes } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/oracle.ts'
 import {
   HIZ_CULL_FARTHEST,
   HIZ_WHOLE_FARTHEST,
   hizTextureSize,
-} from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pyramidTexture.ts'
 import { surfaceSlopeOf } from '../../../packages/math/src/wgsl/sampling.ts'
-import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../../packages/sdk-browser/src/materials/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { readTexture } from '../../kit/device/computeReadback.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'

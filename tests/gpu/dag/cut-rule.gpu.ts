@@ -4,11 +4,14 @@
 // frames are where a page is missing and the nearest resident ancestor must stand in for it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { coverFault, ruleDag } from '../../../packages/sdk-browser/src/page/cut/cutRule.fixture.ts'
+import {
+  coverFault,
+  ruleDag,
+} from '../../../packages/sdk-browser/src/geometry/cut/cutRule.fixture.ts'
 import {
   oracleBackend,
   stripUniforms,
-} from '../../../packages/sdk-browser/src/page/cut/cutRuleBackends.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/cut/cutRuleBackends.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 

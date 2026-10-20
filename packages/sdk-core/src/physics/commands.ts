@@ -1,6 +1,6 @@
 import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, VIEW_WORDS } from './layout.ts'
 import type { BodyRecord } from './bodyRecord.ts'
-import type { JointRecord } from './jointRecord.ts'
+import type { JointRecord } from './joint/jointRecord.ts'
 import { SpareBuffers } from './spareBuffers.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
@@ -27,7 +27,7 @@ export class CommandWriter {
   private op(op: number, index: number, values: ArrayLike<number>) {
     this.put([op, index], values)
   }
-  /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`), then bytes padded
+  /** A command of whole words, then floats (the vehicles', `vehicle/vehicleCommands.ts`), then bytes padded
    *  with zeros to whole words (a cooked shape's or soft body's native binary state). */
   put(words: ArrayLike<number>, floats: ArrayLike<number>, bytes?: Uint8Array) {
     const padded = ceilDiv(bytes?.length ?? 0, 4)

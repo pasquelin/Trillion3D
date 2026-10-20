@@ -8,7 +8,7 @@
 //   where the cell's list holds a shadowed light (`cellShadowed`).
 // - `shaded`: lights shaded in full (`declaredLight`): the list's `L`.
 // - `reaching`: the listed lights holding a slot that reach the pixel: each is one shadow read, a
-//   mask byte of the projection, and one mark of the shadow demand pass (`vsm/markingWgsl.ts`).
+//   mask byte of the projection, and one mark of the shadow demand pass (`lighting/shadows/vsm/markingWgsl.ts`).
 //
 //   node bench/runner/lighting/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
 import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'

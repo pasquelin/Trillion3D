@@ -8,16 +8,16 @@ import {
   proxyArena,
   proxyBuffer,
   proxyHeader,
-} from '../../../packages/sdk-browser/src/bounce/proxyBuffer.fixture.ts'
+} from '../../../packages/sdk-browser/src/lighting/bounce/proxyBuffer.fixture.ts'
 import {
   PROXY_NODE_FLOATS,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
-import { buildCutProxy } from '../../../packages/sdk-browser/src/world/page/runtimeProxy.ts'
+import { buildCutProxy } from '../../../packages/sdk-browser/src/geometry/runtime/runtimeProxy.ts'
 import { sdkWasm } from '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
-import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
+import { worldTableOn } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worldTable.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
-import { IDENTITY_WORLD } from '../../../packages/sdk-browser/src/host/matrixElements.ts'
+import { IDENTITY_WORLD } from '../../../packages/sdk-browser/src/session/host/matrixElements.ts'
 import type { DeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
 
 /** A face of the rig's scene: the triangles it holds — two, nine floats each — and the radiance it gives. */

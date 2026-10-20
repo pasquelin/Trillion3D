@@ -6,7 +6,7 @@ import { createWaveHeld, heldInverse, wavesChanged, writeWaves } from './waveFra
 import type { WaveHeld } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
 import { createSkinPalettes } from './skinPalettes.ts'
-import type { MatrixElements } from '../host/matrixElements.ts'
+import type { MatrixElements } from '../session/host/matrixElements.ts'
 import {
   KIND_MORPH,
   KIND_SKIN,

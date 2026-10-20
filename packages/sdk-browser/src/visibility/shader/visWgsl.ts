@@ -1,16 +1,16 @@
 import { PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL, maskKeepWgsl } from './pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from './pageGeometryWgsl.ts'
 import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
-import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
+import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   maskAlphaWgsl,
   materialDeclarations,
-} from '../../webgpu/tile/wgsl.ts'
-import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+} from '../../materials/virtual/wgsl.ts'
+import { VIS_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { maskUvWgsl } from './pageUv1Wgsl.ts'
-import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
+import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../raster/contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
@@ -21,7 +21,7 @@ import { visTriangle } from '../visWords.ts'
 
 /** The raster's one fragment stage, and the override that compiles its mask test out for a slot
  *  that holds no cutout row (`MASKED` false): the opaque twins' constants
- *  (`../../webgpu/visibility/pipelines.ts`). */
+ *  (`../passes/pipelines.ts`). */
 export const VIS_FRAGMENT = 'vis_hiz_fs'
 export const VIS_UNMASKED = { MASKED: 0 }
 
@@ -64,7 +64,7 @@ const VIS_VERTEX = visVertex(
  * too, both faces, no culling — over what the GPU cut submitted this image: the same
  * indirect slots, both halves, the rows the frustum, the cut's levels and the Hi-Z test dropped
  * already gone (`GpuDraw.encodeTested`), drawn again with no depth test and added
- * (`../../webgpu/visibility/xray.ts`). Its vertex stage is the raster's, the compute share left
+ * (`../passes/xray.ts`). Its vertex stage is the raster's, the compute share left
  * out — a triangle the compute raster took was submitted too —, its `tc` the corner's
  * barycentric basis; its fragment the wireframe's coverage of the edges (`wireframeEdge`, the
  * barycentrics' change over one pixel as the blended wireframe takes it) times the primitive's wire

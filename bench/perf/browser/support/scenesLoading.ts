@@ -1,14 +1,14 @@
 // Fixtures: a cluster manifest and the Three.js scene that goes with it, drawn from a
 // seeded generator. Loading reads them once, so the fixture must be large: hundreds of
 // primitives, thousands of pages, and the exact coverage the collector checks.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostMesh } from '../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { material, porte } from './scenesCut.ts'
-import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
+import type { PageRec } from '../../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import { DEFAULT_SCOPE } from '../../../../packages/sdk-core/src/contracts/base.ts'
 import type { ClusterManifest } from '../../../../packages/sdk-core/src/contracts/geometry.ts'
 

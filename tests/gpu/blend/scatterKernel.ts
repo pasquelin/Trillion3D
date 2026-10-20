@@ -9,12 +9,12 @@ import {
   BLEND_EXPAND_ENTRIES,
   BLEND_EXPAND_SHADER,
   blendExpandDispatch,
-} from '../../../packages/sdk-browser/src/webgpu/blend/expandWgsl.ts'
+} from '../../../packages/sdk-browser/src/blend/expand/expandWgsl.ts'
 import {
   blendExpandBindEntries,
   EXPAND_BINDING,
-} from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
-import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
+} from '../../../packages/sdk-browser/src/blend/expand/expandBindings.ts'
+import { UNI_WORDS } from '../../../packages/sdk-browser/src/blend/expand/expandUniform.ts'
 import { namedEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'

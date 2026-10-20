@@ -1,8 +1,8 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { VehicleOptions } from '../../../../sdk-core/src/physics/vehicle.ts'
-import { VEHICLE_SPECS } from '../../../../sdk-core/src/physics/vehicleSpec.ts'
+import type { VehicleOptions } from '../../../../sdk-core/src/physics/vehicle/vehicle.ts'
+import { VEHICLE_SPECS } from '../../../../sdk-core/src/physics/vehicle/vehicleSpec.ts'
 import { driveCar, type VehicleRig, vehicleRig } from './vehicles.fixture.ts'
 
 // The chassis options of every vehicle — suspension, steering, brakes, driven wheels, tracks and

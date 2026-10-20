@@ -8,17 +8,17 @@
 // priorities in the same order; and every pose prunes, or the proof would cover nothing.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
-import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
-import { descenteComptee } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontier.fixture.ts'
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/geometry/cut/cut.fixture.ts'
+import { cullingBounds } from '../../../packages/sdk-browser/src/geometry/cut/bounds.ts'
+import { descenteComptee } from '../../../packages/sdk-browser/src/geometry/dag/cut/cutFrontier.fixture.ts'
 import {
   scenePages,
   sceneRoots,
-} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/cut/cutFrontierScene.fixture.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/geometry/dag/oracle/oracle.fixture.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import { posedSelection } from './selectionCase.ts'
 

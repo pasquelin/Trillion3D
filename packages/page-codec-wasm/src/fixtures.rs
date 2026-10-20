@@ -1,4 +1,4 @@
-//! Generated meshes the clusterer is proved on, here (`clusters_tests.rs`) and in the compiler's DAG
+//! Generated meshes the clusterer is proved on, here (`clusters/tests.rs`) and in the compiler's DAG
 //! tests (`asset-compiler-rust/src/dag/tests/part17.rs`): one home for both crates' families.
 use trillion3d_math::random::xorshift64;
 

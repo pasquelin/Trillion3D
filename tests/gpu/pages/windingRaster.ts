@@ -1,5 +1,5 @@
 // The hardware raster under the engine's face state: the `cullMode: 'back'` of the pages
-// pipelines and the `frontFace` that `windingCw` picks (`webgpu/pages/render/winding.ts`) —
+// pipelines and the `frontFace` that `windingCw` picks (`src/frame/render/winding.ts`) —
 // winding reversed under a mirror. One fragment counter per case: the faces the engine draws,
 // the ground truth a cut decision is held against.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'

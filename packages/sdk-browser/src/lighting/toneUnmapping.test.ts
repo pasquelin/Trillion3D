@@ -5,7 +5,7 @@
 // needs to show a colour as the display shows it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
 import { linearToSrgb, srgbToLinear } from '../../../math/src/color/color.ts'

@@ -4,7 +4,7 @@
 // is destroyed, and what a host could still reach is read: the canvas the engine published must
 // be withdrawn and its context unconfigured — the drawing buffer then holds transparent black —,
 // the next render must raise `WEBGPU_LOST`, and the loss must have been announced under that name.
-import { wideCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { wideCamera } from '../../../packages/sdk-browser/src/geometry/selection/dag.fixture.ts'
 import { dagFixtureEngine } from '../../kit/device/dagFixtureEngine.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'

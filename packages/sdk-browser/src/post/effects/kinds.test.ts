@@ -6,8 +6,8 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
-import { createWebgpuEffects } from '../../webgpu/effects/webgpuEffects.ts'
-import { WEBGPU_KINDS } from '../../webgpu/effects/webgpuKinds.ts'
+import { createWebgpuEffects } from './webgpuEffects.ts'
+import { WEBGPU_KINDS } from './webgpuKinds.ts'
 import { EFFECT_KIND_BYTES } from './kindBytes.ts'
 
 /** A kind that records what it is asked: sizes, and each pass with its rank. */

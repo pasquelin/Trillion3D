@@ -4,7 +4,7 @@
 import type { BenchReport } from '../report/merge.ts'
 import { lawTable, pointRow } from './lawTable.ts'
 import { lawOf } from './points.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 const [name, ...reports] = process.argv.slice(2)
 const law = lawOf(name ?? '')

@@ -3,7 +3,7 @@
 // one side, pixels and public counters on the other.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
-import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { Engine } from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import { release, toApiMatrix } from '../../kit/device/sharedSceneProof.ts'
 import { colorAt, isRed, image } from '../../kit/device/sceneImageProof.ts'
 import { runPasses } from '../../kit/device/deviceProof.ts'

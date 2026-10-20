@@ -7,7 +7,7 @@ import { EngineError } from '../contracts/cache.ts'
 import {
   worldRootsDag,
   worldRootsFixture,
-} from '../../../sdk-browser/src/scene/worldRootsPages.fixture.ts'
+} from '../../../sdk-browser/src/geometry/hlod/worldRootsPages.fixture.ts'
 import { encodeWorldRoots, encodeWorldRootsDag } from './worldRootsRecords.fixture.ts'
 import { readWorldRoots, readWorldRootsDag } from './worldRootsTable.ts'
 

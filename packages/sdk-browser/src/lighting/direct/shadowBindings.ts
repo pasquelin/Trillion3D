@@ -1,5 +1,5 @@
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
-import { VSM_FORWARD_LAYOUT, vsmPoolLoadOf } from '../../vsm/resources.ts'
+import { VSM_FORWARD_LAYOUT, vsmPoolLoadOf } from '../shadows/vsm/resources.ts'
 
 /** Where a blend pass binds the virtual shadow maps its fragments' trace samples: the page table,
  *  the projection data, the uniforms and the pool's first slice, its one window

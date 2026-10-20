@@ -1,0 +1,45 @@
+// The engine's composition as a test stand-in: it takes every link (`Engine.composePlacements`) and
+// holds its rows at the parent's world times their local, its links held by the composition's own
+// reader module (`placement/compose/composeReaders.ts`), every row written at each send.
+import { holdReaders, rebindReaders, type Readers } from '../../placement/compose/composeReaders.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
+import type { PlacementRows } from '../../placement/rows/rows.ts'
+import type { PlacementLink } from '../../placement/compose/gpuCompose.ts'
+
+/** A `compose` that accepts every link and writes the rows it holds, telling `update` of each
+ *  as the engine reads it (`Engine.updatePlacements`). */
+export function composeStandIn(update?: (rows: PlacementRows, from: number, to: number) => void) {
+  const readers: Readers = new Map(),
+    slots = new Map<object, number>()
+  const compose = (
+    parent: object,
+    world: ArrayLike<number>,
+    links: readonly PlacementLink[],
+    whole: boolean,
+  ) => {
+    const slot = slots.get(parent) ?? slots.set(parent, slots.size).get(parent)!
+    if (whole) readers.delete(slot)
+    holdReaders(readers, slot, parent, links)
+    const held = readers.get(slot) ?? [],
+      before = held.map(({ rows, index }) =>
+        rows.matrices.slice(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
+      )
+    const parentWorld = Float64Array.from(world)
+    for (const { rows, index, local } of held)
+      if (index < rows.capacity)
+        multiplyMatrix4(
+          rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
+          parentWorld,
+          local,
+        )
+    held.forEach(({ rows, index }, k) => {
+      const now = rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES)
+      if (now.some((v, at) => v !== before[k][at])) update?.(rows, index, index)
+    })
+  }
+  return Object.assign(compose, {
+    /** A growth replaced `from` by `to`: the rows it holds are `to`'s now. */
+    rebind: (from: PlacementRows, to: PlacementRows) => rebindReaders(readers, from, to),
+  })
+}

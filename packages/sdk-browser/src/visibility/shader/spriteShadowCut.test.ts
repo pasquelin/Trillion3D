@@ -1,10 +1,10 @@
 // A sprite casts no shadow. Its root carries `SPRITE_ROOT`, so the shadow raster leaves its
-// rows out (`../../webgpu/shadow/bounds.ts`, `MOBILITY_SHADOWLESS`). Every other surface casts.
+// rows out (`../../lighting/shadows/casters/bounds.ts`, `MOBILITY_SHADOWLESS`). Every other surface casts.
 // A mesh set `castShadow = false` is left out the same way.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { dagFixture } from '../../page/selection/dag.fixture.ts'
-import { packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
+import { dagFixture } from '../../geometry/selection/dag.fixture.ts'
+import { packed } from '../../geometry/dag/selection/selectionHelpers.fixture.ts'
 import { CASTS_NO_SHADOW } from './spriteWgsl.ts'
 
 /** The test DAG, worn as a sprite when `sizeAttenuation` is given. */

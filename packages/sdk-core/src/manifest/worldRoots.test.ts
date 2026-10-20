@@ -7,7 +7,7 @@ import { bundlePageRanges } from './worldRoots.ts'
 import {
   worldPage,
   worldRootsFixture,
-} from '../../../sdk-browser/src/scene/worldRootsPages.fixture.ts'
+} from '../../../sdk-browser/src/geometry/hlod/worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from './worldRootsRecords.fixture.ts'
 import { readWorldRoots } from './worldRootsTable.ts'
 

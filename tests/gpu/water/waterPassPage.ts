@@ -1,7 +1,7 @@
 // Page of the water-pass proof: the real WebGPU engine (`webgpuPagesEngine`), a real device, a
 // real reread image. A transmissive tile in front of an opaque ground, or of nothing, rendered
 // through the water pass and read at its centre; the encoded pass labels prove the intended path.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import {
   VIEWPORT,
@@ -12,7 +12,7 @@ import {
   type ScenePreparee,
 } from '../../kit/device/sharedSceneProof.ts'
 import { image } from '../../kit/device/sceneImageProof.ts'
-import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
+import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { recordPassLabels, runOnDevice } from '../../kit/device/deviceProof.ts'
 import {
@@ -24,7 +24,7 @@ import {
   type WaterCase,
 } from './waterPassCases.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import { DISTORTION_PASS } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
+import { DISTORTION_PASS } from '../../../packages/sdk-browser/src/diagnostic/stage/passLabels.ts'
 
 function scene(kase: WaterCase): ScenePreparee {
   const builder = batisseur()

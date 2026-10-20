@@ -4,10 +4,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lazyDiagnostic } from './engineDiagnostic.ts'
 import type { EngineDiagnostic } from './types.ts'
-import { createPageStreamer } from '../streaming/pageStreamer.ts'
-import { createPageCache } from '../streaming/pageCache.ts'
-import { manifestTableBytes } from '../streaming/manifestTables.ts'
-import { servedPages } from '../streaming/servedPages.fixture.ts'
+import { createPageStreamer } from '../geometry/streaming/pageStreamer.ts'
+import { createPageCache } from '../geometry/streaming/pageCache.ts'
+import { manifestTableBytes } from '../geometry/streaming/manifestTables.ts'
+import { servedPages } from '../geometry/streaming/servedPages.fixture.ts'
 
 test('with no listener there is no emitter: a call builds neither its detail nor its closure', () => {
   const emit = lazyDiagnostic(undefined)

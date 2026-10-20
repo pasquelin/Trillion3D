@@ -1,24 +1,18 @@
 // The transparent plan's expansion says on the GPU what its CPU model says. One semantics, two
-// implementations: the WGSL kernel production runs (`webgpu/blend/expandWgsl.ts`) and the CPU model
-// (`webgpu/blend/expandCpu.fixture.ts`), the oracle elsewhere.
+// implementations: the WGSL kernel production runs (`blend/expand/expandWgsl.ts`) and the CPU model
+// (`blend/expand/expandCpu.fixture.ts`), the oracle elsewhere.
 // The kernel runs on the model's own inputs, slots laid by production (`assignOwnSlots`,
 // `placeBlendSlots`) and its uniform by the production writer; the expanded instance list and each
 // run's indirect arguments must match word for word.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
-import {
-  assignOwnSlots,
-  blendExpandUniform,
-} from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts'
-import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.fixture.ts'
-import {
-  RUN_WORDS,
-  slotCapacity,
-} from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
-import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
-import { planPipeline } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
-import { planEntry } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
+import { expandBlendPlan } from '../../../packages/sdk-browser/src/blend/expand/expandCpu.fixture.ts'
+import { assignOwnSlots, blendExpandUniform } from '../../../packages/sdk-browser/src/blend/runs.ts'
+import { placeBlendSlots } from '../../../packages/sdk-browser/src/blend/runs.fixture.ts'
+import { RUN_WORDS, slotCapacity } from '../../../packages/sdk-browser/src/blend/plan/planLayout.ts'
+import { UNI_WORDS } from '../../../packages/sdk-browser/src/blend/expand/expandUniform.ts'
+import { planPipeline } from '../../../packages/sdk-browser/src/blend/plan/plan.ts'
+import { planEntry } from '../../../packages/sdk-browser/src/blend/plan/planEntry.ts'
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { expandOnGpu } from './scatterKernel.ts'

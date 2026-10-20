@@ -2,7 +2,7 @@
 // or joining it, and the image keeps what lies behind it. A pictured glass joining a session that
 // wore no picture turned the texture feedback on while the water pass was granted: the pass kept
 // the pipelines of the variant without it, the device was lost and the whole image went
-// (`followFeedback`, `../../../packages/sdk-browser/src/webgpu/blend/growth.ts`).
+// (`followFeedback`, `../../../packages/sdk-browser/src/blend/growth.ts`).
 //
 //   node bench/dawn/proofs.ts tests/gpu/blend/glass-no-uv.gpu.ts
 import test from 'node:test'

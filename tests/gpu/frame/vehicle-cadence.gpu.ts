@@ -5,7 +5,7 @@
 //  - steady intervals: the images are shown at one interval, the display's refresh or a steady
 //    divisor of it (`frame/cadence.ts`), never one refresh and two in turn;
 //  - smooth motion on screen: each image steps the world by the very time it is shown for (the
-//    world's time on the display's grid, `worldFrameGrid.ts`), and the car's speed read from frame
+//    world's time on the display's grid, `frames/frameGrid.ts`), and the car's speed read from frame
 //    to frame does not jump;
 //  - the chase camera aims at the car as the frame draws it: written in `world.beforeFrame`, it
 //    reads the pose this frame draws, never the last one's.

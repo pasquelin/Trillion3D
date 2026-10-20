@@ -17,7 +17,7 @@ export type MaterialClassFeature = keyof typeof CLASS_FEATURE
 /** Keys addressable: one more bit than the highest feature. */
 export const MATERIAL_CLASS_KEYS = 32768
 
-/** Map slots of a row, as `../../webgpu/row/pageRowWriter.ts` resolves them: zero is the absence of a texture. */
+/** Map slots of a row, as `../../geometry/rows/page/pageRowWriter.ts` resolves them: zero is the absence of a texture. */
 type MaterialClassMaps = {
   rough: number
   metal: number

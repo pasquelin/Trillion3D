@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ESLint } from 'eslint'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const eslint = new ESLint({ cwd: REPOSITORY_ROOT })
 

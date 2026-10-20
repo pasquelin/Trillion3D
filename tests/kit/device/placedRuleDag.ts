@@ -2,14 +2,14 @@
 // `../../gpu/row/rowCacheScene.ts`, `../../gpu/streaming/evictionWorld.ts`): `copies` placements of the cut-rule
 // DAG along x, packed, and the strip camera's uniforms at any x, the packing's worlds brought to its
 // render frame. Each proof adds its own rows, residency or pages.
-import { ruleDag } from '../../../packages/sdk-browser/src/page/cut/cutRule.fixture.ts'
+import { ruleDag } from '../../../packages/sdk-browser/src/geometry/cut/cutRule.fixture.ts'
 import {
   placements,
   stripCamera,
-} from '../../../packages/sdk-browser/src/page/cut/cutRuleBackends.fixture.ts'
-import { postPackedBases } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/cut/cutRuleBackends.fixture.ts'
+import { postPackedBases } from '../../../packages/sdk-browser/src/geometry/selection/placements.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { writeEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 

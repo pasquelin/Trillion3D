@@ -1,4 +1,4 @@
-import { ERR_K, INPUT_K } from '../partition/margins.ts'
+import { ERR_K, INPUT_K } from '../../geometry/partition/gpu/margins.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 const K = wgslF32(ERR_K),

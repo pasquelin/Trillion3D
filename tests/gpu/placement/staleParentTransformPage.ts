@@ -3,7 +3,7 @@
 // never followed by a manual `updateMatrixWorld` — so the only way the engine can see that change
 // is the resolution it does itself before inverting the parent's matrix (`poseNode`, in
 // `setWebgpuTransform`).
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { release } from '../../kit/device/sharedSceneProof.ts'
 import { image, redCount } from '../../kit/device/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'

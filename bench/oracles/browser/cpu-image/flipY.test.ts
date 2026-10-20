@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sampleLinear } from './math.ts'
-import { texture } from '../../../../packages/sdk-browser/src/world/texture/index.ts'
+import { texture } from '../../../../packages/sdk-browser/src/materials/live/index.ts'
 import { Texture } from '../../../../packages/sdk-core/src/world/texture/texture.ts'
 
 // Two rows of two texels, first row first: A B over C D.

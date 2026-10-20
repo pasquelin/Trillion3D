@@ -1,0 +1,190 @@
+import { grantPending, startGrant } from '../../gpu/core/errorScope.ts'
+import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
+import { vsmAskedBytes, vsmReserveBytes } from '../../lighting/shadows/vsm/frame/vsmFunding.ts'
+import { shadowHeldBytes } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
+import { setWebgpuMemoryBudgets } from '../io/memory.ts'
+import { textureBytesBeside } from '../io/besidePools.ts'
+import { vertexBytesOf } from '../io/metrics.ts'
+import { taaTargetBytes } from '../../post/taa/historyTargets.ts'
+import { FILTER_HISTORY_BYTES_PER_PIXEL } from '../../post/taa/layers.ts'
+import { DISPLAY_LAYER_BYTES_PER_PIXEL } from '../../blend/display/displayFilter.ts'
+import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { frameSizeOf, type FrameSize } from '../backend/state/renderScale.ts'
+import { viewGpu, type WebgpuView } from '../backend/state/view.ts'
+import { viewTargetBytes } from '../backend/state/gpu.ts'
+import { cutLedgerBytes } from '../../geometry/dag/cut/cutBuffers.ts'
+import { keepsBeautyChain } from '../../visibility/shader/shadeMode.ts'
+import { taaWanted } from '../backend/state/gpu.ts'
+
+/** Admit proposed targets before makeTargets creates any resource. Pool floors use
+ * the same constructors as normal residency, so root coverage and texture tails
+ * cannot be silently enlarged after this budget transaction. */
+function refreshTargetFunding(rt: WebgpuPagesRuntime, size: FrameSize) {
+  if (!rt.context.admitGpuMemory) return
+  const bytes = gpuDeviceLedgerOf(rt.gpu.device)?.bytes
+  if (bytes === undefined || bytes === rt.run.funding.ledgerBytes) return
+  // Asked once per ledger state, granted or refused: a refusal is said once, not every frame.
+  rt.run.funding.ledgerBytes = bytes
+  try {
+    return fundFrameTargets(rt, size, 0, true)
+  } catch (error) {
+    return Promise.reject(error)
+  }
+}
+
+/**
+ * Bytes a frame of `size` makes once its targets are (`makeTargets`), counted in them after: the
+ * temporal history at the display's size and its render-resolution targets, made only while the
+ * pass is on (`ensureTaaTargets`), and,
+ * while a blend filters a beauty image, its layers at the render size (`beginDisplayFilter`) and
+ * their history beside the colour's.
+ */
+function frameMadeBytes(rt: WebgpuPagesRuntime, size: FrameSize) {
+  const { gpu } = rt,
+    display = size.width * size.height,
+    filters =
+      rt.blendState.filtersDisplay &&
+      keepsBeautyChain(rt.run.diagnostic) &&
+      !rt.context.diagnosticGpuVariant
+  const history = !!gpu.temporal && taaWanted(gpu) && !rt.capture.capturing
+  return (
+    (history
+      ? taaTargetBytes(size) + (filters ? display * FILTER_HISTORY_BYTES_PER_PIXEL : 0)
+      : 0) + (filters ? size.renderWidth * size.renderHeight * DISPLAY_LAYER_BYTES_PER_PIXEL : 0)
+  )
+}
+
+/** The drawn view's frame at the render scale's maximum, written by `frameShareBytes`. */
+const fullSize = {} as FrameSize
+
+/**
+ * THE FRAME'S SHARE OF A DEFAULT GPU TOTAL (`ActiveGpuMemory.frameShare`): the drawn view's frame
+ * at the render scale's maximum on its viewport (`frameSizeOf`) — what it asks with its targets
+ * (`frameTargetAllocation`, `frameExtraBytes`) and what it makes after them (`frameMadeBytes`) —,
+ * and each other view's targets and effect chain as they hold them. Measured by the functions that
+ * allocate, never written by hand: the default total (`defaultGpuBudget`) funds it before the
+ * pools, so the frame's targets are made at the scale's maximum on any canvas, whatever the pools
+ * hold.
+ * The shadows' mask, sized by the frame, is the shadows' own term (`vsmAskedBytes`).
+ */
+function frameShareBytes(rt: WebgpuPagesRuntime) {
+  const size = frameSizeOf(rt, fullSize, true),
+    { views } = rt
+  let bytes = frameTargetAllocation(rt, size, frameExtraBytes(rt, size)) + frameMadeBytes(rt, size)
+  const held = (view: WebgpuView) => {
+    if (view === views.active) return 0
+    return viewTargetBytes(viewGpu(rt, view))
+  }
+  bytes += held(views.main)
+  for (const view of views.persistent) bytes += held(view)
+  return bytes
+}
+
+export function fundFrameTargets(
+  rt: WebgpuPagesRuntime,
+  size: FrameSize,
+  bytes: number,
+  current = false,
+) {
+  const admit = rt.context.admitGpuMemory
+  if (!admit) return
+  const { setup, gpu, vis, bounce } = rt
+  const vertexBytes = vertexBytesOf(vis)
+  const sourceBytes = textureBytesBeside(rt)
+  const geometryMinimum = setup.geometryPoolFor(1).allocatedBytes + vertexBytes
+  const textureMinimum = (setup.texturePools?.poolFor(1).allocatedBytes ?? 0) + sourceBytes
+  const made = frameMadeBytes(rt, size)
+  // The shadows hold their share (`shadowHeldBytes`), and are funded for what this frame's size
+  // asks of them before the pools (`vsmAskedBytes`).
+  const shadowHeld = shadowHeldBytes(rt)
+  const shadowPool = shadowHeld + vsmAskedBytes(rt, size.renderWidth, size.renderHeight)
+  const bounceProbes = bounce.probes ? 2 * bounce.probes.probeBytes : 0
+  const effectTargets = gpu.effects?.bytes ?? 0
+  const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
+  if (ledger?.unknownFormats) throw new Error('GPU_BUDGET_UNKNOWN_FORMAT')
+  // Auxiliary buffers, other views/captures and proxy resources are already live.
+  // Credit only the active view being replaced and the separately charged pools;
+  // the device ledger is the existing ownership accounting, not a second budget.
+  // The cuts' tables hold their own share, funded before the pools: what the ledger counts of them
+  // (`cutLedgerBytes`), and the buffer one is about to make (`admitCutTables`).
+  const cutHeld = ledger ? cutLedgerBytes(ledger.byLabel) : 0
+  const separatelyHeld =
+    gpu.targetBytes +
+    shadowHeld +
+    bounceProbes +
+    cutHeld +
+    effectTargets +
+    setup.geometryPool.allocatedBytes +
+    vertexBytes +
+    (setup.texturePools?.pool.allocatedBytes ?? 0) +
+    sourceBytes
+  const unaccounted = (ledger?.bytes ?? separatelyHeld) - separatelyHeld
+  const pools = admit({
+    frameTargets: current
+      ? Math.max(0, unaccounted + gpu.targetBytes)
+      : bytes + made + Math.max(0, unaccounted),
+    frameShare: frameShareBytes(rt),
+    shadowPool,
+    shadowReserve: vsmReserveBytes(rt),
+    bounceProbes,
+    effectTargets,
+    geometryMinimum,
+    textureMinimum,
+    cutTables: cutHeld + rt.run.funding.cutAsked,
+  })
+  // This call may run inside prepare itself: the host report's wait would await
+  // this very target grant. Admission only redistributes the existing tables.
+  const record = () => {
+    rt.run.funding.ledgerBytes = gpuDeviceLedgerOf(gpu.device)?.bytes ?? 0
+  }
+  if (
+    pools.geometryPoolBytes !== setup.geometryPool.budgetBytes ||
+    pools.texturePoolBytes !== setup.texturePoolBudget
+  )
+    return setWebgpuMemoryBudgets(rt, pools, 'prepare-targets').then(record)
+  record()
+}
+
+/** The frame's size the cut's admission funds the targets at, written by `admitCutTables`. */
+const cutFrame = {} as FrameSize
+
+/**
+ * THE CUT'S TABLES ASK THE BUDGET before each buffer of theirs is made (`../../geometry/dag/resources.ts`,
+ * `CutAdmission`): the session is funded again with `bytes` more of them beside what they hold
+ * (`ActiveGpuMemory.cutTables`) — the default total grows by them, a total the page set presses the
+ * pools —, or it throws, by its own name (`GPU_BUDGET_UNDER_MINIMUM`), and that buffer is not made.
+ * A session without a budget funds nothing and asks nothing.
+ */
+export function admitCutTables(rt: WebgpuPagesRuntime, bytes: number) {
+  rt.run.funding.cutAsked = bytes
+  try {
+    void fundFrameTargets(rt, frameSizeOf(rt, cutFrame), 0, true)
+  } finally {
+    rt.run.funding.cutAsked = 0
+  }
+}
+
+/** The pools' funding beside the frames still in flight, if any: no frame waits for it, but a
+ *  target grant and a capture do, so two fundings never move the pools at once. */
+export const poolFundingPending = (rt: WebgpuPagesRuntime) =>
+  grantPending(rt.run.funding.refreshing)
+
+/**
+ * The targets in place fit: the pools are funded again beside the frames, never holding one — a
+ * budget moves quality, never presentation. A refusal is said (`refuse`) and keeps the
+ * pools in place. Prepare and capture await the answer.
+ */
+export function refreshTargetGrant(
+  rt: WebgpuPagesRuntime,
+  size: FrameSize,
+  refuse: (error: unknown) => void,
+) {
+  const pending = poolFundingPending(rt)
+  if (pending) return pending
+  const refresh = refreshTargetFunding(rt, size)
+  if (!refresh) return
+  const grant = startGrant(refresh.catch(refuse))
+  rt.run.funding.refreshing = grant
+  return grant.done
+}

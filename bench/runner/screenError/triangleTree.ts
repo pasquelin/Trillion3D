@@ -5,7 +5,7 @@ import { selectByKey } from '../../../packages/math/src/select.ts'
  * A STATIC TRIANGLE TREE, the screen-error measure's own (`screenErrorMeasure.ts`): a
  * bounding-volume hierarchy over triangles, built once and asked for every triangle whose box meets
  * a query box, or for the nearest one a ray crosses (`triangleQuery.ts`). The engine casts its rays
- * on the GPU, over what it draws (`packages/sdk-browser/src/webgpu/rays/`); the bench measures the
+ * on the GPU, over what it draws (`packages/sdk-browser/src/lighting/rays/`); the bench measures the
  * source mesh on the CPU in doubles, a reference no engine path reads.
  *
  * BUILD. Top-down, a median split over the triangles' centres: a node's triangles are split near

@@ -7,7 +7,7 @@ import {
   frustumClipBox,
   frustumExcludesBox,
 } from '../../../../packages/math/src/geometry/frustum/box.ts'
-import { frustumPlanesToLocal } from '../../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts'
+import { frustumPlanesToLocal } from '../../../../packages/sdk-browser/src/geometry/dag/oracle/math.fixture.ts'
 import type { MeasureCase } from '../../../core/measure.ts'
 import { viewBoxes, matrices, projectionViews } from './scenesVolumes.ts'
 import type { ViewBoxCase, ViewProjectionCase } from './scenesVolumes.ts'

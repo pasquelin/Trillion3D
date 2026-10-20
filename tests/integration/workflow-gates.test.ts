@@ -12,7 +12,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../scripts/git/repository-files.ts'
 
 const env = {
   ...process.env,
@@ -48,7 +48,7 @@ function makeRepo() {
     recursive: true,
   })
   // The hooks run git and the gates through the scripts' own helpers.
-  for (const helper of ['git-paths.ts', 'test/run.ts']) {
+  for (const helper of ['git/git-paths.ts', 'test/run.ts']) {
     mkdirSync(dirname(join(work, 'scripts', helper)), { recursive: true })
     cpSync(join(REPOSITORY_ROOT, 'scripts', helper), join(work, 'scripts', helper))
   }

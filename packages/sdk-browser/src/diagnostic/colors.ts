@@ -75,7 +75,7 @@ export const DIAGNOSTIC_WIRE_WGSL = wgslBlock(
 const V = DIAGNOSTIC_VIEWS
 
 /** The colours a diagnostic view paints with, as the two resolves read them (the opaque one,
- *  `../visibility/shader/shadeWgsl.ts`, and the blended one, `../webgpu/blend/shader.ts`): the flat
+ *  `../visibility/shader/shadeWgsl.ts`, and the blended one, `../blend/shader.ts`): the flat
  *  green of a page, one colour per DAG level (`LEVEL_COLORS`), one per HLOD index
  *  (`HLOD_COLORS`), and the error ramp from green (exact) to red.
  *  `diagnosticShade` darkens a colour by its face's axis — full facing up, less facing x, least

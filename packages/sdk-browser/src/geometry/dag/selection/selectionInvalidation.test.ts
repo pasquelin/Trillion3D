@@ -1,0 +1,157 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createGpuDagSelection } from './selection.ts'
+import { dagFixture, wideCamera } from '../../selection/dag.fixture.ts'
+import { mockDagDevice } from './selection.fixture.ts'
+import { dagPageUrls } from '../pack/pack.fixture.ts'
+import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
+import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
+import { pageResidency } from '../readiness.fixture.ts'
+import { hostStretches } from '../hostStretches.fixture.ts'
+
+test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
+  installGpuGlobals()
+  const fixture = dagFixture()
+  const { dag, roots } = packed(fixture)
+  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
+  const { device } = mockDagDevice(dag)
+  const queue = (device as unknown as { queue: { submit: () => void } }).queue,
+    submitted = queue.submit
+  let submits = 0
+  queue.submit = () => {
+    submits++
+    submitted.call(queue)
+  }
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
+  assert.ok(selection)
+  const abandoned = selection.dispatch(uniforms, device.createCommandEncoder())
+  assert.equal(typeof abandoned, 'function', 'a shared buffer hands back its settlement')
+  assert.equal(submits, 0, 'the selection does not submit a buffer it does not own')
+  abandoned!(false)
+  // Nothing ran, so nothing may be remembered as run: the next image recomputes and reads back.
+  const settle = selection.dispatch(uniforms, device.createCommandEncoder())
+  assert.equal(typeof settle, 'function')
+  settle!(true)
+  assert.equal((await selection.flush())?.pageIds.length, 4)
+  assert.equal(submits, 0, 'the image submits its own buffer')
+  selection.dispose()
+  fixture.geometry.dispose()
+})
+
+/** The wide-camera DAG's GPU selection on a mock device with `faults`, and that device. */
+async function wideSelection(faults?: Parameters<typeof mockDagDevice>[1]) {
+  installGpuGlobals()
+  const fixture = dagFixture()
+  const { dag, roots } = packed(fixture)
+  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
+  const gpu = mockDagDevice(dag, faults)
+  const selection = await createGpuDagSelection(gpu.device, dag, { roots: hostStretches(dag) })
+  assert.ok(selection)
+  return { fixture, dag, uniforms, gpu, selection }
+}
+
+test('unchanged uniforms skip a second GPU dispatch', async () => {
+  const { fixture, uniforms, gpu, selection } = await wideSelection()
+  selection.dispatch(uniforms)
+  await selection.flush()
+  const afterFirst = gpu.uniformWrites()
+  selection.dispatch(uniforms)
+  await selection.flush()
+  assert.equal(gpu.uniformWrites(), afterFirst)
+  selection.dispose()
+  fixture.geometry.dispose()
+})
+
+test('the resident mask recomputes for residency changes with an unchanged camera', async () => {
+  const { fixture, dag, uniforms, gpu, selection } = await wideSelection()
+  // The draw mask, a bit a page (`../shader/compactWgsl.ts`).
+  const mask = () => {
+    const words = new Uint32Array(
+      (selection.maskBuffer as unknown as { data: Uint8Array }).data.buffer,
+    ).subarray(selection.maskOffset)
+    return Array.from({ length: dag.pageCount }, (_, id) => id)
+      .filter((id) => (words[id >>> 5] & (1 << (id & 31))) !== 0)
+      .map((id) => dag.pageUrlOf(id))
+      .sort()
+  }
+  selection.updateResidency(
+    pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0)))),
+  )
+  selection.dispatch(uniforms)
+  assert.deepEqual(
+    (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)),
+    ['root'],
+  )
+  assert.deepEqual(mask(), ['root'])
+  selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
+  // Pages that only arrived leave the cut in hand drawable: everything it draws is still resident.
+  assert.deepEqual(
+    selection.peek()?.result.drawablePageIds?.map((id) => dag.pageUrlOf(id)),
+    ['root'],
+  )
+  selection.dispatch(uniforms)
+  assert.deepEqual(
+    (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)).sort(),
+    ['leaf0', 'leaf1', 'leaf2', 'leaf3'],
+  )
+  assert.equal(gpu.uniformWrites(), 2)
+  assert.deepEqual(mask(), ['leaf0', 'leaf1', 'leaf2', 'leaf3'])
+  selection.dispose()
+  fixture.geometry.dispose()
+})
+
+// #1483: a mapping the device refuses reads nothing, and the next dispatch copies the cut again; a
+// lost device says so on its own (`device.lost`), never a readback.
+test('a failed readback is read again at the next dispatch, the selection kept', async () => {
+  const { fixture, uniforms, gpu, selection } = await wideSelection({ failMap: true })
+  selection.dispatch(uniforms)
+  assert.equal(await selection.flush(), null)
+  assert.equal(selection.failed(), false, 'the selection stays')
+  assert.equal(selection.peek(), null, 'nothing read')
+  const copies = gpu.readbackCopies()
+  selection.dispatch(uniforms)
+  assert.equal(gpu.readbackCopies(), copies + 1, 'the same cut copied again')
+  selection.dispose()
+  fixture.geometry.dispose()
+})
+
+/** The readback of a cut made with only `first` resident, landing once `then` is: adopted or
+ *  not. */
+async function readbackAfter(first: (url: string) => boolean, then: (url: string) => boolean) {
+  const { release, fixture, dag, uniforms, device } = gatedDag()
+  const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
+  assert.ok(selection)
+  const residency = (resident: (url: string) => boolean) =>
+    pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (resident(url) ? 1 : 0))))
+  selection.updateResidency(residency(first))
+  selection.dispatch(uniforms)
+  selection.updateResidency(residency(then))
+  release()
+  const flushed = await selection.flush()
+  const peeked = selection.peek()
+  selection.dispose()
+  fixture.geometry.dispose()
+  return { flushed, peeked, dag }
+}
+
+test('readback from an older resident cut cannot restore an invalidated drawable mask', async () => {
+  // The root it draws withdrawn before it lands: never adopted.
+  const { flushed, peeked } = await readbackAfter(
+    (url) => url === 'root',
+    (url) => url !== 'root',
+  )
+  assert.equal(flushed, null)
+  assert.equal(peeked, null)
+})
+
+test('readback from an older resident cut is adopted once pages only arrived', async () => {
+  // Every page it draws is still resident: adopted, a frame late as a camera's cut.
+  const { flushed, dag } = await readbackAfter(
+    (url) => url === 'root',
+    () => true,
+  )
+  assert.deepEqual(
+    flushed?.drawablePageIds?.map((id) => dag.pageUrlOf(id)),
+    ['root'],
+  )
+})

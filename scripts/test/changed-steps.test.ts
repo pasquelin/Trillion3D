@@ -24,9 +24,9 @@ test('a changed reference value runs the golden tests that read it', () => {
   const file = 'packages/math/golden/grid.json'
   assert.ok(changedSteps([file], [file], 0).includes('golden'))
   const sources: Record<string, string> = {
-    'packages/page-codec-wasm/src/golden_tests/grid.rs': 'Twin {\n    file: "grid",',
+    'packages/page-codec-wasm/src/golden/grid.rs': 'Twin {\n    file: "grid",',
     'packages/math/rust/src/golden_tests.rs': 'Twin { file: "acos",',
-    'packages/sdk-browser/src/world/page/cutGrid.golden.test.ts':
+    'packages/sdk-browser/src/geometry/runtime/cutGrid.golden.test.ts':
       "assertGolden('grid', 'tile_log2'",
     'packages/math/src/float/trig.golden.test.ts': "assertGolden('acos', 'acos'",
   }
@@ -34,7 +34,7 @@ test('a changed reference value runs the golden tests that read it', () => {
     goldenChecks([file], Object.keys(sources), (path) => sources[path]),
     {
       crates: ['packages/page-codec-wasm'],
-      tests: ['packages/sdk-browser/src/world/page/cutGrid.golden.test.ts'],
+      tests: ['packages/sdk-browser/src/geometry/runtime/cutGrid.golden.test.ts'],
     },
   )
   assert.deepEqual(goldenChecks(['packages/math/src/index.ts'], Object.keys(sources)), {
@@ -82,9 +82,9 @@ test('a reference file of any name runs the golden tests that read it', () => {
 // it at once.
 test('several changed reference files read each candidate once', () => {
   const sources: Record<string, string> = {
-    'packages/page-codec-wasm/src/golden_tests/grid.rs': 'Twin {\n    file: "grid",',
+    'packages/page-codec-wasm/src/golden/grid.rs': 'Twin {\n    file: "grid",',
     'packages/math/rust/src/golden_tests.rs': 'Twin { file: "acos",',
-    'packages/sdk-browser/src/world/page/cutGrid.golden.test.ts':
+    'packages/sdk-browser/src/geometry/runtime/cutGrid.golden.test.ts':
       "assertGolden('grid', 'tile_log2'",
     'packages/math/src/float/trig.golden.test.ts': "assertGolden('acos', 'acos'",
   }

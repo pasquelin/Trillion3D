@@ -1,10 +1,10 @@
 import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
-import type { ClusterRoot, DeformationOutput, PageRec } from '../page/selection/types.ts'
+import type { ClusterRoot, DeformationOutput, PageRec } from '../geometry/selection/types.ts'
 
-import type { HostAttributes } from '../host/resources.ts'
+import type { HostAttributes } from '../session/host/resources.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { rootOfPacked } from '../page/selection/placements.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+import { rootOfPacked } from '../geometry/selection/placements.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** The words a vertex's results start with: its owner's tag, then its image's; a block's address

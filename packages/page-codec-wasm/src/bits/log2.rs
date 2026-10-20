@@ -4,7 +4,7 @@
 //! A platform's `log2` may differ from another's in its last bit, and next to a power of two
 //! that bit carries the integer. These give the integer of the logarithm rounded to the nearest
 //! double, as `x.log2().floor() as i32` does wherever `log2` rounds correctly there — the grids
-//! were cut that way, every exponent the compiler wrote is kept (`log2_tests.rs` holds the
+//! were cut that way, every exponent the compiler wrote is kept (`log2/tests.rs` holds the
 //! two to each other over the reference cases and around every power of two) —, without calling
 //! any `log2`. A NaN or a negative gives 0, a zero `i32::MIN` and an infinity `i32::MAX`, as the
 //! cast of the logarithm does.
@@ -78,5 +78,4 @@ pub fn ceil_log2(x: f64) -> i32 {
 }
 
 #[cfg(test)]
-#[path = "log2_tests.rs"]
 mod tests;

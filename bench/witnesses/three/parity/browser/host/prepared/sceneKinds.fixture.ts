@@ -1,6 +1,6 @@
 /**
  * WHAT A NODE, A SURFACE OR A TEXTURE IS, read the same whichever library built it: the engine's
- * graph says it by its `kind` and its `family` (`packages/sdk-browser/src/host/graph/kinds.ts`) — its meshes, the core's, by
+ * graph says it by its `kind` and its `family` (`packages/sdk-browser/src/scene/host/graph/kinds.ts`) — its meshes, the core's, by
  * the flags `isMesh` and `isInstancedMesh` —, the loader the scenes are compared with by its
  * library's flags and type names — named here, for the comparison alone (`scenes.fixture.ts`).
  */

@@ -8,13 +8,17 @@ export type {
   InspectedReflections,
   InspectedShadowMap,
 } from '../../sdk-browser/src/diagnostic/inspection/types.ts'
+export type { CpuStepSummary } from '../../sdk-browser/src/diagnostic/stage/profiler.ts'
 export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts'
 export type {
   DiagnosticChannel,
   DiagnosticChannelOptions,
   DiagnosticObserver,
 } from '../../sdk-browser/src/diagnostic/channel.ts'
+export { diagnostic } from '../../sdk-browser/src/diagnostic/world/index.ts'
 export type { DiagnosticDetail, EngineDiagnostic } from '../../sdk-browser/src/diagnostic/types.ts'
 export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts'
+export type { GpuPassBlock } from '../../sdk-browser/src/diagnostic/stage/passDeclaration.ts'
+export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/diagnostic/stage/mapping.ts'
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
 export type { TelemetryReport } from '../../sdk-browser/src/diagnostic/telemetryTypes.ts'

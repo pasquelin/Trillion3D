@@ -7,7 +7,7 @@
 import { DEG2RAD, TAU } from '../../../packages/math/src/constants.ts'
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { add, reflect, scale } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
-import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { halton } from '../../../packages/math/src/sequence/halton.ts'
 import { gridPixels, type FamilyCase, type Rgb } from './runtimeFamilyCases.ts'
 import { crossings, radiance } from './runtimeFamilyRays.ts'

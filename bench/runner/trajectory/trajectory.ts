@@ -17,7 +17,7 @@ import { benchLights } from '../lighting/lamps.ts'
 import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts'
 import { checkpointIndices, trajectoryVerdict } from './trajectoryProof.ts'
 import type { captureTrajectory } from './trajectoryPage.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 async function main() {
   const { flags, settings, out, resources } = readOptions(

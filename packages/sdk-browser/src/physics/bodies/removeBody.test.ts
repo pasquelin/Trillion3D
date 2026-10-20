@@ -6,9 +6,9 @@ import { FLAG, OP } from '../../../../sdk-core/src/physics/layout.ts'
 import {
   VEHICLE_STATE_WORDS,
   WHEEL_STATE_WORDS,
-} from '../../../../sdk-core/src/physics/vehicleLayout.ts'
-import { writeVehicle } from '../../../../sdk-core/src/physics/vehicleCommands.ts'
-import { vehicle } from '../../../../sdk-core/src/physics/vehicle.ts'
+} from '../../../../sdk-core/src/physics/vehicle/vehicleLayout.ts'
+import { writeVehicle } from '../../../../sdk-core/src/physics/vehicle/vehicleCommands.ts'
+import { vehicle } from '../../../../sdk-core/src/physics/vehicle/vehicle.ts'
 import { box, cylinder } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'

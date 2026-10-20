@@ -5,10 +5,10 @@
 // page. With the stand-ins `shaderRun` lacks: WGSL's 3×3 and integer division for the page decode
 // (`homesDecode.test.ts`).
 import { f32Bits } from '../../../../math/src/float/bits.ts'
-import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
-import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
+import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
+import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { encodePage } from '../../page/codec/encodePage.fixture.ts'
+import { encodePage } from '../../geometry/codec/encodePage.fixture.ts'
 import { FLAG_CLUSTER_PAGE, FLAG_SPRITE } from '../types.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 

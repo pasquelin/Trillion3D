@@ -19,8 +19,8 @@ import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/e
 import {
   locationOf,
   type PageLocations,
-} from '../../../../packages/sdk-browser/src/page/selection/placements.ts'
-import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
+} from '../../../../packages/sdk-browser/src/geometry/selection/placements.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/session/engine/common.ts'
 
 /**
  * A pixel leaves the triangle where an edge's numerator and the area differ in sign: that is

@@ -1,14 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../page/surface.ts'
-import { rowFlags, surfaceRow } from '../webgpu/row/surfaceRow.ts'
-import { writeMaterialRecord } from '../webgpu/material/materialRecord.ts'
-import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../webgpu/material/materialLayout.ts'
-import { FOG_FREE_MODEL_BIT } from '../scene/surfaceModel.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
+import { surfaceOf } from '../geometry/pages/surface.ts'
+import { rowFlags, surfaceRow } from '../geometry/rows/surfaceRow.ts'
+import { writeMaterialRecord } from '../materials/table/materialRecord.ts'
+import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../materials/table/materialLayout.ts'
+import { FOG_FREE_MODEL_BIT } from '../materials/surface/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { BLEND_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
-import { surfaceWritten } from '../page/surfaceWrites.ts'
+import { surfaceWritten } from '../geometry/pages/surfaceWrites.ts'
 
 test('a fog-free material reaches both the opaque flag and transparent shader', () => {
   const material = G.familySurface('standard', { fog: false })

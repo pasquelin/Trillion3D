@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { manifest } from '../../../tests/fixtures/manifest/manifestBinary.ts'
 import { writePagedManifest } from '../../../tests/fixtures/manifest/pagedManifest.ts'
 import { cacheHoldsBlend } from './cacheManifest.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 /** A cache folder as the compiler publishes it: the pointer, then the paged manifest it names. */
 async function cache(t: test.TestContext, pass: string) {

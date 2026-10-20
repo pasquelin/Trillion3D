@@ -11,7 +11,7 @@
  */
 import { join } from 'node:path'
 import { ringKey } from './check-cycles.ts'
-import { readJson } from '../repository-files.ts'
+import { readJson } from '../git/repository-files.ts'
 
 const BASELINE = 'scripts/check/check-cycles-baseline.json'
 

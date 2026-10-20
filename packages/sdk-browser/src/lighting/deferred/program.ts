@@ -4,12 +4,12 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { makeFullscreenPipeline } from './fullscreen.ts'
-import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
+import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { createCompositions, type CompositionSources } from './compositions.ts'
-import { type FusedBlend } from '../../webgpu/effects/webgpuKinds.ts'
+import { type FusedBlend } from '../../post/effects/webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
+import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { bindLight, type ProgramParts, type ProgramState } from './lightGroup.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
@@ -34,7 +34,7 @@ export interface DirectLightResources extends Partial<ContractKey> {
   vsmMask?: GPUTextureView
   /** The mask's tile words (`vsmMaskFactor`): the layers its projection stored in each 8×8 tile. */
   vsmMaskTiles?: GPUTextureView
-  /** The translucent casters' transmission atlas (`../../vsm/transmissionPass.ts`), or none: what a
+  /** The translucent casters' transmission atlas (`../shadows/vsm/transmission/transmissionPass.ts`), or none: what a
    *  blend pass's rays read. */
   vsmTransmission?: GPUTextureView
   /** The mask's transmission (`VsmMask.through`): what the panes let through along each light's
@@ -44,7 +44,7 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  identity. */
   bounceGrid?: GPUBuffer
   probes?: GPUTextureView
-  /** The reflection target the opaque trace wrote (`../../reflections/trace.ts`); absent, a zero
+  /** The reflection target the opaque trace wrote (`../reflections/trace/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
   receiver?: GPUTextureView // the resolve's shadow receiver target

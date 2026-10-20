@@ -22,7 +22,7 @@ type Cut = Exclude<keyof ContractKey, 'narrow'>
 
 /** What a program can leave out besides its lists' width — bit `k` of a set is `CUTS[k]` —: every
  *  pass, opaque or blend, makes every cut, each read off what that pass lights
- *  (`../../webgpu/pages/prepare/contractLight.ts`). */
+ *  (`../../frame/prepare/contractLight.ts`). */
 const CUTS: readonly Cut[] = ['unshadowed', 'rectless', 'sunless', 'localless', 'lobeless']
 export const CUT_COUNT = CUTS.length
 /** The bit of cut `name` in a set, read off `CUTS`'s order. */

@@ -1,8 +1,8 @@
-import { markRootRows } from '../webgpu/pages/render/movedRoot.ts'
-import { worldStretch } from '../page/selection/rootWorld.ts'
-import { noteDeformed } from '../webgpu/pages/render/movedGeometry.ts'
+import { markRootRows } from '../frame/render/movedRoot.ts'
+import { worldStretch } from '../geometry/selection/rootWorld.ts'
+import { noteDeformed } from '../frame/render/movedGeometry.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { holdReach } from './halfFloat.ts'
 import { updateWavePages } from './wavePages.ts'
 

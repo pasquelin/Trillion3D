@@ -2,14 +2,14 @@
 // map's header carries. The GPU proof (`texture-addressing.gpu.ts`) and the unit test of the
 // nibbles (`visibility/wrapModes.test.ts`) both read this material: one thing to read again when
 // the modes change.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
 import type { WrapMode } from '../../../packages/sdk-core/src/texture/contract.ts'
 import { textureBytes } from './addressingCases.ts'
 import {
   SAMPLE_WRAP_SHIFT,
   samplingWords,
-} from '../../../packages/sdk-browser/src/texture/sampling.ts'
+} from '../../../packages/sdk-browser/src/materials/texture/sampling.ts'
 
 const CLAMP = 'clamp',
   REPEAT = 'repeat',

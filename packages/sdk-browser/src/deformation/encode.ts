@@ -1,4 +1,4 @@
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /** The stage's buffers, refilled each image: the compute keeps its own copy when it binds them. */
 const buffers: (GPUBuffer | GPUTextureView)[] = []

@@ -11,9 +11,9 @@ import {
   softBodyOf,
   type SoftBodyOptions,
   SOFT_DAMPING,
-} from '../../../../sdk-core/src/physics/soft.ts'
+} from '../../../../sdk-core/src/physics/soft/soft.ts'
 
-import { softSettings } from '../../../../sdk-core/src/physics/softSettings.ts'
+import { softSettings } from '../../../../sdk-core/src/physics/soft/softSettings.ts'
 import { events } from '../module.fixture.ts'
 import { addSoft, at, BOX, CLOTH, softWorld, stepped } from './soft.fixture.ts'
 import { FLAT, body } from '../records.fixture.ts'

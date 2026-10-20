@@ -5,10 +5,10 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { deformOutputWord, followPooledBlocks } from './outputs.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
-import type { HostAttributes } from '../host/resources.ts'
-import type { PageRec } from '../page/selection/types.ts'
+import type { HostAttributes } from '../session/host/resources.ts'
+import type { PageRec } from '../geometry/selection/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
-import { createChangedRuns } from '../webgpu/residency/ranges.ts'
+import { createChangedRuns } from '../geometry/residency/ranges.ts'
 
 /** Four rows — a float-pool block, a page's own results, the block again, a row with none —, a placement each. */
 function rig() {

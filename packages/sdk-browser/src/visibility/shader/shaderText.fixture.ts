@@ -6,7 +6,7 @@
  * and `select` axis by axis, `length`, `normalize`, `floor`, `cos`, `sin`, `min`, `max`, `abs`,
  * `sqrt`, the vector constructors and other texts' functions. The tests measure what the real
  * text does, not a copy of its formula; the cut rule reads
- * `../../page/cut/wgslPredicate.fixture.ts`.
+ * `../../geometry/cut/wgslPredicate.fixture.ts`.
  */
 type Value = number | number[] | number[][] | boolean
 type Call = (...args: Value[]) => Value

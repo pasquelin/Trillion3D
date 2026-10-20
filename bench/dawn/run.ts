@@ -21,7 +21,7 @@ import { engineSources, findPassSources } from './passes/passSource.ts'
 import { benchOptions, stamp } from './runs/options.ts'
 import { playScenario, type BenchPlay } from './runs/play.ts'
 import { reportText } from './report/reportText.ts'
-import { readJson } from '../../scripts/repository-files.ts'
+import { readJson } from '../../scripts/git/repository-files.ts'
 
 const options = benchOptions()
 const label = `${options.name} ${options.scenario.name}${options.search}`

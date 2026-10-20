@@ -1,7 +1,7 @@
 // No module is prepared before the first test: the products have no path but the kernel's.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from './host/graph/graph.fixture.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { replicateInstances } from './replicateInstances.ts'
 
@@ -21,7 +21,7 @@ test('without the module, replication is refused by name: no loop stands in for 
 
 test('a lot that does not hold the copies is left as it was, the products taken in one remade at their count', async () => {
   await import('../wasm/sdkWasm.fixture.ts')
-  const { createMultiplyLot } = await import('../page/decode/batch/batchRuntime.ts')
+  const { createMultiplyLot } = await import('../geometry/decode/batchRuntime.ts')
   const other = await createMultiplyLot(3)
   assert.ok(other)
   other.out.fill(7)

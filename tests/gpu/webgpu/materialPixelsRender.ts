@@ -2,7 +2,7 @@
 // the images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
 // comparison) to keep each file under the line gate.
 import * as THREE from 'three/webgpu'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'

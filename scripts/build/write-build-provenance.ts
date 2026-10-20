@@ -1,7 +1,7 @@
 import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts'
 import { readFile, writeFile } from 'node:fs/promises'
 import { resolve, relative, basename } from 'node:path'
-import { filesUnder, posixPath } from '../repository-files.ts'
+import { filesUnder, posixPath } from '../git/repository-files.ts'
 
 export async function fingerprintBuild(
   directory: string,

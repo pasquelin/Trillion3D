@@ -30,7 +30,7 @@ pub const SCENE_PROXY_FILE: &str = "proxy.bin";
 
 /// Scene proxy, ready for column output: ONE PROXY A COMPILED MESH, in the mesh's own space, whatever
 /// the number of nodes that place it. The engine places it where a node does, by the node's live
-/// world (`sdk-browser/src/gpu/dag/proxyInstances.ts`): an instance is four words, not a copy.
+/// world (`sdk-browser/src/geometry/dag/proxy/proxyInstances.ts`): an instance is four words, not a copy.
 #[derive(Default)]
 pub struct SceneProxy {
     /// The world extent of the placements, three lower bounds then three upper.

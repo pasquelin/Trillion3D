@@ -2,8 +2,8 @@ import { FULLSCREEN_X, FULLSCREEN_Y } from '../../gpu/shader/fullscreenTriangle.
 import { PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { fragmentMembers } from '../../gpu/core/fragmentOutputs.ts'
-import { REQUEST_OUTPUT, SURFACE_OUTPUTS } from '../../scene/surfaceOutputs.ts'
-import { COTANGENT_FRAME_WGSL } from '../../cluster/cotangentFrameWgsl.ts'
+import { REQUEST_OUTPUT, SURFACE_OUTPUTS } from '../../materials/surface/surfaceOutputs.ts'
+import { COTANGENT_FRAME_WGSL } from '../../geometry/cluster/cotangentFrameWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
@@ -14,13 +14,13 @@ import {
   DATA_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   tileDeclarations,
-} from '../../webgpu/tile/wgsl.ts'
-import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts'
+} from '../../materials/virtual/wgsl.ts'
+import { TILE_REQUEST_WGSL } from '../../materials/virtual/requestWgsl.ts'
 import { SHADE_REQUEST_WGSL } from './request.ts'
-import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts'
-import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts'
+import { SURFACE_MODEL_SHADE_WGSL } from '../../materials/surface/surfaceModel.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
 import { shadeCacheReadWgsl } from './shadeCacheLayout.ts'

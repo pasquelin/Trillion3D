@@ -13,7 +13,7 @@ goldens are written by the cook itself under `TRILLION3D_WRITE_GOLDEN=1`.
   (`mass_tests.rs`).
 - `soft-records.bin`: the cook's soft records of a cloth, a welded rope and a closed tetrahedron
   (`soft_tests.rs`); the page rebuilds each with `softBodyOf` and must match them bit for bit
-  (`packages/sdk-core/src/physics/softCook.test.ts`).
+  (`packages/sdk-core/src/physics/soft/softCook.test.ts`).
 - `pawn-body-patch.bin`: 200 connected triangles of the `Pawn_Body_Shared` mesh (mesh 6) of
   _A Beautiful Game_ (`abeautiful-game`, `ABeautifulGame.gltf`), Khronos glTF Sample Assets,
   **CC-BY-4.0**: original model © 2020 ASWF (MaterialX Project), conversion to glTF © 2022 Ed

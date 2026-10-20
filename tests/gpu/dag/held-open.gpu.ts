@@ -1,22 +1,22 @@
 // The open counts placements hold of their own, read by the kernel from the table in the readout
-// (`gpu/dag/heldOpen.ts`): fifty placements of a grouped primitive, every page resident, so each
+// (`geometry/dag/heldOpen.ts`): fifty placements of a grouped primitive, every page resident, so each
 // holds counts of its own, cut on the GPU with a table holding them all and with one of two slots
 // — an accelerator, which leaves a count it cannot hold at its node's: the drawn pages are the
 // same, and the CPU model's.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { packed } from '../../../packages/sdk-browser/src/gpu/dag/selectionHelpers.fixture.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { packed } from '../../../packages/sdk-browser/src/geometry/dag/selection/selectionHelpers.fixture.ts'
 import {
   dagFixture,
   frontCamera,
-} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/selection/dag.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
-import { ruleResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/geometry/dag/oracle/oracle.fixture.ts'
+import { ruleResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 test('a table of open counts too small for them cuts as one that holds them all, on the GPU', async () => {

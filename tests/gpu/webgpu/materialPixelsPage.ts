@@ -5,7 +5,7 @@
 import type * as THREE from 'three/webgpu'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import { directionalLight } from '../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
+import { directionalLight } from '../../../packages/sdk-browser/src/scene/host/graph/graphLights.fixture.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import { cameraFace, releaseScene } from '../../kit/device/sharedSceneProof.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'

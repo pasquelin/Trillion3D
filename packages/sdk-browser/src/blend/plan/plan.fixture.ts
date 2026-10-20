@@ -1,0 +1,63 @@
+import { planItem, refreshBlendPlan } from './plan.ts'
+import { buildBlendStatics } from '../statics.ts'
+import {
+  cpuModel,
+  orderBlendPlanCpu,
+  orderEye,
+  refreshEyeKeys,
+} from '../expand/expandCpu.fixture.ts'
+import { RUN_WORDS } from './planLayout.ts'
+import { precedes } from '../paintOrder.ts'
+import { createWebgpuBlendState, type BlendGpuItem } from '../state.ts'
+import { uniformStride } from '../../session/memory/pools.ts'
+
+/** A blend state holding `items`, its statics and encoding plan built as a frame would, its uniform
+ *  slots at the alignment of a device of `limits` (`prepareBlendResources`). */
+export function blendSceneOf(
+  items: readonly BlendGpuItem[],
+  limits?: { minUniformBufferOffsetAlignment?: number },
+) {
+  const blendState = createWebgpuBlendState()
+  blendState.blendGpu.push(...items)
+  buildBlendStatics(blendState, uniformStride(limits))
+  refreshBlendPlan(blendState)
+  return blendState
+}
+
+/**
+ * What a frame's ranking leaves for the GPU and the draws — the own entries in paint order, the
+ * slots and the frame words — with the pass's whole paint order and slot runs as the CPU model of
+ * the order kernel gives them (`orderBlendPlanCpu`): what the ranking tests compare.
+ */
+export function paintOutcome(blendState: ReturnType<typeof blendSceneOf>) {
+  const drawn = blendState.runCount > 0
+  if (drawn) refreshEyeKeys(blendState, orderEye(blendState))
+  return {
+    runCount: blendState.runCount,
+    ownSeeds: Array.from(blendState.ownSeeds),
+    frame: drawn ? Array.from(blendState.frameWords.subarray(0, blendState.frameLayout.words)) : [],
+    order: drawn ? Array.from(orderBlendPlanCpu(blendState)) : [],
+    runs: Array.from(cpuModel(blendState).runs.subarray(0, blendState.runCount * RUN_WORDS)),
+  }
+}
+
+/**
+ * The paint order of a pass's `seeds` from scratch: every entry by `precedes` on its item's
+ * priority and key (`priorities`, `keys`, by item) and rank — its index —, a double-sided item's
+ * back before its face — what the GPU order, the CPU model and the own entries the CPU ranks must
+ * all match.
+ */
+export function referenceOrder(
+  seeds: Uint32Array,
+  keys: ArrayLike<number>,
+  priorities: ArrayLike<number>,
+) {
+  return Array.from(seeds.keys())
+    .sort((a, b) => {
+      const [x, y] = [planItem(seeds[a]), planItem(seeds[b])]
+      if (precedes(priorities[x], keys[x], x, priorities[y], keys[y], y)) return 1
+      if (precedes(priorities[y], keys[y], y, priorities[x], keys[x], x)) return -1
+      return a - b
+    })
+    .map((seed) => seeds[seed])
+}

@@ -2,7 +2,7 @@ import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { Color, type ColorInput } from '../../../sdk-core/src/world/math/color.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { poseSourceOf } from '../world/core/helperMark.ts'
+import { poseSourceOf } from '../session/world/helperMark.ts'
 import {
   followNode,
   objectPieces,
@@ -146,7 +146,7 @@ export function createGuideSet(onChange: () => void = () => {}) {
     },
     /**
      * Moves each shown guide that follows a node to where the node stands now: called once per
-     * frame, before it draws (`../world/render/render.ts`). A node that stood still moves nothing;
+     * frame, before it draws (`../frame/schedule/render.ts`). A node that stood still moves nothing;
      * one that moved moves the revision, and asks for no frame of its own; a destroyed one is
      * let go (`followNode`).
      */

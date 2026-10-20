@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { git } from '../../git-paths.ts'
+import { git } from '../git-paths.ts'
 import { currentBranch } from './lib.ts'
 
 test('the branch is read on an unborn branch, empty when detached or outside a checkout', () => {

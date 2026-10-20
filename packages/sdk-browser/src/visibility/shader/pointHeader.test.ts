@@ -3,12 +3,12 @@
 // stage hands its UV on to a masked row alone, the only one whose cutout reads it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { type Fn } from './triangleScene.fixture.ts'
-import { vsmRenderRasterWgsl } from '../../vsm/renderRasterWgsl.ts'
+import { vsmRenderRasterWgsl } from '../../lighting/shadows/vsm/render/renderRasterWgsl.ts'
 import * as F from '../types.ts'
 import { ROWS } from './pointHeader.fixture.ts'
-import { vsmLayout } from '../../vsm/layout.ts'
+import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
 
 const VSM_CODE = vsmRenderRasterWgsl(vsmLayout({ fullMapCapacity: 63, poolPages: 256 }))
 

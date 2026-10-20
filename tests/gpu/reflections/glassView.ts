@@ -1,7 +1,7 @@
 // Where the eye and the panes of the glass proof stand, and the geometry it checks the image
 // against (`glassPage.ts`): the eye's rays, a ray's crossing of a pane, a point's pixel.
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 import { reflect } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
 import { rayRectangle } from './rayShapes.ts'

@@ -1,6 +1,6 @@
 // The images of the material fixtures (`materialFixtures.ts`), drawn in the page on a canvas and
 // handed to both engines as the same host texture.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import type { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
 import { fromUnorm8 } from '../../../packages/math/src/color/color.ts'
 import type { ColorSpace } from '../../../packages/sdk-core/src/world/constants/index.ts'

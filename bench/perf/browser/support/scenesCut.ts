@@ -1,7 +1,10 @@
 // Scenes specific to the cut: the paint a fixture page
 // wears, and the surface record the engine reads of it.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { surfaceOf, type PageSurface } from '../../../../packages/sdk-browser/src/page/surface.ts'
+import * as G from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
+import {
+  surfaceOf,
+  type PageSurface,
+} from '../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 
 /** The paint a fixture page wears, by rank, and the surface record the engine reads of it. */
 export const material = (index: number) =>

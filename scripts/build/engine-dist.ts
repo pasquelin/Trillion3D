@@ -1,7 +1,7 @@
 // Where `tsc -p tsconfig.json` emits each engine source, read from that file: the witness build
 // (`build-witnesses.ts`) points its engine imports there, so it runs the engine the build made.
 import { relative, resolve } from 'node:path'
-import { REPOSITORY_ROOT, readJson } from '../repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../git/repository-files.ts'
 
 const { compilerOptions } = readJson(resolve(REPOSITORY_ROOT, 'tsconfig.json')) as {
   compilerOptions: { rootDir: string; outDir: string }

@@ -83,21 +83,21 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
  *  generator's text is on the list for one layout, and every generator they import must be. */
 const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
-  'gpu/pool/sortKit.ts',
+  'gpu/sort/sortKit.ts',
   'gpu/core/computeStages.ts',
-  'gpu/raster/resolve.ts',
-  'texture/coverageMips.ts',
+  'visibility/raster/resolve.ts',
+  'materials/texture/coverageMips.ts',
   'lighting/deferred/program.ts',
   'lighting/deferred/compositions.ts',
-  'vsm/castStale.ts',
-  'vsm/chunkKernels.ts',
-  'vsm/markingPass.ts',
-  'vsm/passKit.ts',
-  'vsm/pageManagementPass.ts',
-  'vsm/projectionPipelines.ts',
-  'vsm/renderPipes.ts',
-  'vsm/transmissionContext.ts',
-  'vsm/transmissionPipes.ts',
+  'lighting/shadows/vsm/invalidation/castStale.ts',
+  'lighting/shadows/vsm/chunks/chunkKernels.ts',
+  'lighting/shadows/vsm/markingPass.ts',
+  'lighting/shadows/vsm/passKit.ts',
+  'lighting/shadows/vsm/pageManagementPass.ts',
+  'lighting/shadows/vsm/projection/projectionPipelines.ts',
+  'lighting/shadows/vsm/render/renderPipes.ts',
+  'lighting/shadows/vsm/transmission/transmissionContext.ts',
+  'lighting/shadows/vsm/transmission/transmissionPipes.ts',
 ])
 
 test('the list holds the text of every call that compiles a module', () => {
@@ -134,7 +134,7 @@ test('the list holds the text of every call that compiles a module', () => {
     for (const [, checked, plain] of read) {
       // The blend module's text is built by its own helper (`blendModuleCode`) from listed texts.
       const helper = /^blendModuleCode\(/.test(plain?.trim() ?? '')
-      if (file === 'webgpu/blend/pipelines.ts' && helper) {
+      if (file === 'blend/pipelines.ts' && helper) {
         assert.match(text, /return blendShader\(/)
         continue
       }

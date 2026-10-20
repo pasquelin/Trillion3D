@@ -1,10 +1,10 @@
 // What a session opens on, read on Dawn: the same canvas named by its id or given as an element
 // draws the same image, and the job and abort paths of a session that really opens on the device —
 // overridden sizes, an abort that disposes it, a cancelled job. A target that is no canvas, or a
-// named raster with no device, fails before any GPU work (`world/session/target.test.ts`).
+// named raster with no device, fails before any GPU work (`src/session/target.test.ts`).
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
-import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/world/session/target.ts'
+import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/session/options.ts'
+import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/session/target.ts'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { settle } from './proofWorld.ts'
 import { measurementSdk, openEngineWorld } from '../../kit/device/renderHarness.ts'

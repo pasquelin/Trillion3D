@@ -9,10 +9,10 @@
 // are the same numbers, bit for bit, each skip alone and both.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
+import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
+import { MODEL_FLAG } from '../../materials/surface/surfaceModel.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'

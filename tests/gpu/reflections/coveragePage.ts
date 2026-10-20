@@ -1,5 +1,5 @@
 // The opaque trace over images of the sizes displays have, every pixel a mirror: every pixel traced
-// and accumulated (`reflections/trace.ts`).
+// and accumulated (`trace/trace.ts`).
 // The reflection target is set to a not-a-number first; after the second image — the first builds
 // the radiance pyramid the screen is marched on — each of its words must have been written.
 import { perspectiveProjection } from '../../../packages/math/src/projection/camera.ts'

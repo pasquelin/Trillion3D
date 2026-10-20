@@ -6,7 +6,7 @@ import {
   TILE_SLOT_WGSL,
   atlasLodWgsl,
   samplingFootprintWgsl,
-} from '../../../packages/sdk-browser/src/texture/samplingFootprint.ts'
+} from '../../../packages/sdk-browser/src/materials/texture/samplingFootprint.ts'
 import { runCompute } from '../../kit/device/computeRun.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'

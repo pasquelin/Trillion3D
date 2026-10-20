@@ -6,7 +6,7 @@ import { transformPointsByMatricesBatch } from '../../../packages/math/src/batch
 import {
   createBoxTransformLot,
   madeLot,
-} from '../../../packages/sdk-browser/src/page/decode/batch/batchRuntime.ts'
+} from '../../../packages/sdk-browser/src/geometry/decode/batchRuntime.ts'
 import { rapport } from '../../core/report.ts'
 import type { Measurement } from '../../kit/measureTypes.ts'
 import { duel, N } from '../../oracles/core/three-duel.ts'
@@ -40,7 +40,7 @@ const oracleUnion = new Float64Array(6),
 lines.push(
   await duel({
     name: 'Box3 transform and union batch',
-    fichier: 'packages/sdk-browser/src/page/decode/batch/batchRuntime.ts',
+    fichier: 'packages/sdk-browser/src/geometry/decode/batchRuntime.ts',
     three: () => {
       threeUnion.makeEmpty()
       for (let i = 0; i < N; i++)

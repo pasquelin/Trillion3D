@@ -1,7 +1,7 @@
 /**
  * What an engine reports of itself when something goes wrong or when a view asks for detail:
  * the record the host collector queues, and how much of it a caller wants. Separate from the
- * engine contract of `../engine/types.ts` — this is what comes back out, not what is offered.
+ * engine contract of `../session/engine/types.ts` — this is what comes back out, not what is offered.
  */
 export type DiagnosticDetail = 'summary' | 'trace'
 

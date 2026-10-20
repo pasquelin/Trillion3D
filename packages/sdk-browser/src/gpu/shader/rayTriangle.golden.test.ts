@@ -3,7 +3,7 @@
 // `packages/math/golden/ray_triangle.json`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { rayTriangleDistance } from '../../../../math/src/wgsl/geometry.ts'
 import { eachGolden } from '../../../../math/src/golden.fixture.ts'

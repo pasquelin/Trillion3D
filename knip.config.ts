@@ -14,8 +14,8 @@ const config: KnipConfig = {
         'bench/kit/index.ts',
         // The report format the site reads from a pinned engine checkout: a public contract.
         'bench/kit/report/*.ts',
-        'packages/sdk-browser/src/page/work/pageWorker.ts',
-        'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
+        'packages/sdk-browser/src/geometry/work/pageWorker.ts',
+        'packages/sdk-browser/src/geometry/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
         // The public API's source (`scripts/sdkApi/sdk-api-model.ts`, `ENTRIES`): the facade below is
         // generated from these three entries, so every name they export is public.

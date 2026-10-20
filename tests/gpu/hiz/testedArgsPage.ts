@@ -5,13 +5,13 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import {
   createHizPipelines,
   hizArgsGroup,
-} from '../../../packages/sdk-browser/src/gpu/hiz/pipelines.ts'
-import { HIZ_SLOT_WORDS } from '../../../packages/sdk-browser/src/gpu/hiz/uniforms.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pipelines.ts'
+import { HIZ_SLOT_WORDS } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/uniforms.ts'
 import {
   STATE_WORDS,
   ST_TESTED,
   TESTED_BOX,
-} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+} from '../../../packages/sdk-browser/src/geometry/partition/gpu/contract.ts'
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'

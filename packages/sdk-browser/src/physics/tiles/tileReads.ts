@@ -1,7 +1,7 @@
 import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { SharedShapes } from '../sharedShapes.ts'
 import type { TileShape } from './tilePlace.ts'
-import { ONE_REQUEST } from '../../cluster/checked.ts'
+import { ONE_REQUEST } from '../../geometry/cluster/checked.ts'
 
 /** Tile reads in flight at once. */
 const FETCHES = 8

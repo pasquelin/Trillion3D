@@ -4,10 +4,10 @@
 // the frame holds translucent casters.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { VSM_MASK_THROUGH_SHIFT } from '../../vsm/constants.ts'
+import { VSM_MASK_THROUGH_SHIFT } from '../shadows/vsm/constants.ts'
 
 type V = number[]
 

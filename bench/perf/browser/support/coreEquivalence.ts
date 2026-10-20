@@ -155,7 +155,7 @@ async function lignesOperations(): Promise<Measurement[]> {
     ),
     await ligne(
       'node displacement: parent⁻¹ · world, then TRS',
-      'packages/sdk-browser/src/webgpu/pages/render/transform.ts',
+      'packages/sdk-browser/src/frame/render/transform.ts',
       'paires hostiles',
       pairs,
       (l) =>

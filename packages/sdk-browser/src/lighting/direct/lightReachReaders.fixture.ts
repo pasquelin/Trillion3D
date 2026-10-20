@@ -3,19 +3,22 @@
 // the records its host writes, and the bounce's world light lists, from the reader's cell to the
 // run the list pass gives the light in its column.
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import type { WgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { lightTilesShader } from '../tiles/shader.ts'
-import { PROJECTION_CODE, PROJECTION_SCOPE } from '../../vsm/projectionTiles.fixture.ts'
-import { projectionKit } from '../../vsm/projectionKit.fixture.ts'
+import {
+  PROJECTION_CODE,
+  PROJECTION_SCOPE,
+} from '../shadows/vsm/projection/projectionTiles.fixture.ts'
+import { projectionKit } from '../shadows/vsm/projection/projectionKit.fixture.ts'
 import {
   VSM_PROJECTION_HEADER_WORDS,
   VSM_PROJECTION_LIGHT_WORD,
   VSM_PROJECTION_LIGHT_WORDS,
-} from '../../vsm/projectionView.ts'
-import { projectionLight } from '../../webgpu/pages/render/vsm/vsmPlan.ts'
+} from '../shadows/vsm/projection/projectionView.ts'
+import { projectionLight } from '../shadows/vsm/frame/vsmPlan.ts'
 import type { LightRecord, V3 } from './lightReach.fixture.ts'
 
 type Reaches = (offset: V3, range: number, cosEdge: number, forward: V3, rect: boolean) => boolean

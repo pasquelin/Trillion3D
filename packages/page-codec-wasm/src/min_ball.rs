@@ -150,5 +150,4 @@ pub fn ball_of_balls(spheres: &[[f64; 4]]) -> [f64; 4] {
 }
 
 #[cfg(test)]
-#[path = "min_ball_tests.rs"]
 mod tests;

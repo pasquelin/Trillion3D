@@ -6,7 +6,7 @@ import {
   type VsmTraceBindings,
 } from './shadowBindings.ts'
 import { vsmConsumerWgsl } from './vsmConsumerWgsl.ts'
-import { BLEND_TRACE_BINDINGS, BLEND_VSM_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { BLEND_TRACE_BINDINGS, BLEND_VSM_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import {
   VSM_NO_PIXEL_WGSL,
   vsmFragmentSampleWgsl,
@@ -14,11 +14,11 @@ import {
   vsmMaskWgsl,
 } from './shadowTraceWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { VSM_BIAS_NORMAL_WGSL } from '../../vsm/receiverTraceWgsl.ts'
-import { VSM_TRACE_KINDS_BOTH, VSM_TRACE_KINDS_SUN } from '../../vsm/traceWgsl.ts'
+import { VSM_BIAS_NORMAL_WGSL } from '../shadows/vsm/trace/receiverTraceWgsl.ts'
+import { VSM_TRACE_KINDS_BOTH, VSM_TRACE_KINDS_SUN } from '../shadows/vsm/trace/traceWgsl.ts'
 
 /**
- * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`): one
+ * The shadow read of every lit surface, through the virtual shadow maps (`../shadows/vsm/`): one
  * estimator, the receiver's trace (`vsmReceiverTraceWgsl`). A shadowed light's `params.y` is
  * `firstVsmId · 64 + channel`, −1 without a shadow (`vsmEncode.ts`), its channel the light's rank in
  * the frame's projection (`vsmView.lights`). The opaque resolve reads the trace the projection pass

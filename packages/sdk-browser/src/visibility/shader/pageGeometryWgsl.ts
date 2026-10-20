@@ -1,4 +1,4 @@
-import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
+import { clusterDecodeWgsl } from '../../geometry/cluster/decodeWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import {
   DEFORM_ADDRESS,
@@ -13,7 +13,7 @@ import { VOXEL_WGSL } from './voxelWgsl.ts'
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts'
 import { SPRITE_WGSL } from './spriteWgsl.ts'
-import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts'
+import { VERTEX_COLOR_WGSL } from '../../gpu/core/vertexColors.ts'
 
 /** Whether a row reads a quantized cluster page (`FLAG_CLUSTER_PAGE`): every page read's branch. */
 export const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`
@@ -30,7 +30,7 @@ const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
  *
  * A row whose pool slot holds a quantized cluster page (`FLAG_CLUSTER_PAGE`, `docs/FORMAT.md`)
  * decodes its corners and its vertices from those words in place, with the shared routines of
- * `../../cluster/decodeWgsl.ts`: nothing of that cluster is ever uploaded as floats. A primitive the
+ * `../../geometry/cluster/decodeWgsl.ts`: nothing of that cluster is ever uploaded as floats. A primitive the
  * compiler gave no geometry page — a cache that predates the format — keeps the source buffers it
  * always read, and its rows carry the bit at zero. Both paths are written here once, so no pass
  * can read one geometry and another pass the other.
@@ -46,7 +46,7 @@ const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
  * (\`voxelHitWgsl.ts\`).
  *
  * Vertex colours: quantized on the page, at the tail of the source UV buffer otherwise
- * (`../../webgpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
+ * (`../../gpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
  * rasters cut a masked row at its base map alpha times the vertex alpha (`pageMaskAlpha`), as the
  * reference multiplies the diffuse alpha by the vertex colour before its alpha test.
  *

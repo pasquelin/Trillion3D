@@ -1,8 +1,11 @@
 // The occluding scene the Hi-Z proofs share: a near opaque wall and a far opaque slab, offset, so
 // that view parallax takes the slab out from behind the wall and its clusters' occlusion verdict
 // flips with the camera.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type { EngineContext, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
+import type {
+  EngineContext,
+  Engine,
+} from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import {

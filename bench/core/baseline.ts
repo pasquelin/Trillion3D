@@ -4,8 +4,8 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { baselinePath, BASELINES } from './paths.ts'
 import type { Measurement } from '../kit/measureTypes.ts'
-import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
-import { git } from '../../scripts/git-paths.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/git/repository-files.ts'
+import { git } from '../../scripts/git/git-paths.ts'
 
 /** One stored baseline row, keyed by measurement/case pair. */
 interface BaselineRow {

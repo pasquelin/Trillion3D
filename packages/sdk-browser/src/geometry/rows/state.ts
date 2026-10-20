@@ -1,0 +1,144 @@
+import { createWebgpuRowJournal } from './journal.ts'
+import type { PageRec } from '../selection/types.ts'
+import { createPageCatalogue, type PageList } from '../selection/catalogue.ts'
+import { pageAddress } from './page/pageSlots.ts'
+import { flatInstances, type PackedInstances } from './instances.ts'
+import { createDirtyRows } from './dirty.ts'
+import { createChangedRuns } from '../residency/ranges.ts'
+import { growRowState } from './grow.ts'
+import { createRowPageState } from './page/pageState.ts'
+/** The page-table rows a session holds (`createWebgpuRowState`). */
+export type WebgpuRowState = ReturnType<typeof createWebgpuRowState>
+
+/**
+ * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
+ *
+ * The table holds `drawSlots` visibility rows, then `blendSlots` rows the shadow pass alone reads:
+ * the blended clusters that cast (`blendCasters.ts`). A visibility pass reads `[0, packedCount)`
+ * and never reaches them; the per-row arrays the shadow pass reads — record, catalogue page,
+ * dirty marks — span both. The per-page arrays are replaced when placements grown in place add
+ * pages (`addPages`), the per-row ones when the table grows (`grow`): they are read through this
+ * object, never kept.
+ */
+export function createWebgpuRowState(
+  packedPages: PageList,
+  drawSlots: number,
+  blendSlots = 0,
+  /** Packed ranks by pool ADDRESS, the key the cache names when a slot moves: the layout's, per
+   *  primitive page (`./instances.ts`); made here over a flat list built without one. */
+  instances: PackedInstances = flatInstances(packedPages),
+  /** The pool slot, in words, an address holds in the page cache, -1 none (`page/pageState.ts`). */
+  slotWords: (address: string) => number,
+) {
+  const casterSlots = drawSlots + blendSlots
+  const dirtyRows = createDirtyRows(),
+    readyRows = createChangedRuns()
+  const state = {
+    /** Pages named by the cache and those whose residency flag just flipped. */
+    ...createWebgpuRowJournal(),
+    /** First shadow-only row, and the end of the table: `[drawSlots, casterSlots)`. */
+    blendFirst: drawSlots,
+    casterSlots,
+    /** The table's generation: it moves when the table grows, which a reader of its size follows. */
+    generation: 0,
+    instances,
+    /** A record's packed ranks all share its pool address: the address's first rank names it. A
+     *  caller that needs ONE instance's rank uses the packed list the cut publishes, never this. */
+    pageIndexOf: (rec: PageRec) => instances.first(pageAddress(rec)),
+    ...createRowPageState(
+      createPageCatalogue(packedPages).recordOf,
+      () => packedPages.length,
+      slotWords,
+    ),
+    ...rowArrays(drawSlots, casterSlots),
+    ...rowCounters(),
+    /** Declares rows `[from, to]` dirty — one row by default —; `clearDirty` once all are sent. */
+    markRowDirty: dirtyRows.mark,
+    /** Declares rows dirty whose occupant is kept (a pose, a diagnostic word): `markWords`. */
+    markRowWords: dirtyRows.markWords,
+    /** Packed page `page`'s readiness moved: of its row, if it has one, the detail's bits alone
+     *  are written again (`../../placement/rows/rowWords.ts`), never the row. */
+    markRowOfPage: (page: number) => {
+      const row = state.rowOf(page)
+      if (row >= 0) readyRows.mark(row)
+    },
+    /** The rows whose readiness moved since the last take, increasing: a view the next take
+     *  overwrites. */
+    takeReadyRows: () => readyRows.take(),
+    clearDirty: dirtyRows.clear,
+    /** How many rows are dirty. */
+    get dirtyCount() {
+      return dirtyRows.count
+    },
+    /** The runs of neighbouring dirty rows, in order, the rows past `last` left out. */
+    forEachDirtyRun: dirtyRows.forEachRun,
+    /** Row writes since the table was made (`rowsMoved`). */
+    get rowWrites() {
+      return dirtyRows.writes
+    },
+    /** The table grows in place to `drawSlots` visibility rows and `blendSlots` casters' rows. */
+    grow(drawSlots: number, blendSlots: number) {
+      growRowState(state, drawSlots, blendSlots)
+    },
+    /** `packedPages` grew from `first` on (`addRowPages`). */
+    addPages(first: number) {
+      addRowPages(state, packedPages, first)
+    },
+  }
+  return state
+}
+
+/** The per-row arrays, over `drawSlots` visibility rows and `casterSlots` rows in all: nothing per
+ *  page (`page/pageState.ts`). */
+function rowArrays(drawSlots: number, casterSlots: number) {
+  return {
+    rowPageIndex: new Int32Array(drawSlots).fill(-1),
+    rowOffsetWords: new Int32Array(drawSlots).fill(-1),
+    rowEpoch: new Int32Array(drawSlots),
+    packedPageIndex: new Int32Array(casterSlots),
+    packedRecs: new Array<PageRec | undefined>(casterSlots).fill(undefined),
+  }
+}
+
+/** The table's counters and its page table's arrays, before its first pass. */
+function rowCounters() {
+  return {
+    rowCount: 0,
+    tableEpoch: 1,
+    rowsEpoch: 0,
+    candidateCount: 0,
+    /**
+     * Age of the row table itself: a new table (prepare, a visibility path dropped) advances it,
+     * and the allocator then rebuilds rather than trusting a page → rank mapping it did not post.
+     */
+    rowsRevision: 0,
+    /** Instances the GPU cut asked a row for that the last pass could not give one: neither a
+     *  free row nor one unused for a while (`slots.ts`). The table grows by them. */
+    rowsDenied: 0,
+    packedCount: 0,
+    rowsChanged: true,
+    pageTableFloats: undefined as Float32Array | undefined,
+    pageTableInts: undefined as Uint32Array | undefined,
+  }
+}
+
+/**
+ * `packedPages` grew from `first` on (`../../placement/growth/webgpuGrowth.ts`): `instances` indexes the
+ * new roots, and each new page — reading the pool slot its address holds, no residency flag and no
+ * row yet (`page/pageState.ts`) — is named to the journal so the row cache serves it as any arrival.
+ */
+function addRowPages(state: RowState, packedPages: PageList, first: number) {
+  state.instances.add()
+  for (let page = first; page < packedPages.length; page++) state.touchPage(page)
+}
+
+type RowState = ReturnType<typeof createWebgpuRowState>
+
+/** The row packed page `index` draws from while it is still this page's, -1 none: a blended
+ *  cluster's caster row, its own (`blendCasters.ts`); an opaque row only while the table names
+ *  this page there, since a row the cache gave back may name another page since. */
+export function ownPageRow(rows: WebgpuRowState, index: number, transparent: boolean) {
+  const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
+  if (row < 0 || transparent) return row
+  return row >= rows.packedCount || rows.packedPageIndex[row] !== index ? -1 : row
+}

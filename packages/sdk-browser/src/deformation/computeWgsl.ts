@@ -3,7 +3,7 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pageWgsl.ts'
 
 /** The stage's bindings, named once: the text and the layout print them. `normals` is the float
- *  pool's normal atlas (`../webgpu/core/floatAtlas.ts`); `pages` the rows deformed, the page table
+ *  pool's normal atlas (`../gpu/core/floatAtlas.ts`); `pages` the rows deformed, the page table
  *  or the float-pool blocks' (`../deformation/pooledRows.ts`); `image` the dispatch's record. */
 export const DEFORMATION_BINDING = {
   indices: 0,

@@ -5,7 +5,7 @@
 // engine, walking the same poses, whose bundles are encoded as their commands in the pass
 // (`withDirectBundles`): the witness. The bundles each image records are counted.
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { Engine } from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
 import { untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'

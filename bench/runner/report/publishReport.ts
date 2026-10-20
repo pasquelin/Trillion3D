@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { assertReport } from '../../kit/report/contract.ts'
 import { parseArgs } from '../harness/flags.ts'
 import { measureOutput } from '../../core/paths.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 export function publierRapport(source: string, dest: string): string {
   const report = assertReport(readJson(join(source, 'report.json')))
   const reports = join(dest, 'reports'),

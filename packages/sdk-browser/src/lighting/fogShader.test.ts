@@ -11,7 +11,7 @@ import {
 } from '../../../sdk-core/src/scene/core/environment.ts'
 import { packFog, type SceneFog } from '../../../sdk-core/src/scene/core/fog.ts'
 import { lerp, saturate } from '../../../math/src/scalar/reals.ts'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { near } from '../../../math/src/float/near.fixture.ts'
 import { distanceVector3 } from '../../../math/src/vector/vector.ts'
 

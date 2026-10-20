@@ -6,7 +6,7 @@ import {
   gpuPassBlockOf,
   gpuPassStageOf,
   passOwnMs,
-} from '../../../packages/sdk-browser/src/stage/mapping.ts'
+} from '../../../packages/sdk-browser/src/diagnostic/stage/mapping.ts'
 import { COUNTS, type Counts } from '../machine/device.ts'
 import type { FrameRecord } from '../capture/frames.ts'
 import { WATCHED } from '../page/watched.ts'

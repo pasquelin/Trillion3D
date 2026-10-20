@@ -125,7 +125,7 @@ export const runShadows = () =>
 /** A dense rig stands far from the view, outside every level of the sun's clipmap, and its parent
  *  moves it into them in one move: the shadow raster's chunks are sized from histograms of the
  *  spheres the GPU composed, and the rows a parent's move carries farther than their bins hold are
- *  counted whole (`vsm/rowPageBound.ts`), so every (row, page) pair is rendered, none dropped: the
+ *  counted whole (`rows/rowPageBound.ts`), so every (row, page) pair is rendered, none dropped: the
  *  shadows are the world opened there. */
 export const runSunFar = () =>
   moved(

@@ -5,24 +5,24 @@
 // transparent pane in the same place; the view is orthographic, its world its NDC.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { standaloneHiz } from '../../kit/device/standaloneHiz.ts'
-import type { Pyramid } from '../../../packages/sdk-browser/src/gpu/hiz/pyramid.ts'
+import type { Pyramid } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pyramid.ts'
 import {
   HIZ_FRONT_LAYER,
   hizDepthBindEntries,
   hizDepthEntries,
   hizDepthWgsl,
-} from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
-import { SCREEN_MARCH_WGSL } from '../../../packages/sdk-browser/src/gpu/hiz/screenMarch.ts'
-import { screenSlab } from '../../../packages/sdk-browser/src/gpu/hiz/screenSlab.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pyramidTexture.ts'
+import { SCREEN_MARCH_WGSL } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/screenMarch.ts'
+import { screenSlab } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/screenSlab.ts'
 import {
   VSM_PROJECTION_LIGHT_STRUCT,
   VSM_PROJECTION_VIEW_BYTES,
   VSM_PROJECTION_VIEW_STRUCT,
   VSM_PROJECTION_VIEW_WORD,
-} from '../../../packages/sdk-browser/src/vsm/projectionView.ts'
-import { vsmLayout } from '../../../packages/sdk-browser/src/vsm/layout.ts'
-import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/vsm/projectionWgsl.ts'
-import { functionsOf } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts'
+} from '../../../packages/sdk-browser/src/lighting/shadows/vsm/projection/projectionView.ts'
+import { vsmLayout } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/layout.ts'
+import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/projection/projectionWgsl.ts'
+import { functionsOf } from '../../../packages/sdk-browser/src/materials/texture/shaderRule.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../packages/math/src/wgsl/number.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'

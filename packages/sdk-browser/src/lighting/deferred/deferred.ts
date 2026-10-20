@@ -1,4 +1,4 @@
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
+import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { UNLIT_COMPOSITIONS, UNLIT_LIGHTING_PROGRAM } from './shaders.ts'
 import { createContractVariants, type LitPrograms } from './contractVariants.ts'
 import { cutsIn } from './contractCuts.ts'
@@ -15,7 +15,7 @@ import {
   DEFERRED_LIGHTING_PASS,
   HDR_COMPOSITION_PASS,
   HDR_PRESENT_PASS,
-} from '../../stage/passLabels.ts'
+} from '../../diagnostic/stage/passLabels.ts'
 
 /** Whether these resources light with the bounce program. */
 const bounceOf = ({ bounceGrid, probes }: DirectLightResources) => !!bounceGrid && !!probes

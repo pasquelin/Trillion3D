@@ -2,7 +2,7 @@
 // light of the lit fixtures, the renderers that draw it and what a fixture declares.
 import { VIEWPORT } from '../../kit/device/sharedSceneProof.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
-import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 
 /** Side of the square viewport every fixture is rendered in, in pixels: `rgbAt` reads both
  *  images with this row stride, so a viewport that is not square would misread them silently. */

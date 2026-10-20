@@ -1,9 +1,9 @@
 // the partition-pass uniform, packed every frame: the two anchored matrices, the
 // split-double anchor and the scalars, bit-exact against the oracle.
-import { PARTITION_UNI } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+import { PARTITION_UNI } from '../../../packages/sdk-browser/src/geometry/partition/gpu/contract.ts'
 import { writeSplitDouble } from '../../../packages/math/src/float/splitDouble.ts'
-import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
-import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
+import { packPartitionUniform } from '../../../packages/sdk-browser/src/geometry/partition/gpu/uniform.ts'
+import type { PartitionFrame } from '../../../packages/sdk-browser/src/geometry/partition/gpu/uniform.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -46,7 +46,7 @@ const decompose =
 
 const measureSplit = await measure({
   name: 'split-double decomposition',
-  fichier: 'packages/sdk-browser/src/gpu/partition/contract.ts',
+  fichier: 'packages/sdk-browser/src/geometry/partition/gpu/contract.ts',
   cas: [
     {
       name: '50 000 doubles',
@@ -79,7 +79,7 @@ const words = new Uint32Array(PARTITION_UNI.words),
 
 const measureUniform = await measure({
   name: 'partition uniform',
-  fichier: 'packages/sdk-browser/src/gpu/partition/uniform.ts',
+  fichier: 'packages/sdk-browser/src/geometry/partition/gpu/uniform.ts',
   cas: [{ name: 'one frame', input: image(), size: 1 }],
   calculation: (frame) => {
     packPartitionUniform(words, floats, frame, frame.rows)

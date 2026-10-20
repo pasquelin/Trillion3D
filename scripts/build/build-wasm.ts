@@ -7,7 +7,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { WASM_CRATE } from '../native/native-crates.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 import { runChecked } from '../test/run.ts'
 
 const MANIFEST = join(REPOSITORY_ROOT, WASM_CRATE.path, 'Cargo.toml')
@@ -21,7 +21,7 @@ function rustc(...args: string[]): string {
 }
 
 /**
- * `-relaxed-simd`: the batch computation kernels of core (`packages/page-codec-wasm/src/wasm_math.rs`)
+ * `-relaxed-simd`: the batch computation kernels of core (`packages/page-codec-wasm/src/wasm/math.rs`)
  * match the bitwise output of the JavaScript version because WebAssembly has NO fused multiply-add
  * instruction — neither in base nor `simd128`. `relaxed-simd` has one (`f64x2.relaxed_madd`), whose
  * rounding is implementation-defined: a single such instruction would break exact bit equality silently.

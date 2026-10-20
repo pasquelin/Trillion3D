@@ -4,7 +4,7 @@ import { floorMod2 } from '../../../math/src/wgsl/reals.ts'
 
 /**
  * Addressing mode of a texture, a nibble of bits carried in its header of the page table
- * (`../texture/sampling.ts`), and the rule that brings a coordinate back into the texture. The
+ * (`../materials/texture/sampling.ts`), and the rule that brings a coordinate back into the texture. The
  * nibble and the rule it commands live together: nobody has to open two files to read an
  * addressing. Bits of a nibble: 1 = S repeats, 2 = S repeats mirrored, 4 and 8 the same on T. The
  * two bits of an axis exclude each other, so `wrapAxis` never has to arbitrate between them, and
@@ -18,7 +18,7 @@ const WRAP_S_REPEAT = 1,
 /** The two repeat bits: without them, no period wraps, so no seam. */
 const WRAP_REPEATS = WRAP_S_REPEAT | WRAP_T_REPEAT
 
-/** Rank of each map a pixel can name in its tile request (`../webgpu/tile/requestWgsl.ts`). */
+/** Rank of each map a pixel can name in its tile request (`../materials/virtual/requestWgsl.ts`). */
 export const WRAP_MAP = {
   base: 0,
   rough: 1,

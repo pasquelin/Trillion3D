@@ -10,16 +10,16 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 | Mechanism                                       | Where                                                      |
 | ----------------------------------------------- | ---------------------------------------------------------- |
-| The predicate that draws or withholds a cluster | `page/cut/rule.ts:drawsCluster`                            |
-| Its residency, by group and closed upward       | `page/cut/readiness.ts`                                    |
-| The GPU kernel's copy and its CPU model         | `gpu/dag/readiness.ts`, `gpu/dag/oracle/oracle.fixture.ts` |
-| Whole groups asked of the cache                 | `page/cut/groupClosure.ts`                                 |
-| The CPU cut, the kernel's oracle in the tests   | `page/cut/take.fixture.ts`, `page/cut/held.fixture.ts`     |
+| The predicate that draws or withholds a cluster | `geometry/cut/rule.ts:drawsCluster`                            |
+| Its residency, by group and closed upward       | `geometry/cut/readiness.ts`                                    |
+| The GPU kernel's copy and its CPU model         | `geometry/dag/readiness.ts`, `geometry/dag/oracle/oracle.fixture.ts` |
+| Whole groups asked of the cache                 | `geometry/cut/groupClosure.ts`                                 |
+| The CPU cut, the kernel's oracle in the tests   | `geometry/cut/take.fixture.ts`, `geometry/cut/held.fixture.ts`     |
 
 - One predicate on one readiness, the threshold always the host's. The GPU cut is the engine's one
-  cut, every view's (`gpu/dag/aside.ts`): the CPU cut is the kernel's reference in the tests alone.
+  cut, every view's (`geometry/dag/aside.ts`): the CPU cut is the kernel's reference in the tests alone.
   Views share the cut's tables: a view whose cut still stands takes its draw mask back from its
-  saved journal instead of cutting again (`gpu/dag/swap.ts`), one region of the readout a view,
+  saved journal instead of cutting again (`dag/swap/swap.ts`), one region of the readout a view,
   made when the first view is drawn aside.
 - A missing page falls back to its nearest resident ancestor and coarsens its own neighbourhood by
   one level, never its primitive nor the root cover. Memory short, a page not uploaded yet, a
@@ -28,18 +28,18 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
   so that ancestor is always a candidate. No frame waits for coverage once the root cover is
   resident.
 - The cut's state follows the view and the pool, never the catalogue
-  (`page/cut/viewBound.test.ts`).
+  (`geometry/cut/viewBound.test.ts`).
 
 ## The geometry pool
 
 | Mechanism                                               | Where                                                             |
 | ------------------------------------------------------- | ----------------------------------------------------------------- |
-| The fixed split of the world's GPU and CPU totals       | `residency/memoryBudget.ts`, `residency/pools.ts`                 |
-| The floor: root cover plus the group each root replaces | `residency/minimumCapacity.ts`                                    |
-| WebGPU slots beside the vertex buffers, and a resize    | `webgpu/pages/io/memory.ts`, `webgpu/pages/prepare/growTables.ts` |
-| The world HLOD's table, DAG and held bundles            | `scene/worldRoots.ts`, `scene/worldBundles.ts`                    |
-| The world HLOD actors the cut draws                     | `scene/worldHlod.ts`, `gpu/dag/worldFollow.ts`                    |
-| Eviction by last use, parents after children            | `gpu/dag/evict.ts`, `gpu/dag/shader/lastUseWgsl.ts`               |
+| The fixed split of the world's GPU and CPU totals       | `memory/memoryBudget.ts`, `memory/pools.ts`                 |
+| The floor: root cover plus the group each root replaces | `memory/minimumCapacity.ts`                                    |
+| WebGPU slots beside the vertex buffers, and a resize    | `src/frame/io/memory.ts`, `src/frame/prepare/growTables.ts` |
+| The world HLOD's table, DAG and held bundles            | `hlod/worldRoots.ts`, `hlod/worldBundles.ts`                    |
+| The world HLOD actors the cut draws                     | `hlod/worldHlod.ts`, `dag/worlds/worldFollow.ts`                    |
+| Eviction by last use, parents after children            | `dag/evict/evict.ts`, `geometry/dag/shader/lastUseWgsl.ts`               |
 
 - Past the pool, the cut keeps the host's screen error: the pool loads what fits, coarsest first,
   and the cut rule draws the rest (`coverage-budget`). Memory never forces a cut the view refuses:
@@ -53,13 +53,13 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 | Mechanism                                           | Where                                                                         |
 | --------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Install order: a page after the pages it depends on | `webgpu/residency/admission.ts`                                               |
-| Past the pool, the requests in the GPU's ranking    | `gpu/dag/request.ts`, `webgpu/residency/requestAdmission.ts`                  |
-| Rows, a cache of what the GPU cut draws and asks    | `webgpu/row/slots.ts`, `webgpu/row/rowDemand.ts`, `webgpu/row/rowOrder.ts`    |
-| Requests ahead of a moving camera, a lower tier     | `gpu/core/aheadView.ts`, `webgpu/residency/lowerTier.ts`                      |
-| The main thread's share                             | `page/integration/frameBudget.ts`                                             |
-| The eviction queue the GPU cut publishes            | `gpu/dag/evict.ts`, `gpu/dag/poolList.ts`, `webgpu/residency/evictionFeed.ts` |
-| The cache's one hold: the root cover's pins         | `webgpu/residency/pinUpdater.ts`, `gpu/page/eviction.ts`                      |
+| Install order: a page after the pages it depends on | `geometry/residency/admission.ts`                                               |
+| Past the pool, the requests in the GPU's ranking    | `dag/request/request.ts`, `geometry/residency/requestAdmission.ts`                  |
+| Rows, a cache of what the GPU cut draws and asks    | `geometry/rows/slots.ts`, `rows/demand/rowDemand.ts`, `geometry/rows/rowOrder.ts`    |
+| Requests ahead of a moving camera, a lower tier     | `gpu/core/aheadView.ts`, `geometry/residency/lowerTier.ts`                      |
+| The main thread's share                             | `geometry/integration/frameBudget.ts`                                             |
+| The eviction queue the GPU cut publishes            | `dag/evict/evict.ts`, `geometry/dag/poolList.ts`, `geometry/residency/evictionFeed.ts` |
+| The cache's one hold: the root cover's pins         | `geometry/residency/pinUpdater.ts`, `pages/pool/eviction.ts`                      |
 
 - A region keeps a complete resident representation until every replacement page is uploaded. A
   page's dependencies are requested with it ([FORMAT.md](FORMAT.md#cluster-dag)); until they
@@ -84,15 +84,15 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 ### Partitioned scenes
 
 A partitioned scene ([FORMAT.md](FORMAT.md#world-partition)) is read as the camera reaches it,
-never whole (`partition/`, `world/scene/partitionFrame.ts`).
+never whole (`partition/`, `scene/drive/partitionFrame.ts`).
 
 | Mechanism                               | Where                                                           |
 | --------------------------------------- | --------------------------------------------------------------- |
 | The reach and its margin (`KEEP`)       | `partition/plan.ts:placedReach`, `partition/plan.ts:keepRadius` |
 | The cell index walk and the cell decode | `partition/cellIndex.ts`, `partition/cellDecode.ts`             |
-| Rows sized for the view, grown in place | `partition/sizing.ts`, `placement/growth.ts`                    |
+| Rows sized for the view, grown in place | `partition/sizing.ts`, `growth/growth.ts`                    |
 | The world bundles the HLOD cells hold   | `partition/cellHolds.ts`                                        |
-| Each HLOD cell wished, held and told    | `partition/hlodCells.ts`, `gpu/dag/worldFollow.ts`              |
+| Each HLOD cell wished, held and told    | `hlod/hlodCells.ts`, `dag/worlds/worldFollow.ts`              |
 
 - The error target never shortens the reach: a cell left unread would be missing, not coarser.
 - The first frame reads the view's bytes, not the world's (`primePartitions`); cells, arrivals,
@@ -100,29 +100,29 @@ never whole (`partition/`, `world/scene/partitionFrame.ts`).
   order (`MAIN_THREAD_FRAME_MS`).
 - Rows are sized by reach, cell size and stretch, never by the world; outgrown, they grow in place
   (`growsInPlace`): the new placements appended into the room the GPU cut's tables kept, O(added)
-  (`gpu/dag/pack.ts`, `appendDagRoots`), or, past it, the cut made again over every root beside
+  (`dag/pack/pack.ts`, `appendDagRoots`), or, past it, the cut made again over every root beside
   the running one at twice the capacity — once per image however many growths it brought, a
   logarithmic number of times —, the new rows drawn from the image that adopts them, whose first
-  main cut runs whole (`placement/webgpuGrowth.ts`); the page table and the tables sized by its rows
+  main cut runs whole (`growth/webgpuGrowth.ts`); the page table and the tables sized by its rows
   grow a factor at a time (`rowsAhead`), the cut keeps room for the primitives and sources later
   growths bring (`DagCapacity.ahead`). A session whose engine cannot grow them leaves the cells past
   the rows waiting and says it by name (`onPartitionOutgrown`, `content-refused`): it is never opened
   again.
-- A cell's HLOD actor stays drawn until what replaces it is ready (`gpu/dag/worldFollow.ts`).
+- A cell's HLOD actor stays drawn until what replaces it is ready (`dag/worlds/worldFollow.ts`).
 
 ## Out of memory
 
 The public contract (refusal codes, `gpu-out-of-memory`, what the page sees) is
 [SDK.md](SDK.md#out-of-memory-is-absorbed); the shadow pool's is [SHADOWS.md](SHADOWS.md#memory).
-One rule for every pool (`residency/outOfMemory.ts:halvedPool`): a refused pool is drawn again at
+One rule for every pool (`memory/outOfMemory.ts:halvedPool`): a refused pool is drawn again at
 half its bytes, down to its floor; the pool in place is never replaced by one the device refused,
 and no refusal loses the device.
 
 | Where it is refused  | How it is answered                                                             |
 | -------------------- | ------------------------------------------------------------------------------ |
-| WebGPU pools         | `webgpu/residency/poolGrants.ts`: a floor refused at prepare fails the session |
-| WebGPU frame targets | `webgpu/pages/prepare/targetGrant.ts`: Hi-Z leaves first, then the frames hold |
-| WebGPU row tables    | `webgpu/pages/prepare/growTables.ts`: pool and tables kept                     |
+| WebGPU pools         | `geometry/residency/poolGrants.ts`: a floor refused at prepare fails the session |
+| WebGPU frame targets | `src/frame/prepare/targetGrant.ts`: Hi-Z leaves first, then the frames hold |
+| WebGPU row tables    | `src/frame/prepare/growTables.ts`: pool and tables kept                     |
 
 A lost device takes the loss path ([SDK.md](SDK.md#out-of-memory-is-absorbed)).
 
@@ -139,10 +139,10 @@ The fields are documented on the contract (`packages/sdk-core/src/contracts/metr
 | Mechanism                                        | Where                                              |
 | ------------------------------------------------ | -------------------------------------------------- |
 | Tile geometry, layer size, the pinned tail       | `texture/tiles.ts`                                 |
-| Image feedback, one pixel in sixteen             | `webgpu/tile/feedback.ts`, `webgpu/tile/reduce.ts` |
-| The WebGPU streamer and its two per-frame bounds | `webgpu/tile/streamer.ts`                          |
-| Lanes and pools per atlas                        | `webgpu/residency/memoryBudgets.ts`                |
-| A pose settled by `flush()`                      | `webgpu/tile/converge.ts`                          |
+| Image feedback, one pixel in sixteen             | `materials/virtual/feedback.ts`, `materials/virtual/reduce.ts` |
+| The WebGPU streamer and its two per-frame bounds | `virtual/streamer/streamer.ts`                          |
+| Lanes and pools per atlas                        | `geometry/residency/memoryBudgets.ts`                |
+| A pose settled by `flush()`                      | `materials/virtual/converge.ts`                          |
 
 - Memory is independent of the scene: tiles and layers are fixed, only the layer count follows the
   budget. Every texture's tail is resident from `prepare()`, so a missing tile is served by its

@@ -18,7 +18,7 @@ import {
 } from '../../../math/src/sequence/sweep.fixture.ts'
 import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
-import { Joint } from '../../../sdk-core/src/physics/joint.ts'
+import { Joint } from '../../../sdk-core/src/physics/joint/joint.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Bodied } from './bodies/bodied.ts'

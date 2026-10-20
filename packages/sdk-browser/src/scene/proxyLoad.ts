@@ -2,8 +2,8 @@ import { assertSceneProxy, decodeSceneProxy } from '../../../sdk-core/src/scene/
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { SceneProxy } from '../../../sdk-core/src/contracts/proxy.ts'
-import { fetchVerified } from '../cluster/pages.ts'
-import type { PageCache } from '../streaming/pageCache.ts'
+import { fetchVerified } from '../geometry/cluster/pages.ts'
+import type { PageCache } from '../geometry/streaming/pageCache.ts'
 
 // The cache owns each buffer's lifetime; its expanded columns survive session/device recreation.
 const decoded = new WeakMap<ArrayBuffer, SceneProxy>()
@@ -11,7 +11,7 @@ const decoded = new WeakMap<ArrayBuffer, SceneProxy>()
 /**
  * Read the resident proxy's cache object, next to the manifest that names it, and keep it whole in
  * `cache`, the session's page cache, the one its pages and texture levels are read through
- * (`../world/session/pageSources.ts`) — its world's, kept across sessions, or the session's own
+ * (`../session/pageSources.ts`) — its world's, kept across sessions, or the session's own
  * (`PageCache.keep`, which says how long it stays): a session reopened after a device loss reads it
  * from there, fetching nothing. Its own request, beside the page queue: it neither waits for the
  * pages nor holds them back, and it is not a page the streamer counts. A refusal another request

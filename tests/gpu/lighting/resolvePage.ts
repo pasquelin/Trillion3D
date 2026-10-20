@@ -15,8 +15,8 @@ import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/cont
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
-} from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
-import { createWebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
+} from '../../../packages/sdk-browser/src/frame/backend/state/lightBuffer.ts'
+import { createWebgpuLightState } from '../../../packages/sdk-browser/src/frame/backend/state/lights.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
 import { deferredLayoutEntries } from '../../../packages/sdk-browser/src/lighting/deferred/layoutEntries.ts'

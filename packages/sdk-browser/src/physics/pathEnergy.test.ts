@@ -1,8 +1,8 @@
 import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { joint } from '../../../sdk-core/src/physics/joint.ts'
-import type { JointMotor } from '../../../sdk-core/src/physics/jointOptions.ts'
+import { joint } from '../../../sdk-core/src/physics/joint/joint.ts'
+import type { JointMotor } from '../../../sdk-core/src/physics/joint/jointOptions.ts'
 import { gap, jointRig } from './joints/joints.fixture.ts'
 import { energiesOverALap, G } from './pathEnergy.fixture.ts'
 

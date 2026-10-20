@@ -7,8 +7,8 @@ import { parseArgs } from 'node:util'
 import { runOnDawn } from '../../../tests/kit/device/onDawn.ts'
 import { takeBenchLock } from '../runs/lock.ts'
 import type { run, WaterCostOptions } from '../../../tests/gpu/water/waterCostPage.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
-import { git } from '../../../scripts/git-paths.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
+import { git } from '../../../scripts/git/git-paths.ts'
 
 type Reading = Awaited<ReturnType<typeof run>>
 

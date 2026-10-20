@@ -1,0 +1,82 @@
+import { BLEND_BINDINGS } from '../gpu/bind/bindLayout.ts'
+import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../visibility/types.ts'
+import { PHYSICAL_TEXEL_WGSL, physicalCoreWgsl } from '../visibility/shader/physicalWgsl.ts'
+import { materialTableWgsl } from '../materials/table/materialWgsl.ts'
+import { LOBES_LIGHTING_WGSL } from '../lighting/direct/lobesWgsl.ts'
+import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
+/**
+ * The anisotropic and clear-coat lobes of a blend, in the blend pass's lobed programs alone
+ * (`shader.ts`, a key without `lobeless`): the opaque resolve's one implementation
+ * (`physicalCoreWgsl`), its lobe extension read from the same table (`materialTableWgsl`), its two
+ * UV sets the fragment's own (`vertexWgsl.ts`), and the frame's displacements its screen
+ * derivatives — the ones the blend's normal map is bent with (`shaderSurface.ts`), framebuffer y
+ * running down, hence the side `-1`.
+ *
+ * The lobes go straight to the lighting (`setLobes`, `../lighting/direct/lobesWgsl.ts`), no
+ * target between them: a fragment whose surface carries no lobe, or whose maps leave neither lobe,
+ * sets none, and every term then runs the standard lobe operand for operand.
+ */
+/** The record a lobed fragment reads and the lobes it holds: its lobe extension, its lobes' values and
+ *  their texel (`blendLobedTexel`) — what a stage that lights nothing reads, the front stage's
+ *  (`frontStageWgsl.ts`). */
+export const BLEND_PHYSICAL_RECORD_WGSL = wgslBlock(
+  'BLEND_PHYSICAL_RECORD_WGSL',
+  [
+    physicalCoreWgsl('physicalSampled'),
+    PHYSICAL_TEXEL_WGSL,
+    materialTableWgsl(BLEND_BINDINGS.material),
+  ],
+  `var<private> physicalSampled:bool;
+/** The item's lobe extension and the fragment's two UV sets, before its tile request
+ *  (\`blendRequest\`): none where its surface carries no lobe. */
+fn blendPhysicalBegin(in:VSOut,g:BlendGrads){
+ let lobes=materialLobesOf(in.ids.w);
+ if(lobes==0u){return;}
+ physicalOn=true;
+ physicalSampled=(in.ids.y&${FLAG_SAMPLED}u)!=0u;
+ physicalRecord=physicalAt(lobes);
+ physicalCoord0=PhysicalCoord(in.uv.xy,g.gradX,g.gradY,g.gradX,g.gradY);
+ physicalCoord1=PhysicalCoord(in.uv.zw,g.uv1X,g.uv1Y,g.uv1X,g.uv1Y);
+}
+/** The lobes of a fragment of surface \`s\` (\`blendSurface\`: its shading and geometric normals)
+ *  whose record is read (\`physicalOn\`): the blend's. */
+fn blendPhysicalValues(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->PhysicalLobes{
+ let flags=in.ids.y;
+ let coatFace=select(1.0,select(-1.0,1.0,front),(flags&${FLAG_DOUBLE}u)!=0u&&(flags&${FLAG_HAS_NORMAL}u)!=0u);
+ return physicalValues(s.N,s.geometric,g.q0,g.q1,-1.0,coatFace);
+}
+/** The lobes of a fragment of surface \`s\` as the lobes target holds them, and whether it carries one:
+ *  the front stage's texel (\`frontStageWgsl.ts\`), zero and false where it carries neither lobe. */
+struct BlendLobed{texel:vec4u,on:bool,}
+fn blendLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->BlendLobed{
+ if(!physicalOn){return BlendLobed(vec4u(0u),false);}
+ let v=blendPhysicalValues(in,front,g,s);
+ if(physicalLobeless(v)){return BlendLobed(vec4u(0u),false);}
+ return BlendLobed(physicalTexel(v),true);
+}`,
+)
+
+/** The lobes set for a fragment's lights (`blendLobes`), on its record (`BLEND_PHYSICAL_RECORD_WGSL`). */
+export const BLEND_PHYSICAL_WGSL = wgslBlock(
+  'BLEND_PHYSICAL_WGSL',
+  [BLEND_PHYSICAL_RECORD_WGSL, LOBES_LIGHTING_WGSL, LOBE_AXIS_WGSL],
+  `/** The lobes of a lit fragment of surface \`s\`, seen along \`V\`, set for its lights at its
+ *  roughness. */
+fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32){
+ if(!physicalOn){return;}
+ let v=blendPhysicalValues(in,front,g,s);
+ if(physicalLobeless(v)){return;}
+ let alpha=lobeAlpha(rough);
+ setLobes(lobeAxis(v.direction,v.strength,s.N,alpha),v.coat,v.coatRough,v.coatN,s.N,V,alpha);
+}`,
+)
+
+/** A lobeless program's stand-ins (\`BLEND_PHYSICAL_WGSL\`'s): no record is read, no lobe set. */
+export const BLEND_LOBELESS_WGSL = wgslBlock(
+  'BLEND_LOBELESS_WGSL',
+  [],
+  `fn blendPhysicalBegin(in:VSOut,g:BlendGrads){}
+fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32){}`,
+)

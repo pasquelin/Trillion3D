@@ -1,7 +1,7 @@
 //! The criterion the measured pages answer: each drawn page's worst screen error, projected by the
 //! engine's cut, against the threshold plus its margin.
 use super::Page;
-use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens};
+use trillion3d_page_codec::cut::error::{node_ceiling_error, Lens};
 
 /// Focal length in pixels of 1080 lines under a 60° vertical field.
 const FOCAL: f64 = 540.0 / 0.577_350_269_189_625_8;

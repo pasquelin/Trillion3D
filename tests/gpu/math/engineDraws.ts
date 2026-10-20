@@ -8,7 +8,7 @@
 // engine draws fragments of it; otherwise the drop is right.
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { windingCw } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
+import { windingCw } from '../../../packages/sdk-browser/src/frame/render/winding.ts'
 import { runWindingRaster } from '../pages/windingRaster.ts'
 import { camera, type Case, type rawOrientation } from './inverseTransposeCases.ts'
 

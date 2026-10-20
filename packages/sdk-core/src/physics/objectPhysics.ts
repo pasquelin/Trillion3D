@@ -3,7 +3,7 @@ import { listen } from '../world/observed.ts'
 import type { Object3D } from '../world/object/object3d.ts'
 import { DAMPING } from './layout.ts'
 import type { PhysicsBodyOptions, PhysicsOption, PhysicsShape, PhysicsType } from './options.ts'
-import { SOFT_DAMPING, softOf, type SoftBodyType, type SoftSettings } from './soft.ts'
+import { SOFT_DAMPING, softOf, type SoftBodyType, type SoftSettings } from './soft/soft.ts'
 
 /** What a contact hands its listeners: the other object, the impulse and where it touched. */
 export interface ContactEvent {

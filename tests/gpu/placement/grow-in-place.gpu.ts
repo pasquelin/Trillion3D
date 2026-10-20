@@ -1,6 +1,6 @@
 // #1483: a partition whose view needs one more node than its rows hold grows them under the running
 // WebGPU session — its GPU cut made again over the grown rows beside the running one, swapped in
-// between two images (`placement/webgpuGrowth.ts`) — instead of opening the session again. On a
+// between two images (`growth/webgpuGrowth.ts`) — instead of opening the session again. On a
 // real device the session keeps going (no reopen: the growth is taken in place) and its image, once
 // the new placement lands, is pixel for pixel the image of a session opened on the grown rows
 // (`growInPlacePage.ts`).

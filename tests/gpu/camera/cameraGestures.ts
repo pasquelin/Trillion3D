@@ -5,11 +5,11 @@
 // a mouse does. And the camera probe: one manual world whose controller is swapped, the image of
 // the pose a gesture starts from kept, what differs once the gesture is undone counted.
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
+import type { MeasuredWorld } from '../../../packages/sdk-browser/src/session/explorer.ts'
 import {
   worldControls,
   type WorldControls,
-} from '../../../packages/sdk-browser/src/world/core/worldCamera.ts'
+} from '../../../packages/sdk-browser/src/session/world/camera.ts'
 import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { settle } from '../world/proofWorld.ts'
 

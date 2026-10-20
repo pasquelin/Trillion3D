@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
 import { drawnTriangles } from '../../../sdk-core/src/world/geometry/drawn.ts'
-import { packDrawn, unpackDrawn } from '../world/page/runtimePack.ts'
-import { runtimeDeformation } from '../world/page/runtimeDeformation.ts'
+import { packDrawn, unpackDrawn } from '../geometry/runtime/runtimePack.ts'
+import { runtimeDeformation } from '../geometry/runtime/runtimeDeformation.ts'
 
 function geometry() {
   const g = new Geometry()

@@ -6,7 +6,7 @@ import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { Texture } from '../../../packages/sdk-core/src/world/texture/texture.ts'
-import { sessionOf } from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
+import { sessionOf } from '../../../packages/sdk-browser/src/session/world/session.ts'
 import { changed, open, row, type World } from '../world/appendProof.ts'
 import { crowdModel } from '../world/generatedModels.ts'
 

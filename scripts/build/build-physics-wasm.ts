@@ -9,7 +9,7 @@
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { checkInstructionSet } from './build-wasm.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 import { runChecked } from '../test/run.ts'
 
 const SOURCE = join(REPOSITORY_ROOT, 'packages', 'physics-jolt-wasm')

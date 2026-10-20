@@ -2,7 +2,7 @@
 // Unit tests import them to check that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../packages/sdk-core/src/lod/screenErrorBound.ts'
 
-/** `packages/sdk-browser/src/page/selection/math.ts` before batch 4c: the centre projected into a shared buffer. */
+/** `packages/sdk-browser/src/geometry/selection/math.ts` before batch 4c: the centre projected into a shared buffer. */
 const centre = new Float64Array(3)
 export function referenceProjectCentre(
   sphere: ArrayLike<number>,

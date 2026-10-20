@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { pageModules, readPage } from '../page/page.ts'
 import { lawWorld } from './world.ts'
 import { scatter } from './scatter.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 test('the runtime page builds the laws’ world module, every import it names mapped by the bench', () => {
   const page = fileURLToPath(new URL('./world.html', import.meta.url))

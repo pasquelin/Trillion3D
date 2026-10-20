@@ -1,9 +1,9 @@
 // loading a scene.
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
-import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
-import { pagesBounds } from '../../../packages/sdk-browser/src/world/scene/pagesBounds.ts'
+import { collectClusterPages } from '../../../packages/sdk-browser/src/geometry/selection/collect.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/geometry/selection/drawSource.ts'
+import { pagesBounds } from '../../../packages/sdk-browser/src/scene/drive/pagesBounds.ts'
 import {
   indexManifestBundles,
   indexManifestPages,
@@ -11,7 +11,7 @@ import {
 import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import { referenceCollectClusterPages } from '../../oracles/browser/page-collection.ts'
 import { referenceExactPagesBounds } from '../../oracles/browser/bounds-and-index.ts'
 import {
@@ -138,7 +138,7 @@ const cas = [
 
 const resCollect = await measure({
   name: 'cluster page collection',
-  fichier: 'packages/sdk-browser/src/page/selection/collect.ts',
+  fichier: 'packages/sdk-browser/src/geometry/selection/collect.ts',
   cas,
   calculation: passeCollect(collectClusterPages),
   expected: passeCollect(referenceCollectClusterPages),
@@ -147,7 +147,7 @@ const resCollect = await measure({
 
 const resBounds = await measure({
   name: 'exact page bounds',
-  fichier: 'packages/sdk-browser/src/world/scene/pagesBounds.ts',
+  fichier: 'packages/sdk-browser/src/scene/drive/pagesBounds.ts',
   cas,
   calculation: passeBounds(pagesBounds),
   expected: passeBounds(referenceExactPagesBounds),

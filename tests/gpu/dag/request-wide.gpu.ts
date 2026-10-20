@@ -1,6 +1,6 @@
 // #1483: a request names any packed instance of an open world. It waits staged as two words — its
 // page, then its priority — and `dagSortRequests` writes the page alone, a whole word, into the
-// snapshot the frame copies (`gpu/dag/request.ts`). On Dawn, the shipped sort over requests past
+// snapshot the frame copies (`dag/request/request.ts`). On Dawn, the shipped sort over requests past
 // the twenty-two bits a word shared with the priority held: every page comes back whole, ranked.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import test from 'node:test'
@@ -8,9 +8,9 @@ import assert from 'node:assert/strict'
 import {
   stagedRequestsWord,
   SELECTION_HEADER_WORDS,
-} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
-import { OUT_COUNT } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { requestScene } from '../../../packages/sdk-browser/src/gpu/dag/requestScene.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import { OUT_COUNT } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
+import { requestScene } from '../../../packages/sdk-browser/src/geometry/dag/request/requestScene.fixture.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openSelectionKernel } from './selectionKernel.ts'
 

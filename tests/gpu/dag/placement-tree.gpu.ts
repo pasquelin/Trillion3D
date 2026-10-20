@@ -5,14 +5,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/geometry/dag/oracle/oracle.fixture.ts'
 import {
   fieldCamera,
   placementField,
-} from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
-import { refitTree } from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/placement/placementTree.fixture.ts'
+import { refitTree } from '../../../packages/sdk-browser/src/geometry/dag/tree/treeRefitRun.fixture.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 const VIEWPORT: [number, number] = [1280, 720]

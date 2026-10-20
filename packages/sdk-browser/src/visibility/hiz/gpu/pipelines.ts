@@ -1,0 +1,63 @@
+import { HIZ_NEAREST_BUILD, HIZ_SHADER } from './shader.ts'
+import { HIZ_TEST_ARGS_ENTRIES, HIZ_TEST_PAGES_ENTRIES, hizBindEntries } from './bindEntries.ts'
+import { buildComputeStage } from '../../../gpu/core/computeStages.ts'
+import { validated } from '../../../gpu/core/errorScope.ts'
+import { shaderFailed } from '../../../gpu/core/shaderModule.ts'
+import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
+import { HIZ_SLOT_WORDS } from './uniforms.ts'
+import { sequentialEntries } from '../../../gpu/core/computeBindings.ts'
+import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
+
+/**
+ * The Hi-Z kernels — the build of each layer, one kernel specialized (`HIZ_NEAREST_BUILD`), and the
+ * test — compiled under one device validation scope, once a device: every pyramid of the device
+ * shares them, so a pyramid made later compiles nothing.
+ */
+export const createHizPipelines = oncePerDevice((device) =>
+  validated(device, async () => {
+    const layout = device.createBindGroupLayout({
+      entries: hizBindEntries(HIZ_SLOT_WORDS * 4),
+    })
+    const module = device.createShaderModule({ code: HIZ_SHADER })
+    if (await shaderFailed(module)) return undefined
+    const pagesLayout = device.createBindGroupLayout({ entries: HIZ_TEST_PAGES_ENTRIES })
+    const argsLayout = device.createBindGroupLayout({ entries: HIZ_TEST_ARGS_ENTRIES })
+    const stage = (entryPoint: string, groups = [layout], constants?: Record<string, number>) =>
+      buildComputeStage(device, groups, module, entryPoint, constants)
+    const [buildPipeline, nearestPipeline, testPipeline, argsPipeline] = await Promise.all([
+      stage('buildHiz'),
+      stage('buildHiz', [layout], { [HIZ_NEAREST_BUILD]: 1 }),
+      stage('testHiz', [layout, pagesLayout]),
+      stage('testHizArgs', [layout, argsLayout]),
+    ])
+    return {
+      layout,
+      pagesLayout,
+      argsLayout,
+      buildPipeline,
+      nearestPipeline,
+      testPipeline,
+      argsPipeline,
+    }
+  }),
+)
+
+/** The group of the test's dispatch arguments (group 1 of `testHizArgs`). */
+export const hizArgsGroup = (device: GPUDevice, layout: GPUBindGroupLayout, args: GPUBuffer) =>
+  device.createBindGroup({ layout, entries: sequentialEntries([{ buffer: args }], 1) })
+
+/** The test's page-table group (group 1), remade only when the table changes identity (it grows):
+ *  one per pyramid, never in the device's shared pipelines, where two pyramids would remake it. */
+export function hizPagesGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
+  const bound = createWebgpuBindIdentity()
+  let group: GPUBindGroup | undefined
+  return (pages: GPUBuffer) => {
+    bound.next[0] = pages
+    if (bound.moved())
+      group = device.createBindGroup({
+        layout,
+        entries: sequentialEntries([{ buffer: pages }]),
+      })
+    return group!
+  }
+}

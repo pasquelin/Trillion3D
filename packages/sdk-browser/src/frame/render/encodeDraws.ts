@@ -1,0 +1,111 @@
+import { requestFrameTargets } from '../prepare/targetGrant.ts'
+import { viewProj } from '../backend/helpers.ts'
+import { taaRenderMatrix } from '../../post/taa/frame.ts'
+import { abandonFrameEncoder } from './encoder.ts'
+import { ensurePageTable } from './pageTable.ts'
+import { encodeVis } from './encodeVis.ts'
+import { deriveRootRows, followRowWords } from '../../placement/rows/rowWords.ts'
+import { VSM_STILL_FRAMES } from '../../lighting/shadows/vsm/constants.ts'
+import { forgetRewrittenRows } from '../../visibility/passes/corners.ts'
+import { refreshDrawItemWords } from '../../visibility/passes/itemWords.ts'
+import { visLayerTop } from '../../visibility/passes/uniforms.ts'
+import { uploadDirtyRowMobility } from '../../lighting/shadows/casters/bounds.ts'
+import { ensureClusterSpheres } from '../../lighting/shadows/casters/spheres.ts'
+import { ensureRowLods } from '../../lighting/shadows/casters/rowLods.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { uploadDirtyRows } from './dirtyRows.ts'
+import { castingLights } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
+
+/**
+ * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
+ * row table only while a light casts. While none does, no shadow row buffer is made or written:
+ * only the placements' mobility state is sized, which a placement's move reads
+ * (`mobility.move`). The first frame a light casts makes them, before that frame's shadow set is
+ * granted (`planVsmFrame`, after the rows in `encodeVis`), so the grant's room counts them, and the
+ * budget reserved their bytes beside the set's until then (`vsmReserveBytes`); every caster row is
+ * marked once, so each reader writes them all. Later frames write the rows the table declared
+ * dirty, as long as a light casts: the mobility words here, the spheres and the detail in the rows
+ * pass (`../../placement/rows/rowWords.ts`).
+ */
+function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { lights, layout } = rt,
+    { rows, selectionRoots } = layout
+  if (!lights.pageLayout) return
+  if (!castingLights(rt)) {
+    const worldOf = (rank: number) => selectionRoots[rank].world.elements
+    lights.mobility.ensure(selectionRoots.length, rows.casterSlots, worldOf)
+    lights.rowsFollowed = false
+    return
+  }
+  if (!lights.rowsFollowed && rows.casterSlots > 0) rows.markRowWords(0, rows.casterSlots - 1)
+  lights.rowsFollowed = true
+  ensureClusterSpheres(rt, device)
+  // A placement at rest past the static threshold caches as static again: its mobility words go up
+  // below, and its rows, derived again, stale the static pages it now belongs to (`rowCastWgsl.ts`).
+  lights.mobility.settle(VSM_STILL_FRAMES, (rank) => deriveRootRows(rt, rank))
+  uploadDirtyRowMobility(rt, device)
+  ensureRowLods(rt, device)
+}
+
+/**
+ * Brings the row table up to date, once an image and before anything reads it — the deformation,
+ * the cut, the raster: the table made, then every reader of the row table's dirty marks followed —
+ * draw records, mobility, the occlusion history, the rows pass's inputs and rows — and the rows
+ * uploaded, the marks cleared. A reader skipped would keep another occupant's words (#198). Each
+ * costs the rows that changed. An image with no visibility row follows them too: the blended
+ * casters' rows, behind, still feed its shadows, and rows left dirty would keep the frame from
+ * being held.
+ */
+export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { vis, timing } = rt
+  timing.encodeCounts.itemsUploaded = 0
+  ensurePageTable(rt, device)
+  refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
+  followShadowRows(rt, device)
+  forgetRewrittenRows(rt)
+  followRowWords(rt, device)
+  uploadDirtyRows(rt)
+}
+
+/** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
+export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
+  const { gpu, vis, run, timing, blendState, diag } = rt
+  run.gpuDrawCalls = 0
+  run.gpuComputeDispatches = 0
+  run.blendDrawCalls = 0
+  run.blendFrustumRejected = 0
+  timing.transparentPrepareMs = 0
+  timing.transparentDrawMs = 0
+  timing.transparentSpanUploadBytes = 0
+  if (!gpu.cache || !gpu.depthView) return 0
+  // Frustum planes and view-projection are those image entry posted: the engine has one depth
+  // convention (`../../camera/depthConvention.ts`), so nothing is converted along the path.
+  blendState.blendPlanes.set(cam.planes)
+  // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
+  viewProj.set(taaRenderMatrix(rt, cam))
+  if (run.rowsSyncedFrame !== run.frame) {
+    rt.services.syncRows(!run.textureConverging)
+    run.rowsSyncedFrame = run.frame
+  }
+  // The engine draws through the visibility pass alone (#1483): pipelines a prepare left missing
+  // are its failure, never another image.
+  if (!vis.visPipelineBack || !vis.shadeClasses)
+    throw new Error('WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE')
+  // Targets not made yet — refused, or late after a resize — draw nothing: the last image stays
+  // shown, and they are asked for. Past this, the image's encoders read them as made.
+  if (!vis.visView || !gpu.surfaces || !gpu.hdrView || !gpu.displayView) {
+    abandonFrameEncoder(rt)
+    void requestFrameTargets(rt, device)
+    return 0
+  }
+  try {
+    return encodeVis(rt, device, cam)
+  } catch (error) {
+    abandonFrameEncoder(rt)
+    timing.gpuTiming?.cancelUnsubmitted()
+    diag.diagnosticFailure('visibility-render-failed', error)
+    run.gpuDrawCalls = 0
+    throw error
+  }
+}

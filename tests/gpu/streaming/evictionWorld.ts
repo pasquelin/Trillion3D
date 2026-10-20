@@ -2,9 +2,9 @@
 // row along +x — each its own content, its own pages —, the strip camera looking down the row, and
 // the frame's view of it at any x. Nothing names a bench scene: a DAG of groups and the groups
 // replacing them, placed many times, as a world of them is.
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import type { GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
+import { pageAddress } from '../../../packages/sdk-browser/src/geometry/rows/page/pageSlots.ts'
 import { placedRuleDag } from '../../kit/device/placedRuleDag.ts'
 
 /** Bytes of a page: its rank, its complement, and two more words. */

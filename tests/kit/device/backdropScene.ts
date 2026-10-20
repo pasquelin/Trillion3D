@@ -1,9 +1,9 @@
 // The generated scene the glass, memory and dispose proofs share: an opaque blue backdrop filling
 // the view, and what stands before it — a clear glass (a blend with water), a polished metal
 // mirror, an opaque red tile —, each lit square a plane that carries its normals.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { batisseur } from './sharedSceneProof.ts'
-import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 
 /** What stands before the backdrop: the glass, its centre at `at` on `x`, with a red volume that
  *  stops blue within a few hundredths of a unit when `volume`; the mirror; the tile in front. */

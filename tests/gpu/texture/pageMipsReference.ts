@@ -1,11 +1,11 @@
 // The reference image of the page-texture chain's class-2 bound: `develop`'s reduction, one level
 // drawn into a render target of the pool format — its sRGB encode the target's own —, the coverage
 // counts in a pass of their own per level and the pick's `t` copied into the level's uniform.
-import { COVERAGE_COUNT_WGSL } from '../../../packages/sdk-browser/src/texture/mipsWgsl.ts'
+import { COVERAGE_COUNT_WGSL } from '../../../packages/sdk-browser/src/materials/texture/mipsWgsl.ts'
 import {
   COVERAGE_PICK_WGSL,
   COVERAGE_SCALE_WGSL,
-} from '../../../packages/sdk-browser/src/texture/coverageRule.ts'
+} from '../../../packages/sdk-browser/src/materials/texture/coverageRule.ts'
 import { FULLSCREEN_XY } from '../../../packages/sdk-browser/src/gpu/shader/fullscreenTriangle.ts'
 import { previewLevelSize } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'

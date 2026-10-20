@@ -27,8 +27,8 @@ import { runFluids } from './fluids/fluids.ts'
 import { readLimits } from './harness/limits.ts'
 import { againstReference, sceneReference } from './references/referenceProof.ts'
 import type { BenchReport, RunContext, Series } from './report/types.ts'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
-import { git } from '../../scripts/git-paths.ts'
+import { REPOSITORY_ROOT } from '../../scripts/git/repository-files.ts'
+import { git } from '../../scripts/git/git-paths.ts'
 
 const {
   settings,

@@ -3,8 +3,8 @@
 // writing would make its numbers no commit's. Two checkouts of two commits, one scenario: an A/B.
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
-import { git } from '../../../scripts/git-paths.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
+import { git } from '../../../scripts/git/git-paths.ts'
 
 /** What the engine and the pages it runs are read from. */
 export type EngineRoot = { root: string; commit: string; subject: string; dirty: string[] }

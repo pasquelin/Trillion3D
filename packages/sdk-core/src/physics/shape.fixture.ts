@@ -1,4 +1,4 @@
-// The geometries, scales and refusal the tests of `shape.ts` and `soft.ts` share.
+// The geometries, scales and refusal the tests of `shape.ts` and `soft/soft.ts` share.
 import { refuses } from '../contracts/cache.fixture.ts'
 import { BufferAttribute } from '../world/buffer/attribute.ts'
 import { Geometry } from '../world/geometry/geometry.ts'

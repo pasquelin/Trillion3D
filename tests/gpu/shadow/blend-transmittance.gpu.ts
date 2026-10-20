@@ -8,14 +8,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeOnDawn } from '../../kit/device/computeRun.ts'
-import { blendTransmittanceWgsl } from '../../../packages/sdk-browser/src/gpu/shadow/transmittanceWgsl.ts'
+import { blendTransmittanceWgsl } from '../../../packages/sdk-browser/src/lighting/shadows/transmittanceWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
 import {
   createMaterialTable,
   materialWord,
-} from '../../../packages/sdk-browser/src/webgpu/material/materialTable.ts'
-import { VIS_BINDINGS } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts'
-import { declareSurface } from '../../../packages/sdk-browser/src/page/surfaceRecord.ts'
+} from '../../../packages/sdk-browser/src/materials/table/materialTable.ts'
+import { VIS_BINDINGS } from '../../../packages/sdk-browser/src/gpu/bind/bindLayout.ts'
+import { declareSurface } from '../../../packages/sdk-browser/src/geometry/pages/surfaceRecord.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { wgslFn } from '../../../packages/math/src/wgsl/decl.ts'
 import { near } from '../../../packages/math/src/float/near.fixture.ts'

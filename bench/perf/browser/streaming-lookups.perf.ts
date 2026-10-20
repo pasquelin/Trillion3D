@@ -1,6 +1,6 @@
 // the linear search of the streaming path's queue.
-import { createJobHeap } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
-import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts'
+import { createJobHeap } from '../../../packages/sdk-browser/src/geometry/streaming/queueOrder.ts'
+import type { Job } from '../../../packages/sdk-browser/src/geometry/streaming/types.ts'
 import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
@@ -58,7 +58,7 @@ function optimisedPass({ urls, vises }: { urls: string[]; vises: number[] }) {
 
 const resG5 = await measure({
   name: 'removing a cancelled request from the queue',
-  fichier: 'packages/sdk-browser/src/streaming/queueOrder.ts',
+  fichier: 'packages/sdk-browser/src/geometry/streaming/queueOrder.ts',
   cas: [
     { name: '4 000 jobs, 2 000 cancellations', input: rafale(4000, 2000, 0x51), size: 4000 },
     { name: '4 000 jobs, one cancellation', input: rafale(4000, 1, 0x52), size: 4000 },

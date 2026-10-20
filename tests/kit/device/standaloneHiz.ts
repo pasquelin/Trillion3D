@@ -1,6 +1,6 @@
 // The engine's depth pyramid on its own, as the proofs that build or march it mount it: no
 // partition owns its tested boxes and state, so two empty ones are attached in their place.
-import { createGpuHiz } from '../../../packages/sdk-browser/src/gpu/hiz/factory.ts'
+import { createGpuHiz } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/factory.ts'
 
 /** The Hi-Z of a `width` × `height` image on `device`, one view, and the two empty partition
  *  buffers attached to it, for whoever destroys them; refused by name when its kernels do not

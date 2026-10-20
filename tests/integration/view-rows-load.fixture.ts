@@ -16,7 +16,7 @@ import { installGpuGlobals } from '../kit/fakeDevice/globals.ts'
 import { BACKEND, writtenBytes } from '../kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../kit/fakeDevice/fakeDevice.ts'
 import { byteRange } from '../../scripts/test/static-server.ts'
-import { openMeasuredWorld } from '../../packages/sdk-browser/src/world/session/explorer.ts'
+import { openMeasuredWorld } from '../../packages/sdk-browser/src/session/explorer.ts'
 import type { EngineDiagnostic } from '../../packages/sdk-browser/src/diagnostic/types.ts'
 import { MIB } from '../../packages/math/src/constants.ts'
 

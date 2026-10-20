@@ -3,14 +3,14 @@ import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
 import { Euler } from '../../../packages/sdk-core/src/world/math/euler.ts'
-import { windingCw } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
-import { worldMoved } from '../../../packages/sdk-browser/src/page/selection/rootWorld.ts'
+import { windingCw } from '../../../packages/sdk-browser/src/frame/render/winding.ts'
+import { worldMoved } from '../../../packages/sdk-browser/src/geometry/selection/rootWorld.ts'
 import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { referenceWindingCw } from '../../oracles/browser/pages-webgpu.ts'
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import { pageRecFixture } from './support/pageRecFixture.ts'
 
 const alea = xorshiftRandom(67)
@@ -51,7 +51,7 @@ const imageDeSens = (sens: (rec: Cluster) => boolean, pose: boolean) => (recs: C
 
 const resWinding = await measure({
   name: 'windingCw',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
+  fichier: 'packages/sdk-browser/src/frame/render/winding.ts',
   cas: [
     { name: '20 000 clusters, 4 reads', input: gros, size: gros.length },
     { name: 'one cluster', input: seul, size: 1 },

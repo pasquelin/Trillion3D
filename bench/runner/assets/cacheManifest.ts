@@ -3,7 +3,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { readPagedManifest } from '../../../packages/sdk-core/src/manifest/paged.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 /** The pointer `manifest.json`, naming the root `clusters.json` to read next to it. */
 interface ManifestPointer {

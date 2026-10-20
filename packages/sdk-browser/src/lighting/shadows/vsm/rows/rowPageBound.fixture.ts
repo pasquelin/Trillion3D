@@ -1,0 +1,194 @@
+// Rows of world spheres for the chunks' position bound, and the brute force of the pairs and
+// commands each row can make: the shipped cull (`vsmRenderCullWgsl`, run by `shaderRun`) on the
+// projection data's clip matrix — the orthographic box, the screen rect — then the pages of the rect;
+// for a local light's maps, its range first, the perspective box, and every mip's rect.
+import { mulberry32 } from '../../../../../../math/src/sequence/random.ts'
+import { writeSplitDouble } from '../../../../../../math/src/float/splitDouble.ts'
+import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { CLUSTER_SPHERE_FLOATS } from '../../sphereContract.ts'
+import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
+import { Mat, matrixProduct } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
+import { vector } from '../../../../materials/texture/shaderRunBuiltins.fixture.ts'
+import { VsmCacheManager } from '../cacheManager.ts'
+import { frame, LEVELS, PROJECTION, VIEW } from '../clipmap.fixture.ts'
+import { VSM_LOG2_PAGE, VSM_MIPS, VSM_LEVEL0_TEXELS } from '../constants.ts'
+import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightInput } from '../localLight.ts'
+import { vsmRenderCullWgsl } from '../render/renderCullWgsl.ts'
+import { createVsmResources } from '../resources.ts'
+import type { VsmBoundLight, VsmRowBound, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
+import { createRowMotion } from '../../rowMotion.ts'
+import { wgslSource } from '../../../../../../math/src/wgsl/source.fixture.ts'
+
+export const PAGES = 2048
+/** The raster's worst case at `PAGES` pages under a sun, its lists of `cap` entries. */
+export const worstOf = (cap = 1 << 21): VsmWorst => ({
+  rows: Math.floor(cap / PAGES),
+  cmdsPerRow: LEVELS,
+  pages: PAGES,
+  cap,
+})
+
+/** Whether `bound`'s last chunk is a histogram's answer (`answer` holds it), not every row at the
+ *  worst case where none can speak (`answerUnbound`). */
+export const speaks = (bound: VsmRowBound) => bound.held !== undefined
+/** Spheres no histogram was made of: the bound cannot speak. */
+export const emptyRowSpheres = (): VsmRowSpheres => ({ motion: createRowMotion() })
+
+/** A scene's rows as the GPU holds them: their spheres packed as the engine's, which are moving
+ *  (`MOBILITY_MOVING`), and what changed in them (`spheres`). */
+export type SceneRows = { packed: Float32Array; moving: Uint8Array; spheres: VsmRowSpheres }
+
+/** `n` rows: centre `at(i)` (world metres, double), radius `radius(i)`, packed as the engine's. */
+function sphereRows(
+  n: number,
+  at: (i: number) => number[],
+  radius: (i: number) => number,
+): SceneRows {
+  const packed = new Float32Array(n * CLUSTER_SPHERE_FLOATS)
+  for (let i = 0; i < n; i++) writeRow(packed, i, at(i), radius(i))
+  return { packed, moving: new Uint8Array(n), spheres: emptyRowSpheres() }
+}
+/** `n` rows within `spread` metres of `centre`, radii log-uniform in [rMin, rMax]. */
+export function scene(
+  n: number,
+  centre: number[],
+  spread: number,
+  rMin: number,
+  rMax: number,
+  seed = 1,
+) {
+  const rand = mulberry32(seed)
+  return sphereRows(
+    n,
+    () => centre.map((c) => c + (rand() * 2 - 1) * spread),
+    () => rMin * (rMax / rMin) ** rand(),
+  )
+}
+export function writeRow(packed: Float32Array, i: number, c: number[], r: number) {
+  const at = i * CLUSTER_SPHERE_FLOATS
+  for (let a = 0; a < 3; a++) writeSplitDouble(packed, at + a, at + 4 + a, c[a])
+  // The radius as the engine stores it (`lighting/shadows/casters/spheres.ts`): its single, a bound there.
+  packed[at + 3] = r
+}
+
+/** A sun's clipmap around `eye`, as the frame's light (`VsmBoundLight`). */
+export function sunAt(eye: number[], cache = new VsmCacheManager()) {
+  const clipmap = frame(cache, eye)
+  const light: VsmBoundLight = {
+    kind: 'directional',
+    firstId: 0,
+    count: LEVELS,
+    clipmap,
+  }
+  return { cache, clipmap, light }
+}
+
+/** A spot or point light's full maps (`addVsmLocalLightShadow`), as the frame's light. */
+export function localAt(input: Omit<VsmLocalLightInput, 'id'>, cache = new VsmCacheManager()) {
+  const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
+  const view = vsmLocalViewData(camera, { width: 1024, height: 1024 })
+  const { cacheEntry } = addVsmLocalLightShadow(cache, { id: 'lamp', ...input }, [view])
+  const light: VsmBoundLight = {
+    kind: input.kind,
+    firstId: 0,
+    count: cacheEntry.mapCaches.length,
+    entry: cacheEntry,
+  }
+  return { cache, light }
+}
+
+type Cull = { clipLow: number[]; clipHigh: number[]; inMapView: boolean }
+const res = createVsmResources(
+  fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } }).device,
+  { fullMapCapacity: 63 },
+)
+const cull = shaderRun<{
+  vsmBoxCullPoint: (c: number[], e: number[], isOrtho: boolean, near: boolean) => number[]
+  vsmBoxInView: (...args: unknown[]) => Cull
+  vsmRectPixels: (view: number[], cull: Cull) => number[]
+}>(
+  // The perspective box's corner list, `array<vec4f,8>(…)`, as a JavaScript array.
+  wgslSource(vsmRenderCullWgsl(res.layout)).replace(/array<\s*\w+\s*,\s*\d+\s*>\(/g, 'arrayOf('),
+  [
+    ...['vsmBoxCullPoint', 'vsmBoxInView', 'vsmRectPixels', 'perspectiveDivide'],
+    // The cull of the box in clip space they hand it to (`../invalidation/boxCullWgsl.ts`).
+    ...['vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
+  ],
+  { vec4i: vector(4, (x) => Math.trunc(Number(x))), arrayOf: (...v: unknown[]) => v },
+)
+const SIZE = VSM_LEVEL0_TEXELS
+/** The shipped cull of the box `c ± r` under `m`, as the render cull hands it. */
+const boxIn = (c: number[], r: number, m: Mat, viewToClip: Mat, ortho: boolean) => {
+  const e = [r, r, r],
+    at = matrixProduct(m, [...cull.vsmBoxCullPoint(c, e, ortho, !ortho), 1])
+  return cull.vsmBoxInView(at, m[0], m[1], m[2], e, viewToClip, ortho, !ortho)
+}
+/** vsmShiftedToClip: each column (x, y, z, w) of the UV matrix → (2x − w, w − 2y, z, w). */
+const clipOf = (uv: Float64Array) =>
+  new Mat(
+    [0, 1, 2, 3].flatMap((k) => {
+      const [x, y, z, w] = uv.slice(k * 4, k * 4 + 4)
+      return [2 * x - w, w - 2 * y, z, w]
+    }),
+  )
+/** Pages of a pixel rect, 0 when empty. */
+const pagesRect = ([x0, y0, x1, y1]: number[]) =>
+  x1 < x0 || y1 < y0
+    ? 0
+    : ((x1 >> VSM_LOG2_PAGE) - (x0 >> VSM_LOG2_PAGE) + 1) *
+      ((y1 >> VSM_LOG2_PAGE) - (y0 >> VSM_LOG2_PAGE) + 1)
+
+/** Per row, the pairs (pages of every level's rect, at most `pages`) and the commands (levels
+ *  whose rect is not empty) the shipped cull gives it — every page valid, nothing cached. */
+export function bruteForce(rows: SceneRows, light: VsmBoundLight, pages: number) {
+  const n = rows.packed.length / CLUSTER_SPHERE_FLOATS,
+    p = rows.packed
+  const pairs = new Float64Array(n),
+    cmds = new Float64Array(n)
+  for (const entry of light.clipmap!.cacheEntry.mapCaches.slice(0, light.count)) {
+    const pd = entry.projectionData
+    const m = clipOf(pd.shiftedToMapUv)
+    for (let i = 0; i < n; i++) {
+      const b = i * CLUSTER_SPHERE_FLOATS,
+        r = p[b + 3]
+      const c = [0, 1, 2].map((a) => p[b + a] + p[b + 4 + a] + pd.originShift[a])
+      const box = boxIn(c, r, m, m, true)
+      if (!box.inMapView) continue
+      const count = pagesRect(cull.vsmRectPixels([0, 0, SIZE, SIZE], box))
+      if (count === 0) continue
+      pairs[i] += count
+      cmds[i]++
+    }
+  }
+  for (let i = 0; i < n; i++) pairs[i] = Math.min(pairs[i], pages)
+  return { pairs, cmds }
+}
+
+/** The same under a local light's maps (`localAt`): range, the perspective box, then a command
+ *  and the rect's pages per mip whose rect is not empty. Pairs not capped. */
+export function bruteForceLocal(rows: SceneRows, light: VsmBoundLight) {
+  const n = rows.packed.length / CLUSTER_SPHERE_FLOATS,
+    p = rows.packed
+  const pairs = new Float64Array(n),
+    cmds = new Float64Array(n)
+  for (const entry of light.entry!.mapCaches.slice(0, light.count)) {
+    const pd = entry.projectionData
+    const m = clipOf(pd.shiftedToMapUv),
+      viewToClip = new Mat([...pd.lightViewToClip])
+    for (let i = 0; i < n; i++) {
+      const b = i * CLUSTER_SPHERE_FLOATS,
+        r = p[b + 3]
+      const c = [0, 1, 2].map((a) => p[b + a] + p[b + 4 + a] + pd.originShift[a])
+      if (Math.hypot(c[0], c[1], c[2]) > pd.lightRange + r) continue
+      const box = boxIn(c, r, m, viewToClip, false)
+      if (!box.inMapView) continue
+      for (let mip = 0; mip < VSM_MIPS; mip++) {
+        const size = SIZE >> mip
+        const count = pagesRect(cull.vsmRectPixels([0, 0, size, size], box))
+        pairs[i] += count
+        if (count) cmds[i]++
+      }
+    }
+  }
+  return { pairs, cmds }
+}

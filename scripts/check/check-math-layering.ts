@@ -4,7 +4,7 @@
 // builtins, which run on Node alone, and read the reference values beside the sources. `check-cycles.ts` runs it.
 import ts from 'typescript'
 import { normalized } from './check-calls-normalize.ts'
-import { isTestModule } from '../repository-files.ts'
+import { isTestModule } from '../git/repository-files.ts'
 
 const MATH_PACKAGE = 'packages/math'
 export const MATH_UNIT = `${MATH_PACKAGE}/src`

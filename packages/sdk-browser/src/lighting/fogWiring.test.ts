@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CONTRACT_COMPOSITIONS } from './deferred/shaders.ts'
-import { BLEND_VIEW_SIZE, BLEND_VIEW_WGSL } from '../webgpu/blend/viewLayout.ts'
+import { BLEND_VIEW_SIZE, BLEND_VIEW_WGSL } from '../blend/viewLayout.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import {
   BLEND_SHADER,

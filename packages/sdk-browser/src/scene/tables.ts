@@ -1,7 +1,7 @@
 /**
  * The cache's own description of the prepared scene (`scene-tables.json`): read once per session,
  * and the only thing the scene the engine draws is built from — no glTF is parsed at runtime
- * (`../world/scene/scene.ts`).
+ * (`drive/scene.ts`).
  */
 import {
   SCENE_TABLES_FILE,
@@ -9,8 +9,8 @@ import {
   type PreparedSceneTables,
 } from '../../../sdk-core/src/scene/core/tableContracts.ts'
 import { tablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
-import { checked } from '../cluster/checked.ts'
-import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
+import { checked } from '../geometry/cluster/checked.ts'
+import { unmetered, type ByteMeter } from '../geometry/cluster/byteMeter.ts'
 
 /** Where a cache keeps its scene tables: the one address their reader and a load's plan use. */
 export const sceneTablesUrl = (base: string) => new URL(SCENE_TABLES_FILE, base).href

@@ -2,7 +2,7 @@ import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.t
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { TrajectoryCheckpoint } from './trajectoryProof.ts'
 import { HOLD_FRAME_LIMIT } from '../harness/measurePage.ts'
-import { upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
+import { upscalePhases } from '../../../packages/sdk-browser/src/post/taa/jitter.ts'
 import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 interface TrajectoryPort {

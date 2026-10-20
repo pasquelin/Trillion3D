@@ -7,16 +7,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { closureScene, CUT_FRAME, runRowClosure } from './rowClosureRun.ts'
-import { closeRows } from '../../../packages/sdk-browser/src/webgpu/row/rowClosure.fixture.ts'
+import { closeRows } from '../../../packages/sdk-browser/src/geometry/rows/rowClosure.fixture.ts'
 import {
   ROW_PAGE,
   ROW_USE,
   ROW_USE_WORDS,
-} from '../../../packages/sdk-browser/src/webgpu/row/rowWords.ts'
-import { ROW_IN_USE } from '../../../packages/sdk-browser/src/webgpu/row/rowEvictSortWgsl.ts'
-import { sortPool } from '../../../packages/sdk-browser/src/gpu/pool/sort.fixture.ts'
-import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+} from '../../../packages/sdk-browser/src/geometry/rows/rowWords.ts'
+import { ROW_IN_USE } from '../../../packages/sdk-browser/src/geometry/rows/rowEvictSortWgsl.ts'
+import { sortPool } from '../../../packages/sdk-browser/src/gpu/sort/sort.fixture.ts'
+import { poolRank } from '../../../packages/sdk-browser/src/gpu/sort/rank.fixture.ts'
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 
 /** The clock the queue is ranked at: the cut's rows in use, the others idle. */
 const CLOCK = CUT_FRAME + 1

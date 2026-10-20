@@ -2,9 +2,9 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
 
 /**
  * The visibility-buffer uniform (`Uniforms`, `VIS_UNIFORMS_WGSL`), the same word for word for both
- * rasters and the resolves; `webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio`
+ * rasters and the resolves; `visibility/passes/uniforms.ts` writes it once per slot. `pixelRatio`
  * is the render pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`); `mipBias` the
- * texture level offset of a frame drawn below the display (`../../webgpu/tile/wgsl.ts`).
+ * texture level offset of a frame drawn below the display (`../../materials/virtual/wgsl.ts`).
  */
 export const VIS_UNIFORM = fieldLayout('Uniforms', [
   ['viewProj', 'mat4x4f'],

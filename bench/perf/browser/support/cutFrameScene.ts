@@ -2,14 +2,14 @@
 // every 4 × 4 block of them replaced by one coarse cluster of two triangles — a two-level DAG the
 // cut refines near the eye and keeps coarse far from it. Pages stream in on demand (`readPage`),
 // so residency, eviction and the cut's coarsening all have work, as on a real scene.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { Group } from '../../../../packages/sdk-core/src/world/object/object3d.ts'
 import {
   DAG,
   MANIFEST_IDENTITY,
   clusterSphere,
-} from '../../../../packages/sdk-browser/src/engine/pagesEngine.fixture.ts'
+} from '../../../../packages/sdk-browser/src/session/engine/pagesEngine.fixture.ts'
 import type { ClusterManifest } from '../../../../packages/sdk-core/src/contracts/geometry.ts'
 
 const CELL = 4,

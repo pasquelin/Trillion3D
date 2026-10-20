@@ -1,6 +1,6 @@
 // Page of the append-deform proof: a world draws a row of still meshes, then meshes a skeleton, morph
 // weights or waves move, and meshes whose vertices the host rewrites, are added to the scene while
-// its session runs (`placement/webgpuAppend.ts`, `deformation/growth.ts`), and the image is the one of
+// its session runs (`append/webgpuAppend.ts`, `deformation/growth.ts`), and the image is the one of
 // a world opened on all of them at once. A generated scene: no file of the site.
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { joined, row, type World } from './appendProof.ts'

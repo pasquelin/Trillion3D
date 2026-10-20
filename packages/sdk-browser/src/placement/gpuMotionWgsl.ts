@@ -6,7 +6,7 @@ import { affineRow } from '../../../math/src/wgsl/doubleAffine.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 /**
  * The temporal motion of a linked placement, on the GPU, word for word the CPU's
- * (`../taa/motion.ts`): `previous · current⁻¹` of the two single-precision worlds the rows hold,
+ * (`../post/taa/motion.ts`): `previous · current⁻¹` of the two single-precision worlds the rows hold,
  * widened to double, the inverse by `invertMatrix4`'s cofactors and the product by
  * `multiplyMatrix4`'s, every product, sum and the one reciprocal rounded once as the CPU rounds them
  * (`math/src/wgsl/double.ts`); its translation column becomes `M · (eye, 1)` in double, as

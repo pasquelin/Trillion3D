@@ -1,0 +1,74 @@
+import { cpuNow } from '../diagnostic/stopwatch.ts'
+import { DEFAULT_SCOPE } from '../../../sdk-core/src/contracts/base.ts'
+import type { AssetScope } from '../../../sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
+import type { RuntimeEvent } from '../../../sdk-core/src/runtime/events.ts'
+import type { MeasuredWorldOptions } from './options.ts'
+import { createDiagnosticChannel } from '../diagnostic/channel.ts'
+import { watchOpening } from './openWatch.ts'
+
+/** The two observer outlets every explorer module reports through. */
+export type ExplorerEmitters = {
+  emit: (event: RuntimeEvent) => void
+  diagnose: (phase: string, message: string, context?: Record<string, unknown>) => void
+}
+
+/** Says a fatal by name: the blocking event (`code`, `detail`), then its diagnostic record —
+ *  `phase`, `message`, `context`. The one shape of a fatal every explorer module reports. */
+export function sayFatal(
+  emitters: ExplorerEmitters,
+  code: string,
+  detail: string,
+  record: { phase: string; message: string; context: Record<string, unknown> },
+) {
+  emitters.emit({
+    eventVersion: 1,
+    type: 'fatal',
+    audience: 'blocking',
+    recovered: false,
+    code,
+    detail,
+  })
+  emitters.diagnose(record.phase, record.message, record.context)
+}
+
+/** What one explorer shares from its manifest onwards; built once and handed to each module as is. */
+export type ExplorerSession = ExplorerEmitters & {
+  canvas: HTMLCanvasElement
+  options: MeasuredWorldOptions
+  metadata: ClusterManifest
+  scope: AssetScope
+  signal?: AbortSignal
+  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>
+  /** The caller holds the canvas context and the scene: the session frees neither, the next one
+   *  opens on them. */
+  callerOwned?: boolean
+}
+
+/** The session's outlets; `opening` watches it open under `label` until `opening.done()`. */
+export function createExplorerSession(options: MeasuredWorldOptions, label: string) {
+  const diagnosticChannel = createDiagnosticChannel(options.onDiagnostic, {
+    detail: options.diagnosticDetail ?? (options.onDiagnostic ? 'trace' : 'summary'),
+  })
+  const emit = (event: RuntimeEvent) => {
+    try {
+      options.onEvent?.(event)
+    } catch {
+      /* Diagnostic observers cannot interrupt rendering. */
+    }
+  }
+  const opening = watchOpening(label)
+  const diagnose = (phase: string, message: string, context: Record<string, unknown> = {}) => {
+    opening.note(phase, message)
+    diagnosticChannel.emit({ phase, message, context })
+  }
+  const preparationStart = cpuNow()
+  const signal = options.signal
+  const scope = options.scope ?? DEFAULT_SCOPE
+  const progress = (phase: string, completed: number, total: number, message: string) => {
+    signal?.throwIfAborted()
+    options.onPreparation?.({ phase, completed, total, message })
+    diagnose('preparation', message, { kind: 'preparation', phase, completed, total, scope })
+  }
+  return { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress, opening }
+}

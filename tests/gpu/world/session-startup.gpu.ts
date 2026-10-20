@@ -4,13 +4,13 @@
 // moves the camera and it settles again; a new pixel ratio resizes it; once disposed, a resize
 // schedules nothing. Then the targets and the job and abort paths (`sessionTargets.ts`). A box
 // hidden or sized by its own drawing buffer needs a layout the bench's page does not compute
-// (`world/session/interactive.ts` reads `clientWidth`).
+// (`src/session/interactive.ts` reads `clientWidth`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { measureOutput } from '../../../bench/core/paths.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
+import type { MeasuredWorld } from '../../../packages/sdk-browser/src/session/explorer.ts'
 import { createOrbitCameraControls } from '../../../packages/sdk-browser/src/camera/controls/orbitControls.ts'
 import { drag } from '../camera/cameraGestures.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'

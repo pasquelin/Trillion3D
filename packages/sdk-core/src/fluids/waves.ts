@@ -81,7 +81,7 @@ export const TERM_SLOTS = {
  * The terms of wave `i` of `waves` at the rest point `(x, z)`, into `out` at their slots: the
  * displacement it adds (`OFFSET_X` to `OFFSET_Z`), then what it takes from the surface's
  * unnormalised normal (`NORMAL_X` to `NORMAL_Z`). The one formula of a wave: `Waves.offset` and
- * `Waves.normal` sum it, and the GPU deformation its WGSL print (`scripts/generate-shared-rules.ts`).
+ * `Waves.normal` sum it, and the GPU deformation its WGSL print (`scripts/build/generate-shared-rules.ts`).
  */
 export function waveTerms(waves: Waves, i: number, x: number, z: number, out: Float64Array) {
   const dx = waves.dirX[i],

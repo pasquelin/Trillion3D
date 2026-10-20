@@ -1,5 +1,5 @@
-// The proxy's rays read the culling's worlds and placement tree where they lie (`gpu/dag/worldTable.ts`,
-// `gpu/dag/treeTable.ts`): a world past one storage binding keeps its proxy and its camera cut — once
+// The proxy's rays read the culling's worlds and placement tree where they lie (`dag/worlds/worldTable.ts`,
+// `dag/tree/treeTable.ts`): a world past one storage binding keeps its proxy and its camera cut — once
 // refused past the device's limits, its rays now meet every placement, hit for hit those of the same
 // world held whole.
 //

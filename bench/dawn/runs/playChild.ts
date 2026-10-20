@@ -4,7 +4,7 @@ import { rmSync } from 'node:fs'
 import { runChild } from './child.ts'
 import { LOCK_OWNER } from './lock.ts'
 import type { BenchPlay } from './play.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 /** Runs `../run.ts` with `args` and writes its report to `report`; resolves to the play's numbers, or
  *  throws "`what` ended <code or signal>". `timeoutS` bounds the play. */

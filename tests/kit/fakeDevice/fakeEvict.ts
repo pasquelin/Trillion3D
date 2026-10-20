@@ -1,18 +1,18 @@
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
-import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
 import {
   EVICTION_BURST,
   evictionWord,
   SELECTION_HEADER_WORDS,
-} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
-import * as L from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import * as L from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import {
   sortStaged,
   stagedPage,
   stagedRequest,
-} from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/request/request.fixture.ts'
 import { words } from './fakeBuffers.ts'
 import { DAG_SLOT, boundListCap } from './fakeDag.ts'
 import {
@@ -20,11 +20,11 @@ import {
   listEvictions,
   pageKeys,
   raiseGroups,
-} from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/evict/evict.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** The groups' last uses and the geometry queue's pool sort, replayed on the words the kernels read
- *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`, `pool/sortWgsl.ts`): the clock is the frame the camera's uniform
+ *  (`shader/lastUseWgsl.ts`, `shader/evictWgsl.ts`, `sort/sortWgsl.ts`): the clock is the frame the camera's uniform
  *  block carries, the words live in `work`. */
 export function fakeEvictions(byBinding: Map<number, { data: Uint8Array }>, packed: PackedDag) {
   const [work, cold, out, views] = (['work', 'cold', 'out', 'views'] as const).map((name) =>

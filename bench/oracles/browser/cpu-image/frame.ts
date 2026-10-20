@@ -1,11 +1,11 @@
 import type { DepthCamera } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import { triangleAt } from './projection.ts'
 import { type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/session/engine/common.ts'
 import {
   locationOf,
   type PageLocations,
-} from '../../../../packages/sdk-browser/src/page/selection/placements.ts'
+} from '../../../../packages/sdk-browser/src/geometry/selection/placements.ts'
 import { unpackVisibilityId } from './ids.ts'
 
 type VisTriangle = NonNullable<ReturnType<typeof triangleAt>>

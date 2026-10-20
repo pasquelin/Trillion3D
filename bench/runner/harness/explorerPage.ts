@@ -1,8 +1,8 @@
 // Settings passed to `openMeasuredWorld` by the measurement page. This module is served to the page
 // and imported by its URL, like `series/cutPage.ts`: `measureView` is serialised by Playwright and
 // cannot read any module variable.
-import type { EngineFactory } from '../../../packages/sdk-browser/src/engine/factory.ts'
-import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
+import type { EngineFactory } from '../../../packages/sdk-browser/src/session/engine/factory.ts'
+import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/session/options.ts'
 import type { MeasureViewOptions } from './measureOptions.ts'
 
 /** The bench's clear colour, `0xrrggbb`: each page writes it with `setClearColor` once opened. */

@@ -1,6 +1,6 @@
 import { cpus, totalmem, platform, arch, release, hostname } from 'node:os'
 import { join } from 'node:path'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 export function measurementProvenance() {
   return {

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { DAMPING } from './layout.ts'
 import { ObjectPhysics } from './objectPhysics.ts'
 import { PHYSICS_STEP } from './options.ts'
-import { SOFT_DAMPING } from './soft.ts'
+import { SOFT_DAMPING } from './soft/soft.ts'
 
 test('a body keeps the settings it declares, and a type or word alone takes the defaults', () => {
   const shape = { type: 'box', halfExtents: [1, 2, 3] } as const

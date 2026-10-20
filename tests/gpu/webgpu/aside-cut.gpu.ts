@@ -1,5 +1,5 @@
 // #1483: the GPU cut is the engine's one cut, whichever view draws. A capture of a second camera
-// cuts on the main cut's tables with lists of its own (`gpu/dag/aside.ts`), and draws its own view
+// cuts on the main cut's tables with lists of its own (`geometry/dag/aside.ts`), and draws its own view
 // of the scene; the main view, drawn again after it, holds the very image it held before: the
 // aside cut left the main cut nothing to keep (`asideCutPage.ts`). No fallback is said.
 import test from 'node:test'

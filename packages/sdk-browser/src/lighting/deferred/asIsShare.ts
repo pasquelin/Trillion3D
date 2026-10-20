@@ -1,8 +1,8 @@
 import { AS_IS_SHARE_SHADER } from './asIsShareWgsl.ts'
-import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts'
+import { BLEND_EQUATIONS } from '../../materials/surface/materialBlending.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { preparedPipeline, started } from './fullscreen.ts'
-import { AS_IS_SHARE_PASS } from '../../stage/passLabels.ts'
+import { AS_IS_SHARE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /** Red, the as-is share; green, the reactive value. */
@@ -14,7 +14,7 @@ export const GIVEN_UP_FORMAT: GPUTextureFormat = 'r8unorm'
 /** Bytes per pixel of both targets, as the frame's target cost counts them (`targets.ts`). */
 export const AS_IS_SHARE_BYTES = 3
 
-/** The target as a blend writes it (`../../webgpu/blend/pipelines.ts`): its coverage over what
+/** The target as a blend writes it (`../../blend/pipelines.ts`): its coverage over what
  *  the pixel holds, in both channels. */
 export const SHARE_TARGET: GPUColorTargetState = {
   format: AS_IS_SHARE_FORMAT,
@@ -22,7 +22,7 @@ export const SHARE_TARGET: GPUColorTargetState = {
 }
 
 /** The reactive value's target as a particle and a transmissive layer write it
- *  (`../../webgpu/particles/webgpuParticleDraw.ts`, `../../webgpu/blend/transmission/pipelines.ts`): the same,
+ *  (`../../particles/gpu/webgpuParticleDraw.ts`, `../../blend/transmission/pipelines.ts`): the same,
  *  green alone (`GPUColorWrite.GREEN`). */
 export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 }
 
@@ -30,7 +30,7 @@ export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask
 const KEEP_LARGEST: GPUBlendComponent = { operation: 'max', srcFactor: 'one', dstFactor: 'one' }
 
 /** The given-up target as a blend or a transmissive layer writes it
- *  (`../../webgpu/blend/shader.ts`): the share of the history its surface gives up
+ *  (`../../blend/shader.ts`): the share of the history its surface gives up
  *  (`blendGivenUp`) times its coverage, the pixel keeping the largest of its layers' — a layer that
  *  keeps its whole history writes 0 and lowers none, a faint edge gives up little. */
 export const GIVEN_UP_TARGET: GPUColorTargetState = {
@@ -70,7 +70,7 @@ const seedProgram = oncePerDevice((device) => {
 })
 
 /** Asks the seed's programs of `device` off the frame, the frames held until they landed
- *  (`../../webgpu/frame/framePipelines.ts`). */
+ *  (`../../frame/loop/framePipelines.ts`). */
 export const askAsIsSeed = (device: GPUDevice) => {
   for (const pipeline of seedProgram(device).pipelines) pipeline.ask()
 }
@@ -78,14 +78,14 @@ export const askAsIsSeed = (device: GPUDevice) => {
 /**
  * The current image's debug-view share, seeded from opaque flags before transparents blend it, and
  * beside it the reactive value, seeded 0: each blend, particle and transmissive layer writes 1 at
- * its coverage over it (`../../webgpu/blend/transmission/transmitWgsl.ts`), so a pixel behind transparents holds
+ * its coverage over it (`../../blend/transmission/transmitWgsl.ts`), so a pixel behind transparents holds
  * their accumulated opacity. The temporal pass shortens a moving pixel's history by it
- * (`../../taa/historyWgsl.ts`).
+ * (`../../post/taa/historyWgsl.ts`).
  *
  * In a target of its own, what the blends and transmissive layers over the pixel give up of its
  * history (`GIVEN_UP_TARGET`), cleared to 0 on an image whose blends give some up to a temporal
  * pass (`blendShareTargets`): the history update caps the history's share by its complement as by
- * an opaque surface's (`../../taa/resolveWgsl.ts`). A particle gives up none; an image whose
+ * an opaque surface's (`../../post/taa/resolveWgsl.ts`). A particle gives up none; an image whose
  * blends all keep their history neither clears nor binds it, the update reading a 1×1 zero.
  */
 export function createAsIsShare(

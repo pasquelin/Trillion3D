@@ -2,8 +2,8 @@
 // per mesh — O(n²) on a manifest with n primitives — with two tables built once. It must
 // return exactly what `find` returns, including on duplicate keys (the first wins),
 // a missing association, and a NaN key (`===` never finds NaN, neither does `find`). The oracle is
-// that `find`, applied here because `../page/selection/collect.ts` and
-// `../world/scene/scene.ts` do not export it separately.
+// that `find`, applied here because `../geometry/selection/collect.ts` and
+// `drive/scene.ts` do not export it separately.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { primitiveFinder } from './primitiveLookup.ts'
@@ -12,7 +12,7 @@ import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 const prim = (mesh: number, primitive: number, tag: string) =>
   ({ mesh, primitive, tag }) as unknown as Primitive
 
-/** The reference `find`, as in `../page/selection/collect.ts` and `../world/scene/scene.ts`. */
+/** The reference `find`, as in `../geometry/selection/collect.ts` and `drive/scene.ts`. */
 function referenceFind(
   primitives: readonly Primitive[],
   association: { meshes?: number; primitives?: number } | undefined,

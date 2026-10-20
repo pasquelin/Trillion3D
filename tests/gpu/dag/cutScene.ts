@@ -2,16 +2,16 @@
 // a pyramid of levels placed once per pose, seen from the front, and the command count an encode
 // opens.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import { frontCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
-import { ruleResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
+import { frontCamera } from '../../../packages/sdk-browser/src/geometry/selection/dag.fixture.ts'
+import { ruleResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
 import {
   scenePages,
   sceneRoots,
-} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/cut/cutFrontierScene.fixture.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
 
 /**
  * The scene, one placement per pose, its camera, and the worlds brought back to that camera's

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assignDeformationOutputs, writeRowDeformation, writeSpanDeformation } from './outputs.ts'
-import type { ClusterRoot, DeformationOutput, PageRec } from '../page/selection/types.ts'
+import type { ClusterRoot, DeformationOutput, PageRec } from '../geometry/selection/types.ts'
 
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 

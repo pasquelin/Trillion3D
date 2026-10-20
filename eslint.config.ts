@@ -1,4 +1,4 @@
-import { localFileGlobs } from './scripts/repository-files.ts'
+import { localFileGlobs } from './scripts/git/repository-files.ts'
 import { MATHS_FORMS, MATHS_HOME, MATHS_ORACLES } from './scripts/lint/lint-maths.ts'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'

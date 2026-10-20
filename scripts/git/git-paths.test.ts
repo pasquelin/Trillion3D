@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { git, gitPaths, gitPathsSync } from '../git-paths.ts'
+import { git, gitPaths, gitPathsSync } from './git-paths.ts'
 
 test('reads every Git path beyond 1 MiB, preserving Unicode and embedded newlines', async () => {
   const cwd = mkdtempSync(join(tmpdir(), 'geometry-git-paths-'))

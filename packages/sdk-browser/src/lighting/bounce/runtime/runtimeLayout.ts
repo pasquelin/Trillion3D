@@ -1,0 +1,90 @@
+// The layout of the run-time proxy's buffer, kept apart from the passes that read it (`runtimeSceneWgsl.ts`)
+// and the object that writes it (`geometry/dag/proxy/proxyInstances.ts`): both read it from here.
+import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+
+/**
+ * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, a surface per drawn
+ * material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
+ * (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —:
+ * what grows with the meshes, never with the placements. What grows with them lies in record tables a
+ * program binds beside this buffer, sampled textures, no storage binding — the culling's own, never a
+ * copy —: the culling's, read where they
+ * lie — the placements' records, each world and each instance (`geometry/dag/worlds/worldTable.ts`), and the tree
+ * above them (`geometry/dag/tree/treeTable.ts`).
+ *
+ * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are
+ * both drawn from (`fieldLayout`): the placements the instances hold, then the word rank of each
+ * region, the tree's root node, within the tree (`NO_INDEX` for a packing without a tree: the
+ * placements are then its few members), the live members, and the greatest world error of a proxy,
+ * in metres, as an `f32`'s bits: the distance a ray leaves a surface off its normal.
+ */
+const HEADER = fieldLayout(
+  'RuntimeProxy',
+  [
+    ['instances', 'u32'],
+    ['surfacesWord', 'u32'],
+    ['trianglesWord', 'u32'],
+    ['boundsWord', 'u32'],
+    ['childrenWord', 'u32'],
+    ['treeRoot', 'u32'],
+    ['members', 'u32'],
+    ['error', 'f32'],
+  ] as const,
+  'words:array<u32>,',
+)
+export const RUNTIME_HEADER = HEADER.at
+export const RUNTIME_HEADER_WORDS = HEADER.words
+/** The proxy's buffer as the shaders read it: the header's fields, then every word past them. */
+export const RUNTIME_PROXY_WGSL = wgslBlock('RUNTIME_PROXY_WGSL', [], HEADER.wgsl)
+
+/** One placement's instance, the `Instance` texel of its record (`geometry/dag/worlds/worldTable.ts`): its
+ *  cut's first node and first triangle in the arena (`NO_INDEX` where it draws no proxy), the
+ *  surface it wears, and its frame word — the mark with the deformation's reach above it
+ *  (`rootMark`). */
+export const INSTANCE = { node: 0, triangle: 1, surface: 2, mark: 3 } as const
+export const INSTANCE_WORDS = Object.keys(INSTANCE).length
+
+/** One surface, its words laid as WGSL lays the fields (`fieldLayout`): the diffuse tint
+ *  (linear), the opacity, the emission (linear radiance) and a flags word. */
+const SURFACE_LAYOUT = fieldLayout('RuntimeSurface', [
+  ['tint', 'vec3f'],
+  ['opacity', 'f32'],
+  ['emission', 'vec3f'],
+  ['flags', 'u32'],
+] as const)
+export const SURFACE = SURFACE_LAYOUT.at
+export const SURFACE_WORDS = SURFACE_LAYOUT.words
+export const SURFACE_BLENDED = 1
+
+/**
+ * THE BUDGET OF A RAY. One counter of `work` units per ray, shared by the placement
+ * tree and the cuts' own nodes: a child a tree node examines costs one, a cut's node four, a triangle
+ * two; a ray stops at `RAY_WORK` units or `RAY_TRIANGLES` triangle tests. The shadow rays its hits'
+ * lighting casts (`rtBlocked`) spend the same budget: a ray, its lighting included, costs `RAY_WORK`
+ * units at most, whatever the lights its hits see — never one budget more a light.
+ *
+ * ONE RULE FOR AN EXHAUSTED RAY, the physically safe one: a ray that spends its budget — or whose
+ * hit's lighting casts a shadow ray that spends its own — carries zero weight. It is never a miss
+ * (which would darken) nor an unblocked shadow (which would leak light): a reflection's ray answers
+ * zero confidence, its share left to the next stage of the chain (`rtRadiance`), and a probe's ray
+ * is dropped from the probe's estimate, which is renormalised over the rays that answered
+ * (`rtProbeRay`, `../probes/probeWgsl.ts`).
+ */
+export const RAY_WORK = 512
+/** The steps a ray's walk of the placement tree takes at most (`placementTreeWalk`), twice its
+ *  units: the one bound the shipped walk and its CPU twin read. */
+export const RAY_TREE_STEPS = 2 * RAY_WORK
+export const RAY_TRIANGLES = 128
+/** Surfaces met in a ray before it ends: a blended one is looked through, up to this many — a closed
+ *  blended solid is two, its front face and its back. */
+export const RAY_LAYERS = 3
+/** The width a ray's footprint has at its origin, in metres: the spread a deformed placement's reach
+ *  is weighed against at a hit (`rtRadiance`), never zero at a contact. */
+export const RAY_SPREAD_FLOOR = 0.01
+/** The light a ray lets through under which the surfaces behind are not looked for: under one step
+ *  of an 8-bit channel of five times the light. */
+export const RAY_THROUGH_FLOOR = 0.02
+/** The least distance a ray leaves a hit by to look behind it, in metres, where the proxy's own
+ *  error is smaller. */
+export const RAY_ERROR_FLOOR = 1e-3

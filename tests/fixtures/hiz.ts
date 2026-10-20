@@ -1,18 +1,21 @@
-import { surfaceOf, type PageSurface } from '../../packages/sdk-browser/src/page/surface.ts'
-import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import {
+  surfaceOf,
+  type PageSurface,
+} from '../../packages/sdk-browser/src/geometry/pages/surface.ts'
+import * as G from '../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Geometry } from '../../packages/sdk-core/src/world/geometry/geometry.ts'
 import type { Camera } from '../../packages/sdk-core/src/world/camera/camera.ts'
 import type { VisPage } from '../../packages/sdk-browser/src/visibility/types.ts'
 import { engineCamera } from '../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/engineCamera.ts'
-import { identityLocations } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
-import type { HizPage } from '../../packages/sdk-browser/src/hiz/types.ts'
+import { identityLocations } from '../../packages/sdk-browser/src/geometry/selection/placements.fixture.ts'
+import type { HizPage } from '../../packages/sdk-browser/src/visibility/hiz/types.ts'
 import type { HizBounds } from '../../bench/oracles/browser/hizRejects.ts'
 import { buildHizPyramid } from '../../bench/oracles/browser/hizPyramid.ts'
-import { visibilityDepth } from '../../packages/sdk-browser/src/hiz/visibilityDepth.fixture.ts'
-import { HIZ_BOUNDS_VALUES } from '../../packages/sdk-browser/src/hiz/corners.ts'
-import { projectBoxesFlat } from '../../packages/sdk-browser/src/hiz/projection.fixture.ts'
+import { visibilityDepth } from '../../packages/sdk-browser/src/visibility/hiz/visibilityDepth.fixture.ts'
+import { HIZ_BOUNDS_VALUES } from '../../packages/sdk-browser/src/visibility/hiz/corners.ts'
+import { projectBoxesFlat } from '../../packages/sdk-browser/src/visibility/hiz/projection.fixture.ts'
 import { rasterVisibilityIds } from '../../bench/oracles/browser/cpu-image/raster.ts'
 import { boxCenter } from '../../packages/math/src/geometry/box.ts'
 

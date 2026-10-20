@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createFrameGateCore } from './gateCore.ts'
-import { createViewHold } from './viewRevision.ts'
-import * as G from '../host/graph/graph.fixture.ts'
+import { createFrameGateCore } from './gate/gateCore.ts'
+import { createViewHold } from './view/viewRevision.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { HostCamera } from '../camera/world.ts'
 

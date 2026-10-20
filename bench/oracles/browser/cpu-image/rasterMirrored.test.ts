@@ -9,15 +9,15 @@
 // shown face must then flip from one to the other, for a front material as for a back one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { Matrix4 } from '../../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { matrixWindingCw } from '../../../../packages/math/src/matrix/orientation.ts'
 import type { Side } from '../../../../packages/sdk-core/src/contracts/material.ts'
 import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
-import { locatedBy } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
+import { surfaceOf } from '../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
+import { locatedBy } from '../../../../packages/sdk-browser/src/geometry/selection/placements.fixture.ts'
 import { rasterVisibility } from './raster.ts'
 import { unpackVisibilityId } from './ids.ts'
 

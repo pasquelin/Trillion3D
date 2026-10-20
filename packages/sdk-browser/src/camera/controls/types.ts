@@ -10,10 +10,10 @@
  *
  * `target`, `object.position`, `minDistance`, `maxDistance`, `enableZoom`, `update()`,
  * `addEventListener('change')` and `dispose()` are the ORBIT contract a world's `controls`
- * publishes (`world/core/worldCamera.ts`); nothing outside that list is part of it. The other
+ * publishes (`session/world/camera.ts`); nothing outside that list is part of it. The other
  * controllers publish the same base plus what their own motion needs.
  */
-import type { HostRotation } from '../../host/scene/graphNodes.ts'
+import type { HostRotation } from '../../scene/host/scan/graphNodes.ts'
 
 /** The vector operations a controller and its host perform on a position or a target. */
 export interface ControlVector {
@@ -51,7 +51,7 @@ export interface ControlVector {
  */
 export interface ControlCamera {
   position: ControlVector
-  /** The orientation the host stores, declared once in `../../host/scene/graphNodes.ts`. */
+  /** The orientation the host stores, declared once in `../../scene/host/scan/graphNodes.ts`. */
   quaternion: HostRotation
   fov: number
   /** Magnification, 1 when the host has none: a pan at zoom 2 moves half as far per pixel. */

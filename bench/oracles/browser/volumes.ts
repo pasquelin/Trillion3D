@@ -30,7 +30,7 @@ export function referencePlanesToLocal(planes: Float32Array, elements: number[])
 const axis = new THREE.Vector3(),
   center = new THREE.Vector3()
 
-/** `packages/sdk-browser/src/page/cone/cone.ts`, after its material, conformal and angle guards. */
+/** `packages/sdk-browser/src/geometry/cone/cone.ts`, after its material, conformal and angle guards. */
 export function referenceConeRejects(
   cone: { axis: number[]; angle: number },
   world: THREE.Matrix4,

@@ -1,14 +1,14 @@
 // A written range of placement rows moves only what moved in it. The world hands each instance
-// buffer's written span once (`world/core/worldPoses.ts`): a row of it left where it stands — a
+// buffer's written span once (`session/world/poses/poses.ts`): a row of it left where it stands — a
 // still mesh between two written ones, a sleeping wheel posed again in place — is no move. The
-// shadow pages a moved root left and entered are its rows' to stale on the GPU (`rowCastWgsl.ts`):
+// shadow pages a moved root left and entered are its rows' to stale on the GPU (`rows/rowCastWgsl.ts`):
 // the follow declares no box, it only says which roots moved, flipped, or turned moving.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxTransform } from '../../../math/src/geometry/box.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
-import { createShadowMobility } from '../webgpu/shadow/mobility.ts'
-import { createPlacementRows, placementWorld } from './rows.ts'
+import { createShadowMobility } from '../lighting/shadows/casters/mobility.ts'
+import { createPlacementRows, placementWorld } from './rows/rows.ts'
 import { followPlacementRows } from './update.ts'
 import { SHADOWLESS_ROOT } from '../visibility/shader/shadowlessRoot.ts'
 
@@ -72,7 +72,7 @@ test('a row parked or taken back where it stands is drawn again, and is no move'
 })
 
 test('a row that stops or starts casting flips its mark, whatever its pose', () => {
-  // `castShadow` written on a world mesh reaches its row (`worldPoseSeat.ts`); its root leaves
+  // `castShadow` written on a world mesh reaches its row (`poses/poseSeat.ts`); its root leaves
   // or enters every light cut, and the pages it covered are drawn again without it, or with it.
   const { rows, write, mobility } = placed(),
     marks: [number, number | undefined][] = []

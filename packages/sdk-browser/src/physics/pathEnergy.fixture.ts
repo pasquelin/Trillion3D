@@ -1,6 +1,6 @@
 // A body launched along a closed path, gravity alone driving it, on the joint rig (`joints/joints.fixture.ts`):
 // the energy it keeps over a lap (`pathEnergy.test.ts`).
-import { joint } from '../../../sdk-core/src/physics/joint.ts'
+import { joint } from '../../../sdk-core/src/physics/joint/joint.ts'
 import { gap, jointRig } from './joints/joints.fixture.ts'
 
 /** Gravity in the rigs, m/s², and their step, s. */

@@ -1,4 +1,4 @@
-import { repositoryFiles } from '../repository-files.ts'
+import { repositoryFiles } from '../git/repository-files.ts'
 import { compileCaches } from '../native/scene-caches.ts'
 import { isUnitTest, runUnitTests } from './unit-tests.ts'
 

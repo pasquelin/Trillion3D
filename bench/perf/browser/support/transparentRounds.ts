@@ -3,16 +3,16 @@
 // Each scene has its own: a lap shared between two scenes is a polymorphic call site, and
 // the timer pays for it. Likewise, each loop is in the function where the engine holds it —
 // a loop written inline in the lap slows the others, at strictly identical work.
-import { orderBlendPasses } from '../../../../packages/sdk-browser/src/webgpu/blend/order.ts'
+import { orderBlendPasses } from '../../../../packages/sdk-browser/src/blend/order/order.ts'
 import {
   expandBlendPlan,
   cpuModel,
   orderBlendPlanCpu,
   orderEye,
   refreshEyeKeys,
-} from '../../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
+} from '../../../../packages/sdk-browser/src/blend/expand/expandCpu.fixture.ts'
 import { instanceItem } from '../../../oracles/browser/instanceItem.ts'
-import { slotCapacity } from '../../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
+import { slotCapacity } from '../../../../packages/sdk-browser/src/blend/plan/planLayout.ts'
 import {
   benchSide,
   glisse,
@@ -28,7 +28,7 @@ import {
   classementReference,
   encodeReference,
 } from '../../../oracles/browser/transparent-orders.ts'
-import { blendVerdictCpu } from '../../../../packages/sdk-browser/src/webgpu/blend/verdict.fixture.ts'
+import { blendVerdictCpu } from '../../../../packages/sdk-browser/src/blend/verdict/verdict.fixture.ts'
 
 /** What the encode loop counted on the last lap: read by the sample, not by the lap. */
 let counts = 0
@@ -36,7 +36,7 @@ const encodedCalls = () => counts
 
 /**
  * THE ENCODE LOOP, counted: every slot is encoded, the frustum verdict being the GPU's — a slot
- * whose items it rejects draws no instance (`packages/sdk-browser/src/webgpu/blend/draw.ts`).
+ * whose items it rejects draws no instance (`packages/sdk-browser/src/blend/draw.ts`).
  */
 const callCount = (blendState: BenchSide['blendState']) => blendState.runCount
 

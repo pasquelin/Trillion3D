@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { publierRapport } from './publishReport.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 test('a campaign replaces the one report, keeps the other files, and validates evidence before copying', () => {
   const root = mkdtempSync(join(tmpdir(), 'trillion3d-publish-'))

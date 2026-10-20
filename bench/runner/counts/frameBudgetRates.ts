@@ -1,6 +1,6 @@
 // What the whole-frame budget of the reference case (`counts/frameBudget.ts`) prices its counts at,
 // and the per-pixel accesses it counts where no counter walks the shipped shader.
-import { hizLevelSizes } from '../../../packages/sdk-browser/src/gpu/hiz/levelSizes.ts'
+import { hizLevelSizes } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/levelSizes.ts'
 import { benchLights } from '../lighting/lamps.ts'
 import { LIGHTING_RATES } from '../lighting/lightGridCount.ts'
 import { ATRIUM_BOUNDS } from '../lighting/lightTileAtrium.ts'
@@ -36,7 +36,7 @@ export const SETUP_TEXELS = 8 + 1
  *  (`vsmMaskFactor`); the trace itself is the projection pass's. */
 export const MASK_TEXELS = 1
 /** Page-table accesses the marking pass spends a light it marks: its home page and its neighbours
- *  across a page edge (`vsm/markingWgsl.ts`). */
+ *  across a page edge (`lighting/shadows/vsm/markingWgsl.ts`). */
 export const DEMAND_MARKS = 4
 
 export const UNCOUNTED = [

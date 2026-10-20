@@ -5,9 +5,9 @@ import '../../../../../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import { createExplorerCamera } from '../../../../../../../packages/sdk-browser/src/world/camera/camera.ts'
+import { createExplorerCamera } from '../../../../../../../packages/sdk-browser/src/camera/session/camera.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
-import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import {
   Group,
   type Object3D,

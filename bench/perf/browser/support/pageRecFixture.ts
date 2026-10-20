@@ -2,8 +2,8 @@
 // (residency, streaming, shadow spheres): the rest are shared constants, allocated once, never
 // read by the timed loop, so filling them costs nothing the bench's own numbers could move.
 import type { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
-import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
-import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
+import type { PageRec } from '../../../../packages/sdk-browser/src/geometry/selection/types.ts'
+import { surfaceOf } from '../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 
 const DUMMY_ATTRIBUTES: Geometry['attributes'] = {}
 const DUMMY_BOUNDS: number[] = [0, 0, 0]

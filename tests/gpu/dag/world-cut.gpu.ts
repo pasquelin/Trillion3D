@@ -8,11 +8,11 @@ import {
   objectCovers,
   worldScene,
   type WorldScene,
-} from '../../../packages/sdk-browser/src/gpu/dag/worldScene.fixture.ts'
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
-import { ruleResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/worlds/worldScene.fixture.ts'
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/geometry/dag/oracle/oracle.fixture.ts'
+import { ruleResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { CELL_DRAW } from '../../../packages/sdk-browser/src/gpu/dag/worldLinks.ts'
+import { CELL_DRAW } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worldLinks.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 

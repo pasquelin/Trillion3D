@@ -10,7 +10,7 @@ import {
   dispatchGrid,
   dispatchRows,
 } from './grid.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Kernel = { groupGrid: (g: number) => number[]; flatIndex: (...v: unknown[]) => number }

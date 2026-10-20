@@ -4,7 +4,7 @@ import { changedSteps, formatPattern, isCodeChange, sourcePattern } from './chan
 import { goldenChecks } from '../native/golden-checks.ts'
 import { heavyStep } from '../native/heavy-lock.ts'
 import { pnpmCommand } from '../lint/only-pnpm.ts'
-import { changedFiles, repositoryFiles } from '../repository-files.ts'
+import { changedFiles, repositoryFiles } from '../git/repository-files.ts'
 import { run } from './run.ts'
 import { compileCaches } from '../native/scene-caches.ts'
 import { changedTypeErrors, tsProjects } from './ts-projects.ts'

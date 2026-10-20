@@ -3,7 +3,10 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/options.ts'
-import { SOFT_STATE_WORDS, SOFT_VERTEX_WORDS } from '../../../../sdk-core/src/physics/softLayout.ts'
+import {
+  SOFT_STATE_WORDS,
+  SOFT_VERTEX_WORDS,
+} from '../../../../sdk-core/src/physics/soft/softLayout.ts'
 import { plane } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { startModule } from '../module.fixture.ts'
 import { id } from '../records.fixture.ts'

@@ -3,7 +3,7 @@
 // the temporal pass took before.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { GOLDEN_U32 } from '../../../../math/src/constants.ts'
 import { hashUnit, mixWord as mixWordWgsl } from '../../../../math/src/wgsl/sampling.ts'

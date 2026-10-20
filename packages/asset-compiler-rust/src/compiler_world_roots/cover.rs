@@ -11,7 +11,7 @@ use trillion3d_page_codec::encode::Attribute;
 /// its pages carry on those vertices — normals, texture sets, colour —. Empty for a primitive no
 /// HLOD takes: it keeps drawing its own pages. A blended primitive is a source as any, and the
 /// flattened material is opaque — an actor seen from far is one solid shell, so no opacity or mask
-/// map is baked —, which the runtime wears (`scene/worldRecords.ts`).
+/// map is baked —, which the runtime wears (`hlod/worldRecords.ts`).
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SourceCover {
     pub positions: Vec<f32>,

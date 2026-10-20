@@ -2,8 +2,8 @@ import { join } from 'node:path'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { gitPaths } from '../../scripts/git-paths.ts'
-import { REPOSITORY_ROOT, repositoryFiles } from '../../scripts/repository-files.ts'
+import { gitPaths } from '../../scripts/git/git-paths.ts'
+import { REPOSITORY_ROOT, repositoryFiles } from '../../scripts/git/repository-files.ts'
 
 // THE REPOSITORY NEVER NAMES THE MACHINE IT WAS WRITTEN ON.
 //

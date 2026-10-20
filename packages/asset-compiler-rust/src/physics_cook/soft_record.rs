@@ -1,5 +1,5 @@
 //! A soft body's simulated vertices, made from a primitive as the page's `softBodyOf` makes them from
-//! a geometry (`packages/sdk-core/src/physics/soft.ts`): vertices at one position welded into one,
+//! a geometry (`packages/sdk-core/src/physics/soft/soft.ts`): vertices at one position welded into one,
 //! their triangles (none for a rope), their masses from the scaled area — a rope's length — each
 //! holds, or the declared mass spread so, its pins held, and a volume's pressure. Each stored value
 //! is rounded to 32 bits where the page's `Float32Array` rounds it: both weigh a vertex alike.

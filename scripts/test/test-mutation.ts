@@ -11,10 +11,10 @@ import { join, relative, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
 import { Stryker } from '@stryker-mutator/core'
 import { mutationMarkdown, mutationTargets, summarizeMutation } from './mutation-summary.ts'
-import { localFileGlobs, repositoryFiles } from '../repository-files.ts'
+import { localFileGlobs, repositoryFiles } from '../git/repository-files.ts'
 import { isUnitTest } from './unit-tests.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
-import { git } from '../git-paths.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
+import { git } from '../git/git-paths.ts'
 
 const PACKAGES = ['packages/math/src/', 'packages/sdk-core/src/']
 const { values } = parseArgs({

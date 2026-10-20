@@ -1,7 +1,7 @@
 // A fixed-scale page on a generated display, for the frame cap's tests (`cadenceCap.test.ts`):
 // when each image is shown.
-import type { createScaleControl } from './scaleControl.ts'
-import { HZ120 } from './scaleFit.fixture.ts'
+import type { createScaleControl } from './scale/scaleControl.ts'
+import { HZ120 } from './scale/scaleFit.fixture.ts'
 
 /** Images the display queues at most: a frame is asked once one is free, as the browser's
  *  animation frames wait for the compositor (`FRAMES_IN_FLIGHT`). */

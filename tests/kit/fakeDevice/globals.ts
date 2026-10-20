@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
-import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import { BASE_SLOTS } from '../../../packages/sdk-browser/src/visibility/draw/contract.ts'
 import type { FakeDraw } from './fakeRenderPass.ts'
 import { words } from './fakeBuffers.ts'
-import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 import { BUFFER, TEXTURE } from './formats.ts'
@@ -27,7 +27,7 @@ export function indirectDraws(draws: readonly FakeDraw[]) {
 
 /** The transparent passes' draws of an image — the blends', the transmissive layers' — on the blend vertex stage,
  *  the front pass's left out: it draws every run once more, for the transparents' front alone
- *  (`webgpu/blend/frontPass.ts`). */
+ *  (`src/blend/frontPass.ts`). */
 export const transparentDraws = (draws: readonly FakeDraw[]) =>
   draws.filter((draw) => draw.entryPoint === 'vs' && draw.fragment !== 'fsFront')
 
@@ -63,7 +63,7 @@ export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?:
 
 /**
  * Replays the compaction the GPU does of draw flags: the count, then the ranks of drawable pages in
- * increasing order, like the kernels of `../../../packages/sdk-browser/src/gpu/dag/shader/compactWgsl.ts`. It extends the sample, behind the
+ * increasing order, like the kernels of `../../../packages/sdk-browser/src/geometry/dag/shader/compactWgsl.ts`. It extends the sample, behind the
  * wanted pages, in the same buffer.
  */
 export function compactDrawnPages(workBytes: Uint8Array, outBytes: Uint8Array, pageCount: number) {

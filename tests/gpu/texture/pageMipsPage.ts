@@ -2,10 +2,10 @@
 // `develop`'s render chain (`pageMipsReference.ts`) on the same level 0, each level of the engine's
 // copied into a texture of the pool format — as tiles are — and both read back, every view the
 // engine makes of its working texture checked against WebGPU's view rule (`checkView`).
-import { generateMaterialMips } from '../../../packages/sdk-browser/src/texture/mipBatch.ts'
-import { materialMipTexture } from '../../../packages/sdk-browser/src/texture/mips.ts'
+import { generateMaterialMips } from '../../../packages/sdk-browser/src/materials/texture/mipBatch.ts'
+import { materialMipTexture } from '../../../packages/sdk-browser/src/materials/texture/mips.ts'
 import { previewLevelSize } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
-import { mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { mipLevelCountFor } from '../../../packages/sdk-browser/src/materials/texture/tiles.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'

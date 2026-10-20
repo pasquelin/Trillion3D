@@ -3,7 +3,7 @@
 // encoded from its triangle and the mesh's positions, normals and texture coordinates — the second
 // set too, as `TEXCOORD_1` —, and the engine reads it through `readGeometryPage`, decoding every
 // attribute in place on the GPU instead of the float pool.
-import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/geometry/codec/encodePage.fixture.ts'
 import type { PageAttributes } from '../../../packages/sdk-core/src/page/pageInput.ts'
 import type { ScenePreparee } from '../../kit/device/sharedSceneProof.ts'
 

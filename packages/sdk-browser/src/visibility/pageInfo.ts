@@ -5,22 +5,22 @@ import { fieldLayout } from '../gpu/core/fieldLayout.ts'
  * (`shader/pageWgsl.ts`, `PAGE_INFO_STRUCT_WGSL`), each field's first word, which the row writer
  * and every row reader index (`PAGE_INFO.at`), and the row's words. A row holds what its geometry
  * and its placement decide, and names its surface's record in the material table (`material`,
- * `../webgpu/material/materialTable.ts`): none of the surface's values, which a material's edit
+ * `../materials/table/materialTable.ts`): none of the surface's values, which a material's edit
  * writes once, in its record, and no row.
  */
 export const PAGE_INFO = fieldLayout('PageInfo', [
   ['world', 'mat4x4f'],
-  // The geometry's flags OR'd with its surface's (`../webgpu/row/pageRowMaterial.ts`): what the
+  // The geometry's flags OR'd with its surface's (`../geometry/rows/page/pageRowMaterial.ts`): what the
   // passes branch on without reading the record.
   ['flags', 'u32'],
   // The page's place in the geometry pool, in words: what a slot move writes again, the occupant
-  // kept (`../webgpu/row/writers.ts`, `replace`).
+  // kept (`../geometry/rows/writers.ts`, `replace`).
   ['pageOffset', 'u32'],
   // How many indices the page draws: what the GPU reads to draw it, and so the only vertex count
   // an image walk needs to reread.
   ['indexCount', 'u32'],
   // The geometry's first vertex in the shared pools, and the row's identifier base
-  // (`packedRowBase`, `../webgpu/row/pageRow.ts`).
+  // (`packedRowBase`, `../geometry/rows/page/pageRow.ts`).
   ['vertexBase', 'u32'],
   ['packedBase', 'u32'],
   ['clusterHash', 'u32'],
@@ -41,7 +41,7 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   ['deformCount', 'u32'],
   ['deformOutput', 'u32'],
   // The rank of the surface's record in the material table and its second UV set's bit
-  // (`MATERIAL_SECOND_UV`, `../webgpu/material/materialTable.ts`).
+  // (`MATERIAL_SECOND_UV`, `../materials/table/materialTable.ts`).
   ['material', 'u32'],
 ] as const)
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { gitPaths } from '../../scripts/git-paths.ts'
+import { gitPaths } from '../../scripts/git/git-paths.ts'
 import {
   CHROME_SUFFIX,
   DAWN_REFUSED,
@@ -19,7 +19,7 @@ import {
   proofArgs,
   proofName,
 } from './proofs.ts'
-import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/git/repository-files.ts'
 
 const at = (path: string) => join(REPOSITORY_ROOT, path)
 /** The two targets, by how their proofs' names end. */

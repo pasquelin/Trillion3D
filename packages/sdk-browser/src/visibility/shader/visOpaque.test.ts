@@ -10,8 +10,8 @@
 // non-cutout row gets the same words from both stages before its depth test.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
-import { functionsOf } from '../../texture/shaderRule.fixture.ts'
+import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
+import { functionsOf } from '../../materials/texture/shaderRule.fixture.ts'
 import type { Fn } from './triangleScene.fixture.ts'
 import { matrixWindingCw } from '../../../../math/src/matrix/orientation.ts'
 import { signedArea } from '../../../../../bench/oracles/browser/cpu-image/projection.ts'

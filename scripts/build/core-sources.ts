@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import type { Metafile } from 'esbuild'
-import { readJson, posixPath } from '../repository-files.ts'
+import { readJson, posixPath } from '../git/repository-files.ts'
 
 /** Beside the CDN bundle, the sources each of its files holds: `build-bundle.ts` writes it from
  *  esbuild's metafile, `cleanBundle` removes it with the bundle, the package never ships it. */
@@ -35,20 +35,20 @@ const NOT_IN_CORE = {
   measurement: ['sdk-browser/src/measurement/'],
   'the WebGPU renderer': ['sdk-browser/src/webgpu/pages/'],
   'the WebGPU shadows': [
-    'sdk-browser/src/gpu/shadow/',
-    'sdk-browser/src/webgpu/shadow/',
-    'sdk-browser/src/vsm/',
+    'sdk-browser/src/lighting/shadows/',
+    'sdk-browser/src/lighting/shadows/casters/',
+    'sdk-browser/src/lighting/shadows/vsm/',
   ],
 }
 /** The shadows' constants and lean size modules, which import no pass, pipeline nor other shader
  *  text: the world's settings read the shadows' defaults from the constants, and the memory budget
  *  the core splits at a world's creation reads its shadow shares from the size modules
- *  (`residency/shadowBudgetBytes.ts`): only them of the shadows' folders. */
+ *  (`memory/shadowBudgetBytes.ts`): only them of the shadows' folders. */
 const SHADOW_SIZES = [
-  'sdk-browser/src/vsm/constants.js',
-  'sdk-browser/src/vsm/layout.js',
-  'sdk-browser/src/vsm/layoutBytes.js',
-  'sdk-browser/src/vsm/transmissionLayout.js',
+  'sdk-browser/src/lighting/shadows/vsm/constants.js',
+  'sdk-browser/src/lighting/shadows/vsm/layout.js',
+  'sdk-browser/src/lighting/shadows/vsm/layoutBytes.js',
+  'sdk-browser/src/lighting/shadows/vsm/transmission/transmissionLayout.js',
 ]
 
 /** The folder a source is listed under: its package's own `src/` and the folder below it. */

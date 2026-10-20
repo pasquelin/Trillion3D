@@ -13,7 +13,7 @@ import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import {
   VOLUME_LAW_WGSL,
   volumeAttenuation,
-} from '../../../packages/sdk-browser/src/webgpu/transparent/volumeLaw.ts'
+} from '../../../packages/sdk-browser/src/blend/transparent/volumeLaw.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 
 /** The distances, the paths a distance is crossed by (in tenths of ten distances) and the cases:

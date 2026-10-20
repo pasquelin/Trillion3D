@@ -7,7 +7,7 @@ import type {
   PrimitiveQuantization,
 } from '../page/contracts.ts'
 import type { TexturePreview } from '../texture/previewContracts.ts'
-import type { SoftBodyType } from '../physics/soft.ts'
+import type { SoftBodyType } from '../physics/soft/soft.ts'
 
 /** One cluster of a compiled model: a small piece of triangles the engine loads on its own. */
 export interface Page {
@@ -126,7 +126,7 @@ export interface StreamCatalogue {
   /** Its culling tree. */ culling?: CullingHierarchy | null
   /** Its group links. */ structure?: ClusterStructure | null
   /** Its stream bundles. */ streams?: StreamCatalogue | null
-  /** The proxy of a cut the world made at run time (`world/page/runtimeProxy.ts`): in memory only,
+  /** The proxy of a cut the world made at run time (`geometry/runtime/runtimeProxy.ts`): in memory only,
    *  what the run-time proxy's instances of it trace. */
   runtimeProxy?: RuntimeCutProxy
   /** A world's dynamic geometry: index pages alone, their vertices read as floats from the

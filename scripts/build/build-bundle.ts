@@ -14,8 +14,8 @@ import { BUNDLE_SOURCES, bundleSources } from './core-sources.ts'
 export const BUNDLE_ENTRY = 'trillion3d.module.js'
 
 const WORKERS = [
-  'sdk-browser/src/page/work/pageWorker.js',
-  'sdk-browser/src/page/integration/pageIntegrationWorker.js',
+  'sdk-browser/src/geometry/work/pageWorker.js',
+  'sdk-browser/src/geometry/integration/pageIntegrationWorker.js',
   'sdk-browser/src/physics/physicsWorker.js',
 ]
 const MODULES = [

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { git } from '../git-paths.ts'
-import { changedFiles } from '../repository-files.ts'
+import { git } from './git-paths.ts'
+import { changedFiles } from './repository-files.ts'
 
 // Behaviour: every gate reads one list of the branch's files, a renamed file under both its names
 // and a new file not yet added: a gate never judges a rename the other gates miss.

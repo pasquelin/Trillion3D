@@ -66,7 +66,7 @@ test('readCameraMotion: the turn and its speed decide as before', () => {
     cam.view[10] = way[2]
     const speed = readCameraMotion(cam, motion, 16)
     assert.equal(motion.turn! > 0, sin > 0, `turn decision ${i}`)
-    // The speed reaches the cut's pixel error, a float32 uniform (`../gpu/dag/viewLayout.ts`).
+    // The speed reaches the cut's pixel error, a float32 uniform (`../geometry/dag/viewLayout.ts`).
     const v = motion.velocity!
     const old = hypot3(v[0], v[1], v[2])
     for (const radius of [1, 50, 4000])

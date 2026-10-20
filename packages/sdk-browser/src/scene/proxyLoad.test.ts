@@ -2,8 +2,8 @@ import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneProxyReader } from './proxyLoad.ts'
-import { createPageCache } from '../streaming/pageCache.ts'
-import { sha256Hex } from '../streaming/sha256Hex.ts'
+import { createPageCache } from '../geometry/streaming/pageCache.ts'
+import { sha256Hex } from '../geometry/streaming/sha256Hex.ts'
 import {
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,

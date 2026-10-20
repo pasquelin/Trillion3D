@@ -6,8 +6,8 @@ import {
   unitOrZero,
 } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
-import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
-import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
+import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
+import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
 import { PAGE_SHAPE_WGSL } from './pageShapeWgsl.ts'
 import { FLAG_BACK } from '../types.ts'
 /**

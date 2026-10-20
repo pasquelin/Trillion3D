@@ -1,0 +1,62 @@
+// The world-to-light rotation of a direction (`vsmWorldToLightRotation`), built from the
+// direction's own components: it takes the direction to +X, its rows are orthonormal and its
+// light Y stays level, to the double's rounding; the world axes give exact matrices, a vertical
+// direction takes world Y as its horizontal axis, and nothing translates.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { VSM_MIN_DIRECTION_SQ, vsmWorldToLightRotation } from './clipmap.ts'
+import {
+  normalizeVector3OrZero,
+  transformAffinePoint,
+} from '../../../../../math/src/vector/vector.ts'
+import { lcgRandom } from '../../../../../math/src/sequence/random.ts'
+
+const m = new Float64Array(16)
+const ULPS = 8 * 2 ** -52
+
+test('the rotation takes the direction to +X, orthonormal and level, to a few ulps', () => {
+  const rnd = lcgRandom(3)
+  for (let k = 0; k < 20000; k++) {
+    const tiny = k % 4 === 0 ? 10 ** (-15 * rnd()) : 1
+    const d = normalizeVector3OrZero(
+      [0, 0, 0],
+      [tiny * (rnd() - 0.5), tiny * (rnd() - 0.5), rnd() - 0.5],
+      VSM_MIN_DIRECTION_SQ,
+    )
+    vsmWorldToLightRotation(m, d)
+    const x = transformAffinePoint(new Float64Array(3), m, d[0], d[1], d[2])
+    assert.ok(Math.abs(x[0] - 1) < ULPS && Math.abs(x[1]) < ULPS && Math.abs(x[2]) < ULPS, `${d}`)
+    for (let r = 0; r < 3; r++)
+      for (let s = 0; s < 3; s++) {
+        const dot = m[r] * m[s] + m[4 + r] * m[4 + s] + m[8 + r] * m[8 + s]
+        assert.ok(Math.abs(dot - (r === s ? 1 : 0)) < ULPS, `rows ${r}, ${s} of ${d}`)
+      }
+    assert.equal(m[9], 0, 'the light Y has no world Z')
+    assert.ok(m[10] >= 0, 'the light Z leans toward world +Z')
+    for (const k of [3, 7, 11, 12, 13, 14]) assert.equal(m[k], 0)
+    assert.equal(m[15], 1)
+  }
+})
+
+test('the world axes give exact matrices: +X the identity, a vertical direction world Y level', () => {
+  vsmWorldToLightRotation(m, [1, 0, 0])
+  assert.deepEqual([...m], [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  for (const z of [1, -1]) {
+    vsmWorldToLightRotation(m, [0, 0, z])
+    // Rows: (0, 0, z), (0, 1, 0), (−z, 0, 0).
+    assert.deepEqual([...m], [0, 0, -z, 0, 0, 1, 0, 0, z, 0, 0, 0, 0, 0, 0, 1])
+  }
+  vsmWorldToLightRotation(m, [0, 1, 0])
+  assert.deepEqual([...m], [0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+})
+
+test('a direction within 1e-146 of vertical keeps its own horizontal axis (declared)', () => {
+  // Declared change: inside the length rule's band, `length2` is the former plain root bit for bit;
+  // below it (|x|, |y| ≲ 1e-146) that root underflowed to 0 and the rotation took world Y as its
+  // horizontal axis, a quarter turn from the axis just above the band. `length2` keeps
+  // (−d.y, d.x) / h at every size.
+  for (const tiny of [1e-140, 1e-160, 1e-300]) {
+    vsmWorldToLightRotation(m, [0, tiny, -1])
+    assert.deepEqual([m[1], m[5], m[9]], [-1, 0, 0], `${tiny}`)
+  }
+})

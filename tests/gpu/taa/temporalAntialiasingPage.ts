@@ -2,7 +2,7 @@
 // a full-frame blue background and a rotated red tile, whose edges are oblique — rendered with and
 // without temporal accumulation: still, under a camera pan, then after a move of the tile. Nothing
 // internal is read: `setTransform` on one side, read-back pixels and `frameHeld` on the other.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import {

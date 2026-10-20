@@ -1,5 +1,5 @@
 import type { DiagnosticGpuVariant } from './gpuVariant.ts'
-import { COMPUTE_ALL, FINE_SPAN } from '../gpu/raster/contract.ts'
+import { COMPUTE_ALL, FINE_SPAN } from '../visibility/raster/contract.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { unorm8 } from '../../../math/src/wgsl/color.ts'
 import { VIS_FRAGMENT, VIS_UNMASKED } from '../visibility/shader/visWgsl.ts'
@@ -39,7 +39,7 @@ export const DIAGNOSTIC_SHADE_WGSL = wgslBlock(
 )
 
 /** The raster's fragment stage: its entry point and overrides, and whether it draws no fragment
- *  at all — then the voxel slots draw none either (`../webgpu/visibility/pipelines.ts`). */
+ *  at all — then the voxel slots draw none either (`../visibility/passes/pipelines.ts`). */
 type VisStage = { entryPoint: string; constants?: Record<string, number>; fragmentless?: true }
 
 /** Raster stage that each variant imposes: `geometry-flat` the one stage with its mask test

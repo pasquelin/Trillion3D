@@ -1,9 +1,9 @@
 import { BOX_VALUES, boxUnion } from '../../../math/src/geometry/box.ts'
 import { encloseTransform, ROUND, widenBox } from '../../../math/src/geometry/boxEnclosure.ts'
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
-import type { PageRec } from '../page/selection/types.ts'
-import { holdPageBoxes, releasePageBoxes } from '../webgpu/pages/render/movedGeometry.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import type { PageRec } from '../geometry/selection/types.ts'
+import { holdPageBoxes, releasePageBoxes } from '../frame/render/movedGeometry.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import type { SessionDeformation } from './session.ts'
 
 /** WGSL's sine and cosine stray from the true value by at most 2⁻¹¹ (the WGSL specification's

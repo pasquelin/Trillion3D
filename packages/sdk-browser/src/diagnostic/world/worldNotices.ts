@@ -1,0 +1,104 @@
+import { createDiagnosticChannel } from '../channel.ts'
+import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
+import type { EngineDiagnostic } from '../types.ts'
+import { effectTargetExcess, type BudgetCanvas } from '../../session/memory/memoryBudget.ts'
+
+/** The page channels open now (`diagnostic.createChannel`): every world notice reaches each,
+ *  until the function `subscribe` returned is called. */
+export const worldNoticeListeners = createListeners<[notice: EngineDiagnostic]>()
+
+/** A world's channel (`createWorldNotices`): what its tables folded is said there once. */
+export type WorldNotices = ReturnType<typeof createWorldNotices>
+
+/**
+ * A world's diagnostic channel (`createDiagnosticChannel`): what the world itself has to say of
+ * the scene a page built, delivered off the frame to the page channels open at the time. A
+ * notice is said once per world and kind, never per frame.
+ */
+export function createWorldNotices() {
+  const channel = createDiagnosticChannel((notice) => worldNoticeListeners.emit(notice), {
+    enabled: true,
+    detail: 'summary',
+  })
+  const said = new Set<string>()
+  const say = (kind: string, message: string, context: Record<string, unknown> = {}) =>
+    channel.emit({ phase: kind, message, context })
+  return {
+    /** Says `message` under `kind`: an event the world lives through, each time. */
+    say,
+    /** Says `message` under `kind`, unless this world already said something of that kind. */
+    once(kind: string, message: string, context: Record<string, unknown> = {}) {
+      if (said.has(kind)) return
+      said.add(kind)
+      say(kind, message, context)
+    },
+    close: () => channel.close(),
+  }
+}
+
+/**
+ * The tables' notice: `folded` geometry objects or materials of a content another had already
+ * brought, each created on its own where one could have been shared. Said once, at the end of the
+ * burst that folded them, with the count of that moment.
+ */
+export function noticeFolds(
+  notices: WorldNotices,
+  folded: { geometries: number; materials: number },
+) {
+  for (const [kind, count] of Object.entries(folded))
+    if (count > 0)
+      notices.once(
+        `world-duplicate-${kind}`,
+        `${count} ${kind} were created with the content of another — share one: create it ` +
+          `once and give it to every mesh that wears it`,
+        { kind, count },
+      )
+}
+
+/**
+ * What the session running cannot take in place, said by name on `content-refused`: `what` is the
+ * content (a batch, a model, a partition's rows, a picture), `reason` the limit it met — the
+ * catalogue's keys, a pool the device refuses, a pass it refuses. The session goes on drawing what
+ * it holds; the content is not drawn until the cause is lifted. It never opens the session again.
+ */
+export function noticeRefused(notices: Pick<WorldNotices, 'say'>, what: string, reason: string) {
+  notices.say('content-refused', `The session did not take ${what}: ${reason}`, {
+    kind: 'error',
+    what,
+    reason,
+  })
+}
+
+/**
+ * Says on the world's channel by how many bytes the effect chain's targets on the `drawn` canvas
+ * pass the reserve of the declared one (`effectTargetExcess`), each time that excess grows. The
+ * chain still draws the whole image, at full resolution: nothing is shrunk to fit the budget.
+ */
+export function noticeEffectBudget(
+  budget: { readonly canvas: BudgetCanvas },
+  drawn: { readonly width: number; readonly height: number },
+  chain: { readonly size: number },
+  notices: Pick<WorldNotices, 'say'>,
+) {
+  let said = 0
+  // The excess of the last sizes read: a frame whose sizes did not move recomputes nothing.
+  let read: { width: number; height: number; canvas: BudgetCanvas; excess: number } | undefined
+  return () => {
+    const { canvas } = budget,
+      { width, height } = drawn
+    if (read?.width !== width || read.height !== height || read.canvas !== canvas)
+      read = { width, height, canvas, excess: effectTargetExcess(width, height, canvas) }
+    const excess = chain.size ? read.excess : 0
+    if (excess <= said) {
+      if (!excess) said = 0
+      return
+    }
+    said = excess
+    notices.say(
+      'effect-targets-over-budget',
+      `effect targets over budget: ${excess} bytes past the reserve of the declared ` +
+        `${canvas.width} × ${canvas.height} canvas, drawn at ${width} × ${height}`,
+      { excess, width, height, declared: canvas },
+    )
+  }
+}

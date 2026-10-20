@@ -11,8 +11,8 @@ import {
   writeChangedRecords,
   writeChangedSlots,
 } from './writeChanged.ts'
-import { uniformSlots } from '../../residency/pools.ts'
-import { WRITE_CAP } from '../../webgpu/residency/ranges.ts'
+import { uniformSlots } from '../../session/memory/pools.ts'
+import { WRITE_CAP } from '../../geometry/residency/ranges.ts'
 
 /** A buffer copied from and into, written by the queue. */
 const copies = () => GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST

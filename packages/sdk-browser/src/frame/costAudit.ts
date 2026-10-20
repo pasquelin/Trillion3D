@@ -1,8 +1,8 @@
 import { enginePose } from '../camera/world.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import { debugMode } from '../host/debugMode.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { transparentCounts } from '../webgpu/pages/state/transparentCounts.ts'
+import { debugMode } from '../session/host/debugMode.ts'
+import type { WebgpuPagesRuntime } from './backend/runtime.ts'
+import { transparentCounts } from './backend/state/transparentCounts.ts'
 
 // The frame's cost snapshot, a debug-mode tool (`debugMode`: a world's `debug`, `?profile`): the
 // CPU profile carries it on the diagnostic channel (`cpuSteps.ts`), no console of its own.

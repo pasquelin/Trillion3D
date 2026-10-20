@@ -10,7 +10,7 @@
 import { clamp } from '../../../math/src/scalar/reals.ts'
 import { MIB } from '../../../math/src/constants.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import { startModuleWorker } from '../host/besideModule.ts'
+import { startModuleWorker } from '../session/host/besideModule.ts'
 import { cpuNow } from '../diagnostic/stopwatch.ts'
 import { createDeferred } from '../../../sdk-core/src/runtime/deferred.ts'
 

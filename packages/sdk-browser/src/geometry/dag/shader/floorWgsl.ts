@@ -1,0 +1,126 @@
+/**
+ * TOP-DOWN PRUNING: the subtree error floor, under the one cut rule.
+ *
+ * The node carries from the manifest the replacement error CEILING, enough to drop a subtree
+ * that is too FINE. It carries from `packCullingNodes` the own-error FLOOR, enough to drop
+ * the too COARSE as well: above the threshold none of its clusters is fine enough. That is the
+ * half the oracle applies too (`../oracle/nodeVerdict.fixture.ts`).
+ *
+ * Under the cut rule (`../../cut/rule.ts`) a cluster too coarse is still drawn when its
+ * finer group is not resident: it is then the nearest resident ancestor of what is missing. The
+ * node's OPEN count (`../pack/packNodes.ts`, `NODE_OPEN`) says whether its subtree holds such a
+ * cluster, and an open subtree is never dropped on its floor. The frame's own threshold is the
+ * only one: nothing is carried from one frame to the next, and no primitive-wide fallback waits
+ * behind a dropped floor.
+ */
+/**
+ * Layout of the `work` buffer, in words, as the kernel reads it — `blockBase()`,
+ * `liveCounter()` and the twelve frame counters from `levelWgsl.ts`, then the lists' group counts,
+ * and each key group's last use with the groups a cut raised (`lastUseWgsl.ts`), and the eviction
+ * sort's words (`evictWgsl.ts`). Set HERE and
+ * nowhere else: the engine allocates it (`../resources.ts`) and benches that mount the
+ * kernel by hand reread it, so a word added to the kernel cannot leave a caller
+ * with a buffer that is too short — where out-of-bounds counters read as zero, and
+ * top-down pruning would then drop everything.
+ *
+ * Each list read indirectly keeps its dispatch argument's x then y behind its counter
+ * (`openSlice`), which the arming kernel copies to the argument (`armWgsl.ts`).
+ */
+export function dagWorkLayout(blockCount: number, groupCount = 0) {
+  // Block counts, block offsets and `BLOCK_MASK_WORDS` per block of each draw mask (`compactWgsl.ts`):
+  // no word per page, so `work` never bounds the pages one binding holds (the kept ranks live in
+  // `flags`, `differenceWgsl.ts`).
+  const base = blockCount * WORK_BLOCK_WORDS,
+    listGroups = base + FRAME_COUNTERS,
+    lastUse = listGroups + 14,
+    raised = lastUse + groupCount,
+    poolSort = raised + 1 + RAISED_PER_GROUP * groupCount
+  return {
+    base,
+    /** The draw mask, a bit a page, behind the block counts and offsets and the mask the cut
+     *  writes (`compactWgsl.ts`): what the draw, the raster and the blended pass read of the cut, the
+     *  last one that ran whole. */
+    drawMask: (2 + BLOCK_MASK_WORDS) * blockCount,
+    /** The twelve frame counters, in the order `levelWgsl.ts` names them. */
+    liveCounter: base,
+    liveGroups: base + 1,
+    candCounter: base + 6,
+    candGroups: base + 7,
+    drawnCounter: base + 9,
+    drawnGroups: base + 10,
+    /** The two kept lists' group counts, then the journal a swap writes back's, then the three
+     *  descent queues', then the pool sort's, x and y each (`armWgsl.ts`). */
+    listGroups,
+    /** Each key group's last use, the frame it was last used in (`lastUseWgsl.ts`): kept from one
+     *  cut to the next, atomic, so a group raised by many threads is walked up by one. */
+    lastUse,
+    /** The groups a cut raised, its count then `RAISED_PER_GROUP` a group at most: what
+     *  `dagRaiseParents` walks up (`lastUseWgsl.ts`). */
+    raised,
+    /** The eviction sort's counts, places, boundary and total (`POOL_SORT_WORDS`, `evictWgsl.ts`):
+     *  zero at creation, the counts zeroed again by each sort. Its scratch lies in `flags`
+     *  (`evictScratchWords`, `../flagSections.ts`), a record table: no word of `work` follows it. */
+    poolSort,
+    words: poolSort + POOL_SORT_WORDS,
+  }
+}
+
+/** Times one cut may raise one group's last use: once to the view ahead's age, once to the frame
+ *  (`lastUseWgsl.ts`) — each raise lists it once. */
+export const RAISED_PER_GROUP = 2
+
+/** Words of the frame counters: the live list's counter and argument, three queue counters, the
+ *  candidates' counter and argument, the drawn log's counter and argument, then the counter of the
+ *  log the running cut writes (`levelWgsl.ts`, `drawnAppend`). */
+const FRAME_COUNTERS = 13
+/** Words of a block's draw mask: a bit for each of its `WORKGROUP_THREADS` pages, a multiple of 32.
+ *  Every place a block's mask takes, host and kernel, follows the knob through it. */
+export const BLOCK_MASK_WORDS = WORKGROUP_THREADS / 32
+/** `BLOCK_MASK_WORDS` as the kernels name it. */
+export const BLOCK_MASK_WORDS_WGSL = wgslConst(
+  'BLOCK_MASK_WORDS',
+  [],
+  wgslConsts({ BLOCK_MASK_WORDS }),
+)
+
+/** Words of `work` per block of `WORKGROUP_THREADS` pages ahead of the counters: its drawn count, its
+ *  offset, the draw mask the running cut writes and the one the frame draws, a bit a page each
+ *  (`compactWgsl.ts`). Under half a byte a page: a binding holds those of a quarter billion. */
+export const WORK_BLOCK_WORDS = 2 + 2 * BLOCK_MASK_WORDS
+
+import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
+import { POOL_SORT_WORDS } from '../../../gpu/sort/sortWords.ts'
+import { wgslBlock, wgslConst } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { DAG_INF } from './infDecl.ts'
+
+export const DAG_FLOOR_WGSL = wgslBlock(
+  'DAG_FLOOR_WGSL',
+  [DAG_INF],
+  `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
+/** GPU mirror of \`errorFloorAt\` (../../../page/selection/projection.ts): same guards, same operands, same
+ *  order. The smallest subtree error seen at the farthest depth its bounding sphere allows —
+ *  never above the true value of one of its clusters. Without a sphere, negative radius, it
+ *  certifies nothing and returns zero. GPU proof:
+ *  \`tests/gpu/dag/error-floor.gpu.ts\`. */
+fn errorFloor(error:f32,depth:f32,radius:f32,stretch:f32,focal:f32)->f32{
+ if(error==0.0){return 0.0;}
+ if(!(error>0.0)||!(radius>=0.0)){return 0.0;}
+ let p=views[vi].perspective;let far=p*(depth+radius*stretch)+(1.0-p);
+ if(!(far>0.0)){return INF;}
+ return (error*stretch*focal)/far;
+}
+/** A node's verdict: is its subtree too coarse for its threshold \`t\`? An open subtree —
+ *  one holding a cluster whose finer group is not resident — never is. */
+fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
+ if(deformReach>0.0){return false;}
+ if(open!=0u){return false;}
+ // Depth only: the full product would throw three quarters away. Same form as
+ // \`viewDepthOf\` (../../../page/selection/projection.ts), four multiplications instead of sixteen.
+ let depth=-(e[0].z*sphere.x+e[1].z*sphere.y+e[2].z*sphere.z+e[3].z);
+ // A deformation's reach grows a sphere that is there; an absent one (negative) stays so.
+ let radius=select(sphere.w,sphere.w+deformReach,sphere.w>=0.0);
+ return errorFloor(error,depth,radius,stretch,focal)>t;
+}
+`,
+)

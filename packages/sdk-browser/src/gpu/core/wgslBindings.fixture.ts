@@ -1,5 +1,5 @@
 import { COMPUTE } from './computeBindings.ts'
-import { functionsOf } from '../../texture/shaderRule.fixture.ts'
+import { functionsOf } from '../../materials/texture/shaderRule.fixture.ts'
 
 /**
  * Group-0 buffer bindings a WGSL text declares, as the layout type each one requires: what a

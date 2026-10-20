@@ -1,0 +1,28 @@
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import type { PageSurface } from '../geometry/pages/surface.ts'
+import type { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
+import { materialTextures, meshes } from '../scene/meshes.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+
+/** Gives back every host resource the loaded subtree holds: geometries, surfaces, textures and
+ *  the images they decoded. Each is freed once — several meshes share one surface. */
+export function disposeSource(source: Object3D) {
+  const geometries = new Set<Geometry>(),
+    materials = new Set<PageSurface>(),
+    textures = new Set<Texture>()
+  for (const mesh of meshes(source)) {
+    geometries.add(mesh.geometry)
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      materials.add(material)
+      for (const texture of materialTextures(material)) textures.add(texture)
+    }
+  }
+  geometries.forEach((g) => g.dispose())
+  materials.forEach((m) => m.dispose())
+  textures.forEach((t) => {
+    t.dispose()
+    // An image bitmap holds decoded pixels until it is closed; a plain image element has no close.
+    const image = t.image as { close?: () => void } | undefined
+    image?.close?.()
+  })
+}

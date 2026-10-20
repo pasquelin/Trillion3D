@@ -4,7 +4,7 @@
 // textbook D was 9 % off and took 2 685 values over 5 000 directions (stair rings).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
 import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'

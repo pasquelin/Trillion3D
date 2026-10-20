@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { NATIVE_CRATES } from './native-crates.ts'
-import { repositoryFiles } from '../repository-files.ts'
+import { repositoryFiles } from '../git/repository-files.ts'
 
 // A vendored crate (`vendor/`, a published crate kept as published with its fix) is built as a
 // dependency of the crate that vendors it, never formatted, linted or checked as ours.

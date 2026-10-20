@@ -7,8 +7,11 @@
 // steps) is counted at its least, so what a pass takes above its floor (`floor.ts`) holds those
 // walks. Pure.
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { VSM_TRACE_RAYS, VSM_TRACE_STEPS } from '../../../packages/sdk-browser/src/vsm/constants.ts'
+import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import {
+  VSM_TRACE_RAYS,
+  VSM_TRACE_STEPS,
+} from '../../../packages/sdk-browser/src/lighting/shadows/vsm/constants.ts'
 import * as K from './passConstants.ts'
 import { REFLECTION_PASSES } from './reflectionPasses.ts'
 
@@ -25,15 +28,15 @@ export const PASSES: K.PassModel[] = [
       dispatches: K.DAG_FIXED_DISPATCHES + K.DAG_LEVEL_DISPATCHES * K.DAG_LEVELS,
     }),
     sources: [
-      K.engine('gpu/dag/encode.ts', 'encodeDagKernels'),
-      K.engine('gpu/dag/types.ts', 'FRAME_ROW_WORDS'),
+      K.engine('geometry/dag/encode.ts', 'encodeDagKernels'),
+      K.engine('geometry/dag/types.ts', 'FRAME_ROW_WORDS'),
     ],
   },
   {
     label: 'partition',
     formula: `R·(${K.PARTITION_ROW} B row + ${K.PARTITION_COUNTS} B counts); 2 dispatches`,
     work: (f) => ({ bytes: f.R * (K.PARTITION_ROW + K.PARTITION_COUNTS), passes: 2 }),
-    sources: [K.engine('webgpu/pages/render/encodeVis.ts', 'encodeVis')],
+    sources: [K.engine('frame/render/encodeVis.ts', 'encodeVis')],
   },
   {
     label: 'visibility primary',
@@ -45,8 +48,8 @@ export const PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('webgpu/visibility/pipelines.ts', 'VIS_TARGETS'),
-      K.engine('webgpu/visibility/pipelines.ts', 'VIS_DEPTH'),
+      K.engine('visibility/passes/pipelines.ts', 'VIS_TARGETS'),
+      K.engine('visibility/passes/pipelines.ts', 'VIS_DEPTH'),
     ],
   },
   {
@@ -55,7 +58,7 @@ export const PASSES: K.PassModel[] = [
       "the culling layer's build: 2P + 5·Σ coarser levels texels, 4 B each (the nearest layer and the finished depth's farthest are built in the reflections' pass)",
     work: (f) => ({ texels: K.hizCullTexels(f.P), bytes: 4 * K.hizCullTexels(f.P), passes: 1 }),
     sources: [
-      K.engine('gpu/hiz/levelSizes.ts', 'hizLevelSizes'),
+      K.engine('visibility/hiz/gpu/levelSizes.ts', 'hizLevelSizes'),
       { path: 'bench/runner/counts/frameBudgetRates.ts', symbol: 'hizCullAccesses' },
     ],
   },
@@ -84,7 +87,7 @@ export const PASSES: K.PassModel[] = [
     formula: `P/${K.MARK_STRIDE} pixels (a stride of 2 each way) × (depth 4 + normal 8 + flags 1 B, a light-grid cell) + page marks`,
     work: (f) => ({ bytes: (K.MARK_BYTES * f.P) / K.MARK_STRIDE, texels: f.P, passes: 1 }),
     sources: [
-      K.engine('webgpu/pages/render/vsm/vsmEncode.ts', 'encodeVsmFrame'),
+      K.engine('lighting/shadows/vsm/frame/vsmEncode.ts', 'encodeVsmFrame'),
       { path: 'docs/SHADOWS.md', symbol: 'One frame' },
     ],
   },
@@ -101,9 +104,9 @@ export const PASSES: K.PassModel[] = [
       }
     },
     sources: [
-      K.engine('vsm/constants.ts', 'VSM_TRACE_STEPS'),
-      K.engine('vsm/constants.ts', 'VSM_TRACE_RAYS'),
-      K.engine('vsm/projectionWgsl.ts', 'vsmProjectionTiles'),
+      K.engine('lighting/shadows/vsm/constants.ts', 'VSM_TRACE_STEPS'),
+      K.engine('lighting/shadows/vsm/constants.ts', 'VSM_TRACE_RAYS'),
+      K.engine('lighting/shadows/vsm/projection/projectionWgsl.ts', 'vsmProjectionTiles'),
     ],
   },
   {
@@ -130,7 +133,7 @@ export const PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('taa/resolve.ts', 'resolveTargetUsage'),
+      K.engine('post/taa/resolve.ts', 'resolveTargetUsage'),
       K.engine('lighting/deferred/asIsShare.ts', 'GIVEN_UP_FORMAT'),
       { path: 'bench/runner/counts/taaFetchCount.ts', symbol: 'countTaaFetches' },
     ],

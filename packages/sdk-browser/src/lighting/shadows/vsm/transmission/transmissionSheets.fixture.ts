@@ -1,0 +1,58 @@
+// The exact transmission read's geometry under test (`transmissionGeometryWgsl.ts`), its shipped
+// WGSL run by `shaderRun`: the edge rule and the bin's cells, and the generated sheets they are
+// proven on.
+import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
+import {
+  VSM_TRANSMISSION_COVER_WGSL,
+  VSM_TRANSMISSION_EDGE_WGSL,
+} from './transmissionGeometryWgsl.ts'
+import { vsmLayout } from '../layout.ts'
+import { wgslModule } from '../../../../../../math/src/wgsl/assemble.ts'
+
+export type V = number[]
+export type Tri = [V, V, V]
+/** The engine's layout for one sun. */
+export const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
+
+export const geometry = shaderRun<{
+  vsmTInside: (a: V, b: V, c: V, p: V) => boolean
+  vsmTCoversCell: (a: V, b: V, c: V, s: number, cell: V) => boolean
+  vsmTCellRange: (lo: V, hi: V) => V
+}>(
+  wgslModule(VSM_TRANSMISSION_EDGE_WGSL, VSM_TRANSMISSION_COVER_WGSL),
+  [
+    'vsmTEdge',
+    'edgeFunction',
+    'vsmTEdgeHolds',
+    'vsmTInside',
+    'vsmTEdgeMeets',
+    'vsmTCovers',
+    'vsmTCellRange',
+    'vsmTCoversCell',
+  ],
+  {},
+)
+
+/** A sheet of `n` × `n` quads over [lo, hi]², corners moved by `move`, each quad cut along
+ *  alternating diagonals: as the sea's grid is drawn. */
+export function sheet(n: number, lo: number, hi: number, move: (p: V) => V): Tri[] {
+  const at = (i: number, j: number) => {
+    const p = [lo + ((hi - lo) * i) / n, lo + ((hi - lo) * j) / n]
+    return move(p).map(Math.fround)
+  }
+  const out: Tri[] = []
+  for (let j = 0; j < n; j++)
+    for (let i = 0; i < n; i++) {
+      const [a, b, c, d] = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)]
+      if ((i + j) % 2) out.push([a, b, c], [a, c, d])
+      else out.push([a, b, d], [b, c, d])
+    }
+  return out
+}
+
+export const waves = (p: V) => [
+  p[0] + 1.3 * Math.sin(p[1] * 0.21) + 0.4 * Math.sin(p[0] * 0.53),
+  p[1] + 1.1 * Math.cos(p[0] * 0.17) + 0.3 * Math.sin(p[1] * 0.71),
+]
+export const count = (tris: Tri[], p: V) =>
+  tris.reduce((n, [a, b, c]) => n + (geometry.vsmTInside(a, b, c, p) ? 1 : 0), 0)

@@ -6,7 +6,7 @@
 // compiles nothing, it copies (`pnpm run build:wasm` is what rebuilds it).
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const RESSOURCES: [string, string][] = [
   ['sdk-browser/src/wasm', 'kernels.wasm'],

@@ -3,9 +3,9 @@ import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostic
 /**
  * THE ONE TABLE OF THE DIAGNOSTIC VIEWS: each view's code — the resolve's `uni.mode`
  * (`./shadeWgsl.ts`), the transparent
- * pass's code bits (`DIAGNOSTIC_CODE_SHIFT`, `../../webgpu/blend/uniforms.ts`), all painted by
+ * pass's code bits (`DIAGNOSTIC_CODE_SHIFT`, `../../blend/uniforms.ts`), all painted by
  * `diagnosticColor` (`../../diagnostic/colors.ts`) — and the cluster word a transparent instance
- * reads for it (`../../webgpu/blend/diagnostic.ts`): the cluster's hash, or its diagnostic word
+ * reads for it (`../../blend/diagnostic.ts`): the cluster's hash, or its diagnostic word
  * (`pageDiagnosticWord`). Beauty is zero.
  */
 export const DIAGNOSTIC_VIEWS = {
@@ -41,11 +41,11 @@ export const diagnosticReads = (mode: DiagnosticMode) => viewOf(mode)?.reads
  * image keeps the rest of the beauty chain — effects, particles, display layers — which a view of
  * one lighting term leaves out, so that nothing but that term reaches the screen. `raw`, whether it
  * is shown in raw values, no display curve: a measure in grey. `taa`, what the temporal resolve
- * outputs in place of the accumulated colour (`view.params.w`, `../../taa/resolveWgsl.ts`): 1 the
+ * outputs in place of the accumulated colour (`view.params.w`, `../../post/taa/resolveWgsl.ts`): 1 the
  * image it receives, at the render pixel each display pixel falls in, 2 the shading rejection it
  * applies, 3 the history validity it holds after its update, 4 to 8 the analysis views — the
  * flicker measure, the shading rejection, the reprojection, the motion, the thin geometry, three
- * factors each in red, green and blue (`FIRST_ANALYSIS_VIEW`, `../../taa/rejectionWgsl.ts`), 9 the
+ * factors each in red, green and blue (`FIRST_ANALYSIS_VIEW`, `../../post/taa/rejectionWgsl.ts`), 9 the
  * most of its history each pixel's material keeps, as grey (`MATERIAL_HISTORY_VIEW`); 0 the
  * accumulated colour itself.
  */

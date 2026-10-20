@@ -1,8 +1,8 @@
-import type { HostColour } from '../../../packages/sdk-browser/src/host/resources.ts'
-import { aimOf, isLightNode } from '../../../packages/sdk-browser/src/host/graph/kinds.ts'
+import type { HostColour } from '../../../packages/sdk-browser/src/session/host/resources.ts'
+import { aimOf, isLightNode } from '../../../packages/sdk-browser/src/scene/host/graph/kinds.ts'
 import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { lampCastsShadow } from '../../../packages/sdk-core/src/world/light/lightRecord.ts'
-import { rootedUnder } from '../../../packages/sdk-browser/src/host/world/rooted.ts'
+import { rootedUnder } from '../../../packages/sdk-browser/src/scene/host/world/rooted.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
 /**

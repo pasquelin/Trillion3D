@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
 import { createDeferredLighting } from './deferred.ts'
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
+import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { gpuHarness } from './contractLighting.fixture.ts'
 
 const CLEAR = clearValueOf(0x204060)

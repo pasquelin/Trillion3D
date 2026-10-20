@@ -2,7 +2,7 @@
 // layout's constants: the shipped WGSL inverts the encode `(row + 1) << VIS_TRIANGLE_BITS | tri`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import {
   VIS_MAX_PAGE_TRIANGLES,
   VIS_TRIANGLE_BITS,

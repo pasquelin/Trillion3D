@@ -1,5 +1,5 @@
 import { GRID_TOLERANCE } from './refreshClock.ts'
-import { SECOND_MS } from './scaleTargets.ts'
+import { SECOND_MS } from './scale/scaleTargets.ts'
 
 /**
  * THE FRAME CAP, `maxFrameRate`: the loop waits `1 / maxFrameRate` from the last frame before it
@@ -7,7 +7,7 @@ import { SECOND_MS } from './scaleTargets.ts'
  * fewest whole refreshes not under `1 / maxFrameRate`
  * (`floor`): the loop draws on every `floor`-th refresh, each image shown for the same time. No cap,
  * every refresh. Nothing else paces the loop: the GPU's cost is the dynamic resolution's alone
- * (`dynamicResolution.ts`).
+ * (`scale/dynamicResolution.ts`).
  *
  * The frame time budget the dynamic resolution fits to is the frame interval this target gives
  * (`frameTimeBudget`): an image that fits the interval is shown on time, one that does not is

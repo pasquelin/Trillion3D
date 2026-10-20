@@ -12,7 +12,7 @@ import type { Texture, TextureFilter } from '../../../packages/sdk-core/src/text
 import {
   SAMPLE_FILTER_MASK,
   samplingWords,
-} from '../../../packages/sdk-browser/src/texture/sampling.ts'
+} from '../../../packages/sdk-browser/src/materials/texture/sampling.ts'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import type { FootprintCase } from './footprintLevelPage.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'

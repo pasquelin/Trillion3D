@@ -4,7 +4,7 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { visTriangle } from '../visWords.ts'
 import { VOXEL_BRICK_CORNERS } from '../../../../sdk-core/src/page/voxelPage.ts'
 
-/** The voxel slots' stages (`BIN_KIND.VOXEL`, `../../webgpu/visibility/pipelines.ts`). */
+/** The voxel slots' stages (`BIN_KIND.VOXEL`, `../passes/pipelines.ts`). */
 export const VIS_VOXEL_VERTEX = 'vis_voxel_vs',
   VIS_VOXEL_FRAGMENT = 'vis_voxel_fs'
 

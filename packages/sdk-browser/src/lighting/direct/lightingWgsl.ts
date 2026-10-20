@@ -1,10 +1,10 @@
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { vsmTraceKindsOf } from '../../vsm/traceWgsl.ts'
+import { vsmTraceKindsOf } from '../shadows/vsm/trace/traceWgsl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
-import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
+import { SURFACE_MODEL_LIGHT_WGSL } from '../../materials/surface/surfaceModel.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
@@ -28,7 +28,7 @@ import {
 } from './lobesWgsl.ts'
 
 /** A cell's list of lights — what the resolves walk, and the virtual shadow maps' marking
- *  pass (`../../vsm/markingWgsl.ts`). */
+ *  pass (`../shadows/vsm/markingWgsl.ts`). */
 export const TILE_SLICE_WGSL = wgslBlock(
   'TILE_SLICE_WGSL',
   [],
@@ -51,7 +51,7 @@ fn listedLight(slice:vec2u,index:u32)->u32{
 )
 /**
  * A pixel's cell of the light grid, read by the opaque resolve (`surfaceWgsl.ts`) and the virtual shadow maps'
- * marking pass (`../../vsm/markingWgsl.ts`), both on the deferred view (#1369). Without
+ * marking pass (`../shadows/vsm/markingWgsl.ts`), both on the deferred view (#1369). Without
  * `shadowed`, the program with no shadow code: no cell reads a shadow.
  */
 export const pixelCellWgsl = (shadowed = true) =>

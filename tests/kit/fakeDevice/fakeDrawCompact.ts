@@ -1,9 +1,9 @@
-import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
+import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/visibility/draw/contract.ts'
 import {
   evaluateDrawCompact,
   indirectForDraw,
   type DrawItem,
-} from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
+} from '../../../packages/sdk-browser/src/visibility/draw/cpu.fixture.ts'
 import { hasBit } from '../../../packages/math/src/scalar/bits.ts'
 import { boundWords, type BoundBuffer } from './fakeBuffers.ts'
 import { maskBit } from './globals.ts'

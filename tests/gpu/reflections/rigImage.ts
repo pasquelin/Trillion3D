@@ -2,7 +2,7 @@
 // fixed count of images drawn as a frame loop draws them — one image an animation frame —, enough
 // for the history to fill (`REFLECTION_HISTORY`, twice over), its reflection target read back.
 import { animationFrame } from '../../kit/device/frame.ts'
-import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
+import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
 import { openRig } from './rig.ts'
 import type { RigFrame } from './rigFrame.ts'
 

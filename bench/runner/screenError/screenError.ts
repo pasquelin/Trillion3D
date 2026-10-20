@@ -32,8 +32,8 @@ import { screenErrorPass } from './screenErrorVerdict.ts'
 import type { HoldOptions } from './screenErrorPage.ts'
 import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
 import { buildTriangleTree } from './triangleTree.ts'
-import { REPOSITORY_ROOT, readJson } from '../../../scripts/repository-files.ts'
-import { git } from '../../../scripts/git-paths.ts'
+import { REPOSITORY_ROOT, readJson } from '../../../scripts/git/repository-files.ts'
+import { git } from '../../../scripts/git/git-paths.ts'
 
 const [WIDTH, HEIGHT, DPR] = [1728, 1117, 2]
 const PAGE = '/runner/screenError/screenErrorPage.ts'

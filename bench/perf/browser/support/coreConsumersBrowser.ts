@@ -3,10 +3,10 @@
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three'
 import { projectVisibilityVertex } from '../../../oracles/browser/cpu-image/projection.ts'
-import { windingCw } from '../../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
-import { worldMoved } from '../../../../packages/sdk-browser/src/page/selection/rootWorld.ts'
-import { noteResidenceChange } from '../../../../packages/sdk-browser/src/webgpu/shadow/bounds.ts'
-import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
+import { windingCw } from '../../../../packages/sdk-browser/src/frame/render/winding.ts'
+import { worldMoved } from '../../../../packages/sdk-browser/src/geometry/selection/rootWorld.ts'
+import { noteResidenceChange } from '../../../../packages/sdk-browser/src/lighting/shadows/casters/bounds.ts'
+import { createWebgpuLightState } from '../../../../packages/sdk-browser/src/frame/backend/state/lights.ts'
 import { referenceProjectVisibilityVertex } from '../../../oracles/browser/core-math.ts'
 import { matrixWindingCw } from '../../../../packages/math/src/matrix/orientation.ts'
 import { SPHERE_FLOATS, referenceClusterSphere } from '../../../oracles/browser/lamp-shadows.ts'
@@ -65,7 +65,7 @@ export async function lignesConsommateursBrowser() {
   return [
     await ligne(
       'world-space cluster sphere for shadows',
-      'packages/sdk-browser/src/webgpu/shadow/bounds.ts',
+      'packages/sdk-browser/src/lighting/shadows/casters/bounds.ts',
       'poses × boxes',
       list,
       (l) =>
@@ -85,7 +85,7 @@ export async function lignesConsommateursBrowser() {
     ),
     await ligne(
       'winding order of a cluster',
-      'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
+      'packages/sdk-browser/src/frame/render/winding.ts',
       'hostile matrices',
       matrices,
       (l) => l.map((e) => matrixWindingCw(e)),

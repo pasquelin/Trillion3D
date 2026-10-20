@@ -4,7 +4,7 @@
 //! and one layout (`lay_bundles`).
 //!
 //! A bundle never splits the clusters one group replaces: they swap for its outputs together
-//! (`sdk-browser/src/page/cut/readiness.ts`), so a bundle that holds one holds all, and a group's
+//! (`sdk-browser/src/geometry/cut/readiness.ts`), so a bundle that holds one holds all, and a group's
 //! finer surface lands in one read or not at all.
 use super::*;
 use crate::dag::{DagCluster, DagGroup};

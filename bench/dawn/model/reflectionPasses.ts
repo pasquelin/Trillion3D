@@ -8,7 +8,7 @@ import {
   REFLECTION_TRACE_PASS,
   REFLECTION_SCENE_PASS,
   REFLECTION_DENOISE_PASS,
-} from '../../../packages/sdk-browser/src/stage/passLabels.ts'
+} from '../../../packages/sdk-browser/src/diagnostic/stage/passLabels.ts'
 import { passKey } from '../report/summary.ts'
 import * as K from './passConstants.ts'
 
@@ -19,8 +19,8 @@ export const REFLECTION_PASSES: K.PassModel[] = [
       'nearest and finished-depth pyramid builds (9 plane reads a pixel and 4 reads, a write a coarser texel of two bounds)',
     work: (f) => ({ texels: K.hizNearestTexels(f.P), passes: 1 }),
     sources: [
-      K.engine('reflections/frame.ts', 'encodeDepthPyramid'),
-      K.engine('gpu/hiz/shader.ts', 'HIZ_SHADER'),
+      K.engine('lighting/reflections/frame.ts', 'encodeDepthPyramid'),
+      K.engine('visibility/hiz/gpu/shader.ts', 'HIZ_SHADER'),
       { path: 'bench/runner/counts/frameBudgetRates.ts', symbol: 'hizNearestAccesses' },
     ],
   },
@@ -37,10 +37,10 @@ export const REFLECTION_PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('reflections/traceEncode.ts', 'encodeReflectionTrace'),
-      K.engine('reflections/tiles.ts', 'REFLECTION_CLASSIFY_WGSL'),
-      K.engine('gpu/hiz/screenMarch.ts', 'SCREEN_MARCH_WGSL'),
-      K.engine('reflections/trace.ts', 'REFLECTION_TRACE_SHADER'),
+      K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('lighting/reflections/tiles.ts', 'REFLECTION_CLASSIFY_WGSL'),
+      K.engine('visibility/hiz/gpu/screenMarch.ts', 'SCREEN_MARCH_WGSL'),
+      K.engine('lighting/reflections/trace/trace.ts', 'REFLECTION_TRACE_SHADER'),
     ],
   },
   {
@@ -52,9 +52,9 @@ export const REFLECTION_PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('reflections/traceEncode.ts', 'encodeReflectionTrace'),
-      K.engine('reflections/proxy.ts', 'REFLECTION_PROXY_WGSL'),
-      K.engine('reflections/trace.ts', 'REFLECTION_TRACE_SHADER'),
+      K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('lighting/reflections/proxy.ts', 'REFLECTION_PROXY_WGSL'),
+      K.engine('lighting/reflections/trace/trace.ts', 'REFLECTION_TRACE_SHADER'),
     ],
   },
   {
@@ -70,8 +70,8 @@ export const REFLECTION_PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('reflections/traceEncode.ts', 'encodeReflectionTrace'),
-      K.engine('reflections/trace.ts', 'REFLECTION_TRACE_SHADER'),
+      K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('lighting/reflections/trace/trace.ts', 'REFLECTION_TRACE_SHADER'),
     ],
   },
   {
@@ -84,8 +84,8 @@ export const REFLECTION_PASSES: K.PassModel[] = [
       passes: 1,
     }),
     sources: [
-      K.engine('reflections/frame.ts', 'encodeReflectionRadiance'),
-      K.engine('reflections/radianceWgsl.ts', 'RADIANCE_SHADER'),
+      K.engine('lighting/reflections/frame.ts', 'encodeReflectionRadiance'),
+      K.engine('lighting/reflections/radiance/radianceWgsl.ts', 'RADIANCE_SHADER'),
     ],
   },
 ]

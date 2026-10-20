@@ -1,7 +1,7 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { openMeasuredWorld } from '../world/session/explorer.ts'
+import { openMeasuredWorld } from '../session/explorer.ts'
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
   FORMAT_VERSION,

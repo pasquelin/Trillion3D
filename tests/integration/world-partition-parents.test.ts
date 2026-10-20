@@ -4,18 +4,18 @@
 // does (`loadModel`), finds the district by name (`getObjectByName`) and moves it 5 km, to where a
 // still camera stands. The session's per-frame step (`createPartitionFrame`) then reads the cells
 // there: every node within the camera's reach is drawn, on a row at its moved place.
-import { composeStandIn } from '../../packages/sdk-browser/src/partition/composeStandIn.fixture.ts'
+import { composeStandIn } from '../../packages/sdk-browser/src/geometry/partition/composeStandIn.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts'
-import type { Engine } from '../../packages/sdk-browser/src/engine/types.ts'
-import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts'
-import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts'
-import { createPartitionFrame } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts'
+import type { Engine } from '../../packages/sdk-browser/src/session/engine/types.ts'
+import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows/rows.ts'
+import { createWorldPoses } from '../../packages/sdk-browser/src/session/world/poses/poses.ts'
+import { createPartitionFrame } from '../../packages/sdk-browser/src/scene/drive/partitionFrame.ts'
 import { compiler, SPACING, world } from './world-partition.fixture.ts'
 import { assertNoneMissing, primed, served } from './world-partition-follow.fixture.ts'
-import { noModels } from '../../packages/sdk-browser/src/world/core/worldModels.fixture.ts'
+import { noModels } from '../../packages/sdk-browser/src/session/world/models/models.fixture.ts'
 
 const SHIFT = 5000
 

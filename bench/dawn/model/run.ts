@@ -10,7 +10,7 @@ import { parseArgs } from 'node:util'
 import type { BenchReport } from '../report/merge.ts'
 import type { Machine } from '../machine/machine.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,

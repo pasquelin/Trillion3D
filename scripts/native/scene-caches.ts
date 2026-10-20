@@ -12,7 +12,7 @@ import {
   requireNativeCompiler,
   TRIANGLE_BUDGET,
 } from './native-compiler.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 /** A scene folder, relative to the root, holding `source` and the `cache` compiled from it. */
 export interface CookedScene extends Pick<

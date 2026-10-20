@@ -1,0 +1,28 @@
+import { STATE_WORDS } from './contract.ts'
+import { bitWords } from '../../../../../math/src/scalar/integers.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
+import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
+
+/**
+ * What the frame's kernels count from zero, zeroed by the first dispatch of the partition's pass,
+ * before `projectRows` tallies: the frame counters and the rest bits of the rows this frame covers —
+ * the draw compaction reads none past them. A dispatch of the same pass
+ * as the kernels it serves, where clearing the buffers from the encoder cut that pass. Its thread
+ * count is `partitionClearThreads`.
+ */
+export const PARTITION_CLEAR_WGSL = wgslBlock(
+  'PARTITION_CLEAR_WGSL',
+  [ceilDivWgsl, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+  `
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn clearRows(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
+ if(i<${STATE_WORDS}u){atomicStore(&state[i],0u);}
+ if(i<ceilDiv(uni.rows,32u)){atomicStore(&restBits[i],0u);}
+}
+`,
+)
+
+/** Threads `clearRows` needs for `rows` rows: one per word of the longer of the two. */
+export const partitionClearThreads = (rows: number) => Math.max(STATE_WORDS, bitWords(rows))

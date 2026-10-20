@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import { createPlacementRows } from '../placement/rows.ts'
+import { createPlacementRows } from '../placement/rows/rows.ts'
 import { createSessionDeformation } from './session.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
+import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
 
 test('a static batch reads its source capacities once and does not rescan them at draw', () => {
   const rows = createPlacementRows(128)

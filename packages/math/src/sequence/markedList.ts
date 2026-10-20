@@ -2,8 +2,8 @@ import { resized } from './resized.ts'
 
 /**
  * Indices listed each once in the order they came, a byte marking each up to the largest listed:
- * the changed list (`../../../sdk-browser/src/webgpu/residency/ranges.ts`), the row claims
- * (`../../../sdk-browser/src/webgpu/row/claims.ts`).
+ * the changed list (`../../../sdk-browser/src/geometry/residency/ranges.ts`), the row claims
+ * (`../../../sdk-browser/src/geometry/rows/claims.ts`).
  */
 export function createMarkedList() {
   let marks = new Uint8Array(0),

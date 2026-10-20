@@ -5,7 +5,7 @@ import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.t
 import type { TemporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
-import type { TextureCompression } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
+import type { TextureCompression } from '../../../packages/sdk-browser/src/materials/texture/blockFormats.ts'
 import type { MovingLightPlan } from '../lighting/lamps.ts'
 import type { CutSelection, MovingNode, LiveTuning, NetworkBytes } from '../report/types.ts'
 import type { LivePools } from './benchSettings.ts'

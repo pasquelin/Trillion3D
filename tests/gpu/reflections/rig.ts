@@ -10,36 +10,36 @@ import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/t
 import {
   createScreenReflection,
   reflectionsPending,
-} from '../../../packages/sdk-browser/src/reflections/gpu.ts'
-import { reflectionGroup } from '../../../packages/sdk-browser/src/reflections/group.ts'
-import { createReflectionPipelines } from '../../../packages/sdk-browser/src/reflections/reflectionPipelines.ts'
-import { adoptRadianceImage } from '../../../packages/sdk-browser/src/reflections/radiance.ts'
+} from '../../../packages/sdk-browser/src/lighting/reflections/gpu.ts'
+import { reflectionGroup } from '../../../packages/sdk-browser/src/lighting/reflections/group.ts'
+import { createReflectionPipelines } from '../../../packages/sdk-browser/src/lighting/reflections/reflectionPipelines.ts'
+import { adoptRadianceImage } from '../../../packages/sdk-browser/src/lighting/reflections/radiance/radiance.ts'
 import {
   encodeImageRadiance,
   stageReflectionImage,
-} from '../../../packages/sdk-browser/src/reflections/image.ts'
-import type { ReflectionFrame } from '../../../packages/sdk-browser/src/reflections/viewWrite.ts'
+} from '../../../packages/sdk-browser/src/lighting/reflections/image.ts'
+import type { ReflectionFrame } from '../../../packages/sdk-browser/src/lighting/reflections/viewWrite.ts'
 import {
   HDR_FORMAT,
   hdrAttachmentView,
   hdrTargetDescriptor,
 } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
-import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/reflections/traceEncode.ts'
+import { encodeReflectionTrace } from '../../../packages/sdk-browser/src/lighting/reflections/trace/traceEncode.ts'
 import { standaloneHiz } from '../../kit/device/standaloneHiz.ts'
 import { createDeferredView } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
-} from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
+} from '../../../packages/sdk-browser/src/frame/backend/state/lightBuffer.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { TONE_MAPPING_RANK } from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import { invertMatrix4 } from '../../../packages/math/src/matrix/matrix4Inverse.ts'
-import type { WebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
+import type { WebgpuLightState } from '../../../packages/sdk-browser/src/frame/backend/state/lights.ts'
 import { readTexture } from '../../kit/device/computeReadback.ts'
 import { halves, type RigFrame } from './rigFrame.ts'
-import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
-import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
+import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/materials/surface/surfaceBuffer.ts'
+import { PHYSICAL_LOBES_FORMAT } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 
 /**

@@ -1,28 +1,28 @@
 /**
- * A GROWTH IN PLACE JOINS, between two images (`webgpuGrowth.ts`): the waiting roots join every list
+ * A GROWTH IN PLACE JOINS, between two images (`growth/webgpuGrowth.ts`): the waiting roots join every list
  * the session reads by rank — the cut's roots, the packed catalogue, the per-page row arrays, the
  * placement worlds, the temporal pass's previous poses, the shadow mobility, the root boxes —, the
  * cut made over them replaces the running one — or the running one took them in place —, and the
  * new rows follow their owner's writes.
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts'
-import { blendedPagesOf } from '../webgpu/pages/prepare/layout.ts'
-import { postPackedBases } from '../page/selection/placements.ts'
-import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts'
+import { growWebgpuTables, tableRowsFor } from '../frame/prepare/growTables.ts'
+import { blendedPagesOf } from '../frame/prepare/layout.ts'
+import { postPackedBases } from '../geometry/selection/placements.ts'
+import { mainViewGpu, viewGpu } from '../frame/backend/state/view.ts'
 import { rootMark } from '../deformation/halfFloat.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { forgetRowRoots } from './update.ts'
-import { adoptRootedReaders } from './gpuCompose.ts'
+import { adoptRootedReaders } from './compose/gpuCompose.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
-import { coverHeldRoots, isWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
-import { takeGrownCopies } from './webgpuGrowth.ts'
-import { heldPage } from './grownCutStart.ts'
-import { growBlend, waitsForFrontDepth, waitsForRefraction } from '../webgpu/blend/growth.ts'
-import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
+import { adoptCut } from '../frame/prepare/cut.ts'
+import { coverHeldRoots, isWorldRoot } from '../frame/prepare/worldRoot.ts'
+import { takeGrownCopies } from './growth/webgpuGrowth.ts'
+import { heldPage } from './growth/grownCutStart.ts'
+import { growBlend, waitsForFrontDepth, waitsForRefraction } from '../blend/growth.ts'
+import { announceGrowth, replayMoves, type GrownRoots } from './growth/growthAnnounce.ts'
 import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
 
 /**
@@ -88,7 +88,7 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   for (const view of rt.views.persistent) viewGpu(rt, view).temporal?.motion.grow()
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
   if (!ready.inPlace) swapCut(rt, ready, added, firstRank)
-  // A world DAG among them is the session's (`webgpuAppendWorld.ts`): the roots its held cells add
+  // A world DAG among them is the session's (`append/webgpuAppendWorld.ts`): the roots its held cells add
   // follow the cells, as at the open.
   if (added.some(isWorldRoot)) coverHeldRoots(rt, rt.services.residencySets)
   // The new rows as their owner wrote them meanwhile: parked or taken, posed, casting or not.

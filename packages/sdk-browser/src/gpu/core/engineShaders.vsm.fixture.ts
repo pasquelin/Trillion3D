@@ -1,36 +1,39 @@
-import { CAST_ARGS_WGSL, castInvalidationWgsl } from '../../vsm/castInvalidationWgsl.ts'
+import {
+  CAST_ARGS_WGSL,
+  castInvalidationWgsl,
+} from '../../lighting/shadows/vsm/invalidation/castInvalidationWgsl.ts'
 import {
   vsmMarkingClears,
   vsmResetPageTableWgsl,
   vsmPixelPageMarkingWgsl,
   vsmPageRectInitWgsl,
   vsmCoarseMarkingWgsl,
-} from '../../vsm/markingWgsl.ts'
-import { vsmPageManagementKernels } from '../../vsm/pageManagementWgsl.ts'
-import { vsmPhysicalPageKernels } from '../../vsm/physicalPagesWgsl.ts'
-import { vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
-import { vsmRenderCullWgsl } from '../../vsm/renderCullWgsl.ts'
-import { vsmRenderViewsWgsl } from '../../vsm/renderViewsWgsl.ts'
-import { VSM_RENDER_ARGS_WGSL } from '../../vsm/renderParamsWgsl.ts'
-import { vsmRenderCandidatesWgsl } from '../../vsm/renderCandidatesWgsl.ts'
-import { vsmRenderExpandWgsl } from '../../vsm/renderExpandWgsl.ts'
-import { vsmRenderRasterWgsl } from '../../vsm/renderRasterWgsl.ts'
-import { vsmTransmissionBinWgsl } from '../../vsm/transmissionBinWgsl.ts'
+} from '../../lighting/shadows/vsm/markingWgsl.ts'
+import { vsmPageManagementKernels } from '../../lighting/shadows/vsm/pageManagementWgsl.ts'
+import { vsmPhysicalPageKernels } from '../../lighting/shadows/vsm/physicalPagesWgsl.ts'
+import { vsmProjectionWgsl } from '../../lighting/shadows/vsm/projection/projectionWgsl.ts'
+import { vsmRenderCullWgsl } from '../../lighting/shadows/vsm/render/renderCullWgsl.ts'
+import { vsmRenderViewsWgsl } from '../../lighting/shadows/vsm/render/renderViewsWgsl.ts'
+import { VSM_RENDER_ARGS_WGSL } from '../../lighting/shadows/vsm/render/renderParamsWgsl.ts'
+import { vsmRenderCandidatesWgsl } from '../../lighting/shadows/vsm/render/renderCandidatesWgsl.ts'
+import { vsmRenderExpandWgsl } from '../../lighting/shadows/vsm/render/renderExpandWgsl.ts'
+import { vsmRenderRasterWgsl } from '../../lighting/shadows/vsm/render/renderRasterWgsl.ts'
+import { vsmTransmissionBinWgsl } from '../../lighting/shadows/vsm/transmission/transmissionBinWgsl.ts'
 import {
   vsmTransmissionCandidatesWgsl,
   vsmTransmissionClearWgsl,
-} from '../../vsm/transmissionClearWgsl.ts'
+} from '../../lighting/shadows/vsm/transmission/transmissionClearWgsl.ts'
 import {
   vsmTransmissionNumberWgsl,
   vsmTransmissionPlaceWgsl,
-} from '../../vsm/transmissionNumberWgsl.ts'
-import { vsmTransmissionPagesWgsl } from '../../vsm/transmissionPagesWgsl.ts'
-import { vsmTransmissionResolveWgsl } from '../../vsm/transmissionResolveWgsl.ts'
-import { vsmLayout } from '../../vsm/layout.ts'
-import { ROW_BINS_WGSL } from '../../vsm/rowBinsWgsl.ts'
+} from '../../lighting/shadows/vsm/transmission/transmissionNumberWgsl.ts'
+import { vsmTransmissionPagesWgsl } from '../../lighting/shadows/vsm/transmission/transmissionPagesWgsl.ts'
+import { vsmTransmissionResolveWgsl } from '../../lighting/shadows/vsm/transmission/transmissionResolveWgsl.ts'
+import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
+import { ROW_BINS_WGSL } from '../../lighting/shadows/vsm/rows/rowBinsWgsl.ts'
 
 /** Every virtual shadow map module, for the layout the engine makes for one sun
- *  (`../../webgpu/pages/render/vsm/vsmEncode.ts`) at WebGPU's default binding size: the projection
+ *  (`../../lighting/shadows/vsm/frame/vsmEncode.ts`) at WebGPU's default binding size: the projection
  *  (one module, its kinds specialised by `VSM_TRACE_KINDS`), the page management with and without
  *  its counters. The transmission's cull is the opaque cull with its dirty marking left out: fewer
  *  names, no new one. */

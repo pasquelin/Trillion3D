@@ -3,10 +3,10 @@
 // slot: the shipped stage and reader, run on both, give every page the same bits, two images on.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { DEFORMATION_COMPUTE_WGSL } from './computeWgsl.ts'
 import { DEFORM_VERTEX_WORDS, deformOutputWord } from './outputs.ts'
-import type { HostAttributes } from '../host/resources.ts'
+import type { HostAttributes } from '../session/host/resources.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
 
 type Page = Record<string, number>

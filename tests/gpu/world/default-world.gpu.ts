@@ -13,7 +13,7 @@ import { manifestUrlOf } from '../../kit/scenes/caches.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { benchManifest, defaultWorldImage } from './proofWorld.ts'
 import { drawnPixels } from '../../kit/device/sceneImageProof.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 /** The default world of `manifestUrl` on Dawn, lit by `lights`: the pixels its image draws, with
  *  the errors nothing caught. */

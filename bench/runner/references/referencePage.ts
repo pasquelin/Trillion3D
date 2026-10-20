@@ -1,5 +1,5 @@
 // The page side of `references/reference.ts`: one pose drawn by the engine in its reference mode
-// (`packages/sdk-browser/src/frame/referenceMode.ts`), held, and its resolved capture sent to
+// (`packages/sdk-browser/src/frame/reference/referenceMode.ts`), held, and its resolved capture sent to
 // Node. Served under `/runner/` and imported by URL, like `lighting/lightingPage.ts`.
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type * as ExplorerPageModule from '../harness/explorerPage.ts'

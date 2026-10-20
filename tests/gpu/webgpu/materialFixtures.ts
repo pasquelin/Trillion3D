@@ -5,7 +5,7 @@
 // far the two images may differ there — and why.
 //
 // The materials are built in the proof's page, where the maps' canvases are drawn.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import * as img from './materialImages.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'

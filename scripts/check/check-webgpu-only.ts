@@ -6,7 +6,7 @@
 // name is reported on line 0. `pnpm run check:webgpu-only`.
 import { closeSync, openSync, readSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { repositoryFiles, REPOSITORY_ROOT } from '../repository-files.ts'
+import { repositoryFiles, REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const join = (...pieces: string[]) => pieces.join('')
 const GL = join('g', 'l')

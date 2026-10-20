@@ -9,9 +9,9 @@ type DeformationResource = GPUBuffer | GPUTextureView
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { DEFORMATION_PASS } from './pass.ts'
 import { buildComputeStage } from '../gpu/core/computeStages.ts'
-import { uniformSlots } from '../residency/pools.ts'
+import { uniformSlots } from '../session/memory/pools.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
-import { heldGroup } from '../webgpu/core/bindIdentity.ts'
+import { heldGroup } from '../gpu/bind/bindIdentity.ts'
 
 /** The stage's image records, one per dispatch at its own aligned offset (`slot`): the image
  *  number, then the rows that dispatch deforms — its padding groups leave past them. */

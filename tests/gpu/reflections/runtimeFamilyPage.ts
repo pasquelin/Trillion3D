@@ -3,7 +3,7 @@
 // grid of its pixels, and the frames timed.
 import { proofCanvas } from '../../kit/device/renderHarness.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
-import { lastFrameOf } from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
+import { lastFrameOf } from '../../../packages/sdk-browser/src/session/world/session.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { readTexture } from '../../kit/device/computeReadback.ts'
 import { latestMade, listenToWorldDevices } from '../../kit/device/worldErrors.ts'

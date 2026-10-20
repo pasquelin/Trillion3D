@@ -1,0 +1,118 @@
+// What a steady visibility image encodes outside its render passes, on the device double that
+// records every command opening an encoder of its own (`fakeDevice(BACKEND).commands`): each compute step
+// between two render passes is ONE compute pass, and none is cut by a buffer clear. A pass that
+// ends and a clear that starts each cost the frame an encoder change: the partition and the draw
+// compaction share a pass, so do the Hi-Z pyramid, its test and the tested half's compaction, and
+// so do the material cache and the tile classification, each clearing what it counts by its own
+// first dispatch. The GPU cut arms its indirect arguments in its own pass: one pass, no copy
+// before the readback's. And a uniform whose words did not change is not sent again.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { collectClusterPages } from '../../geometry/selection/collect.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { occluderScene, preparedOccluderRun } from '../backend/testOccluder.fixture.ts'
+import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import {
+  HIZ_PASS,
+  MATERIAL_COMPUTE_PASS,
+  MATERIAL_SURFACES_PASS,
+  PARTITION_PASS,
+} from '../../diagnostic/stage/passLabels.ts'
+import type { Engine } from '../../session/engine/types.ts'
+import { webgpuPagesEngine } from '../backend/pages.ts'
+import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
+import { camera, quadScene } from '../backend/testScenes.fixture.ts'
+import { graphDraws } from '../../geometry/selection/drawSource.ts'
+import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
+import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+
+test('each compute step of a visibility image is one pass, and nothing clears between them', async () => {
+  installGpuGlobals()
+  const gpu = fakeDevice(BACKEND)
+  const scene = occluderScene()
+  const metadata: ClusterManifest = {
+    formatVersion: 0,
+    status: 'ready',
+    key: 'test-occluder',
+    scope: DEFAULT_SCOPE,
+    sourceTriangles: 0,
+    selectedTriangles: 0,
+    selectedNodes: 0,
+    totalNodes: 0,
+    ...scene.metadata,
+  }
+  const collected = collectClusterPages(
+    scene.source,
+    graphDraws(scene.source, scene.associations),
+    metadata,
+    scene.indices,
+  )
+  const run = await preparedOccluderRun(scene, metadata, collected.roots, gpu.device, [32, 32])
+  const backend = run.backend as Engine
+  backend.render(run.cam)
+  await backend.flush()
+  gpu.commands.length = 0
+  backend.render(run.cam)
+  const frame = gpu.commands.slice()
+  // Up to the material surfaces: the visibility buffer and what the resolve reads.
+  const visibility = frame.slice(0, frame.indexOf(`render ${MATERIAL_SURFACES_PASS}`))
+  assert.deepEqual(visibility, [
+    `compute ${PARTITION_PASS}`,
+    'render Trillion3D visibility primary',
+    `compute ${HIZ_PASS}`,
+    'render Trillion3D visibility secondary',
+    `compute ${MATERIAL_COMPUTE_PASS}`,
+  ])
+  assert.equal(frame.filter((command) => command === 'clear').length, 0, frame.join(', '))
+  backend.dispose()
+  scene.geometry.dispose()
+  scene.material.dispose()
+})
+
+test('the GPU cut is one compute pass, its arguments armed inside it, before the partition', async () => {
+  installGpuGlobals()
+  const fixture = quadScene()
+  const { source, metadata, indices, associations } = fixture
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
+  const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    ...fixture,
+    gpuDevice: gpu.device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  }) as Engine
+  await backend.prepare()
+  const cam = camera()
+  backend.render(cam)
+  await backend.flush()
+  cam.lookAt(100, 0, 5)
+  cam.updateMatrixWorld()
+  gpu.commands.length = 0
+  backend.render(cam)
+  // The cut, then the copy of its readback — the view moved —, then the partition's pass.
+  assert.deepEqual(gpu.commands.slice(0, gpu.commands.indexOf(`compute ${PARTITION_PASS}`)), [
+    'compute Trillion3D DAG selection',
+    'copy',
+  ])
+  // A view that moves again rewrites what carries the view, not the words it left alone: the
+  // compaction's counts, the occlusion test's size and rows, the material cache's header.
+  cam.lookAt(90, 0, 5)
+  cam.updateMatrixWorld()
+  const before = gpu.writes.length
+  backend.render(cam)
+  const written = new Set(gpu.writes.slice(before).map((write) => write.buffer.label))
+  for (const unchanged of [
+    'Trillion3D draw compaction uniform',
+    'Trillion3D HiZ uniforms',
+    'Trillion3D material cache',
+  ])
+    assert.equal(written.has(unchanged), false, unchanged)
+  assert.equal(written.has('Trillion3D partition uniform v1'), true, 'the view did move')
+  await backend.dispose()
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})

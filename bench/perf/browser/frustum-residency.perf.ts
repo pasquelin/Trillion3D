@@ -1,18 +1,18 @@
 // Absolute selection measurement: frustum clip and the pending pages of a cut. No oracle here:
 // these two computations have no prior implementation to confront; their correctness is held by
 // `bench/witnesses/three/parity/core/math/frustum/box.test.ts` and
-// `packages/sdk-browser/src/page/selection/streamingBundles.test.ts`. Each line says so rather than
+// `packages/sdk-browser/src/geometry/selection/streamingBundles.test.ts`. Each line says so rather than
 // staying silent.
 import * as THREE from 'three'
 import { clipPlanesFromMatrix } from '../../../packages/math/src/geometry/frustum/frustum.ts'
 import { frustumClipBox } from '../../../packages/math/src/geometry/frustum/box.ts'
-import { collectPendingUrls } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
+import { collectPendingUrls } from '../../../packages/sdk-browser/src/geometry/selection/requests.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { stress } from '../../core/measureStress.ts'
 import { boxes, camera, type SceneBox } from './support/scenes.ts'
 import { pageRecFixture } from './support/pageRecFixture.ts'
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 
 const cam = camera(6, 0.1, 16 / 9)
 const clip = new THREE.Matrix4().multiplyMatrices(
@@ -87,7 +87,7 @@ const largeHost = host(15000),
 
 const residenceResult = await measure({
   name: 'collectPendingUrls',
-  fichier: 'packages/sdk-browser/src/page/selection/requests.ts',
+  fichier: 'packages/sdk-browser/src/geometry/selection/requests.ts',
   cas: [
     { name: '15k pages', input: largeHost, size: 15000 },
     { name: 'no pages', input: emptyHost, size: 0 },

@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { maskKeepWgsl } from './pageWgsl.ts'
-import { maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts'
+import { maskAlphaWgsl } from '../../materials/virtual/wgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'

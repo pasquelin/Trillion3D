@@ -3,9 +3,9 @@
 // pass and no row laid —, then the shipped `pixelTriangle` and
 // `decodeTriangle`. The page decode runs on integers, its results in
 // binary32; the rest of the decode in binary32 (`F32_SCOPE`); the cache passes on words.
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
+import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from './shadeCacheWgsl.ts'

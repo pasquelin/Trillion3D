@@ -2,9 +2,9 @@
 // arrays of the image's pixels.
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import type { RigFace } from './rigRuntime.ts'
-import type { Camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
-import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
+import type { Camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
+import { REFLECTION_CONSTANTS } from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
+import { MODEL_FLAG } from '../../../packages/sdk-browser/src/materials/surface/surfaceModel.ts'
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 /** A synthetic still frame of `size` pixels: what the engine's targets hold, as arrays of the

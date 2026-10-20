@@ -1,13 +1,13 @@
 // GEO-1: cut readers by delta. Both cuts rank by admission.
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
+import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import {
   RequestStamps,
   collectPendingUrls,
-} from '../../../packages/sdk-browser/src/page/selection/requests.ts'
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
-import { createCutDelta } from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts'
-import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts'
+} from '../../../packages/sdk-browser/src/geometry/selection/requests.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
+import { createCutDelta } from '../../../packages/sdk-browser/src/geometry/cut/adoption/delta.ts'
+import { createCutPending } from '../../../packages/sdk-browser/src/geometry/cut/adoption/pending.ts'
 import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
@@ -97,7 +97,7 @@ for (const [regime, images] of regimes) {
   measurementResults.push(
     await measure({
       name: `cut readers ${regime}`,
-      fichier: 'packages/sdk-browser/src/webgpu/cut/pending.ts',
+      fichier: 'packages/sdk-browser/src/geometry/cut/adoption/pending.ts',
       cas: [{ name: `8 frames ${regime}`, input: images, size: COUPE * 8 }],
       calculation: optimisedReaders,
       expected: lecteursReference,

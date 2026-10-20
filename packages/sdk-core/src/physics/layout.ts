@@ -28,10 +28,10 @@ export const OP = {
   joint: 18,
   unjoint: 19,
   motor: 20,
-  /** The vehicles' (`vehicleLayout.ts`). */ vehicle: 21,
+  /** The vehicles' (`vehicle/vehicleLayout.ts`). */ vehicle: 21,
   unvehicle: 22,
   drive: 23,
-  /** The soft bodies' (`softLayout.ts`). */ soft: 24,
+  /** The soft bodies' (`soft/softLayout.ts`). */ soft: 24,
 } as const
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */

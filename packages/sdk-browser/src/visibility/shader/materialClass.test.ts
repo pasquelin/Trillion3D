@@ -12,8 +12,8 @@ import {
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { DIAGNOSTICS } from '../../../../sdk-core/src/runtime/diagnostics.ts'
-import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts'
-import { createWebgpuShadePipelines } from '../../webgpu/visibility/shadePipelines.ts'
+import { createExplorerDiagnosticApi } from '../../api/diagnosticApi.ts'
+import { createWebgpuShadePipelines } from '../passes/shadePipelines.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 

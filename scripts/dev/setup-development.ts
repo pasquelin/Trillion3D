@@ -2,8 +2,8 @@
 import { resolve } from 'node:path'
 import { linkLocalFiles } from '../git/local-files.ts'
 import { linkSkills } from './skills-link.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
-import { git } from '../git-paths.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
+import { git } from '../git/git-paths.ts'
 
 /** The primary worktree, which `git worktree list` always prints first. */
 function primaryWorktree(): string | undefined {

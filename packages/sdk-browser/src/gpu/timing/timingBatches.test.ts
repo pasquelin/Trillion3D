@@ -4,7 +4,7 @@ import { timedDevice } from './imageTimer.fixture.ts'
 import { createGpuTiming } from './timing.ts'
 import { QUERY_COUNT, TIMED_PASSES } from './queries.ts'
 import { VSM_TIMED_PASSES } from './vsmPasses.ts'
-import { VSM_PASS_PREFIX } from '../../stage/passLabels.ts'
+import { VSM_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
 
 // The virtual shadow maps' frame: its passes (`vsmPasses.ts`). The frame of the most chunks it is
 // timed over is timed whole, so its shadow milliseconds are published; one past the

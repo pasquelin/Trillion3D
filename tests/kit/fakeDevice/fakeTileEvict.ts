@@ -1,13 +1,13 @@
-import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../../packages/sdk-browser/src/materials/texture/shaderRun.fixture.ts'
 import { boundWords, type BoundBuffer } from './fakeBuffers.ts'
-import { sortPool } from '../../../packages/sdk-browser/src/gpu/pool/sort.fixture.ts'
-import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
-import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/pool/rank.ts'
-import { TILE_BURST } from '../../../packages/sdk-browser/src/webgpu/tile/evictSortWgsl.ts'
+import { sortPool } from '../../../packages/sdk-browser/src/gpu/sort/sort.fixture.ts'
+import { poolRank } from '../../../packages/sdk-browser/src/gpu/sort/rank.fixture.ts'
+import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/sort/rank.ts'
+import { TILE_BURST } from '../../../packages/sdk-browser/src/materials/virtual/evictSortWgsl.ts'
 import {
   TILE_UNRANKED,
   TILE_PLACE_WORD_WGSL,
-} from '../../../packages/sdk-browser/src/webgpu/tile/slotUse.ts'
+} from '../../../packages/sdk-browser/src/materials/virtual/slotUse.ts'
 
 /** The shipped `tilePlaceWord`, run as the kernels find a place's first word. */
 const { tilePlaceWord: tilePlaceWordAt } = shaderRun<{

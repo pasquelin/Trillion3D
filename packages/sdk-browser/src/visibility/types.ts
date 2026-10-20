@@ -1,9 +1,9 @@
-import type { HostAttributes } from '../host/resources.ts'
-import type { PageSurface } from '../page/surface.ts'
+import type { HostAttributes } from '../session/host/resources.ts'
+import type { PageSurface } from '../geometry/pages/surface.ts'
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import { VIS_MAX_PAGE_TRIANGLES, VIS_PAGE_ROWS } from './visWords.ts'
 import { PAGE_INFO } from './pageInfo.ts'
-import { rgbaBytes } from '../texture/imageExtent.ts'
+import { rgbaBytes } from '../materials/texture/imageExtent.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 /** Largest addressable page count: the rows an identifier names (`VIS_PAGE_ROWS`). */
@@ -21,8 +21,8 @@ export const ROW_WORDS = PAGE_INFO.words,
   PAGE_INFO_STRIDE = PAGE_INFO.words * 4
 /** The high bit of a material word (`PageInfo.material`, a blend item's `material`): the row reads
  *  its geometry as floats and its geometry carries a second UV set, at the tail of the normal atlas
- *  it reads (`vertUv1`, `../webgpu/core/geometryPoolLayout.ts`). A quantized page says so in its
- *  own header. Below it, the rank of its surface's record (`../webgpu/material/materialTable.ts`). */
+ *  it reads (`vertUv1`, `../geometry/pages/pool/geometryPoolLayout.ts`). A quantized page says so in its
+ *  own header. Below it, the rank of its surface's record (`../materials/table/materialTable.ts`). */
 export const MATERIAL_SECOND_UV = 0x80000000,
   MATERIAL_RANK_MASK = 0x7fffffff
 /** The address bits of `PageInfo.deformOutput`: the results' first word in the float pool plus
@@ -35,10 +35,10 @@ export const FLAG_LIT = 1,
   FLAG_HAS_NORMAL = 16,
   /** The row's pool slot holds this cluster's quantized geometry page (`WGP3`), not its index
    *  page: every corner, position and attribute is decoded from those words in place
-   *  (`../cluster/decodeWgsl.ts`). A primitive the compiler gave no geometry page keeps the source
+   *  (`../geometry/cluster/decodeWgsl.ts`). A primitive the compiler gave no geometry page keeps the source
    *  float buffers, and its rows carry this bit at zero. */
   FLAG_CLUSTER_PAGE = 32,
-  /** A map of the material has a filter word (`../texture/sampling.ts`): its reads take the
+  /** A map of the material has a filter word (`../materials/texture/sampling.ts`): its reads take the
    *  texture's filter rule. Without it, every read is the default one, and nothing else is run. */
   FLAG_SAMPLED = 64,
   FLAG_MASK = 128,
@@ -59,11 +59,11 @@ export const FLAG_LIT = 1,
   /** The material reads its vertex colours and the geometry carries some: the base colour is
    *  multiplied by the interpolated vertex colour, as the forward path does. */
   FLAG_HAS_COLOR = 32768,
-  /** A blended cluster's shadow-only row (`../webgpu/row/blendCasters.ts`): no depth, only the
-   *  transmittance of its surface's coverage (`../gpu/shadow/transmittanceWgsl.ts`). */
+  /** A blended cluster's shadow-only row (`../geometry/rows/blendCasters.ts`): no depth, only the
+   *  transmittance of its surface's coverage (`../lighting/shadows/transmittanceWgsl.ts`). */
   FLAG_BLEND_CASTER = 65536,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
-   *  not (`../webgpu/blend/uniforms.ts`, `diagnosticBits`). */
+   *  not (`../blend/uniforms.ts`, `diagnosticBits`). */
   FLAG_DIAGNOSTIC_VIEW = 0x40000000
 /** Beside it, which view: its code (`DIAGNOSTIC_VIEWS`, `shader/shadeMode.ts`) in the frame flags'
  *  four bits from here, which the transparent pass reads as the resolve reads `uni.mode`: above
@@ -84,7 +84,7 @@ export const FLAG_FOG_FREE = 1 << 20,
 /** The four bits from here of a row's flags: the most of its history the temporal anti-aliasing
  *  keeps on its surface's pixels (`VisMaterial`'s `historyShare`), as its code
  *  (`historyShareCode`). The opaque passes carry it as they carry a pixel animation, and the
- *  history update caps the history's share by it (`../taa/resolveWgsl.ts`); a blend item carries
+ *  history update caps the history's share by it (`../post/taa/resolveWgsl.ts`); a blend item carries
  *  it in its record's own bits (`ITEM_HISTORY_SHIFT`), its layers writing what they give up of the
  *  history into a target of their own (`GIVEN_UP_TARGET`). The blend pass's frame flags hold their
  *  diagnostic code at these bits, a word a row's flags reach through `ITEM_FLAG_BITS` alone, its
@@ -99,8 +99,8 @@ export const HISTORY_SHARE_STEPS = 12
 export const historyShareCode = (share = 1) =>
   Math.round((1 - saturate(share)) * HISTORY_SHARE_STEPS)
 /** What a history share code gives up of the history, in [0, 1] (`historyShareCode` undone): the
- *  one decode the history update (`../taa/resolveWgsl.ts`) and the transparents
- *  (`../webgpu/blend/vertexReadsWgsl.ts`) read. */
+ *  one decode the history update (`../post/taa/resolveWgsl.ts`) and the transparents
+ *  (`../blend/vertexReadsWgsl.ts`) read. */
 export const HISTORY_GIVEN_UP_WGSL = wgslFn(
   'historyGivenUp',
   [],
@@ -109,7 +109,7 @@ export const HISTORY_GIVEN_UP_WGSL = wgslFn(
 export type VisPage = {
   array: Uint32Array
   attributes: HostAttributes
-  /** The engine's surface record, read once at the boundary (`../page/surface.ts`). */
+  /** The engine's surface record, read once at the boundary (`../geometry/pages/surface.ts`). */
   material: PageSurface
   clusterId?: string
 }

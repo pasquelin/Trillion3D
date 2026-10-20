@@ -7,7 +7,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { compileFullCache } from '../../../scripts/native/native-compiler.ts'
 import { measureOutput } from '../../../bench/core/paths.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 /** A unit cube's corners — four to a face, with its normal — and its twelve triangles. */
 function cube(size: number) {

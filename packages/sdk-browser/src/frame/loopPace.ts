@@ -9,7 +9,7 @@
 const LATE_FRAMES = 4
 
 /**
- * THE LOOP'S ONE PAUSE RULE, read by the world's frames (`../world/core/worldFrames.ts`) on their
+ * THE LOOP'S ONE PAUSE RULE, read by the world's frames (`../session/world/frames/frames.ts`) on their
  * own clock and unit: `read(gap)`
  * says whether the gap is a pause (`paused`) and returns the time the frame spans — the gap
  * itself, or after a pause one running interval, the frame after a pause counted as one ordinary

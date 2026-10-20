@@ -49,7 +49,7 @@ function liesOnWater(mesh: Mesh, level: number) {
  * geometry the page rewrites (`usage: 'dynamic'`) has its vertices where the page puts them: neither
  * is water. What the scene tells the physics (`heard`) is read again ahead of the next frame
  * (`frame`): a mesh carried, or no longer, is told its content changed, and is seated again with
- * its waves (`worldBatches.ts`). Every mesh in the world that holds the world's surface, the page's
+ * its waves (`world/batches.ts`). Every mesh in the world that holds the world's surface, the page's
  * own `mesh.waves = waterSurface` too, is a holder: told when the water set again changes its wave
  * count, which sizes its deformation record, and drawn on while the waves move.
  */

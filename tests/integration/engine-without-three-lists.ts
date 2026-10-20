@@ -5,14 +5,14 @@
  */
 
 /**
- * The page-word families of the world API and the placement rows (`world/core/`, the `world/api/*Family.ts` modules, the `index.ts` of
+ * The page-word families of the world API and the placement rows (`session/world/`, the `api/*Family.ts` modules, the `index.ts` of
  * each family, `placement/`): they pose the core's own scene objects, so the camera-pose and
  * host-matrix rules of `engine-structure.test.ts` and `engine-without-three-math.test.ts` do not
  * read them. The host-library rules of `engine-without-three.test.ts` read them like any other
  * source: no file there names the host library.
  */
 export const PUBLIC_FAMILIES =
-  /^(?:placement\/|world\/(?:core|batch|budget|capability|controls|helper|loader|metric|page|pose|saved|texture)\/|world\/api\/\w+Family\.ts$|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/
+  /^(?:placement\/|session\/(?:world|saved)\/|api\/capability\/|guides\/transform\/|geometry\/runtime\/|materials\/live\/|api\/\w+Family\.ts$|api\/capture\/index\.ts$|diagnostic\/world\/(?:index|worldNotices)\.ts$)/
 
 /**
  * A module specifier of the host library, in a source, in emitted code or in a declaration: the
@@ -35,15 +35,15 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 //     `scripts/build/build-witnesses.ts` into `dist/witnesses/`, which the package leaves out, and draw
 //     in pages of their own (`bench/runner/witness/threeMeasurePage.ts`), never as the engine.
 //  2. The pages, copies and lights a page hands back are objects of the engine's own graph
-//     (`packages/sdk-browser/src/host/pageObjects.ts`, `packages/sdk-browser/src/host/graph/`).
-//  3. Materials are the engine's own surface records (`packages/sdk-browser/src/page/surface.ts`),
-//     declared in its own words (`packages/sdk-browser/src/page/surfaceDeclaration.ts`); textures and
-//     geometries are read through the shapes of `packages/sdk-browser/src/host/resources.ts`.
+//     (`packages/sdk-browser/src/session/host/pageObjects.ts`, `packages/sdk-browser/src/scene/host/graph/`).
+//  3. Materials are the engine's own surface records (`packages/sdk-browser/src/geometry/pages/surface.ts`),
+//     declared in its own words (`packages/sdk-browser/src/geometry/pages/surfaceDeclaration.ts`); textures and
+//     geometries are read through the shapes of `packages/sdk-browser/src/session/host/resources.ts`.
 //
 // THE HOST SCENE GRAPH AND ITS CAMERA are written against the shapes of
-// `packages/sdk-browser/src/host/scene/graphNodes.ts` and the `HostCamera` of `packages/sdk-browser/src/camera/world.ts`. The graphs the engine
+// `packages/sdk-browser/src/scene/host/scan/graphNodes.ts` and the `HostCamera` of `packages/sdk-browser/src/camera/world.ts`. The graphs the engine
 // BUILDS — the prepared scene, a world's mirror, the explorer's camera — are its own objects of
-// those shapes (`packages/sdk-browser/src/host/graph/`); a witness renderer receives a copy made on its
+// those shapes (`packages/sdk-browser/src/scene/host/graph/`); a witness renderer receives a copy made on its
 // side of the line (`bench/witnesses/three/fromGraph.ts`).
 //
 // The camera pose contract lives in `packages/sdk-browser/src/camera/world.ts` and
@@ -52,7 +52,7 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 
 // CLOSED LIST OF FILES ALLOWED TO READ `declaration` — the host material a page was read from.
 //
-// A page carries the engine's own surface record (`packages/sdk-browser/src/page/surface.ts`) and
+// A page carries the engine's own surface record (`packages/sdk-browser/src/geometry/pages/surface.ts`) and
 // the engine path reads nothing else: the cut, the rows, the raster, the transparent items and the
 // audit all compute on that record. `declaration` is the host object itself, kept for the one
 // use that needs it — handing a surface back to the library that owns it. Reading it anywhere
@@ -63,12 +63,11 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 export const BENCH_READS_DECLARATION = /^bench\/(?:witnesses|oracles|perf)\//
 
 export const DECLARATION: Record<string, string> = {
-  'page/surface': 'boundary: a record wears a new declaration, its surface read with it',
-  'page/selection/drawSource': 'the source declares what its surface is read from, once',
-  'world/core/worldBatches': 'a batch is a source: its surface is what it declares',
-  'world/core/worldModels': 'a model mesh is a source: its graph surface is what it declares',
-  'world/session/capabilities': 'boundary: the most detail sets every texture its sources declare',
-  'world/api/materialApi': 'boundary: a page edits the host surfaces its drawables wear',
-  'world/api/createdMaterials':
-    'boundary: a created material is given to the drawables that wear it',
+  'geometry/pages/surface': 'boundary: a record wears a new declaration, its surface read with it',
+  'geometry/selection/drawSource': 'the source declares what its surface is read from, once',
+  'session/world/batches': 'a batch is a source: its surface is what it declares',
+  'session/world/models/models': 'a model mesh is a source: its graph surface is what it declares',
+  'session/capabilities': 'boundary: the most detail sets every texture its sources declare',
+  'api/materialApi': 'boundary: a page edits the host surfaces its drawables wear',
+  'api/createdMaterials': 'boundary: a created material is given to the drawables that wear it',
 }

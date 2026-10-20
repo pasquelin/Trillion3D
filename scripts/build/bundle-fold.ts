@@ -6,21 +6,21 @@ import type { Plugin } from 'esbuild'
 /** The CDN bundle's chunks, each named after the module it holds: `trillion3d-<module>-<hash>.js`. */
 export const CHUNK_PREFIX = 'trillion3d-'
 
-/** The optional families (`sdk-browser/src/host/families.ts`), each one module that stays a chunk
+/** The optional families (`sdk-browser/src/session/host/families.ts`), each one module that stays a chunk
  *  of its own in the CDN bundle, fetched on first use: a family of several modules would share code
  *  with the core in as many more chunks. A scene that uses none of them fetches none. */
 export const FAMILY_MODULES = {
-  webgpu: ['sdk-browser/src/webgpu/pages/webgpuCode.js'],
+  webgpu: ['sdk-browser/src/frame/backend/webgpuCode.js'],
   physics: ['sdk-browser/src/physics/session/session.js'],
   particles: ['sdk-browser/src/particles/particleCode.js'],
-  transmission: ['sdk-browser/src/webgpu/blend/transmission/family.js'],
+  transmission: ['sdk-browser/src/blend/transmission/family.js'],
   deformation: ['sdk-browser/src/deformation/deformationCode.js'],
   effects: ['sdk-browser/src/post/effects/effectCode.js'],
   guides: ['sdk-browser/src/guides/guideCode.js'],
   diagnostics: ['sdk-browser/src/diagnostic/viewCode.js'],
   measurement: ['sdk-browser/src/measurement/measurementCode.js'],
-  worldStream: ['sdk-browser/src/scene/worldRootPages.js'],
-  pageCodec: ['sdk-browser/src/page/codec/geometryPage.js'],
+  worldStream: ['sdk-browser/src/geometry/hlod/worldRootPages.js'],
+  pageCodec: ['sdk-browser/src/geometry/codec/geometryPage.js'],
 }
 export type Family = keyof typeof FAMILY_MODULES
 

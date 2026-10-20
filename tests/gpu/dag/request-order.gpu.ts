@@ -1,6 +1,6 @@
 // The request list leaves the GPU already ranked: the shipped kernel (`dagSortRequests`) writes the
 // camera's requests by the SUBSTITUTE's screen error, the costliest absence first, and the host
-// reads them in that order and ranks nothing (`gpu/dag/request.ts`). On the four-depth scene of
+// reads them in that order and ranks nothing (`dag/request/request.ts`). On the four-depth scene of
 // the request tests, the order the device publishes is checked against `clusterErrorPixels`
 // recomputed in f64: never more than one quantization step out of order, the head the costliest.
 import test from 'node:test'
@@ -10,7 +10,7 @@ import {
   REQUEST_STEP,
   requestScene,
   substitutePixels,
-} from '../../../packages/sdk-browser/src/gpu/dag/requestScene.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/request/requestScene.fixture.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 test('the kernel publishes its requests ranked by the substitute’s screen error', async () => {

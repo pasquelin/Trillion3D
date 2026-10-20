@@ -1,0 +1,171 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { webgpuPagesEngine } from './pages.ts'
+import { collectClusterPages } from '../../geometry/selection/collect.ts'
+import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
+import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { dagLevel } from '../../session/engine/pagesEngine.fixture.ts'
+import { quadScene, camera, flushedImage } from './testScenes.fixture.ts'
+import { coarseQuadScene } from './coarseQuads.fixture.ts'
+import { settledImage } from './settledImage.fixture.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import type { Engine } from '../../session/engine/types.ts'
+import { EVICT_IN_USE } from '../../gpu/sort/rank.ts'
+import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
+import { graphDraws } from '../../geometry/selection/drawSource.ts'
+import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
+import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+
+test('a host eviction deferred for coverage is applied once the GPU order gives the page up', async () => {
+  installGpuGlobals()
+  const fixture = coarseQuadScene(),
+    { device } = fakeDevice(BACKEND)
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    ...fixture,
+    gpuDevice: device,
+    maxResidentPages: 3,
+    viewport: [32, 32],
+  }) as Engine
+  try {
+    await backend.prepare()
+    // The GPU cut's readback lands one image later (#1483): the first asks for the leaves, which
+    // enter the residency the image after their bytes; drawn and drained until they are drawn.
+    await settledImage(backend)
+    backend.dropPage('0')
+    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
+    const cam = camera()
+    cam.lookAt(0, 0, 10)
+    // The drop waits until the GPU's order gives the page up: unused by any view for
+    // `EVICT_IN_USE` frames, and that order read back.
+    for (let i = 0; i <= EVICT_IN_USE + DAG_READBACK_SLOTS; i++) await flushedImage(backend, cam)
+    await flushedImage(backend)
+    backend.render(camera())
+    assert.deepEqual(backend.selectedPageIds(), ['2'])
+    assert.deepEqual(backend.pendingUrls!(), ['0'])
+  } finally {
+    backend.dispose()
+    fixture.geometry.dispose()
+    fixture.material.dispose()
+  }
+})
+
+test('a leaf carrying its own coarse representation keeps that GPU fallback during exact-page loading', async () => {
+  installGpuGlobals()
+  const fixture = coarseQuadScene(),
+    { device } = fakeDevice(BACKEND)
+  // One cluster replaced by one coarser cluster: a group of a single child.
+  const leaf = { ...fixture.metadata.primitives[0].pages[0], count: 6, bytes: 24 }
+  const level = dagLevel([leaf], [{ ...fixture.metadata.primitives[0].pages[2], id: 1 }], 1)
+  const metadata: ClusterManifest = {
+    ...fixture.metadata,
+    primitives: [{ ...fixture.metadata.primitives[0], ...level }],
+  }
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    ...fixture,
+    metadata,
+    indices: new Map(),
+    readPage: async () => fixture.indices.get('2')!,
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  }) as Engine
+  try {
+    await backend.prepare()
+    await flushedImage(backend)
+    assert.deepEqual(backend.selectedPageIds(), ['2'])
+    backend.acceptPage('0', fixture.indices.get('2')!)
+    await settledImage(backend)
+    assert.deepEqual(backend.selectedPageIds(), ['0'])
+  } finally {
+    backend.dispose()
+    fixture.geometry.dispose()
+    fixture.material.dispose()
+  }
+})
+
+test('cancelling initial coverage loading cannot publish a ready backend', async () => {
+  installGpuGlobals()
+  const fixture = quadScene(),
+    { device, draws } = fakeDevice(BACKEND),
+    controller = new AbortController()
+  let reading!: () => void, release!: () => void
+  const started = new Promise<void>((resolve) => {
+      reading = resolve
+    }),
+    gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    ...fixture,
+    indices: new Map(),
+    readPage: async (url) => {
+      reading()
+      await gate
+      return fixture.indices.get(url)!
+    },
+    signal: controller.signal,
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  })
+  try {
+    const preparing = backend.prepare()
+    await started
+    controller.abort()
+    release()
+    await assert.rejects(preparing, { name: 'AbortError' })
+    assert.equal(backend.metrics().coverageReady, false)
+    assert.equal(draws.length, 0)
+  } finally {
+    release()
+    backend.dispose()
+    fixture.geometry.dispose()
+    fixture.material.dispose()
+  }
+})
+
+test('moving opaque cameras use the current GPU selection without CPU reselection', async () => {
+  installGpuGlobals()
+  const fixture = quadScene()
+  const collected = collectClusterPages(
+    fixture.source,
+    graphDraws(fixture.source, fixture.associations),
+    fixture.metadata,
+    fixture.indices,
+  )
+  const packed = packDagSelection(collected.roots)
+  const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
+  const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    ...fixture,
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+    onDiagnostic: (event) => events.push(event),
+  }) as Engine
+  try {
+    await backend.prepare()
+    const cam = camera()
+    for (const target of [100, 0, 100, 0]) {
+      cam.lookAt(target, 0, target ? 5 : 0)
+      cam.updateMatrixWorld()
+      draws.length = 0
+      backend.render(cam)
+      // Selection of the CURRENT IMAGE, read in its mask: that is what the indirect commands consume
+      // as instances, without waiting for a past image's sample.
+      assert.equal(drawnPageIds(buffers, packed).length, target ? 0 : 2)
+      await backend.flush()
+    }
+    assert.ok(events.some((event) => event.phase === 'gpu-selection-current-frame'))
+  } finally {
+    await backend.dispose()
+    fixture.geometry.dispose()
+    fixture.material.dispose()
+  }
+})

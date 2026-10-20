@@ -4,7 +4,7 @@ import { PHYSICS_STEP } from '../../../../sdk-core/src/physics/options.ts'
 import { HUMAN_BODY } from '../../../../sdk-core/src/collision/characterSettings.ts'
 import { plane, sphere } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import type { SoftBodyOptions } from '../../../../sdk-core/src/physics/soft.ts'
+import type { SoftBodyOptions } from '../../../../sdk-core/src/physics/soft/soft.ts'
 import { standCharacter } from '../module.fixture.ts'
 import { addSoft, settle, softWorld } from './soft.fixture.ts'
 

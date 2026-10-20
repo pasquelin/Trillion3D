@@ -1,4 +1,4 @@
-// Soft bodies (SOFT, `packages/sdk-core/src/physics/softLayout.ts`): cloths, ropes and volumes on
+// Soft bodies (SOFT, `packages/sdk-core/src/physics/soft/softLayout.ts`): cloths, ropes and volumes on
 // Jolt's soft bodies, made from the page's vertices or restored from the compiler's cook, and their
 // vertices written back after each step in the frame of the geometry they came from. Each one
 // collides a centimetre thick, and passes through the static bodies its pins hang inside.

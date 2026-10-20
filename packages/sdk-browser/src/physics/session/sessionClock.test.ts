@@ -44,7 +44,7 @@ async function world() {
     const data = { ...idleTick, buffer: words.buffer, poses: 1, steps: 1, step, resting, active }
     worker.onmessage({ data: { ...data, heard } })
   }
-  /** A frame `seconds` after the last: its time set, then run (`worldFrames.ts`). */
+  /** A frame `seconds` after the last: its time set, then run (`frames/frames.ts`). */
   const frame = (seconds: number) => (physics.time(seconds), physics.frame())
   return { physics, worker, told, tick, frame, restore }
 }

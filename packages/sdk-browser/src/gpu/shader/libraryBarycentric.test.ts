@@ -2,7 +2,7 @@
 // their shipped text run in JavaScript: each form's weights rebuild the point they weigh.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   edgeFunction,

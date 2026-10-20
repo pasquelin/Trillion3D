@@ -2,53 +2,56 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
-import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
-import { drawShader } from '../draw/shader.ts'
-import { HIZ_SHADER } from '../hiz/shader.ts'
-import { RADIANCE_SHADER } from '../../reflections/radianceWgsl.ts'
-import { REFLECTION_TRACE_SHADER } from '../../reflections/trace.ts'
-import { blendFrontShader } from '../../webgpu/blend/frontStageWgsl.ts'
-import { RUNTIME_POSE_SHADER } from '../../bounce/runtimePoseWgsl.ts'
+import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/shader.ts'
+import { drawShader } from '../../visibility/draw/shader.ts'
+import { HIZ_SHADER } from '../../visibility/hiz/gpu/shader.ts'
+import { RADIANCE_SHADER } from '../../lighting/reflections/radiance/radianceWgsl.ts'
+import { REFLECTION_TRACE_SHADER } from '../../lighting/reflections/trace/trace.ts'
+import { blendFrontShader } from '../../blend/frontStageWgsl.ts'
+import { RUNTIME_POSE_SHADER } from '../../lighting/bounce/runtime/runtimePoseWgsl.ts'
 import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
-import { PARTITION_SHADER } from '../partition/shader.ts'
-import { RESOLVE, rasterSource } from '../raster/shader.ts'
+import { PARTITION_SHADER } from '../../geometry/partition/gpu/shader.ts'
+import { RESOLVE, rasterSource } from '../../visibility/raster/shader.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
-import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
+import {
+  BOUNCE_PROBE_SHADER,
+  BOUNCE_SNAPSHOT_SHADER,
+} from '../../lighting/bounce/probes/probeWgsl.ts'
 import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
-import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
-import { OUTLINE_WGSL } from '../../webgpu/effects/outlineWgsl.ts'
-import { FRAME_DIFFERENCE_WGSL } from '../../webgpu/pages/render/frameDifference.ts'
+import { BLOOM_WGSL } from '../../post/effects/bloom/bloomWgsl.ts'
+import { OUTLINE_WGSL } from '../../post/effects/outline/outlineWgsl.ts'
+import { FRAME_DIFFERENCE_WGSL } from '../../frame/render/frameDifference.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
 import { lightTilesShader } from '../../lighting/tiles/shader.ts'
-import { taaResolveShader } from '../../taa/resolveWgsl.ts'
-import { spatialAntiAliasingShader } from '../../taa/spatialAntiAliasingWgsl.ts'
-import { velocityShader } from '../../taa/velocityWgsl.ts'
-import { reprojectShader } from '../../taa/reprojectWgsl.ts'
-import { flickerShader } from '../../taa/flickerWgsl.ts'
-import { thinGeometryShader } from '../../taa/thinGeometryWgsl.ts'
-import { heldMeasureShader, rejectionShader } from '../../taa/rejectionWgsl.ts'
+import { taaResolveShader } from '../../post/taa/resolveWgsl.ts'
+import { spatialAntiAliasingShader } from '../../post/taa/spatialAntiAliasingWgsl.ts'
+import { velocityShader } from '../../post/taa/velocityWgsl.ts'
+import { reprojectShader } from '../../post/taa/reprojectWgsl.ts'
+import { flickerShader } from '../../post/taa/flickerWgsl.ts'
+import { thinGeometryShader } from '../../post/taa/thinGeometryWgsl.ts'
+import { heldMeasureShader, rejectionShader } from '../../post/taa/rejectionWgsl.ts'
 import {
   COVERAGE_CHOOSE_WGSL,
   COVERAGE_COUNT_WGSL,
   MATERIAL_MIP_WGSL,
-} from '../../texture/mipsWgsl.ts'
+} from '../../materials/texture/mipsWgsl.ts'
 import { SHADE_SHADER, shadeShader } from '../../visibility/shader/shadeWgsl.ts'
 import { VIS_SHADER, visShader, visXrayShader } from '../../visibility/shader/visWgsl.ts'
-import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
-import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
-import { BLEND_VERDICT_SHADER } from '../../webgpu/blend/verdictWgsl.ts'
-import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
-import { GATHER_WGSL, REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts'
-import { TILE_SORT_WGSL } from '../../webgpu/tile/evictSortWgsl.ts'
-import { ROW_SORT_WGSL } from '../../webgpu/row/rowEvictSortWgsl.ts'
-import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts'
-import { transmitWgsl } from '../../webgpu/blend/transmission/transmitWgsl.ts'
-import { particlesWgsl, PARTICLE_DRAW_WGSL } from '../../webgpu/particles/particlesWgsl.ts'
-import { blendShader } from '../../webgpu/blend/shader.ts'
+import { BLEND_EXPAND_SHADER } from '../../blend/expand/expandWgsl.ts'
+import { BLEND_ORDER_SHADER } from '../../blend/order/orderWgsl.ts'
+import { BLEND_VERDICT_SHADER } from '../../blend/verdict/verdictWgsl.ts'
+import { DISPLAY_FILTER_SHADER } from '../../blend/display/displayFilterWgsl.ts'
+import { GATHER_WGSL, REDUCE_WGSL } from '../../materials/virtual/reduceWgsl.ts'
+import { TILE_SORT_WGSL } from '../../materials/virtual/evictSortWgsl.ts'
+import { ROW_SORT_WGSL } from '../../geometry/rows/rowEvictSortWgsl.ts'
+import { TRANSPARENT_COMPACT_SHADER } from '../../blend/transparent/shader.ts'
+import { transmitWgsl } from '../../blend/transmission/transmitWgsl.ts'
+import { particlesWgsl, PARTICLE_DRAW_WGSL } from '../../particles/gpu/particlesWgsl.ts'
+import { blendShader } from '../../blend/shader.ts'
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
@@ -80,7 +83,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DRAW_TESTED_SHADER: drawShader(2, true),
   HIZ_SHADER,
   REFLECTION_TRACE_SHADER,
-  // The transparents' front stage, each of what its pass writes (`webgpu/blend/frontStage.ts`).
+  // The transparents' front stage, each of what its pass writes (`blend/frontStage.ts`).
   FRONT_STAGE_DEPTH: blendFrontShader(0),
   FRONT_STAGE_REFLECTING: blendFrontShader(1),
   FRONT_STAGE_LOBED: blendFrontShader(2),
@@ -147,7 +150,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
   BLEND_SHADER,
   DISPLAY_FILTER_SHADER,
-  // The transmissive stages (`../../webgpu/blend/transmission/transmitWgsl.ts`), the dual blend where
+  // The transmissive stages (`../../blend/transmission/transmitWgsl.ts`), the dual blend where
   // the device grants it.
   BLEND_TRANSMIT: blendShader({}, { stage: transmitWgsl({}, false) }),
   BLEND_TRANSMIT_DUAL: blendShader({}, { stage: transmitWgsl({}, true), dual: true }),
@@ -161,7 +164,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BLEND_RECTLESS: blendShader({ rectless: true }),
   BLEND_SUNLESS: blendShader({ sunless: true }),
   BLEND_LOCALLESS: blendShader({ localless: true }),
-  // A scene whose blends carry no anisotropic or clear-coat lobe (`../../webgpu/blend/physicalWgsl.ts`).
+  // A scene whose blends carry no anisotropic or clear-coat lobe (`../../blend/physicalWgsl.ts`).
   BLEND_LOBELESS: blendShader({ lobeless: true }),
   BLEND_EXPAND_SHADER,
   BLEND_ORDER_SHADER,

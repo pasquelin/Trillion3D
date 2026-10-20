@@ -3,23 +3,23 @@
 // loads landing at random delays, two frames read back behind. Each frame copies the pool in its own
 // command buffer after its cut; for every frame read back (`evictionFlightFrame.ts`): its drawn
 // pages, their slots, the pool as it read it, and the cut an unbounded pool draws at that pose.
-import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { createGpuPageCache } from '../../../packages/sdk-browser/src/gpu/page/pages.ts'
-import { createEvictionFeed } from '../../../packages/sdk-browser/src/webgpu/residency/evictionFeed.ts'
-import { createWebgpuPageTracking } from '../../../packages/sdk-browser/src/webgpu/row/pageTracking.ts'
-import { createPageAdmission } from '../../../packages/sdk-browser/src/webgpu/residency/admission.ts'
-import { createPageParents } from '../../../packages/sdk-browser/src/page/selection/pageParents.ts'
-import { createGroupClosure } from '../../../packages/sdk-browser/src/page/cut/groupClosure.ts'
-import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
-import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/selection/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { createGpuPageCache } from '../../../packages/sdk-browser/src/geometry/pages/pool/pages.ts'
+import { createEvictionFeed } from '../../../packages/sdk-browser/src/geometry/residency/evictionFeed.ts'
+import { createWebgpuPageTracking } from '../../../packages/sdk-browser/src/geometry/rows/page/pageTracking.ts'
+import { createPageAdmission } from '../../../packages/sdk-browser/src/geometry/residency/admission.ts'
+import { createPageParents } from '../../../packages/sdk-browser/src/geometry/selection/pageParents.ts'
+import { createGroupClosure } from '../../../packages/sdk-browser/src/geometry/cut/groupClosure.ts'
+import { pageResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
+import { pageAddress } from '../../../packages/sdk-browser/src/geometry/rows/page/pageSlots.ts'
 import type { GpuCut } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { PAGE_BYTES, evictionWorld } from './evictionWorld.ts'
 import { readFlightFrame, type FlightFrame } from './evictionFlightFrame.ts'
-import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 /** The flight: a row of DAGs twenty times the pool, flown in `flight` frames, then held still. */
 const FLIGHT = { copies: 16, slots: 72, flight: 160, hold: 40, seed: 0xf1197 }

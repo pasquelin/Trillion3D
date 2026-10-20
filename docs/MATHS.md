@@ -55,7 +55,7 @@ of the band: a site moved from one to the other carries the proof that no 8-bit 
 site moved from the plain root keeps its bits inside the band and, declared, gains the true
 length outside it where the plain root gave 0 or Infinity: under `packages/sdk-browser/src/`, the
 bounding-sphere radius of `host/prepared/geometry.ts`, the lateral distance of
-`page/selection/projection.ts`, a light's far distance in `world/core/worldLights.ts`, and the
+`geometry/selection/projection.ts`, a light's far distance in `session/world/lights.ts`, and the
 light's horizontal axis in `vsmWorldToLightRotation` (`vsm/clipmap.ts`), which for a direction
 within about 1e-146 of vertical follows the direction where the 0 snapped it to world Y
 (`lightRotation.test.ts`).
@@ -69,13 +69,13 @@ The declared exceptions, each held to bits the rule would change:
   reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
   outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
   within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`);
-  `spriteRow` of `packages/sdk-browser/src/world/core/worldPoses.ts`, where a uniform scale's two
+  `spriteRow` of `packages/sdk-browser/src/session/world/poses/poses.ts`, where a uniform scale's two
   axis lengths must round alike; and the generator whose committed files hold the builtin's bits,
   the normals of `scripts/dev/fixtures/garden-source.ts` (`hypot3`).
 - The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
   `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
   summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
-  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts` (`plainLength2`), held to `cut_error.rs`
+  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts` (`plainLength2`), held to `cut/error.rs`
   by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain sum's Infinity; the gap of
   `sphereUnion` (`geometry/sphere.ts`), held to `merge_spheres` of `packages/math/rust/src/sphere.rs`
   past the band too (`sphereUnion.test.ts`).
@@ -243,7 +243,7 @@ transformPointsBatch(viewCentres, frame.view, centres, m) // m === visible
 alone (`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and
 `box_transform.rs`), bit-identical to the single-element functions (`boxTransform`,
 `multiplyMatrix4`). The engine runs them in its lots
-(`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`): no timing picks a path, so two plays
+(`packages/sdk-browser/src/geometry/decode/batchRuntime.ts`): no timing picks a path, so two plays
 of one scene compute the same bits by the same code. A lot that no longer holds the elements asked —
 released, or of another size — is remade at their count, and a run covers the elements written
 alone, so a lot of every root moves the few that moved at their cost. Each element taken alone is the
@@ -272,10 +272,10 @@ golden:write` rewrites them all, the command each file names.
   have no TypeScript twin: the compiler alone uses them, so no golden holds them.
 - The page decoder has no TypeScript twin: `decodeGeometryPage` calls the Rust one in the SDK module.
 - Single numbers, `packages/math/golden`: `mip_size` (TypeScript `mipSize`, WGSL `mipSize` through `mipSize.golden.test.ts` of `packages/sdk-browser/src/gpu/shader/`), `srgb_to_linear`, `hermite_basis`, `xorshift32`, `lcg32`; `preview_levels` (`previewLevels.golden.test.ts` of `packages/sdk-core/src/texture/`).
-- WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.
+- WebAssembly twin: `packages/sdk-browser/src/geometry/decode/multiplyBatch.golden.test.ts`.
 - The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
 - The grid rule has no TypeScript twin: the run-time cut runs the Rust rule in the SDK module
-  (`wasm_encode.rs`), held to `grid.json` (`cutGrid.golden.test.ts`, `packages/sdk-browser/src/world/page/`);
+  (`wasm/encode.rs`), held to `grid.json` (`cutGrid.golden.test.ts`, `packages/sdk-browser/src/geometry/runtime/`);
   on every compiled scene, it picks the grid the compiler wrote
   (`tests/integration/runtime-cut-grid.test.ts`).
 
@@ -302,7 +302,7 @@ Hi-Z bounds and the CPU visibility raster. A declared exception: the bench compa
 x/y terms to the witness's, the depth terms being the engine's. `far` is still read for the frustum
 far plane, the adaptive threshold and the shadow range.
 
-#### Sides — `packages/sdk-browser/src/scene/materialSide.ts`
+#### Sides — `packages/sdk-browser/src/materials/surface/materialSide.ts`
 
 | Function                                    | Computes                                                                                                     | Witness call                          | Proof                  |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------- | ---------------------- |

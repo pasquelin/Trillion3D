@@ -1,4 +1,4 @@
-import { SECOND_MS } from './scaleTargets.ts'
+import { SECOND_MS } from './scale/scaleTargets.ts'
 /** Frame intervals the refresh is measured over, at most, and the time they span (`SECOND_MS`): a
  *  period no interval of the last second stands for is gone (a window moved, a browser that slowed the
  *  page). */
@@ -105,7 +105,7 @@ function gridPeriod(
  * intervals of one refresh were seen, no grid finer than it is sought: a variable-refresh display's
  * late frames would hold one (`gridPeriod`). A steady cadence of two refreshes from the first frame
  * is read as the display's, there being no shorter period yet: the frames held to measure it draw
- * nothing (`scaleControl.ts`). `fallback` until a period is found.
+ * nothing (`scale/scaleControl.ts`). `fallback` until a period is found.
  *
  * The window is kept sorted as it moves — the intervals past a second or past `REFRESH_WINDOW`
  * taken out, the new one put in its place —, so a frame sorts nothing and allocates nothing. The

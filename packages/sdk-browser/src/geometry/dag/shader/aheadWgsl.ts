@@ -1,0 +1,62 @@
+import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+
+/**
+ * The view AHEAD of the camera: what the camera cut also evaluates so the pages the camera is about
+ * to need are asked for before they are on screen.
+ *
+ * The host writes it in the second uniform block (`../uniforms.ts`) and raises `ahead` in the first:
+ * the eye moved by its velocity over the horizon (`view`), inside a frustum widened by the angle it
+ * turns meanwhile and pushed out by the distance it travels (`planes`,
+ * `../../../gpu/core/aheadView.ts`). A still camera sends none, and the cut is the one of before, bit for
+ * bit.
+ *
+ * It is ONE descent, not two. A work entry of view 0 serves the camera, as always; a node or a page
+ * the camera rejects is tried against the view ahead, and kept there it continues under view 1 —
+ * which only this view ahead reads. So a node is visited once whatever the views that keep it,
+ * every queue and list keeps its bound, and a page of view 1 never reaches the live list: it is
+ * never drawn, only REQUESTED, in the lower tier (`../request/request.ts`). A light cut never raises the
+ * flag, and its views keep their meaning.
+ *
+ * What the view ahead asks for waits in a region of its own, half the sample's cap, on its own
+ * counter: the camera's requests keep the whole sample, and their overflow alone declares it
+ * truncated (`snapshotWgsl.ts`). Each is ranked by its deadline, then its error (`../aheadDue.ts`).
+ */
+export const AHEAD_VIEW = 1
+
+export const DAG_AHEAD_WGSL = wgslBlock(
+  'DAG_AHEAD_WGSL',
+  [DAG_AHEAD_DUE_WGSL],
+  `const AHEAD_VIEW:u32=${AHEAD_VIEW}u;
+fn aheadOn()->bool{return views[0u].ahead!=0u;}
+/** The view-ahead frustum, brought into the primitive's space as the camera's
+ *  (\`primitiveWgsl.ts\`), then the same box test. A primitive no camera culls is never outside it. */
+fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{return outsideFrustum(w,AHEAD_VIEW,bmin,bmax);}
+/** \`levelStep\`'s verdict under the view ahead: inside its frustum, not too fine, not too coarse;
+ *  \`open\`, the node's open count for placement \`w\` (\`openOf\`). */
+fn keepsAhead(node:CullNode,w:u32,open:u32)->bool{
+ vi=AHEAD_VIEW;
+ if(outsideAhead(w,node.minimum,node.maximum)){return false;}
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=views[vi].pixelError;
+ return !tooCoarse(node,e,stretch,focal,t)&&!floorPrunes(open,node.floorSphere,node.errorFloor,e,stretch,focal,t);
+}
+/** A node the camera rejected for placement \`w\`, tried against the view ahead. */
+fn descendAhead(src:u32,node:CullNode,w:u32,open:u32){
+ if(aheadOn()&&keepsAhead(node,w,open)){descend(src,node,w);}
+}
+/** A page the camera does not request, requested ahead when the view ahead selects it. */
+fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
+ // Past the region ahead nothing more is emitted: the tests below would be spent for nothing.
+ if(!aheadOn()||aheadFull()){return;}
+ vi=AHEAD_VIEW;
+ if((cluster.flags&2u)!=0u){return;}
+ let bmin=boxMin(r);let bmax=boxMax(r);
+ if(outsideAhead(w,bmin,bmax)){return;}
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
+ let pixels=clusterPixels(cluster,e,stretch,focal);
+ if(!selects(pixels,views[vi].pixelError)){return;}
+ // Asked for, it counts as used a little before now (\`stampAhead\`): kept after the old pages.
+ if(emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax))){stampAhead(r);markSeed(ROW_SEED_AHEAD);}
+}
+`,
+)

@@ -11,7 +11,7 @@ import { sceneNote } from '../assets/scene.ts'
 import { assertReport, REPORT_VERSION } from '../../kit/report/contract.ts'
 import type { Report } from '../../kit/report/types.ts'
 import type { BenchReport } from './types.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 
 type ReportRun = Report['runs'][number]

@@ -1,6 +1,6 @@
 // Oracles, WebGPU engine-prepare side: the source-byte table and the texture diagnostic
-// counters (`packages/sdk-browser/src/webgpu/pages/io/catalogue.ts`).
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+// counters (`packages/sdk-browser/src/frame/io/catalogue.ts`).
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 
 /** Source-byte table: one `flatMap` of a pair per page. */
 export function referenceIndexSourceBytes(allPages: PageRec[]) {

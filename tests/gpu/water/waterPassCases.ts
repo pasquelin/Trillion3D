@@ -1,9 +1,9 @@
 // What the water proofs render and what they predict from: shared by the pages, which build the
 // scenes, and the test, which computes the expected centre of each from the same numbers.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import { colorBytesPerSample } from '../../../packages/sdk-browser/src/gpu/core/colorBytes.fixture.ts'
-import { blendTargets } from '../../../packages/sdk-browser/src/webgpu/blend/blendTargets.ts'
+import { blendTargets } from '../../../packages/sdk-browser/src/blend/blendTargets.ts'
 
 interface WaterMaterial {
   tint: [number, number, number]

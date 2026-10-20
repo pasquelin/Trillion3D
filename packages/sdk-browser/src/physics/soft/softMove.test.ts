@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BODY_INDEX, FLAG, OP } from '../../../../sdk-core/src/physics/layout.ts'
-import { SOFT_WORDS } from '../../../../sdk-core/src/physics/softLayout.ts'
+import { SOFT_WORDS } from '../../../../sdk-core/src/physics/soft/softLayout.ts'
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import { plane } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'

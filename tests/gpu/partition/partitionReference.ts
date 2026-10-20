@@ -6,10 +6,10 @@
 //   2. a box the reference says the near plane clips carries the clip flag, so it is never
 //      rejected;
 //   3. the GPU depth bound stands nearer than the reference's, the coplanar layer's bias included.
-import { HIZ_BOUNDS_VALUES } from '../../../packages/sdk-browser/src/hiz/corners.ts'
-import { projectCornersInto } from '../../../packages/sdk-browser/src/hiz/projection.fixture.ts'
-import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts'
-import type { PartitionAudit } from '../../../packages/sdk-browser/src/webgpu/core/partitionAudit.ts'
+import { HIZ_BOUNDS_VALUES } from '../../../packages/sdk-browser/src/visibility/hiz/corners.ts'
+import { projectCornersInto } from '../../../packages/sdk-browser/src/visibility/hiz/projection.fixture.ts'
+import { hizNearestBound } from '../../../packages/sdk-browser/src/visibility/hiz/nearestBound.fixture.ts'
+import type { PartitionAudit } from '../../../packages/sdk-browser/src/gpu/core/partitionAudit.ts'
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES)
 /** A rectangle side's margin bucket, in texels: 0, ≤ 1, ≤ 4, ≤ 16, beyond. */

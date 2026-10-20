@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import { createWorldBatches } from '../world/core/worldBatches.ts'
-import type { Cut } from '../world/core/worldCuts.ts'
-import type { MaterialEntry } from '../world/core/worldMaterials.ts'
-import { createWorldRanks } from '../world/core/worldRanks.ts'
+import { createWorldBatches } from '../session/world/batches.ts'
+import type { Cut } from '../session/world/cuts.ts'
+import type { MaterialEntry } from '../session/world/materials/materials.ts'
+import { createWorldRanks } from '../session/world/ranks.ts'
 
 test('deformation row growth is taken in place while stable owners retain their rows', () => {
   const batches = createWorldBatches(

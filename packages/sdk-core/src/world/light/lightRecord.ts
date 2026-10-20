@@ -30,7 +30,7 @@ const scaled = (colour: { r: number; g: number; b: number }, scale: number) => [
 /**
  * A lamp as the engine's store holds it (`scene/light/contracts.ts`), placed by its world matrix,
  * or null for a kind the store does not hold or a light giving nothing. Whether it is shown — it
- * and every node above it visible — is the caller's to decide (`worldLights.ts`). `range` is the
+ * and every node above it visible — is the caller's to decide (`world/lights.ts`). `range` is the
  * page's `distance`, or `reach` — what the world derives from its own extent seen from the lamp's
  * world position, asked only of a lamp the page left unbounded.
  *

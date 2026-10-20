@@ -1,7 +1,7 @@
 // #1483: the GPU cut is the engine's one cut, and its rows a cache of what it draws and asks for.
 // On the cut-rule DAG placed many times — the view sees one placement, packed last, past the rows
 // the table opens with —, the shipped kernel cuts on Dawn, its readback feeds the row cache
-// (`webgpu/row/slots.ts`), whose flags the next cut reads as residency: no CPU cut ever chooses.
+// (`geometry/rows/slots.ts`), whose flags the next cut reads as residency: no CPU cut ever chooses.
 // The loop settles on the cut the view wants, every wanted page drawn and nothing in its place,
 // within a table smaller than the placements' instances; twice the placements ask the same rows.
 import test from 'node:test'

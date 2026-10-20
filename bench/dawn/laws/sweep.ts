@@ -17,7 +17,7 @@ import { stamp } from '../runs/options.ts'
 import { cookPoint } from './cook.ts'
 import { lawTable, pointRow, type PointRow } from './lawTable.ts'
 import { lawOf, type Law } from './points.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 const here = (file: string) => new URL(file, import.meta.url).pathname
 

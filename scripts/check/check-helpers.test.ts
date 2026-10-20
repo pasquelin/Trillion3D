@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { duplicateHelpers } from './check-helpers.ts'
-import { isTestModule } from '../repository-files.ts'
+import { isTestModule } from '../git/repository-files.ts'
 
 const SHARED = `pub fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -57,7 +57,7 @@ test('copies in two packages, in tests, in inline test modules or in methods are
       ['packages/sdk-browser/src/a.ts', 'function f(x: number) {\n  return x;\n}\n'],
       ['packages/sdk-core/src/a.test.ts', 'function f(x: number) {\n  return x;\n}\n'],
       ['packages/page-codec-wasm/src/lib.rs', SHARED],
-      ['packages/page-codec-wasm/src/wasm_math.rs', `#[cfg(test)]\nmod tests {\n    ${SHARED}}\n`],
+      ['packages/page-codec-wasm/src/wasm/math.rs', `#[cfg(test)]\nmod tests {\n    ${SHARED}}\n`],
       [
         'packages/page-codec-wasm/src/bits.rs',
         'impl A {\n    pub fn dot(&self, b: [f64; 3]) -> f64 {\n        0.0\n    }\n}\n',

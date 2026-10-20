@@ -16,7 +16,7 @@
 // therefore reproduce both calls without a browser, the faulty one and the right one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
@@ -28,8 +28,8 @@ import {
   poseRig,
 } from '../../../../tests/kit/device/cameraRig.ts'
 import { engineCamera } from './camera.fixture.ts'
-import { surfaceOf } from '../page/surface.ts'
-import { identityRoots } from '../page/selection/placements.fixture.ts'
+import { surfaceOf } from '../geometry/pages/surface.ts'
+import { identityRoots } from '../geometry/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 
 type Pose = (typeof POSES_PARENT)[number]

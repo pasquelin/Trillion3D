@@ -11,9 +11,9 @@ import { dirname, join } from 'node:path'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { coneHolds } from '../kit/reference/cone.ts'
 import '../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
-import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/codec/geometryPage.ts'
+import { decodeGeometryPage } from '../../packages/sdk-browser/src/geometry/codec/geometryPage.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../scripts/git/repository-files.ts'
 
 /** The `bytes` of the geometry page at `url`, `<container>#<offset>` (`geometryPageAddress`),
  *  under `dir`. */

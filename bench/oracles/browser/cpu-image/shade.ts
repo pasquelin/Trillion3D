@@ -1,11 +1,11 @@
-import { RASTER_BACKGROUND } from '../../../../packages/sdk-browser/src/page/raster.ts'
+import { RASTER_BACKGROUND } from '../../../../packages/sdk-browser/src/geometry/pages/raster.ts'
 import { backgroundRgb } from './math.ts'
 import { createVisibilityFrame } from './frame.ts'
 import { shadePixel } from './shadePixel.ts'
 import { type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
-import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
-import { type PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/session/engine/common.ts'
+import { type PageLocations } from '../../../../packages/sdk-browser/src/geometry/selection/placements.ts'
 
 /** Documented visbuffer beauty: MeshBasicMaterial = source color × map (same 8-bit path as rasterPages). MeshStandardMaterial = Cook-Torrance GGX microfacet BRDF with the explorer hemisphere/directional lights. */
 export function shadeVisibility(

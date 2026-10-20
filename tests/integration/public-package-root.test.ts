@@ -5,7 +5,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import ts from 'typescript'
-import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/git/repository-files.ts'
 
 function diagnostics(file: string, options: ts.CompilerOptions): string[] {
   const program = ts.createProgram([isAbsolute(file) ? file : resolve(REPOSITORY_ROOT, file)], {

@@ -7,12 +7,12 @@ import { floorOf } from './floor.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
 import { PASSES } from './passes.ts'
 import { DAG_FIXED_DISPATCHES, DAG_LEVEL_DISPATCHES, type Frame } from './passConstants.ts'
-import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
+import { encodeDagKernels } from '../../../packages/sdk-browser/src/geometry/dag/encode.ts'
 import {
   cutResources,
   witnessEncoder,
-} from '../../../packages/sdk-browser/src/gpu/dag/encode.fixture.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/encode.fixture.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 import { countTaaFetches } from '../../runner/counts/taaFetchCount.ts'
 
 // 400 GB/s of memory, 500 Gtexel/s, 400 GB/s of attachment (50 Gpixel/s), 4 Gtriangle/s, 0.01 ms a pass.

@@ -6,7 +6,7 @@ import { createLitVariants, type LitPrograms } from './contractVariants.ts'
 export type ForwardLit = Pick<LitPrograms, 'precompile' | 'key' | 'onFailure'>
 
 /**
- * A forward pass's lit programs — the translucent layers' (`../../webgpu/blend/pipelines.ts`) —,
+ * A forward pass's lit programs — the translucent layers' (`../../blend/pipelines.ts`) —,
  * which light with the opaque resolve's loop
  * (`declaredLightingWgsl`) and so take its programs without shadow, rectangle or lobe code
  * (`createLitVariants`), never bounce or narrow lists, which they do not read: a first frame's

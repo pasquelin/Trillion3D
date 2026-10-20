@@ -9,7 +9,7 @@ import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCam
 import {
   classFragments,
   classifyTiles,
-} from '../../../packages/sdk-browser/src/webgpu/core/materialTiles.fixture.ts'
+} from '../../../packages/sdk-browser/src/materials/classes/materialTiles.fixture.ts'
 import { ATRIUM_POSES, atriumCountArgs, atriumDepth } from './lightTileAtrium.ts'
 
 /** Per pixel of a `width` × `height` pose: fragments rasterised before and after, and the

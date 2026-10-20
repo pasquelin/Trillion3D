@@ -1,5 +1,5 @@
-// The sphere kernel on a device (`placement/gpuComposeWgsl.ts`, `composeSphere`) against the CPU's
-// formula (`placement/rowSphere.ts`): the centre's words are the CPU's, the radius is the CPU's
+// The sphere kernel on a device (`compose/gpuComposeWgsl.ts`, `composeSphere`) against the CPU's
+// formula (`rows/rowSphere.ts`): the centre's words are the CPU's, the radius is the CPU's
 // single-precision steps' to the bit — or, where the device fuses a multiply-add or rounds a root
 // differently, within the few units in the last place the formula's growth covers.
 import test from 'node:test'

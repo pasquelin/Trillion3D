@@ -1,4 +1,4 @@
-import { CORNER_VALUES } from '../partition/contract.ts'
+import { CORNER_VALUES } from '../../geometry/partition/gpu/contract.ts'
 import { buildComputeStage } from './computeStages.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
@@ -7,11 +7,8 @@ import { createHeldCopy, type CullStep, type HeldCopy } from './heldCopy.ts'
 import { computeBufferEntry, computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
-import { TRANSPARENT_OCCLUSION_PASS } from '../../stage/passLabels.ts'
-import {
-  createWebgpuBindIdentity,
-  type WebgpuBindIdentity,
-} from '../../webgpu/core/bindIdentity.ts'
+import { TRANSPARENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../bind/bindIdentity.ts'
 
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
@@ -165,7 +162,7 @@ async function occlusionPipeline(device: GPUDevice) {
 }
 
 /**
- * The image's verdicts, as its cull says (`CullStep`, `../partition/types.ts`): an image that draws a
+ * The image's verdicts, as its cull says (`CullStep`, `../../geometry/partition/gpu/types.ts`): an image that draws a
  * frozen cut's kept verdicts again puts back the transparents' too, or keeps every entry where it
  * cannot — its test would read a partition uniform the held image did not write; the first image of
  * a frozen cut tests and keeps its verdicts; an image that follows the camera drops them.

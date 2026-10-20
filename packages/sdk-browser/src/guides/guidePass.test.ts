@@ -6,17 +6,17 @@ import assert from 'node:assert/strict'
 import { createGuideSet } from './guideSet.ts'
 import { createWebgpuGuidePass } from './guidePass.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { holdWebgpuFrame, keepWebgpuFrame } from '../webgpu/frame/hold.ts'
-import { unsettledMask } from '../webgpu/frame/unsettled.ts'
-import { settledRt } from '../webgpu/frame/hold.fixture.ts'
+import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/loop/hold.ts'
+import { unsettledMask } from '../frame/loop/unsettled.ts'
+import { settledRt } from '../frame/loop/hold.fixture.ts'
 import { GUIDE_UNIFORM_FLOATS, writeGuideView } from './guideShaders.ts'
 import {
   askGuidePass,
   encodeWebgpuGuides,
   guidesMoved,
   guidesShown,
-} from '../webgpu/pages/render/encodeGuides.ts'
-import { families } from '../host/families.ts'
+} from '../frame/render/encodeGuides.ts'
+import { families } from '../session/host/families.ts'
 import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
 import { destroyRetired } from '../gpu/core/frameRetire.ts'
 

@@ -194,7 +194,7 @@ frames) and `png/icc-other.png`, `icc-srgb.png` (`rgb8.png` with an `iCCP` chunk
 - `coverage-alpha.json`: coverage-preserving alpha cases ([`docs/FORMAT.md`,
   "Textures"](../../../docs/FORMAT.md#textures)), read by
   `src/texture_preview/tests/coverage_alpha.rs` and
-  `packages/sdk-browser/src/texture/coverageRule.test.ts`.
+  `packages/sdk-browser/src/materials/texture/coverageRule.test.ts`.
 - `coverage-filtered.json`: coverage of a bilinearly filtered cut per level, read by
   `src/texture_preview/tests/coverage_filtered.rs`.
 

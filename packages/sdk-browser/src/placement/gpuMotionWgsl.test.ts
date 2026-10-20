@@ -1,22 +1,22 @@
 // The motion the GPU writes for a linked placement (`gpuMotionWgsl.ts`) is the CPU motion module's
-// (`../taa/motion.ts`), word for word: its single-precision worlds widened exactly, the inverse and
+// (`../post/taa/motion.ts`), word for word: its single-precision worlds widened exactly, the inverse and
 // product summed in the CPU's order, the one reciprocal rounded once, the eye brought in double.
 // Generated hierarchies: rotations, uneven and negative scales, shears, translations and eyes far
 // from the origin, parents that move by their last bits only.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import { COMPOSE_MOTION_WGSL } from './composedMotionWgsl.ts'
+import { COMPOSE_MOTION_WGSL } from './compose/composedMotionWgsl.ts'
 import { MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../math/src/wgsl/decl.ts'
 import { unresolvedNames } from '../gpu/core/wgslNames.fixture.ts'
-import { createPlacementMotion } from '../taa/motion.ts'
+import { createPlacementMotion } from '../post/taa/motion.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { written } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
-import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, generated, pair, type Pair } from './compose/composeDoubles.fixture.ts'
 
 const motionRun = shaderRun<{
   fromF32(w: number): Pair
@@ -67,7 +67,7 @@ test('two words are the same pose as the CPU compares numbers: either zero, neve
   assert.equal(motionRun.sameWord(0x3f800000, 0x3f800001), false)
 })
 
-/** The CPU motion module (`../taa/motion.ts`) for one root, its buffer read back as words. */
+/** The CPU motion module (`../post/taa/motion.ts`) for one root, its buffer read back as words. */
 function cpuMotion(previous: Float32Array, current: Float32Array, eye: number[]) {
   const elements = new Float32Array(previous)
   const { device, writes } = fakeDevice()

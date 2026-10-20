@@ -14,7 +14,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { NAMES_THREE } from './engine-without-three-lists.ts'
-import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/git/repository-files.ts'
 
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 

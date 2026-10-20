@@ -4,9 +4,9 @@
 // both left read back.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { bufferHolding, readTexture } from '../../kit/device/computeReadback.ts'
-import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
-import type { GpuDraw } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
-import type { DrawItem } from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
+import { DRAW_ITEM_U32 } from '../../../packages/sdk-browser/src/visibility/draw/contract.ts'
+import type { GpuDraw } from '../../../packages/sdk-browser/src/visibility/draw/contract.ts'
+import type { DrawItem } from '../../../packages/sdk-browser/src/visibility/draw/cpu.fixture.ts'
 import { DIRECT_PAGE, pageOfId, type setupVisibility } from './drawVisibility.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
@@ -58,7 +58,7 @@ export async function runCase(
   const encoder = device.createCommandEncoder()
   const pass = encoder.beginComputePass()
   draw.encode({ pass }, items.length, selection)
-  // The tested half, as the engine compacts it after the Hi-Z test (`visibility/passes.ts`).
+  // The tested half, as the engine compacts it after the Hi-Z test (`passes/passes.ts`).
   draw.encodeTested({ pass }, vis.table, vis.hizFlags)
   pass.end()
   const { slots } = draw

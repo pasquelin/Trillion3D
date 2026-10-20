@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
-import { VERDICT_REJECTED } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+import { VERDICT_REJECTED } from '../../../packages/sdk-browser/src/geometry/partition/gpu/contract.ts'
 
 const COUNTS = [0, 1, 64, 65, 130]
 

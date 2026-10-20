@@ -1,9 +1,9 @@
 // The normal cone the WebGPU prepare builds from the host vertices, kept as the reference the
 // compiler's cooked cone and the run-time cut's are checked against
 // (`packages/page-codec-wasm/src/normal_cone.rs`, `tests/integration/cooked-cones.test.ts`,
-// `packages/sdk-browser/src/world/page/cutPageCones.test.ts`) and the input the cone tests and
+// `packages/sdk-browser/src/geometry/runtime/cutPageCones.test.ts`) and the input the cone tests and
 // probes build from. No engine source calls it: the engine reads the cone `normal_cone.rs` built.
-import { leafCone, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import { leafCone, type NormalCone } from '../../../packages/sdk-browser/src/geometry/cone/cone.ts'
 
 /** The cone that never rejects: a leaf's without one (`leafCone`). */
 export const OPEN_CONE = leafCone({})

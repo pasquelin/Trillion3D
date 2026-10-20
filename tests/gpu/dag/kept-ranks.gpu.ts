@@ -6,8 +6,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
-import { differenceOf } from '../../../packages/sdk-browser/src/gpu/dag/difference.fixture.ts'
-import { keptRankRow } from '../../../packages/sdk-browser/src/gpu/dag/keptRanks.ts'
+import { differenceOf } from '../../../packages/sdk-browser/src/geometry/dag/difference.fixture.ts'
+import { keptRankRow } from '../../../packages/sdk-browser/src/geometry/dag/keptRanks.ts'
 
 test('the kept ranks a table of the list holds give the difference the map gives', async () => {
   const page = (await loadPage(

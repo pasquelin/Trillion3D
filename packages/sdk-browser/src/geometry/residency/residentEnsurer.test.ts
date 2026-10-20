@@ -1,0 +1,97 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createWebgpuPageTracking, type WebgpuPageTracking } from '../rows/page/pageTracking.ts'
+import { orderedPool, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts'
+
+/** A cache of three slots, none the GPU's order gives up: the fourth page cannot enter. `spare`
+ *  places it says it has beside them: a load then fails by `error` alone. */
+function saturatedCache(resident: string[], error = 'POOL_FULL', spare = 0) {
+  const held = new Set(resident)
+  return {
+    get: (url: string) => (held.has(url) ? { key: url } : undefined),
+    async load(url: string) {
+      if (held.size >= 3) throw new Error(error)
+      held.add(url)
+    },
+    pin() {},
+    room: () => 3 - held.size + spare,
+  }
+}
+
+const ensurer = (tracking: WebgpuPageTracking, cache: unknown) =>
+  tierEnsurer(tracking, cache, () => [])
+
+test('a full pool stops the burst without dropping the image; any other error bubbles up', async () => {
+  const pages = ['a', 'b', 'c', 'd', 'e'].map(pageOf)
+  const tracking = createWebgpuPageTracking(pages)
+  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page)
+  const cache = saturatedCache(['a', 'b'])
+  await ensurer(tracking, cache)(pages, 1, 1)
+  // `c` entered (third slot), `d` found the pool full: the burst stops, `d` and `e` stay wanted and
+  // outside — they display through their resident ancestor, and cut admission reads the state
+  // (`keepCount > slots`) to grow the screen error.
+  assert.ok(cache.get('c'))
+  assert.equal(cache.get('d'), undefined)
+  await assert.rejects(
+    ensurer(tracking, saturatedCache(['a', 'b', 'c'], 'WEBGPU_LOST', 1))([pages[3]], 2, 2),
+    /WEBGPU_LOST/,
+  )
+})
+
+test('shadow casters fill only what the camera leaves: never pinned, never evicting its pages', async () => {
+  const pages = ['cam0', 'cam1', 'cam2', 'old', 'sh0', 'sh1', 'sh2'].map(pageOf)
+  const [cam0, cam1, cam2, , sh0, sh1, sh2] = pages
+  const tracking = createWebgpuPageTracking(pages)
+  for (const page of [cam0, cam1]) tracking.wanted.add(tracking.keyOf(page), page)
+  let lower = [sh0, sh1, sh2]
+  // The GPU's order: the camera's pages in use, the casters asked for not old.
+  const cache = orderedPool(
+    4,
+    (url) => tracking.wanted.has(tracking.pageCatalogIds.get(url)!),
+    (url) => lower.some((page) => page.url === url),
+  )
+  await cache.load('old')
+  await cache.load('sh0')
+  const ensure = tierEnsurer(tracking, cache, () => lower)
+  await ensure([cam0, cam1], 1, 1)
+  // The camera's two pages took the two free slots, in use; `old` and `sh0` remain. One old page:
+  // one more caster enters, in `old`'s slot.
+  assert.deepEqual([...cache.resident.keys()].sort(), ['cam0', 'cam1', 'sh0', 'sh1'])
+  assert.equal(cache.pins.size, 0, 'nothing is pinned')
+  // The camera wants a third page: it takes a caster's slot, and the casters still wanted keep
+  // theirs — the one left over is not evicted for another caster.
+  tracking.wanted.add(tracking.keyOf(cam2), cam2)
+  lower = [sh1, sh2]
+  await ensure([cam0, cam1, cam2], 2, 2)
+  assert.ok(cache.get('cam2'), 'the camera page entered')
+  assert.equal(cache.get('sh0'), undefined, 'by the slot of a caster')
+  assert.ok(cache.get('sh1'), 'the caster still wanted stays')
+  assert.equal(cache.get('sh2'), undefined, 'and no other caster takes its place')
+})
+
+test('a burst of pages the pool holds settles in a few microtasks, none admitted', async () => {
+  const pages = Array.from({ length: 2000 }, (_, k) => pageOf(`p${k}`))
+  const tracking = createWebgpuPageTracking(pages)
+  for (const page of pages) tracking.wanted.add(tracking.keyOf(page), page)
+  let loads = 0
+  const cache = {
+    get: (url: string) => ({ key: url }),
+    async load() {
+      loads++
+    },
+    pin() {},
+    room: () => 1,
+  }
+  // The microtasks the pass takes, counted until it settles.
+  let ticks = 0,
+    settled = false
+  const tick = () => {
+    if (settled) return
+    ticks++
+    queueMicrotask(tick)
+  }
+  queueMicrotask(tick)
+  await ensurer(tracking, cache)(pages, 1, 1).then(() => (settled = true))
+  assert.equal(loads, 0, 'nothing admitted')
+  assert.ok(ticks < 20, `${ticks} microtasks for ${pages.length} pooled pages`)
+})

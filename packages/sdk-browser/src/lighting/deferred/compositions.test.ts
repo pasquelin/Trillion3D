@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from './deferred.ts'
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
+import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 

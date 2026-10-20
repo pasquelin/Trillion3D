@@ -1,6 +1,6 @@
 import { hizRejectsFlat } from './hizOcclusion.ts'
-import { HIZ_BOUNDS_VALUES } from '../../../packages/sdk-browser/src/hiz/corners.ts'
-import type { FlatHizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
+import { HIZ_BOUNDS_VALUES } from '../../../packages/sdk-browser/src/visibility/hiz/corners.ts'
+import type { FlatHizPyramid } from '../../../packages/sdk-browser/src/visibility/hiz/types.ts'
 
 /** One box as an object, the shape the oracles and the GPU comparisons write; `hizRejectsFlat`
  *  reads the flat layout (`HIZ_BOUNDS_VALUES`). */

@@ -1,6 +1,6 @@
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { preparedPipeline, started } from '../../lighting/deferred/fullscreen.ts'
-import { DIRECT_PRESENT_PASS, VIEW_PRESENT_PASS } from '../../stage/passLabels.ts'
+import { DIRECT_PRESENT_PASS, VIEW_PRESENT_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 
 /** A rectangle of the canvas, in canvas pixels from the top left. */
@@ -27,7 +27,7 @@ export function createPresent(device: GPUDevice, format: GPUTextureFormat) {
     }),
   )
   // One group an image, kept as long as the image: every view presents its own each frame
-  // (`webgpu/core/bindIdentity.ts`, its one exception).
+  // (`gpu/bind/bindIdentity.ts`, its one exception).
   const groups = new WeakMap<GPUTexture, GPUBindGroup>()
   const group = (image: GPUTexture) => {
     let made = groups.get(image)

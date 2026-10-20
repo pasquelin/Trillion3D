@@ -23,7 +23,7 @@ import { ASSETS, sceneDerived } from './scene.ts'
 import { SAMPLE_MODELS, kebab, sceneGltfFile, scenesOnDisk } from './assetsCatalogue.ts'
 import { fetchModels } from './assetsFetch.ts'
 import { TRIANGLE_BUDGET, requireNativeCompiler } from '../../../scripts/native/native-compiler.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 const CLI = join(REPOSITORY_ROOT, 'dist/sdk-node/src/cli/cli.mjs')
 

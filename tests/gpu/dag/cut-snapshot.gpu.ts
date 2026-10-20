@@ -11,7 +11,7 @@ import {
   SELECTION_LIST_CAP,
   residentReadbackBytes,
   selectionListCap,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 const SWEEP = {

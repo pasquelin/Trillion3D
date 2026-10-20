@@ -69,7 +69,7 @@ Per primitive: clusters, the groups replacing them level by level, a culling tre
 bundles whose dependencies close up to the pinned roots.
 
 - Types: `core/contracts/geometry.ts` (`Page`, `ClusterStructure`, `StreamCatalogue`); the cut,
-  `browser/page/cut/rule.ts:drawsCluster`.
+  `browser/geometry/cut/rule.ts:drawsCluster`.
 - Writes `rust/dag.rs`, `rust/compiler_page_bundles.rs:pack_bundles`,
   `rust/compiler_bundle_dependencies.rs`; normal cones `codec/normal_cone.rs`, measured by the
   encoder on the positions each page decodes to (`codec/encode.rs:decoded_cone`), the faces the GPU
@@ -87,10 +87,10 @@ shader reads in place, decoded alike by Rust, JavaScript and WGSL.
   manifest's `geometryPages`.
 - Writes `codec/encode.rs:encode_deformed`, the one encoder: the compiler's
   `rust/compiler_page_record.rs:encode_page`, `rust/compiler_world_roots/pages.rs:encode_pages` and
-  the run-time cut (`browser/page/codec/encodeGeometryPage.ts`, `codec/wasm_encode.rs`) call it; grid
+  the run-time cut (`browser/geometry/codec/encodeGeometryPage.ts`, `codec/wasm/encode.rs`) call it; grid
   `codec/bits/grid.rs:grid_exponent`.
-- Reads `browser/cluster/pages.ts:fetchVerified`, `browser/page/codec/geometryPage.ts:decodeGeometryPage`,
-  `codec/unpack.rs:decode`, `browser/cluster/decodeWgsl.ts`.
+- Reads `browser/geometry/cluster/pages.ts:fetchVerified`, `browser/geometry/codec/geometryPage.ts:decodeGeometryPage`,
+  `codec/unpack.rs:decode`, `browser/geometry/cluster/decodeWgsl.ts`.
 
 ### Voxels
 
@@ -138,16 +138,16 @@ again (`blocks/quality.rs:keep_sides`). A level file opens on a head of one litt
 tile record — where its compressed bytes end, counted from the head's end —, then each record (the
 tile's blocks and gutter) raw DEFLATE alone: one Range reads the head, one a tile, and the browser
 inflates it (`DecompressionStream`). The runtime takes the first family the device's features allow
-(`browser/texture/blockFormats.ts:chooseBlockFormat`); a device with none reads the BC files and
-decodes them to RGBA8 (`browser/texture/blockDecode.ts`).
+(`browser/materials/texture/blockFormats.ts:chooseBlockFormat`); a device with none reads the BC files and
+decodes them to RGBA8 (`browser/materials/texture/blockDecode.ts`).
 Coverage-preserving alpha: `rust/texture_preview/coverage.rs`, mirrored by
-`browser/texture/coverageRule.ts`.
+`browser/materials/texture/coverageRule.ts`.
 
 - Version: `TEXTURE_PREVIEW_VERSION` 8 (`rust/texture_preview.rs`, `core/texture/previewFormat.ts`).
 - Writes `rust/texture_preview/bake_write.rs:write_levels`, `rust/texture_preview/levels.rs:tile_records`,
   `rust/manifest_binary/preview.rs:encode_previews`; gate `rust/texture_preview/blocks/quality.rs`.
 - Reads `core/manifest/binaryPreview.ts:decodeTexturePreviews`,
-  `browser/texture/levelReader.ts:createTextureLevelReader`, `browser/texture/tileRecords.ts:tileRecord`.
+  `browser/materials/texture/levelReader.ts:createTextureLevelReader`, `browser/materials/texture/tileRecords.ts:tileRecord`.
 
 ## Prepared scene tables
 
@@ -163,7 +163,7 @@ light, and no node names one.
   Tables 8 / node table 6 dropped `lights` and each node's `light`: they copied the glTF fields raw
   and failed the compile on a non-punctual type, where `lights.json` counts it in `rejected`.
 - Writes `rust/compiler_tables.rs:stage_scene_tables`; reads
-  `core/scene/core/tableContracts.ts:assertSceneTables`, `browser/host/prepared/build.ts:buildPreparedScene`.
+  `core/scene/core/tableContracts.ts:assertSceneTables`, `browser/scene/host/prepared/build.ts:buildPreparedScene`.
 
 ### World partition
 
@@ -204,7 +204,7 @@ image — a PNG product beside it (`hlod-*.png`) only where a chain lacks a leve
 level from HLOD 2 on (`TOP_LEVEL`) doubles once more — 256, 512, then 2 048 m cells —, and every
 chain's top actors are made by cells of that 2 048 m grid, a shorter chain's top built once more
 there; they are always loaded, held within their own budget
-(`browser/scene/worldBundles.ts`). `world-roots.table` and `world-roots.dag` (fixed-size records) and
+(`browser/geometry/hlod/worldBundles.ts`). `world-roots.table` and `world-roots.dag` (fixed-size records) and
 `world-roots.bin` (the bundles, `rust/compiler_world_roots.rs`). Each HLOD cell's roots lie in
 bundles of their own, held — pinned in the page cache — while its actor is loaded.
 
@@ -287,7 +287,7 @@ The input: a folder with a source manifest, a folder with one glTF or GLB, or th
 `proxy.bin`: one proxy a compiled mesh, in the mesh's own space — its coarse cut snapped to a grid and built
 into a 4-wide BVH by the one builder the browser's run-time cuts go through (`page-codec-wasm/src/proxy.rs`,
 `columns_of`) — which a ray meets through the world of the node that places it. No instance is written: the
-engine's placements are the instances (`browser/gpu/dag/proxyInstances.ts`).
+engine's placements are the instances (`browser/geometry/dag/proxy/proxyInstances.ts`).
 
 - Version: `SCENE_PROXY_VERSION` (`rust/proxy.rs`, `core/contracts/proxy.ts`): 6.
 - Layout, little-endian words: the header (`SCENE_PROXY_HEADER_WORDS`: magic, version, mesh count, triangle
@@ -305,4 +305,4 @@ Joints, weights, morph deltas and simulation-source IDs behind a geometry page's
 
 - Flags: `FLAG_SKIN`, `FLAG_MORPH` (`codec/deform.rs`), `FLAG_SOFT_SOURCE` (`codec/lib.rs`).
 - Writes `codec/encode/deformation.rs:page_deformation`; reads
-  `codec/deform.rs:parse` (through `browser/page/codec/geometryPage.ts:decodeGeometryPage`), `browser/deformation/softSource.ts:cookedSoftSource`.
+  `codec/deform.rs:parse` (through `browser/geometry/codec/geometryPage.ts:decodeGeometryPage`), `browser/deformation/softSource.ts:cookedSoftSource`.

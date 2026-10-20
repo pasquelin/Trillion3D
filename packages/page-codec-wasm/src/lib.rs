@@ -1,23 +1,22 @@
 //! The `WGP3` geometry page — quantized cluster geometry —: its format, its one encoder, its one
 //! decoder. The encoder (`encode.rs`) writes every page, the native compiler's and, through the
-//! SDK's one WebAssembly module (`wasm_encode.rs`), the run-time cut's; the decoder (`unpack.rs`)
+//! SDK's one WebAssembly module (`wasm/encode.rs`), the run-time cut's; the decoder (`unpack.rs`)
 //! reads every page, the compiler's round-trip test's and, through the same module
-//! (`wasm_decode.rs`), the public `page.decode`'s. The constants of this file,
+//! (`wasm/decode.rs`), the public `page.decode`'s. The constants of this file,
 //! `bits.rs`, `deform.rs`, `triangles.rs` and `bits/grid.rs` are printed into the TypeScript
-//! readers and the WGSL built from them (`scripts/generate-shared-rules.ts`).
+//! readers and the WGSL built from them (`scripts/build/generate-shared-rules.ts`).
 //!
 //! The keep-set, by build. The `rlib` is the native compiler's: the page codec and every kernel
 //! below. The `cdylib` is the SDK's one WebAssembly module, `kernels.wasm` (`pnpm run build:wasm`,
 //! one shipped resource, one instantiation and one linear memory on the browser side): the page
-//! encoder and the grid rules (`wasm_encode.rs`), the page decoder (`wasm_decode.rs`), the math-foundation batch kernels (`math.rs` and
-//! `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal cone the
+//! encoder and the grid rules (`wasm/encode.rs`), the page decoder (`wasm/decode.rs`), the math-foundation batch kernels (`math.rs` and
+//! `trillion3d_math::matrix`, ABI and shared buffer in `wasm/math.rs`), the normal cone the
 //! encoder measures of every page (`normal_cone.rs`), and the one hand-off of
-//! the answers sized only once built (`held.rs`).
+//! the answers sized only once built (`wasm/held.rs`).
 mod attributes;
 pub mod bits;
 pub mod clusters;
 pub mod culling;
-pub mod cut_error;
 pub mod deform;
 pub mod edges;
 pub mod encode;
@@ -25,9 +24,6 @@ pub mod facts;
 #[doc(hidden)]
 pub mod fixtures;
 pub mod hash;
-mod header_parse;
-#[cfg(target_arch = "wasm32")]
-mod held;
 mod page_error;
 pub use page_error::PageError;
 pub mod min_ball;
@@ -35,28 +31,11 @@ pub mod normal_cone;
 pub mod partition;
 mod positions;
 pub mod proxy;
-pub mod reach;
 pub mod simd;
 pub mod split;
 pub mod triangles;
 mod unpack;
 pub mod voxel;
-#[cfg(target_arch = "wasm32")]
-mod wasm_clusters;
-#[cfg(target_arch = "wasm32")]
-mod wasm_culling;
-#[cfg(target_arch = "wasm32")]
-mod wasm_decode;
-#[cfg(target_arch = "wasm32")]
-mod wasm_encode;
-#[cfg(target_arch = "wasm32")]
-mod wasm_grid;
-#[cfg(target_arch = "wasm32")]
-mod wasm_math;
-#[cfg(target_arch = "wasm32")]
-mod wasm_proxy;
-#[cfg(target_arch = "wasm32")]
-mod wasm_reach;
 pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};
@@ -139,9 +118,9 @@ impl Header {
     }
 }
 
+pub mod cut;
 #[cfg(test)]
-#[path = "header_tests.rs"]
-mod header_tests;
-
-#[cfg(test)]
-mod golden_tests;
+mod golden;
+pub(crate) mod header;
+#[cfg(target_arch = "wasm32")]
+pub(crate) mod wasm;

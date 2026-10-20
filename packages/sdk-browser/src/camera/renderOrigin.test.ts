@@ -13,7 +13,7 @@
 // so the expected equality is that of recentering and not of a lenient rounding.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { worldToRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'

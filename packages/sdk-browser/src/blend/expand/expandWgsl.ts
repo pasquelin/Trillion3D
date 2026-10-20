@@ -1,0 +1,153 @@
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from '../plan/planEntry.ts'
+import { PLAN_CULL_WGSL } from '../plan/planCull.ts'
+import { INSTANCE_CULL_SHIFT } from '../runs.ts'
+import { RUN_WORDS } from '../plan/planLayout.ts'
+import { expandUniformWgsl } from './expandUniform.ts'
+import { EXPAND_BINDING } from './expandBindings.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../../gpu/core/laneScanWgsl.ts'
+import {
+  FLAT_INDEX_WGSL,
+  WORKGROUP_THREADS_WGSL,
+  WORKGROUP_THREADS,
+} from '../../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { bitIsSet, bitWord } from '../../../../math/src/wgsl/integer.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
+
+/**
+ * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
+ * packets, one thread per entry, one thread per run. Written once for production encoding and for
+ * the “GPU = model” proof that replays the kernel.
+ */
+/** The kernel's four entry points, in the order they chain. */
+export const BLEND_EXPAND_ENTRIES = [
+  'countBlendGroups',
+  'scanBlendGroups',
+  'placeBlendEntries',
+  'writeBlendRuns',
+]
+
+export function blendExpandDispatch(out: number[], entries: number, runs: number) {
+  const groups = workgroupCount(entries, WORKGROUP_THREADS)
+  out[0] = groups
+  out[1] = 1
+  out[2] = groups
+  out[3] = workgroupCount(runs, WORKGROUP_THREADS)
+  return out
+}
+
+/**
+ * EXPANSION OF THE SORTED PLAN, ON THE GPU.
+ *
+ * The paint order and the runs of its slots are the order kernel's (`../order/orderWgsl.ts`), the frustum
+ * verdict, one bit per item, the verdict kernel's in the same pass (`../verdict/verdictWgsl.ts`). The rest —
+ * how many instances each entry carries, where each goes in the list, and each run's indirect
+ * argument — is computed here, from the counts transparent compaction has just written in the same
+ * submission.
+ *
+ * Four dispatches: one thread group per entry packet, which counts and scans the packet locally;
+ * the running sum over packets, at two levels; each entry's absolute place followed by writing
+ * its instances; then each run's argument. No thread recounts what another has just computed.
+ * The reference semantics is that of `expandCpu.fixture.ts`, the oracle its proofs compare it
+ * with word for word.
+ *
+ * `scratch` holds each entry's place then each packet's, in that order. The two passes — blend
+ * then transmission — chain in the same compute pass and hand it back to each other, since their
+ * dispatches are ordered; their instances and arguments live in two disjoint regions the uniform
+ * names.
+ */
+export const BLEND_EXPAND_SHADER = wgslProgram(
+  `@group(0) @binding(${EXPAND_BINDING.uni}) var<uniform> uni:Uni;
+@group(0) @binding(${EXPAND_BINDING.plan}) var<storage,read> plan:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.keep}) var<storage,read> keep:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.draws}) var<storage,read> draws:array<vec4u>;
+@group(0) @binding(${EXPAND_BINDING.counts}) var<storage,read> counts:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.clusters}) var<storage,read> clusters:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.scratch}) var<storage,read_write> scratch:array<u32>;
+@group(0) @binding(${EXPAND_BINDING.expanded}) var<storage,read_write> expanded:array<vec2u>;
+@group(0) @binding(${EXPAND_BINDING.args}) var<storage,read_write> args:array<u32>;
+fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
+fn kept(item:u32)->bool{return bitIsSet(keep[bitWord(item)],item);}
+/** What a plan entry expands: the clusters compaction kept for it, nothing at all if the frustum
+ *  rejected its item or the table holds none of it yet. */
+fn instancesOf(i:u32)->u32{
+ let item=itemOf(i);
+ if(!kept(item)){return 0u;}
+ let d=draws[item];
+ if(d.x==${NO_INDEX}u){return 0u;}
+ return counts[d.x*4u+1u];
+}
+/** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
+ *  in one go each local place and its total (the shared lane scan's width). */
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
+ let group=flatIndex(wid,n,1u);
+ let k=lid.x;
+ var mien=0u;
+ if(i<uni.entryCount){mien=instancesOf(i);}
+ let inclusive=laneScan(k,mien);
+ if(i<uni.entryCount){scratch[i]=inclusive-mien;}
+ // A packet of the last row past the count has no total.
+ if(k==WORKGROUP_THREADS-1u&&group<uni.groupCount){scratch[uni.entryCount+group]=inclusive;}
+}
+/** Running sum over packets, at two levels: each thread takes a slice, the packet scans the
+ *  subtotals, then each thread puts its own back. */
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
+ let k=lid.x;
+ let span=laneRun(k,uni.groupCount);
+ ${laneRunOffsets('g', 'span', 'k', 'uni.instanceBase+', 'scratch[uni.entryCount+g]', 'scratch[uni.entryCount+g]=cursor')}
+}
+/** Absolute place of each entry, then its instances: the local place is already counted. */
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,WORKGROUP_THREADS);
+ if(i>=uni.entryCount){return;}
+ let at=scratch[uni.entryCount+i/WORKGROUP_THREADS]+scratch[i];
+ scratch[i]=at;
+ let held=instancesOf(i);
+ if(held==0u){return;}
+ let entry=plan[uni.orderBase+i];
+ let item=entry>>${PLAN_SHIFT}u;
+ // The cull mode the vertex stage applies, above the item rank, as instanceWord packs it.
+ let word=item|select(0u,planCull(entry)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
+ let d=draws[item];
+ for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,clusters[d.z+j]);}
+}
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let r=flatIndex(id,n,WORKGROUP_THREADS);
+ if(r>=uni.runCount){return;}
+ let at=uni.runsBase+r*${RUN_WORDS}u;
+ let first=plan[at];
+ let entries=plan[at+1u];
+ let o=uni.argsBase+r*4u;
+ // An empty slot (\`runs.ts\`): a draw of no instance.
+ if(entries==0u){
+  args[o]=uni.maxVertexWords;
+  args[o+1u]=0u;
+  args[o+2u]=0u;
+  args[o+3u]=0u;
+  return;
+ }
+ let last=first+entries-1u;
+ let base=scratch[first];
+ // Every run draws clusters, at the table stride.
+ args[o]=uni.maxVertexWords;
+ args[o+1u]=scratch[last]+instancesOf(last)-base;
+ args[o+2u]=base<<uni.vertexShift;
+ args[o+3u]=0u;
+}
+`,
+  [
+    expandUniformWgsl(),
+    LANE_SCAN_WGSL,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    bitWord,
+    bitIsSet,
+    PLAN_CULL_WGSL,
+  ],
+)

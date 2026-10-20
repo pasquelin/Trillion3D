@@ -4,7 +4,7 @@ import { createDeformationFrame } from './frame.ts'
 import { recordLayout, KIND_SOFT } from './layout.ts'
 import { receiveSoftSource, type SoftSource } from './softSource.ts'
 import { placementDeformation } from './placementSource.ts'
-import type { PlacementRows } from '../placement/rows.ts'
+import type { PlacementRows } from '../placement/rows/rows.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 
 const sourceOf = (): SoftSource => ({

@@ -1,29 +1,32 @@
 // The rows' closure and their victim sort run on Dawn after the shipped cut (`row-closure.gpu.ts`):
 // `copies` placements of the cut-rule DAG, the strip camera seeing the first, three pages in four
 // holding a row; the cut's own lists the seeds, the engine's hosts dispatching the shipped kernels
-// (`webgpu/row/rowClosure.ts`, `webgpu/row/rowEvictSort.ts`), the use words and two queues read back.
-import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
+// (`geometry/rows/rowClosure.ts`, `geometry/rows/rowEvictSort.ts`), the use words and two queues read back.
+import { rootOfPacked } from '../../../packages/sdk-browser/src/geometry/selection/placements.ts'
 import { placedRuleDag } from '../../kit/device/placedRuleDag.ts'
-import { createSparseInts } from '../../../packages/sdk-browser/src/page/cut/sparseInts.ts'
+import { createSparseInts } from '../../../packages/sdk-browser/src/geometry/cut/sparseInts.ts'
 import { mixWord, workgroupCount } from '../../../packages/math/src/scalar/integers.ts'
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import {
   createRowMapGpu,
   createRowMapJournal,
-} from '../../../packages/sdk-browser/src/webgpu/row/rowMapGpu.ts'
-import { createRowClosure } from '../../../packages/sdk-browser/src/webgpu/row/rowClosure.ts'
-import { createRowEvictSort } from '../../../packages/sdk-browser/src/webgpu/row/rowEvictSort.ts'
-import { ROW_PAGE, ROW_USE_WORDS } from '../../../packages/sdk-browser/src/webgpu/row/rowWords.ts'
-import { structuresOf } from '../../../packages/sdk-browser/src/gpu/dag/structureTable.ts'
+} from '../../../packages/sdk-browser/src/geometry/rows/rowMapGpu.ts'
+import { createRowClosure } from '../../../packages/sdk-browser/src/geometry/rows/rowClosure.ts'
+import { createRowEvictSort } from '../../../packages/sdk-browser/src/geometry/rows/rowEvictSort.ts'
+import {
+  ROW_PAGE,
+  ROW_USE_WORDS,
+} from '../../../packages/sdk-browser/src/geometry/rows/rowWords.ts'
+import { structuresOf } from '../../../packages/sdk-browser/src/geometry/dag/structureTable.ts'
 import {
   DAG_ARGS_INITIAL,
   DAG_ARGS,
-} from '../../../packages/sdk-browser/src/gpu/dag/shader/armWgsl.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/shader/armWgsl.ts'
 import {
   SELECTION_HEADER_WORDS,
   rowBurst,
   rowQueueWord,
-} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openSelectionKernel } from '../dag/selectionKernel.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'

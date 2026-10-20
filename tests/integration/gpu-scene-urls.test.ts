@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { SCENE_ROOTS, manifestUrlOf } from '../kit/scenes/caches.ts'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../scripts/git/repository-files.ts'
 
 const PROOFS = join(REPOSITORY_ROOT, 'tests/gpu')
 /** A string literal, a path or a URL, that starts under a scene root. */

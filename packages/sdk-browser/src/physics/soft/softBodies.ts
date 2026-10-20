@@ -1,9 +1,12 @@
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { BODY_INDEX } from '../../../../sdk-core/src/physics/layout.ts'
-import { SOFT_VERTEX_WORDS } from '../../../../sdk-core/src/physics/softLayout.ts'
+import { SOFT_VERTEX_WORDS } from '../../../../sdk-core/src/physics/soft/softLayout.ts'
 import { physicsMatterOf } from '../../../../sdk-core/src/physics/matter.ts'
-import { softBodyOf } from '../../../../sdk-core/src/physics/soft.ts'
-import { writeSoft, type SoftBodyRecord } from '../../../../sdk-core/src/physics/softCommands.ts'
+import { softBodyOf } from '../../../../sdk-core/src/physics/soft/soft.ts'
+import {
+  writeSoft,
+  type SoftBodyRecord,
+} from '../../../../sdk-core/src/physics/soft/softCommands.ts'
 import type { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import type { ObjectPhysics } from '../../../../sdk-core/src/physics/objectPhysics.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'

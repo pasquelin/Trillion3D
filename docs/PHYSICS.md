@@ -147,7 +147,7 @@ wheelless.
   sleeps at once, never awake while its engine spins down. `v.speed` (m/s forward), `v.gear` (−1
   reverse, 0 neutral) and `v.rpm` read the last step.
 - **Specs.** Each kind starts from its declared spec (`VEHICLE_SPECS`,
-  `packages/sdk-core/src/physics/vehicleSpec.ts`), each number an option: torque per body kilogram
+  `packages/sdk-core/src/physics/vehicle/vehicleSpec.ts`), each number an option: torque per body kilogram
   (`torquePerKg`), torque curve, idle and redline, gear ratios, shift points and final drive,
   suspension frequency, damping and travel, anti-roll bars, the turning radius the steering lock
   derives from, the time a hand takes to full lock, brake grip, a motorcycle's lean, a track's turn.

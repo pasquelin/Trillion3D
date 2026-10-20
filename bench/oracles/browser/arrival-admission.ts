@@ -11,7 +11,7 @@ interface AdmissionJob {
   consumers: number
 }
 
-/** `packages/sdk-browser/src/streaming/queue.ts:22-59`: a full sort on every `while` lap, then findIndex. */
+/** `packages/sdk-browser/src/geometry/streaming/queue.ts:22-59`: a full sort on every `while` lap, then findIndex. */
 export function referenceAdmission(
   queue: AdmissionJob[],
   bytesOf: (url: string) => number | undefined,

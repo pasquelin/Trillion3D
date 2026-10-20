@@ -1,12 +1,12 @@
 import { SHADE_UNIFORM } from './uniformLayout.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { requestLoopFn } from '../../webgpu/tile/requestWgsl.ts'
+import { requestLoopFn } from '../../materials/virtual/requestWgsl.ts'
 
 /**
  * What an opaque pixel asks of virtual textures: ONE tile rank, placed in the frame's
  * feedback target that transparents complete, under the common `TILE_REQUEST_WGSL` rule
  * (phase, map chosen by position, fallback on the base). The pixel increments nothing: why,
- * and what that cost, is said in `../../webgpu/tile/reduce.ts`.
+ * and what that cost, is said in `../../materials/virtual/reduce.ts`.
  *
  * The host shader declares `uni.feedback`, `PageInfo`, `Material` (its maps' slots the surface's
  * record's, `materialAt`), `TILE_REQUEST_WGSL` and the class overrides —

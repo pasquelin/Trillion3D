@@ -10,7 +10,7 @@
 // curve.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { ROUGHNESS_FLOOR } from '../shaderConstants.ts'

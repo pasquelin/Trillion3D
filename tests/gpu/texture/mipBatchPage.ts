@@ -1,8 +1,8 @@
 // Material chains on Dawn reduced together in one batch — level by level across the chains — and
 // each alone, twice (the second reduction on the groups the first made): every level read back.
-import { generateMaterialMips } from '../../../packages/sdk-browser/src/texture/mipBatch.ts'
-import { materialMipTexture } from '../../../packages/sdk-browser/src/texture/mips.ts'
-import { mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { generateMaterialMips } from '../../../packages/sdk-browser/src/materials/texture/mipBatch.ts'
+import { materialMipTexture } from '../../../packages/sdk-browser/src/materials/texture/mips.ts'
+import { mipLevelCountFor } from '../../../packages/sdk-browser/src/materials/texture/tiles.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { readLevels } from './pageMipsPage.ts'
 import type { ChainCase } from './pageMipsReference.ts'

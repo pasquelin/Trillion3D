@@ -18,7 +18,7 @@ for (const scene of scenes) {
     results.push(
       await measure({
         name: `orders and arguments — ${scene.name}, ${regime}`,
-        fichier: 'packages/sdk-browser/src/webgpu/blend/draw.ts',
+        fichier: 'packages/sdk-browser/src/blend/draw.ts',
         cas: casDe(images),
         calculation: scene.passAfter,
         expected: scene.passBefore,

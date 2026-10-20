@@ -1,7 +1,7 @@
 // What npm and the tools that read no `exports` find in `package.json`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readJson } from '../../scripts/repository-files.ts'
+import { readJson } from '../../scripts/git/repository-files.ts'
 
 const pkg = readJson('package.json')
 

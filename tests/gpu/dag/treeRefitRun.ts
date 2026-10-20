@@ -1,23 +1,26 @@
-// The placement tree's GPU refit (`gpu/dag/treeRefit.ts`) run on a real device over a generated
+// The placement tree's GPU refit (`dag/tree/treeRefit.ts`) run on a real device over a generated
 // field: the nodes it leaves in the tree's record table (`treeTable.ts`), read and written in place,
 // are the CPU build's (`packPlacementTree`) after the same change, word for word, the frame words
 // read in their record table (`frameTable.ts`); the tree's order beside them is never written.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
-import { placementField } from '../../../packages/sdk-browser/src/gpu/dag/placementTree.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
+import { placementField } from '../../../packages/sdk-browser/src/geometry/dag/placement/placementTree.fixture.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
 import {
   treeNodeCount,
   TREE_SPAN,
-} from '../../../packages/sdk-browser/src/gpu/dag/placementTree.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/placement/placementTree.ts'
 import {
   leafBoxes,
   refitTree,
   treeChange,
-} from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/tree/treeRefitRun.fixture.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
-import { createTreeRefit } from '../../../packages/sdk-browser/src/gpu/dag/treeRefit.ts'
-import { createTreeTable, TREE_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
+import { createTreeRefit } from '../../../packages/sdk-browser/src/geometry/dag/tree/treeRefit.ts'
+import {
+  createTreeTable,
+  TREE_TABLE,
+} from '../../../packages/sdk-browser/src/geometry/dag/tree/treeTable.ts'
 import {
   recordExtentOf,
   recordTable,
@@ -27,12 +30,12 @@ import {
   FRAME_TABLE,
   MARK_WORD,
   ROOT_WORD,
-} from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/frameTable.ts'
 import {
   DAG_NODE_FLOATS,
   FRAME_ROW_WORDS,
-} from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { primitiveWordAt } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import { primitiveWordAt } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worlds.ts'
 
 /** The words of the tree's table `texture` holds, read back: one layer, as `recordTable` lays them. */
 async function tableWords(device: GPUDevice, texture: GPUTexture, records: number) {

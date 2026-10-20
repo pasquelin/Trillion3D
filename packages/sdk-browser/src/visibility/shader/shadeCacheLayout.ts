@@ -8,7 +8,7 @@ import { PIXEL_TRIANGLE_WGSL } from './pixelTriangleWgsl.ts'
 
 /**
  * THE RESOLVE'S FRAME CACHE (`shadeCache`): what many pixels compute alike, computed once
- * a frame by compute passes before the class draws (`../../webgpu/visibility/shadeCache.ts`) and
+ * a frame by compute passes before the class draws (`../passes/shadeCache.ts`) and
  * read back word for word by the resolve (`shadeWgsl.ts`). Each pass calls the very function the
  * pixel calls without it, on the same inputs, and a float travels as its bits: what a pixel reads
  * is what it would have computed. Each pass's work follows what the image reads, never the

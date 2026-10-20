@@ -2,7 +2,7 @@ import type { Side } from '../../../sdk-core/src/contracts/material.ts'
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 
 /** The anisotropy and clear-coat maps, in the order their lobe extension names them
- *  (`../webgpu/material/lobeRecord.ts`). */
+ *  (`../materials/table/lobeRecord.ts`). */
 export const PHYSICAL_MAP_FIELDS = [
   'anisotropyMap',
   'clearcoatMap',
@@ -11,7 +11,7 @@ export const PHYSICAL_MAP_FIELDS = [
 ] as const
 
 /** The surface's own maps, in the order their UV channels word names them
- *  (`../webgpu/material/materialRecord.ts`): `WRAP_MAP`'s ranks (`wrapModes.ts`), the subsurface
+ *  (`../materials/table/materialRecord.ts`): `WRAP_MAP`'s ranks (`wrapModes.ts`), the subsurface
  *  map after them. */
 export const SURFACE_MAP_FIELDS = [
   'map',
@@ -75,7 +75,7 @@ export type VisMaterial = {
   attenuationColor: [number, number, number]
   /** The material multiplies its base colour by the geometry's `color` attribute, when it has one. */
   vertexColors?: boolean
-  /** The surface model a non-physical family maps onto (`../scene/surfaceModel.ts`); physical if absent. */
+  /** The surface model a non-physical family maps onto (`../materials/surface/surfaceModel.ts`); physical if absent. */
   model?: number
   /** Width in CSS pixels the rasters widen a line quad to (`shader/lineWgsl.ts`); absent or
    *  zero on a surface that draws triangles. */

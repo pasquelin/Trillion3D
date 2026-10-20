@@ -8,7 +8,7 @@ import {
   type VehicleInput,
   type VehicleKind,
   type VehicleOptions,
-} from '../../../../sdk-core/src/physics/vehicle.ts'
+} from '../../../../sdk-core/src/physics/vehicle/vehicle.ts'
 
 /** Each kind's body — size, mass, wheels `[x, y, z]` from its centre, wheel radius and width —
  *  drawn from the machines of `VEHICLE_SPECS`. */

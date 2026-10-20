@@ -4,11 +4,11 @@ import { createDeformationFrame } from './frame.ts'
 import { deformationRuntime } from './deformationRuntime.fixture.ts'
 import { deformedOf } from './source.ts'
 import { updateWebgpuDeformation } from './webgpuFrame.ts'
-import { growClusterBox } from '../webgpu/shadow/spheres.ts'
-import { packClusterSpheres } from '../webgpu/shadow/spheres.fixture.ts'
+import { growClusterBox } from '../lighting/shadows/casters/spheres.ts'
+import { packClusterSpheres } from '../lighting/shadows/casters/spheres.fixture.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import type { PageRec } from '../page/selection/types.ts'
+import type { PageRec } from '../geometry/selection/types.ts'
 
 test('deformation refreshes only its caster rows and grows CPU/GPU light and occlusion bounds', () => {
   const world = new Matrix4(),

@@ -2,13 +2,13 @@ import type { GuideSet } from './guideSet.ts'
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts'
 import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts'
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
-import { GUIDE_PASS } from '../stage/passLabels.ts'
+import { GUIDE_PASS } from '../diagnostic/stage/passLabels.ts'
 import {
   computeBufferEntry,
   computeTextureEntry,
   sequentialEntries,
 } from '../gpu/core/computeBindings.ts'
-import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { createWebgpuBindIdentity } from '../gpu/bind/bindIdentity.ts'
 import { heldBuffers } from '../gpu/core/heldBuffers.ts'
 
 /** Label of the guide pass: its GPU time is read under this name, apart from the beauty passes. */
@@ -17,7 +17,7 @@ const STRIDE = GUIDE_INSTANCE_FLOATS * 4
 
 /**
  * The WebGPU guide pass. Nothing exists until a guide is shown: the frame entry that first finds
- * one makes the pass (`../webgpu/frame/framePipelines.ts`), whose pipeline compiles off the frame
+ * one makes the pass (`../frame/loop/framePipelines.ts`), whose pipeline compiles off the frame
  * from then, the frame held on it; its buffers are made by the first image it draws. It draws on
  * the display colour target, AFTER temporal accumulation and composition, with the camera's
  * unjittered view-projection: the guides never enter the history the next image reprojects, so a

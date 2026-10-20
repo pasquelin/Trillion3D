@@ -1,0 +1,124 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { webgpuPagesEngine } from '../backend/pages.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import {
+  assertBothQuadPagesDrawn,
+  camera,
+  quadBackend,
+  quadScene,
+} from '../backend/testScenes.fixture.ts'
+import { graphDraws } from '../../geometry/selection/drawSource.ts'
+import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
+import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+
+/** The quad prepared with no resident bytes, its first frame rendered. */
+async function firstFrameWithoutBytes() {
+  installGpuGlobals()
+  const { device, draws } = fakeDevice(BACKEND)
+  const { source, metadata, associations, geometry, material } = quadScene()
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    source,
+    metadata,
+    indices: new Map(),
+    draws: graphDraws(source, associations),
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  })
+  await backend.prepare()
+  backend.render(camera())
+  return { backend, draws, geometry, material }
+}
+
+test('webgpu pages never publish an incomplete initial cover', async () => {
+  const { backend, draws, geometry, material } = await firstFrameWithoutBytes()
+  assert.equal(
+    draws.filter((draw) => draw.entryPoint === 'vis_vs' || draw.entryPoint === 'vs').length,
+    0,
+  )
+  backend.acceptPage('0', new Uint32Array([0, 1, 2]))
+  backend.render(camera())
+  await backend.flush()
+  backend.render(camera())
+  // The cover still waits for its bytes: the GPU cut counts nothing the image could draw yet.
+  assert.equal(backend.metrics().clusters, null)
+  assert.equal(backend.metrics().residentPages, 0)
+  assert.equal(backend.metrics().coverageReady, false)
+  assert.equal(draws.length, 0)
+  backend.acceptPage('1', new Uint32Array([0, 2, 3]))
+  await backend.flush()
+  backend.render(camera())
+  assert.equal(backend.metrics().coverageReady, true)
+  assert.equal(backend.metrics().residentPages, 2)
+  backend.dispose()
+  geometry.dispose()
+  material.dispose()
+})
+
+test('webgpu pages prepare without resident bytes and stream the visible set', async () => {
+  const { backend, draws, geometry, material } = await firstFrameWithoutBytes()
+  assert.deepEqual(backend.pendingUrls?.().sort(), ['0', '1'])
+  assert.equal(
+    draws.filter((draw) => draw.entryPoint === 'vis_vs' || draw.entryPoint === 'vs').length,
+    0,
+  )
+  backend.acceptPage('0', new Uint32Array([0, 1, 2]))
+  backend.acceptPage('1', new Uint32Array([0, 2, 3]))
+  backend.render(camera())
+  await backend.flush()
+  backend.render(camera())
+  assert.equal(backend.metrics().residentPages, 2)
+  // The visible set drawn by the indirect slots: its two triangles, instanced from the GPU's counts.
+  await backend.flush()
+  assertBothQuadPagesDrawn(backend)
+  backend.dispose()
+  geometry.dispose()
+  material.dispose()
+})
+
+test('webgpu pages without a device fail prepare so the explorer can keep the host-library path', async () => {
+  const { source, metadata, indices, associations, geometry, material } = quadScene()
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    source,
+    metadata,
+    indices,
+    draws: graphDraws(source, associations),
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  })
+  await assert.rejects(backend.prepare(), /WEBGPU_UNAVAILABLE/)
+  backend.dispose()
+  geometry.dispose()
+  material.dispose()
+})
+
+test('the visibility-buffer path also clears with the host scene background', async () => {
+  installGpuGlobals()
+  const { device, passes } = fakeDevice(BACKEND)
+  const { fixture, backend } = quadBackend(device, {
+    clearColor: 0x2d4059,
+  })
+  await backend.prepare()
+  backend.render(camera())
+  await backend.flush()
+  backend.render(camera())
+  const clears = passes
+    .filter((pass) => pass.colors[0]?.loadOp === 'clear' && pass.formats[0] === 'rgba8unorm')
+    .map((pass) => pass.colors[0]?.clearValue)
+  assert.ok(clears.length > 0)
+  assert.ok(
+    clears.some(
+      (clear) =>
+        JSON.stringify(clear) ===
+        JSON.stringify({ r: 0x2d / 255, g: 0x40 / 255, b: 0x59 / 255, a: 1 }),
+    ),
+  )
+  backend.dispose()
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})

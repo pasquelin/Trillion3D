@@ -1,8 +1,8 @@
 // Texture taps on Dawn for the addressing proof (defects 4, 7, 8): one render per batch onto two
 // float targets — the engine's wrap WGSL beside the native sampler set to the map's mode.
 import { WRAP_COORD_WGSL } from '../../../packages/sdk-browser/src/visibility/wrapModes.ts'
-import { COLOR_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
-import { functionBody } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts'
+import { COLOR_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/materials/virtual/wgsl.ts'
+import { functionBody } from '../../../packages/sdk-browser/src/materials/texture/shaderRule.fixture.ts'
 import { readTexture } from '../../kit/device/computeReadback.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
@@ -30,7 +30,7 @@ export interface TapBatch {
  *  linear ones the full read. `wrapUv` reads only the word's low nibble: no wrap mode holds it. */
 export const BLEND_BIT = 0x80000000
 
-/** The seam of a repeating period as the atlas reads take it (`webgpu/tile/wgsl.ts`,
+/** The seam of a repeating period as the atlas reads take it (`materials/virtual/wgsl.ts`,
  *  `colorLevel`): its four fetches and their mix, read from the engine's own text, each fetch of the
  *  pool turned into a tap of the test texture through the sampler in clamp. */
 function seamRead() {

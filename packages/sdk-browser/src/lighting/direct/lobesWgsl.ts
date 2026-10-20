@@ -1,5 +1,5 @@
 import { PI } from '../../../../math/src/wgsl/constants.ts'
-import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
+import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { SURFACE_LIGHT_WGSL } from '../standardLighting.ts'
@@ -8,10 +8,10 @@ import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/s
 
 /**
  * The lighting of the physical material's anisotropic and clear-coat lobes
- * (`../../scene/physicalLobes.ts`), from the Khronos material extension equations: in the opaque
+ * (`../../materials/surface/physicalLobes.ts`), from the Khronos material extension equations: in the opaque
  * resolve's program that has them (`contractLightingProgram`, `key.lobeless` false), which reads a
  * pixel's lobes from the lobes target (`LOBES_TARGET_WGSL`), in the blend pass's lobed programs,
- * which compute them in place (`../../webgpu/blend/physicalWgsl.ts`).
+ * which compute them in place (`../../blend/physicalWgsl.ts`).
  * Each sets them once a pixel (`setLobes`) where it carries them, and every term below falls back
  * on the standard one, operand for operand, on a pixel that does not.
  *
@@ -138,7 +138,7 @@ fn rectCoat(r:RectView,V:vec3f,energy:f32)->vec3f{return vec3f(0.0);}`,
 /** The decode of a texel of the lobes target into a pixel's lobes (`lobesAt`), at its roughness
  *  `rough`, its coat normal turned by `side` (-1 where a reader turned the stored normal to face the
  *  eye): the one reading of the opaque resolve and the opaque reflection
- *  (`../../reflections/trace.ts`). */
+ *  (`../reflections/trace/trace.ts`). */
 export const LOBES_DECODE_WGSL = wgslBlock(
   'LOBES_DECODE_WGSL',
   [LOBE_PACK_WGSL, LOBE_AXIS_WGSL],

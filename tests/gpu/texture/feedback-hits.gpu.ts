@@ -1,5 +1,5 @@
 // The texture feedback lists the tiles the pixels asked, not the table of every tile
-// (`webgpu/tile/feedback.ts`, `reduce.ts`): each tile asked is listed once with the pixels that
+// (`materials/virtual/feedback.ts`, `reduce.ts`): each tile asked is listed once with the pixels that
 // named it, the list read back is the tiles asked alone, an image after another counts afresh — the
 // counters are zeroed by the gather —, and a list that overflows its capacity lists some tiles
 // whole and leaves none counted for the next image.

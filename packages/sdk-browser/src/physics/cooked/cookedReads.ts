@@ -2,7 +2,7 @@ import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { readCookedPhysics } from '../../../../sdk-core/src/physics/cooked.ts'
 import type { SharedShape } from '../sharedShapes.ts'
 import { cookedHref, type Model } from '../tiles/tilePlace.ts'
-import { checked, optionalFile, retriableError } from '../../cluster/checked.ts'
+import { checked, optionalFile, retriableError } from '../../geometry/cluster/checked.ts'
 
 /** The bytes of a cooked object — a tile, a hull, a soft body's settings — read as every cache
  *  file is (`checked`, in `tries` requests), until `signal` aborts. */

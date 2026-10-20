@@ -4,12 +4,12 @@ import {
   HIZ_CULL_FARTHEST,
   HIZ_FORMAT,
   hizTextureSize,
-} from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
-import { hizBindEntries } from '../../../packages/sdk-browser/src/gpu/hiz/bindEntries.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/pyramidTexture.ts'
+import { hizBindEntries } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/bindEntries.ts'
 import {
   hizLayerWords,
   type PackedHiz,
-} from '../../../packages/sdk-browser/src/gpu/hiz/oracle.fixture.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/oracle.fixture.ts'
 
 export function laidPyramid(device: GPUDevice, packed: PackedHiz) {
   const pyramid = device.createTexture({

@@ -1,0 +1,92 @@
+/**
+ * The VSM uniform block: the scalar part of the shadow map uniform parameters, filled at the
+ * array initialisation and at the page marking. The textures and buffers of that block are
+ * separate bindings (`resources.ts`). Appended at the end: the storage-buffer layout of the 2D
+ * tables (sizes and per-mip offsets), which a texture carries implicitly and a buffer cannot.
+ */
+import {
+  VSM_DETAIL_PIXELS_DYNAMIC,
+  VSM_DETAIL_PIXELS_STATIC,
+  VSM_MIPS,
+  VSM_NORMAL_BIAS,
+  VSM_SCREEN_RAY_SHARE,
+} from './constants.ts'
+import type { VsmLayout } from './layout.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wordViews } from '../../../gpu/core/wordViews.ts'
+
+/**
+ * The fields some shader reads, nothing else, by role: the frame's words, the pool's, the tables',
+ * the marking's and the traces', then the tables' mip offsets. The struct is the layout:
+ * `writeVsmUniforms` writes its words in its order.
+ */
+export const VSM_UNIFORMS_WGSL = wgslBlock(
+  'VSM_UNIFORMS_WGSL',
+  [],
+  `
+struct VsmUniforms{
+ frameStamp:u32,
+ mapCount:u32,
+ pressureBias:f32,
+ poolPages:u32,
+ poolRowShift:u32,
+ poolRowMask:u32,
+ staticSlice:u32,
+ poolPagesXY:vec2u,
+ pageTableSize:vec2u,
+ coverSize:vec2u,
+ detailPixelsStatic:f32,
+ detailPixelsDynamic:f32,
+ normalBias:f32,
+ screenRayShare:f32,
+ markMipOffset:array<vec4u,2>,
+ coverMipOffset:array<vec4u,2>,
+}
+fn vsmMarkMipOffset(mip:u32)->u32{return vsm.markMipOffset[mip>>2u][mip&3u];}
+fn vsmCoverMipOffset(mip:u32)->u32{return vsm.coverMipOffset[mip>>2u][mip&3u];}
+`,
+)
+
+/** Per-frame values of the block; the rest comes from the constants and the layout. */
+export interface VsmFrameUniforms {
+  /** The frame's maps: ids [0, mapCount). */
+  mapCount: number
+  frameStamp: number
+  /** Fed back from the previous frames' free page count. */
+  pressureBias: number
+}
+
+/** Writes the whole block into `out` (at least VSM_UNIFORMS_BYTES). */
+export function writeVsmUniforms(
+  out: ArrayBuffer,
+  layout: VsmLayout,
+  frame: VsmFrameUniforms,
+  byteOffset = 0,
+) {
+  const { u, f } = wordViews(out, byteOffset)
+  u[0] = frame.frameStamp >>> 0
+  u[1] = frame.mapCount
+  f[2] = frame.pressureBias
+  u[3] = layout.poolPages
+  u[4] = layout.poolRowShift
+  u[5] = layout.poolRowMask
+  u[6] = layout.staticSlice
+  // Word 7: the padding WGSL puts before poolPagesXY, a vec2u at an 8-byte boundary.
+  u[7] = 0
+  u[8] = layout.poolPagesXY[0]
+  u[9] = layout.poolPagesXY[1]
+  u[10] = layout.pageTableSize[0]
+  u[11] = layout.pageTableSize[1]
+  u[12] = layout.coverSize[0]
+  u[13] = layout.coverSize[1]
+  f[14] = VSM_DETAIL_PIXELS_STATIC
+  f[15] = VSM_DETAIL_PIXELS_DYNAMIC
+  f[16] = VSM_NORMAL_BIAS
+  f[17] = VSM_SCREEN_RAY_SHARE
+  // Words 18 and 19: the padding WGSL puts before markMipOffset, an array at a 16-byte boundary.
+  u[18] = u[19] = 0
+  for (let m = 0; m < VSM_MIPS; m++) {
+    u[20 + m] = layout.markMipOffsets[m] ?? 0
+    u[28 + m] = layout.coverMipOffsets[m] ?? 0
+  }
+}

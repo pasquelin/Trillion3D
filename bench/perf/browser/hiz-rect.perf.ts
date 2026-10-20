@@ -1,6 +1,6 @@
 // Absolute Hi-Z measurement: the rectangle occlusion test, the CPU twin of the WGSL one
-// (`packages/sdk-browser/src/gpu/hiz/rectWgsl.ts`). No oracle here: it has no prior implementation
-// to confront; its correctness is held by `packages/sdk-browser/src/hiz/occlusion.test.ts`, and
+// (`packages/sdk-browser/src/visibility/hiz/gpu/rectWgsl.ts`). No oracle here: it has no prior implementation
+// to confront; its correctness is held by `packages/sdk-browser/src/visibility/hiz/occlusion.test.ts`, and
 // the line says so rather than staying silent. `visibilityDepth` left this bench: only tests call it.
 import { hizTestRect } from '../../oracles/browser/hizOcclusion.ts'
 import { measure } from '../../core/measure.ts'

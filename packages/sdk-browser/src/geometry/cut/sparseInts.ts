@@ -1,0 +1,176 @@
+import { mixWord, movesIntoHole } from '../../../../math/src/scalar/integers.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
+/**
+ * Integer values keyed by non-negative integer ids, held only for the ids that carry one: what the
+ * cut's per-page state is kept in, so its size follows what the view and the pool hold, never the
+ * catalogue. An absent id reads 0; writing 0 removes it.
+ *
+ * Open addressing with linear probing on two typed arrays, and backward-shift removal, so no
+ * tombstone ever lengthens a probe. The table doubles past half full and never holds storage
+ * before its first entry. Emptied, it keeps a small table — a set that swings between empty and a
+ * few members allocates nothing — and releases a large one, so a burst never stays paid for.
+ * A map made with a journal names each slot it writes, and each rebuild of its tables, so a copy
+ * of them elsewhere — the GPU's page→row map (`../rows/rowMapGpu.ts`) — follows them by
+ * what changed alone; a map without one pays a test.
+ */
+const EMPTY = -1
+const MIN_SLOTS = 16
+
+/** What a map tells a reader that holds a copy of its two tables (`keys`, `values`): each slot it
+ *  writes — a set, an entry shifted back —, and each time the tables are replaced or emptied whole
+ *  (growth, release, clear), after which the copy is taken again whole. */
+type SparseJournal = { onSlot(at: number): void; onRebuild(): void }
+
+export function createSparseInts(journal?: SparseJournal) {
+  const t: Table = { keys: new Int32Array(0), values: new Int32Array(0), size: 0, journal }
+  const map = {
+    get size() {
+      return t.size
+    },
+    /** The two tables as they stand, open-addressed on `mixWord` with linear probing, `-1` an
+     *  empty key: what a journal's reader copies, never written but by the map. */
+    get keys() {
+      return t.keys
+    },
+    get values() {
+      return t.values
+    },
+    /** Bytes of the two tables: what the map holds now, never what the catalogue could. */
+    get byteLength() {
+      return t.keys.byteLength + t.values.byteLength
+    },
+    get(key: number) {
+      if (!t.size) return 0
+      const at = find(t, key)
+      return t.keys[at] === key ? t.values[at] : 0
+    },
+    has: (key: number) => map.get(key) !== 0,
+    /** Sets `key` to `value`, removing it at 0; returns the previous value. One probe. */
+    set(key: number, value: number) {
+      return setKey(t, key, value)
+    },
+    /** Adds `delta` to `key`'s value; returns the new value. One probe. */
+    add(key: number, delta: number) {
+      return delta === 0 ? map.get(key) : addKey(t, key, delta)
+    },
+    /** Visits every entry, in no particular order; `visit` must not write the map. */
+    forEach(visit: (key: number, value: number) => void) {
+      const { keys, values } = t
+      for (let i = 0; i < keys.length; i++) if (keys[i] !== EMPTY) visit(keys[i], values[i])
+    },
+    /** Empties the map: a small table is kept for the next fill, a large mostly empty one
+     *  released, so a scratch map cleared every frame costs its entries, not its peak. */
+    clear() {
+      if (!t.size) return
+      if (t.keys.length > MIN_SLOTS * 4 && t.size * 8 < t.keys.length) return release(t)
+      t.keys.fill(EMPTY)
+      t.values.fill(0)
+      t.size = 0
+      t.journal?.onRebuild()
+    },
+  }
+  return map
+}
+
+/** The two tables of a map, how many entries it holds, and who is told of its writes. */
+type Table = {
+  keys: Int32Array<ArrayBuffer>
+  values: Int32Array<ArrayBuffer>
+  size: number
+  journal?: SparseJournal
+}
+
+/** Slot `at` of `t` holds `key` and `value` now: its reader told. */
+function write(t: Table, at: number, key: number, value: number) {
+  t.keys[at] = key
+  t.values[at] = value
+  t.journal?.onSlot(at)
+}
+
+const home = (t: Table, key: number) => mixWord(key) & (t.keys.length - 1)
+
+function find(t: Table, key: number) {
+  const { keys } = t
+  const mask = keys.length - 1
+  let at = home(t, key)
+  while (keys[at] !== EMPTY && keys[at] !== key) at = (at + 1) & mask
+  return at
+}
+
+function allocate(t: Table, slots: number) {
+  const oldKeys = t.keys,
+    oldValues = t.values
+  const keys = (t.keys = new Int32Array(slots).fill(EMPTY))
+  const values = (t.values = new Int32Array(slots))
+  for (let i = 0; i < oldKeys.length; i++)
+    if (oldKeys[i] !== EMPTY) {
+      const at = find(t, oldKeys[i])
+      keys[at] = oldKeys[i]
+      values[at] = oldValues[i]
+    }
+  t.journal?.onRebuild()
+}
+
+/** Removes slot `at` and pulls back the entries its hole would cut off from their home. */
+function removeAt(t: Table, at: number) {
+  const { keys, values } = t
+  const mask = keys.length - 1
+  let hole = at,
+    next = (at + 1) & mask
+  while (keys[next] !== EMPTY) {
+    if (movesIntoHole(next, home(t, keys[next]), hole, mask)) {
+      write(t, hole, keys[next], values[next])
+      hole = next
+    }
+    next = (next + 1) & mask
+  }
+  write(t, hole, EMPTY, 0)
+  if (--t.size === 0 && keys.length > MIN_SLOTS) release(t)
+}
+
+function release(t: Table) {
+  t.keys = new Int32Array(0)
+  t.values = new Int32Array(0)
+  t.size = 0
+  t.journal?.onRebuild()
+}
+
+/** The slot `key` sits in, or the free slot it goes to, the table grown for it first. */
+function slotFor(t: Table, key: number) {
+  if ((t.size + 1) * 2 > t.keys.length) {
+    const at = t.keys.length ? find(t, key) : -1
+    if (at >= 0 && t.keys[at] === key) return at
+    allocate(t, grownLength(t.keys.length, MIN_SLOTS))
+  }
+  return find(t, key)
+}
+
+/** Sets `key` to `value`, removing it at 0; returns the previous value. */
+function setKey(t: Table, key: number, value: number) {
+  if (value === 0 && !t.size) return 0
+  const at = value === 0 ? find(t, key) : slotFor(t, key)
+  if (t.keys[at] === key) {
+    const previous = t.values[at]
+    if (value === 0) removeAt(t, at)
+    else write(t, at, key, value)
+    return previous
+  }
+  if (value === 0) return 0
+  write(t, at, key, value)
+  t.size++
+  return 0
+}
+
+/** Adds a non-zero `delta` to `key`'s value; returns the new value. */
+function addKey(t: Table, key: number, delta: number) {
+  const at = slotFor(t, key)
+  if (t.keys[at] !== key) {
+    write(t, at, key, delta)
+    t.size++
+    return delta
+  }
+  const next = t.values[at] + delta
+  if (next === 0) removeAt(t, at)
+  else write(t, at, key, next)
+  return next
+}

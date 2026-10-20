@@ -1,7 +1,7 @@
 /**
  * The primitive stretch of a moved root, on the GPU: `maxStretch` of the root's double world
  * (`math/src/projection/projectionOracles.ts`), which the root boxes pass writes — its one writer —
- * into the `Stretch` field of the cut's frame words (`rootBoxesWgsl.ts`, `../gpu/dag/frameTable.ts`),
+ * into the `Stretch` field of the cut's frame words (`roots/rootBoxesWgsl.ts`, `../geometry/dag/frameTable.ts`),
  * the number the cut projects every error through. The CPU's memo of it (`worldStretch`) serves the
  * CPU's own readers alone (`../deformation/screen.ts`), never the cut; it takes
  * the largest singular value of the linear part in doubles — the symmetric matrix `AᵀA`, its
@@ -137,7 +137,7 @@ export const STRETCH_DOUBLE_WGSL = wgslBlock(
 /**
  * The single-precision bits of `stretch`, the `maxStretchOf` of the world whose sixteen doubles are
  * `m`: the bits the root boxes pass writes into the frame words' `Stretch` field
- * (`../gpu/dag/frameTable.ts`) — those a `Float32Array` stores of the CPU's; all ones for a world
+ * (`../geometry/dag/frameTable.ts`) — those a `Float32Array` stores of the CPU's; all ones for a world
  * holding a number that is no finite one, where the CPU refuses the matrix (the stretch is then
  * left as it was).
  */

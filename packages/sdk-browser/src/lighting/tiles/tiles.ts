@@ -1,7 +1,7 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { tileViewInverse } from './tileFrame.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
-import { storageBufferCap } from '../../residency/pools.ts'
+import { storageBufferCap } from '../../session/memory/pools.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'

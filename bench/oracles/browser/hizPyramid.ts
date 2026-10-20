@@ -1,5 +1,5 @@
 import { hizBuildPyramid } from '../../../packages/sdk-core/src/hiz/oracles.fixture.ts'
-import type { FlatHizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
+import type { FlatHizPyramid } from '../../../packages/sdk-browser/src/visibility/hiz/types.ts'
 
 /**
  * Visbuffer Hi-Z pyramid of the CPU oracles: the reference reduction (`hizBuildPyramid`, the

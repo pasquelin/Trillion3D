@@ -1,4 +1,4 @@
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
+import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 

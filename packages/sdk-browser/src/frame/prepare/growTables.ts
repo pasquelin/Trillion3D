@@ -1,0 +1,140 @@
+import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
+import { askedTableRows, rowScratch } from './layout.ts'
+import { grownTableRows, rowsAhead, viewRowsFor } from '../../geometry/rows/tableRows.ts'
+import { deviceMade } from '../../gpu/core/errorScope.ts'
+import { pendingAll } from '../../gpu/core/tableGrowth.ts'
+import { gpuGrowth } from './growGpuTables.ts'
+import { dropRaster } from '../io/drops.ts'
+import { queueTableGrowth } from './growthQueue.ts'
+import type { TableGrowthReport } from '../../session/memory/pools.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { pagesHeld } from '../../geometry/pages/pool/placement.ts'
+
+/** The rows the tables ask for a pool of `slots` slots — the pages it holds at most
+ *  (`pagesHeld`) —, the catalogue as the layout counts it. */
+export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
+  const { layout, setup } = rt
+  const blended = layout.blendedPageCount
+  const limits = rt.context.gpuDevice?.limits
+  return askedTableRows(
+    layout.packedPages.length - blended,
+    blended,
+    pagesHeld(setup.pageBytes, slots, setup.homes),
+    layout.rows.instances.copiesMax,
+    limits,
+    layout.viewRows,
+  )
+}
+
+/**
+ * THE CUT CLAIMS ITS ROWS (#1232). The GPU cut asks `asked` rows — the rows the cache holds and
+ * the requests it denied (`../../geometry/rows/slots.ts`, `rowsDenied`), or the blended casters' —: past four
+ * fifths of the rows the view holds, they rise a quarter above them and the table grows after
+ * them, in place, as a larger pool grows it (`growWebgpuTables`). It is what the view selects that sizes the table,
+ * never the placements a scene repeats its pages on, as the visible-cluster list is what its
+ * cut emits. Until the growth is granted, the image draws the rows the table holds.
+ */
+export function followCutRows(rt: WebgpuPagesRuntime, asked: number) {
+  const { layout } = rt
+  // Four fifths of the rows held: the table grows before the cut reaches its end, not after.
+  if (5 * asked <= 4 * layout.viewRows) return
+  layout.viewRows = viewRowsFor(asked)
+  growWebgpuTables(rt, rt.setup.cap).catch((error) =>
+    rt.diag.diagnosticFailure('page-tables-growth-failed', error),
+  )
+}
+
+/**
+ * THE TABLES SIZED BY DRAWABLE ROW GROW IN PLACE (#216), when a pool of `slots` slots — a larger
+ * geometry pool (`../io/memory.ts`) — or the GPU cut's requests (`followCutRows`) ask more rows
+ * than they hold. Nothing is prepared
+ * again: no shader, no pipeline, no pool, no texture tile. Every GPU buffer sized by row
+ * (`growGpuTables.ts`) is made anew beside the one it replaces, under one out-of-memory scope,
+ * while the image goes on drawing from the old ones. Only once the device granted them all are they
+ * swapped in, in one step between two images, with the CPU rows (`../../geometry/rows/grow.ts`): every
+ * visibility row keeps its rank and its page, so the image the next frame draws is the one it would
+ * have drawn, now with room for the pages that waited. A refusal frees what was made and keeps
+ * every table and the pool in place, said once (`gpu-out-of-memory`). A lost device grows the CPU
+ * rows alone, refusing nothing: the rebuild prepares its GPU tables at their size, and the host's
+ * budget holds. Growths wait for a running prepare and for each other, in their order; the report
+ * says what the growth cost, or `null` when the tables already held what was asked.
+ */
+export const growWebgpuTables = (rt: WebgpuPagesRuntime, slots: number) =>
+  queueTableGrowth(rt, () => growTables(rt, slots))
+
+async function growTables(
+  rt: WebgpuPagesRuntime,
+  slots: number,
+): Promise<TableGrowthReport | null> {
+  const { layout, setup, gpu, run, diag } = rt,
+    { rows } = layout
+  const started = cpuNow()
+  // What the catalogue needs; when the tables must grow, a growth ahead of it (`rowsAhead`).
+  const needed = tableRowsFor(rt, slots),
+    grows =
+      needed.drawSlots > rows.blendFirst || needed.blendSlots > rows.casterSlots - rows.blendFirst
+  const limits = rt.context.gpuDevice?.limits
+  const asked = grows ? rowsAhead(limits, needed, rows, layout.viewRows) : needed,
+    { drawSlots, casterSlots } = grownTableRows(asked, rows)
+  if (drawSlots === rows.blendFirst && casterSlots === rows.casterSlots) {
+    setup.cap = Math.max(setup.cap, slots)
+    return null
+  }
+  // A lost device grows the rows alone: the rebuild makes its GPU tables from them.
+  const device = run.lost ? undefined : gpu.device
+  let made = pendingAll([])
+  const granted = device
+    ? await deviceMade(device, () => (made = gpuGrowth(rt, device, drawSlots, casterSlots)))
+    : made
+  if (!granted || rt.signal.aborted) {
+    granted?.destroy()
+    if (!granted)
+      diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the grown page tables', {
+        kind: 'warning',
+        pool: 'page-tables',
+        requestedBytes: made.bytes,
+        grantedBytes: null,
+      })
+    const { blendFirst, casterSlots: held } = rows
+    const durationMs = msSince(started)
+    return {
+      drawSlots: blendFirst,
+      casterSlots: held,
+      bytes: made.bytes,
+      refused: true,
+      durationMs,
+    }
+  }
+  // Lost while the device was asked: what it granted went with it.
+  const lost = run.lost
+  if (lost) granted.destroy()
+  rows.grow(drawSlots, casterSlots - drawSlots)
+  // The open counts the cut's placements hold follow the rows (`../../geometry/dag/queueGrowth.ts`).
+  run.gpuSelection?.followRows?.(casterSlots)
+  Object.assign(layout, rowScratch(drawSlots, setup.pageBytes))
+  if (!lost) {
+    granted.commit()
+    follow(rt)
+  }
+  setup.cap = Math.max(setup.cap, slots)
+  if (asked.bounded)
+    diag.engineDiagnostic('page-table-bounded', 'The device bounds the page table', {
+      kind: 'warning',
+      ...asked.bounded,
+    })
+  // Origin of the resource change: the tables the image reads were replaced.
+  run.gate.resourcesChanged()
+  const durationMs = msSince(started)
+  const report = { drawSlots, casterSlots, bytes: made.bytes, refused: false, durationMs }
+  diag.engineDiagnostic('page-tables-grown', 'Page tables grown in place', report)
+  return report
+}
+
+/** What reads the grown buffers without owning them follows them: the Hi-Z test the partition's
+ *  bounds. The page table, made at preparation (`ensurePageTable`), grew with the others
+ *  (`gpuGrowth`). The diagnostic compute raster goes (`dropRaster`). */
+function follow(rt: WebgpuPagesRuntime) {
+  const { gpuHiz, gpuPartition } = rt.vis
+  if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state)
+  dropRaster(rt)
+}

@@ -1,6 +1,6 @@
 // #1521: meshes a skeleton, morph weights or waves move, and meshes whose vertices are read as floats,
 // added to a world's scene while its session runs join the session in place
-// (`placement/webgpuAppend.ts`, `deformation/growth.ts`): the session is not opened again, and its
+// (`append/webgpuAppend.ts`, `deformation/growth.ts`): the session is not opened again, and its
 // image is pixel for pixel the image of a world opened on all of them.
 import test from 'node:test'
 import assert from 'node:assert/strict'

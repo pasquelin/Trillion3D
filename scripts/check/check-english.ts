@@ -6,8 +6,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { FRENCH_EXCEPTIONS, FRENCH_WORDS } from './french-words.ts'
-import { repositoryFiles, readJson } from '../repository-files.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { repositoryFiles, readJson } from '../git/repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const SOURCE = /\.(?:[cm]?ts|rs|wgsl)$/
 /** The files that hold French words on purpose: the list, and the test that plants them. */

@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { acquireHeavyLock, heavyLockPath, heavyStep } from './heavy-lock.ts'
-import { git } from '../git-paths.ts'
+import { git } from '../git/git-paths.ts'
 
 const lockModule = join(import.meta.dirname, 'heavy-lock.ts')
 

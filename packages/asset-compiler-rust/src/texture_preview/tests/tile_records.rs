@@ -24,7 +24,7 @@ fn records(file: &[u8], count: usize) -> Vec<Vec<u8>> {
 // records, each the blocks of its tile and gutter, clipped at the level's edge,
 // block rows top to bottom, raw DEFLATE alone: tile rows then tiles. The
 // inflated sizes are pinned by the same numbers as the engine's reader
-// (`packages/sdk-browser/src/texture/tileRecords.test.ts`).
+// (`packages/sdk-browser/src/materials/texture/tileRecords.test.ts`).
 #[test]
 fn a_block_level_file_holds_its_tile_records_end_to_end() {
     let (width, height) = (769u32, 300u32);

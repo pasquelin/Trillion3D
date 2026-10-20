@@ -1,0 +1,71 @@
+import {
+  COLD_CONE,
+  COLD_HAS_BOX,
+  COLD_MAX,
+  COLD_MIN,
+  COLD_TRIANGLES,
+  COLD_WORDS,
+  SELECTION_LIST_CAP,
+} from '../layout.ts'
+import { RECORD_SHIFT_WORD } from '../frameTable.ts'
+import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { bitIsSet, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
+
+/**
+ * Cold record of a cluster and page residency, read by word in one buffer.
+ *
+ * Cone, box and residency in a forty-eight-byte structure would be read whole by the five frame
+ * passes, most of the time to take only a flag. The buffer is an array of words: the residency bit
+ * sets first — one word for thirty-two pages, hence one cache line for five hundred —, then the
+ * pool's list, then a content key per unique record, a word and a group per key and the groups'
+ * parents (`../evict/evict.ts`), then the cold records, one per UNIQUE cluster, which the opening pass
+ * reads cone and box from. No word per page: a page's placement travels in the entries that carry
+ * it (`levelWgsl.ts`).
+ *
+ * A page reaches its hot and cold records through `recordOf`: its index plus its placement's
+ * shift, its frame row's `RECORD_SHIFT_WORD` (`../frameTable.ts`). Ranks are those of `../layout.ts`, sole source of
+ * the layout: the oracle rereads them through `../records.fixture.ts`, which keeps it bit-for-bit on the
+ * shader. The bases below are the WGSL twins of `../layout.ts`' own (`residentWords` to `coldBase`):
+ * they read the counts off the uniforms.
+ */
+/** Cold words `first` to `first + n - 1` of record `r`, as a vector's components. */
+const coldWords = (first: number, n: number) =>
+  Array.from({ length: n }, (_, k) => `coldF(r,${first + k}u)`).join(',')
+
+export const DAG_RECORD_WGSL = wgslBlock(
+  'DAG_RECORD_WGSL',
+  [ceilDivWgsl, bitWord, bitIsSet],
+  `${wgslConsts({ COLD: COLD_WORDS })}
+/** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
+fn recordOf(i:u32,w:u32)->u32{return i+framesWord(w,${RECORD_SHIFT_WORD}u);}
+fn residentWords()->u32{return ceilDiv(views[0u].clusterCount,32u);}
+fn poolBase()->u32{return 2u*residentWords();}
+/** The pool's list holds \`selectionListCap\` keys (\`../layout.ts\`), whatever the readout's cap. */
+fn poolListCap()->u32{return min(views[0u].clusterCount,${SELECTION_LIST_CAP}u);}
+fn recordKeyBase()->u32{return poolBase()+1u+poolListCap();}
+fn keyWordBase()->u32{return recordKeyBase()+max(1u,views[0u].recordCount);}
+fn keyGroupBase()->u32{return keyWordBase()+max(1u,views[0u].keyCount);}
+fn groupParentBase()->u32{return keyGroupBase()+max(1u,views[0u].keyCount);}
+fn coldBase()->u32{return groupParentBase()+views[0u].groupCount+1u+views[0u].groupEdges;}
+/** Record \`r\`'s content key, and key \`k\`'s word: its canonical page, its coarsest level. */
+fn keyOf(r:u32)->u32{return coldAt(recordKeyBase()+r);}
+fn keyWordOf(k:u32)->u32{return coldAt(keyWordBase()+k);}
+/** Key \`k\`'s group, and the groups replacing group \`g\`: from \`groupParentStart(g)\` to
+ *  \`groupParentStart(g + 1)\` of \`groupParentAt\` (\`../evict.ts\`). */
+fn groupOfKey(k:u32)->u32{return coldAt(keyGroupBase()+k);}
+fn groupParentStart(g:u32)->u32{return coldAt(groupParentBase()+g);}
+fn groupParentAt(p:u32)->u32{return coldAt(groupParentBase()+views[0u].groupCount+1u+p);}
+fn coldF(r:u32,k:u32)->f32{return bitcast<f32>(coldAt(coldBase()+r*COLD+k));}
+fn coneOf(r:u32)->vec4f{return vec4f(${coldWords(COLD_CONE, 4)});}
+fn boxMin(r:u32)->vec3f{return vec3f(${coldWords(COLD_MIN, 3)});}
+fn hasBox(r:u32)->f32{return coldF(r,${COLD_HAS_BOX}u);}
+fn boxMax(r:u32)->vec3f{return vec3f(${coldWords(COLD_MAX, 3)});}
+/** Cluster triangles, read as a whole word: frame totals accumulate them. */
+fn trianglesOf(r:u32)->u32{return coldAt(coldBase()+r*COLD+${COLD_TRIANGLES}u);}
+/** The cut rule's two bit sets open the table, one word for thirty-two pages:
+ *  \`resident(c)\` then \`resident(childGroup(c))\` (\`../../../page/cut/readiness.ts\`). */
+fn isResident(i:u32)->bool{return bitIsSet(coldAt(bitWord(i)),i);}
+fn childResident(i:u32)->bool{return bitIsSet(coldAt(residentWords()+bitWord(i)),i);}
+`,
+)

@@ -5,15 +5,15 @@
 // the two is the price of copying the worst case. The read is serialised here — copy, submit,
 // map, read — where the engine double-buffers it: a frame's total work, not its stall.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
-import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
-import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
-import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import { createDagResources } from '../../../packages/sdk-browser/src/geometry/dag/resources.ts'
+import { encodeDagKernels } from '../../../packages/sdk-browser/src/geometry/dag/encode.ts'
+import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
+import { writeDagUniforms } from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
-import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
+import { writeHostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 interface Sweep {
   /** Scene sizes, in leaves: the pyramid holds about twice as many pages. */

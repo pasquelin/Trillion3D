@@ -62,7 +62,7 @@ pub fn path_dependencies() -> io::Result<Vec<PathBuf>> {
 }
 
 /// Whether a file or folder name is test code by its name, as `isTestModule`
-/// (`scripts/repository-files.ts`) reads a Rust path — `test`, `tests`, or ending in `_test` or
+/// (`scripts/git/repository-files.ts`) reads a Rust path — `test`, `tests`, or ending in `_test` or
 /// `_tests` — or the golden harness (`golden.rs`, `golden/`), built for the tests alone.
 fn test_named(name: &str) -> bool {
     let stem = name.strip_suffix(".rs").unwrap_or(name);

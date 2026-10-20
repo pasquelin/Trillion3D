@@ -1,7 +1,7 @@
 // The GPU eviction rank against its CPU oracle, on generated frames: the real cut on Dawn stamps
 // what it draws and asks for at the host's frame, raises the groups replacing them up to the
 // roots, and lists the pool's pages oldest use first, finer first among equal ages, none any view
-// used this frame or the one before (`gpu/dag/evict.ts`). The oracle replays the same rules on the
+// used this frame or the one before (`dag/evict/evict.ts`). The oracle replays the same rules on the
 // same readbacks: the same pages listed, in an order of non-increasing rank, with the same old head.
 import test from 'node:test'
 import assert from 'node:assert/strict'

@@ -1,15 +1,15 @@
 // #198, #1483: a row of the page table changes occupant. Under the row cache a row is EVICTED —
 // the view moved to another placement, whose requests take back the rows no cut used for a while
-// (`webgpu/row/rowOrder.ts`). Every reader of a row must then follow its new occupant: its record
+// (`geometry/rows/rowOrder.ts`). Every reader of a row must then follow its new occupant: its record
 // names it, and the row is marked rewritten, the run the draw items, the corners and the
-// partition's history are rewritten and forgotten on (`webgpu/row/dirty.ts`,
-// `forEachRewrittenRun`; `webgpu/visibility/corners.ts`). On Dawn the shipped kernel cuts each view on the residency the cache publishes: the moved view draws what it wants,
+// partition's history are rewritten and forgotten on (`geometry/rows/dirty.ts`,
+// `forEachRewrittenRun`; `visibility/passes/corners.ts`). On Dawn the shipped kernel cuts each view on the residency the cache publishes: the moved view draws what it wants,
 // from its own placement alone, no evicted occupant in its place.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { forEachRewrittenRun } from '../../../packages/sdk-browser/src/webgpu/row/dirty.ts'
-import { ROW_IN_USE } from '../../../packages/sdk-browser/src/webgpu/row/rowEvictSortWgsl.ts'
+import { forEachRewrittenRun } from '../../../packages/sdk-browser/src/geometry/rows/dirty.ts'
+import { ROW_IN_USE } from '../../../packages/sdk-browser/src/geometry/rows/rowEvictSortWgsl.ts'
 import { rowCacheScene, settleView } from './rowCacheScene.ts'
 
 /** Rows the table holds: far fewer than the placements' instances, more than one view asks. */

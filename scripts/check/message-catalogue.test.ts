@@ -6,8 +6,8 @@ import {
   messageOf,
   type CatalogueMessage,
 } from '../../packages/sdk-node/src/messages/catalogue.mts'
-import { REPOSITORY_ROOT, readJson } from '../repository-files.ts'
-import { FAMILY_LOAD_FAILED_ID } from '../../packages/sdk-browser/src/host/familyLoadFailedId.ts'
+import { REPOSITORY_ROOT, readJson } from '../git/repository-files.ts'
+import { FAMILY_LOAD_FAILED_ID } from '../../packages/sdk-browser/src/session/host/familyLoadFailedId.ts'
 
 const RUST = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust/src')
 const NODE = join(REPOSITORY_ROOT, 'packages/sdk-node/src')

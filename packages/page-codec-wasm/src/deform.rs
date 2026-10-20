@@ -154,7 +154,6 @@ pub fn decode_morphs(words: &[u32], morphs: &[Morph], out: &mut [u32]) {
 }
 
 #[cfg(test)]
-#[path = "deform_tests.rs"]
 mod tests;
 
 /// The raw deformation streams must remain finite before any GPU reads the admitted page.

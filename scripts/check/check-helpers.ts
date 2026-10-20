@@ -11,8 +11,8 @@ import ts from 'typescript'
 import { cfgTestModules, rsHelpers } from './check-helpers-rust.ts'
 import { NATIVE_CRATES } from '../native/native-crates.ts'
 import { isMathsOracle } from '../lint/lint-maths.ts'
-import { SOURCE_UNITS, isTestModule, sourceFilesOf } from '../repository-files.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { SOURCE_UNITS, isTestModule, sourceFilesOf } from '../git/repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 /** Each package or crate is its own namespace: a helper is owned once per unit. */
 export const UNITS = [...SOURCE_UNITS, ...NATIVE_CRATES.map((crate) => `${crate.path}/src`)]

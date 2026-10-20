@@ -7,7 +7,7 @@ import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import type { BenchSettings } from '../harness/benchSettings.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 /** The published references, one folder per scene: its `reference.json`, in git. */
 export const REFERENCES_DIR = resolve(import.meta.dirname, './data')

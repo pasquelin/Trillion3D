@@ -9,7 +9,7 @@ import assert from 'node:assert/strict'
 import { wrapNibble } from './wrapModes.ts'
 import { SHADE_SHADER } from './shader/shadeWgsl.ts'
 import { maskKeepWgsl } from './shader/pageWgsl.ts'
-import { maskAlphaWgsl } from '../webgpu/tile/wgsl.ts'
+import { maskAlphaWgsl } from '../materials/virtual/wgsl.ts'
 import { MAPS, mixedNibbles } from '../../../../tests/gpu/texture/addressingMaps.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 
@@ -40,7 +40,7 @@ test('each map carries its own nibble in its header, whatever the others', () =>
 })
 
 // Every atlas read folds by the nibble of the texture it reads, from that texture's header: no
-// read takes an addressing argument, so none can take another map's (`../texture/sampling.ts`).
+// read takes an addressing argument, so none can take another map's (`../materials/texture/sampling.ts`).
 for (const [nom, text] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
   test(`${nom} reads each map with no addressing argument`, () => {
     // Each map at the UV set its record names: the resolve's `mapCoord`, the transparent pass's

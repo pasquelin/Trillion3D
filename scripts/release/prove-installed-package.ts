@@ -22,7 +22,7 @@ import {
   type PackageJson,
   packArchive,
 } from './installed-package/fixture.ts'
-import { REPOSITORY_ROOT, readJson } from '../repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../git/repository-files.ts'
 
 /** Whether the fixture's virtual store holds any version of the host library. */
 const installedThree = (fixture: string) =>

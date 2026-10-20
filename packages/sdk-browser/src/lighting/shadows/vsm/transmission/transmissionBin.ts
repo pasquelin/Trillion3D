@@ -1,0 +1,168 @@
+/**
+ * THE TRANSMISSION'S BIN ENCODED (`transmissionPass.ts`): its lists, parameters and groups — over
+ * the scene's rows, the lists and the transmission, made again when one of them moved, and over the
+ * VSM tables once a frame set, the opaque raster's mechanism (`renderChunks.ts: renderGroups`) —,
+ * then the candidates and, per chunk, the cull, its commands' redrawn pages and the bin.
+ */
+import { VSM_RENDER_CULL_SPECS } from '../render/renderCullWgsl.ts'
+import { VSM_RENDER_VIEWS_SPECS } from '../render/renderViewsWgsl.ts'
+import { VSM_RENDER_ARGS_EXPAND, VSM_RENDER_ARGS_STRIDE_WORDS } from '../render/renderParamsWgsl.ts'
+import {
+  encodeVsmCandidates,
+  encodeVsmChunkCommands,
+  vsmChunkListGroups,
+  vsmSceneRowsMoved,
+} from '../chunks/chunkGroups.ts'
+import { vsmBufferGroup } from '../passKit.ts'
+import { vsmEnsureLists } from '../chunks/chunkLists.ts'
+import { vsmWriteChunkParams } from '../chunks/chunkParams.ts'
+import { vsmBindGroupEntries, vsmPerFrameSet, type VsmResources } from '../resources.ts'
+import type { VsmRenderScene } from '../render/renderPass.ts'
+import { VSM_TRANSMISSION_PAGES_SPECS } from './transmissionPagesWgsl.ts'
+import { TRANSMISSION_LABEL, type VsmTransmission } from './transmissionMade.ts'
+import type { VsmTransmissionContext } from './transmissionContext.ts'
+import type { BinPlan } from './transmissionBinPlan.ts'
+
+/** The chunk groups over the scene's rows, the lists and the transmission alone
+ *  (`VsmTransmissionContext.lists`). */
+export interface ChunkLists {
+  trans: VsmTransmission
+  cand: GPUBindGroup
+  views1: GPUBindGroup
+  cull1: GPUBindGroup
+  args: GPUBindGroup
+  pages1: GPUBindGroup
+}
+
+/** The chunk groups over the tables of `res.current` and the lists they were made with
+ *  (`VsmTransmissionContext.tables`): the cull's two and the argument kernel's, as the opaque
+ *  raster's chunk commands take them, the pages' and the bin's. */
+export interface ChunkTables {
+  views0: GPUBindGroup
+  views1: GPUBindGroup
+  cull0: GPUBindGroup
+  cull1: GPUBindGroup
+  args: GPUBindGroup
+  pages0: GPUBindGroup
+  bin1: GPUBindGroup
+}
+
+function chunkLists(
+  ctx: VsmTransmissionContext,
+  trans: VsmTransmission,
+  scene: VsmRenderScene,
+  b: Required<VsmTransmissionContext['buffers']>,
+): ChunkLists {
+  const { device } = ctx
+  const { params, counts, pairs, cand, views1, cull1, args } = vsmChunkListGroups(
+    device,
+    ctx,
+    ctx.candidates.groups[0],
+    scene,
+    b,
+    [trans.uniform],
+  )
+  return {
+    trans,
+    cand,
+    views1,
+    cull1,
+    args,
+    pages1: vsmBufferGroup(device, ctx.pages.groups[1], [
+      params,
+      b.cmds,
+      counts,
+      pairs,
+      trans.build,
+      trans.uniform,
+    ]),
+  }
+}
+
+function chunkTables(res: VsmResources, ctx: VsmTransmissionContext): ChunkTables {
+  const { device } = ctx,
+    { trans, views1, cull1, args } = ctx.lists!
+  return {
+    views0: device.createBindGroup({
+      layout: ctx.views.groups[0],
+      entries: vsmBindGroupEntries(res, VSM_RENDER_VIEWS_SPECS),
+    }),
+    views1,
+    cull0: device.createBindGroup({
+      layout: ctx.cull.groups[0],
+      entries: vsmBindGroupEntries(res, VSM_RENDER_CULL_SPECS),
+    }),
+    cull1,
+    args,
+    pages0: device.createBindGroup({
+      layout: ctx.pages.groups[0],
+      entries: vsmBindGroupEntries(res, VSM_TRANSMISSION_PAGES_SPECS),
+    }),
+    bin1: vsmBufferGroup(device, ctx.bin.groups[1], [
+      ctx.buffers.pairs!,
+      res.current.projectionData,
+      trans.uniform,
+      trans.build,
+    ]),
+  }
+}
+
+/**
+ * The bin's lists, parameters and groups, its counters cleared: the encoder's part of the bin,
+ * before the transmission's pass opens. The groups over the scene's rows, the lists and the
+ * transmission (`ctx.lists`) are made again only when one of them moved, those over the VSM tables
+ * once a frame set: the opaque raster's mechanism (`renderChunks.ts: renderGroups`). Returns the
+ * frame's held tables' groups: a frame allocates nothing.
+ */
+export function binLists(
+  encoder: GPUCommandEncoder,
+  ctx: VsmTransmissionContext,
+  trans: VsmTransmission,
+  res: VsmResources,
+  scene: VsmRenderScene,
+  plan: BinPlan,
+) {
+  const { params, counts } = vsmEnsureLists(ctx, TRANSMISSION_LABEL, plan.within.size!)
+  vsmWriteChunkParams(ctx.device, scene.camera, plan, params, ctx.slots)
+  encoder.clearBuffer(counts, 0, plan.within.size!.counts)
+  const b = ctx.buffers as Required<VsmTransmissionContext['buffers']>
+  if (vsmSceneRowsMoved(ctx.bound, scene, b, trans)) ctx.lists = undefined
+  const lists = (ctx.lists ??= chunkLists(ctx, trans, scene, b))
+  return vsmPerFrameSet(ctx.tables, res, chunkTables, ctx, lists)
+}
+
+/** The blended rows' bin, in the chunks `plan` holds, in `pass`, over the groups `tables`
+ *  (`binLists`): candidates, then per chunk the cull, its commands' redrawn pages and the bin. */
+export function encodeBin(
+  pass: GPUComputePassEncoder,
+  ctx: VsmTransmissionContext,
+  scene: VsmRenderScene,
+  plan: BinPlan,
+  tables: ChunkTables,
+) {
+  const lists = ctx.lists!,
+    args = ctx.buffers.args!
+  encodeVsmCandidates(
+    pass,
+    ctx.candidates.pipeline,
+    lists.cand,
+    ctx,
+    tables,
+    plan.rowCount,
+    plan.viewCount,
+  )
+  for (let c = 0; c < plan.chunks; c++) {
+    const { offset } = ctx.passes.chunk(c)
+    encodeVsmChunkCommands(pass, ctx, tables, args, c, offset)
+    // A group per command, as the expand's arguments: its pages, then its triangles.
+    const at = (c * VSM_RENDER_ARGS_STRIDE_WORDS + VSM_RENDER_ARGS_EXPAND) * 4
+    pass.setPipeline(ctx.pages.pipeline)
+    pass.setBindGroup(0, tables.pages0)
+    pass.setBindGroup(1, lists.pages1, offset)
+    pass.dispatchWorkgroupsIndirect(args, at)
+    pass.setPipeline(ctx.bin.pipeline)
+    pass.setBindGroup(0, scene.pageGroup)
+    pass.setBindGroup(1, tables.bin1)
+    pass.dispatchWorkgroupsIndirect(args, at)
+  }
+}

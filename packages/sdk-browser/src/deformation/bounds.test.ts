@@ -4,15 +4,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { paletteReach, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
-import * as G from '../host/graph/graph.fixture.ts'
-import { collectClusterPages } from '../page/selection/collect.ts'
-import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
-import { dagFixture } from '../page/selection/dag.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
+import { collectClusterPages } from '../geometry/selection/collect.ts'
+import { selectVisiblePages } from '../geometry/cut/cut.fixture.ts'
+import { dagFixture } from '../geometry/selection/dag.fixture.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
-import { createHeldResidency } from '../page/cut/held.fixture.ts'
+import { createHeldResidency } from '../geometry/cut/held.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
-import { graphDraws } from '../page/selection/drawSource.ts'
+import { graphDraws } from '../geometry/selection/drawSource.ts'
 
 /** A seeded generator, so a failure names the case it met. */
 function random(seed: number) {

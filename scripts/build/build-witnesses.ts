@@ -10,7 +10,7 @@
 import { build, type Plugin } from 'esbuild'
 import { relative, resolve, sep } from 'node:path'
 import { emittedOf } from './engine-dist.ts'
-import { REPOSITORY_ROOT, posixPath } from '../repository-files.ts'
+import { REPOSITORY_ROOT, posixPath } from '../git/repository-files.ts'
 
 const packages = resolve(REPOSITORY_ROOT, 'packages')
 const outdir = resolve(REPOSITORY_ROOT, 'dist/witnesses')

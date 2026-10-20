@@ -2,10 +2,10 @@
 // 2.8 above a receiver square, under a sun whose disk is 0.1 radian wide: from the receiver a slat's
 // penumbra is 0.56 wide, nearly twice the period, so no point of it is lit or shaded whole. The
 // receiver is opaque, or a blended surface, or absent; the slats may be taken away (`open`).
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import { batisseur, square } from '../../kit/device/sharedSceneProof.ts'
-import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 
 export type Receiver = 'opaque' | 'blend' | 'none'
 

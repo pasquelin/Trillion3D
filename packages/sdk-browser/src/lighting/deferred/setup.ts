@@ -1,19 +1,19 @@
-import { receiverPlaceholders } from '../../webgpu/visibility/receiver.ts'
+import { receiverPlaceholders } from '../../visibility/passes/receiver.ts'
 import { deferredLayoutEntries } from './layoutEntries.ts'
 import { standInTexture } from '../../gpu/core/standInTexture.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { arrayView } from '../../gpu/core/textureViews.ts'
-import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from '../../bounce/atlas.ts'
-import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
-import { runtimeStandIns } from '../../bounce/runtimeStandIns.ts'
-import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
+import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from '../bounce/atlas.ts'
+import { BOUNCE_GRID_BYTES } from '../bounce/uniform.ts'
+import { runtimeStandIns } from '../bounce/runtime/runtimeStandIns.ts'
+import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../shadows/vsm/constants.ts'
 import {
   VSM_PROJECTION_MASK_FORMAT,
   VSM_PROJECTION_THROUGH_FORMAT,
   VSM_PROJECTION_TILE_FORMAT,
-} from '../../vsm/projectionWgsl.ts'
-import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
-import { VSM_PROJECTION_VIEW_BYTES } from '../../vsm/projectionView.ts'
+} from '../shadows/vsm/projection/projectionWgsl.ts'
+import { VSM_TRANSMISSION_FORMAT } from '../shadows/vsm/transmission/transmissionLayout.ts'
+import { VSM_PROJECTION_VIEW_BYTES } from '../shadows/vsm/projection/projectionView.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */

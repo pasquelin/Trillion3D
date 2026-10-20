@@ -1,7 +1,7 @@
 // The scene the transform proofs move: a full-frame opaque background, and a transparent tile
 // named `tile` under a `pivot` node. The engine tells the tile apart only by its declared pass and
 // its material.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import {

@@ -1,0 +1,177 @@
+import { createCutReadiness, type CutReadiness } from '../cut/readiness.ts'
+import type { ResidencyChanges } from '../../gpu/core/selection.ts'
+import type { CullingLinks } from '../cut/links.ts'
+import type { DagCutLinks, PackedDag } from './types.ts'
+import { DAG_NODE_FLOATS } from './types.ts'
+import { NODE_OPEN } from './nodeLayout.ts'
+import { createChangedRuns, type ChangedRuns } from '../residency/ranges.ts'
+import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
+import { createHeldOpen, heldOpenSlots } from './heldOpen.ts'
+import { VIEW_ROWS } from '../rows/tableRows.ts'
+import { rootOfPacked, type PlacementIndex } from '../selection/placements.ts'
+import type { PageResidency } from '../../gpu/core/selection.ts'
+
+/**
+ * The cut rule's residency over a whole packing: one `createCutReadiness` per placement, read at
+ * its packed index. The kernel's host feeds it the per-page residency and uploads what changed
+ * (`residencyUpload.ts`), whose bit sets are then the only dense copy of it.
+ *
+ * A placement's node reads its primitive's shared node, whose open count is the DAG's with nothing
+ * resident (`packCullingNodes`); a count a resident page moves is the placement's own, kept in the
+ * table of open counts placements hold (`heldOpen.ts`, `heldSlots` slots), the one the kernel and
+ * the oracle read. The state itself is held for the resident pages only
+ * (`../cut/readiness.ts`, #483 rule 6).
+ */
+export function createDagReadiness(packed: PackedDag, heldSlots = 0) {
+  // A host whose readout holds no table still keeps one, for the rows a view starts with: the
+  // oracle reads it.
+  const heldOpen = createHeldOpen(heldSlots || heldOpenSlots(VIEW_ROWS))
+  packed.heldOpen = heldOpen
+  const r: Readiness = {
+    packed,
+    nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
+    pageIndex: packed.pageIndex,
+    ...{ blank: new Map(), blankPages: new Map(), worlds: [] },
+    // Sized for the packing's placements, the live ones and those a growth appends (`append`).
+    held: new Uint8Array(Math.max(packed.worldCount, packed.cutLinks.length)),
+    dirty: createChangedRuns(),
+    ...{ heldCount: 0, pages: [], w: 0, hostBytes: 0 },
+    onPage: (page: number) => r.pages.push(packed.cutLinks[r.w].pageBase + page),
+    // A count equal to the shared node's is no placement's own: the table holds none for it.
+    onNode: (node: number) => {
+      const at = packed.cutLinks[r.w].nodeBase + node,
+        open = r.worlds[r.w].openAt(node)
+      const own = open === r.nodeInts[at * DAG_NODE_FLOATS + NODE_OPEN] ? undefined : open
+      heldOpen.set(r.w, at, own)
+    },
+  }
+  const { worlds, pageIndex } = r
+  // Nothing is resident yet: each placement reads its nodes' own counts, the DAG's.
+  for (const links of packed.cutLinks) worlds.push(blankOf(r, links))
+  return {
+    /** The packed pages of placement `w` that are ready with nothing resident, and those whose
+     *  children are: the same for every placement of a primitive, found once per shared state. */
+    blankPages(w: number) {
+      return blankPagesOf(r, w)
+    },
+    /** The rule's `resident(c)` and `resident(childGroup(c))` of packed page `page`; a page no
+     *  placement holds — room a growth has not filled — is neither. */
+    isReady(page: number) {
+      const at = rootOfPacked(pageIndex, page)
+      return !!worlds[at]?.isReady(page - packed.cutLinks[at].pageBase)
+    },
+    isChildReady(page: number) {
+      const at = rootOfPacked(pageIndex, page)
+      return !!worlds[at]?.isChildReady(page - packed.cutLinks[at].pageBase)
+    },
+    /** The placements a growth appended (`appendDagRoots`), up to `packed.cutLinks`' end: each
+     *  reads its primitive's state with nothing resident, its nodes' own counts. */
+    append() {
+      for (let at = worlds.length; at < packed.cutLinks.length; at++)
+        worlds.push(blankOf(r, packed.cutLinks[at]))
+    },
+    /** The placements holding a state of their own: those a page of which is resident. */
+    get heldPlacements() {
+      return r.heldCount
+    },
+    /** Bytes of the host tables: each placement's state, sized by its resident pages. Read in
+     *  constant time, whatever the number of placements (#483 rule 7). */
+    get hostBytes() {
+      return r.hostBytes
+    },
+    /** Reads `resident` at the pages `changes` names — every page when there is none —,
+     *  and settles: what is handed over is what moved from the state with nothing resident. */
+    apply: (resident: PageResidency, changes?: ResidencyChanges) => apply(r, resident, changes),
+  }
+}
+
+type Readiness = {
+  packed: PackedDag
+  nodeInts: Uint32Array
+  pageIndex: PlacementIndex
+  /** A placement holds its own state only while one of its pages is resident: otherwise it reads
+   *  its primitive's state with nothing resident, one shared by every placement of the primitive
+   *  (an instance reads its primitive's pages, it holds none). The heap thus follows what is
+   *  resident, never the placement count (#1235, #483 rule 6). */
+  blank: Map<CullingLinks, Map<DagCutLinks['structure'], CutReadiness>>
+  worlds: CutReadiness[]
+  blankPages: Map<CutReadiness, { ready: number[]; child: number[] }>
+  held: Uint8Array
+  heldCount: number
+  /** Placements `set` touched since the last settle. */
+  dirty: ChangedRuns
+  pages: number[]
+  /** The placement being settled, which `onPage` and `onNode` read. */
+  w: number
+  /** Every placement's `hostBytes`, kept as a running total: each settle adds what moved. */
+  hostBytes: number
+  onPage: (page: number) => void
+  onNode: (node: number) => void
+}
+
+function blankOf(r: Readiness, { structure, links }: DagCutLinks) {
+  let byStructure = r.blank.get(links)
+  if (!byStructure) r.blank.set(links, (byStructure = new Map()))
+  let shared = byStructure.get(structure)
+  if (!shared) byStructure.set(structure, (shared = createCutReadiness(structure, links)))
+  return shared
+}
+
+/** The pages of `w`'s shared blank state that read ready, as offsets from its first page. */
+function blankPagesOf(r: Readiness, w: number) {
+  const state = blankOf(r, r.packed.cutLinks[w])
+  let pages = r.blankPages.get(state)
+  if (!pages) {
+    const ready: number[] = [],
+      child: number[] = []
+    for (let page = 0; page < r.packed.cutLinks[w].pageCount; page++) {
+      if (state.isReady(page)) ready.push(page)
+      if (state.isChildReady(page)) child.push(page)
+    }
+    r.blankPages.set(state, (pages = { ready, child }))
+  }
+  return pages
+}
+
+function own(r: Readiness, at: number) {
+  if (!r.held[at]) {
+    r.held[at] = 1
+    r.heldCount++
+    r.worlds[at] = createCutReadiness(r.packed.cutLinks[at].structure, r.packed.cutLinks[at].links)
+  }
+  return r.worlds[at]
+}
+
+/** Settles every placement `set` touched; returns the sorted, repeat-free packed pages whose
+ *  readiness changed, the open counts that moved held in the table (`heldOpen.ts`). */
+function settle(r: Readiness) {
+  const { worlds, pages } = r
+  pages.length = 0
+  for (const touched of r.dirty.take()) {
+    const world = worlds[(r.w = touched)]
+    r.hostBytes += world.settle(r.onPage, r.onNode)
+    // Its last page left: it reads the shared state again, which holds the same values.
+    if (world.holdsNothing) {
+      r.hostBytes -= world.hostBytes
+      worlds[touched] = blankOf(r, r.packed.cutLinks[touched])
+      r.held[touched] = 0
+      r.heldCount--
+    }
+  }
+  uniqueSortedInPlace(pages)
+  return { pages }
+}
+
+function set(r: Readiness, page: number, value: boolean) {
+  const at = rootOfPacked(r.pageIndex, page)
+  if (!value && !r.held[at]) return
+  if (own(r, at).set(page - r.packed.cutLinks[at].pageBase, value)) r.dirty.mark(at)
+}
+
+function apply(r: Readiness, resident: PageResidency, changes: ResidencyChanges | undefined) {
+  if (changes)
+    for (let i = 0; i < changes.count; i++)
+      set(r, changes.pages[i], !!resident.flag(changes.pages[i]))
+  else for (let page = 0; page < r.packed.pageCount; page++) set(r, page, !!resident.flag(page))
+  return settle(r)
+}

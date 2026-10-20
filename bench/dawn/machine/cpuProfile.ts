@@ -3,7 +3,7 @@
 import { Session } from 'node:inspector/promises'
 import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 type CallFrame = { functionName: string; url: string; lineNumber: number }
 type ProfileNode = { id: number; callFrame: CallFrame; children?: number[] }

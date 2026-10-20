@@ -1,4 +1,4 @@
-// Oracles, page-source side: `packages/sdk-browser/src/world/session/pageSources.ts:20-49`, copied as-is. No host library here: the unit tests read these.
+// Oracles, page-source side: `packages/sdk-browser/src/session/pageSources.ts:20-49`, copied as-is. No host library here: the unit tests read these.
 import type { ClusterManifest, Page } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import type { GeometryPageDescriptor } from '../../../packages/sdk-core/src/page/contracts.ts'
 

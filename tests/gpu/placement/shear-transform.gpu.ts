@@ -6,17 +6,17 @@
 // approximation, it changed the selected page.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
 import { OPEN_CONE } from '../../kit/reference/cone.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
 import { runSelectionKernel } from '../dag/selectionKernel.ts'
-import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/geometry/dag/culling.fixture.ts'
 
 const VIEWPORT: [number, number] = [1000, 1000]
 // A unit local box: sheared, it covers x ∈ [-4, 4]; recomposed as TRS, x ∈ [-2.364, 2.364].

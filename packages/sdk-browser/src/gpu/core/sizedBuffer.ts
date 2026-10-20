@@ -1,7 +1,7 @@
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import { grownByCopy } from './tableGrowth.ts'
 
-/** Makes a buffer, in place of `old` when it replaces one: a cut's (`../dag/cutBuffers.ts`,
+/** Makes a buffer, in place of `old` when it replaces one: a cut's (`../../geometry/dag/cut/cutBuffers.ts`,
  *  `cutBuffer`), which may refuse. */
 export type BufferMaker = (descriptor: GPUBufferDescriptor, old?: GPUBuffer) => GPUBuffer
 

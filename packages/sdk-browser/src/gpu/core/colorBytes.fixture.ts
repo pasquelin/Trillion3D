@@ -32,6 +32,6 @@ const COLOR_TARGET_COST: Partial<Record<GPUTextureFormat, [cost: number, alignme
   r32float: [4, 4],
   rg32uint: [8, 4],
   rgba16float: [8, 2],
-  // The transparents' front lobes, which the front pass writes (`../../reflections/frontLayer.ts`).
+  // The transparents' front lobes, which the front pass writes (`../../lighting/reflections/frontLayer.ts`).
   rgba32uint: [16, 4],
 }

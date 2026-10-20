@@ -3,29 +3,29 @@
 // the engine's own draw (`engineDraws.ts`).
 import { boxCenter } from '../../../packages/math/src/geometry/box.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import type { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
 import { frustumExcludesBox } from '../../../packages/math/src/geometry/frustum/box.ts'
 import { frustumPlanesFromMatrix } from '../../../packages/math/src/geometry/frustum/frustum.ts'
-import { frustumPlanesToLocal } from '../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts'
-import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import { frustumPlanesToLocal } from '../../../packages/sdk-browser/src/geometry/dag/oracle/math.fixture.ts'
+import type { NormalCone } from '../../../packages/sdk-browser/src/geometry/cone/cone.ts'
 import {
   coneCullsPageWith,
   coneContextFor,
   createConeContext,
-} from '../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { selectVisiblePages } from '../../../packages/sdk-browser/src/page/cut/cut.fixture.ts'
-import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+} from '../../../packages/sdk-browser/src/geometry/cone/cone.fixture.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { selectVisiblePages } from '../../../packages/sdk-browser/src/geometry/cut/cut.fixture.ts'
+import type { DagRoot } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { createEngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { readCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
+import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
 import { project } from '../../kit/device/cameraRig.ts'
 import { worldPose, type PoseParams } from './lightingNormalCases.ts'
-import { cullingInPlace } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
+import { cullingInPlace } from '../../../packages/sdk-browser/src/geometry/dag/culling.fixture.ts'
 
 type Vec3 = [number, number, number]
 /** A case's pose: `PoseParams`, its world size, and whether it is mirrored. */

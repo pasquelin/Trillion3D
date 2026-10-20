@@ -1,4 +1,4 @@
-// A pool place on the GPU (`texture/tiles.ts`, `webgpu/tile/poolPlaceWgsl.ts`): the place a table word
+// A pool place on the GPU (`texture/tiles.ts`, `virtual/pool/poolPlaceWgsl.ts`): the place a table word
 // names — column, row, and a layer up to the last a pool may take, past the 255 an 8-bit field held
 // — is the one the atlas reads decode, for a streamed tile's entry and for a texture's tail word;
 // and on a real pool, the tap the shader builds from it samples the very texel the streamer wrote
@@ -13,10 +13,10 @@ import {
   POOL_LAYER_SIDE,
   POOL_MAX_LAYERS,
   type TilePlace,
-} from '../../../packages/sdk-browser/src/texture/tiles.ts'
+} from '../../../packages/sdk-browser/src/materials/texture/tiles.ts'
 import { TILE_BORDER } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
-import { POOL_PLACE_WGSL } from '../../../packages/sdk-browser/src/webgpu/tile/poolPlaceWgsl.ts'
-import { cellOrigin } from '../../../packages/sdk-browser/src/webgpu/tile/write.ts'
+import { POOL_PLACE_WGSL } from '../../../packages/sdk-browser/src/materials/virtual/pool/poolPlaceWgsl.ts'
+import { cellOrigin } from '../../../packages/sdk-browser/src/materials/virtual/write.ts'
 import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 

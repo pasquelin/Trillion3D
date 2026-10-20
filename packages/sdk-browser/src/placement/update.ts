@@ -1,9 +1,9 @@
-import type { ClusterRoot } from '../page/selection/types.ts'
-import { worldMoved } from '../page/selection/rootWorld.ts'
-import { rowShadowless, type PlacementRows } from './rows.ts'
+import type { ClusterRoot } from '../geometry/selection/types.ts'
+import { worldMoved } from '../geometry/selection/rootWorld.ts'
+import { rowShadowless, type PlacementRows } from './rows/rows.ts'
 import { settleRoot } from './hidden.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
-import type { NodeIndex } from '../webgpu/pages/render/movedNode.ts'
+import type { NodeIndex } from '../frame/render/movedNode.ts'
 
 /** What a pose did to a placement: nothing, a move of one already moving, a first move. */
 export const MOVE_NONE = 0,
@@ -42,7 +42,7 @@ export const rootRankOfRow = <T>(
   index: number,
 ) => rowRoots(roots, rows)[index]?.rank ?? -1
 
-/** A root list's rows were rebound or extended (`growth.ts`): its index is built again
+/** A root list's rows were rebound or extended (`growth/growth.ts`): its index is built again
  *  at the next follow. */
 export const forgetRowRoots = (roots: readonly object[]) => {
   indexes.delete(roots)
@@ -57,9 +57,9 @@ export const forgetRowRoots = (roots: readonly object[]) => {
  * shown or hidden, not moved —, and says whether it moved (`MOVE_*`). A root that began or stopped
  * casting is not made a moving caster for it. `follow` names each root that reads a written row:
  * the rows pass derives its rows again, and they stale the shadow pages they left and entered
- * (`rowCastWgsl.ts`). A row of the range left where it stands — a pose written again unchanged, a
+ * (`rows/rowCastWgsl.ts`). A row of the range left where it stands — a pose written again unchanged, a
  * row between two written ones — moves nothing. A row re-seated on another mesh raises the
- * revision of `owner`'s index of the roots by node (`../webgpu/pages/render/movedNode.ts`). Returns whether a drawn root moved, was shown or
+ * revision of `owner`'s index of the roots by node (`../frame/render/movedNode.ts`). Returns whether a drawn root moved, was shown or
  * hidden, or turned to cast or not: a still scene pays nothing downstream.
  */
 export function followPlacementRows<T>(

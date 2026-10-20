@@ -1,4 +1,4 @@
-// The per-element loops of the world step (`packages/sdk-browser/src/webgpu/pages/render/render.ts`), on the root count of the
+// The per-element loops of the world step (`packages/sdk-browser/src/frame/render/render.ts`), on the root count of the
 // reference scene: what a scene change pays in JavaScript — a moving camera pays none, each cut
 // reading its translations at its own eye on the GPU —, timed on a nanosecond clock where the engine's
 // own `worldMs` bound reads on a 0.1 ms one. This is the measurement a WebAssembly kernel is gated
@@ -6,9 +6,9 @@
 import * as THREE from 'three'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
-import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/packWorlds.ts'
-import { changedWorlds } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
-import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import { rootWorlds } from '../../../packages/sdk-browser/src/geometry/dag/pack/packWorlds.ts'
+import { changedWorlds } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worlds.ts'
+import type { DagRoot } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 
 /** Emerald Square, `--scene emerald-square`: 2 479 selection roots (campaign `l-80b`). */
 const ROOTS = 2479
@@ -28,8 +28,8 @@ const listed = new Int32Array(ROOTS)
 const results = await measure({
   name: 'world step loops',
   fichier: [
-    'packages/sdk-browser/src/gpu/dag/packWorlds.ts',
-    'packages/sdk-browser/src/gpu/dag/worlds.ts',
+    'packages/sdk-browser/src/geometry/dag/pack/packWorlds.ts',
+    'packages/sdk-browser/src/geometry/dag/worlds/worlds.ts',
   ],
   cas: [
     {

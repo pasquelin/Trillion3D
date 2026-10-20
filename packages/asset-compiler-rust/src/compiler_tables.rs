@@ -1,7 +1,7 @@
 //! The tables that describe the prepared scene: its node graph with the local pose of every node,
 //! the cameras it carries, the surfaces it wears and, per published document, the geometry layout of
 //! every primitive. A cache product under its own name, beside `lights.json`, from which
-//! `packages/sdk-browser/src/world/scene/scene.ts` builds the scene the engine draws — no glTF is
+//! `packages/sdk-browser/src/scene/drive/scene.ts` builds the scene the engine draws — no glTF is
 //! parsed at runtime.
 //!
 //! Source of every value: the glTF this same compilation publishes as `source.gltf` — after the

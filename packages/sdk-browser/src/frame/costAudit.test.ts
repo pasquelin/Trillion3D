@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { surfaceOf } from '../page/surface.ts'
+import { surfaceOf } from '../geometry/pages/surface.ts'
 import { gpuFrameCostSnapshot } from './costAudit.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import type { WebgpuPagesRuntime } from './backend/runtime.ts'
 
 test('opt-in snapshot: bounded, without changing the selection or inventing the GPU mask', () => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location')

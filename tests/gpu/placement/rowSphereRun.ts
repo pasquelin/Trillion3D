@@ -6,16 +6,16 @@ import {
   DERIVE_ROWS_ENTRY,
   DERIVE_ROWS_WGSL,
   PART_SPHERES,
-} from '../../../packages/sdk-browser/src/placement/rowWordsWgsl.ts'
+} from '../../../packages/sdk-browser/src/placement/rows/rowWordsWgsl.ts'
 import {
   INPUT_FLAGS,
   ROW_INPUT_DOUBLES,
-} from '../../../packages/sdk-browser/src/placement/rowInputPack.ts'
-import { LOD_BIT } from '../../../packages/sdk-browser/src/webgpu/shadow/rowLodWords.ts'
-import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rowSphere.ts'
+} from '../../../packages/sdk-browser/src/placement/rows/rowInputPack.ts'
+import { LOD_BIT } from '../../../packages/sdk-browser/src/lighting/shadows/casters/rowLodWords.ts'
+import { sphereRadius } from '../../../packages/sdk-browser/src/placement/rows/rowSphere.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { generated } from '../../../packages/sdk-browser/src/placement/composeDoubles.fixture.ts'
+import { generated } from '../../../packages/sdk-browser/src/placement/compose/composeDoubles.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
 import { transformAffinePoint } from '../../../packages/math/src/vector/vector.ts'

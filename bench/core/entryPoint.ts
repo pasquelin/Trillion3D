@@ -2,7 +2,7 @@
 // `node --test` runs it — what decides whether a GPU or a browser may start from it.
 import { realpathSync } from 'node:fs'
 import { relative } from 'node:path'
-import { REPOSITORY_ROOT, posixPath } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, posixPath } from '../../scripts/git/repository-files.ts'
 
 /** The repository, which entry paths are relative to. */
 

@@ -8,7 +8,7 @@ import {
 } from '../../../../sdk-core/src/physics/layout.ts'
 import type { ObjectPhysics, PhysicsHost } from '../../../../sdk-core/src/physics/objectPhysics.ts'
 import { physicsMatterOf } from '../../../../sdk-core/src/physics/matter.ts'
-import { isSoftType } from '../../../../sdk-core/src/physics/soft.ts'
+import { isSoftType } from '../../../../sdk-core/src/physics/soft/soft.ts'
 import { resolveShape } from '../../../../sdk-core/src/physics/shape.ts'
 import { TRIANGLE_BYTES, type PhysicsBudget } from '../../../../sdk-core/src/physics/options.ts'
 import type { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'

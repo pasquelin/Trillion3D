@@ -1,12 +1,12 @@
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts'
-import type { PlacementRows } from './rows.ts'
-import type { PlacementLink } from './gpuCompose.ts'
-import type { DrawSource } from '../page/selection/drawSource.ts'
+import type { PlacementRows } from './rows/rows.ts'
+import type { PlacementLink } from './compose/gpuCompose.ts'
+import type { DrawSource } from '../geometry/selection/drawSource.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
-import type { HostAttributes, HostMaterials } from '../host/resources.ts'
+import type { HostAttributes, HostMaterials } from '../session/host/resources.ts'
 import type { WorldCells } from '../gpu/core/selection.ts'
-import type { TextureCache } from '../texture/textureCaches.ts'
+import type { TextureCache } from '../materials/texture/textureCaches.ts'
 
 /** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
  *  `from + count - 1` of the host geometry's list `name`. */
@@ -16,7 +16,7 @@ export type VertexRange = {
   count: number
 }
 
-/** How a material's alpha moved (`world/api/materialApi.ts`, #846): the host surfaces written,
+/** How a material's alpha moved (`api/materialApi.ts`, #846): the host surfaces written,
  *  and the modes before and after — equal when only a cutout's cutoff moved. */
 export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: AlphaMode }
 
@@ -38,11 +38,11 @@ export const blendMoves = ({ from, to }: AlphaChange) =>
 export const alphaMoves = (from: AlphaMode, to: AlphaMode, cutoffMoved: boolean) =>
   to !== from || (to === 'mask' && cutoffMoved)
 
-/** What an owner hands a session that grows its instance buffers in place (`growth.ts`). */
+/** What an owner hands a session that grows its instance buffers in place (`growth/growth.ts`). */
 export type PlacementGrowth = {
   /** An instance buffer the session holds was replaced by a larger one, `from`'s rows first and
    *  the rest parked: the session reads `to` from now on and holds its new rows, no table rebuilt
-   *  (`growth.ts`). */
+   *  (`growth/growth.ts`). */
   growPlacements(from: PlacementRows, to: PlacementRows): void
   /** Whether `growPlacements` takes each of `from` grown to `capacity` rows, asked before the
    *  owner replaces any: false leaves them as they are, the rows past them wait, and the owner says
@@ -55,7 +55,7 @@ export type PlacementGrowth = {
   addPlacements?(source: DrawSource, primitive: Primitive): Promise<string | undefined>
   /** The caches a model joining brings — its textures' chains and the folder their levels are
    *  read from —, handed before its sources: each texture it draws reads its own cache's levels,
-   *  as the open's do (`texture/textureCaches.ts`). */
+   *  as the open's do (`materials/texture/textureCaches.ts`). */
   addTextureCaches?(caches: readonly TextureCache[]): void
   /** The world DAG a model joined with (a `WorldRootsHold`, its sources handed to `addPlacements`
    *  first) is drawn from now on, its cells held far where the cut says: its root joins the cut
@@ -89,8 +89,8 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
    *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
    *  they were and where they go), each vertex at most `reach` from where its page is bounded on
-   *  an axis (`world/page/runtimePrimitive.ts`), each page's vertices within its box of `boxes`
-   *  (`world/core/pageMotion.ts`), when given: the engine writes those vertices into the buffers
+   *  an axis (`geometry/runtime/runtimePrimitive.ts`), each page's vertices within its box of `boxes`
+   *  (`session/world/pageMotion.ts`), when given: the engine writes those vertices into the buffers
    *  it holds, grows every cut of their roots by `reach` as a deformation's, bounds each page's
    *  row by its box, and stales what they shadowed, no table rebuilt. True when taken; false, the
    *  owner says it by name: those vertices are not drawn. */
@@ -115,12 +115,12 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   ): void
   /** The render scale asked in place (`EngineContext.renderScale`), drawn from the next frame, and
    *  the scale of the last image drawn. */
-  setRenderScale(scale: import('../frame/renderScaleOption.ts').RenderScale): void
+  setRenderScale(scale: import('../frame/scale/renderScaleOption.ts').RenderScale): void
   renderScale(): number
   /** The interactive loop's frame cap asked in place (`EngineContext.maxFrameRate`). */
   setMaxFrameRate(rate: number): void
   /** The host surfaces the session was opened with had their values rewritten in place, their
-   *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
+   *  version bumped (`session/world/materials/surface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. False for this change — a map whose picture
    *  changed size where its layout is fixed (#362) —, the owner says it by name: it is not redrawn.
    *  `values` false when only their textures moved — a picture, a sampling, a placement —: the

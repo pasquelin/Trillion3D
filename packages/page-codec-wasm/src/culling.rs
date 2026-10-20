@@ -1,5 +1,5 @@
 //! THE CULLING HIERARCHY BUILDER, one for the native compiler's primitives and world, and for the
-//! cuts the world makes at run time (`wasm_culling.rs`, in the page worker): clusters as their boxes,
+//! cuts the world makes at run time (`wasm/culling.rs`, in the page worker): clusters as their boxes,
 //! levels and replacement bands in, a cluster order and the nodes the GPU descent reads out. Pages
 //! follow the order, so every node owns a contiguous page range.
 use crate::min_ball::ball_of_balls;
@@ -28,7 +28,7 @@ pub struct CullingCluster {
     pub parent_error: f64,
 }
 
-/// Numbers per cluster record, the run-time cut's input (`wasm_culling.rs`): the box's least corner
+/// Numbers per cluster record, the run-time cut's input (`wasm/culling.rs`): the box's least corner
 /// then its greatest, the sphere of what replaces it, its replacement error (infinite for a root)
 /// and its level.
 pub const CULLING_RECORD_FLOATS: usize = 12;
@@ -163,5 +163,4 @@ pub fn build_culling_bvh(clusters: &[CullingCluster]) -> (Vec<usize>, Vec<Cullin
 #[cfg(test)]
 pub(crate) mod families;
 #[cfg(test)]
-#[path = "culling_tests.rs"]
 mod tests;

@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { directLightingWgsl } from './lightingWgsl.ts'
-import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { shaderFunctions, wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import {
   BOUNCE_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,

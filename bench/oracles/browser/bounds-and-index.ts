@@ -1,9 +1,9 @@
-// Oracle, scene side: `packages/sdk-browser/src/world/scene/scene.ts:18-36`, copied as-is (the
+// Oracle, scene side: `packages/sdk-browser/src/scene/drive/scene.ts:18-36`, copied as-is (the
 // page-source side is in `manifest-index.ts`).
 import * as THREE from 'three'
-import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostMesh } from '../../../packages/sdk-browser/src/session/host/resources.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
-import type { DrawAssociations } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
+import type { DrawAssociations } from '../../../packages/sdk-browser/src/geometry/selection/drawSource.ts'
 import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 

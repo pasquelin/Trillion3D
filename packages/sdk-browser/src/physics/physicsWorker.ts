@@ -23,7 +23,7 @@ import type { createThreadTuner } from './threadTuner.ts'
 import { createStepTimes } from './step/stepTimes.ts'
 import { startPhysics } from './workerStart.ts'
 import { joinedWords } from '../../../math/src/sequence/joined.ts'
-import type { WorkerScope } from '../host/workerScope.ts'
+import type { WorkerScope } from '../session/host/workerScope.ts'
 
 const scope = globalThis as unknown as WorkerScope<
   ToPhysics,

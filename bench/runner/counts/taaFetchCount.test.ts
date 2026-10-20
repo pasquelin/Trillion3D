@@ -6,16 +6,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { TAA_PASS_FETCHES, countTaaFetches } from './taaFetchCount.ts'
 import { wgslSource } from '../../../packages/math/src/wgsl/source.fixture.ts'
-import { velocityShader } from '../../../packages/sdk-browser/src/taa/velocityWgsl.ts'
-import { reprojectShader } from '../../../packages/sdk-browser/src/taa/reprojectWgsl.ts'
-import { thinGeometryShader } from '../../../packages/sdk-browser/src/taa/thinGeometryWgsl.ts'
-import { flickerShader } from '../../../packages/sdk-browser/src/taa/flickerWgsl.ts'
+import { velocityShader } from '../../../packages/sdk-browser/src/post/taa/velocityWgsl.ts'
+import { reprojectShader } from '../../../packages/sdk-browser/src/post/taa/reprojectWgsl.ts'
+import { thinGeometryShader } from '../../../packages/sdk-browser/src/post/taa/thinGeometryWgsl.ts'
+import { flickerShader } from '../../../packages/sdk-browser/src/post/taa/flickerWgsl.ts'
 import {
   heldMeasureShader,
   rejectionShader,
-} from '../../../packages/sdk-browser/src/taa/rejectionWgsl.ts'
-import { spatialAntiAliasingShader } from '../../../packages/sdk-browser/src/taa/spatialAntiAliasingWgsl.ts'
-import { taaResolveShader } from '../../../packages/sdk-browser/src/taa/resolveWgsl.ts'
+} from '../../../packages/sdk-browser/src/post/taa/rejectionWgsl.ts'
+import { spatialAntiAliasingShader } from '../../../packages/sdk-browser/src/post/taa/spatialAntiAliasingWgsl.ts'
+import { taaResolveShader } from '../../../packages/sdk-browser/src/post/taa/resolveWgsl.ts'
 
 /** The fetch calls a program's text holds: loads, filtered samples, gathers. */
 const fetchCalls = (program: Parameters<typeof wgslSource>[0]) =>

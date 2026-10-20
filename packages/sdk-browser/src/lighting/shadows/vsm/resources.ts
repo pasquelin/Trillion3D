@@ -1,0 +1,634 @@
+/**
+ * Every GPU buffer of the virtual shadow map system, sized by `layout.ts`, and the WGSL binding
+ * declarations for them.
+ *
+ * The tables could be allocated per frame for the current map count, extracting the ones the next
+ * frame reads. Here they are persistent, sized for a maximum count, and the extracted set is
+ * double-buffered: `frames[current]` / `frames[prev]`, swapped by `swapFrames()` at the point the
+ * frame data is extracted. The members no pass reads as the previous frame's are one buffer in
+ * both frames (`SHARED_FRAME_MEMBERS`). A count above the maximum needs a new
+ * `createVsmResources` (which drops the cache).
+ *
+ * 2D tables are storage buffers of u32, row-major, mips concatenated (see `pageTableWgsl.ts`). The
+ * physical pool (R32 texel array, 2 slices) is, a slice, buffers of one window each
+ * (`poolWindowSizes`), its texels page by page (`vsmPoolTexelIndexWgsl`): WebGPU's guaranteed
+ * binding, so the same buffers and the same addressing on every device. The VSM passes bind every
+ * window of both slices; a reader outside them (`../../direct/shadowWgsl.ts`: translucent
+ * surfaces) every window of the first, which is one (`VSM_FORWARD_LAYOUT`).
+ */
+import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
+import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_WGSL } from './projection/projectionDataWgsl.ts'
+import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import { writeChangedCopy } from '../../../gpu/core/writeChanged.ts'
+import {
+  createWebgpuBindIdentity,
+  type WebgpuBindIdentity,
+} from '../../../gpu/bind/bindIdentity.ts'
+import { pendingBuffers } from '../../../gpu/core/tableGrowth.ts'
+import type { VsmProjectionState } from './projection/projectionStore.ts'
+import type { VsmRenderContext } from './render/renderPass.ts'
+import type { VsmPageManagementContext } from './pageManagementPass.ts'
+import type { VsmCastState } from './invalidation/castStale.ts'
+import { vsmLayout, type VsmLayout, type VsmResourceOptions } from './layout.ts'
+import {
+  bufferBytes,
+  frameBufferSizes,
+  poolWindowSizes,
+  VSM_POOL_WINDOW_SHIFT,
+  setBufferSizes,
+  SHARED_FRAME_MEMBERS,
+  tableBufferSizes,
+} from './layoutBytes.ts'
+import { wgslBlock, type WgslDecl, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
+
+/** One frame's buffers; `pageTable`, `receiverCover` and `staleRects` are the same
+ *  buffer in both frames (`SHARED_FRAME_MEMBERS`). */
+export interface VsmFrameBuffers {
+  uniforms: GPUBuffer
+  pageTable: GPUBuffer
+  pageMarks: GPUBuffer
+  receiverCover: GPUBuffer
+  pageRequests: GPUBuffer
+  staleRects: GPUBuffer
+  mappedRects: GPUBuffer
+  projectionData: GPUBuffer
+}
+
+export interface VsmResources {
+  layout: VsmLayout
+  frames: [VsmFrameBuffers, VsmFrameBuffers]
+  current: VsmFrameBuffers
+  prev: VsmFrameBuffers
+  /** Persistent, updated in place by the physical page address update (one buffer in both frames). */
+  poolPageInfo: GPUBuffer
+  /** The raster marks: a word per pool page in each of `VSM_DIRTY_SLICES` slices, slice by slice. */
+  rasterMarks: GPUBuffer
+  /** The next-map data, indexed by the previous frame's id. */
+  nextMaps: GPUBuffer
+  /** [slice][part], slice 0 dynamic, 1 static. */
+  pagePool: GPUBuffer[][]
+  /** Per physical page, the closest depth (the greatest word, read as a float) of each of its
+   *  8×8-texel tiles of slice 0 (`VSM_LOG2_TILE_DEPTH_TEXELS`), rebuilt where a page changed
+   *  (`vsmTileDepthsBuild`): what the sun's rays prove they miss against
+   *  (`vsmRayMisses`). Made with the pool, every tile +inf until built: a tile never built proves
+   *  no miss. */
+  tileDepths: GPUBuffer
+  /** The `VSM_COUNTERS` counters. */
+  stats: GPUBuffer
+  /** The feedback status: [message id, free pages, pressure bias bits, scene frame]. */
+  feedback: GPUBuffer
+  /** The per-page dispatcher ids, sorted by bin. */
+  perPageIds: GPUBuffer
+  /** 2·poolPages + 1 words per list. */
+  pagesToClear: GPUBuffer
+  pagesForTiles: GPUBuffer
+  /** Indirect dispatch args: 1D, post-process 2×(x,y,z,count), tile depths 2×4. */
+  clearArgs: GPUBuffer
+  tileArgs: GPUBuffer
+  /** The pool sort's `POOL_SORT_WORDS` counts and places, zero at creation, then the count of
+   *  free pages and the pages, the next one to take last (`freePagesWgsl.ts`). */
+  freePages: GPUBuffer
+  /** Whether the cache data is available: prev buffers hold a frame extracted with caching on
+   *  (`keepVsmFrame`). */
+  prevFrameKept: boolean
+  /** Extraction point: the frame just rendered becomes `prev`. */
+  swapFrames(): void
+  /** The set's buffers, to free: those its tables take (`growVsmTables`), and the rest. */
+  made: { tables: GPUBuffer[]; rest: GPUBuffer[] }
+  /** What the passes made for this set and hold while it lives, each freed by its own release
+   *  with the set (`destroyEngineVsm`): the projection's view uniform and blue noise
+   *  (`releaseVsmProjection`), the raster's context (`releaseVsmRender`), the page management's
+   *  (`releaseVsmPageManagement`), the shadow changes' stale (`releaseVsmInvalidation`). */
+  projection?: VsmProjectionState
+  render?: VsmRenderContext
+  pageManagement?: VsmPageManagementContext
+  invalidation?: VsmCastState
+  destroy(): void
+  bytes: number
+}
+
+/**
+ * The WGSL function `name` giving the word of pool texel t = (x, y) in its slice: page by page.
+ * Page (px, py) fills the words [k·P², (k+1)·P²), k = (py << R) | px, P the page side and R =
+ * `poolRowShift` = log2(pages a row), passed as `rowShift`, its WGSL expression (a literal
+ * of the layout, or the uniform where a module is built without one); the page's texels row by
+ * row inside. Two texels one row apart in a page are one page row of words apart (512 bytes),
+ * where a slice laid row by row put them a whole pool row apart (64 KiB at 128 pages a row). Page
+ * rows stay whole and in order: a window (`VSM_POOL_WINDOW_SHIFT`) holds whole page rows.
+ * A buffer has no driver tiling; it is laid out as this says.
+ */
+function vsmPoolTexelIndexWgsl(name: string, rowShift: string) {
+  const L = VSM_LOG2_PAGE,
+    M = VSM_PAGE_TEXELS - 1
+  return wgslBlock(
+    `vsmPoolTexelIndexWgsl(${name}, ${rowShift})`,
+    [],
+    `fn ${name}(t:vec2u)->u32{return ((((t.y>>${L}u)<<${rowShift})|(t.x>>${L}u))<<${2 * L}u)|((t.y&${M}u)<<${L}u)|(t.x&${M}u);}`,
+  )
+}
+
+const S = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+
+/** Makes `size` bytes labelled `vsm.<label>`, into `into`. */
+const makeBuffer = (
+  device: GPUDevice,
+  into: GPUBuffer[],
+  label: string,
+  size: number,
+  usage = S(),
+) => {
+  const b = device.createBuffer({ label: `vsm.${label}`, size: bufferBytes(size), usage })
+  into.push(b)
+  return b
+}
+
+/** Both frames' buffers and those sized by the maps, of `layout`, made into `made`. */
+function createVsmTables(device: GPUDevice, layout: VsmLayout, made: GPUBuffer[]) {
+  const buffer = (label: string, size: number, usage?: GPUBufferUsageFlags) =>
+    makeBuffer(device, made, label, size, usage)
+  const frameSizes = frameBufferSizes(layout)
+  // Frame `k`'s buffers; the second frame takes the first's shared members, made once. The
+  // uniforms are a copy source, as every member a table growth carries (`growVsmTables`).
+  const uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+  const frame = (k: number, first?: VsmFrameBuffers) => {
+    const buffers = {} as VsmFrameBuffers
+    for (const [member, size] of Object.entries(frameSizes) as [keyof VsmFrameBuffers, number][]) {
+      const shared = SHARED_FRAME_MEMBERS.has(member)
+      buffers[member] =
+        first && shared
+          ? first[member]
+          : member === 'uniforms'
+            ? buffer(`${member}${k}`, size, uniform)
+            : buffer(shared ? member : `${member}${k}`, size)
+    }
+    return buffers
+  }
+  const first = frame(0)
+  const frames: [VsmFrameBuffers, VsmFrameBuffers] = [first, frame(1, first)]
+  const sizes = tableBufferSizes(layout)
+  return {
+    frames,
+    nextMaps: buffer('nextMaps', sizes.nextMaps),
+    perPageIds: buffer('perPageIds', sizes.perPageIds),
+  }
+}
+
+const bytesOf = (buffers: readonly GPUBuffer[]) => buffers.reduce((n, b) => n + b.size, 0)
+
+export function createVsmResources(device: GPUDevice, options: VsmResourceOptions): VsmResources {
+  const layout = vsmLayout(options)
+  const tableBuffers: GPUBuffer[] = [],
+    rest: GPUBuffer[] = []
+  const buffer = (label: string, size: number, usage?: GPUBufferUsageFlags) =>
+    makeBuffer(device, rest, label, size, usage)
+  const { frames, nextMaps, perPageIds } = createVsmTables(device, layout, tableBuffers)
+
+  const windows = poolWindowSizes(layout)
+  const pagePool = Array.from({ length: VSM_POOL_SLICES }, (_, s) =>
+    windows.map((size, w) => buffer(`physicalPool${s}.${w}`, size)),
+  )
+
+  const indirect = GPUBufferUsage.INDIRECT | S()
+  const once = setBufferSizes(layout)
+  const res: VsmResources = {
+    layout,
+    frames,
+    current: frames[0],
+    prev: frames[1],
+    poolPageInfo: buffer('poolPageInfo', once.poolPageInfo),
+    rasterMarks: buffer('rasterMarks', once.rasterMarks),
+    nextMaps,
+    pagePool,
+    stats: buffer('stats', once.stats),
+    feedback: buffer('feedback', once.feedback),
+    perPageIds,
+    pagesToClear: buffer('pagesToClear', once.pagesToClear),
+    pagesForTiles: buffer('pagesForTiles', once.pagesForTiles),
+    tileDepths: buffer('tileDepths', once.tileDepths),
+    clearArgs: buffer('clearArgs', once.clearArgs, indirect),
+    tileArgs: buffer('tileArgs', once.tileArgs, indirect),
+    freePages: buffer('freePages', once.freePages),
+    prevFrameKept: false,
+    swapFrames() {
+      const c = res.current
+      res.current = res.prev
+      res.prev = c
+    },
+    made: { tables: tableBuffers, rest },
+    destroy() {
+      for (const b of [...res.made.tables, ...res.made.rest]) b.destroy()
+    },
+    bytes: bytesOf(tableBuffers) + bytesOf(rest),
+  }
+  // A tile never built bounds nothing: +inf, whose test no sample passes (`vsmRayMisses`).
+  device.queue.writeBuffer(res.tileDepths, 0, new Float32Array(once.tileDepths / 4).fill(Infinity))
+  return res
+}
+
+/** The members a frame reads as the previous one's, none shared: what a table growth carries. */
+const CARRIED_MEMBERS = [
+  'uniforms',
+  'pageMarks',
+  'pageRequests',
+  'mappedRects',
+  'projectionData',
+] as const
+
+/**
+ * The tables of `res` grown in place to `options` — more table blocks, the receiver cover of more
+ * suns —, the pool and every buffer it sizes kept: the same pages, and their cache. The previous
+ * frame's members are copied whole into the new ones' prefix: a map's record and the rows its
+ * table origin names stay where they were, as the page table's width is fixed, and
+ * the pass that reads the previous frame's levels reads them by that frame's own uniforms, carried
+ * too (`VSM_INVALIDATION_SPECS`). The shared members, cleared before each read, and the buffers
+ * the plan writes every frame are not carried. Only the old tables are freed. `undefined`, and
+ * nothing made, when `options` asks no more than `res` holds. A refused buffer leaves `res` as it
+ * was (the caller's `constructGpuResources` frees what was made).
+ */
+export function growVsmTables(
+  device: GPUDevice,
+  res: VsmResources,
+  options: VsmResourceOptions,
+): VsmLayout | undefined {
+  const held = res.layout
+  const layout = vsmLayout({ ...options, poolPages: held.poolPages })
+  if (layout.fullMapCapacity <= held.fullMapCapacity && layout.coverWords <= held.coverWords)
+    return undefined
+  const { made } = res
+  const tableBuffers: GPUBuffer[] = []
+  const tables = createVsmTables(device, layout, tableBuffers)
+  pendingBuffers(device, tableBuffers, () => {
+    const parity = res.current === res.frames[0] ? 0 : 1
+    const prev = tables.frames[1 - parity]
+    const encoder = device.createCommandEncoder({ label: 'vsm.growTables' })
+    for (const member of CARRIED_MEMBERS) {
+      encoder.copyBufferToBuffer(res.prev[member], 0, prev[member], 0, res.prev[member].size)
+      // An upload that sends only what changed (`writeChanged`) knows what the copy holds.
+      writeChangedCopy(res.prev[member], prev[member])
+    }
+    device.queue.submit([encoder.finish()])
+    const held = made.tables
+    made.tables = tableBuffers
+    res.layout = layout
+    res.frames = tables.frames
+    res.current = tables.frames[parity]
+    res.prev = prev
+    res.nextMaps = tables.nextMaps
+    res.perPageIds = tables.perPageIds
+    res.bytes = bytesOf(tableBuffers) + bytesOf(made.rest)
+    return held
+  }).commit()
+  return layout
+}
+
+// ---- Binding builder ------------------------------------------------------------------------
+
+/** 'atomic' declares array<atomic<...>> (atomic or / min / max / add users). */
+type VsmAccess = 'read' | 'read_write' | 'atomic'
+
+type VsmBindingResource =
+  | 'uniforms'
+  | 'pageTable'
+  | 'pageMarks'
+  | 'receiverCover'
+  | 'pageRequests'
+  | 'staleRects'
+  | 'mappedRects'
+  | 'projectionData'
+  | 'freePages'
+  | 'poolPageInfo'
+  | 'rasterMarks'
+  | 'nextMaps'
+  | 'pagePool'
+  | 'stats'
+  | 'feedback'
+  | 'perPageIds'
+  | 'pagesToClear'
+  | 'pagesForTiles'
+  | 'tileDepths'
+  | 'clearArgs'
+  | 'tileArgs'
+
+export interface VsmBindingSpec {
+  resource: VsmBindingResource
+  /** First binding number; the pool takes `slices · windows` consecutive numbers. */
+  binding: number
+  /** The pool: the slices bound, from the first (`VSM_POOL_SLICES` unless given). */
+  slices?: number
+  access?: VsmAccess
+  /** Previous-frame buffer of a double-buffered resource. */
+  prev?: boolean
+  /** WGSL variable name; default `vsm<Resource>` (`vsmPrev<Resource>` for prev), uniforms `vsm`/`vsmPrev`. */
+  name?: string
+}
+
+const FRAME_RESOURCES = new Set<VsmBindingResource>([
+  'uniforms',
+  'pageTable',
+  'pageMarks',
+  'receiverCover',
+  'pageRequests',
+  'staleRects',
+  'mappedRects',
+  'projectionData',
+])
+
+/** Resources read through `<name>Load(index)` (2D tables and flat u32 arrays). */
+const U32_TABLES = new Set<VsmBindingResource>([
+  'pageTable',
+  'pageMarks',
+  'receiverCover',
+  'pageRequests',
+  'rasterMarks',
+  'stats',
+  'feedback',
+  'perPageIds',
+  'pagesToClear',
+  'pagesForTiles',
+  'tileDepths',
+  'clearArgs',
+  'tileArgs',
+])
+
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1)
+
+function varName(spec: VsmBindingSpec) {
+  if (spec.name) return spec.name
+  if (spec.resource === 'uniforms') return spec.prev ? 'vsmPrev' : 'vsm'
+  if (spec.resource === 'pagePool') return 'vsmPool'
+  return (spec.prev ? 'vsmPrev' : 'vsm') + cap(spec.resource)
+}
+
+function elementType(resource: VsmBindingResource, atomic: boolean) {
+  switch (resource) {
+    case 'staleRects':
+    case 'mappedRects':
+      // Atomic users address .x/.y/.z/.w as 4·rect + component (atomic min / max).
+      return atomic ? 'atomic<u32>' : 'vec4u'
+    case 'projectionData':
+      return 'VsmProjectionRecord'
+    case 'poolPageInfo':
+      return 'VsmPoolPageInfo'
+    case 'nextMaps':
+      return 'VsmNextMap'
+    default:
+      return atomic ? 'atomic<u32>' : 'u32'
+  }
+}
+
+/** The fragment declaring the struct a resource's elements are (`elementType`). */
+const STRUCT_OF: Partial<Record<VsmBindingResource, WgslDecl>> = {
+  projectionData: VSM_PROJECTION_DATA_WGSL,
+  poolPageInfo: VSM_STRUCTS_WGSL,
+  nextMaps: VSM_STRUCTS_WGSL,
+}
+
+/**
+ * WGSL declarations (and loaders) for `specs` in `group`. Emits, per u32 table named N:
+ * `fn NLoad(i:u32)->u32`, plus `NStore(i,v)` when writable and `NOr(i,v)->u32` when atomic.
+ * The pool emits `vsmPoolLoad(texel:vec2u,slice:u32)->u32`, and when writable `vsmPoolStore`,
+ * and when atomic `vsmPoolAtomicMax(texel,slice,value)` (the raster's atomic max: a value no
+ * greater than the word already held writes nothing, the word being the same).
+ * The block lists the structs its bindings name (`VSM_UNIFORMS_WGSL`, `VSM_PROJECTION_DATA_WGSL`,
+ * `VSM_STRUCTS_WGSL`). The pool's load is a declaration of its own (`vsmPoolLoadOf`), which the
+ * projection sample lists (`vsmProjectionSampleWgsl`).
+ */
+export function vsmBindingsWgsl(
+  group: number,
+  specs: readonly VsmBindingSpec[],
+  layout: VsmLayout,
+) {
+  const out: string[] = []
+  const deps = new Set<WgslDecl>()
+  for (const spec of specs) {
+    // Both frames hold one buffer of a shared member: its previous frame's content is gone.
+    if (spec.prev && SHARED_FRAME_MEMBERS.has(spec.resource))
+      throw new Error(`VSM: ${spec.resource} keeps no previous frame`)
+    const access = spec.access ?? 'read'
+    const atomic = access === 'atomic'
+    const space = access === 'read' ? 'storage,read' : 'storage,read_write'
+    const name = varName(spec)
+    if (spec.resource === 'uniforms') {
+      deps.add(VSM_UNIFORMS_WGSL)
+      out.push(`@group(${group}) @binding(${spec.binding}) var<uniform> ${name}:VsmUniforms;`)
+      continue
+    }
+    if (spec.resource === 'pagePool') {
+      deps.add(vsmPoolWgsl(group, spec, layout).accessors)
+      continue
+    }
+    const struct = STRUCT_OF[spec.resource]
+    if (struct) deps.add(struct)
+    out.push(
+      `@group(${group}) @binding(${spec.binding}) var<${space}> ${name}:array<${elementType(spec.resource, atomic)}>;`,
+    )
+    if (U32_TABLES.has(spec.resource)) {
+      out.push(
+        atomic
+          ? `fn ${name}Load(i:u32)->u32{return atomicLoad(&${name}[i]);}\nfn ${name}Store(i:u32,v:u32){atomicStore(&${name}[i],v);}\nfn ${name}Or(i:u32,v:u32)->u32{return atomicOr(&${name}[i],v);}`
+          : access === 'read_write'
+            ? `fn ${name}Load(i:u32)->u32{return ${name}[i];}\nfn ${name}Store(i:u32,v:u32){${name}[i]=v;}`
+            : `fn ${name}Load(i:u32)->u32{return ${name}[i];}`,
+      )
+    }
+  }
+  return wgslBlock(
+    `vsmBindingsWgsl(${group}, ${JSON.stringify(specs)}, ${layoutKey(layout)})`,
+    [...deps],
+    out.join('\n'),
+  )
+}
+
+/** The layout's numbers a module's text reads: the pool's windows, its row shift. */
+const layoutKey = (layout: VsmLayout) => `${poolWindowSizes(layout).length}/${layout.poolRowShift}`
+
+/**
+ * The layout a reader outside the VSM passes (the translucent layers) is compiled for, before any pool is
+ * granted: the largest pool the engine grants (`VSM_POOL_PAGES`), whose windows and row shift are
+ * every smaller pool's text too. Its slice is one window — 2048 pages of 64 KiB, WebGPU's
+ * guaranteed binding of 128 MiB —, so such a reader binds every window of the slice it reads in
+ * one binding, as its layout declares it. The engine's constants hold it, checked once here: a
+ * pool past one window would need the bindings and the storage buffers its stages do not hold.
+ */
+export const VSM_FORWARD_LAYOUT = vsmLayout({ fullMapCapacity: 0 })
+if (poolWindowSizes(VSM_FORWARD_LAYOUT).length !== 1)
+  throw new Error('VSM: the largest pool spans more than one window, which a forward read binds')
+
+/** The slices a pool spec binds. */
+const slicesOf = (spec: VsmBindingSpec) => spec.slices ?? VSM_POOL_SLICES
+
+/** The pool's `<name>Load` of `specs`' page pool in `group` (`vsmBindingsWgsl`): what a fragment
+ *  that reads the pool lists. */
+export function vsmPoolLoadOf(group: number, specs: readonly VsmBindingSpec[], layout: VsmLayout) {
+  const spec = specs.find((s) => s.resource === 'pagePool')
+  if (!spec) throw new Error('VSM: no page pool among the bindings')
+  return vsmPoolWgsl(group, spec, layout).load
+}
+
+/** Each pool's declarations, built once per binding, access, slices and layout numbers: the
+ *  bindings and `vsmPoolLoadOf` share them. */
+const pools = new Map<string, { load: WgslDecl; accessors: WgslDecl }>()
+
+function vsmPoolWgsl(group: number, spec: VsmBindingSpec, layout: VsmLayout) {
+  const access = spec.access ?? 'read',
+    name = varName(spec),
+    slices = slicesOf(spec)
+  const key = `${name}(${group}, ${spec.binding}, ${access}, ${slices}, ${layoutKey(layout)})`
+  let pool = pools.get(key)
+  if (!pool)
+    pools.set(key, (pool = buildPool(key, group, spec.binding, access, slices, layout, name)))
+  return pool
+}
+
+/**
+ * The pool's accessors over `slices` slices of the layout's windows from binding `first`: a texel's
+ * word (`vsmPoolTexelIndexWgsl`), its window that word over `VSM_POOL_WINDOW_SHIFT`, the slice's
+ * windows bound in order. A slice of one window — every pool the engine grants — is read at the word
+ * itself, the switch choosing the slice alone.
+ */
+function buildPool(
+  key: string,
+  group: number,
+  first: number,
+  access: VsmAccess,
+  slices: number,
+  layout: VsmLayout,
+  name: string,
+) {
+  const atomic = access === 'atomic'
+  const space = access === 'read' ? 'storage,read' : 'storage,read_write'
+  const windows = poolWindowSizes(layout).length
+  const lines: string[] = []
+  const vars: string[] = []
+  for (let s = 0; s < slices; s++)
+    for (let w = 0; w < windows; w++) {
+      const v = `${name}${s}_${w}`
+      vars.push(v)
+      lines.push(
+        `@group(${group}) @binding(${first + s * windows + w}) var<${space}> ${v}:array<${atomic ? 'atomic<u32>' : 'u32'}>;`,
+      )
+    }
+  const mask = `${(2 ** VSM_POOL_WINDOW_SHIFT - 1) >>> 0}u`
+  // One accessor: the texel's window by slice and word, \`body\` on that window's array at \`i\`.
+  const select =
+    windows === 1
+      ? ` let i=${name}TexelIndex(t);\n switch(slice){`
+      : ` let l=${name}TexelIndex(t);\n let i=l&${mask};\n switch(slice*${windows}u+(l>>${VSM_POOL_WINDOW_SHIFT}u)){`
+  const accessor = (signature: string, body: (v: string) => string, otherwise: string) =>
+    `fn ${name}${signature}{\n${select}\n${vars
+      .map((v, k) => ` case ${k}u:{${body(v)}}`)
+      .join('\n')}\n default:{${otherwise}}\n }\n}`
+  // Texture2DArray texel (x, y, slice): its word in the slice, page by page.
+  const load = wgslFn(
+    `${name}Load`,
+    [
+      wgslBlock(`${key} bindings`, [], lines.join('\n')),
+      vsmPoolTexelIndexWgsl(`${name}TexelIndex`, `${layout.poolRowShift}u`),
+    ],
+    accessor(
+      'Load(t:vec2u,slice:u32)->u32',
+      (v) => (atomic ? `return atomicLoad(&${v}[i]);` : `return ${v}[i];`),
+      'return 0u;',
+    ),
+  )
+  const rest: string[] = []
+  if (access !== 'read')
+    rest.push(
+      accessor(
+        'Store(t:vec2u,slice:u32,value:u32)',
+        (v) => (atomic ? `atomicStore(&${v}[i],value);` : `${v}[i]=value;`),
+        '',
+      ),
+    )
+  if (atomic)
+    rest.push(
+      accessor(
+        'AtomicMax(t:vec2u,slice:u32,value:u32)',
+        // A word only grows: one already at least \`value\` stays as the max would leave it.
+        (v) => `if(atomicLoad(&${v}[i])<value){atomicMax(&${v}[i],value);}`,
+        '',
+      ),
+    )
+  return { load, accessors: wgslBlock(`${key} accessors`, [load], rest.join('\n')) }
+}
+
+/** Number of binding slots a spec consumes. */
+function vsmBindingCount(spec: VsmBindingSpec, layout: VsmLayout) {
+  return spec.resource === 'pagePool' ? slicesOf(spec) * poolWindowSizes(layout).length : 1
+}
+
+/** Bind group layout entries matching `vsmBindingsWgsl`. */
+export function vsmBindGroupLayoutEntries(
+  specs: readonly VsmBindingSpec[],
+  layout: VsmLayout,
+  visibility: GPUShaderStageFlags,
+): GPUBindGroupLayoutEntry[] {
+  const out: GPUBindGroupLayoutEntry[] = []
+  for (const spec of specs) {
+    const type: GPUBufferBindingType =
+      spec.resource === 'uniforms'
+        ? 'uniform'
+        : (spec.access ?? 'read') === 'read'
+          ? 'read-only-storage'
+          : 'storage'
+    for (let k = 0; k < vsmBindingCount(spec, layout); k++)
+      out.push({ binding: spec.binding + k, visibility, buffer: { type } })
+  }
+  return out
+}
+
+/** Bind group entries matching `vsmBindingsWgsl`, using `res.current` / `res.prev` at call time. */
+export function vsmBindGroupEntries(
+  res: VsmResources,
+  specs: readonly VsmBindingSpec[],
+): GPUBindGroupEntry[] {
+  const out: GPUBindGroupEntry[] = []
+  for (const spec of specs) {
+    if (spec.resource === 'pagePool') {
+      res.pagePool
+        .slice(0, slicesOf(spec))
+        .flat()
+        .forEach((buffer, k) => out.push({ binding: spec.binding + k, resource: { buffer } }))
+      continue
+    }
+    const buffer = FRAME_RESOURCES.has(spec.resource)
+      ? (spec.prev ? res.prev : res.current)[spec.resource as keyof VsmFrameBuffers]
+      : (res[spec.resource as keyof VsmResources] as GPUBuffer)
+    out.push({ binding: spec.binding, resource: { buffer } })
+  }
+  return out
+}
+
+/** What a family builds over the tables of a frame set (`vsmPerFrameSet`): the identity of what
+ *  it named — the set, and what else its groups bind —, of depth two, the two sets taking turns,
+ *  and what was made at each of its slots. */
+export interface VsmPerFrameSet<T> {
+  identity: WebgpuBindIdentity
+  slots: T[]
+}
+
+/** A family's holder of what it builds over the frame sets (`vsmPerFrameSet`). */
+export const vsmFrameSetHeld = <T>(): VsmPerFrameSet<T> => ({
+  identity: createWebgpuBindIdentity(2),
+  slots: [],
+})
+
+/** What `make(res, arg)` builds over the tables of the frame set `res.current` and over `also`
+ *  — what else its groups bind —, kept in `held` (`createWebgpuBindIdentity`): made again only when
+ *  one of them moved, the two sets in turn each held; a set made again (`growVsmTables`), or
+ *  another `also`, makes its own. `make` and `arg` are the caller's own, so that a frame allocates
+ *  nothing to ask. */
+export function vsmPerFrameSet<T, A>(
+  held: VsmPerFrameSet<T>,
+  res: VsmResources,
+  make: (res: VsmResources, arg: A) => T,
+  arg: A,
+  also?: unknown,
+) {
+  const { identity, slots } = held
+  identity.next[0] = res.current
+  identity.next[1] = also
+  if (identity.moved()) slots[identity.slot] = make(res, arg)
+  return slots[identity.slot]
+}

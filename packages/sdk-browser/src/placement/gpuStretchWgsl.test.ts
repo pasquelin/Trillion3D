@@ -6,12 +6,12 @@
 import { f32Bits } from '../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { STRETCH_DOUBLE_WGSL, STRETCH_WGSL } from './gpuStretchWgsl.ts'
-import { DOUBLE_HELPERS, generated, pair, type Pair } from './composeDoubles.fixture.ts'
+import { DOUBLE_HELPERS, generated, pair, type Pair } from './compose/composeDoubles.fixture.ts'
 
 const run = shaderRun<{
   maxStretchOf(m: Pair[]): Pair

@@ -7,13 +7,13 @@
 // normal map with, against the same formula in JavaScript.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/codec/geometryPage.ts'
-import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/geometry/codec/geometryPage.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/geometry/codec/encodePage.fixture.ts'
 import type {
   PageAttribute,
   PageAttributes,
 } from '../../../packages/sdk-core/src/page/pageInput.ts'
-import { ringMesh } from '../../../packages/sdk-browser/src/page/codec/ringMesh.fixture.ts'
+import { ringMesh } from '../../../packages/sdk-browser/src/geometry/codec/ringMesh.fixture.ts'
 import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
 

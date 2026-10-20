@@ -11,7 +11,7 @@ import {
   perspectiveProjection,
 } from '../../../../../../../packages/math/src/projection/camera.ts'
 import { Object3D } from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
-import { Scene } from '../../../../../../../packages/sdk-browser/src/world/core/scene.ts'
+import { Scene } from '../../../../../../../packages/sdk-browser/src/session/world/scene.ts'
 
 /** The projection `camera` holds, in the numbers a draw uploads. */
 const drawnProjection = (camera: Camera) =>

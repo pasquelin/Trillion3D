@@ -6,7 +6,7 @@
 // neighbourhood holds both coverage and background, where two fill rules can differ by one pixel.
 // The band is read on an image the compute raster never touched: a stray triangle on the
 // background or a crack inside a tile falls outside it, and counts.
-import type { EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type { EngineContext } from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { DiagnosticGpuVariant } from '../../../packages/sdk-browser/src/diagnostic/gpuVariant.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'

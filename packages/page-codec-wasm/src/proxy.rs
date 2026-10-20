@@ -3,7 +3,7 @@
 //! them — grid snapping (`simplify.rs`), the 4-wide BVH (`bvh.rs`) and its quantized
 //! records (`wide.rs`). The compiler places a scene's triangles in world space and calls them
 //! (`asset-compiler-rust/src/proxy.rs`); the run-time cut calls them on a cut's own triangles. The constants
-//! below are printed into the TypeScript readers (`scripts/generate-shared-rules.ts`).
+//! below are printed into the TypeScript readers (`scripts/build/generate-shared-rules.ts`).
 
 pub mod bvh;
 pub mod simplify;
@@ -80,7 +80,7 @@ pub const PROXY_SOURCES_COLUMN: usize = 4;
 impl CutColumns {
     /// The columns as words, in the one order every writer lays them out: the triangles, the
     /// albedo, the node bounds, the node children, then the sources (`PROXY_SOURCES_COLUMN`). The
-    /// browser's hand-off (`wasm_proxy.rs`) answers them one after the other, the compiler's cache
+    /// browser's hand-off (`wasm/proxy.rs`) answers them one after the other, the compiler's cache
     /// file (`asset-compiler-rust/src/proxy/encode.rs`) each column of every mesh in turn.
     pub fn column_words(&self) -> [Vec<u32>; PROXY_SOURCES_COLUMN + 1] {
         [
@@ -130,5 +130,4 @@ pub fn columns_of(mut triangles: Vec<f32>, albedo: u32) -> CutColumns {
 }
 
 #[cfg(test)]
-#[path = "proxy_tests.rs"]
 mod tests;

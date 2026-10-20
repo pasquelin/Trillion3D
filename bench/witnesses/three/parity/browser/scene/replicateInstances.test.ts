@@ -6,15 +6,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { replicateInstances } from '../../../../../../packages/sdk-browser/src/scene/replicateInstances.ts'
-import { ENGINE_OWNED } from '../../../../../../packages/sdk-browser/src/host/scene/watch.ts'
-import { hostWorldBounds } from '../../../../../../packages/sdk-browser/src/host/world/bounds.ts'
+import { ENGINE_OWNED } from '../../../../../../packages/sdk-browser/src/scene/host/scan/watch.ts'
+import { hostWorldBounds } from '../../../../../../packages/sdk-browser/src/scene/host/world/bounds.ts'
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts'
-import * as G from '../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import {
   Group,
   type Object3D,
 } from '../../../../../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../../../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostMesh } from '../../../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { threeGraph } from '../../../fromGraphNodes.ts'
 
 /** Two meshes under negative scale root and non-uniform scale child. */

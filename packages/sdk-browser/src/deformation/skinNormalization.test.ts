@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 

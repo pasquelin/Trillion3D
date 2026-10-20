@@ -26,7 +26,7 @@ const readMin = new Float64Array(3),
  * distinct pages a frame can draw, and at least `SHADOW_CHANGE_BOXES`. Past it — the one overflow
  * — the last box absorbs every further one: their union stales a superset of their pages, never
  * fewer. A move is no box of this list: the rows the GPU moves stale their own pages
- * (`sdk-browser/src/placement/rowCastWgsl.ts`).
+ * (`sdk-browser/src/placement/rows/rowCastWgsl.ts`).
  *
  * The scheduler consumes them every frame: it derives the stale pages of each view, which
  * then carry the state. The boxes therefore have nothing to retain from one frame to the next —

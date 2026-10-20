@@ -1,9 +1,12 @@
 import { createSessionDeformation, deformsAny } from './session.ts'
-import { prepareWebgpuGeometry, type VertexPoolGrowth } from '../webgpu/core/geometryPrepare.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import { families } from '../host/families.ts'
+import {
+  prepareWebgpuGeometry,
+  type VertexPoolGrowth,
+} from '../geometry/pages/pool/geometryPrepare.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+import { families } from '../session/host/families.ts'
 import { assignDeformationOutputs, followPooledBlocks } from './outputs.ts'
-import { refreshBlendScene } from '../webgpu/blend/sceneRefresh.ts'
+import { refreshBlendScene } from '../blend/sceneRefresh.ts'
 
 /**
  * A growth of the float pool (`prepareWebgpuGeometry`'s `grown`): its wider buffers and the

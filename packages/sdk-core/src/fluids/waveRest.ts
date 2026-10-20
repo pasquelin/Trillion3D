@@ -6,7 +6,7 @@ const HEIGHT_ITERATIONS = 3
 const terms = new Float64Array(TERM_COUNT)
 
 /** The rest point `[x, ·, z]` the waves carry to the world position `(x, z)`, into `out`; the
- *  physics module runs its C++ print (`scripts/generate-shared-rules.ts`). */
+ *  physics module runs its C++ print (`scripts/build/generate-shared-rules.ts`). */
 export function waveRest(waves: Waves, x: number, z: number, out: Float64Array | number[]) {
   let px = x,
     pz = z

@@ -148,7 +148,7 @@ fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
 /**
  * A column of the bounce's world light grid (`lightTilesShader('world')`) and the run of its cells a
  * light's range meets. The grid is the last cascade level's lattice, which covers the scene
- * (`../../bounce/lightCellWgsl.ts`); the pass reads its view as `origin.xyz`, the grid's lowest
+ * (`../bounce/lightCellWgsl.ts`); the pass reads its view as `origin.xyz`, the grid's lowest
  * corner, `origin.w`, a cell's side, and `viewport.z`, the columns of a row. A column is a square of
  * cells across x and y, its cells the slices along z, all relative to that corner, as a light's
  * centre is (`entryOf`).

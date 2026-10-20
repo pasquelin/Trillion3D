@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { unitOf } from '../repository-files.ts'
+import { unitOf } from '../git/repository-files.ts'
 import { keepsLineBound, lineCount, lineLimitViolations } from './check-file-lines.ts'
 
 test('counts physical lines, including an unterminated final line', () => {
@@ -35,7 +35,7 @@ test('checks only selected files during a targeted run', () => {
 test('a runtime module is read by the cohesion gate instead, and is not reported here', () => {
   // The whole point of the change: a 400-line runtime module is not a line-limit failure, it is a
   // `check:cohesion` question about the functions inside it.
-  const runtime = 'packages/sdk-browser/src/webgpu/tile/wgsl.ts'
+  const runtime = 'packages/sdk-browser/src/materials/virtual/wgsl.ts'
   assert.equal(keepsLineBound(runtime), false)
   assert.deepEqual(lineLimitViolations(new Map([[runtime, 400]])), [])
 })
@@ -53,7 +53,7 @@ test('the `sdk-node` modules are read by the cohesion gate', () => {
 
 test('a test, a fixture and an index, read whole, and a Rust crate, a script, a test and the bench all keep the bound', () => {
   for (const file of [
-    'packages/sdk-browser/src/gpu/dag/uniforms.test.ts',
+    'packages/sdk-browser/src/geometry/dag/uniforms.test.ts',
     'packages/sdk-browser/src/gpu/dag/uniforms.fixture.ts',
     'packages/sdk-browser/src/gpu/dag/index.ts',
     'packages/asset-compiler-rust/src/dag/layout.rs',

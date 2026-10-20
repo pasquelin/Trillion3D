@@ -33,7 +33,7 @@ export function createSessionFrame(c: SessionParts) {
   const { s, clock, link } = c
   return {
     /** The frame's time, `seconds` after the last (`FrameInfo.delta`), set at its start: all it
-     *  draws reads it, the character the controller moves first included (`worldFrames.ts`). */
+     *  draws reads it, the character the controller moves first included (`frames/frames.ts`). */
     time(seconds: number) {
       // Waiting on the worker, the clock leads its newest state by the steps a frame can draw
       // past it at most (`along`): a slower worker shows slow motion, never a growing backlog.

@@ -2,7 +2,7 @@
 // text run in JavaScript against the processor's sRGB encode.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
 import { minChannel } from '../../../../math/src/wgsl/sampling.ts'

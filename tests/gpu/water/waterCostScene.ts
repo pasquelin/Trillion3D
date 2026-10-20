@@ -1,14 +1,14 @@
 // The water-cost scene: controlled water coverage, its geometry identical with the tile
 // parked offscreen. Measured by `bench/dawn/costs/waterCost.ts` (`waterCostPage.ts`), bounded by
-// the distortion of the transmissive layer (`packages/sdk-browser/src/webgpu/blend/distortion.ts`).
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+// the distortion of the transmissive layer (`packages/sdk-browser/src/blend/distortion.ts`).
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { batisseur } from '../../kit/device/sharedSceneProof.ts'
 import { GROUND, waterSurface } from './waterPassCases.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
-import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 
 export const SIZE: [number, number] = [1280, 720]
 const DISTANCE = 3

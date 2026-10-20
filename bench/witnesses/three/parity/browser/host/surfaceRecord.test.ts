@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import * as G from '../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../../../../packages/sdk-core/src/world/math/color.ts'
 import { Vector2 } from '../../../../../../packages/sdk-core/src/world/math/vector2.ts'
 import { threeMaterials } from '../../../fromSurface.ts'

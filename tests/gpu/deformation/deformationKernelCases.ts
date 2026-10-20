@@ -3,7 +3,7 @@
 // between them. Every page-table word is named by the field `PageInfo` declares
 // (`PAGE_INFO_STRUCT_WGSL`), never by a copied offset; each record is laid out by `recordLayout`.
 import { Waves } from '../../../packages/sdk-core/src/fluids/waves.ts'
-import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
+import { encodePage } from '../../../packages/sdk-browser/src/geometry/codec/encodePage.fixture.ts'
 import { FLAG_SOFT_SOURCE } from '../../../packages/sdk-core/src/page/format.ts'
 import {
   KIND_MORPH,
@@ -19,7 +19,7 @@ import {
   FLAG_DYNAMIC,
 } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
-import { wgslStructLayout } from '../../../packages/sdk-browser/src/vsm/wgslStructLayout.fixture.ts'
+import { wgslStructLayout } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/wgslStructLayout.fixture.ts'
 
 /** A buffer of the stage, by its shader name. */
 export type BufferName = 'indices' | 'positions' | 'pages'

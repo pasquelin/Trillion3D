@@ -20,7 +20,7 @@ const COUNTERS = [
 export function pointRow(x: number, report: BenchReport) {
   const segment = report.segments.find((s) => s.measured)!
   // The bench's timer, or the engine's own where the engine timed every image (a world whose
-  // render scale is steered: `webgpu/pages/prepare/timing.ts`), which leaves the bench's aside.
+  // render scale is steered: `src/frame/prepare/timing.ts`), which leaves the bench's aside.
   const timed = segment.benchPasses.length ? segment.benchPasses : segment.passes.passes
   const passes = Object.fromEntries(timed.map((pass) => [pass.name, pass.median]))
   const engine = report.engine as Record<string, number | null | undefined>

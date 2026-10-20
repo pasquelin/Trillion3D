@@ -1,4 +1,4 @@
-// Oracle, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, copied as-is;
+// Oracle, loading side: `packages/sdk-browser/src/geometry/selection/collect.ts:34-153`, copied as-is;
 // a mesh's primitive is found as the scene oracle finds it (`referencePrimitiveOf`).
 import * as THREE from 'three'
 import { DAG_ERROR_MODEL } from '../../../packages/sdk-core/src/contracts/base.ts'
@@ -7,21 +7,21 @@ import {
   primitiveUsesClusterErrors,
   type ClusterManifest,
 } from '../../../packages/sdk-core/src/contracts/geometry.ts'
-import type { DrawSource } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
+import type { DrawSource } from '../../../packages/sdk-browser/src/geometry/selection/drawSource.ts'
 import type {
   PageRec,
   ClusterRoot,
-} from '../../../packages/sdk-browser/src/page/selection/types.ts'
+} from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import {
   streamPlacement,
   clusterErrorFields,
   cullingNodes,
-} from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
+} from '../../../packages/sdk-browser/src/geometry/selection/helpers.ts'
 import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
-import { structureIndex } from '../../../packages/sdk-browser/src/page/selection/structure.ts'
-import { cullingBounds } from '../../../packages/sdk-browser/src/page/cut/bounds.ts'
-import { indexPageRequests } from '../../../packages/sdk-browser/src/page/selection/requests.ts'
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
+import { structureIndex } from '../../../packages/sdk-browser/src/geometry/selection/structure.ts'
+import { cullingBounds } from '../../../packages/sdk-browser/src/geometry/cut/bounds.ts'
+import { indexPageRequests } from '../../../packages/sdk-browser/src/geometry/selection/requests.ts'
+import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import { referencePrimitiveOf } from './bounds-and-index.ts'
 

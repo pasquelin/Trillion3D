@@ -8,13 +8,13 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { ROW_WORDS } from '../visibility/types.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
-import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts'
-import { rootOf, rootOfPacked } from '../page/selection/placements.ts'
-import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
-import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../gpu/shadow/mobilityBits.ts'
+import { placedSession, scaleDown } from './growth/webgpuGrowth.fixture.ts'
+import { rootOf, rootOfPacked } from '../geometry/selection/placements.ts'
+import { CLUSTER_SPHERE_FLOATS } from '../lighting/shadows/sphereContract.ts'
+import { MOBILITY_CORNER_SHIFT, MOBILITY_MOVING } from '../lighting/shadows/mobilityBits.ts'
 import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { SUN } from '../webgpu/pages/io/memoryGrowth.fixture.ts'
+import { SUN } from '../frame/io/memoryGrowth.fixture.ts'
 
 type Session = Awaited<ReturnType<typeof placedSession>>
 
@@ -26,8 +26,8 @@ const heldBytes = (buffer: GPUBuffer) =>
   (buffer as unknown as { data: Uint8Array }).data.slice().buffer
 
 /** What the image is drawn from: the rows, the draw items, the corners and the cut, as the GPU
- *  holds them — the rows pass writes every word a row's world decides (`rowWords.ts`). The pool's
- *  layout is the pool's (`gpu/page/homes.ts`): `homes` reads the offsets, which the digest leaves
+ *  holds them — the rows pass writes every word a row's world decides (`rows/rowWords.ts`). The pool's
+ *  layout is the pool's (`geometry/pages/pool/homes.ts`): `homes` reads the offsets, which the digest leaves
  *  out. */
 function digest({ rt }: Session) {
   const { rows, drawItemWords } = rt.layout
@@ -61,9 +61,9 @@ const homes = ({ rt }: Session) => {
 
 /**
  * What the virtual shadow maps' raster reads of each row it takes casters from (the table's
- * `packedCount` rows, `../webgpu/pages/render/vsm/vsmEncode.ts`): the mobility word the session
- * uploaded for it (`../webgpu/shadow/bounds.ts`) and the world sphere the rows pass wrote
- * (`rowWordsPass.ts`), read back from the two buffers
+ * `packedCount` rows, `../lighting/shadows/vsm/frame/vsmEncode.ts`): the mobility word the session
+ * uploaded for it (`../lighting/shadows/casters/bounds.ts`) and the world sphere the rows pass wrote
+ * (`rows/rowWordsPass.ts`), read back from the two buffers
  * the raster binds, beside the box of the record the row draws and the world of its placement.
  */
 function casterRows({ rt }: Session) {
@@ -150,7 +150,7 @@ test('the shadow raster reads each row at its own placement, moving once that pl
   const place = (world: number[], at: (axis: number) => number) =>
     Array.from(transformAffinePoint(point, world, at(0), at(1), at(2)))
   // The placements the core node moved: those of the roots before the growth; a row placed after
-  // it, grown in place, never moved (`webgpuGrowth.ts` appends their roots).
+  // it, grown in place, never moved (`growth/webgpuGrowth.ts` appends their roots).
   const before = Math.max(...seen[1].map((row) => row.rank)) + 1
   for (const [step, rows] of seen.entries())
     for (const [row, { url, rank, min, max, world, word, centre, radius }] of rows.entries()) {

@@ -9,10 +9,10 @@ import {
 import { DEFAULT_SCOPE, type AssetScope } from '../../../sdk-core/src/contracts/base.ts'
 import { readPagedManifest } from '../../../sdk-core/src/manifest/paged.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
-import { fetchVerified } from '../cluster/pages.ts'
-import { checked } from '../cluster/checked.ts'
-import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
-import { readVoxelLevels, type VoxelLevels } from './voxelLevels.ts'
+import { fetchVerified } from '../geometry/cluster/pages.ts'
+import { checked } from '../geometry/cluster/checked.ts'
+import { unmetered, type ByteMeter } from '../geometry/cluster/byteMeter.ts'
+import { readVoxelLevels, type VoxelLevels } from '../geometry/hlod/voxelLevels.ts'
 
 async function jsonResource(
   url: string,

@@ -1,5 +1,5 @@
 import { EngineError } from '../contracts/cache.ts'
-import type { SoftBodyOptions } from './soft.ts'
+import type { SoftBodyOptions } from './soft/soft.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 /** How a body moves: never, by the page (`kinematic`, pushing what it meets), or by the simulation. */

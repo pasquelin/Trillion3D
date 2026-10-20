@@ -1,4 +1,4 @@
-import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
+import { AS_IS_FLAG } from '../../materials/surface/surfaceModel.ts'
 import { FULLSCREEN_VERTEX } from './shaders.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 

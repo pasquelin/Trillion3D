@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
-import { dagFixture } from '../page/selection/dag.fixture.ts'
-import { collectClusterPages } from '../page/selection/collect.ts'
-import { createPrimitiveTemplates } from '../page/selection/template.ts'
+import * as G from './host/graph/graph.fixture.ts'
+import { dagFixture } from '../geometry/selection/dag.fixture.ts'
+import { collectClusterPages } from '../geometry/selection/collect.ts'
+import { createPrimitiveTemplates } from '../geometry/selection/template.ts'
 import type { ClusterManifest, Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
-import { graphDraws } from '../page/selection/drawSource.ts'
-import { rootWorldBox } from '../page/selection/rootWorld.ts'
+import { graphDraws } from '../geometry/selection/drawSource.ts'
+import { rootWorldBox } from '../geometry/selection/rootWorld.ts'
 
 /** The same primitive, given a one-leaf-node culling hierarchy. */
 function primitiveWithCulling(metadata: ClusterManifest) {

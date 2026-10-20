@@ -7,12 +7,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { BASE_SLOTS, HALF_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/contract.ts'
+import {
+  BASE_SLOTS,
+  HALF_SLOTS,
+} from '../../../packages/sdk-browser/src/visibility/draw/contract.ts'
 import {
   evaluateDrawCompact,
   indirectForDraw,
   type DrawItem,
-} from '../../../packages/sdk-browser/src/gpu/draw/cpu.fixture.ts'
+} from '../../../packages/sdk-browser/src/visibility/draw/cpu.fixture.ts'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import type { DrawCase } from './drawCase.ts'
 import { DIRECT_PAGE } from './drawVisibility.ts'

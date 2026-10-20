@@ -1,17 +1,17 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
+import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
 import {
   AS_IS_FLAG,
   FOG_FREE_SURFACE_FLAG,
   MODEL_FLAG,
   SURFACE_MODEL_MASK,
-} from '../../scene/surfaceModel.ts'
-import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
+} from '../../materials/surface/surfaceModel.ts'
+import { SURFACE_EMISSIVE_AO_WGSL } from '../../materials/surface/surfaceEmission.ts'
 import { receiverTargetReadWgsl } from '../../visibility/shader/receiverTargetWgsl.ts'
-import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
+import { PHYSICAL_SURFACE_FLAG } from '../../materials/surface/physicalLobes.ts'
 import { readLobesStatement } from '../direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { RESOLVED_INDIRECT_WGSL } from '../../reflections/weight.ts'
+import { RESOLVED_INDIRECT_WGSL } from '../reflections/weight.ts'
 
 /** The lighting's entry and its camera fog. */
 export const LIGHT_SURFACE_ENTRY =
@@ -21,7 +21,7 @@ const CAMERA_FOG = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(r
 /**
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask and its transmission are
  * read at (`vsmMaskPixel`). The mask carries the opaque shadow and the panes' colour from the
- * receiver the projection read (`vsm/projectionWgsl.ts`). Set only where the pixel's cell lists a
+ * receiver the projection read (`lighting/shadows/vsm/projection/projectionWgsl.ts`). Set only where the pixel's cell lists a
  * shadowed light, or has no list and walks every light (`cellShadowed`): nothing else reads it.
  */
 const SHADOW_SETUP_WGSL = wgslBlock(

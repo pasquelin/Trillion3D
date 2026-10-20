@@ -1,16 +1,16 @@
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 // The double's kernels over the cut's lists, the readout and the journals: each kept list's
-// difference and keep (`gpu/dag/difference.fixture.ts`), and the mask swap
-// (`gpu/dag/shader/swapWgsl.ts`). The double's `dagMask` writes the whole mask and keeps no journal,
+// difference and keep (`geometry/dag/difference.fixture.ts`), and the mask swap
+// (`geometry/dag/shader/swapWgsl.ts`). The double's `dagMask` writes the whole mask and keeps no journal,
 // so a view's region holds the whole mask its cut left: what the journal restores, flag for flag.
 // The regions saved to and restored from are the camera block's words, as the kernels read them.
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { REGION_NONE } from '../../../packages/sdk-browser/src/gpu/dag/shader/swapWgsl.ts'
-import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import { REGION_NONE } from '../../../packages/sdk-browser/src/geometry/dag/shader/swapWgsl.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
 import {
   DIFFERENCE_KERNELS,
   mirrorDifferenceStage,
-} from '../../../packages/sdk-browser/src/gpu/dag/difference.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/difference.fixture.ts'
 import { words } from './fakeBuffers.ts'
 import { drawMask } from './globals.ts'
 import { DAG_SLOT } from './fakeDag.ts'

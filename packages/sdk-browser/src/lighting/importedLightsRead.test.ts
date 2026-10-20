@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { loadImportedLights } from './importedLights.ts'
-import { answering, refusedWith } from '../cluster/answers.fixture.ts'
+import { answering, refusedWith } from '../geometry/cluster/answers.fixture.ts'
 
 const BASE = 'https://cache.test/model/'
 

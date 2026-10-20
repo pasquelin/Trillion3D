@@ -8,7 +8,10 @@ import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/ligh
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { project } from './cameraRig.ts'
 import { animationFrame } from './frame.ts'
-import type { Engine, EngineContext } from '../../../packages/sdk-browser/src/engine/types.ts'
+import type {
+  Engine,
+  EngineContext,
+} from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Renders a frame in an animation frame of the page (`animationFrame`), as a page draws, and

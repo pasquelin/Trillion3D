@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VIS_SHADER } from './visWgsl.ts'
-import { rasterSource } from '../../gpu/raster/shader.ts'
-import { COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
+import { rasterSource } from '../raster/shader.ts'
+import { COMPUTE_TAKES_WGSL } from '../raster/contract.ts'
 import {
   hoisted,
   perVertex,

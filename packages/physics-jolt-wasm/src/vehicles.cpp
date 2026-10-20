@@ -2,7 +2,7 @@
 // or tracked controller — engine, gearbox, differentials, suspension and anti-roll bars are
 // the physics module's, never rewritten. Here only the driver's pedals and wheel become the controller's input,
 // and each step's wheels are written back for the page to draw. Word layouts:
-// `packages/sdk-core/src/physics/vehicleLayout.ts` (VEHICLE, UNVEHICLE, DRIVE).
+// `packages/sdk-core/src/physics/vehicle/vehicleLayout.ts` (VEHICLE, UNVEHICLE, DRIVE).
 #include "contacts.h"
 #include "slotLists.h"
 #include "words.h"

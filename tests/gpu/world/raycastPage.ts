@@ -11,7 +11,7 @@ import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Ray } from '../../../packages/sdk-core/src/world/math/volumes.ts'
-import { markHelper } from '../../../packages/sdk-browser/src/world/core/helperMark.ts'
+import { markHelper } from '../../../packages/sdk-browser/src/session/world/helperMark.ts'
 import { drawnTriangles, nearestSegment, nearestTriangle } from './raycastOracle.ts'
 import { frame, open, type World } from './appendProof.ts'
 

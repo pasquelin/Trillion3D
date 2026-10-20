@@ -6,7 +6,7 @@ import {
   JOINT_WORDS,
   OP,
 } from '../../../../sdk-core/src/physics/layout.ts'
-import { joint } from '../../../../sdk-core/src/physics/joint.ts'
+import { joint } from '../../../../sdk-core/src/physics/joint/joint.ts'
 import { box } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'

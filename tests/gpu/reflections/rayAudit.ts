@@ -8,7 +8,7 @@ import {
   castBoxes,
   type Box,
   type Camera,
-} from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+} from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { boxFrame, type Block } from './boxFrame.ts'
 import { settledImage } from './rigImage.ts'
 import { pointOnScreen, rgbAt } from './rigFrame.ts'

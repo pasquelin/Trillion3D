@@ -77,9 +77,9 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
       ...files,
       [BUNDLE_SOURCES]: JSON.stringify({
         'trillion3d.module.js': {
-          'sdk-browser/src/world/core/world.js': 900,
+          'sdk-browser/src/session/world/world.js': 900,
           'sdk-browser/src/gpu/timing/queries.js': 200,
-          'sdk-browser/src/vsm/layout.js': 100,
+          'sdk-browser/src/lighting/shadows/vsm/layout.js': 100,
           ...sources,
         },
         'trillion3d-chunk-A.js': { 'sdk-core/src/math/vec.js': 400 },
@@ -102,11 +102,11 @@ test('the gate lists the core by source folder, and fails on measurement, diagno
   }
   for (const source of [
     'sdk-browser/src/measurement/measurementCode.js',
-    'sdk-browser/src/webgpu/pages/pages.js',
+    'sdk-browser/src/frame/backend/pages.js',
     'sdk-browser/src/gpu/shadow/atlas.js',
     'sdk-browser/src/webgpu/shadow/pageRequests.js',
     'sdk-browser/src/webgpu/shadow/allocWgsl.js',
-    'sdk-browser/src/vsm/renderPass.js',
+    'sdk-browser/src/lighting/shadows/vsm/render/renderPass.js',
   ]) {
     const dist = held({ [source]: 10 })
     try {

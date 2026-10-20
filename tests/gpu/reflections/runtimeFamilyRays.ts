@@ -9,7 +9,7 @@ import { subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTup
 import { add } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
 import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 import { rayRectangle, raySphere } from './rayShapes.ts'
-import { RAY_LAYERS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'
+import { RAY_LAYERS } from '../../../packages/sdk-browser/src/lighting/bounce/runtime/runtimeLayout.ts'
 import type { FamilyCase, Rgb, Shape } from './runtimeFamilyCases.ts'
 
 /** A world vector in a shape's frame: the inverse of its pose, `pitch` about x then `yaw` about y. */

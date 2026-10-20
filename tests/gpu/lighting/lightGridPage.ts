@@ -10,8 +10,8 @@ import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
-} from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts'
-import { createWebgpuLightState } from '../../../packages/sdk-browser/src/webgpu/pages/state/lights.ts'
+} from '../../../packages/sdk-browser/src/frame/backend/state/lightBuffer.ts'
+import { createWebgpuLightState } from '../../../packages/sdk-browser/src/frame/backend/state/lights.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import type { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'

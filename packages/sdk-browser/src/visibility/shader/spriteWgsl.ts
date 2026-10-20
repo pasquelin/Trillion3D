@@ -61,7 +61,7 @@ const SPRITE_ROOT = 1
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
 export const SPRITE_UNCULLED = 2
 /** The bits of a root that casts no shadow: what the shadow raster's rows test
- *  (`../../webgpu/shadow/bounds.ts`). */
+ *  (`../../lighting/shadows/casters/bounds.ts`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT
 /** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
 export const withShadowless = (mark: number, shadowless: boolean) =>

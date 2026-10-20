@@ -1,7 +1,7 @@
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { vehicle } from '../../../../sdk-core/src/physics/vehicle.ts'
+import { vehicle } from '../../../../sdk-core/src/physics/vehicle/vehicle.ts'
 import { box, cylinder } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'

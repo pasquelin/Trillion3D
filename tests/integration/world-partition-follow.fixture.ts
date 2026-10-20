@@ -2,29 +2,29 @@
 // session's per-frame step (`createPartitionFrame`) on an engine stand-in that grows its rows in
 // place (`growPlacements`), as the engine does; its cell records read from disk as the runtime
 // reads them (`cellRecords`).
-import { composeStandIn } from '../../packages/sdk-browser/src/partition/composeStandIn.fixture.ts'
+import { composeStandIn } from '../../packages/sdk-browser/src/geometry/partition/composeStandIn.fixture.ts'
 import type { TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Engine } from '../../packages/sdk-browser/src/engine/types.ts'
-import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts'
-import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts'
-import { createPageCache } from '../../packages/sdk-browser/src/streaming/pageCache.ts'
-import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts'
+import type { Engine } from '../../packages/sdk-browser/src/session/engine/types.ts'
+import { hostFramingCamera } from '../../packages/sdk-browser/src/scene/host/scan/graphObjects.ts'
+import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows/rows.ts'
+import { createPageCache } from '../../packages/sdk-browser/src/geometry/streaming/pageCache.ts'
+import { createPageStreamer } from '../../packages/sdk-browser/src/geometry/streaming/pageStreamer.ts'
 import {
   loadModel,
   type LoadedModel,
-} from '../../packages/sdk-browser/src/world/core/loadedModel.ts'
+} from '../../packages/sdk-browser/src/session/world/models/loadedModel.ts'
 import {
   createPartitionFrame,
   primePartitions,
-} from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts'
+} from '../../packages/sdk-browser/src/scene/drive/partitionFrame.ts'
 import { readCellPage } from '../../packages/sdk-core/src/scene/core/tablePartition.ts'
 import { compiled, machine, type world } from './world-partition.fixture.ts'
-import { readJson } from '../../scripts/repository-files.ts'
+import { readJson } from '../../scripts/git/repository-files.ts'
 
 /** `gltf` compiled under a folder of its own named from `prefix`, served and read whole. */
 export async function served(t: TestContext, prefix: string, gltf: ReturnType<typeof world>) {

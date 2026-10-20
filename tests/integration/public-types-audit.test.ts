@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import ts from 'typescript'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../scripts/git/repository-files.ts'
 
 const FACADES = ['packages/sdk/index.ts', 'packages/sdk/browser.ts', 'packages/sdk/node.mts']
 

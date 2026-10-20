@@ -1,5 +1,5 @@
 // #1521: a source added to a world's scene while its session runs — another material on the geometry
-// the session already draws — joins the session in place (`placement/webgpuAppend.ts`): the session
+// the session already draws — joins the session in place (`append/webgpuAppend.ts`): the session
 // is not opened again, and its image is pixel for pixel the image of a world opened on both.
 import test from 'node:test'
 import assert from 'node:assert/strict'

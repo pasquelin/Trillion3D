@@ -1,11 +1,11 @@
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
+import { MODEL_FLAG } from '../../materials/surface/surfaceModel.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
 
 /**
- * A shadow catcher's term (`catcherAlpha`, `../../scene/surfaceModel.ts`): of a light that holds a
+ * A shadow catcher's term (`catcherAlpha`, `../../materials/surface/surfaceModel.ts`): of a light that holds a
  * shadow slot, the light's energy at the point that its shadow lets through — its translucent
  * casters' colour averaged in — in `x`, and all of it in `y`; of any other light, nothing. A
  * program with no shadow code has no shadowed light, and a rectangle casts no shadow: their terms

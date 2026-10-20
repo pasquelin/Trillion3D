@@ -2,18 +2,18 @@
 // a cut on the machine's device, at tables of 2¹⁸ to 2²² live rows. The cut-rule DAG placed until
 // its instances pass the rows, every page resident, every instance holding a row, the table full —
 // so every cut ranks a queue —; the same cut with and without the row pass
-// (`webgpu/row/rowEviction.ts`), each frame cut again and copied back, timed from its encode to the
+// (`geometry/rows/rowEviction.ts`), each frame cut again and copied back, timed from its encode to the
 // queue's end. Published, never asserted: a timing is the machine's.
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/selection/selection.ts'
+import { pageResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
 import type { GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { createRowEviction } from '../../../packages/sdk-browser/src/webgpu/row/rowEviction.ts'
-import { createRowUseWords } from '../../../packages/sdk-browser/src/webgpu/row/rowWords.ts'
+import { createRowEviction } from '../../../packages/sdk-browser/src/geometry/rows/rowEviction.ts'
+import { createRowUseWords } from '../../../packages/sdk-browser/src/geometry/rows/rowWords.ts'
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { closureScene } from './rowClosureRun.ts'
-import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 interface Sweep {
   /** Live rows of each table measured. */

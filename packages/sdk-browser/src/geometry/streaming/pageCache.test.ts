@@ -1,0 +1,187 @@
+import { MIB } from '../../../../math/src/constants.ts'
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createPageStreamer } from './pageStreamer.ts'
+import { createPageCache } from './pageCache.ts'
+import { manifestTableBytes } from './manifestTables.ts'
+import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
+import { kernelUrls, packed } from '../dag/selection/selectionHelpers.fixture.ts'
+import type { StreamPage } from './types.ts'
+import { servedPages } from './servedPages.fixture.ts'
+import { retained } from './retained.fixture.ts'
+import { dagPageUrls } from '../dag/pack/pack.fixture.ts'
+import { sha256Hex } from './sha256Hex.ts'
+
+const TRANSFER = 64
+
+/** The pages of `urls` `cache` holds. */
+const held = (cache: ReturnType<typeof createPageCache>, urls: readonly string[]) =>
+  urls.filter((url) => cache.page(url))
+
+const open = (
+  pages: StreamPage[],
+  cache: ReturnType<typeof createPageCache>,
+  base = 'http://cache/',
+) =>
+  createPageStreamer(pages, base, {
+    cache,
+    workerCount: 1,
+    maxTransferBytes: TRANSFER,
+  })
+
+test('a session reopened after a device loss rebuilds the same cut, fetching nothing it held', async () => {
+  const fixture = dagFixture(),
+    camera = wideCamera()
+  const { dag } = packed(fixture)
+  const { pages, fetched } = await servedPages(dagPageUrls(dag))
+  const cache = createPageCache(MIB)
+  /** The cut drawn from what `streamer` holds: the GPU pool is filled from it. */
+  const cut = (streamer: ReturnType<typeof open>) => {
+    const resident = Uint32Array.from(dagPageUrls(dag), (url) => Number(streamer.has(url)))
+    return kernelUrls(fixture, 1, camera, resident, 'drawablePageIds').urls
+  }
+  // Every page of the fixture: the cut draws a group only once its members and the groups above
+  // it are resident, and this DAG is small enough to hold whole.
+  const wanted = dagPageUrls(dag)
+  const before = open(pages, cache)
+  await before.request(wanted, { signal: before.signal })
+  const drawn = cut(before)
+  assert.ok(drawn.length > 0)
+  const fetchedBefore = fetched.length
+  assert.equal(fetchedBefore, wanted.length)
+  // The device is lost: the session closes, and the world keeps its cache.
+  before.dispose()
+  assert.equal(cache.pageCount, wanted.length, 'the pages outlive the session')
+  // A device granted again: the new session reads the same pages, from the cache alone.
+  const after = open(pages, cache)
+  await after.request(wanted, { signal: after.signal })
+  assert.equal(fetched.length, fetchedBefore, 'no page it held was fetched again')
+  assert.equal(after.stats().hits, wanted.length)
+  assert.deepEqual(cut(after), drawn)
+  after.dispose()
+})
+
+test("the CPU counters — tables, transfers, pages — never exceed the cache's total", async () => {
+  const urls = Array.from({ length: 64 }, (_, i) => `p${i}.bin`)
+  const { pages, fetched } = await servedPages(urls)
+  // Room for the tables, one transfer, and ten pages.
+  const cpu = manifestTableBytes(pages) + TRANSFER + 10 * 12
+  const cache = createPageCache(cpu)
+  const streamer = open(pages, cache)
+  for (const url of urls) {
+    await streamer.request([url], { signal: streamer.signal })
+    const { cpuBytes, cpuBudgetBytes } = streamer.stats()
+    assert.equal(cpuBudgetBytes, cpu)
+    assert.ok(cpuBytes <= cpu, `${cpuBytes} > ${cpu} after ${url}`)
+  }
+  assert.equal(fetched.length, urls.length)
+  assert.equal(cache.bytes, 10 * 12, 'the pages hold what the tables and the queue leave')
+  streamer.dispose()
+})
+
+test('a lower total applies at once, pages leaving by last use, pins kept', async () => {
+  const urls = ['a.bin', 'b.bin', 'c.bin', 'd.bin']
+  const { pages } = await servedPages(urls)
+  const reserved = manifestTableBytes(pages) + TRANSFER
+  const cache = createPageCache(reserved + 4 * 12)
+  const evicted: string[] = []
+  const streamer = createPageStreamer(pages, 'http://cache/', {
+    cache,
+    workerCount: 1,
+    onEvict: (url) => evicted.push(url),
+    maxTransferBytes: TRANSFER,
+  })
+  await streamer.request(urls, { signal: streamer.signal })
+  retained(streamer, urls)(['a.bin'])
+  // `b` read again: the least recently used is now `c`, then `d`.
+  streamer.get('b.bin')
+  cache.resize(reserved + 2 * 12)
+  assert.deepEqual(evicted, ['c.bin', 'd.bin'])
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'])
+  assert.ok(streamer.stats().cpuBytes <= cache.cpuBytes)
+  streamer.dispose()
+  // No session reads: a total set lower still applies, oldest first.
+  cache.resize(reserved + 12)
+  assert.deepEqual(held(cache, urls), ['a.bin', 'b.bin'], 'a session gone reserves nothing')
+  cache.resize(12)
+  assert.deepEqual(held(cache, urls), ['b.bin'])
+})
+
+test("the engine's tables come out of the kept cache's total, beside the manifest and the queue", async () => {
+  const urls = ['a.bin', 'b.bin', 'c.bin']
+  const { pages } = await servedPages(urls)
+  const cache = createPageCache(manifestTableBytes(pages) + TRANSFER + 3 * 12)
+  const streamer = open(pages, cache)
+  await streamer.request(urls, { signal: streamer.signal })
+  retained(streamer, urls)(['a.bin'])
+  streamer.reserve(20)
+  assert.deepEqual(held(cache, urls), ['a.bin'], 'twenty bytes reserved leave room for one')
+  streamer.dispose()
+})
+
+test('a kept cache outlives its streamer, minus pages cooked again', async () => {
+  const { pages } = await servedPages(['a.bin', 'b.bin'])
+  const kept = createPageCache()
+  const first = open(pages, kept)
+  await first.request(['a.bin', 'b.bin'], { signal: first.signal })
+  first.dispose()
+  const cooked = [pages[0], { ...pages[1], sha256: 'another fingerprint' }]
+  const second = open(cooked, kept)
+  assert.equal(second.has('a.bin'), true)
+  assert.equal(second.has('b.bin'), false, 'another page under the same url is not served')
+  second.dispose()
+  const resized = open([{ ...pages[0], bytes: 16 }], kept)
+  assert.equal(resized.has('a.bin'), false, 'nor the same fingerprint named at another size')
+  resized.dispose()
+  assert.throws(() => createPageCache(0), /INVALID_PAGE_CACHE_BUDGET/)
+})
+
+test('a page admitted to an open streamer is checked against the kept cache: another file under its name is not served', async () => {
+  const { pages } = await servedPages(['a.bin', 'b.bin'])
+  const kept = createPageCache()
+  const first = open(pages, kept)
+  await first.request(['a.bin', 'b.bin'], { signal: first.signal })
+  first.dispose()
+  const second = open([pages[0]], kept)
+  second.admit([{ ...pages[1], sha256: 'another fingerprint' }])
+  assert.deepEqual([second.has('a.bin'), second.has('b.bin')], [true, false])
+  second.dispose()
+})
+
+test('a kept page is served only as the file it was read as: its fingerprint, under any base', async () => {
+  const file = async (value: number) => {
+    const bytes = new Uint8Array(12).fill(value)
+    return { bytes, sha256: await sha256Hex(bytes.buffer) }
+  }
+  const [one, two] = await Promise.all([file(1), file(2)])
+  // Two scenes, each with its own `p.bin` of 12 bytes.
+  const served = new Map([
+    ['http://a/p.bin', one],
+    ['http://b/p.bin', two],
+  ])
+  const fetched: string[] = []
+  globalThis.fetch = async (url) => (
+    fetched.push(String(url)),
+    new Response(served.get(String(url))!.bytes)
+  )
+  const kept = createPageCache()
+  const read = async (base: string, { sha256 }: { sha256: string }) => {
+    const streamer = open([{ url: 'p.bin', bytes: 12, sha256 }], kept, base)
+    const [value] = await streamer.readBytes('p.bin', streamer.signal)
+    streamer.dispose()
+    return value
+  }
+  assert.equal(await read('http://a/', one), 1)
+  assert.equal(await read('http://b/', two), 2, "another scene's page under the same name")
+  // The second scene's folder cooked again: the same address, another file of the same size.
+  served.set('http://b/p.bin', one)
+  assert.equal(await read('http://b/', one), 1, 'the same address, another fingerprint')
+  assert.equal(await read('http://b/', one), 1)
+  // The same file under a third base: the bytes verified against its fingerprint are served.
+  assert.equal(await read('http://c/', one), 1)
+  assert.deepEqual(
+    fetched,
+    ['http://a/p.bin', 'http://b/p.bin', 'http://b/p.bin'],
+    'the same file is not fetched again',
+  )
+})

@@ -3,7 +3,7 @@
 How the WebGPU engine draws cast shadows: virtual shadow maps, whose pages exist in memory only
 where the image reads them. A map: each mechanism's rule is stated where it lives, and this page
 names the file and the rules that span files. Paths are under `packages/sdk-browser/src/`: `vsm/`
-holds the passes and their shaders, `webgpu/pages/render/vsm/` the frame's plan, grant and
+holds the passes and their shaders, `lighting/shadows/vsm/frame/` the frame's plan, grant and
 encoding. Lights, tiles and the resolve are [ENGINE.md](ENGINE.md#direct-lighting); the
 options a page sets (`castShadow`, `transparentShadow`) are [SDK.md](SDK.md#lights).
 
@@ -15,20 +15,20 @@ static. The sizes are tuning values the engine declares, each with its reason, i
 buffers are `vsm/resources.ts`. A light takes no page of its own: the pixels mark the pages they
 read, only those are allocated and drawn, and a page nobody marks is evicted when a new one needs
 room, in the order of the pool rank every GPU pool evicts by (`vsm/freePagesWgsl.ts`). The set is made at the first lit frame with a casting light, sized for the lights that cast
-(`webgpu/pages/render/vsm/engineVsm.ts:fullMapsFor`), and grows with its cache kept
-(`webgpu/pages/render/vsm/vsmGrant.ts:growEngineVsm`).
+(`lighting/shadows/vsm/frame/engineVsm.ts:fullMapsFor`), and grows with its cache kept
+(`lighting/shadows/vsm/frame/vsmGrant.ts:growEngineVsm`).
 
 ## Memory
 
 The set, the mask, the raster's lists and the blended casters' atlas are granted within the room
-the GPU budget leaves the shadows (`webgpu/pages/render/vsm/vsmGrant.ts:grantEngineVsm`); their
-total is `shadowPoolBytes` (`webgpu/pages/render/vsm/vsmStats.ts`). Rules a contributor keeps:
+the GPU budget leaves the shadows (`lighting/shadows/vsm/frame/vsmGrant.ts:grantEngineVsm`); their
+total is `shadowPoolBytes` (`lighting/shadows/vsm/frame/vsmStats.ts`). Rules a contributor keeps:
 
 - **Sized by the view, grown by its fill.** The physical pool asked follows the drawing buffer: the
   full pool (`VSM_POOL_PAGES`) for 1920 × 1080 pixels or more, its share of the pixels below, a
   power of two down to an eighth (`vsmViewPoolPages`, `vsm/poolDraw.ts`). A fill past the pressure's
   load asks the pool that holds it (`vsmDemandPages`), up to the full pool, never lowered for the
-  session (`vsmPoolAsked`, `webgpu/pages/render/vsm/vsmLightMaps.ts`): a small view holds a small
+  session (`vsmPoolAsked`, `lighting/shadows/vsm/frame/vsmLightMaps.ts`): a small view holds a small
   pool, a busy one the pages it marks.
 
 - **Never a crash, never an allocation the budget refuses.** Past the room, the pool is made with
@@ -44,36 +44,36 @@ total is `shadowPoolBytes` (`webgpu/pages/render/vsm/vsmStats.ts`). Rules a cont
 ## One frame
 
 Encoded in the direct-lighting step, after the visibility and material passes and before the
-lighting pass (`webgpu/pages/render/vsm/engineVsm.ts`, `vsmEncode.ts`), in this order:
+lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in this order:
 
 1. Invalidation: one stale over the previous frame's maps, its dispatch sized on the GPU. It reads
-   the boxes the rows pass appended to the shadow changes' list (`webgpu/shadow/castChanges.ts`),
+   the boxes the rows pass appended to the shadow changes' list (`shadows/casters/castChanges.ts`),
    never read by the CPU, then the CPU's boxes of what no row says, records of the same format in
-   their own buffer (`vsm/castBoxes.ts`, `vsm/castInvalidation.ts`, `vsm/castStale.ts`).
+   their own buffer (`invalidation/castBoxes.ts`, `invalidation/castInvalidation.ts`, `invalidation/castStale.ts`).
 2. The plan: clipmaps, local lights, map ids, projection data (`vsm/frameSetup.ts`,
    `vsm/clipmap.ts`, `vsm/localLight.ts`, `vsm/cacheManager.ts`).
 3. Page address update, carrying last frame's pages to this frame's ids
    (`vsm/pageManagementPass.ts:encodeVsmPageCarry`).
 4. Page marking (`vsm/markingPass.ts`, `vsm/markingWgsl.ts`).
 5. Page allocation (`vsm/pageManagementPass.ts:encodeVsmPageMapping`, `vsm/physicalPagesWgsl.ts`).
-6. The shadow raster on the camera cut's resident rows (`vsm/renderPass.ts`,
-   `vsm/renderCullWgsl.ts`, `vsm/renderRasterWgsl.ts`), its chunks sized from histograms of the
-   rows' spheres the GPU bins after it and reads back a few frames late (`vsm/rowBinsWgsl.ts`,
-   `vsm/rowPageBound.ts`).
+6. The shadow raster on the camera cut's resident rows (`render/renderPass.ts`,
+   `render/renderCullWgsl.ts`, `render/renderRasterWgsl.ts`), its chunks sized from histograms of the
+   rows' spheres the GPU bins after it and reads back a few frames late (`rows/rowBinsWgsl.ts`,
+   `rows/rowPageBound.ts`).
 7. Post render (`vsm/pageManagementPass.ts:encodeVsmAfterRaster`), the blended casters' atlas
-   (`vsm/transmissionPass.ts`), then the projection into the mask (`vsm/projectionPass.ts`,
-   `vsm/projectionWgsl.ts`, `vsm/traceWgsl.ts`).
+   (`transmission/transmissionPass.ts`), then the projection into the mask (`projection/projectionPass.ts`,
+   `projection/projectionWgsl.ts`, `trace/traceWgsl.ts`).
 8. The lighting pass reads the mask; the frame end copies the counters back a few frames late
-   (`webgpu/pages/render/vsm/vsmFrameEnd.ts`).
+   (`lighting/shadows/vsm/frame/vsmFrameEnd.ts`).
 
 Rules across passes: every page allocated and valid this frame is drawn this frame, no list
-overflows (`vsm/rowPageBound.ts`); a still scene draws nothing after its first frames, every page
+overflows (`rows/rowPageBound.ts`); a still scene draws nothing after its first frames, every page
 keeping its static depth, and a static caster that moves redraws only the pages its box covers,
 into the dynamic slice (`VSM_STILL_FRAMES`).
 
 ## Reading the shadow
 
-One estimator shades every surface: the receiver's trace (`vsm/receiverTraceWgsl.ts`) — the
+One estimator shades every surface: the receiver's trace (`trace/receiverTraceWgsl.ts`) — the
 normal bias, a screen ray for the contact, then rays across the light's disk or sphere marched
 through the stored depths. Opaque surfaces read it from the mask, where the projection pass traced
 it 64 pixels a workgroup, its 32-pixel halves voting their ray count. Blended surfaces and water
@@ -88,5 +88,5 @@ holds it, it is lit.
 
 The `shadow*` fields are documented on the contract
 (`packages/sdk-core/src/contracts/shadowMetrics.ts`) and filled by
-`webgpu/pages/render/vsm/vsmStats.ts`. The page counters need the page-counter readback on
+`lighting/shadows/vsm/frame/vsmStats.ts`. The page counters need the page-counter readback on
 (`countersOn`).

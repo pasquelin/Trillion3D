@@ -14,7 +14,7 @@ import {
   DISC_VERTICES,
   PARTICLE_DRAW_WGSL,
   PARTICLE_STATE_HEAD,
-} from '../../../packages/sdk-browser/src/webgpu/particles/particlesWgsl.ts'
+} from '../../../packages/sdk-browser/src/particles/gpu/particlesWgsl.ts'
 import {
   DRAW_FLOATS,
   writeDrawWords,

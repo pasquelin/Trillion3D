@@ -3,7 +3,7 @@ import type { Deformed } from './frame.ts'
 import { WAVE_FIELDS, type Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import { keepPrevious, WAVE_FLOATS, WORLD_BLOCK } from './layout.ts'
 import { sameElements, sameMatrixFloat32 } from '../../../math/src/matrix/matrixElements.ts'
-import { stretchOf } from '../partition/boxes.ts'
+import { stretchOf } from '../geometry/partition/boxes.ts'
 
 /** What a wave placement's controls and reach are read from, held per placement: the world matrix
  *  they were read for, its inverse, and the least it stretches a distance (`stretchOf`'s first). */

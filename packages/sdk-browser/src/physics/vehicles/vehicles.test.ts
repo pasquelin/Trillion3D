@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { VEHICLE_SPECS } from '../../../../sdk-core/src/physics/vehicleSpec.ts'
+import { VEHICLE_SPECS } from '../../../../sdk-core/src/physics/vehicle/vehicleSpec.ts'
 import { listen } from '../../../../sdk-core/src/world/observed.ts'
 import { vehicleRig } from './vehicles.fixture.ts'
 

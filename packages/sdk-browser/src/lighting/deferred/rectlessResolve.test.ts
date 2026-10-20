@@ -10,7 +10,7 @@ import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
-import { functionsOf, reachedFunctions } from '../../texture/shaderRule.fixture.ts'
+import { functionsOf, reachedFunctions } from '../../materials/texture/shaderRule.fixture.ts'
 
 /** The rectangle branch of the light loop: its term, the one the loop reads (every pixel sums its
  *  whole list, so no sampling weight is drawn). */
@@ -35,7 +35,7 @@ test('the rectless program runs the full one less its rectangle branch', () => {
     // No other call reaches the rectangle's shading from the loop, nor is it declared.
     assert.doesNotMatch(functionsOf(rectless, ['declaredLight']), /rectLight\(|rectIrradiance\(/)
     // The bounce program keeps the fitted table's read (`ltcLookup`): its probes' reflection is
-    // weighed through it (`reflectionWeight`, `../../reflections/weight.ts`), no rectangle's.
+    // weighed through it (`reflectionWeight`, `../reflections/weight.ts`), no rectangle's.
     assert.doesNotMatch(rectless, /fn (?:rectLight|rectLtc|rectFrameOf)\(/)
     if (!bounce) assert.doesNotMatch(rectless, /fn ltcLookup\(/)
   }

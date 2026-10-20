@@ -6,20 +6,20 @@
  * witness library.
  */
 export * from '../index.ts'
-import { openMeasuredWorld } from '../world/session/explorer.ts'
-import type { MeasuredWorldTarget } from '../world/session/target.ts'
-import type { MeasuredWorldOptions } from '../world/session/options.ts'
+import { openMeasuredWorld } from '../session/explorer.ts'
+import type { MeasuredWorldTarget } from '../session/target.ts'
+import type { MeasuredWorldOptions } from '../session/options.ts'
 
-export { openMeasuredWorld } from '../world/session/explorer.ts'
-export type { MeasuredWorld } from '../world/session/explorer.ts'
-export type { MeasuredWorldTarget } from '../world/session/target.ts'
-export type { Engine } from '../engine/types.ts'
-export type { EngineFactory } from '../engine/factory.ts'
-export type { MeasuredWorldOptions } from '../world/session/options.ts'
-export { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
-export { attachParticles } from '../world/core/worldSession.ts'
+export { openMeasuredWorld } from '../session/explorer.ts'
+export type { MeasuredWorld } from '../session/explorer.ts'
+export type { MeasuredWorldTarget } from '../session/target.ts'
+export type { Engine } from '../session/engine/types.ts'
+export type { EngineFactory } from '../session/engine/factory.ts'
+export type { MeasuredWorldOptions } from '../session/options.ts'
+export { webgpuPagesEngine } from '../frame/backend/pages.ts'
+export { attachParticles } from '../session/world/session.ts'
 // The screen-error measure reads a drawn mesh's side the way the engine does (`bench/runner`).
-export { sideOf } from '../scene/materialSide.ts'
+export { sideOf } from '../materials/surface/materialSide.ts'
 export { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 
 /** Browser job adapter. A completed session is owned by the caller; cancel/fail after construct disposes it. */

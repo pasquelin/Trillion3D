@@ -8,7 +8,7 @@ import ts from 'typescript'
 import type { WgslDecl } from '../../packages/math/src/wgsl/decl.ts'
 import { WGSL_LIBRARY } from '../../packages/math/src/wgsl/library.fixture.ts'
 import { MATHS_HOME, isMathsOracle } from '../lint/lint-maths.ts'
-import { sourceFilesOf } from '../repository-files.ts'
+import { sourceFilesOf } from '../git/repository-files.ts'
 
 /** The text of every string and template of a TypeScript module, where its WGSL is written; a
  *  template's substitutions read as a space. */

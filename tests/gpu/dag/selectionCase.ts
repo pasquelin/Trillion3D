@@ -2,36 +2,36 @@
 // sizes the selection kernel binds (`selectionKernel.ts`), each derived from the engine's own
 // layout functions, never restated.
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
-import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import type { sceneRoots } from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
-import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
+import type { sceneRoots } from '../../../packages/sdk-browser/src/geometry/dag/cut/cutFrontierScene.fixture.ts'
+import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.fixture.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { writeDagUniforms } from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
-import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts'
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
-import { dagGroupEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { createDagResidencyUpload } from '../../../packages/sdk-browser/src/gpu/dag/residencyUpload.ts'
-import { heldOpenSlots } from '../../../packages/sdk-browser/src/gpu/dag/heldOpen.ts'
-import { heldOpenAt } from '../../../packages/sdk-browser/src/gpu/dag/listCap.ts'
-import { readoutRow } from '../../../packages/sdk-browser/src/gpu/dag/bufferTable.ts'
-import { dagFlagShape } from '../../../packages/sdk-browser/src/gpu/dag/flagSections.ts'
-import { createCutTables } from '../../../packages/sdk-browser/src/gpu/dag/cutTables.ts'
-import { worldTableOn } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.fixture.ts'
-import { createTreeTable } from '../../../packages/sdk-browser/src/gpu/dag/treeTable.ts'
+import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/geometry/dag/shader/viewsWgsl.ts'
+import { primitiveFrameWords } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worlds.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
+import { dagGroupEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
+import { createDagResidencyUpload } from '../../../packages/sdk-browser/src/geometry/dag/residencyUpload.ts'
+import { heldOpenSlots } from '../../../packages/sdk-browser/src/geometry/dag/heldOpen.ts'
+import { heldOpenAt } from '../../../packages/sdk-browser/src/geometry/dag/lists/listCap.ts'
+import { readoutRow } from '../../../packages/sdk-browser/src/geometry/dag/bufferTable.ts'
+import { dagFlagShape } from '../../../packages/sdk-browser/src/geometry/dag/flagSections.ts'
+import { createCutTables } from '../../../packages/sdk-browser/src/geometry/dag/cut/cutTables.ts'
+import { worldTableOn } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worldTable.fixture.ts'
+import { createTreeTable } from '../../../packages/sdk-browser/src/geometry/dag/tree/treeTable.ts'
 import { createRecordTexture } from '../../../packages/sdk-browser/src/gpu/core/recordTexture.ts'
-import { FRAME_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
+import { FRAME_TABLE } from '../../../packages/sdk-browser/src/geometry/dag/frameTable.ts'
 import {
   savedJournalWord,
   selectionListCap,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
-import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
+import { pageResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
+import { writeHostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 /** Slots of the open counts a case's placements hold: every count of the cases fits. */
 const HELD_SLOTS = heldOpenSlots(1 << 16)
@@ -66,7 +66,7 @@ export function posedSelection(
 /** A device that takes the writes and keeps nothing: the host copy is what the kernel reads. */
 const NO_DEVICE = { queue: { writeBuffer() {} } } as unknown as GPUDevice
 
-/** The cold words as the engine's host uploads them for `resident` (`gpu/dag/residencyUpload.ts`):
+/** The cold words as the engine's host uploads them for `resident` (`geometry/dag/residencyUpload.ts`):
  *  the cut rule's two residency bit sets and the world's stand-in flags, a copy, the open counts
  *  each placement holds kept in `packed.heldOpen`. */
 function withResidency(packed: PackedDag, resident: ArrayLike<number>, slots: number) {

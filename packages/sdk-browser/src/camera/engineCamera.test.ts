@@ -2,7 +2,7 @@
 // one: the default camera of the oracles and a posed test camera, both built without a host camera.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { assertBits } from '../../../../tests/kit/assert/bits.ts'
 import {

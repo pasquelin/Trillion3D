@@ -1,5 +1,5 @@
 // A pass's parameters go up when one of their four words moved, and only then (the rows pass's
-// `../../placement/rowWordsPass.ts`, the root lists').
+// `../../placement/rows/rowWordsPass.ts`, the root lists').
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { passParams, writePassParams } from './passParams.ts'

@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { glob } from 'node:fs/promises'
 import { join } from 'node:path'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 /** The folders whose scenes keep a compiled cache beside their committed source, which git never
  *  tracks (`scripts/native/scene-caches.ts` compiles them, `.gitignore` names them). */

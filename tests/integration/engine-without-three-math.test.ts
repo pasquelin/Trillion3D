@@ -10,46 +10,46 @@ const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
 // same float operation order, flat buffers, no allocations per frame. What the host OWNS remains its own
 // (scene, camera, materials), and engine cannot COMPUTE using it: recomposing world matrix,
 // box transformation, position extraction, inversion, decomposition. It also does not READ world matrices
-// composed by host: engine's come from local poses (`packages/sdk-browser/src/host/world/placements.ts`),
+// composed by host: engine's come from local poses (`packages/sdk-browser/src/scene/host/world/placements.ts`),
 // and the only update serves host scene. Every line keeping a computation is named here with its rationale.
 
 /** Batch files: scene loading, explorer, and their contracts. */
 const M4A = [
-  'engine/awaitEnginePages',
-  'engine/common',
-  'engine/types',
-  'world/scene/pagesBounds',
-  'world/session/engine',
-  'world/camera/camera',
-  'world/api/cameraApi',
-  'world/session/capabilities',
-  'world/session/disposeSource',
-  'world/render/draw',
-  'world/render/sessionState',
-  'world/session/lifecycle',
-  'world/session/options',
-  'world/session/prepare',
-  'world/render/render',
-  'world/scene/scene',
-  'world/api/sceneApi',
-  'world/api/viewportApi',
-  'host/scene/graphObjects',
-  'host/scene/hookCore',
-  'host/scene/hooks',
-  'host/scene/scan',
-  'host/scene/watch',
-  'host/world/bounds',
-  'host/world/rooted',
-  'host/world/matrices',
-  'host/world/placements',
-  'page/selection/collect',
-  'page/selection/helpers',
-  'engine/pagesEngineScenes.fixture',
+  'session/engine/awaitEnginePages',
+  'session/engine/common',
+  'session/engine/types',
+  'scene/drive/pagesBounds',
+  'session/engine',
+  'camera/session/camera',
+  'api/cameraApi',
+  'session/capabilities',
+  'session/disposeSource',
+  'frame/schedule/draw',
+  'frame/schedule/sessionState',
+  'session/lifecycle',
+  'session/options',
+  'session/prepare',
+  'frame/schedule/render',
+  'scene/drive/scene',
+  'api/sceneApi',
+  'api/viewportApi',
+  'scene/host/scan/graphObjects',
+  'scene/host/scan/hookCore',
+  'scene/host/scan/hooks',
+  'scene/host/scan/scan',
+  'scene/host/scan/watch',
+  'scene/host/world/bounds',
+  'scene/host/world/rooted',
+  'scene/host/world/matrices',
+  'scene/host/world/placements',
+  'geometry/selection/collect',
+  'geometry/selection/helpers',
+  'session/engine/pagesEngineScenes.fixture',
   'scene/replicateInstances',
   'scene/meshes',
-  'webgpu/core/geometryPrepare',
-  'webgpu/pages/prepare/prepare',
-  'webgpu/pages/prepare/setup',
+  'geometry/pages/pool/geometryPrepare',
+  'frame/prepare/prepare',
+  'frame/prepare/setup',
 ].map((nom) => `${nom}.ts`)
 
 /** Host library COMPUTATION methods and constructors, replaced by core. */
@@ -76,14 +76,14 @@ const CALCULS = [
 
 /** File -> exact line -> why this line is a host boundary and not a computation. */
 const FRONTIERE: Record<string, Record<string, string>> = {
-  'host/world/matrices.ts': {
+  'scene/host/world/matrices.ts': {
     'node.updateMatrixWorld(true)':
       'the scene belongs to the host: it stays up to date FOR IT, and the engine no longer reads it',
   },
-  'world/camera/camera.ts': {
+  'camera/session/camera.ts': {
     'camera.updateMatrixWorld()': 'the host SETS its camera; the written pose is resolved once',
   },
-  'world/render/sessionState.ts': {
+  'frame/schedule/sessionState.ts': {
     'camera.updateMatrixWorld()': 'the session sets the pose it is handed into its camera',
   },
 }
@@ -124,13 +124,13 @@ test('each file in M4a batch still exists under its name', async () => {
 })
 
 // PAGE MATRIX IS COPIED, NEVER COMPUTED.
-// `PageRec.matrix` and `ClusterRoot.world` are host library matrices filled by ENGINE (`packages/sdk-browser/src/host/world/placements.ts`);
+// `PageRec.matrix` and `ClusterRoot.world` are host library matrices filled by ENGINE (`packages/sdk-browser/src/scene/host/world/placements.ts`);
 // the engine receives them from the host. What it does with them is closed:
 // it reads the sixteen floats from `.elements` and passes them to core.
 const CALCULE_UNE_MATRICE =
   /\.(?:matrix|matrixWorld|world|transform|normalMatrix)\??\.(?:clone|copy|multiply|premultiply|multiplyMatrices|invert|decompose|compose|applyMatrix4|transformDirection|setFromMatrixPosition|extractRotation|transpose|setPosition|makeRotationFromQuaternion)\s*\(/
 
-/** The rule does not target the engine's own graph (`host/graph/`): its nodes ARE host objects of
+/** The rule does not target the engine's own graph (`scene/host/graph/`): its nodes ARE host objects of
  *  the engine's making, whose matrices the core's `Matrix4` composes as the reference does — a
  *  host resolution the engine path still only reads. */
 const HOST_GRAPH = /^host\/graph\//

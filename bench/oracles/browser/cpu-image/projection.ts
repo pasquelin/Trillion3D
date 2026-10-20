@@ -7,11 +7,11 @@ import {
   transformHomogeneousPoint,
 } from '../../../../packages/math/src/vector/vector.ts'
 import type { DepthCamera } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import type { MatrixElements } from '../../../../packages/sdk-browser/src/host/matrixElements.ts'
+import type { MatrixElements } from '../../../../packages/sdk-browser/src/session/host/matrixElements.ts'
 import { spriteAt } from '../../../../packages/sdk-browser/src/visibility/shader/spriteAt.fixture.ts'
 import type { VisMaterial } from '../../../../packages/sdk-browser/src/visibility/materialType.ts'
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/session/engine/common.ts'
 import { lineClip } from './line.ts'
 
 /** World vertex of the last projected point, and its clip-space point: re-read at once, never

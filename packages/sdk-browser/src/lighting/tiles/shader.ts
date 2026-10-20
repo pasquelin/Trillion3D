@@ -25,7 +25,7 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  *
  * The same pass lists the lights of the bounce's world grid (`kind` `world`): its columns the
  * squares of the last cascade level's lattice, their cells along z (`WORLD_GRID_BOUNDS_WGSL`), so a
- * bounce point walks the lights that reach its cell (`../../bounce/lightCellWgsl.ts`). Only the
+ * bounce point walks the lights that reach its cell (`../bounce/lightCellWgsl.ts`). Only the
  * column's bounds and its cell count differ; the runs, the compaction, the pool and the records
  * are the view's.
  */

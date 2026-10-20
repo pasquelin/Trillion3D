@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { cross, subtract, unit } from '../../../../math/src/vector/vectorTuple.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'

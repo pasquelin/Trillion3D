@@ -11,7 +11,7 @@ export async function waterCostRun(fixtureRoot: string, engineRoot: string) {
   const { run: measure } = (await import(
     pathToFileURL(resolve(fixtureRoot, 'tests/gpu/water/waterCostPage.ts')).href
   )) as typeof import('../../../tests/gpu/water/waterCostPage.ts')
-  const { webgpuPagesEngine } = await from('packages/sdk-browser/src/webgpu/pages/pages.ts')
+  const { webgpuPagesEngine } = await from('packages/sdk-browser/src/frame/backend/pages.ts')
   await from('packages/sdk-browser/src/wasm/sdkWasm.fixture.ts')
   return (options: WaterCostOptions) => measure(webgpuPagesEngine, options)
 }

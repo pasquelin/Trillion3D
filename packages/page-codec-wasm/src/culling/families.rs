@@ -1,5 +1,5 @@
-//! Generated cluster families the hierarchy is proved on, natively (`culling_tests.rs`) and against
-//! the SDK module (`golden_tests/culling.rs`).
+//! Generated cluster families the hierarchy is proved on, natively (`culling/tests.rs`) and against
+//! the SDK module (`golden/culling.rs`).
 use super::CullingCluster;
 use trillion3d_math::random::xorshift64;
 

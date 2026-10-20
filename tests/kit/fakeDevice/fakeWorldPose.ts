@@ -1,10 +1,10 @@
-// The cut's worlds as its kernels read them (`packages/sdk-browser/src/gpu/dag/shader/worldPoseWgsl.ts`),
+// The cut's worlds as its kernels read them (`packages/sdk-browser/src/geometry/dag/shader/worldPoseWgsl.ts`),
 // replayed on the fake device: each placement's matrix in its record of the worlds' table, its
 // translation the exact doubles beside it less the eye's doubles in the view block, in double, then
 // single precision — the bits the kernel reads (`worldsAtEye.test.ts` proves the kernel's text
 // against the same subtraction).
-import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
-import { WORLD_TABLE } from '../../../packages/sdk-browser/src/gpu/dag/worldTable.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
+import { WORLD_TABLE } from '../../../packages/sdk-browser/src/geometry/dag/worlds/worldTable.ts'
 import {
   recordWordAt,
   texelWords,

@@ -3,9 +3,9 @@
 // transmissive stages.
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { contractLightingProgram, UNLIT_LIGHTING_PROGRAM } from '../../lighting/deferred/shaders.ts'
-import { taaResolveShader } from '../../taa/resolveWgsl.ts'
-import { blendShader } from '../../webgpu/blend/shader.ts'
-import { transmitWgsl } from '../../webgpu/blend/transmission/transmitWgsl.ts'
+import { taaResolveShader } from '../../post/taa/resolveWgsl.ts'
+import { blendShader } from '../../blend/shader.ts'
+import { transmitWgsl } from '../../blend/transmission/transmitWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 /** The contract program's text at a key (`contractLightingProgram`), as its pipeline compiles it. */

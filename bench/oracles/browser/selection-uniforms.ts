@@ -1,11 +1,14 @@
 // Selection-dispatch oracles, written from the contracts: what a camera's selection uniforms hold
 // (`packages/sdk-browser/src/gpu/core/selection.ts`), and what one view's uniform block holds,
 // read back field by field by the names the kernels read it by
-// (`packages/sdk-browser/src/gpu/dag/viewLayout.ts`, `uniforms.ts`).
+// (`packages/sdk-browser/src/geometry/dag/viewLayout.ts`, `uniforms.ts`).
 import { maxStretch } from '../../../packages/math/src/projection/projectionOracles.ts'
 import { aheadViewOf } from '../../../packages/sdk-browser/src/gpu/core/aheadView.ts'
-import { viewWord, VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
-import { AHEAD_VIEW } from '../../../packages/sdk-browser/src/gpu/dag/shader/aheadWgsl.ts'
+import {
+  viewWord,
+  VIEW_BLOCK_WORDS,
+} from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
+import { AHEAD_VIEW } from '../../../packages/sdk-browser/src/geometry/dag/shader/aheadWgsl.ts'
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/motion.ts'
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'

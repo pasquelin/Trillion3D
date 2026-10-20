@@ -8,7 +8,7 @@ import type { ColorSpace } from '../world/constants/index.ts'
  * The addressing and filtering words are the engine's enums, not a library's integers: the
  * rules that read them (`packages/sdk-browser/src/visibility/wrapModes.ts`,
  * `packages/sdk-browser/src/visibility/math.ts`) compute on the name, and the WebGPU tile pool's
- * sampling word (`packages/sdk-browser/src/texture/sampling.ts`) is the only place that turns one
+ * sampling word (`packages/sdk-browser/src/materials/texture/sampling.ts`) is the only place that turns one
  * into the shader's bits.
  */
 

@@ -1,0 +1,164 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
+import test from 'node:test'
+import { triangleCone } from '../../../../../tests/kit/reference/cone.ts'
+import assert from 'node:assert/strict'
+import * as G from '../../scene/host/graph/graph.fixture.ts'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Matrix3 } from '../../../../sdk-core/src/world/math/matrix3.ts'
+import { surfaceOf } from '../pages/surface.ts'
+import { leafCone } from './cone.ts'
+import {
+  coneCullsPageWith,
+  coneContextFor,
+  createConeContext,
+  coneCullsPage,
+  coneSkipsPage,
+} from './cone.fixture.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+
+test('a single front-facing triangle has a narrow cone along +z', () => {
+  const cone = triangleCone([0, 0, 0, 1, 0, 0, 0, 1, 0], [0, 1, 2])
+  assert.ok(cone.angle < 1e-6)
+  assert.ok(cone.axis[2] > 0.9)
+})
+
+test('opposite triangles produce an open cone', () => {
+  const cone = triangleCone(
+    [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0],
+    [0, 1, 2, 3, 4, 5],
+  )
+  assert.ok(cone.angle >= HALF_PI - 1e-6)
+})
+
+test('the open cone, a leaf without one, never rejects', () => {
+  const world = new Matrix4()
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100)
+  cam.position.set(0, 0, 5)
+  cam.lookAt(0, 0, 0)
+  cam.updateMatrixWorld()
+  assert.equal(
+    coneCullsPage(leafCone({}), world, [-1, -1, 0], [1, 1, 0], engineCamera(cam).eye),
+    false,
+  )
+})
+
+test('a +z cone seen from behind the plane is rejected, and perspective spread keeps a grazing bound', () => {
+  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
+  const world = new Matrix4()
+  const behind = G.perspectiveCamera(55, 1, 0.1, 100)
+  behind.position.set(0, 0, -5)
+  behind.lookAt(0, 0, 0)
+  behind.updateMatrixWorld()
+  assert.equal(
+    coneCullsPage(cone, world, [-0.1, -0.1, 0], [0.1, 0.1, 0], engineCamera(behind).eye),
+    true,
+  )
+  const grazing = G.perspectiveCamera(55, 1, 0.1, 100)
+  grazing.position.set(0, 0, 5)
+  grazing.lookAt(0, 0, 0)
+  grazing.updateMatrixWorld()
+  assert.equal(coneCullsPage(cone, world, [-1, -1, 0], [1, 1, 0], engineCamera(grazing).eye), false)
+})
+
+test('an anisotropic scale does not reject a still-visible cone member', () => {
+  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 4 }
+  const world = new Matrix4().makeScale(0.1, 1, 1)
+  const cam = G.perspectiveCamera(55, 1, 0.1, 200)
+  cam.position.set(60, 0, -80)
+  cam.lookAt(0, 0, 0)
+  cam.updateMatrixWorld()
+  const visible = new Vector3(1, 0, 1)
+    .normalize()
+    .applyMatrix3(new Matrix3().getNormalMatrix(world))
+    .normalize()
+  assert.ok(visible.dot(new Vector3().copy(cam.position).normalize()) > 0)
+  assert.equal(
+    coneCullsPage(cone, world, [-0.01, -0.01, -0.01], [0.01, 0.01, 0.01], engineCamera(cam).eye),
+    false,
+  )
+})
+
+test('BackSide materials are not cone-culled from behind', () => {
+  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
+  const world = new Matrix4()
+  const behind = G.perspectiveCamera(55, 1, 0.1, 100)
+  behind.position.set(0, 0, -5)
+  behind.lookAt(0, 0, 0)
+  behind.updateMatrixWorld()
+  const material = G.basicSurface({ side: G.BACK_SIDE })
+  assert.equal(
+    coneCullsPage(
+      cone,
+      world,
+      [-0.1, -0.1, 0],
+      [0.1, 0.1, 0],
+      engineCamera(behind).eye,
+      surfaceOf(material),
+    ),
+    false,
+  )
+  material.dispose()
+})
+
+test('the root context yields the same reject as the per-cluster compute, and is set only on demand', () => {
+  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
+  const world = new Matrix4().makeRotationY(0.4).setPosition(2, 0, -1)
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100)
+  cam.position.set(0, 0, -5)
+  cam.lookAt(0, 0, 0)
+  cam.updateMatrixWorld()
+  const ctx = createConeContext()
+  assert.equal(ctx.ready, false, 'no root read until someone asks for a reject')
+  coneContextFor(ctx, world, engineCamera(cam).eye)
+  assert.equal(ctx.ready, true)
+  for (const [min, max] of [
+    [
+      [-0.1, -0.1, 0],
+      [0.1, 0.1, 0],
+    ],
+    [
+      [-3, -3, -3],
+      [3, 3, 3],
+    ],
+    [
+      [1, 1, 1],
+      [1.2, 1.4, 1.1],
+    ],
+  ])
+    assert.equal(
+      coneCullsPageWith(ctx, cone, world, min, max),
+      coneCullsPage(cone, world, min, max, engineCamera(cam).eye),
+      `box ${min} ${max}`,
+    )
+})
+
+test('a surface switched to double-sided in place gets its page back at the cut', () => {
+  const cone = { axis: [0, 0, 1] as [number, number, number], angle: Math.PI / 6 }
+  const world = new Matrix4()
+  const behind = G.perspectiveCamera(55, 1, 0.1, 100)
+  behind.position.set(0, 0, -5)
+  behind.lookAt(0, 0, 0)
+  behind.updateMatrixWorld()
+  const cam = engineCamera(behind)
+  const min = [-0.1, -0.1, 0],
+    max = [0.1, 0.1, 0]
+  const material = G.basicSurface({ side: G.FRONT_SIDE })
+  const surface = surfaceOf(material)
+  assert.equal(coneCullsPage(cone, world, min, max, cam.eye, surface), true, 'front-only, behind')
+  assert.equal(leafCone({ cone, material: surface }), cone)
+  // The host opens the surface on the declaration it shares with its mesh: no version is bumped,
+  // and nothing on this path refreshes the record.
+  G.sided(material, G.DOUBLE_SIDE)
+  assert.equal(leafCone({ cone, material: surface }), leafCone({}), 'the cut reopens the cone')
+  assert.equal(
+    coneCullsPage(cone, world, min, max, cam.eye, surface),
+    false,
+    'the faces stay in the image',
+  )
+  assert.equal(
+    coneSkipsPage({ cone, min, max, material: surface }, createConeContext(), world, cam, min, max),
+    false,
+  )
+  material.dispose()
+})

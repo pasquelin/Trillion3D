@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import prettier from 'prettier'
 import ts from 'typescript'
-import { REPOSITORY_ROOT, repositoryFiles, posixPath } from '../repository-files.ts'
+import { REPOSITORY_ROOT, repositoryFiles, posixPath } from '../git/repository-files.ts'
 
 export const ENTRIES = {
   core: 'packages/sdk-core/src/index.ts',

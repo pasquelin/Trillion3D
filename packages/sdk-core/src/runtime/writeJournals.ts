@@ -3,7 +3,7 @@
  * written since its holder last emptied it. A record's write lands in every open journal, so a
  * consumer visits the records that moved — O(changed) a frame — and never walks the ones that did
  * not. A holder closes its journal when it goes. One instance per kind: the texture records
- * (`../texture/writes.ts`) and the surface records (`sdk-browser/src/page/surfaceWrites.ts`).
+ * (`../texture/writes.ts`) and the surface records (`sdk-browser/src/geometry/pages/surfaceWrites.ts`).
  */
 export function createWriteJournals<T>() {
   const journals = new Set<Set<T>>()

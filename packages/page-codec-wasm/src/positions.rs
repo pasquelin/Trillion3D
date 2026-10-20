@@ -49,5 +49,4 @@ pub(crate) fn linked(out: &mut [u32], words: &[u32], layout: &Layout, h: &Header
 }
 
 #[cfg(test)]
-#[path = "positions_tests.rs"]
 mod tests;

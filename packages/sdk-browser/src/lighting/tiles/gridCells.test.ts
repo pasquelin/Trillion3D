@@ -25,7 +25,7 @@ import {
 import { NEAR, camera, pixelPoint, type Vec3 } from './tileCamera.fixture.ts'
 import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
-import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { shaderFunctions, wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'

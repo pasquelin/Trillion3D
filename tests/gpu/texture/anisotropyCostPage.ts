@@ -3,7 +3,7 @@
 // of each image read from the engine's own timer. The camera slides by a hair at every image, so
 // no image is held and each one pays its reads. Loaded on Dawn: its engine modules read the WebGPU
 // globals.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { batisseur, engine, release } from '../../kit/device/sharedSceneProof.ts'

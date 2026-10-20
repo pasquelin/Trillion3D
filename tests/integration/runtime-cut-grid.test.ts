@@ -10,11 +10,11 @@ import { dirname, join } from 'node:path'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { composeMatrix4 } from '../../packages/math/src/matrix/matrix4Compose.ts'
 import { IDENTITY_MATRIX4, multiplyMatrix4 } from '../../packages/math/src/matrix/matrix4.ts'
-import { primitiveGrids } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
+import { primitiveGrids } from '../../packages/sdk-browser/src/geometry/runtime/cutGrid.ts'
 import { sdkWasm } from '../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
 import { length3 } from '../../packages/math/src/vector/vector.ts'
-import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/git/repository-files.ts'
 
 type GltfNode = {
   mesh?: number

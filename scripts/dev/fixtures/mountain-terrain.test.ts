@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { REPOSITORY_ROOT } from '../../repository-files.ts'
+import { REPOSITORY_ROOT } from '../../git/repository-files.ts'
 import { assertSourceReproduced, compiledManifest } from './source-reproduced.ts'
 import { mountainTerrain, terrainHeight } from './mountain-terrain/model.ts'
 import { writeMountainTerrain } from './mountain-terrain/write.ts'

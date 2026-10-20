@@ -85,7 +85,7 @@ fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
 }
 
 /// A row-major block level (`quality::encode_chain`) as its file holds it (version 8 on): its tile records,
-/// laid out as the engine reads them (`packages/sdk-browser/src/texture/tileRecords.ts`), each
+/// laid out as the engine reads them (`packages/sdk-browser/src/materials/texture/tileRecords.ts`), each
 /// compressed alone by raw DEFLATE — the browser's own `DecompressionStream('deflate-raw')`
 /// inflates it, no decoder downloaded —, after a head of one little-endian `u32` per record: the
 /// end of its bytes, counted from the end of the head. The head's length follows from the level's

@@ -6,12 +6,12 @@
 // shared WGSL run on grey scalars, so a shader edit is what the tests see.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../scene/surfaceModel.ts'
+import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../materials/surface/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from './deferred/shaders.ts'
-import { taaResolveShader } from '../taa/resolveWgsl.ts'
-import { BLEND_MODES } from '../scene/materialBlending.ts'
-import { written, type Rgba } from '../webgpu/blend/blendModel.fixture.ts'
+import { taaResolveShader } from '../post/taa/resolveWgsl.ts'
+import { BLEND_MODES } from '../materials/surface/materialBlending.ts'
+import { written, type Rgba } from '../blend/blendModel.fixture.ts'
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
@@ -19,8 +19,8 @@ import {
   TAA_SHADER,
 } from '../gpu/core/shaderTexts.fixture.ts'
 import { AS_IS_SHARE_SHADER } from './deferred/asIsShareWgsl.ts'
-import { blendTargets } from '../webgpu/blend/blendTargets.ts'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { blendTargets } from '../blend/blendTargets.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 
 /** The capture of `pattern` in `source`, asserted present. */
 function capture(source: string, pattern: RegExp) {
@@ -107,7 +107,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   )
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/)
   // The share and the colour leave the history update by the same weights: the image's `wc`, the
-  // history's `wh`, one reciprocal (`../taa/layers.ts`); the validity beside it in green (rg8unorm).
+  // history's `wh`, one reciprocal (`../post/taa/layers.ts`); the validity beside it in green (rg8unorm).
   assert.match(TAA_SHADER, /var color=blended\*\(wh\*blendScale\)\+filtered\*\(wc\*blendScale\);/)
   assert.match(
     TAA_SHADER,

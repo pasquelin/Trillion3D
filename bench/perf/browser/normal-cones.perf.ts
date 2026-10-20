@@ -4,8 +4,8 @@
 import {
   materialsAndTangentsCount,
   indexSourceBytes,
-} from '../../../packages/sdk-browser/src/webgpu/pages/io/catalogue.ts'
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+} from '../../../packages/sdk-browser/src/frame/io/catalogue.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import {
@@ -34,7 +34,7 @@ const casPages = [
 
 const resOctets = await measure({
   name: 'source-byte table',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/io/catalogue.ts',
+  fichier: 'packages/sdk-browser/src/frame/io/catalogue.ts',
   cas: casPages,
   calculation: indexSourceBytes,
   expected: referenceIndexSourceBytes,
@@ -43,7 +43,7 @@ const resOctets = await measure({
 
 const resDiagnostic = await measure({
   name: 'texture diagnostic counters',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/io/catalogue.ts',
+  fichier: 'packages/sdk-browser/src/frame/io/catalogue.ts',
   cas: [
     { name: '20 000 pages, 4 000 blocks', input: { pages, blocs }, size: 24000 },
     { name: 'no blocks', input: { pages: unePage, blocs: emptyBlock }, size: 1 },

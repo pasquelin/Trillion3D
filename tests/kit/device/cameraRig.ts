@@ -1,6 +1,6 @@
 // Host rig of the "parented camera" reproductions: a camera child of a group that belongs to no
 // prepared scene. The engine only updates its scene; that parent, only the host touches.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'

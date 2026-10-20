@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
-import { LOBE_PACK_WGSL } from '../scene/physicalLobes.ts'
+import { LOBE_PACK_WGSL } from '../materials/surface/physicalLobes.ts'
 import { ROUGHNESS_FLOOR_WGSL } from './shaderConstantsWgsl.ts'
 
 /**
@@ -10,7 +10,7 @@ import { ROUGHNESS_FLOOR_WGSL } from './shaderConstantsWgsl.ts'
  * clamp changes none of their lobes.
  *
  * The anisotropic lobe's axis at a surface of normal `N` and α = `alpha`, the one construction of
- * every program that reads it (`../scene/physicalLobes.ts`): the stored direction `d` kept
+ * every program that reads it (`../materials/surface/physicalLobes.ts`): the stored direction `d` kept
  * orthogonal to the normal, its unit vector as `xyz` and αt = mix(α, 1, strength²) along it as `w`
  * (`lobeAxis`); a direction that is none after the rejection, or a strength of zero, is the round
  * lobe, `xyz` zero and `w` α. `packedLobeAxis` reads them of a texel `w` of the lobes target

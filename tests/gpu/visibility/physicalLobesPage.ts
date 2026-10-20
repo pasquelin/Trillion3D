@@ -4,7 +4,7 @@
 // mirror highlight at the plane's centre —, rendered by the real WebGPU engine until held. Its
 // geometry, its maps and its material go through the engine's page rows, atlases, resolve or blend
 // pass, and lighting; no shader is substituted.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'

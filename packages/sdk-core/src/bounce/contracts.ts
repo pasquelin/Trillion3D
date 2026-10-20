@@ -26,7 +26,7 @@ export const BOUNCE_SETTINGS = {
   proxyLeafTriangles: 8,
   /**
    * Visited BVH nodes per ray on the tree as built, bounded before frame execution. A refit
-   * adds the nodes it let into a ray, never the node count (`bounce/runtimeSceneWgsl.ts`).
+   * adds the nodes it let into a ray, never the node count (`runtime/runtimeSceneWgsl.ts`).
    * A 4-wide node covers 4× more tree per step than a binary BVH.
    */
   traversalSteps: 128,

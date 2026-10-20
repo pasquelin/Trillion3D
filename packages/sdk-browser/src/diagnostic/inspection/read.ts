@@ -1,5 +1,5 @@
 import { captureRead } from '../../gpu/core/heldReadback.ts'
-import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts'
+import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { inspectedCamera, type InspectedView } from './camera.ts'
 import { inspectedClusters, slotsRead, snapshotClusters } from './clusters.ts'
 import { inspectedLights } from './lights.ts'
@@ -17,7 +17,7 @@ const asked = new WeakMap<WebgpuPagesRuntime, Promise<FrameInspection | null>>()
 
 /**
  * What the main view's next image computes, and where (`FrameInspection`): asked here, read right
- * after that image is submitted (`../../webgpu/pages/render/encoder.ts`, `run.inspect`) and before any view
+ * after that image is submitted (`../../frame/render/encoder.ts`, `run.inspect`) and before any view
  * aside overwrites what the views share — the occlusion verdicts, the page table. One request
  * serves every caller until it is read; the image is drawn even where the view would have held.
  * `null` for a session lost or closed before it.

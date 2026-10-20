@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readCacheManifest } from '../../../bench/runner/assets/cacheManifest.ts'
 import { writeGarden } from './garden-source.ts'
-import { REPOSITORY_ROOT, readJson } from '../../repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../../git/repository-files.ts'
 
 interface GardenGltf {
   nodes: unknown[]

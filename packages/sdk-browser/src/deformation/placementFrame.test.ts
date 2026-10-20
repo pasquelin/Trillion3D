@@ -4,10 +4,10 @@
 // world: every walker of a ring drawn at the origin, whatever its placement.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { placeModel } from '../world/core/loadedModel.ts'
-import { createWorldModels } from '../world/core/worldModels.ts'
-import { createWorldRanks } from '../world/core/worldRanks.ts'
-import { loadedModel, meshLinks } from '../world/core/worldModels.fixture.ts'
+import { placeModel } from '../session/world/models/loadedModel.ts'
+import { createWorldModels } from '../session/world/models/models.ts'
+import { createWorldRanks } from '../session/world/ranks.ts'
+import { loadedModel, meshLinks } from '../session/world/models/models.fixture.ts'
 import { placementDeformation } from './placementSource.ts'
 
 test('every row of a model placed again reads its bones in the graph, not in its placement', () => {

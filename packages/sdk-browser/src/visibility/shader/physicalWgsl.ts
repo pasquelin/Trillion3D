@@ -1,12 +1,12 @@
-import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
-import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
-import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
+import { SAMPLE_TRANSFORMED } from '../../materials/texture/sampling.ts'
+import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
 import {
   LOBE_PACK_WGSL,
   PHYSICAL_LOBES_FORMAT,
   PHYSICAL_SURFACE_FLAG,
-} from '../../scene/physicalLobes.ts'
+} from '../../materials/surface/physicalLobes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
@@ -18,15 +18,15 @@ import { FLAG_LIT } from '../types.ts'
 /**
  * The anisotropic and clear-coat lobes of a surface, from the Khronos material extension equations:
  * one implementation, which the opaque resolve (`PHYSICAL_RESOLVE_WGSL`, compiled into the
- * `HAS_PHYSICAL` class alone) and the blend pass (`../../webgpu/blend/physicalWgsl.ts`, its lobed
+ * `HAS_PHYSICAL` class alone) and the blend pass (`../../blend/physicalWgsl.ts`, its lobed
  * programs alone) both run. A pass sets the record (`physicalAt`, its surface's lobe extension in the material table,
- * `../../webgpu/material/materialWgsl.ts`), `physicalOn`, and the pixel's two UV sets —
+ * `../../materials/table/materialWgsl.ts`), `physicalOn`, and the pixel's two UV sets —
  * each a coordinate, its screen derivatives and its deltas along two displacements `e1`, `e2` of
  * the point, which a tangent frame is built from — and `sampled`, the expression its maps' filter
  * flag is read with.
  *
  * Each map reads through the data atlas as the material's other data maps do — native size, its
- * filters, addressing and UV transform in its slot's header (`../../webgpu/tile/wgsl.ts`), its
+ * filters, addressing and UV transform in its slot's header (`../../materials/virtual/wgsl.ts`), its
  * tiles asked by the pixel (`physicalRequest`) — at its own UV set. Anisotropy RG is a direction,
  * B its strength; coat R and coat-roughness G are linear data; the coat normal map is bent in the
  * frame of its own coordinates, its transform included, and of the normal before the base normal
@@ -128,7 +128,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
 fn physicalLobeless(v:PhysicalLobes)->bool{return !(v.strength>0.0)&&!(v.coat>0.0);}`,
   )
 
-/** A pixel's lobes as one texel of the lobes target (`../../scene/physicalLobes.ts`): what the
+/** A pixel's lobes as one texel of the lobes target (`../../materials/surface/physicalLobes.ts`): what the
  *  opaque resolve stores.
  *  The host lists \`physicalCoreWgsl\`. */
 export const PHYSICAL_TEXEL_WGSL = wgslBlock(
@@ -141,7 +141,7 @@ export const PHYSICAL_TEXEL_WGSL = wgslBlock(
  * The lobes in the opaque resolve (`shadeWgsl.ts`): run on a lit row whose surface's record names
  * a lobe extension (`materialLobesOf`), its triangle's edges the frame's displacements, its second UV set decoded
  * at the triangle's corners (`pageUv1`). What the lighting needs is left in the lobes target
- * (`../../scene/physicalLobes.ts`) under `PHYSICAL_SURFACE_FLAG`, which a pixel with neither lobe
+ * (`../../materials/surface/physicalLobes.ts`) under `PHYSICAL_SURFACE_FLAG`, which a pixel with neither lobe
  * after its maps never carries. The target is full-size whenever a row names a record: it follows
  * the rows' surfaces right before this resolve (`followLobes`), so the pixel, bounded by the frame,
  * is never past it — and a store past a texture's bounds writes nothing.

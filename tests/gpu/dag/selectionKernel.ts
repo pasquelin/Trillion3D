@@ -1,25 +1,25 @@
 // The DAG selection kernel run on the GPU: the device and its pipelines opened once, then for each
 // case its buffers as the engine lays them out (`selectionCase.ts`), the stages `dagPrepare`, the
 // level descent, `dagWanted`, `dagMask`, `dagCommitMask` and `dagSortRequests` in the engine's order
-// (`gpu/dag/encode.ts`) for a cut that starts from fresh buffers, then the readout, the frame
+// (`geometry/dag/encode.ts`) for a cut that starts from fresh buffers, then the readout, the frame
 // counters and the draw flags read back.
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import assert from 'node:assert/strict'
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
-import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/shader.ts'
+import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
 import {
   stagedRequestsWord,
   SELECTION_HEADER_WORDS,
-} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
-import { LEVEL_QUEUES } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import { LEVEL_QUEUES } from '../../../packages/sdk-browser/src/geometry/dag/shader/levelWgsl.ts'
 import {
   OUT_COUNT,
   OUT_FLAGS,
   OUT_FRUSTUM_REJECTED,
   OUT_SELECTED_TRIANGLES,
   OUT_TRANSPARENT_TRIANGLES,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { bindCase, type SelectionCase, type StageOutput } from './selectionCase.ts'
@@ -61,7 +61,7 @@ export async function openSelectionKernel(shader = DAG_SELECTION_SHADER) {
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const stage = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } })
-  // Level 0 is the root level, as the engine encodes it (`gpu/dag/encode.ts`): the queue's slots,
+  // Level 0 is the root level, as the engine encodes it (`geometry/dag/encode.ts`): the queue's slots,
   // a grouped placement's left to its kept group (`placementTreeWgsl.ts`).
   const prepare = stage('dagPrepare'),
     levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`)),

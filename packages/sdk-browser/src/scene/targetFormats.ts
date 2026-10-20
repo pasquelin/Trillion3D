@@ -1,17 +1,17 @@
-/** The formats of the frame's targets beside the surfaces (`./surfaceBuffer.ts`), and the HDR
+/** The formats of the frame's targets beside the surfaces (`../materials/surface/surfaceBuffer.ts`), and the HDR
  *  target's shape and descriptor: no shader text, so the core's byte rules read them without the
  *  renderer's. */
-import { mipLevelCountFor } from '../texture/tiles.ts'
+import { mipLevelCountFor } from '../materials/texture/tiles.ts'
 
 /** The HDR colour: what the lighting writes, and the transparents, the effects and the temporal
  *  antialiasing read and write; the reflection target the upsample writes holds it at the lit
- *  image's precision (`../reflections/gpu.ts`). */
+ *  image's precision (`../lighting/reflections/gpu.ts`). */
 export const HDR_FORMAT: GPUTextureFormat = 'rgba16float'
 /** The distortion offsets, half floats — enough precision for sub-pixel offsets: positive offsets in red and green, negative in blue and alpha. */
 export const DISTORTION_FORMAT: GPUTextureFormat = 'rgba16float'
 /** The HDR colour's usages: drawn into, sampled, copied from (the distortion's scene copy) and into (the
  *  proofs that lay a lit image). Both HDR targets that take turns have them
- *  (`../reflections/radiance.ts`). A function: `GPUTextureUsage` exists only beside a device. */
+ *  (`../lighting/reflections/radiance/radiance.ts`). A function: `GPUTextureUsage` exists only beside a device. */
 const hdrUsage = () =>
   GPUTextureUsage.RENDER_ATTACHMENT |
   GPUTextureUsage.TEXTURE_BINDING |

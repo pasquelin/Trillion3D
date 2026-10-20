@@ -2,10 +2,10 @@
 import {
   createJobHeap,
   takeAdmissible,
-} from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
+} from '../../../packages/sdk-browser/src/geometry/streaming/queueOrder.ts'
 import { MIB } from '../../../packages/math/src/constants.ts'
-import { createArrivalQueue } from '../../../packages/sdk-browser/src/page/integration/arrivalQueue.ts'
-import { createFrameBudget } from '../../../packages/sdk-browser/src/page/integration/frameBudget.ts'
+import { createArrivalQueue } from '../../../packages/sdk-browser/src/geometry/integration/arrivalQueue.ts'
+import { createFrameBudget } from '../../../packages/sdk-browser/src/geometry/integration/frameBudget.ts'
 import { measure } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
@@ -98,8 +98,8 @@ function arrivals(factory: (byteBudget: number, countBudget: number) => QueueFac
 const resAdmission = await measure({
   name: 'admission streaming',
   fichier: [
-    'packages/sdk-browser/src/streaming/queueOrder.ts',
-    'packages/sdk-browser/src/streaming/queueTransfer.ts',
+    'packages/sdk-browser/src/geometry/streaming/queueOrder.ts',
+    'packages/sdk-browser/src/geometry/streaming/queueTransfer.ts',
   ],
   cas: [
     { name: '5 000 jobs', input: admissions.full, size: 5000 },
@@ -113,7 +113,7 @@ const resAdmission = await measure({
 
 const resArrivals = await measure({
   name: 'arrival queue',
-  fichier: 'packages/sdk-browser/src/page/integration/arrivalQueue.ts',
+  fichier: 'packages/sdk-browser/src/geometry/integration/arrivalQueue.ts',
   cas: [{ name: '5 000 arrivals on 8 targets', input: null, size: 5000 }],
   calculation: () => arrivals((bytes, count) => createArrivalQueue(bytes, count, frame)),
   expected: () => arrivals(referenceArrivalQueue),

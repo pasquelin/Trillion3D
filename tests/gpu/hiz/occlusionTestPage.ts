@@ -1,18 +1,18 @@
-// The engine's Hi-Z test kernel (`testHiz`, `gpu/hiz/testWgsl.ts`) on the machine's device: one
+// The engine's Hi-Z test kernel (`testHiz`, `hiz/gpu/testWgsl.ts`) on the machine's device: one
 // dispatch per case, the box laid out as the partition packs it (`Bounds`, `TESTED_BOX.words` words),
 // the verdict read back.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { HIZ_SHADER } from '../../../packages/sdk-browser/src/gpu/hiz/shader.ts'
+import { HIZ_SHADER } from '../../../packages/sdk-browser/src/visibility/hiz/gpu/shader.ts'
 import {
   HIZ_TEST_PAGES_ENTRIES,
   hizBindEntries,
-} from '../../../packages/sdk-browser/src/gpu/hiz/bindEntries.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/gpu/bindEntries.ts'
 import { PAGE_INFO_STRIDE } from '../../../packages/sdk-browser/src/visibility/types.ts'
 import {
   STATE_WORDS,
   ST_TESTED,
   TESTED_BOX,
-} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+} from '../../../packages/sdk-browser/src/geometry/partition/gpu/contract.ts'
 import { hizEntries, laidPyramid } from './casePyramid.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { BOX_NEAREST, UNIFORM_BYTES, type OcclusionCase } from './occlusionTestCases.ts'

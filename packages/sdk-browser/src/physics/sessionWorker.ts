@@ -1,5 +1,5 @@
 import type { PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
-import { besideModule, startModuleWorker } from '../host/besideModule.ts'
+import { besideModule, startModuleWorker } from '../session/host/besideModule.ts'
 import { stepThreads } from './joltThreads.ts'
 import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
 import { resultWords } from './protocol.ts'

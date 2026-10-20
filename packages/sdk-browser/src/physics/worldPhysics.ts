@@ -6,7 +6,7 @@ import { joined } from '../../../sdk-core/src/runtime/joined.ts'
 import { listen } from '../../../sdk-core/src/world/observed.ts'
 import type { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { Engine } from '../engine/types.ts'
+import type { Engine } from '../session/engine/types.ts'
 import { physicsLink } from './physicsLink.ts'
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts'
 import {
@@ -171,7 +171,7 @@ export function createWorldPhysics(
     /** The fixed envelopes, `world.budget.physics`: read once when the physics starts. */
     budget: s.budget,
     /** Sets the frame's time, `seconds` of the world's time after the last frame
-     *  (`FrameInfo.delta`), at its start: what the frame draws reads it (`worldFrames.ts`). */
+     *  (`FrameInfo.delta`), at its start: what the frame draws reads it (`frames/frames.ts`). */
     time(seconds: number) {
       s.session?.time(seconds)
     },

@@ -4,9 +4,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import { directionalLight } from '../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
+import { directionalLight } from '../../../packages/sdk-browser/src/scene/host/graph/graphLights.fixture.ts'
 import { witnessScene } from './displayObjects.ts'
 
 const CLEAR = 0x2a303c

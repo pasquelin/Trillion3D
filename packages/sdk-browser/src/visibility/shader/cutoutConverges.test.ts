@@ -1,11 +1,11 @@
 // Why the cutout needs no stipple under temporal antialiasing. On a still camera the jitter
 // moves each pixel's sample across its footprint, so the HARD cut, accumulated, already converges
 // to the pixel's coverage of the alpha as read. This file replays that on the CPU with the temporal
-// pass's own jitter, filter window, neighbour clamp and 1/k share (`../../taa/resolveWgsl.ts`).
+// pass's own jitter, filter window, neighbour clamp and 1/k share (`../../post/taa/resolveWgsl.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts'
-import { taaWindow } from '../../taa/filterWeights.fixture.ts'
+import { TAA_SAMPLES, taaJitter } from '../../post/taa/jitter.ts'
+import { taaWindow } from '../../post/taa/filterWeights.fixture.ts'
 import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 
 /** Still images accumulated: six whole jitter cycles. */

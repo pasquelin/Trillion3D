@@ -1,4 +1,4 @@
-// Defect 6 (`inverseTranspose3` in the DAG selection kernel, `gpu/dag/shader/shader.ts`): an absolute
+// Defect 6 (`inverseTranspose3` in the DAG selection kernel, `geometry/dag/shader/shader.ts`): an absolute
 // `abs(det)<1e-20` on the raw determinant returned the LOCAL axis untransformed as soon as a small
 // uniform scale (det = ±s³ < 1e-20, s ≲ 2.15e-7) made the determinant tiny. The conformity test
 // (defect 1) being scale-free, a tiny rotation was conformal on both sides and only the GPU took the
@@ -12,7 +12,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/shader.ts'
 import { runSelectionKernel } from '../dag/selectionKernel.ts'
 import {
   VIEWPORT,

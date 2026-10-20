@@ -1,6 +1,6 @@
 // The texels the temporal pass fetches for one display pixel of a still image whose history every
 // pixel keeps, on flat surfaces with no pixel animation: each pass's fetches as its shipped WGSL
-// issues them (`packages/sdk-browser/src/taa/`), per render texel for the analysis — the nearest
+// issues them (`packages/sdk-browser/src/post/taa/`), per render texel for the analysis — the nearest
 // velocity, the reprojection, the thin geometry, the flicker measure, the rejection's two passes
 // (the held measure and the shading rejection), the spatial anti-aliaser — and per display pixel
 // for the history update. A workgroup's tile reads, at each stage, every texel of its span within
@@ -11,14 +11,14 @@
 //
 //   node bench/runner/counts/taaFetchCount.ts
 import type { TemporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
-import { THIN_GEOMETRY_PLAN } from '../../../packages/sdk-browser/src/taa/thinGeometryWgsl.ts'
-import { FLICKER_PLAN } from '../../../packages/sdk-browser/src/taa/flickerWgsl.ts'
+import { THIN_GEOMETRY_PLAN } from '../../../packages/sdk-browser/src/post/taa/thinGeometryWgsl.ts'
+import { FLICKER_PLAN } from '../../../packages/sdk-browser/src/post/taa/flickerWgsl.ts'
 import {
   HELD_MEASURE_PLAN,
   REJECTION_PLAN,
-} from '../../../packages/sdk-browser/src/taa/rejectionWgsl.ts'
-import { ringTexels, type TilePlan } from '../../../packages/sdk-browser/src/taa/tileWgsl.ts'
-import { taaKnobs } from '../../../packages/sdk-browser/src/taa/levels.ts'
+} from '../../../packages/sdk-browser/src/post/taa/rejectionWgsl.ts'
+import { ringTexels, type TilePlan } from '../../../packages/sdk-browser/src/post/taa/tileWgsl.ts'
+import { taaKnobs } from '../../../packages/sdk-browser/src/post/taa/levels.ts'
 
 /** A tiled pass's fetches: per stage, its ring and what a slot of it fetches. */
 type TiledPass = { plan: TilePlan; stages: readonly { ring: number; fetches: number }[] }

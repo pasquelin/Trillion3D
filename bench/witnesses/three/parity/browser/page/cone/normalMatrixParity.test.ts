@@ -12,7 +12,7 @@ import { normalMatrix3 } from '../../../../../../../packages/math/src/matrix/mat
 import {
   coneContextFor,
   createConeContext,
-} from '../../../../../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+} from '../../../../../../../packages/sdk-browser/src/geometry/cone/cone.fixture.ts'
 import { createEngineCamera } from '../../../../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { readCameraWorld } from '../../../../../../../packages/sdk-browser/src/camera/world.ts'
 

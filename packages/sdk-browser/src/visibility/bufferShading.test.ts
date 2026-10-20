@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { compareImages } from '../../../sdk-core/src/runtime/compareImages.ts'
-import { rasterPages } from '../page/raster.fixture.ts'
+import { rasterPages } from '../geometry/pages/raster.fixture.ts'
 import type { VisPage } from './types.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import {
@@ -14,8 +14,8 @@ import {
   visibilityUvDerivatives,
 } from './buffer.fixture.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
-import { surfaceOf } from '../page/surface.ts'
-import { identityRoots } from '../page/selection/placements.fixture.ts'
+import { surfaceOf } from '../geometry/pages/surface.ts'
+import { identityRoots } from '../geometry/selection/placements.fixture.ts'
 import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { VIS_INVALID, unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts'
 

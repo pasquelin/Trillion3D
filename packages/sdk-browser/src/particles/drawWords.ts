@@ -1,8 +1,8 @@
 import { distanceSqVector3 } from '../../../math/src/vector/vector.ts'
 import { inverseAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
-import { usedSlots } from '../webgpu/particles/poolStates.ts'
-import { ADD_ONE, OVER } from '../webgpu/blend/equations.ts'
+import { usedSlots } from './gpu/poolStates.ts'
+import { ADD_ONE, OVER } from '../blend/equations.ts'
 
 /** The words the particle draw gives a pool: clip matrix from its origin and inverse, made
  *  in double precision, eye from the origin, radius, colour at birth, softness; words 41–43 the

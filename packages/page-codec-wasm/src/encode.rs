@@ -1,5 +1,5 @@
 //! The `WGP3` page encoder: the one that writes every page, the native compiler's and the
-//! run-time cut's (`wasm_encode.rs`), from the grids of `bits` and the streams of `triangles`,
+//! run-time cut's (`wasm/encode.rs`), from the grids of `bits` and the streams of `triangles`,
 //! `positions` and `deform`.
 pub mod cells;
 pub mod deformation;

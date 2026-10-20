@@ -9,7 +9,7 @@ import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
 } from '../contracts/poolBudgets.ts'
-import { DEFAULT_TEXTURE_UPLOAD_MS } from '../../../sdk-browser/src/residency/textureTransferDefaults.ts'
+import { DEFAULT_TEXTURE_UPLOAD_MS } from '../../../sdk-browser/src/session/memory/textureTransferDefaults.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
 const explorer = { manifestUrl: '/assets/model/manifest.json' }

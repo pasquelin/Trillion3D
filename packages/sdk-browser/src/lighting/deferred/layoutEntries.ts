@@ -1,10 +1,10 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
-import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
-import { receiverLayoutEntry } from '../../webgpu/visibility/receiver.ts'
+import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
+import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
+import { receiverLayoutEntry } from '../../visibility/passes/receiver.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
 import { MASK_TILES_TARGET } from '../direct/shadowTraceWgsl.ts'
-import { REFLECTION_TARGET } from '../../reflections/weight.ts'
+import { REFLECTION_TARGET } from '../reflections/weight.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
@@ -74,9 +74,9 @@ function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
     receiverLayoutEntry(DEFERRED_BINDINGS.receiver, fragment),
     SUBSURFACE_TARGET.layoutEntry(),
-    // The anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`).
+    // The anisotropic and clear-coat lobes (`../../materials/surface/physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.layoutEntry(),
-    // The share of the radiance the reflection trace wrote (`../../reflections/trace.ts`).
+    // The share of the radiance the reflection trace wrote (`../reflections/trace/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
   ]
 }

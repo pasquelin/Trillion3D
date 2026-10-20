@@ -4,7 +4,11 @@
 // one place a shadow is read; the program with no shadow code never does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderFunctions, wgslConstants, functionsOf } from '../../texture/shaderRule.fixture.ts'
+import {
+  shaderFunctions,
+  wgslConstants,
+  functionsOf,
+} from '../../materials/texture/shaderRule.fixture.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 
 const surfaceOf = (shader: string) => shader.slice(shader.indexOf('fn lightSurface('))

@@ -1,6 +1,6 @@
 /**
  * THE ENGINE'S SURFACE RECORDS, HANDED TO THE WITNESS RENDERER: each record
- * (`packages/sdk-browser/src/page/surface.ts`) drawn as the library's material of the family it was
+ * (`packages/sdk-browser/src/geometry/pages/surface.ts`) drawn as the library's material of the family it was
  * declared in — a Lambert, Phong or toon surface as the library lights that family, never through
  * the engine's one model. One copy per record, made on first request, painted again at every
  * request and recompiled when the record's version moved. Every number is the record's.
@@ -9,8 +9,11 @@ import * as THREE from 'three'
 import type { Blending } from '../../../packages/sdk-core/src/world/constants/index.ts'
 import type { Side } from '../../../packages/sdk-core/src/contracts/material.ts'
 import { COLOUR_MAPS } from '../../../packages/sdk-core/src/world/material/material.ts'
-import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts'
-import type { PageSurface, SurfaceFamily } from '../../../packages/sdk-browser/src/page/surface.ts'
+import type { HostMaterials } from '../../../packages/sdk-browser/src/session/host/resources.ts'
+import type {
+  PageSurface,
+  SurfaceFamily,
+} from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { follow, threeTexture } from './fromGraph.ts'
 
 type Held = { made: THREE.Material; version: number }

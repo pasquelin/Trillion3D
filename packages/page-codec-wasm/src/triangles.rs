@@ -141,5 +141,4 @@ impl Spans {
 }
 
 #[cfg(test)]
-#[path = "triangles_tests.rs"]
 mod tests;

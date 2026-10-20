@@ -1,8 +1,8 @@
 import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { HALF_MAX } from '../../../math/src/constants.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
-import { REACH_UNBOUNDED } from '../gpu/dag/placementTree.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { REACH_UNBOUNDED } from '../geometry/dag/placement/placementTree.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /** A half float's value from its sixteen bits, positive ones: what `unpack2x16float` reads. */
 const halfValue = (bits: number) => (bits >= REACH_UNBOUNDED ? Infinity : fromHalf(bits))

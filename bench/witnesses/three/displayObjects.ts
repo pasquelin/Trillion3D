@@ -7,7 +7,7 @@
  */
 import { installSceneLighting, type HostLight } from './sceneLighting.ts'
 import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
-import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
+import { asHostLibrary } from '../../../packages/sdk-browser/src/session/host/resources.ts'
 import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
 import { copyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { threeLight, threeMeshCopy } from './fromGraphNodes.ts'

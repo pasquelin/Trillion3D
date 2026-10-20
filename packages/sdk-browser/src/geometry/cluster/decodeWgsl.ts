@@ -1,0 +1,186 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { octBytesDecode } from '../../../../math/src/wgsl/octahedral.ts'
+import {
+  bitLength,
+  bitWord,
+  byteOf,
+  ceilDivWgsl,
+  lowBits,
+  pow2FromExponent,
+} from '../../../../math/src/wgsl/integer.ts'
+import {
+  BLOCK_CORNERS,
+  CLUSTER_HEADER_WORDS,
+  FLAG_COLOR,
+  FLAG_NORMAL,
+  FLAG_UV,
+  FLAG_UV1,
+  MAX_MORPH_TARGETS,
+  MORPH_WORDS,
+  TRIANGLE_BLOCK,
+  WIDTH_BITS,
+} from '../../../../sdk-core/src/page/format.ts'
+import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
+
+/**
+ * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
+ * (`docs/FORMAT.md`): the header once per cluster, then any vertex or corner by rank, in O(1)
+ * — a field never spans more than two words, and a triangle is its block's record, read once, and
+ * three fields. The arithmetic is the format's, operation for
+ * operation — one multiply, one add, both correctly rounded in WGSL —, so a position decoded here
+ * is the 32-bit float the shared Rust codec and `../codec/geometryPage.ts` decode; a normal, which goes
+ * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin.
+ *
+ * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
+ * to `pageWords:array<u32>`.
+ */
+export function clusterDecodeWgsl(buffer: string) {
+  return wgslBlock(
+    `clusterDecodeWgsl(${buffer})`,
+    [
+      octBytesDecode,
+      CLUSTER_HEADER_WGSL,
+      bitLength,
+      byteOf,
+      ceilDivWgsl,
+      pow2FromExponent,
+      lowBits,
+      bitWord,
+    ],
+    `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
+fn clusterField(base:u32,at:u32,bits:u32)->u32{
+ if(bits==0u){return 0u;}
+ let shift=at&31u;let index=base+bitWord(at);
+ var value=${buffer}[index]>>shift;
+ if(shift+bits>32u){value|=${buffer}[index+1u]<<(32u-shift);}
+ return value&lowBits(bits);
+}
+// A record word: six bits per width from bit 0, the exponent as a signed byte on top.
+fn clusterWidths(word:u32)->vec4u{return vec4u(word&63u,(word>>6u)&63u,(word>>12u)&63u,(word>>18u)&63u);}
+fn clusterStep(word:u32)->f32{return pow2FromExponent(i32(word)>>24u);}
+// The word a stream of \`count\` fields of \`bits\` bits starts at; \`at\` moves past it when present.
+fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
+ let start=*at;
+ if(present){*at+=ceilDiv(count*bits,32u);}
+ return start;
+}
+// The header's corners and positions: what a raster reads of a row that draws no surface
+// attribute, nine of the twenty-three words a whole header reads and five of its fifteen streams.
+// \`links\` is where the link stream starts, present or not; \`clusterSurfaceHeader\` does the rest.
+fn clusterPointHeader(base:u32)->ClusterHeader{
+ var h:ClusterHeader;
+ h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];
+ let p=${buffer}[base+5u];h.posBits=clusterWidths(p).xyz;h.posStep=clusterStep(p);
+ h.posMin=vec3f(bitcast<f32>(${buffer}[base+6u]),bitcast<f32>(${buffer}[base+7u]),bitcast<f32>(${buffer}[base+8u]));
+ h.indexBits=bitLength(h.vertexCount-1u);
+ let cornerBits=${buffer}[base+21u];
+ h.prefixBits=bitLength(cornerBits/${BLOCK_CORNERS}u);
+ h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
+ h.positionCount=${buffer}[base+22u];h.linkBits=bitLength(h.positionCount-1u);
+ // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
+ let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&${MAX_MORPH_TARGETS}u;h.skinBase=(dw>>14u)&0xffffu;
+ let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
+ h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
+ h.corners=clusterStream(true,cornerBits,1u,&at);
+ h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
+ h.links=at;
+ return h;
+}
+// The rest of the header after \`clusterPointHeader\`: flags, attribute grids and the streams after
+// the links, the same words and the same arithmetic as one decode of the whole.
+fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
+ var h=point;
+ h.flags=${buffer}[base+4u];
+ let t=${buffer}[base+9u];h.uvBits=clusterWidths(t).xy;h.uvStep=clusterStep(t);
+ h.uvMin=vec2f(bitcast<f32>(${buffer}[base+10u]),bitcast<f32>(${buffer}[base+11u]));
+ let s=${buffer}[base+12u];h.uv1Bits=clusterWidths(s).xy;h.uv1Step=clusterStep(s);
+ h.uv1Min=vec2f(bitcast<f32>(${buffer}[base+13u]),bitcast<f32>(${buffer}[base+14u]));
+ let c=${buffer}[base+15u];h.colorBits=clusterWidths(c);h.colorStep=clusterStep(c);
+ h.colorMin=vec4f(bitcast<f32>(${buffer}[base+16u]),bitcast<f32>(${buffer}[base+17u]),bitcast<f32>(${buffer}[base+18u]),bitcast<f32>(${buffer}[base+19u]));
+ h.quantizationError=bitcast<f32>(${buffer}[base+20u]);
+ h.influences=${buffer}[base+24u];
+ let n=h.vertexCount;var at=h.links;
+ clusterStream(h.positionCount<n,n,h.linkBits,&at);
+ h.normal=clusterStream((h.flags&${FLAG_NORMAL}u)!=0u,n,16u,&at);
+ let hasUv=(h.flags&${FLAG_UV}u)!=0u;h.uv.x=clusterStream(hasUv,n,h.uvBits.x,&at);h.uv.y=clusterStream(hasUv,n,h.uvBits.y,&at);
+ let hasUv1=(h.flags&${FLAG_UV1}u)!=0u;h.uv1.x=clusterStream(hasUv1,n,h.uv1Bits.x,&at);h.uv1.y=clusterStream(hasUv1,n,h.uv1Bits.y,&at);
+ let hasColor=(h.flags&${FLAG_COLOR}u)!=0u;h.color.x=clusterStream(hasColor,n,h.colorBits.x,&at);h.color.y=clusterStream(hasColor,n,h.colorBits.y,&at);
+ h.color.z=clusterStream(hasColor,n,h.colorBits.z,&at);h.color.w=clusterStream(hasColor,n,h.colorBits.w,&at);
+ h.skin=at;
+ return h;
+}
+// The whole header, once per cluster.
+fn clusterHeader(base:u32)->ClusterHeader{return clusterSurfaceHeader(clusterPointHeader(base),base);}
+// Bits \`at\` to \`at+bits\` of the two words \`lo\`, \`hi\` read as one 64-bit window, \`bits\` at most 24.
+fn clusterWindow(lo:u32,hi:u32,at:u32,bits:u32)->u32{
+ if(bits==0u){return 0u;}
+ var value=hi>>(at&31u);
+ if(at<32u){value=lo>>at;if(at+bits>32u){value|=hi<<(32u-at);}}
+ return value&lowBits(bits);
+}
+// The record of triangle \`tri\`'s block, from the two words it starts in: the block's base, its
+// width, and the bit of the corner stream its first corner lies at. Only a prefix that leaves
+// the window — a record past 33 bits, a page far beyond a meshlet — reads a third word.
+fn clusterBlock(h:ClusterHeader,base:u32,tri:u32)->vec3u{
+ let at=(tri/${TRIANGLE_BLOCK}u)*h.recordBits;let word=base+h.blocks+bitWord(at);let s=at&31u;
+ let lo=${buffer}[word];let hi=${buffer}[word+1u];
+ let p=s+h.indexBits+${WIDTH_BITS}u;
+ var prefix=clusterWindow(lo,hi,p,h.prefixBits);
+ if(p+h.prefixBits>64u){prefix=clusterField(base+h.blocks,at+h.indexBits+${WIDTH_BITS}u,h.prefixBits);}
+ return vec3u(clusterWindow(lo,hi,s,h.indexBits),clusterWindow(lo,hi,s+h.indexBits,${WIDTH_BITS}u),prefix*${BLOCK_CORNERS}u);
+}
+// Local vertex indices of triangle \`tri\`: its block's base plus each corner's distance to it,
+// the record read once for the three.
+fn clusterTriangle(h:ClusterHeader,base:u32,tri:u32)->vec3u{
+ let b=clusterBlock(h,base,tri);let at=b.z+(tri%${TRIANGLE_BLOCK}u)*3u*b.y;let stream=base+h.corners;
+ return b.x+vec3u(clusterField(stream,at,b.y),clusterField(stream,at+b.y,b.y),clusterField(stream,at+2u*b.y,b.y));
+}
+// Local vertex index of corner \`corner\` (three per triangle).
+fn clusterIndex(h:ClusterHeader,base:u32,corner:u32)->u32{
+ let b=clusterBlock(h,base,corner/3u);
+ return b.x+clusterField(base+h.corners,b.z+(corner%${BLOCK_CORNERS}u)*b.y,b.y);
+}
+fn clusterGrid(base:u32,stream:u32,vertex:u32,bits:u32,minimum:f32,step:f32)->f32{
+ return minimum+f32(clusterField(base+stream,vertex*bits,bits))*step;
+}
+// A vertex's position: its own, or the one its link names when the page stores each once.
+fn clusterPosition(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
+ var at=vertex;
+ if(h.positionCount<h.vertexCount){at=clusterField(base+h.links,vertex*h.linkBits,h.linkBits);}
+ return vec3f(clusterGrid(base,h.pos.x,at,h.posBits.x,h.posMin.x,h.posStep),
+  clusterGrid(base,h.pos.y,at,h.posBits.y,h.posMin.y,h.posStep),
+  clusterGrid(base,h.pos.z,at,h.posBits.z,h.posMin.z,h.posStep));
+}
+fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
+ return vec2f(clusterGrid(base,h.uv.x,vertex,h.uvBits.x,h.uvMin.x,h.uvStep),
+  clusterGrid(base,h.uv.y,vertex,h.uvBits.y,h.uvMin.y,h.uvStep));
+}
+// Two octahedral bytes back to a unit vector.
+fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
+ let q=clusterField(base+h.normal,vertex*16u,16u);
+ return octBytesDecode(q,0u);
+}
+// Every influence is retained; weight words are exact source float32 bits.
+fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
+ let w=ceilDiv(h.vertexCount*h.skinBits,32u);
+ return h.skinBase+clusterField(base+h.skin+influence*w,vertex*h.skinBits,h.skinBits);
+}
+fn clusterWeight(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->f32{
+ let w=ceilDiv(h.vertexCount*h.skinBits,32u);
+ return bitcast<f32>(${buffer}[base+h.skin+h.influences*w+influence*h.vertexCount+vertex]);
+}
+// Morph target \`t\`'s position displacement (\`normal\` false) or normal displacement of a vertex:
+// its record after the header names the word its six streams start at.
+fn clusterMorph(h:ClusterHeader,base:u32,t:u32,vertex:u32,normal:bool)->vec3f{
+ let r=base+${CLUSTER_HEADER_WORDS}u+t*${MORPH_WORDS}u;let n=h.vertexCount;
+ let at=base+h.streams+${buffer}[r]+select(0u,3u*n,normal)+vertex;
+ return vec3f(bitcast<f32>(${buffer}[at]),bitcast<f32>(${buffer}[at+n]),bitcast<f32>(${buffer}[at+2u*n]));
+}
+fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
+ return vec4f(clusterGrid(base,h.color.x,vertex,h.colorBits.x,h.colorMin.x,h.colorStep),
+  clusterGrid(base,h.color.y,vertex,h.colorBits.y,h.colorMin.y,h.colorStep),
+  clusterGrid(base,h.color.z,vertex,h.colorBits.z,h.colorMin.z,h.colorStep),
+  clusterGrid(base,h.color.w,vertex,h.colorBits.w,h.colorMin.w,h.colorStep));
+}`,
+  )
+}

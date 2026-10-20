@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { glHits } from './check-webgpu-only.ts'
-import { git } from '../git-paths.ts'
+import { git } from '../git/git-paths.ts'
 
 const script = new URL('./check-webgpu-only.ts', import.meta.url).pathname
 const GL = ['g', 'l'].join('')

@@ -3,7 +3,7 @@
 // is a JSON record naming its process; a holder whose process is dead is taken over.
 import { linkSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { readJson } from '../repository-files.ts'
+import { readJson } from '../git/repository-files.ts'
 
 /** What a lock's holder writes in it: its process, and what its policy adds. */
 type Holder = { pid: number }

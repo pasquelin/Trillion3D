@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
 import { TAU } from '../../../../math/src/constants.ts'

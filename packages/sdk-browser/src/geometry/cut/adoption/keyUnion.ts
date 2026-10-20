@@ -1,0 +1,62 @@
+import type { PageRec } from '../../selection/types.ts'
+import type { DenseKeySet } from './denseKeys.ts'
+import { createSparseInts } from '../sparseInts.ts'
+
+/**
+ * The union of several sources of page keys, held from one image to the next: the one reference
+ * count of the residency's keys. It counts every holder — a source, or each placement of a page a
+ * cut's difference names (`../../residency/sets.ts`) — and lists a key once however many hold it, so a
+ * source changes it by difference alone. Keys marked `covered` — the root cover, which every image asks for — count
+ * towards `size` but stay out of `members`, so `members` lists exactly what the residency queue
+ * still has to fetch; a key that joins or leaves the cover (`cover`) leaves or rejoins `members`
+ * while a source holds it. `onListed`/`onUnlisted` report the moment a key joins or leaves
+ * `members`, which is what the pin bookkeeping needs and all it needs.
+ */
+export function createKeyUnion(options: {
+  members: DenseKeySet
+  keyCount: number
+  covered?: Uint8Array
+  onListed?: (key: number, page?: PageRec) => void
+  onUnlisted?: (key: number) => void
+}) {
+  const { members, keyCount, covered, onListed, onUnlisted } = options
+  /** Holders per key, only for the keys held: the union follows the view, not the catalogue. */
+  const refs = createSparseInts()
+  let coveredCount = 0
+  if (covered) for (let key = 0; key < keyCount; key++) if (covered[key]) coveredCount++
+  return {
+    members,
+    /** Keys the union holds, the covered cover included. */
+    get size() {
+      return coveredCount + members.count
+    },
+    /** Bytes of the holder counts and of `members`. */
+    get byteLength() {
+      return refs.byteLength + members.byteLength
+    },
+    retain(key: number, page?: PageRec) {
+      if (refs.add(key, 1) > 1 || covered?.[key]) return
+      members.add(key, page)
+      onListed?.(key, page)
+    },
+    release(key: number) {
+      if (refs.get(key) <= 0) return
+      if (refs.add(key, -1) > 0 || covered?.[key]) return
+      members.remove(key)
+      onUnlisted?.(key)
+    },
+    /** `key`, `page`'s, joined the cover (`on`) or left it, as `covered` says now: the union stops
+     *  or starts listing it if a source holds it. */
+    cover(key: number, on: boolean, page?: PageRec) {
+      coveredCount += on ? 1 : -1
+      if (refs.get(key) <= 0) return
+      if (on) {
+        members.remove(key)
+        onUnlisted?.(key)
+      } else {
+        members.add(key, page)
+        onListed?.(key, page)
+      }
+    },
+  }
+}

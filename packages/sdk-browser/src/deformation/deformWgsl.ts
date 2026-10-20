@@ -15,8 +15,8 @@ import {
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { transformPoint } from '../../../math/src/wgsl/projection.ts'
-import { CLUSTER_HEADER_WGSL } from '../cluster/headerWgsl.ts'
-import { clusterDecodeWgsl } from '../cluster/decodeWgsl.ts'
+import { CLUSTER_HEADER_WGSL } from '../geometry/cluster/headerWgsl.ts'
+import { clusterDecodeWgsl } from '../geometry/cluster/decodeWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { WAVE_TERMS } from './waveTermsWgsl.ts'
@@ -34,7 +34,7 @@ export const DEFORM_AT_WGSL = wgslBlock(
 
 /**
  * THE READS OF A DEFORMATION RECORD (`layout.ts`), written once for every storage a record lies in —
- * the passes' float pool (`positions`), the proxy's pose (`bounce/runtimePoseWgsl.ts`) —: a word of
+ * the passes' float pool (`positions`), the proxy's pose (`lighting/bounce/runtime/runtimePoseWgsl.ts`) —: a word of
  * it, joint `j` of the palette at `at` (`count` joints, the last one standing for a larger rank),
  * its three rows, and where the record's parts start (`DeformAt`), this frame's or the last one's.
  */
@@ -63,7 +63,7 @@ fn ${prefix}At(r:u32,previous:bool)->DeformAt{
 
 /**
  * THE BLEND OF A PALETTE'S JOINTS, written once for every vertex a record moves — a page's
- * (`deformSkin`), a proxy's corner (`bounce/runtimePoseWgsl.ts`) —: a point (`w` 1) or a direction
+ * (`deformSkin`), a proxy's corner (`lighting/bounce/runtime/runtimePoseWgsl.ts`) —: a point (`w` 1) or a direction
  * (`w` 0) carried by the weighed sum of its joints, renormalised by the weights' total, untouched
  * where they sum to none. `weight` and `joint` are the expressions of influence `k`'s weight and
  * joint, over the function's own `params`.

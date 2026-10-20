@@ -6,11 +6,11 @@ import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { lightTilesShader, type LightGridKind } from './shader.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
+import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { createTileLightPool } from './pool.ts'
 import { buildComputeStage } from '../../gpu/core/computeStages.ts'
-import { BOUNCE_LIGHT_LISTS_PASS, LIGHT_TILES_PASS } from '../../stage/passLabels.ts'
+import { BOUNCE_LIGHT_LISTS_PASS, LIGHT_TILES_PASS } from '../../diagnostic/stage/passLabels.ts'
 
 /** The pass's uniform: the inverse matrix, the viewport and columns, the origin, two depth rows,
  *  the word the grid's records start at. */

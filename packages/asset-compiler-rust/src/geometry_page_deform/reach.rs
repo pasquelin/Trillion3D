@@ -1,7 +1,7 @@
 //! How far a deformed primitive can move, as the compiler writes it: the measure itself is the
 //! shared codec's (`trillion3d_page_codec::reach`), which the run-time cut runs too.
+use trillion3d_page_codec::cut::reach::{joint_balls, target_radius};
 use trillion3d_page_codec::encode::deformation::Deformation;
-use trillion3d_page_codec::reach::{joint_balls, target_radius};
 
 /// What the runtime inflates a deformed cluster's bounds by: for each joint the ball
 /// of the rest-pose vertices it moves, `[x, y, z, radius]`, and each target's largest

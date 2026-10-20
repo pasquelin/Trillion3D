@@ -6,13 +6,13 @@
 // that is the only case where reading a camera's local pose still looks right.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { enginePose, resolveCameraWorld } from './world.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
-import { resolvePixelError } from '../page/selection/requests.ts'
-import { createFrameGateCore } from '../frame/gateCore.ts'
+import { resolvePixelError } from '../geometry/selection/requests.ts'
+import { createFrameGateCore } from '../frame/gate/gateCore.ts'
 import {
   POSES_PARENT,
   flattenedCamera,

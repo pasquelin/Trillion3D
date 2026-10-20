@@ -1,0 +1,172 @@
+// parseDagOutput sizes its arrays ahead of time instead of a typed-array spread and a `push` with
+// no capacity. Oracle: the spreading version, in
+// `../../../../../bench/oracles/browser/residency.ts`.
+//
+// THE HEADER IS WIDER THAN THE ORACLE'S: the oracle's four words — a count, frustum reject, the
+// level, the flags — are the first of eight, the next four carrying the triangle totals the GPU
+// holds (`layout.ts`). The oracle is frozen at four. Each side therefore receives a readback IN
+// ITS OWN LAYOUT, with the same values, and the comparison is on what they extract: it is the
+// decode that is compared, not the placement of the words.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { parseDagOutput } from './uniforms.ts'
+import { OUT_AHEAD_PLACED } from './layout.ts'
+import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
+import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residency.ts'
+import type { SelectionResult } from '../../gpu/core/selection.ts'
+
+/** The ahead counter: the word before its placed count (`struct Output`, `shader/shader.ts`). */
+const OUT_AHEAD = OUT_AHEAD_PLACED - 1
+
+/** The oracle's header: four words, those from before the totals. */
+const HEAD_ORACLE = 4
+
+/**
+ * The readback reduced to what both sides can carry. `drawablePageIds` is normalised — the oracle
+ * only wrote the key when a mask existed, the reused readback always carries it. Fields that only
+ * one of the two produces — `truncated`, `dropped`, `requestPriorities` that only the oracle publishes,
+ * `aheadPageIds` that only the reader of the view ahead splits off,
+ * `complete` that only the oracle still reads (the cut rule leaves no surface undrawn), the
+ * difference only the GPU takes (`shader/differenceWgsl.ts`), and the four totals — are STRIPPED
+ * and asserted separately: comparing them would ask a side for something it never knew.
+ */
+const champs = (
+  reading: (Partial<SelectionResult> & { complete?: boolean; requestPriorities?: number[] }) | null,
+) => {
+  if (!reading) return reading
+  const {
+    truncated: _t,
+    dropped: _w,
+    complete: _c,
+    requestPriorities: _r,
+    aheadPageIds: _a,
+    selectedTriangles: _s,
+    transparentTriangles: _p,
+    ...reste
+  } = reading
+  return { ...reste, drawablePageIds: reading.drawablePageIds ?? undefined }
+}
+
+function buffer(header: number[], pageIds: number[], head = SELECTION_HEADER_WORDS) {
+  const ints = new Uint32Array(head + pageIds.length)
+  ints.set(header, 0)
+  ints.set(pageIds, head)
+  return ints.buffer
+}
+
+/** The readback as the GPU returns it: the header and the pages, then the compacted list. */
+function withDrawn(header: number[], pageIds: number[], drawn: number[], pageCount: number) {
+  const head = SELECTION_HEADER_WORDS,
+    words = head + pageCount
+  const ints = new Uint32Array(words * 2)
+  ints.set(header, 0)
+  ints.set(pageIds, head)
+  ints[words] = drawn.length
+  ints.set(drawn, words + head)
+  return { bytes: ints.buffer, drawnWordOffset: words }
+}
+
+/** Both readbacks of the same content, each in its reader's layout. The oracle only receives the
+ *  four words it knows how to read: the totals are not submitted to it, it does not know them. */
+const pair = (header: number[], pageIds: number[]) => ({
+  neuf: buffer(header, pageIds),
+  oracle: buffer(header.slice(0, HEAD_ORACLE), pageIds, HEAD_ORACLE),
+})
+const lire = (bytes: ArrayBuffer) => parseDagOutput(bytes, 0, bytes.byteLength, 0)
+const lireOracle = (bytes: ArrayBuffer) => referenceParseDagOutput(bytes, 0, bytes.byteLength, 0)
+
+// Bit 0 of word 3 means, with the readback cap (`layout.ts`), "the cut did not fit under the cap",
+// a normal situation for an extreme scene — the kernels ran, the frame mask is correct, only the
+// LIST is truncated. The readback is returned, and marked; the oracle, which reads that bit as a
+// failure ("the cut wrote more ranks than there are clusters"), returns `null`.
+test('bit 0 of word 3 declares the readback truncated, without discarding it', () => {
+  const { neuf, oracle } = pair([5, 0, 0, 1], [1, 2, 3, 4, 5])
+  const reading = lire(neuf)
+  assert.ok(reading, 'a truncated readback is still a readback')
+  assert.equal(reading.truncated, true)
+  assert.deepEqual(reading.pageIds, [1, 2, 3, 4, 5])
+  assert.equal(lireOracle(oracle), null, 'what the oracle used to do')
+})
+
+test('a readback that fits under the cap is never declared truncated', () => {
+  const { neuf } = pair([3, 0, 0, 0], [10, 20, 30])
+  assert.equal(lire(neuf)!.truncated, false)
+})
+
+test('the host reads the requests in the order the GPU wrote them, and ranks nothing', () => {
+  // Each rank is a request's page, a whole word (`request/request.ts`): past the old twenty-two bits too.
+  // The GPU wrote them sorted (`shader/snapshotWgsl.ts`); the reader keeps that order, even one it
+  // would not have chosen.
+  const requests = [70, 11, 2 ** 31 + 42, 8, 7]
+  // The camera's three are counted on their own; the two ahead the sort placed behind them.
+  const { neuf } = pair([3, 0, 0, 0, 0, 0, 2, 2], requests)
+  const reading = lire(neuf)!
+  assert.deepEqual(reading.pageIds, [70, 11, 2 ** 31 + 42])
+  // The view ahead's requests, after every visible one, leave for their own list (`request/request.ts`).
+  assert.deepEqual(reading.aheadPageIds, [8, 7])
+})
+
+test('requests ahead never make a crowded sample truncated, nor take the camera’s place', () => {
+  // A sample of four ranks the camera fills whole, while the view ahead asked for nine more: the
+  // camera's requests are all read, none ahead, and nothing says truncated (`shader/snapshotWgsl.ts`).
+  const camera = [1, 2, 3, 4]
+  const header = [4, 0, 0, 0, 0, 0, 0, 0]
+  header[OUT_AHEAD] = 9
+  header[OUT_AHEAD_PLACED] = 0
+  const read = lire(buffer(header, camera))!
+  assert.equal(read.truncated, false)
+  assert.deepEqual(read.pageIds, [1, 2, 3, 4])
+  assert.deepEqual(read.aheadPageIds, [])
+  // A placed count past what the sample holds is bounded by it.
+  header[OUT_AHEAD_PLACED] = 3
+  assert.deepEqual(lire(buffer(header, camera))!.aheadPageIds, [])
+})
+
+test('triangle totals are reread as the GPU posted them, the drawn count left to the occlusion', () => {
+  // Words 6 and 7 are reserved: whatever they hold, the cut's total is the selected one; the
+  // triangles drawn are counted past the occlusion test (`drawnTrianglesOf`), never here.
+  const { neuf } = pair([3, 0, 0, 0, 900, 90, 700, 200], [10, 20, 30])
+  const reading = lire(neuf)!
+  assert.equal(reading.selectedTriangles, 900)
+  assert.equal(reading.transparentTriangles, 90)
+  assert.equal('drawnTriangles' in reading, false, 'no drawn counter is read')
+  assert.equal('uncoveredTriangles' in reading, false, 'no uncovered counter is read')
+})
+
+test('a normal readback without a mask matches the reference field for field', () => {
+  const { neuf, oracle } = pair([3, 42, 2, 0], [10, 20, 30])
+  assert.deepEqual(champs(lire(neuf)), champs(lireOracle(oracle)))
+  assert.deepEqual(champs(lire(neuf)), {
+    pageIds: [10, 20, 30],
+    frustumRejected: 42,
+    lodLevel: 2,
+    drawablePageIds: undefined,
+  })
+})
+
+test('a page count larger than the buffer holds is clamped identically, with and without a mask', () => {
+  const { neuf, oracle } = pair([1000, 0, 0, 0], [1, 2, 3])
+  assert.deepEqual(champs(lire(neuf)), champs(lireOracle(oracle)))
+  assert.equal(lire(neuf)!.pageIds.length, 3)
+})
+
+test('the compacted drawable list is reread as-is, without walking every page', () => {
+  const { bytes, drawnWordOffset } = withDrawn([2, 0, 0, 0], [5, 6], [0, 2, 3, 6], 8)
+  const reading = parseDagOutput(bytes, 0, bytes.byteLength, drawnWordOffset)
+  assert.deepEqual(reading!.pageIds, [5, 6])
+  assert.deepEqual(reading!.drawablePageIds, [0, 2, 3, 6])
+})
+
+test('a drawable count larger than the readback holds is clamped to what it contains', () => {
+  const { bytes, drawnWordOffset } = withDrawn([1, 0, 0, 0], [5], [1, 2], 4)
+  new Uint32Array(bytes)[drawnWordOffset] = 1000
+  const reading = parseDagOutput(bytes, 0, bytes.byteLength, drawnWordOffset)
+  assert.equal(reading!.drawablePageIds!.length, 4)
+})
+
+test('an empty buffer (all zero) and a zero-length byte range never crash', () => {
+  const empty = new ArrayBuffer(SELECTION_HEADER_WORDS * 4)
+  assert.deepEqual(champs(lire(empty)), champs(lireOracle(new ArrayBuffer(HEAD_ORACLE * 4))))
+  const rien = new ArrayBuffer(0)
+  assert.deepEqual(champs(lire(rien)), champs(lireOracle(rien)))
+})

@@ -1,22 +1,22 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { FULLSCREEN_XY } from '../../gpu/shader/fullscreenTriangle.ts'
 import { contractSurfaceBody, LIGHT_SURFACE_ENTRY } from './surfaceWgsl.ts'
-import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
-import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
+import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
+import { SURFACE_EMISSIVE_AO_WGSL } from '../../materials/surface/surfaceEmission.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from './contractCuts.ts'
-import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts'
+import { BOUNCE_APPLY_WGSL } from '../bounce/applyWgsl.ts'
 import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
-import { BLOOM_COMPOSE_WGSL } from '../../webgpu/effects/bloomLevel.ts'
+import { AS_IS_FLAG } from '../../materials/surface/surfaceModel.ts'
+import { BLOOM_COMPOSE_WGSL } from '../../post/effects/bloom/bloomLevel.ts'
 import { linearToSrgb, luminance } from '../../../../math/src/wgsl/color.ts'
 import { bilinear4, clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from './worldAtWgsl.ts'
-import { resolvedReflectionWgsl } from '../../reflections/weight.ts'
+import { resolvedReflectionWgsl } from '../reflections/weight.ts'
 /** The full-screen triangle's vertex stage (`FULLSCREEN_XY`), which every full-screen pass lists. */
 export const FULLSCREEN_VERTEX = wgslBlock(
   'FULLSCREEN_VERTEX',
@@ -86,7 +86,7 @@ const DIRECT_SURFACE_WGSL = wgslBlock(
  * added. An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is. What a lit surface reflects is
  * the radiance the reflection trace wrote for its pixel (`resolvedReflection`,
- * `../../reflections/weight.ts`). With `bounce`, bounced light:
+ * `../reflections/weight.ts`). With `bounce`, bounced light:
  * probe irradiance multiplied by the pixel's diffuse albedo, added to the direct. It is a
  * separate program, not a branch, so a session without bounce never pays for the probes — and so
  * is each program of a `key` (`contractCuts.ts`): `narrow` (#849), `unshadowed` (#1249),
@@ -115,7 +115,7 @@ export const contractLightingProgram = (
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface
  * flag. An accumulated image reads the share the temporal pass resolved beside its colour, with the
- * same weights and history (`../../taa/shaderWgsl.ts`): the colour of an edge pixel is a history
+ * same weights and history (`../../post/taa/shaderWgsl.ts`): the colour of an edge pixel is a history
  * blend, and its share follows it, so no pixel flips between the curve and none from one jitter to
  * the next.
  */

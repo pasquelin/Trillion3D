@@ -1,8 +1,8 @@
 import { validateSceneLight } from '../../../sdk-core/src/scene/light/validate.ts'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
 import type { SceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
-import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
-import { optionalFile } from '../cluster/checked.ts'
+import { unmetered, type ByteMeter } from '../geometry/cluster/byteMeter.ts'
+import { optionalFile } from '../geometry/cluster/checked.ts'
 
 /** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json'

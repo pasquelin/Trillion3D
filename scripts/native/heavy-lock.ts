@@ -1,7 +1,7 @@
 import { realpathSync } from 'node:fs'
 import { getPriority, setPriority } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { git } from '../git-paths.ts'
+import { git } from '../git/git-paths.ts'
 import { processAlive, tryLock } from './machine-lock.ts'
 
 // The heavy local steps (a test run, `build`, `build:native`, `compile:caches`) of

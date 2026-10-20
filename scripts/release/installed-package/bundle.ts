@@ -6,7 +6,7 @@ import type { InstalledBrowserProof } from './browser-result.ts'
 import type { Run } from './contracts.ts'
 import { missingBeside } from './beside.ts'
 import { proveCdnBrowser, unpackCdn, type UnpackedCdn } from './cdn.ts'
-import { readJson, filesUnder } from '../../repository-files.ts'
+import { readJson, filesUnder } from '../../git/repository-files.ts'
 
 const sceneCaches = ['native-cache-primer', 'native-cache-replay']
 

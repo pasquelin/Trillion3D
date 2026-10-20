@@ -5,7 +5,7 @@ import { clamp, clampLowWins, lerp } from '../../../math/src/scalar/reals.ts'
  * THE ONE BUDGET OF THE PROXY'S RAYS, a GPU duration, never a ray count: the reflections' rays and the
  * bounce probes' share `budgetMs` of every frame, the reflections first — what the screen shows, a
  * ray a half-resolution texel every image, each bounded by its own work (`RAY_WORK`,
- * `bounce/runtimeLayout.ts`) —, the probes the rest, which converge over frames by design.
+ * `runtime/runtimeLayout.ts`) —, the probes the rest, which converge over frames by design.
  *
  * Closed on the device's own measures, never one machine's constant: the probes take `budgetMs` less
  * what the reflection trace's pass took, never past their own part of it (`probeShare`) — a scene

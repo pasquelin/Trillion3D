@@ -2,7 +2,7 @@ import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.t
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
 import { formatFrameReport, frameReport } from './frameProfile.ts'
-import { setDebugMode } from '../host/debugMode.ts'
+import { setDebugMode } from '../session/host/debugMode.ts'
 import { log } from './log.ts'
 import { createRings } from '../../../math/src/sequence/rings.ts'
 
@@ -11,7 +11,7 @@ import { createRings } from '../../../math/src/sequence/rings.ts'
  * and what slows it. Its frames are the display intervals the refresh clock measured
  * (`rafIntervalMs`), kept in a ring — one write per frame, never a shift of the whole array —, and
  * its report is computed when asked (`frameReport`). A page files frames into it only in debug
- * mode (`../world/render/render.ts`), so a shipping page records nothing.
+ * mode (`../frame/schedule/render.ts`), so a shipping page records nothing.
  */
 export class EngineProfiler {
   private readonly intervals: ReturnType<typeof createRings>

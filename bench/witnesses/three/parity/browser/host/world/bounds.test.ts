@@ -8,14 +8,14 @@ import * as THREE from 'three'
 import {
   emptyWorldBox,
   hostWorldBounds,
-} from '../../../../../../../packages/sdk-browser/src/host/world/bounds.ts'
+} from '../../../../../../../packages/sdk-browser/src/scene/host/world/bounds.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
-import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import {
   Group,
   Object3D,
 } from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../../../../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostMesh } from '../../../../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { Box3 } from '../../../../../../../packages/sdk-core/src/world/math/box3.ts'
 import { Vector3 } from '../../../../../../../packages/sdk-core/src/world/math/vector3.ts'
 import { threeGraph } from '../../../../fromGraphNodes.ts'

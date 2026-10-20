@@ -13,7 +13,7 @@ import { resolve } from 'node:path'
 import type { Run } from './installed-package/contracts.ts'
 import { packRelease, publishRelease } from './release-packages.ts'
 import { runChecked } from '../test/run.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const [step, folder] = process.argv.slice(2)
 if ((step !== 'pack' && step !== 'publish') || !folder)

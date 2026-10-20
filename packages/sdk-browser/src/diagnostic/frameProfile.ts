@@ -3,8 +3,8 @@ import { MIB } from '../../../math/src/constants.ts'
 import type { TelemetryReport } from './telemetryTypes.ts'
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import { frameStatistics, STUTTER_MS } from '../../../sdk-core/src/runtime/stats.ts'
-import { FALLBACK_REFRESH_MS, SECOND_MS } from '../frame/scaleTargets.ts'
-import { DEFAULT_PAGE_WORKERS } from '../engine/common.ts'
+import { FALLBACK_REFRESH_MS, SECOND_MS } from '../frame/scale/scaleTargets.ts'
+import { DEFAULT_PAGE_WORKERS } from '../session/engine/common.ts'
 
 /** Judged on the slowest display the engine draws for (60 Hz): submit chokes past half its frame. */
 const FRAME_RATE = Math.round(SECOND_MS / FALLBACK_REFRESH_MS),

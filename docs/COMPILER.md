@@ -334,7 +334,7 @@ for `'max'` and `false` for `'off'`. The compiler writes it at the top of the ma
 runtime takes it as the scene's setting, below the quality preset, the page
 (`createWorld(…, { temporalAntialiasing })`, `world.temporalAntialiasing`) and the editor — the
 first loaded scene naming one decides. The levels are the anti-aliasing scalability levels 0 to 3
-from `low` (`packages/sdk-browser/src/taa/levels.ts`): `low` a plus kernel, no spatial
+from `low` (`packages/sdk-browser/src/post/taa/levels.ts`): `low` a plus kernel, no spatial
 anti-aliaser, no flicker rejection; `medium` the spatial anti-aliaser at three samples a side;
 `high` the kernel moving its far neighbour and the flicker rejection; `max` eight samples a side,
 the default. Every level keeps a history at the display's resolution, 16 samples a pixel at most;

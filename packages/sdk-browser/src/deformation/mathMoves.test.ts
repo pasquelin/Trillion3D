@@ -9,7 +9,7 @@ import { createDeformationSkip } from './screen.ts'
 import { receiveSoftSource, type SoftSource } from './softSource.ts'
 import { rootMark } from './halfFloat.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
-import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
+import { viewDepthOf, viewLateralOf } from '../geometry/selection/projection.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
 import { hypot3 } from '../../../math/src/float/hypot.ts'
@@ -24,7 +24,7 @@ import {
   HALTON_SWEEP,
   haltonSpan,
 } from '../../../math/src/sequence/sweep.fixture.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
+import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
 
 const VIEWPORT: [number, number] = [1920, 1080]
 

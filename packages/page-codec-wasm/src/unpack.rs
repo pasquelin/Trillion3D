@@ -1,6 +1,6 @@
-//! A page's streams unpacked into one block of words — the one decoder, which `decodeGeometryPage` calls through `wasm_decode.rs` —, each
+//! A page's streams unpacked into one block of words — the one decoder, which `decodeGeometryPage` calls through `wasm/decode.rs` —, each
 //! stream walked once by a `BitReader` (STR-01): the same bits as the reference decoder, which
-//! reads every field at random (`unpack_reference.rs`, a test oracle of another algorithm, never
+//! reads every field at random (`unpack/reference.rs`, a test oracle of another algorithm, never
 //! shipped), as the equivalence harness proves.
 
 use crate::bits::{dequant, le_words, oct_decode_stream, BitReader, Quant};
@@ -97,8 +97,6 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
 }
 
 #[cfg(test)]
-#[path = "unpack_reference.rs"]
 mod reference;
 #[cfg(test)]
-#[path = "unpack_tests.rs"]
 mod tests;

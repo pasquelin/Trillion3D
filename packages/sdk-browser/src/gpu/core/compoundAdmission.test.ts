@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuDeviceLedger } from './deviceLedger.ts'
-import { createGpuDraw } from '../draw/factory.ts'
-import { createGpuPartition } from '../partition/factory.ts'
+import { createGpuDraw } from '../../visibility/draw/factory.ts'
+import { createGpuPartition } from '../../geometry/partition/gpu/factory.ts'
 
 for (const kind of ['draw', 'partition'] as const) {
   test(`${kind} initial second-buffer refusal rolls back only the partial constructor`, async () => {

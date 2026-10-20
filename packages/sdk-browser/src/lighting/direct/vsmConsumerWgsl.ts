@@ -1,17 +1,17 @@
-import { vsmProjectionSampleWgsl } from '../../vsm/projectionSampleWgsl.ts'
-import { VSM_CONSTANTS_WGSL } from '../../vsm/constants.ts'
-import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
+import { vsmProjectionSampleWgsl } from '../shadows/vsm/projection/projectionSampleWgsl.ts'
+import { VSM_CONSTANTS_WGSL } from '../shadows/vsm/constants.ts'
+import { VSM_UNIFORMS_WGSL } from '../shadows/vsm/uniforms.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
   VSM_STRUCTS_WGSL,
-} from '../../vsm/pageTableWgsl.ts'
+} from '../shadows/vsm/pageTableWgsl.ts'
 import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
-} from '../../vsm/projectionDataWgsl.ts'
-import { VSM_NORMAL_OFFSET_WGSL } from '../../vsm/receiverTraceWgsl.ts'
+} from '../shadows/vsm/projection/projectionDataWgsl.ts'
+import { VSM_NORMAL_OFFSET_WGSL } from '../shadows/vsm/trace/receiverTraceWgsl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { forwardPool, vsmBindingsLabel, type VsmConsumerBindings } from './shadowBindings.ts'

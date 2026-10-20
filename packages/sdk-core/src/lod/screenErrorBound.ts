@@ -37,7 +37,7 @@ import { plainLength2 } from '../../../math/src/vector/vector.ts'
  * No guard here: the caller has already handled a null, infinite or invalid error. A non-finite
  * depth or distance to the axis yields infinity. Operation order, (δ·f)/m then a factor
  * √/(m − δ) ≥ 1, keeps the rounded result above sdk-browser's `errorFloorAt` floor.
- * WGSL mirror: `projected` of `packages/sdk-browser/src/gpu/dag/shader/shader.ts`, same operands, same order.
+ * WGSL mirror: `projected` of `packages/sdk-browser/src/geometry/dag/shader/shader.ts`, same operands, same order.
  */
 export function screenErrorBound(
   error: number,
@@ -50,7 +50,7 @@ export function screenErrorBound(
   perspective = 1,
 ): number {
   // Rust mirror, to the bits (`screenErrorBits.json`): `projected_error_at` of
-  // `packages/page-codec-wasm/src/cut_error.rs`.
+  // `packages/page-codec-wasm/src/cut/error.rs`.
   const reach = radius * stretch,
     shift = error * stretch
   const nearest = clipWeight(perspective, depth - reach),
@@ -82,7 +82,7 @@ export function clusterErrorPixels(
   perspective = 1,
 ): number {
   // No guard here: `clusterErrorAtDepth` takes the zero and infinite errors first, then rejects a
-  // NaN or ±infinity in x or y through `lateral`. `vec2::length` of `cut_error.rs` too: the plain
+  // NaN or ±infinity in x or y through `lateral`. `vec2::length` of `cut/error.rs` too: the plain
   // root, as the slant.
   const lateral = plainLength2(centreX, centreY)
   return clusterErrorAtDepth(
@@ -104,7 +104,7 @@ export function clusterErrorPixels(
  * checked at once — error, stretch and radius finite and non-negative, focal length and near plane
  * finite and positive, axis distance finite and non-negative, depth finite, clip-w weight in
  * [0, 1] — before the projection. Rust mirror, one guard, same verdicts: `projected_error_at` of
- * `packages/page-codec-wasm/src/cut_error.rs`.
+ * `packages/page-codec-wasm/src/cut/error.rs`.
  */
 export function clusterErrorAtDepth(
   clusterError: number,

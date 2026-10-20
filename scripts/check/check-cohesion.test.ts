@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MAX_COMPLEXITY, MAX_FUNCTION_LINES, overBound } from './check-cohesion.ts'
 import { functionsOf } from './check-cohesion-measure.ts'
-import { isTestModule, unitOf } from '../repository-files.ts'
+import { isTestModule, unitOf } from '../git/repository-files.ts'
 
 const bound = { lines: MAX_FUNCTION_LINES, complexity: MAX_COMPLEXITY }
 const inPackage = (name: string, text: string) => new Map([[`packages/sdk-core/src/${name}`, text]])
@@ -82,7 +82,7 @@ test('a constructor, an accessor pair and an object method are all functions, ea
 })
 
 test('the gate reads the packages, and leaves the scripts, the tests and the bench to their own gates', () => {
-  assert.ok(unitOf('packages/sdk-browser/src/gpu/dag/uniforms.ts'))
+  assert.ok(unitOf('packages/sdk-browser/src/geometry/dag/uniforms.ts'))
   assert.equal(unitOf('scripts/check/check-cohesion.ts'), null)
   assert.equal(unitOf('tests/kit/server/staticServer.ts'), null)
   assert.equal(unitOf('bench/core/index.ts'), null)

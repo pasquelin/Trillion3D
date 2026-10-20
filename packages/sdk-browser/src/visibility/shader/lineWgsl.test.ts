@@ -7,8 +7,8 @@ import { lineProjection, LINE_VIEWPORT, toPixels } from './lineProjection.fixtur
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { rasterSource } from '../../gpu/raster/shader.ts'
-import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts'
+import { rasterSource } from '../raster/shader.ts'
+import { BLEND_ITEM_WGSL } from '../../blend/items.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 

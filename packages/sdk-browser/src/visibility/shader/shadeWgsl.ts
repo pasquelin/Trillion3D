@@ -22,9 +22,9 @@ import {
   NORMAL_VIEW_COLOR_WGSL,
   SURFACE_MODEL,
   modelFlag,
-} from '../../scene/surfaceModel.ts'
-import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
-import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
+} from '../../materials/surface/surfaceModel.ts'
+import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
+import { EMISSIVE_AO_FLAG_WGSL } from '../../materials/surface/surfaceEmission.ts'
 import { FLAG_BACK, FLAG_FOG_FREE, FLAG_LINE, FLAG_LIT, FLAG_SPRITE } from '../types.ts'
 import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
 import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'

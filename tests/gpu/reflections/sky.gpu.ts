@@ -11,7 +11,7 @@ import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
-import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'
+import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/geometry/pages/raster.ts'
 import type { SkyCase } from './skyPage.ts'
 
 /** The sky shown, a mid grey. */

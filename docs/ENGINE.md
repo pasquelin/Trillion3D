@@ -9,13 +9,13 @@ starts with `packages/` or `tests/` is from the repository root.
 The page's API is [SDK.md](SDK.md); what stays in memory, [RESIDENCY.md](RESIDENCY.md); shadows,
 [SHADOWS.md](SHADOWS.md); the cache files, [FORMAT.md](FORMAT.md); the body API,
 [PHYSICS.md](PHYSICS.md); the maths, [MATHS.md](MATHS.md). Two internals are public, for a host
-that drives pages or diagnostics itself: `createGpuPageCache` (`gpu/page/pages.ts`) and
+that drives pages or diagnostics itself: `createGpuPageCache` (`pages/pool/pages.ts`) and
 `createDiagnosticChannel` (`diagnostic/channel.ts`). Every other internal name is reached through
 the measurement entry point, `measurement/measurement.ts` ([SDK.md](SDK.md#entry-points)).
 
 ## The internal session
 
-A world opens one session on itself (`openMeasuredWorld`, `world/session/explorer.ts`); options
+A world opens one session on itself (`openMeasuredWorld`, `src/session/explorer.ts`); options
 beyond `WorldOptions` serve the bench and the proofs, and a published world runs the defaults.
 
 ## The engine
@@ -36,32 +36,32 @@ One WebGPU image is one command buffer, encoded in this order:
 
 | Stage                                                     | Code                                                                         |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Frame gate: camera copy, held-frame test, pipelines asked | `frame/gateCore.ts`, `webgpu/frame/hold.ts`, `webgpu/pages/render/render.ts` |
-| World poses uploaded                                      | `webgpu/pages/render/worldUpload.ts`                                         |
+| Frame gate: camera copy, held-frame test, pipelines asked | `gate/gateCore.ts`, `frame/loop/hold.ts`, `src/frame/render/render.ts` |
+| World poses uploaded                                      | `src/frame/render/worldUpload.ts`                                         |
 | GPU deformation                                           | `deformation/compute.ts`                                                     |
-| Composed placements                                       | `placement/gpuCompose.ts`                                                    |
-| Cut: GPU selection, the engine's one cut                  | `webgpu/pages/render/gpuCut.ts`                                              |
-| Partition and draw compaction                             | `webgpu/visibility/partition.ts`                                             |
-| Visibility raster, two-phase Hi-Z                         | `webgpu/visibility/passes.ts`                                                |
-| Material surfaces, one pass per class                     | `webgpu/core/materialPasses.ts`                                              |
-| Light buffer, bounce, light grid, virtual shadow maps     | `webgpu/pages/render/encodeLights.ts`                                        |
+| Composed placements                                       | `compose/gpuCompose.ts`                                                    |
+| Cut: GPU selection, the engine's one cut                  | `src/frame/render/gpuCut.ts`                                              |
+| Partition and draw compaction                             | `visibility/passes/partition.ts`                                             |
+| Visibility raster, two-phase Hi-Z                         | `visibility/passes/passes.ts`                                                |
+| Material surfaces, one pass per class                     | `materials/classes/materialPasses.ts`                                              |
+| Light buffer, bounce, light grid, virtual shadow maps     | `src/frame/render/encodeLights.ts`                                        |
 | Deferred resolve                                          | `lighting/deferred/deferred.ts`                                              |
-| Transparents, distortion, particles                       | `webgpu/pages/render/encodeBlend.ts`                                         |
+| Transparents, distortion, particles                       | `src/frame/render/encodeBlend.ts`                                         |
 | Temporal resolve                                          | `taa/frame.ts`                                                               |
-| Effect chain                                              | `webgpu/pages/render/encodeEffects.ts`                                       |
-| Composition, presentation, submission                     | `lighting/deferred/deferred.ts`, `webgpu/pages/render/encoder.ts`            |
+| Effect chain                                              | `src/frame/render/encodeEffects.ts`                                       |
+| Composition, presentation, submission                     | `lighting/deferred/deferred.ts`, `src/frame/render/encoder.ts`            |
 
-`webgpu/pages/render/surfaceLighting.ts` encodes the stages from the light buffer on.
+`src/frame/render/surfaceLighting.ts` encodes the stages from the light buffer on.
 
 ## Views
 
 A world draws its own camera as the runtime's main view, then each view `world.addView` made
-(`world/core/worldViews.ts`), in the same frame and loop (`world/render/draw.ts`). A view is a
-record of what a camera owns (`webgpu/pages/state/view.ts`): its cut and what its image made of it,
+(`session/world/views.ts`), in the same frame and loop (`frame/schedule/draw.ts`). A view is a
+record of what a camera owns (`frame/backend/state/view.ts`): its cut and what its image made of it,
 motion, occlusion history and Hi-Z pyramid, frame targets, temporal history, effect chain,
 presenter (a canvas of its own, or a rectangle of the main canvas), GPU timer and render scale
-(`frame/viewScale.ts`, following the world's controller within its bounds). Drawing it trades
-those members into the runtime groups and back (`webgpu/pages/state/viewSwitch.ts`); every other
+(`view/viewScale.ts`, following the world's controller within its bounds). Drawing it trades
+those members into the runtime groups and back (`frame/backend/state/viewSwitch.ts`); every other
 member is the scene's and is shared: placements and their composition, the pages, their residency
 — the union of every view's cut under the one budget —, the pools, materials, lights, physics and
 pipelines. The virtual shadow maps share their pool, page tables and local lights' maps; a sun's
@@ -75,7 +75,7 @@ last GPU time, each over the main images between its draws, to the frame the `'a
 
 Every node is a slot of one transform tree, walked once a frame over what changed
 (`sdk-core/world/transform-tree/pass.ts`). A material is declared once into the one surface record its meshes wear,
-`page/surfaceRecord.ts`. The engine composes its own projection, reversed depth with an infinite far
+`pages/surfaceRecord.ts`. The engine composes its own projection, reversed depth with an infinite far
 plane, one convention for every pass (`camera/depthConvention.ts`).
 
 A node whose parent moves and whose pose only follows it is composed once, on the GPU: its link is
@@ -83,26 +83,26 @@ a node flag (`NODE_WORLD_LAZY`, `sdk-core/world/transform-tree/nodeFlags.ts`) th
 leaves alone, and the placement's compose slot is the parent's. The roots pass writes, in exact
 double arithmetic, the world, the stretch, the world box and the motion of each linked root; the
 rows pass writes the page-table world words, the sphere, the Hi-Z corners and the world-dependent
-levels of detail of its rows (`placement/gpuCompose.ts`); the members pass writes the leaf boxes the
-placement tree is fitted over, and the one tree refit (`gpu/dag/treeRefit.ts`, a pass any caller
+levels of detail of its rows (`compose/gpuCompose.ts`); the members pass writes the leaf boxes the
+placement tree is fitted over, and the one tree refit (`dag/tree/treeRefit.ts`, a pass any caller
 names its dirty groups to) fits them and every node above, bottom up. A CPU reader — transparent
 depth, a winding — reads the composed world once a frame (`composedWorld`, a
 product of the parent's and the local matrix kept by `state.version`), never a second multiply that
 is written back. Models and partition rows link before their rows are written, so no matrix is
 written for them. A link is never refused for what reads its row: waves, soft bodies and skeletons read the
 composed world of their root; rows no root reads — a blended surface's, or a root a growth has not
-built yet — are composed for their readers (`placement/composeReaders.ts`) and handed to the roots
+built yet — are composed for their readers (`compose/composeReaders.ts`) and handed to the roots
 pass once their root exists. Only the pose a session opens on is written by an owner, before any
-engine exists (`partition/follow.ts`, `world/core/worldModels.ts`); every product of a parent's
+engine exists (`partition/follow.ts`, `world/models/models.ts`); every product of a parent's
 world and a local matrix on the CPU is the one function `composeWorld` (`placement/composeWorld.ts`). The refit and the members pass bind the cut's
-tables as the cut does, split tables in their parts (`gpu/dag/shader/bindings.ts`).
+tables as the cut does, split tables in their parts (`geometry/dag/shader/bindings.ts`).
 
 ## WebGPU page raster
 
-`webgpuPagesEngine` (`webgpu/pages/pages.ts`) draws from the bounded page cache of
-`gpu/page/pages.ts`. A compute pass selects the camera's resident cut and draws it through indirect
-commands into a visibility buffer (`webgpu/pages/render/gpuCut.ts`); occlusion is two-phase Hi-Z
-(`webgpu/visibility/passes.ts`, CPU oracle `bench/oracles/browser/hizOcclusion.ts`). The render
+`webgpuPagesEngine` (`frame/backend/pages.ts`) draws from the bounded page cache of
+`pages/pool/pages.ts`. A compute pass selects the camera's resident cut and draws it through indirect
+commands into a visibility buffer (`src/frame/render/gpuCut.ts`); occlusion is two-phase Hi-Z
+(`visibility/passes/passes.ts`, CPU oracle `bench/oracles/browser/hizOcclusion.ts`). The render
 passes whose commands repeat from frame to frame — the raster's slot draws, the material surfaces —
 are render bundles, recorded once and replayed while the few identities and revisions they are
 keyed by hold (`gpu/core/renderBundles.ts`); their passes keep the timestamps. Which pages load and leave is
@@ -123,7 +123,7 @@ and cutout ones, on layer 0, and only on a frame whose table holds a voxel row: 
 compile the text they compiled before voxels. WebGPU keeps no early depth test for a stage that
 writes its depth, so a voxel fragment always runs its trace. The shadow pages draw voxel rows in
 tiers of their own, sized by the page's bricks as the corner tiers are by its triangles, their
-module apart (`vsm/renderVoxelWgsl.ts`), on the same sequence; the resolve of a voxel class, its
+module apart (`render/renderVoxelWgsl.ts`), on the same sequence; the resolve of a voxel class, its
 module apart too, traces the pixel again to read its voxel's colour, roughness, occlusion and
 normal — its rank one read of its brick and a popcount —, its normal carried by the brick's joint,
 and its shadow receiver is the hit and that normal. Every voxel module and pipeline is made the
@@ -137,7 +137,7 @@ steps a pixel took.
 ## Material surfaces
 
 The visibility buffer is resolved into the material surfaces one pass per material class, over the
-screen tiles that class holds (`webgpu/core/materialPasses.ts`, `webgpu/core/materialTiles.ts`).
+screen tiles that class holds (`materials/classes/materialPasses.ts`, `materials/classes/materialTiles.ts`).
 Lighting reads those surfaces and the depth; transparency and transmission are shaded apart.
 
 ## Temporal antialiasing
@@ -148,12 +148,12 @@ every render scale. The pass runs on every frame drawn and its history is reset 
 cut, the one change the reprojection cannot follow. A still view is drawn while its history fills
 — whole cycles of the jitter's phases until every display pixel holds its most samples, 16 for a
 history at the display's resolution (`taaConverged`, `historySampleLaws`) — then held on its
-converged image like any still view (`taaConverging`, `webgpu/frame/hold.ts`); a change draws again
+converged image like any still view (`taaConverging`, `frame/loop/hold.ts`); a change draws again
 on the history it holds, and a session opened with `drawConverged` (the bench's cost series) keeps
 drawing it. Its level (`off`, `low`, `medium`, `high`, `max`, `taa/levels.ts`) sets the
 kernel, the flicker rejection and the spatial anti-aliaser; a level without either skips its
 pass. The render
-scale is a dynamic resolution (`frame/dynamicResolution.ts`): a history of the frame's GPU busy
+scale is a dynamic resolution (`scale/dynamicResolution.ts`): a history of the frame's GPU busy
 times against the frame time budget, both directions, with or without the temporal upscaler
 (spatial upscale in the composition where it is off). The loop draws every refresh, or under the
 page's frame cap every few (`frame/cadence.ts`), whose interval is the budget. The page's options are
@@ -163,10 +163,10 @@ page's frame cap every few (`frame/cadence.ts`), whose interval is the budget. T
 
 `world.effects` (`sdk-core/world/effect/`; API in [SDK.md](SDK.md#canvas-camera-and-teardown)) runs
 over linear radiance between the temporal resolve and tone mapping:
-`webgpu/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `webgpu/effects/bloomFilter.ts`.
+`post/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `effects/bloom/bloomFilter.ts`.
 The passes after tone mapping draw over the composed display image and the canvas
 (`encodeOverlayEffects`); an idle pass (an outline of no object) is passed by. The outline
-(`webgpu/effects/outlineWgsl.ts`) reads the visibility identifiers through the page table to each
+(`effects/outline/outlineWgsl.ts`) reads the visibility identifiers through the page table to each
 pixel's root (`pages[row].placement`) and one bit per root its objects' subtrees draw, then an
 exact separable distance in two passes scissored to the roots' projected boxes (`rootsRect.ts`).
 
@@ -198,10 +198,10 @@ the law is `sdk-core/scene/core/fog.ts`, its shader text `lighting/fogShader.ts`
 ## Transparent surfaces
 
 The engine culls transparent meshes through a box tree (`webgpu/blend/hierarchy.ts`), orders them
-farthest first on the GPU (`webgpu/blend/order.ts`) and lights them with the opaque resolve's lists
-(`webgpu/blend/lighting.ts`). A transmissive surface is sorted and lit among them, composed as
+farthest first on the GPU (`blend/order/order.ts`) and lights them with the opaque resolve's lists
+(`src/blend/lighting.ts`). A transmissive surface is sorted and lit among them, composed as
 a thin translucent layer (`webgpu/water/waterColorWgsl.ts`), and refracts the opaque scene through
-one distortion pass drawn before every translucent layer (`webgpu/blend/distortion.ts`).
+one distortion pass drawn before every translucent layer (`src/blend/distortion.ts`).
 
 ## Presentation
 
@@ -212,8 +212,8 @@ each creating through its own handle (`gpu/core/sessionHandle.ts`, `gpu/core/dev
 ## Dynamic geometry
 
 Geometry rewritten every frame ([SDK.md](SDK.md#geometry-rewritten-every-frame)) is cut into pages
-once and its changed vertices written in place (`world/core/worldDynamic.ts`) into the float
-vertex pool (`webgpu/core/geometryPrepare.ts`).
+once and its changed vertices written in place (`world/dynamic/dynamic.ts`) into the float
+vertex pool (`pages/pool/geometryPrepare.ts`).
 
 ## Physics
 
@@ -225,8 +225,8 @@ steps by one mechanism (`physics/twoSteps.ts`).
 
 ## Particles
 
-A compute pass steps the pools (`webgpu/particles/webgpuParticles.ts`) and one instanced draw a
-pool puts them over the lit image after the transparents (`webgpu/particles/webgpuParticleDraw.ts`),
+A compute pass steps the pools (`particles/gpu/webgpuParticles.ts`) and one instanced draw a
+pool puts them over the lit image after the transparents (`particles/gpu/webgpuParticleDraw.ts`),
 or over the display colour of an image drawn without the visibility buffer; both fade each disc
 on the opaque depth, never hard-edged.
 
@@ -240,7 +240,7 @@ that every later pass reads (`deformation/compute.ts`).
 
 Diagnostics leave through a queued channel outside the measured call (`diagnostic/channel.ts`). The
 device asks for every optional feature its kernels can use, each with a plain fallback
-(`world/session/gpuDevice.ts`). GPU passes are timed by timestamp queries (`gpu/timing/`), the
+(`src/session/gpuDevice.ts`). GPU passes are timed by timestamp queries (`gpu/timing/`), the
 stages mapped in `stage/mapping.ts`; CPU and GPU times are never added.
 
 ## Proofs
@@ -265,8 +265,8 @@ then tone-mapped and encoded to sRGB once, at composition.
 ## Rules across files
 
 - **The source contract**: a mesh, material, model, cell or world the scene gains joins the running
-  session in place (`addPlacements`, `PlacementGrowth`, `placement/webgpuGrowth.ts`), a world-DAG
-  model included (`world/core/worldModelJoin.ts`); one the device refuses is said once as
+  session in place (`addPlacements`, `PlacementGrowth`, `growth/webgpuGrowth.ts`), a world-DAG
+  model included (`world/models/modelJoin.ts`); one the device refuses is said once as
   `content-refused` (`noticeRefused`) and the running cut kept. A session opens again for a lost
   device and for an option, nothing else.
 
@@ -274,8 +274,8 @@ then tone-mapped and encoded to sRGB once, at composition.
   cut rule and one residency, one irradiance basis, one fog law, one two-step drawing of physics.
   A second one beside it is a defect.
 - **Never per frame**: no pipeline compiled on the frame that first needs it (the frame is held,
-  `webgpu/frame/framePipelines.ts`); no wait on a readback; no allocation in a steady frame; no work
+  `frame/loop/framePipelines.ts`); no wait on a readback; no allocation in a steady frame; no work
   in a held frame — a view without temporal accumulation where nothing moved
-  (`webgpu/frame/hold.ts`); no bounce pass once converged.
+  (`frame/loop/hold.ts`); no bounce pass once converged.
 - **The jitter stays in the image**: it never reaches the cut; the stochastic terms converge in the
   temporal history, which accumulates them over the jitter's phases.

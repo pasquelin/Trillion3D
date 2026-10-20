@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { families } from '../host/families.ts'
+import { families } from '../session/host/families.ts'
 import { prepareDeformationGeometry } from './prepare.ts'
 
 /** A WebGPU session's prepare state, over `pages` and `roots`, with no copy. */

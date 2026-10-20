@@ -1,0 +1,183 @@
+import { DEFORMATION_PASS } from '../../deformation/pass.ts'
+import { disposeRowWords } from '../../placement/rows/rowWordsGpu.ts'
+import { disposeRootWorlds } from '../../placement/roots/rootWorlds.ts'
+import { disposeRootBoxes } from '../../placement/roots/rootBoxes.ts'
+import { disposeTreeLeaves } from '../../placement/tree/treeLeaves.ts'
+import { disposeVis, dropGpuSelection } from './drops.ts'
+import { releaseTargets } from '../prepare/targets.ts'
+import { disposeBlendResources } from '../../blend/resources.ts'
+import { directLightTimings, passOwnMs } from '../../diagnostic/stage/mapping.ts'
+import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
+import { markWebgpuLost } from './lost.ts'
+import { drawnTrianglesOf } from '../backend/state/drawnTriangles.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { vsmFrameMetrics } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
+import { destroyEngineVsm } from '../../lighting/shadows/vsm/frame/engineVsm.ts'
+import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
+import { transparentCounts } from '../backend/state/transparentCounts.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
+import { viewTargetBytes } from '../backend/state/gpu.ts'
+
+/** Geometry bytes beside the page pool: the float pool's three lists. */
+export function vertexBytesOf(
+  vis: Pick<WebgpuPagesRuntime['vis'], 'concatPos' | 'concatUv' | 'vertexPool'>,
+) {
+  const normals = vis.vertexPool?.normalBytes ?? 0 // the pool's normal atlas
+  return (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + normals
+}
+
+export function metricsOf(rt: WebgpuPagesRuntime) {
+  return Object.assign(frameMetricsOf(rt), vsmFrameMetrics(rt, rt.timing.lastGpuPassMs))
+}
+
+function frameMetricsOf(rt: WebgpuPagesRuntime) {
+  const { run, gpu, vis, timing, services, lights } = rt,
+    { geometryPool } = rt.setup
+  const stats = gpu.cache?.stats()
+  const vertexBytes = vertexBytesOf(vis)
+  const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
+  const pending = !run.gpuMetricsReady
+  const blend = transparentCounts(rt)
+  const deformation = timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)
+  // What the occlusion test dropped, and the voxel trace's steps: the GPU's last sampled counts;
+  // `null` when it counted nothing, never an unmeasured 0.
+  const steps = vis.voxelSteps?.stats()
+  const hiz = vis.gpuPartition?.counts(),
+    hizCountedFrame = hiz?.frame ?? null
+  return {
+    coverageReady: services.bootstrapState.ready,
+    coverageBudgetLimited: run.coverageBudgetLimited,
+    frameHeld: run.frameHeld,
+    // The display's cadence, from the clock the render-scale budget reads (`frame/scale/scaleControl.ts`).
+    rafIntervalMs: rt.views.main.scale.frameIntervalMs,
+    displayRefreshMs: rt.views.main.scale.refreshMs,
+    // The size every pass up to the temporal resolve drew this image at (`drawFrameAt`).
+    renderWidth: gpu.targetSize[0],
+    renderHeight: gpu.targetSize[1],
+    clusters: pending ? null : run.visible,
+    selectedTriangles: run.selectedTriangles,
+    uncoveredTriangles: null,
+    drawnTriangles: drawnTrianglesOf(run, hiz),
+    residentPages: stats?.residentPages ?? 0,
+    cacheEvictions: stats?.evictions ?? 0,
+    geometryAllocationBytes: (stats?.allocatedBytes ?? 0) + vertexBytes,
+    frustumRejected: run.frustumRejected,
+    lodLevel: run.lodLevel,
+    cutCoarsening: run.gpuSelection?.coarsen ?? null,
+    submittedTriangles: pending ? null : run.submittedTriangles,
+    totalSubmittedTriangles: pending ? null : run.submittedTriangles,
+    transparentMeshes: blend.visibleMeshes,
+    transparentFrustumRejected: blend.frustumRejected,
+    transparentDrawCalls: blend.drawCalls,
+    transparentSubmittedTriangles: blend.submittedTriangles,
+    ...(vis.textures?.metrics() ?? {}),
+    cpuSubmitMs: timing.lastSubmitMs,
+    gpuPassMs: timing.lastGpuPassMs,
+    gpuDeformationMs: deformation ? passOwnMs(deformation) : null,
+    gpuFrameMs: timing.lastGpuFrameMs,
+    gpuHostGapMs: timing.lastGpuHostGapMs,
+    gpuIdleMs: timing.lastGpuIdleMs,
+    gpuDeviceLost: run.lostCause ?? null,
+    vramBytes: null,
+    gpuAllocatedBytes: ledger?.bytes ?? null,
+    gpuAllocatedByLabel: ledger?.byLabel ?? null,
+    gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
+    gpuFrameTargetBytes: viewTargetBytes(gpu) || null,
+    geometryPoolBytes: geometryPool.budgetBytes,
+    geometryPoolSlots: geometryPool.slots,
+    geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
+    geometryPoolClamp: geometryPool.clamp,
+    geometryPoolSaturated: Math.max(0, services.residencySets.keepCount - geometryPool.slots),
+    texturePoolClamp: rt.setup.texturePools?.pool.clamp ?? null,
+    drawCalls: run.gpuDrawCalls,
+    hizTestedClusters: hiz?.tested ?? null,
+    hizRejectedClusters: hiz?.rejected ?? null,
+    hizOversizedClusters: hiz?.oversized ?? null,
+    hizTestedTriangles: hiz?.testedTriangles ?? null,
+    hizRejectedTriangles: hiz?.rejectedTriangles ?? null,
+    hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
+    voxelBricks: hiz?.voxelBricks ?? null,
+    voxelStepsMean: steps?.mean ?? null,
+    voxelStepsMax: steps?.max ?? null,
+    hizCountedFrame,
+    lightsActive: lights.lightsActive,
+    ...directLightTimings(timing.lastGpuPassMs),
+    ...lights.tiles?.poolMetrics(),
+  }
+}
+
+/** Releases every GPU resource and the scene; the trace queue is drained before the promise settles. */
+export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
+  const { gpu, capture, timing, blendState, services } = rt,
+    { scene, pagedBlendCopies } = rt.setup,
+    device = gpu.device
+  // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
+  markWebgpuLost(rt)
+  // The main view's resources are released below; a capture under way releases its own view.
+  for (const view of rt.views.persistent.splice(0)) releaseWebgpuView(rt, view)
+  useWebgpuView(rt, rt.views.main)
+  rt.run.gate.release()
+  services.residency.quietPending()
+  rt.rays?.dispose()
+  rt.rays = undefined
+  timing.gpuTiming?.dispose()
+  rt.vis.pooledDeformation?.table.destroy()
+  rt.vis.pooledDeformation = undefined
+  rt.vis.deformationCompute?.dispose()
+  rt.vis.deformationCompute = undefined
+  dropGpuSelection(rt)
+  // A cut a growth made beside the running one, never adopted, goes with it.
+  if (rt.growth?.ready && !rt.growth.ready.inPlace) rt.growth.ready.cut.dispose()
+  rt.growth = undefined
+  disposeVis(rt)
+  releaseTargets(rt)
+  blendState.compaction?.dispose()
+  blendState.compaction = undefined
+  blendState.table = undefined
+  // Its rows no longer read by a blend item (`PlacementRows.blended`).
+  for (const { placement } of blendState.blendGpu) if (placement) delete placement.rows.blended
+  blendState.blendGpu.length = 0
+  blendState.dirtySpans.clear()
+  pagedBlendCopies.clear()
+  blendState.visibleBlend.length = 0
+  disposeBlendResources(blendState)
+  blendState.kernels = undefined
+  gpu.zeroUv = undefined
+  capture.surfaceCapture?.dispose()
+  gpu.deferred?.dispose()
+  gpu.temporal?.dispose()
+  gpu.temporal = undefined
+  gpu.effects?.dispose()
+  gpu.effects = undefined
+  gpu.guides?.dispose()
+  gpu.guides = undefined
+  gpu.particles?.dispose()
+  gpu.particles = undefined
+  gpu.frameDifference?.dispose()
+  gpu.frameDifference = undefined
+  rt.lights.tiles?.dispose()
+  if (rt.lights.vsm) destroyEngineVsm(rt.lights.vsm)
+  rt.lights.vsm = undefined
+  rt.lights.mobilityRows?.destroy()
+  rt.lights.rowLods?.buffer.destroy()
+  rt.lights.mobilityRows = rt.lights.rowLods = undefined
+  rt.bounce.probes?.dispose()
+  rt.bounce.probes = undefined
+  rt.lights.spheres?.buffer.destroy()
+  rt.lights.casts?.buffer.destroy()
+  rt.lights.casts = undefined
+  rt.compose?.gpu?.dispose()
+  disposeRowWords(rt)
+  disposeRootWorlds(rt)
+  disposeRootBoxes(rt)
+  disposeTreeLeaves(rt)
+  rt.lights.spheres = undefined
+  rt.lights.buffer?.destroy()
+  const closing = gpu.cache?.dispose()
+  gpu.cache = undefined
+  scene.clear()
+  // The session submits nothing more: what it retired goes now, as after a frame's submit.
+  if (device) destroyRetired(device)
+  rt.diag.drainTraceNow()
+  return Promise.resolve(closing).then(() => {})
+}

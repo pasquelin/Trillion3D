@@ -1,5 +1,5 @@
-import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts'
-import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
+import { surfaceColorAttachments } from '../../../packages/sdk-browser/src/frame/prepare/attachments.ts'
+import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/materials/surface/surfaceBuffer.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { referenceAttachments } from '../../oracles/browser/view-frame.ts'
@@ -55,7 +55,7 @@ const resized = [small, small, large, large, small, disposed, large]
 
 const resAttachments = await measure({
   name: 'surface attachments',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/prepare/attachments.ts',
+  fichier: 'packages/sdk-browser/src/frame/prepare/attachments.ts',
   cas: [
     { name: '2 000 frames without resize', input: steadyFrames, size: 2000 },
     { name: 'resizes and a disposed target', input: resized, size: 7 },

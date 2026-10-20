@@ -1,5 +1,5 @@
 import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../../sdk-core/src/physics/options.ts'
-import { addressParam, heldOnce } from '../../host/addressFlag.ts'
+import { addressParam, heldOnce } from '../../session/host/addressFlag.ts'
 
 /** `trillion3dPhysicsHz=<n>`: a temporary switch for a measure, the fixed step `1/n` s rather than
  *  `PHYSICS_STEP`; read once, and the page and its worker share the answer (`start.step`). */
@@ -27,7 +27,7 @@ export function physicsStep() {
  * steps a frame's time once that frame has sent it, so the newest state a frame can hold is the
  * one the frame before asked for, and one step behind it the two states that bracket the drawn
  * time are both there whenever the worker keeps up. The clock moves at the frame's start, before
- * the controller (`worldFrames.ts`): everything the frame draws, the character the controller
+ * the controller (`frames/frames.ts`): everything the frame draws, the character the controller
  * moves first included, reads that one time.
  */
 export function createStepClock(step: number) {

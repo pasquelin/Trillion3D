@@ -6,10 +6,10 @@ import * as THREE from 'three'
 import type { Object3D } from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
 import * as K from './sceneKinds.fixture.ts'
 import { threeView } from '../../../../fromSurface.ts'
-import type { PageSurface } from '../../../../../../../packages/sdk-browser/src/page/surface.ts'
+import type { PageSurface } from '../../../../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { sceneCacheFiles } from '../../../../../../../tests/kit/scenes/caches.ts'
-import { decodingImages } from '../../../../../../../packages/sdk-browser/src/host/prepared/decodedImages.fixture.ts'
-import { readJson } from '../../../../../../../scripts/repository-files.ts'
+import { decodingImages } from '../../../../../../../packages/sdk-browser/src/scene/host/prepared/decodedImages.fixture.ts'
+import { readJson } from '../../../../../../../scripts/git/repository-files.ts'
 import { sha256 } from '../../../../../../../packages/sdk-node/src/compiler/provenance.mts'
 
 const repository = new URL('../../../../../../../', import.meta.url)

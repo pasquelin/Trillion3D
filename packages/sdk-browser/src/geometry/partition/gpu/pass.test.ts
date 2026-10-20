@@ -1,0 +1,67 @@
+// The partition's frame on the host: what it does before its pass (nothing cleared from the
+// encoder but forgotten rows), then its three dispatches in the frame's pass, opened only when it
+// runs.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createGpuPartition } from './factory.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { buffer, frame, view } from './partition.fixture.ts'
+
+test('the frame clears nothing from the encoder: its first dispatch zeroes what the kernels count', async () => {
+  const { device, dispatches, clears } = fakeDevice()
+  let pyramid: GPUTextureView | undefined = view('pyramid')
+  const partition = (await createGpuPartition(device, 4096, {
+    items: buffer('items'),
+    flags: buffer('flags'),
+    restBits: buffer('rest'),
+    hizLevels: buffer('levels'),
+    pyramid: () => pyramid,
+  }))!
+  const quiet = device.createCommandEncoder()
+  partition.beginFrame(quiet, frame(4000))
+  assert.deepEqual(clears, [], 'no counter, rest bit or slot count is cleared outside the pass')
+  partition.encode({ pass: device.createCommandEncoder().beginComputePass() })
+  // The 125 rest-bit words outnumber the 16 counters: two groups of 64 (no slot count is kept).
+  assert.deepEqual(
+    dispatches.map(({ entryPoint, direct }) => [entryPoint, direct]),
+    [
+      ['clearRows', 2],
+      ['projectRows', 63],
+      ['classifyRows', 63],
+    ],
+  )
+  // A frame without a pyramid asks no pass.
+  pyramid = undefined
+  partition.beginFrame(quiet, frame(4000))
+  partition.encode({
+    get pass(): GPUComputePassEncoder {
+      throw new Error('no pyramid, no dispatch')
+    },
+  })
+  partition.dispose()
+})
+
+test('rows past one dimension of a dispatch run in rows of 65,535 groups (`dispatchGrid`)', async () => {
+  const rows = 65_535 * 64 + 1
+  const { device, dispatches } = fakeDevice()
+  const partition = (await createGpuPartition(device, rows, {
+    items: buffer('items'),
+    flags: buffer('flags'),
+    restBits: buffer('rest'),
+    hizLevels: buffer('levels'),
+    pyramid: () => view('pyramid'),
+  }))!
+  partition.beginFrame(device.createCommandEncoder(), frame(rows))
+  partition.encode({ pass: device.createCommandEncoder().beginComputePass() })
+  // 65,536 groups of 64 rows: two rows of 65,535, the second's threads past the count leaving;
+  // the clear's 131,071 rest-bit words, 2,048 groups, one row.
+  assert.deepEqual(
+    dispatches.map(({ entryPoint, direct, rows }) => [entryPoint, direct, rows]),
+    [
+      ['clearRows', 2048, undefined],
+      ['projectRows', 65_535, 2],
+      ['classifyRows', 65_535, 2],
+    ],
+  )
+  partition.dispose()
+})

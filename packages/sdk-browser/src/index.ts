@@ -1,5 +1,5 @@
 // The world and its families: what a page writes. One barrel per family folder.
-export * from './world/core/index.ts'
+export * from './session/world/index.ts'
 export * from '../../sdk-core/src/world/math/index.ts'
 export * from '../../sdk-core/src/world/geometry/index.ts'
 export * from '../../sdk-core/src/world/buffer/index.ts'
@@ -24,9 +24,9 @@ export { animation } from '../../sdk-core/src/world/animation/family.ts'
 export { Skeleton } from '../../sdk-core/src/world/animation/skeleton.ts'
 export type { WindOptions } from '../../sdk-core/src/world/animation/wind.ts'
 export * from '../../sdk-core/src/world/constants/index.ts'
-export * from './world/texture/index.ts'
-export * from './world/api/loaderFamily.ts'
-export * from './world/api/helperFamily.ts'
+export * from './materials/live/index.ts'
+export * from './api/loaderFamily.ts'
+export * from './api/helperFamily.ts'
 export {
   GUIDE_VERTEX_CEILING,
   type Guides,
@@ -34,9 +34,9 @@ export {
   type GuideLines,
   type GuidePoints,
 } from './guides/guideSet.ts'
-export * from './world/controls/index.ts'
-export * from './world/page/index.ts'
-export * from './world/api/budgetFamily.ts'
+export * from './guides/transform/index.ts'
+export * from './geometry/runtime/index.ts'
+export * from './api/budgetFamily.ts'
 export * from '../../sdk-core/src/physics/index.ts'
 export type { WorldPhysics } from './physics/worldPhysics.ts'
 export type { WorldPhysicsOptions, GravityInput } from './physics/worldPhysicsOptions.ts'
@@ -44,31 +44,31 @@ export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts'
 export type { WaveSpec, Waves } from '../../sdk-core/src/fluids/waves.ts'
 export type { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts'
 export type { PhysicsStats } from './physics/protocol.ts'
-export * from './world/api/metricFamily.ts'
-export * from './world/diagnostic/index.ts'
-export * from './world/capability/index.ts'
-export * from './world/capture/index.ts'
-export * from './world/api/poseFamily.ts'
-export * from './world/api/batchFamily.ts'
-export type { CreatedMaterial } from './world/api/createdMaterials.ts'
-export type { SceneMaterial, SceneMaterialPatch } from './world/api/materialValues.ts'
+export * from './api/metricFamily.ts'
+export * from './diagnostic/world/index.ts'
+export * from './api/capability/index.ts'
+export * from './api/capture/index.ts'
+export * from './api/poseFamily.ts'
+export * from './api/batchFamily.ts'
+export type { CreatedMaterial } from './api/createdMaterials.ts'
+export type { SceneMaterial, SceneMaterialPatch } from './api/materialValues.ts'
 export { EngineProfiler } from './diagnostic/telemetry.ts'
 export type { TelemetryReport } from './diagnostic/telemetryTypes.ts'
 export type { AssetScope, StablePreview } from '../../sdk-core/src/contracts/base.ts'
 export type { FrameMetrics, ViewFrameMetrics } from '../../sdk-core/src/contracts/metrics.ts'
 export type { ClusterManifest } from '../../sdk-core/src/contracts/geometry.ts'
 export type { EngineDiagnostic, DiagnosticDetail } from './diagnostic/types.ts'
-export type { PointOfInterest } from './world/session/options.ts'
+export type { PointOfInterest } from './session/options.ts'
 /** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
-export type { PlacementRows } from './placement/rows.ts'
+export type { PlacementRows } from './placement/rows/rows.ts'
 /** A row of a scene's instance buffer that follows its parent, composed on the GPU. */
-export type { PlacementLink } from './placement/gpuCompose.ts'
-/** What the engine draws, source by source (`page/selection/drawSource.ts`). */
-export type { DrawAssociations, DrawRanks, DrawSource } from './page/selection/drawSource.ts'
-export type { CellRows } from './partition/cellDecode.ts'
-export type { CellBudget, CellFrameIo, CellPrimeIo } from './partition/cellsPrime.ts'
+export type { PlacementLink } from './placement/compose/gpuCompose.ts'
+/** What the engine draws, source by source (`geometry/selection/drawSource.ts`). */
+export type { DrawAssociations, DrawRanks, DrawSource } from './geometry/selection/drawSource.ts'
+export type { CellRows } from './geometry/partition/cellDecode.ts'
+export type { CellBudget, CellFrameIo, CellPrimeIo } from './geometry/partition/cellsPrime.ts'
 export type { PlacementGrowth } from './placement/engineSceneUpdates.ts'
-/** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
+/** Host resources the engine reads and never builds (`session/host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
 export type {
   HostAttribute,
@@ -80,39 +80,39 @@ export type {
   HostMesh,
   HostPoint,
   HostScene,
-} from './host/resources.ts'
-/** The shapes a host node's pose and rotation are read through (`host/scene/graphNodes.ts`). */
-export type { HostRotation, HostVector } from './host/scene/graphNodes.ts'
-/** The surface record a mesh of the engine's graph wears (`page/surface.ts`), holding the core's
+} from './session/host/resources.ts'
+/** The shapes a host node's pose and rotation are read through (`scene/host/scan/graphNodes.ts`). */
+export type { HostRotation, HostVector } from './scene/host/scan/graphNodes.ts'
+/** The surface record a mesh of the engine's graph wears (`geometry/pages/surface.ts`), holding the core's
  *  texture records; its nodes are the core's. Its three parts are named: the shaded fields
  *  (`VisMaterial`), the raster facts (`SurfaceFacts`) and its release (`Releasable`). */
-export type { PageSurface, SurfaceFacts, SurfaceFamily } from './page/surface.ts'
+export type { PageSurface, SurfaceFacts, SurfaceFamily } from './geometry/pages/surface.ts'
 export type { VisMaterial } from './visibility/materialType.ts'
 export type { Releasable } from '../../sdk-core/src/runtime/releasable.ts'
-export { declareSurface } from './page/surfaceRecord.ts'
-export type { SurfaceDeclaration } from './page/surfaceDeclaration.ts'
-export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'
-export { gpuPassBlockOf, gpuPassStageOf } from './stage/mapping.ts'
+export { declareSurface } from './geometry/pages/surfaceRecord.ts'
+export type { SurfaceDeclaration } from './geometry/pages/surfaceDeclaration.ts'
+export type { HostNodeMatrix, MatrixElements } from './session/host/matrixElements.ts'
+export { gpuPassBlockOf, gpuPassStageOf } from './diagnostic/stage/mapping.ts'
 export { gpuPassBlockTotals } from './gpu/core/passBlocks.ts'
 export type { GpuPassBlockTotals } from './gpu/core/passBlocks.ts'
-export type { GpuPassBlock } from './stage/passDeclaration.ts'
+export type { GpuPassBlock } from './diagnostic/stage/passDeclaration.ts'
 export { createDiagnosticChannel } from './diagnostic/channel.ts'
 export type {
   DiagnosticChannel,
   DiagnosticChannelOptions,
   DiagnosticObserver,
 } from './diagnostic/channel.ts'
-export type { SurfaceBuffer, SurfaceCapture } from './scene/surfaceBuffer.ts'
+export type { SurfaceBuffer, SurfaceCapture } from './materials/surface/surfaceBuffer.ts'
 export type {
   GeometryPool,
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
   TableGrowthReport,
-} from './residency/pools.ts'
-export type { TexturePool } from './webgpu/residency/memoryBudgets.ts'
-export type { BudgetCanvas } from './residency/memoryBudget.ts'
-export type { PartitionAudit } from './webgpu/core/partitionAudit.ts'
+} from './session/memory/pools.ts'
+export type { TexturePool } from './geometry/residency/memoryBudgets.ts'
+export type { BudgetCanvas } from './session/memory/memoryBudget.ts'
+export type { PartitionAudit } from './gpu/core/partitionAudit.ts'
 export type {
   FrameInspection,
   InspectedCamera,
@@ -122,40 +122,52 @@ export type {
   InspectedShadowMap,
 } from './diagnostic/inspection/types.ts'
 export { CLUSTER_STATE } from './diagnostic/inspection/types.ts'
-export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts'
-export type { CpuStepSummary } from './stage/profiler.ts'
-export type { ArrivalPlan } from './page/integration/host.ts'
-export type { DecodedGeometryPage } from './page/codec/geometryPage.ts'
+export type { TransparentOcclusionAudit } from './blend/transparent/occlusionAudit.ts'
+export type { CpuStepSummary } from './diagnostic/stage/profiler.ts'
+export type { ArrivalPlan } from './geometry/integration/host.ts'
+export type { DecodedGeometryPage } from './geometry/codec/geometryPage.ts'
 export type {
   TextureLevel,
   TextureLevelAddress,
   TextureLevelReader,
   TextureLevelRequest,
   TextureLevelStore,
-} from './texture/levelReader.ts'
-export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts'
-export type { TextureCache } from './texture/textureCaches.ts'
+} from './materials/texture/levelReader.ts'
+export type {
+  AtlasLanes,
+  LaneCounts,
+  TextureCompression,
+} from './materials/texture/blockFormats.ts'
+export type { TextureCache } from './materials/texture/textureCaches.ts'
 export type { WorldCells } from './gpu/core/selection.ts'
-export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts'
-export type { BatchRead } from './streaming/types.ts'
-export type { BoxTransformLot, MultiplyLot } from './page/decode/batch/batchRuntime.ts'
+export type {
+  HostRetentionDelta,
+  PageStreamerOptions,
+  StreamPage,
+} from './geometry/streaming/types.ts'
+export type { BatchRead } from './geometry/streaming/types.ts'
+export type { BoxTransformLot, MultiplyLot } from './geometry/decode/batchRuntime.ts'
 export { framingFromBounds } from './camera/framing.ts'
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts'
-export { createGpuPageCache, type GpuPageCacheOptions } from './gpu/page/pages.ts'
-export type { ResidentPage } from './gpu/page/types.ts'
-export type { EvictionOrder } from './gpu/page/eviction.ts'
-export type { PageHome, PageHomes } from './gpu/page/homes.ts'
-export { createPageStreamer } from './streaming/pageStreamer.ts'
+export { createGpuPageCache, type GpuPageCacheOptions } from './geometry/pages/pool/pages.ts'
+export type { ResidentPage } from './geometry/pages/pool/types.ts'
+export type { EvictionOrder } from './geometry/pages/pool/eviction.ts'
+export type { PageHome, PageHomes } from './geometry/pages/pool/homes.ts'
+export { createPageStreamer } from './geometry/streaming/pageStreamer.ts'
 // The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).
-export { createPageCache, type CacheSession, type PageCache } from './streaming/pageCache.ts'
-export type { RangeAsk, ReadRange } from './cluster/ranged.ts'
-export type { ByteMeter } from './cluster/byteMeter.ts'
+export {
+  createPageCache,
+  type CacheSession,
+  type PageCache,
+} from './geometry/streaming/pageCache.ts'
+export type { RangeAsk, ReadRange } from './geometry/cluster/ranged.ts'
+export type { ByteMeter } from './geometry/cluster/byteMeter.ts'
 export { LOD_QUALITY } from '../../sdk-core/src/lod/policy.ts'
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/runtime/jobs/jobs.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/runtime/jobs/jobs.ts'
-export { detectCapabilities, type GpuCapabilities } from './world/capability/capabilities.ts'
+export { detectCapabilities, type GpuCapabilities } from './api/capability/capabilities.ts'
 export type { PathRun } from './camera/path.ts'
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").

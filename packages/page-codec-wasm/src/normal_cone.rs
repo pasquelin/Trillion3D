@@ -2,8 +2,8 @@
 //! which the WebGPU cut rejects a cluster that faces away. Built by the page encoder over the
 //! positions the page decodes to (`encode::decoded_cone`), the triangles the GPU draws, for a
 //! cooked page into the manifest (`docs/FORMAT.md`, `pages[].cone`), so the runtime reads no vertex
-//! for it, and for a page the world cuts at run time through the SDK module (`wasm_encode.rs`,
-//! `packages/sdk-browser/src/world/page/runtimeCut.ts`). This is the only cone builder.
+//! for it, and for a page the world cuts at run time through the SDK module (`wasm/encode.rs`,
+//! `packages/sdk-browser/src/geometry/runtime/runtimeCut.ts`). This is the only cone builder.
 //!
 //! One cone is built: the narrowest, whose axis points at the centre of the smallest ball holding
 //! the unit face normals (`min_ball`). Below a half-turn it is the smallest cap holding them, so
@@ -109,5 +109,4 @@ fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
 }
 
 #[cfg(test)]
-#[path = "normal_cone_tests.rs"]
 mod tests;

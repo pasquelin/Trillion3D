@@ -1,6 +1,6 @@
 // Page of the append-blend proof: a world draws a row of opaque meshes, then blended and
-// transmissive geometries are added to the scene while its session runs (`placement/webgpuAppend.ts`,
-// `webgpu/blend/growth.ts`), and the image is the one of a world opened on all of them at once. A
+// transmissive geometries are added to the scene while its session runs (`append/webgpuAppend.ts`,
+// `src/blend/growth.ts`), and the image is the one of a world opened on all of them at once. A
 // generated scene: no file of the site.
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'

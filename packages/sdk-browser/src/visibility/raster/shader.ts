@@ -1,0 +1,99 @@
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
+import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
+import {
+  COLOR_SAMPLE_WGSL,
+  TILE_POOL_WGSL,
+  tileDeclarations,
+} from '../../materials/virtual/wgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../shader/pageWgsl.ts'
+import { SMALL_BINDINGS } from '../../gpu/bind/bindLayout.ts'
+import { RASTER_TRI_WGSL } from './triWgsl.ts'
+import { RASTER_PIXEL_WGSL, pixelCount, pixelOffset } from './pixelWgsl.ts'
+import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
+import { HIZ_REJECTED_WGSL } from '../../geometry/partition/gpu/contract.ts'
+import { rasterKernels } from './kernelsWgsl.ts'
+import { visTriangle } from '../visWords.ts'
+import {
+  FLAT_INDEX_WGSL,
+  GROUP_GRID_WGSL,
+  WORKGROUP_THREADS_WGSL,
+} from '../../gpu/dispatch/grid.ts'
+import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
+
+/**
+ * Compute raster of the share of the opaque and masked cut that the split gives it — the small
+ * triangles, or the whole cut: it writes a visibility buffer — a depth and a cluster/triangle
+ * identifier per pixel — which the full-screen hardware resolve then merges into the identifier
+ * texture, the depth and pyramid level zero that the hardware raster opened. Blend and
+ * transmission surfaces keep their pass.
+ *
+ * A mask material does its alpha test HERE, with analytical perspective-correct gradients for
+ * the covered sub-triangle. It therefore uses the colour sampler's existing LOD and anisotropy
+ * path, at the same threshold and coordinates as the hardware raster.
+ */
+export const rasterSource = (capacity: number, listBase: number) =>
+  wgslProgram(
+    `@group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.positions}) var<storage,read> positions:array<f32>;
+@group(0) @binding(${SMALL_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
+@group(0) @binding(${SMALL_BINDINGS.hizFlags}) var<storage,read> hizFlags:array<u32>;
+@group(0) @binding(${SMALL_BINDINGS.uniform}) var<uniform> uni:Uniforms;
+@group(0) @binding(${SMALL_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;
+${tileDeclarations(SMALL_BINDINGS.color, 'color')}
+@group(0) @binding(${SMALL_BINDINGS.sampler}) var mapsSampler:sampler;
+// One work buffer: first the two attachments the raster resolves — depth, then identifiers one
+// screen further —, and from LIST the two triangle lists, their counts, the dispatches they
+// imply, then one row and one triangle per entry.
+@group(0) @binding(${SMALL_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
+const LIST:u32=${listBase}u;
+@group(0) @binding(${SMALL_BINDINGS.selectionMask}) var<storage,read> selectionMask:array<u32>;
+// The \`viewProj * world\` product and the linear-part determinant depend only on the page: they
+// are computed once for the page and reread as-is by each of its triangles. The same operands
+// in the same order give the same float as a per-triangle compute.
+fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
+fn pageWinding(page:PageInfo)->f32{return determinant(worldMatrix3(page.world));}
+${rasterKernels(capacity)}`,
+    [
+      PAGE_INFO_STRUCT_WGSL,
+      VIS_UNIFORMS_WGSL,
+      TILE_POOL_WGSL,
+      COLOR_SAMPLE_WGSL,
+      RASTER_TRI_WGSL,
+      RASTER_PIXEL_WGSL,
+      visTriangle,
+      worldMatrix3,
+      FLAT_INDEX_WGSL,
+      GROUP_GRID_WGSL,
+      WORKGROUP_THREADS_WGSL,
+      NO_INDEX,
+      HIZ_REJECTED_WGSL,
+      ceilDivWgsl,
+    ],
+  )
+
+/**
+ * Full-screen hardware resolve: a triangle that covers the screen rereads the work buffer and
+ * writes each pixel back into the attachments consumers already read — identifiers as `r32uint`,
+ * depth-buffer depth, linear depth of pyramid level zero. No consumer changes: it is the
+ * producer that changed.
+ *
+ * `hiz` serves between the two halves of the frame: the pyramid needs occluder depth before any
+ * identifier has been resolved, so it only writes level zero and the depth buffer. `one` and
+ * `two` close the frame, when depth is final and the identifier chosen. All pass the depth test
+ * against what the hardware raster already wrote: that is where the two producers merge, pixel
+ * by pixel.
+ */
+export const RESOLVE = wgslProgram(
+  `@group(0) @binding(0) var<storage,read> frame:array<u32>;
+@group(0) @binding(1) var<uniform> uni:Uniforms;
+struct One{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
+struct Two{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
+struct Hiz{@location(0) hiz:f32,@builtin(frag_depth) depth:f32,}
+@fragment fn one(@builtin(position) pos:vec4f)->One{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==NO_INDEX){discard;}return One(id,bitcast<f32>(frame[i]));}
+@fragment fn two(@builtin(position) pos:vec4f)->Two{let i=pixelOffset(vec2u(pos.xy));let id=frame[pixelCount()+i];if(id==NO_INDEX){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
+@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[pixelOffset(vec2u(pos.xy))]);if(d<=${wgslF32(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`,
+  [VIS_UNIFORMS_WGSL, pixelCount, pixelOffset, NO_INDEX, FULLSCREEN_VERTEX],
+)

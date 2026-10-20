@@ -4,7 +4,7 @@
 import { f32Bits, fromF32Bits } from '../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   bitAt,

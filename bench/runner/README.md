@@ -260,7 +260,7 @@ equal keys.
 
 The image a rendering technique is held to
 ([CONTRIBUTING.md](../../CONTRIBUTING.md#image-and-fidelity), class 2) is drawn by the engine in
-its reference mode (`packages/sdk-browser/src/frame/referenceMode.ts`,
+its reference mode (`packages/sdk-browser/src/frame/reference/referenceMode.ts`,
 `openMeasuredWorld(canvas, { reference: true })`): render scale 1, no temporal reuse, bounce traced
 at its per-frame ceiling and converged, shadows at the level they ask (a shrunk or coarsened page
 pool refuses the capture), and the frame supersampled in tiles, 8 samples per output pixel and axis, box-filtered in

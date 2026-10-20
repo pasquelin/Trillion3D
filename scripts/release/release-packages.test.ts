@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { COMPILER_PLATFORMS } from '../../packages/sdk-node/src/compiler/platform.mts'
 import type { Run } from './installed-package/contracts.ts'
 import { packRelease, publishRelease, readRelease, releaseNames } from './release-packages.ts'
-import { readJson } from '../repository-files.ts'
+import { readJson } from '../git/repository-files.ts'
 
 /** A checkout as the pack job holds it: six manifests at `version`, each compiler downloaded
  *  without its execute bit, `skip` left out. */

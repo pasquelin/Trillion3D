@@ -2,25 +2,25 @@
 // test (`parented.test.ts`). A site is `{ name, create, measure }`: `create()` returns the state
 // of a frame sequence (cut, engine), `measure(state, camera)` returns, ready to be
 // JSON-stringified, what the site took from the camera for that frame.
-import { surfaceOf } from '../page/surface.ts'
-import * as G from '../host/graph/graph.fixture.ts'
+import { surfaceOf } from '../geometry/pages/surface.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
-import { collectClusterPages } from '../page/selection/collect.ts'
-import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
-import { boundsFor, projectBoxesFlat } from '../hiz/projection.fixture.ts'
-import { visibilityDepth } from '../hiz/visibilityDepth.fixture.ts'
+import { collectClusterPages } from '../geometry/selection/collect.ts'
+import { selectVisiblePages } from '../geometry/cut/cut.fixture.ts'
+import { boundsFor, projectBoxesFlat } from '../visibility/hiz/projection.fixture.ts'
+import { visibilityDepth } from '../visibility/hiz/visibilityDepth.fixture.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import type { VisPage } from '../visibility/types.ts'
-import type { HizPage } from '../hiz/types.ts'
-import { resolvePixelError } from '../page/selection/requests.ts'
-import { dagFixture } from '../page/selection/dag.fixture.ts'
+import type { HizPage } from '../visibility/hiz/types.ts'
+import { resolvePixelError } from '../geometry/selection/requests.ts'
+import { dagFixture } from '../geometry/selection/dag.fixture.ts'
 import { engineSites, type Site } from './parentedEngineSites.fixture.ts'
 import { createEngineCamera } from './engineCamera.ts'
 import { readCameraWorld, type HostCamera } from './world.ts'
 import type { CameraMotion } from './motion.ts'
-import { identityRoots } from '../page/selection/placements.fixture.ts'
+import { identityRoots } from '../geometry/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
-import { graphDraws } from '../page/selection/drawSource.ts'
+import { graphDraws } from '../geometry/selection/drawSource.ts'
 
 const VIEWPORT: [number, number] = [1280, 720],
   RASTER: [number, number] = [64, 36]

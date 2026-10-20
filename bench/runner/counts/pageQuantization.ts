@@ -18,8 +18,8 @@ import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { readCacheManifest } from '../assets/cacheManifest.ts'
-import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/codec/geometryPage.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/geometry/codec/geometryPage.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 
 const ITEMS: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }
 const INDEX_ARRAYS: Record<number, typeof Uint8Array | typeof Uint16Array | typeof Uint32Array> = {

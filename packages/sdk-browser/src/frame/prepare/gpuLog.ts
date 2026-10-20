@@ -1,0 +1,94 @@
+/**
+ * `trillion3dGpuLog=1` in the page's address: a `[T3D-GPU]` console line every 60 drawn images,
+ * read from the engine's own timing sample (`timing.ts`, the stats corner's numbers): each pass's
+ * own share of the GPU image, the size drawn and the display's, the shadow projection's dispatch;
+ * the mean CPU time per drawn image and the mean and max display interval over the images since
+ * the last line (` cpu 2.31 ms raf 9.10/16.70 ms`, right after the GPU field; the CPU is the
+ * corner's `cpuFrameMs`, the interval its `rafIntervalMs`); the timed passes by the state their
+ * timestamp pair read in (valid, unwritten, invalid) and, when the image has no GPU time, why
+ * (`frameMsReason`); and once, first, the device's `subgroups` feature and its sizes.
+ * Nothing is timed for it: without the flag it reads nothing and writes nothing.
+ */
+import { adapterSubgroupSizes } from '../../gpu/core/subgroups.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { addressFlag } from '../../session/host/addressFlag.ts'
+import type { GpuTimingSample } from '../../gpu/timing/types.ts'
+import { VSM_PROJECTION_PASS } from '../../lighting/shadows/vsm/projection/projectionPipelines.ts'
+import { VSM_PROJECTION_GROUP_SIZE } from '../../lighting/shadows/vsm/constants.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { passTotals } from '../../diagnostic/stage/mapping.ts'
+
+const EVERY_FRAMES = 60
+const asked = addressFlag((params) => params.get('trillion3dGpuLog') === '1')
+const ms = (value: number | null | undefined) => (value == null ? '-' : value.toFixed(2))
+/** Each pass its own group: its name. */
+const byName = (name: string) => name
+
+/** The device's line, written once: its subgroups (the projection's halves vote over theirs where
+ *  every subgroup holds 32 lanes, by workgroup counters elsewhere). */
+function deviceLine(device: GPUDevice) {
+  const info = adapterSubgroupSizes(device)
+  const subgroups = device.features.has('subgroups')
+  return (
+    `[T3D-GPU] subgroups ${subgroups ? 'yes' : 'no'}` +
+    ` (sizes ${info?.subgroupMinSize ?? '?'}-${info?.subgroupMaxSize ?? '?'})`
+  )
+}
+
+/** What the timing sample of `device` hands the log (`prepareGpuTiming`). */
+export function createGpuLog(device: GPUDevice) {
+  let next = -1
+  // The images since the last line: the corner's CPU time (`FrameMetrics.cpuFrameMs`, fed by
+  // `frameCpuMs`) and the display's interval (`rafIntervalMs`), summed and maxed.
+  let images = 0,
+    cpuSum = 0,
+    rafImages = 0,
+    rafSum = 0,
+    rafMax = 0
+  const log = (rt: WebgpuPagesRuntime, sample: GpuTimingSample) => {
+    if (!asked() || sample.frame < next) return
+    if (next < 0) console.log(deviceLine(device))
+    next = sample.frame + EVERY_FRAMES
+    // Each pass's own share, its instances summed; '-' where one went untimed.
+    const own = passTotals(sample.passes, byName)
+    // The projection's groups over the size drawn now (`encodeVsmFrame`), the timed image's scale
+    // beside it: a sample describes an image a few frames past.
+    const cpu = images ? ` cpu ${ms(cpuSum / images)} ms` : '',
+      raf = rafImages ? ` raf ${ms(rafSum / rafImages)}/${ms(rafMax)} ms` : ''
+    images = cpuSum = rafImages = rafSum = rafMax = 0
+    const [width, height] = rt.gpu.targetSize,
+      [displayWidth, displayHeight] = rt.gpu.displaySize,
+      side = VSM_PROJECTION_GROUP_SIZE,
+      x = ceilDiv(width, side),
+      y = ceilDiv(height, side)
+    console.log(
+      `[T3D-GPU] frame ${sample.frame} gpu ${ms(sample.submittedMs)} ms` +
+        cpu +
+        raf +
+        (sample.frameMsReason ? ` (no span: ${sample.frameMsReason})` : '') +
+        ` pairs valid ${sample.pairs.valid} unwritten ${sample.pairs.unwritten}` +
+        ` invalid ${sample.pairs.invalid} drawn ${width}x${height} display ${displayWidth}x${displayHeight}` +
+        (typeof sample.renderScale === 'number'
+          ? ` timed at scale ${sample.renderScale.toFixed(3)}`
+          : '') +
+        (own.has(VSM_PROJECTION_PASS)
+          ? ` projection ${x}x${y} groups = ${x * side}x${y * side} = ${x * y * side * side} px`
+          : ' no projection') +
+        (sample.truncated ? ' (truncated)' : '') +
+        ' |' +
+        [...own].map(([name, value]) => ` ${name} ${ms(value)}`).join(''),
+    )
+  }
+  /** One drawn image: its CPU time and the display's interval, `null` when not yet measured. */
+  const frame = (cpuMs: number, rafMs: number | null) => {
+    if (!asked()) return
+    images++
+    cpuSum += cpuMs
+    if (rafMs !== null) {
+      rafImages++
+      rafSum += rafMs
+      if (rafMs > rafMax) rafMax = rafMs
+    }
+  }
+  return Object.assign(log, { frame })
+}

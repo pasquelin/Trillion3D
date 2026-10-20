@@ -1,4 +1,4 @@
-// The shadow raster's chunk bound on the device's histograms (`vsm/rowBinsWgsl.ts`): an oblique low
+// The shadow raster's chunk bound on the device's histograms (`rows/rowBinsWgsl.ts`): an oblique low
 // sun and a spot over a dense scene, half its rows moving, binned on the GPU and read back; the
 // moving rows then travel within the margin they were binned at, then far past it. The bound never
 // falls below the exact count of the shipped cull, for any K, any frame. How far the device's bins

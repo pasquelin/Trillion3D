@@ -1,8 +1,8 @@
 import { TAU } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { VehicleOptions } from '../../../../sdk-core/src/physics/vehicle.ts'
-import { VEHICLE_SPECS } from '../../../../sdk-core/src/physics/vehicleSpec.ts'
+import type { VehicleOptions } from '../../../../sdk-core/src/physics/vehicle/vehicle.ts'
+import { VEHICLE_SPECS } from '../../../../sdk-core/src/physics/vehicle/vehicleSpec.ts'
 import { driveCar, type VehicleRig } from './vehicles.fixture.ts'
 
 // The engine and gearbox options of a car, set against its machine's own value on the committed

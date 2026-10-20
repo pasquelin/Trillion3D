@@ -1,0 +1,26 @@
+import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+
+/** Uploads the rows whose bytes changed, run by run, and nothing when none did; the records of
+ *  the surfaces they name with them (`../../materials/table/materialTable.ts`), those written since. */
+export function uploadDirtyRows(rt: WebgpuPagesRuntime) {
+  const { rows } = rt.layout,
+    { materialTable } = rt.vis
+  if (rt.gpu.device) materialTable.viewFor(rt.gpu.device)
+  rt.timing.encodeCounts.rowsUploaded = 0
+  if (!rows.dirtyCount || !rt.vis.pageTable || !rows.pageTableFloats) return
+  rows.forEachDirtyRun(rt, uploadRun)
+  rows.clearDirty()
+}
+
+function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
+  const floats = rt.layout.rows.pageTableFloats!
+  rt.gpu.device!.queue.writeBuffer(
+    rt.vis.pageTable!,
+    from * PAGE_INFO_STRIDE,
+    floats.buffer as ArrayBuffer,
+    floats.byteOffset + from * PAGE_INFO_STRIDE,
+    (to - from + 1) * PAGE_INFO_STRIDE,
+  )
+  rt.timing.encodeCounts.rowsUploaded += to - from + 1
+}

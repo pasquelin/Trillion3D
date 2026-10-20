@@ -3,9 +3,9 @@
 // tests it spent.
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { runtimeSceneWgsl } from '../../../packages/sdk-browser/src/bounce/runtimeSceneWgsl.ts'
+import { runtimeSceneWgsl } from '../../../packages/sdk-browser/src/lighting/bounce/runtime/runtimeSceneWgsl.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import type { ProxyResources } from '../../../packages/sdk-browser/src/gpu/dag/cutReaders.ts'
+import type { ProxyResources } from '../../../packages/sdk-browser/src/geometry/dag/cut/cutReaders.ts'
 
 /** Words of a hit as the kernel writes it. */
 export const HIT_WORDS = 6

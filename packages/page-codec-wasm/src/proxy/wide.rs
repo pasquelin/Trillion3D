@@ -101,5 +101,4 @@ pub fn encode(nodes: &[Node]) -> (Vec<f32>, Vec<u32>) {
 }
 
 #[cfg(test)]
-#[path = "wide_tests.rs"]
 pub(crate) mod tests;

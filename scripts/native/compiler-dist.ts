@@ -17,7 +17,7 @@ import {
 } from '../../packages/sdk-node/src/compiler/platform.mts'
 import { rustHost, rustTool } from '../build/build-wasm.ts'
 import { compileReferenceScenes, referenceRecord, type HashRecord } from './compiler-hashes.ts'
-import { REPOSITORY_ROOT, posixPath } from '../repository-files.ts'
+import { REPOSITORY_ROOT, posixPath } from '../git/repository-files.ts'
 import { runChecked } from '../test/run.ts'
 
 const CRATE = join(REPOSITORY_ROOT, 'packages/asset-compiler-rust')

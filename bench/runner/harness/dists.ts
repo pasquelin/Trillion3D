@@ -6,7 +6,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pnpmCommand } from '../../../scripts/lint/only-pnpm.ts'
-import { git } from '../../../scripts/git-paths.ts'
+import { git } from '../../../scripts/git/git-paths.ts'
 
 const buildDist = (dir: string) =>
   execFileSync(...pnpmCommand('run', 'build'), { cwd: dir, stdio: 'inherit' })

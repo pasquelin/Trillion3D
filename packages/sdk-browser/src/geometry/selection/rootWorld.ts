@@ -1,0 +1,62 @@
+/**
+ * WHAT A ROOT'S WORLD DECIDES ON THE CPU, TAKEN WHEN READ: its world box — its local box carried by
+ * its world — and its stretch — `maxStretch`, the largest singular value of its linear part, in
+ * doubles. The GPU derives both for every root whose world moved, the one home every pass reads
+ * (`../../placement/roots/rootBoxes.ts`, the box in the roots' boxes, the stretch in the frame words'
+ * field the cut projects its errors through); the CPU takes them for the readers that decide on
+ * the CPU in the frame that asks — the deformation's screen-size skip (`../../deformation/screen.ts`)
+ * and the shadow box of a deformation (`noteDeformed`) —, the same doubles, never sent.
+ *
+ * Each is a memo keyed by the world's one version, `worldAt`, which `worldMoved` moves at each place
+ * the engine takes a world that moved — a move (`../../frame/render/movedRoot.ts`), a row
+ * its owner wrote (`../../placement/update.ts`), a parent composing it, linking or unlinking it
+ * (`../../placement/compose/gpuComposeSlot.ts`, `gpuComposeWorld.ts`) —; the winding of its rows' bins
+ * is held by the same version (`../../frame/render/winding.ts`). A move costs the CPU one
+ * increment: the box and the stretch are taken at the first read after it, by the
+ * one reader that asks, never for a root no reader asks. A box read before a move is taken is the
+ * one the root leaves. A memo never taken holds nothing: a root made is taken at its first read,
+ * its maker calls nothing.
+ */
+import { boxTransform } from '../../../../math/src/geometry/box.ts'
+import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
+import type { MatrixElements } from '../../session/host/matrixElements.ts'
+
+/** A root's world and what its memos hold. */
+export type WorldMemo = {
+  world: MatrixElements
+  worldAt?: number
+  localBox?: Float64Array
+  worldBox?: Float64Array
+  boxAt?: number
+  stretch?: number
+  stretchAt?: number
+}
+
+/** The world of `root` moved: what is derived from it is taken again at its next read. */
+export function worldMoved(root: Pick<WorldMemo, 'worldAt'>) {
+  root.worldAt = (root.worldAt ?? 0) + 1
+}
+
+/** The version `worldMoved` left on `root`: none moved yet is version 0. */
+export const worldVersion = (root: Pick<WorldMemo, 'worldAt'>) => root.worldAt ?? 0
+
+/** Whether a memo taken at `at` still holds for `root`'s world. One never taken holds nothing: a
+ *  root made is taken at its first read, no call of its maker's. */
+const holds = (root: WorldMemo, at: number | undefined) => at === worldVersion(root)
+
+/** `root`'s world box, its local box at its world, taken now when its world moved since; none
+ *  without one. The array is the root's own: read, never kept past the next move. */
+export function rootWorldBox(root: WorldMemo) {
+  const box = root.worldBox
+  if (!box || !root.localBox || holds(root, root.boxAt)) return box
+  boxTransform(box, 0, root.localBox, 0, root.world.elements)
+  root.boxAt = worldVersion(root)
+  return box
+}
+
+/** `root`'s stretch, taken now when its world moved since. */
+export function worldStretch(root: WorldMemo) {
+  if (root.stretch !== undefined && holds(root, root.stretchAt)) return root.stretch
+  root.stretchAt = worldVersion(root)
+  return (root.stretch = maxStretch(root.world.elements))
+}

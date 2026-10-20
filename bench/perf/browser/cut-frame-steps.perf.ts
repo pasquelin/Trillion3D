@@ -1,29 +1,29 @@
 // The GPU cut's per-image CPU steps as wholes, on the engine's own runtime: a WebGPU pages
 // backend mounted on the mock device that executes the selection kernel on the CPU
 // (`tests/kit/fakeDevice/fakeDevice.ts`), drawing a streamed two-level terrain while the camera flies over
-// it. Each image's bounds are read from the engine's own CPU profile (`webgpu/pages/render/cpuStepTable.ts`),
-// the ones the explorer publishes: `adoptCutMs` (`services.adoptGpuCut`, `webgpu/cut/publication.ts`),
+// it. Each image's bounds are read from the engine's own CPU profile (`src/frame/render/cpuStepTable.ts`),
+// the ones the explorer publishes: `adoptCutMs` (`services.adoptGpuCut`, `cut/adoption/publication.ts`),
 // `admissionMs` (`admitGpuCut`) and the residency stream (`streamCutResidency`: queue, rows and
 // flags upload). One image's state cannot be replayed, so each frame is one sample.
 import { stats } from '../../core/chrono.ts'
 import { rapport } from '../../core/report.ts'
 import type { Measurement } from '../../kit/measureTypes.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { collectClusterPages } from '../../../packages/sdk-browser/src/page/selection/collect.ts'
-import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { createWebgpuPagesRuntime } from '../../../packages/sdk-browser/src/webgpu/pages/runtime.ts'
-import { prepareWebgpuBackend } from '../../../packages/sdk-browser/src/webgpu/pages/prepare/prepare.ts'
-import { renderWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/pages/render/render.ts'
-import { flushWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/pages/render/flush.ts'
-import { disposeWebgpuPages } from '../../../packages/sdk-browser/src/webgpu/pages/io/metrics.ts'
-import { CPU_STEP } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
+import { collectClusterPages } from '../../../packages/sdk-browser/src/geometry/selection/collect.ts'
+import { graphDraws } from '../../../packages/sdk-browser/src/geometry/selection/drawSource.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { createWebgpuPagesRuntime } from '../../../packages/sdk-browser/src/frame/backend/runtime.ts'
+import { prepareWebgpuBackend } from '../../../packages/sdk-browser/src/frame/prepare/prepare.ts'
+import { renderWebgpuPages } from '../../../packages/sdk-browser/src/frame/render/render.ts'
+import { flushWebgpuPages } from '../../../packages/sdk-browser/src/frame/render/flush.ts'
+import { disposeWebgpuPages } from '../../../packages/sdk-browser/src/frame/io/metrics.ts'
+import { CPU_STEP } from '../../../packages/sdk-browser/src/frame/render/cpuStepTable.ts'
 import { BACKEND } from '../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals } from '../../../tests/kit/fakeDevice/globals.ts'
 import { cutFrameScene } from './support/cutFrameScene.ts'
-import { createTextureCaches } from '../../../packages/sdk-browser/src/texture/textureCaches.ts'
-import { createPageCache } from '../../../packages/sdk-browser/src/streaming/pageCache.ts'
+import { createTextureCaches } from '../../../packages/sdk-browser/src/materials/texture/textureCaches.ts'
+import { createPageCache } from '../../../packages/sdk-browser/src/geometry/streaming/pageCache.ts'
 
 const SIDE = 96,
   WARM = 40,
@@ -109,9 +109,9 @@ const flights = {
 disposeWebgpuPages(rt)
 
 const FILES: Record<Step, string> = {
-  adoption: 'packages/sdk-browser/src/webgpu/cut/publication.ts',
-  admission: 'packages/sdk-browser/src/webgpu/pages/render/gpuCutAdmission.ts',
-  stream: 'packages/sdk-browser/src/webgpu/pages/render/gpuCutStream.ts',
+  adoption: 'packages/sdk-browser/src/geometry/cut/adoption/publication.ts',
+  admission: 'packages/sdk-browser/src/frame/render/gpuCutAdmission.ts',
+  stream: 'packages/sdk-browser/src/frame/render/gpuCutStream.ts',
 }
 const measurements: Measurement[] = (Object.keys(STEPS) as Step[]).map((step) => ({
   name: `GPU cut ${step}, per image`,

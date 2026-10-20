@@ -1,0 +1,118 @@
+import { entriesIdentity } from './entriesIdentity.ts'
+import { adoptEntries } from '../core/adoptEntries.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
+
+/** Resource snapshots for a family. Entry descriptors and snapshot arrays grow only at setup;
+ *  stable images read the same descriptors without rebuilding entry arrays or bindings. */
+export type WebgpuBindIdentity = {
+  /** Where the family writes, every time it is read, what its groups currently name. */
+  next: unknown[]
+  /** Canonical live entry lists, shared with createBindGroup. */
+  entries: GPUBindGroupEntry[][]
+  /** True when `next` differs from every identity held; the identity then holds `next`, in place
+   *  of the one named longest ago. */
+  moved(): boolean
+  /** Writes the family's layout then every list of `entries` into `next`, and returns `moved()`. */
+  entriesMoved(layout: unknown): boolean
+  /** Where the identity `next` named at the last `moved()` is held, below `depth`: the family keeps
+   *  the groups it made for it at that rank, and makes them again when `moved()` was true. */
+  readonly slot: number
+  /** The identity held at `slot` is forgotten: the next `moved()` naming it is true again. */
+  forget(): void
+  /** Every identity held is forgotten. */
+  clear(): void
+}
+
+/**
+ * The identity of a family's groups: the resources they name. It holds the last `depth` it was
+ * given, each at its `slot`. With a depth of two, a family whose resources take turns frame after
+ * frame — a double-buffered set, its current frame's then the other's — finds each of them held
+ * and keeps a group for each, where a single identity would move, and its groups be made again,
+ * every frame.
+ *
+ * The engine's one bind-group cache, with one exception: a family whose resources are many at
+ * once, each bound every frame — an image per view presented (`gpu/core/presentAt.ts`), a texture
+ * per chain a batch reduces (`materials/texture/mipGroups.ts`) —, not a few taking turns, keeps each group
+ * with the resource, in a map weakly keyed by it: no depth fits a count the page sets, one below it
+ * would make every group again each frame, one above it would hold destroyed resources.
+ */
+export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
+  /** The identities held, by slot, and when each was last named. */
+  const held: unknown[][] = [[]],
+    named = [0],
+    next: unknown[] = [],
+    entries: GPUBindGroupEntry[][] = []
+  let clock = 0
+  const identity = {
+    next,
+    entries,
+    slot: 0,
+    moved() {
+      clock++
+      for (let at = 0; at < held.length; at++)
+        if (sameValues(held[at], next)) {
+          identity.slot = at
+          named[at] = clock
+          return false
+        }
+      let at = held.length
+      if (at === depth) {
+        at = 0
+        for (let k = 1; k < depth; k++) if (named[k] < named[at]) at = k
+      }
+      adoptEntries((held[at] ??= []), next)
+      identity.slot = at
+      named[at] = clock
+      return true
+    },
+    forget() {
+      held[identity.slot].length = 0
+    },
+    clear() {
+      for (const kept of held) kept.length = 0
+    },
+    entriesMoved(layout: unknown) {
+      next[0] = layout
+      let at = 1
+      for (let i = 0; i < entries.length; i++) at = entriesIdentity(entries[i], next, at)
+      next.length = at
+      return identity.moved()
+    },
+  }
+  return identity
+}
+
+/** True when every resource an entry list names exists: the readiness of its group. */
+export function entriesReady(entries: readonly GPUBindGroupEntry[]) {
+  for (let i = 0; i < entries.length; i++) {
+    const resource = entries[i].resource
+    if (!resource || ('buffer' in resource && !resource.buffer)) return false
+  }
+  return true
+}
+
+/** A pass's bind group and what it names: made again only when one of them moves. The engine's
+ *  one held group, a pass's every group (`composeGroup`). */
+export const heldGroup = () => ({
+  identity: createWebgpuBindIdentity(),
+  group: undefined as GPUBindGroup | undefined,
+})
+export type HeldGroup = ReturnType<typeof heldGroup>
+
+/** `held`'s group over its entries (`identity.entries[0]`, read live: `liveEntries.ts`) on
+ *  `pipeline`'s group `index`, made again when the pipeline or a resource they name moved
+ *  (`entriesMoved`); whether it was. */
+export function composeGroup(
+  device: GPUDevice,
+  held: HeldGroup,
+  pipeline: GPUComputePipeline,
+  index = 0,
+) {
+  const moved = held.identity.entriesMoved(pipeline)
+  if (moved)
+    held.group = device.createBindGroup({
+      layout: pipeline.getBindGroupLayout(index),
+      entries: held.identity.entries[0],
+    })
+  return moved
+}

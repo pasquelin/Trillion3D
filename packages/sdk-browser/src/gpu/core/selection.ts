@@ -12,14 +12,14 @@ import type { CameraMotion } from '../../camera/motion.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
-import type { DagRoot } from '../dag/types.ts'
-import type { ActorWarmth } from '../dag/worldFollow.ts'
-import type { PoseHost } from '../dag/proxyInstances.ts'
-import type { ProxyBoxes } from '../../bounce/probeSync.ts'
-import type { CutTables, ProxyResources } from '../dag/cutReaders.ts'
+import type { DagRoot } from '../../geometry/dag/types.ts'
+import type { ActorWarmth } from '../../geometry/dag/worlds/worldFollow.ts'
+import type { PoseHost } from '../../geometry/dag/proxy/proxyInstances.ts'
+import type { ProxyBoxes } from '../../lighting/bounce/probes/probeSync.ts'
+import type { CutTables, ProxyResources } from '../../geometry/dag/cut/cutReaders.ts'
 
 /** The step a cut takes on the tables before it encodes, the main view's or a view aside's
- *  (`../dag/runtime.ts`, `syncTables`). */
+ *  (`../../geometry/dag/runtime/runtime.ts`, `syncTables`). */
 export type TableSync = () => void
 
 /**
@@ -41,30 +41,30 @@ export type SelectionUniforms = {
   /** The view ahead of a moving camera (`./aheadView.ts`); absent or null for a still one. */
   ahead?: AheadView | null
   /** The pool cannot hold the whole cut: the camera's requests rank by admission, the minimum
-   *  capacity's pages then the coarsest level first (`../dag/request.ts`). */
+   *  capacity's pages then the coarsest level first (`../../geometry/dag/request/request.ts`). */
   admitByLevel?: boolean
-  /** The host's frame, the clock each view's cut stamps what it uses with (`../dag/evict.ts`):
+  /** The host's frame, the clock each view's cut stamps what it uses with (`../../geometry/dag/evict/evict.ts`):
    *  never compared — a cut standing still across frames is the same cut. */
   frame?: number
 }
 /**
  * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
- * in hand claims for them in the GPU list the host adopted last (`../dag/differenceChain.ts`): for
+ * in hand claims for them in the GPU list the host adopted last (`../../geometry/dag/differenceChain.ts`): for
  * rank `s`, the rank its page holds there, `NO_INDEX` for a page one of the snapshots since
  * did not hold. Claims, checked against the list held before they are believed.
  */
 export type CutClaims = { asked: Uint32Array; drawn: Uint32Array }
 /** Each packed page's residency flag as the host's row cache sets it, what the cut reads: at the
- *  pages a change names, every page at a rebuild (`../../webgpu/row/pageState.ts`). */
+ *  pages a change names, every page at a rebuild (`../../geometry/rows/page/pageState.ts`). */
 export type PageResidency = { readonly length: number; flag(page: number): number }
 export type SelectionResult = {
   pageIds: number[]
-  /** Requests of the view ahead, ranked as `pageIds` and after all of them (`../dag/request.ts`). */
+  /** Requests of the view ahead, ranked as `pageIds` and after all of them (`../../geometry/dag/request/request.ts`). */
   aheadPageIds?: number[]
   frustumRejected: number
   lodLevel: number
   drawablePageIds?: number[]
-  /** A resident cut's eviction queue (`../dag/evict.ts`): canonical pages, first evicted first. */
+  /** A resident cut's eviction queue (`../../geometry/dag/evict/evict.ts`): canonical pages, first evicted first. */
   evictPageIds?: number[]
   /** How many of its first pages are OLD: older than any page the view ahead asks for, the only
    *  ones a page of the view ahead may take the place of. */
@@ -75,14 +75,14 @@ export type SelectionResult = {
   selectedTriangles: number
   transparentTriangles: number
   /** True when the cut exceeded the sample cap the device can hold: each list is its head, the
-   *  frame's mask is whole, and nothing exits on it (`../../webgpu/cut/adoption.ts`). */
+   *  frame's mask is whole, and nothing exits on it (`../../geometry/cut/adoption/adoption.ts`). */
   truncated?: boolean
-  /** Non-zero when the cut dropped work, a queue or a list full (`../dag/queueGrowth.ts`): its
+  /** Non-zero when the cut dropped work, a queue or a list full (`../../geometry/dag/queueGrowth.ts`): its
    *  bits say which. The frame keeps drawing the last cut that ran whole; this one is never
    *  adopted. */
   dropped?: number
 }
-/** A readback and its uniforms (`../../webgpu/cut/adoption.ts`). */
+/** A readback and its uniforms (`../../geometry/cut/adoption/adoption.ts`). */
 export type GpuCut = {
   uniforms: SelectionUniforms
   result: SelectionResult
@@ -93,12 +93,12 @@ export type GpuCut = {
  *  every page. */
 export type ResidencyChanges = { pages: Int32Array; count: number }
 type Visit = (page: number) => void
-/** The world's chain of HLOD cells as the cut follows it (`../dag/worldFollow.ts`). */
+/** The world's chain of HLOD cells as the cut follows it (`../../geometry/dag/worlds/worldFollow.ts`). */
 export type WorldCells = {
   /** HLOD cell `cell` of instance `instance` is told `word` (`CELL_TOLD`): wished, every cell file
    *  of an HLOD 0 cell placed, its actor's hold failed for good; whether it moved. */
   show(instance: number, cell: number, word: number): boolean
-  /** Whether the cell was visible at the last cut (`../dag/worldFollow.ts`). */
+  /** Whether the cell was visible at the last cut (`../../geometry/dag/worlds/worldFollow.ts`). */
   visible(instance: number, cell: number): boolean
   /** Whether the cell stood, at the last cut, for an actor it cannot draw, wished by its parent:
    *  its content is wished for it. */
@@ -107,7 +107,7 @@ export type WorldCells = {
    *  `visit`; every cell at the first call, or once more moved than it has cells. */
   moved(instance: number, visit: (cell: number) => void): void
   /** A switch that draws an HLOD actor waits until its textures are warm (`ActorWarmth`,
-   *  `../dag/worldFollow.ts`). */
+   *  `../../geometry/dag/worlds/worldFollow.ts`). */
   warmWith(warmth?: ActorWarmth): void
   /** Whether a switch waits on an actor's textures: the view keeps drawing till it is done. */
   readonly warming: boolean
@@ -123,12 +123,12 @@ export type GpuSelection = {
   readonly pageCount: number
   /** The placements its tables are laid out for: `updateWorlds` takes sixteen floats each. */
   readonly worldCapacity: number
-  /** The world's chain of HLOD cells, when it packs the world DAG (`../dag/worldFollow.ts`): which
+  /** The world's chain of HLOD cells, when it packs the world DAG (`../../geometry/dag/worlds/worldFollow.ts`): which
    *  the partition shows, and what draws each now. */
   readonly world?: WorldCells
   /** Where the cut's cold words hold the world's HLOD cell states (`CELL_DRAW`), `cells` per
-   *  instance from word `base` (`../dag/worldLinks.ts`): what a pass beside the descent binds to
-   *  gate a placement by its cell as the descent does (`../../webgpu/blend/verdictWgsl.ts`). */
+   *  instance from word `base` (`../../geometry/dag/worlds/worldLinks.ts`): what a pass beside the descent binds to
+   *  gate a placement by its cell as the descent does (`../../blend/verdict/verdictWgsl.ts`). */
   readonly cellStates?: {
     readonly view: GPUTextureView
     readonly base: number
@@ -136,71 +136,71 @@ export type GpuSelection = {
   }
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number
-  /** Bytes of its GPU tables, within the cut's share (`../../residency/cutTableBytes.ts`). */
+  /** Bytes of its GPU tables, within the cut's share (`../../session/memory/cutTableBytes.ts`). */
   readonly gpuBytes?: number
   readonly worldRevision: number
-  /** The cut's frame words, one record table (`../dag/frameTable.ts`): what the root boxes pass
-   *  writes the stretch into and the tree's leaves read (`../../placement/rootBoxes.ts`). */
+  /** The cut's frame words, one record table (`../../geometry/dag/frameTable.ts`): what the root boxes pass
+   *  writes the stretch into and the tree's leaves read (`../../placement/roots/rootBoxes.ts`). */
   readonly frames: GPUTextureView
-  /** The cut's records, one table (`../dag/worldTable.ts`): what the
-   *  composition writes and the proxy's rays read (`../../bounce/runtimeSceneWgsl.ts`). A new view
+  /** The cut's records, one table (`../../geometry/dag/worlds/worldTable.ts`): what the
+   *  composition writes and the proxy's rays read (`../../lighting/bounce/runtime/runtimeSceneWgsl.ts`). A new view
    *  once the proxy's copies grow it: read at each use. */
   readonly worlds: GPUTextureView
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
    *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
    *  translation —, increasing, a view the next call overwrites: what the placement tree follows
-   *  (`../dag/treeFollow.ts`). Advances `worldRevision` when one moved. */
+   *  (`../../geometry/dag/tree/treeFollow.ts`). Advances `worldRevision` when one moved. */
   updateWorlds(worlds: Float32Array, named?: Int32Array): Int32Array
   /** Placement `world` is posed on the GPU by its parent from now on, or no longer
-   *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
+   *  (`../../placement/compose/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
    *  host holds is written again over the one its parent composed. */
   composedPlacement(world: number, composed: boolean): void
-  /** Whether its cut follows a placement tree (`../dag/treeFollow.ts`): what the kernel writing
-   *  the tree's leaves is asked for before a frame binds it (`../../placement/rootPasses.ts`). */
+  /** Whether its cut follows a placement tree (`../../geometry/dag/tree/treeFollow.ts`): what the kernel writing
+   *  the tree's leaves is asked for before a frame binds it (`../../placement/roots/rootPasses.ts`). */
   readonly treeFollowed: boolean
   /** The member group of placement `world` in the placement tree, -1 outside it: what a
    *  composition names the groups of the roots a parent moves by. */
   groupOf(world: number): number
   /** The groups `groups` name are fitted again before the next cut: the roots a parent
-   *  composes moved with it (`../dag/treeFollow.ts`). */
+   *  composes moved with it (`../../geometry/dag/tree/treeFollow.ts`). */
   groupsMoved(groups: ArrayLike<number>): void
-  /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
+  /** The cut's worlds were rewritten on the GPU (`../../placement/compose/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. `rows` are the
    *  placements whose worlds it wrote: the proxy makes their boxes again and no other. */
   worldsMovedOnGpu(rows: Iterable<number>): void
-  /** True while its list or its regions grow between two frames (`../dag/listCap.ts`): no root
+  /** True while its list or its regions grow between two frames (`../../geometry/dag/lists/listCap.ts`): no root
    *  is appended meanwhile, and the appending caller asks again at its next frame. */
   readonly growing: boolean
-  /** True while no cut may run on its tables (`../dag/queueGrowth.ts`, `tablesHeld`): the frames
+  /** True while no cut may run on its tables (`../../geometry/dag/queueGrowth.ts`, `tablesHeld`): the frames
    *  draw the last cut that ran whole, so no page it may draw leaves the pool meanwhile. */
   readonly cutHeld: boolean
   /** The factor the main view's projected-error threshold is cut under: 1 but past the list one
-   *  binding holds, where the cut coarsens until it fits (`../dag/coarsening.ts`). */
+   *  binding holds, where the cut coarsens until it fits (`../../geometry/dag/coarsening.ts`). */
   readonly coarsen: number
   /** `roots` — later placements of primitives it holds — appended behind its own, in the room
-   *  its tables kept (`../dag/pack.ts`, `appendDagRoots`), cut from the next dispatch on. False
+   *  its tables kept (`../../geometry/dag/pack/pack.ts`, `appendDagRoots`), cut from the next dispatch on. False
    *  when they do not fit, or while it is `growing`: the caller makes a cut over every root, at a
    *  grown capacity, unless it waits for the growth to end. */
   appendRoots(roots: readonly DagRoot[]): boolean
   /** The row cache now holds `rows` rows: the open counts placements hold follow it
-   *  (`../dag/queueGrowth.ts`), grown before the next cut. */
+   *  (`../../geometry/dag/queueGrowth.ts`), grown before the next cut. */
   followRows?(rows: number): void
   /** What a program reads the proxy through (`ProxyResources`): none until a placement wears one. */
   proxy(): ProxyResources | undefined
-  /** Its tables as a pass beside the cut reads them (`../dag/cutReaders.ts`), read again at each
+  /** Its tables as a pass beside the cut reads them (`../../geometry/dag/cut/cutReaders.ts`), read again at each
    *  call: a growth lays them out anew. None once released. */
   cutTables(): CutTables | undefined
-  /** Bytes the CPU keeps for the proxy (`../dag/proxyInstances.ts`): the streamer's reservation counts them. */
+  /** Bytes the CPU keeps for the proxy (`../../geometry/dag/proxy/proxyInstances.ts`): the streamer's reservation counts them. */
   readonly proxyHostBytes: number
   /** The deformed placements' copies of their meshes' proxies posed by the records of the frame, before the
-   *  first program of the image that traces them (`../dag/proxyPose.ts`). */
+   *  first program of the image that traces them (`../../geometry/dag/proxy/proxyPose.ts`). */
   proxyPose(encoder: GPUCommandEncoder, host: PoseHost): void
   /** The compiled meshes' proxies arrived: every placement wears what its primitive holds now. */
   proxyArrived(): void
   /** The world boxes of the placements that wear a proxy, the runs of those new or moved since the last
-   *  call, and their extent (`../../bounce/probeSync.ts`). */
+   *  call, and their extent (`../../lighting/bounce/probes/probeSync.ts`). */
   proxyBoxes(): ProxyBoxes
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
@@ -208,27 +208,27 @@ export type GpuSelection = {
   markWorld(world: number, mark: number): void
   /** Placement `world` lies in HLOD 0 cell `cell` of the world DAG's instance `instance` — the
    *  placement of its model it is placed in, 0 the first — now, or in none (`-1`): it draws only
-   *  while its cell draws its placements (`../dag/worldFollow.ts`); nothing without a world. */
+   *  while its cell draws its placements (`../../geometry/dag/worlds/worldFollow.ts`); nothing without a world. */
   placeInCell(world: number, cell: number, instance?: number): void
   /** Row `index` of the row list `key`, whose root the cut does not hold yet, lies in HLOD 0 cell
    *  `cell` of instance `instance`, or in none (`-1`): its cell counts it as a placement not
-   *  resident meanwhile (`../dag/worldFollow.ts`); nothing without a world. */
+   *  resident meanwhile (`../../geometry/dag/worlds/worldFollow.ts`); nothing without a world. */
   waitRow(key: object, index: number, cell: number, instance: number): void
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: PageResidency, changes?: ResidencyChanges, moved?: Visit): boolean
-  /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */
+  /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`geometry/cut/rule.ts`). */
   isReady(page: number): boolean
   isChildReady(page: number): boolean
   /** Each page the pool takes or gives back: the eviction queue lists what it holds. */
   notePool(page: number, held: boolean): void
   /** The pool refused a page for lack of a place: the next dispatch cuts again, and its readback
-   *  brings a new eviction queue, the ages grown since (`../dag/evict.ts`). */
+   *  brings a new eviction queue, the ages grown since (`../../geometry/dag/evict/evict.ts`). */
   askEvictions(): void
   /** Encodes the selection. Given `shared`, the caller owns the command buffer and calls the
    *  settlement back, `true` once it is queued, `false` if dropped: no readback before `true`. */
   dispatch(uniforms: SelectionUniforms, shared?: GPUCommandEncoder): SelectionSubmission | undefined
   peek(): GpuCut | null
-  /** A cut for a view drawn beside the main one, on these tables (`../dag/aside.ts`). */
+  /** A cut for a view drawn beside the main one, on these tables (`../../geometry/dag/aside.ts`). */
   aside(): AsideCut
   /** The host adopts `cut`, the readback in hand: the ranks it claims in the list the host held,
    *  valid until the next readback lands — none when the host held no GPU list —; the readbacks

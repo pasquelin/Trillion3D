@@ -7,34 +7,34 @@
 // past them (`tests/kit/fakeDevice/limitRules.ts`); each test reads every stage it built too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
-import { surfaceOf } from '../../page/surface.ts'
-import { BLEND_MODES } from '../../scene/materialBlending.ts'
-import { WEBGPU_REQUIRED_LIMITS } from '../../engine/common.ts'
+import * as G from '../../scene/host/graph/graph.fixture.ts'
+import { surfaceOf } from '../../geometry/pages/surface.ts'
+import { BLEND_MODES } from '../../materials/surface/materialBlending.ts'
+import { WEBGPU_REQUIRED_LIMITS } from '../../session/engine/common.ts'
 import { createContractVariants } from '../../lighting/deferred/contractVariants.ts'
 import { FULL_CONTRACT, type ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import { createDeferredPlaceholders } from '../../lighting/deferred/setup.ts'
 import { createDeferredView } from '../../lighting/deferred/view.ts'
-import { createWebgpuBlendPipelines } from '../../webgpu/blend/pipelines.ts'
-import type { BlendGpuItem } from '../../webgpu/blend/state.ts'
-import { createReflectionPipelines } from '../../reflections/reflectionPipelines.ts'
-import { createHizPipelines } from '../hiz/pipelines.ts'
+import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
+import type { BlendGpuItem } from '../../blend/state.ts'
+import { createReflectionPipelines } from '../../lighting/reflections/reflectionPipelines.ts'
+import { createHizPipelines } from '../../visibility/hiz/gpu/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
-import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
-import { dagBindEntries } from '../dag/shader/bindings.ts'
-import { drawBindEntries } from '../draw/shader.ts'
-import { dagDeviceRefusal } from '../dag/deviceRefusal.ts'
-import type { PackedDag } from '../dag/types.ts'
-import { TREE_REFIT_WGSL } from '../dag/treeRefitWgsl.ts'
-import { TREE_LEAVES_WGSL } from '../../placement/treeLeavesWgsl.ts'
-import { ROOT_BOXES_WGSL } from '../../placement/rootBoxesWgsl.ts'
-import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_WGSL } from '../../placement/gpuComposeWgsl.ts'
-import { COMPOSE_MOTION_WGSL } from '../../placement/composedMotionWgsl.ts'
+import { BLEND_BINDINGS } from '../bind/bindLayout.ts'
+import { dagBindEntries } from '../../geometry/dag/shader/bindings.ts'
+import { drawBindEntries } from '../../visibility/draw/shader.ts'
+import { dagDeviceRefusal } from '../../geometry/dag/deviceRefusal.ts'
+import type { PackedDag } from '../../geometry/dag/types.ts'
+import { TREE_REFIT_WGSL } from '../../geometry/dag/tree/treeRefitWgsl.ts'
+import { TREE_LEAVES_WGSL } from '../../placement/tree/treeLeavesWgsl.ts'
+import { ROOT_BOXES_WGSL } from '../../placement/roots/rootBoxesWgsl.ts'
+import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_WGSL } from '../../placement/compose/gpuComposeWgsl.ts'
+import { COMPOSE_MOTION_WGSL } from '../../placement/compose/composedMotionWgsl.ts'
 import { wgslComputeLayout } from './wgslBindings.fixture.ts'
-import { RAY_QUERY_WGSL } from '../../webgpu/rays/rayQueryWgsl.ts'
-import { DEFORM_INDEX_SHADER } from '../../webgpu/rays/deformIndexWgsl.ts'
+import { RAY_QUERY_WGSL } from '../../lighting/rays/rayQueryWgsl.ts'
+import { DEFORM_INDEX_SHADER } from '../../lighting/rays/deformIndexWgsl.ts'
 
 /** Every stage of every layout of `layouts` within WebGPU's defaults (`limitOf`, the kit device's
  *  one table), each kind; `where` names the programs. */
@@ -85,7 +85,7 @@ test("every opaque resolve program fits WebGPU's default limits", async () => {
 })
 
 /** Whether a layout of `layouts` shows the fragment stage the transparents' front radiance at
- *  `binding` (`../../reflections/frontLayer.ts`): a texture of words, read by load, no storage. */
+ *  `binding` (`../../lighting/reflections/frontLayer.ts`): a texture of words, read by load, no storage. */
 const bindsFront = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
   layouts.some((layout) =>
     [...layout.entries].some(

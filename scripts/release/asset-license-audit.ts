@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs'
 import { realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { parseAssetManifest, type Asset, type Evidence } from './asset-license-manifest.ts'
-import { readJson } from '../repository-files.ts'
+import { readJson } from '../git/repository-files.ts'
 
 type Finding = { kind: 'technical' | 'policy' | 'review'; code: string }
 /** Only the documented repository criteria are evaluated; no authenticity or legal certification. */

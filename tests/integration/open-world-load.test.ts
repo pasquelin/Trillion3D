@@ -18,7 +18,7 @@ import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { compiler } from './world-partition.fixture.ts'
 import { assertOpensUnderCap } from './view-rows-load.fixture.ts'
-import { readJson } from '../../scripts/repository-files.ts'
+import { readJson } from '../../scripts/git/repository-files.ts'
 
 /** The renderer's memory cap, in MB: the JS heap and its array buffers, the mock device's own
  *  buffers out. */

@@ -1,9 +1,9 @@
-// `shaderRun`'s built-ins (`../texture/shaderRunBuiltins.fixture.ts`) in IEEE-754 binary32, the
+// `shaderRun`'s built-ins (`../materials/texture/shaderRunBuiltins.fixture.ts`) in IEEE-754 binary32, the
 // precision a GPU shades in: every operation rounds once, as a GPU that neither fuses nor
 // reassociates would; a literal rounds where it is read. Transcendentals are correctly rounded,
 // tighter than WGSL's bounds (`atan2` 4096 ULP, `inverseSqrt` 2 ULP): the errors measured with this
 // scope are those of the arithmetic, a lower bound of a device's.
-import { builtins, each, vector, type Vec } from '../texture/shaderRunBuiltins.fixture.ts'
+import { builtins, each, vector, type Vec } from '../materials/texture/shaderRunBuiltins.fixture.ts'
 import { cross } from '../../../../tests/gpu/math/f32Vec3.ts'
 type Value = number | boolean | Vec
 const rounded = (v: Value): Value =>

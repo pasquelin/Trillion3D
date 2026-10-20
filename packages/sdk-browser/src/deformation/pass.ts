@@ -1,4 +1,4 @@
-import { definePass } from '../stage/passDeclaration.ts'
+import { definePass } from '../diagnostic/stage/passDeclaration.ts'
 
 /** Timestamp label published by the existing per-frame GPU timing recorder: the deformation
  *  stage's (`compute.ts`), which the core's metrics read without its code. */

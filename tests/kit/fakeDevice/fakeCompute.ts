@@ -1,16 +1,16 @@
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { compactDrawnPages, drawMask, writtenMask } from './globals.ts'
 import {
   LIST_DROPPED,
   QUEUE_DROPPED,
   WORK_DROPPED,
-} from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
-import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/shader/viewsWgsl.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
 import { TRANSPARENT_STAGES } from './fakeComputeBlend.ts'
 import { ROW_STAGES } from './fakeComputeRows.ts'
 import { boundResource, words, type BoundBuffer } from './fakeBuffers.ts'
-import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { childBase } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { fakeEvictions, sortStagedRequests } from './fakeEvict.ts'
 import { poolSortReplayOf } from './fakePoolSorts.ts'
 import {
@@ -21,20 +21,20 @@ import {
   readDagUniforms,
 } from './fakeDag.ts'
 import { boundData, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
-import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
+import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/geometry/dag/oracle/oracle.fixture.ts'
 import {
   residentFlags,
   writeTriangleTotals,
-} from '../../../packages/sdk-browser/src/gpu/dag/layout.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/layout.fixture.ts'
 import { simulateScatterGroups } from './fakeDrawCompact.ts'
-import { stagedRequestsWord } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import { stagedRequestsWord } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 import {
   stagedPage,
   stagedPriority,
-} from '../../../packages/sdk-browser/src/gpu/dag/request.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/request/request.fixture.ts'
 import { LIST_KERNELS, mirrorListStage } from './fakeLists.ts'
 import { setBit } from '../../../packages/math/src/scalar/bits.ts'
-import { ROOT_WORD } from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
+import { ROOT_WORD } from '../../../packages/sdk-browser/src/geometry/dag/frameTable.ts'
 
 /** The camera cut's kernels the double replays, on the selection's bind group or one of its
  *  entries (a kept list's: `rankGroups`). */
@@ -79,7 +79,7 @@ export function simulateComputeDispatch(
     throw new Error('a pool sort the double does not replay')
   if (computeBind.entries.length !== slots)
     throw new Error(`dag selection bind group requires ${slots} entries`)
-  // A record table reads as its texture's words, laid as its buffer was (`gpu/dag/cutTables.ts`).
+  // A record table reads as its texture's words, laid as its buffer was (`dag/cut/cutTables.ts`).
   const byBinding = new Map(computeBind.entries.map((e) => [e.binding, boundData(e.resource)]))
   const boundWorlds = boundResource(computeBind.entries, DAG_SLOT.worlds),
     boundFrames = boundResource(computeBind.entries, DAG_SLOT.frames)

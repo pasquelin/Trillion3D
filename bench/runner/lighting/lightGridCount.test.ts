@@ -12,7 +12,7 @@ import {
   lightingModel,
 } from './lightGridCount.ts'
 import { contractSurfaceBody } from '../../../packages/sdk-browser/src/lighting/deferred/surfaceWgsl.ts'
-import { SURFACE_EMISSIVE_AO_WGSL } from '../../../packages/sdk-browser/src/scene/surfaceEmission.ts'
+import { SURFACE_EMISSIVE_AO_WGSL } from '../../../packages/sdk-browser/src/materials/surface/surfaceEmission.ts'
 
 test('the cell lists hold every light that reaches a pixel, and few more', () => {
   const { eye, yaw, pitch } = ATRIUM_POSES[1]

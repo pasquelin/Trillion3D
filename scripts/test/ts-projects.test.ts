@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { repositoryFiles } from '../repository-files.ts'
+import { repositoryFiles } from '../git/repository-files.ts'
 import {
   changedTypeErrors,
   excludes,
@@ -11,7 +11,7 @@ import {
   tsProjects,
   typeErrors,
 } from './ts-projects.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const refuse = () => assert.fail('no owner reads dist/: nothing to build')
 const project = (name: string) => parseProject(resolve(REPOSITORY_ROOT, name))

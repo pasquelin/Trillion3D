@@ -2,7 +2,7 @@
 use crate::bits::stream_words;
 use crate::deform::{morph_words, skin_words, FLAG_MORPH, FLAG_SKIN};
 use crate::triangles::CornerCode;
-use crate::{deform, Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
+pub(crate) use crate::{deform, Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
 /// Optional stream flags and float widths, after position: normal, UV, UV1, colour.
 pub const OPTIONAL: [(u32, usize); 4] = [
     (FLAG_NORMAL, 3),
@@ -78,9 +78,6 @@ impl core::fmt::Debug for DecodedPage {
         )
     }
 }
-
-#[path = "header_size.rs"]
-mod header_size;
 
 /// Stream word offsets derived from counts and widths, never trusted header offsets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

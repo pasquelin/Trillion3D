@@ -13,9 +13,9 @@
 //   node bench/dawn/proofs.ts tests/gpu/pages/culled-face-mirrored.gpu.ts
 import test, { before } from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
+import { surfaceOf } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { rasterVisibility } from '../../../bench/oracles/browser/cpu-image/raster.ts'
 import { coneDecision, rawOrientation, view, type Case } from '../math/inverseTransposeCases.ts'
 import { ALL_CASES } from '../math/inverseTransposeSample.ts'

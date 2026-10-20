@@ -1,6 +1,6 @@
 // The repository is TypeScript: no `.js`, `.mjs` or `.cjs` source may live anywhere in it. The
 // bundles are build products of `dist/`, never sources.
-import { repositoryFiles } from '../repository-files.ts'
+import { repositoryFiles } from '../git/repository-files.ts'
 
 const JAVASCRIPT = /\.[cm]?js$/
 

@@ -1,8 +1,8 @@
 // GPU residency bits, DAG readback and world stretch.
 import { maxStretch } from '../../../packages/math/src/projection/projectionOracles.ts'
-import { updateResidencyBits } from '../../../packages/sdk-browser/src/gpu/dag/residencyUpload.ts'
-import { parseDagOutput } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { residentWords } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { updateResidencyBits } from '../../../packages/sdk-browser/src/geometry/dag/residencyUpload.ts'
+import { parseDagOutput } from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
+import { residentWords } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -49,7 +49,7 @@ for (let i = 0; i < 20000; i++) sortieGpu[4 + 12000 + i] = i % 7 ? 1 : 0
 
 const resResidencyBits = await measure({
   name: 'residency-bit update',
-  fichier: 'packages/sdk-browser/src/gpu/dag/residencyUpload.ts',
+  fichier: 'packages/sdk-browser/src/geometry/dag/residencyUpload.ts',
   cas: [{ name: '8 frames, 20 000 pages', input: images, size: PAGES * 8 }],
   calculation: (imgs) => ({
     drapeaux: imgs.map(
@@ -67,7 +67,7 @@ const resResidencyBits = await measure({
 
 const resParseDag = await measure({
   name: 'GPU cut read',
-  fichier: 'packages/sdk-browser/src/gpu/dag/uniforms.ts',
+  fichier: 'packages/sdk-browser/src/geometry/dag/uniforms.ts',
   cas: [
     { name: 'cut read, 12 000 pages', input: 20000, size: 12000 },
     { name: 'empty cut', input: 0, size: 0 },
@@ -75,7 +75,7 @@ const resParseDag = await measure({
   calculation: (masque) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
   // The oracle takes a per-page flag mask; the engine receives an
   // already-compacted list and a word offset. The two do not describe the same output:
-  // correctness of `parseDagOutput` is held by `packages/sdk-browser/src/gpu/dag/uniforms.test.ts`, not by this bench.
+  // correctness of `parseDagOutput` is held by `packages/sdk-browser/src/geometry/dag/uniforms.test.ts`, not by this bench.
   expected: undefined,
   motif:
     'oracle from before batch A is stale — correctness in packages/sdk-browser/src/gpu/dag/uniforms.test.ts',

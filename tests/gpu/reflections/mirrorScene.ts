@@ -4,7 +4,7 @@
 // quad, the floor or nothing: its depth (near / distance, 0 for nothing), its surface flag (the
 // floor a lit standard surface, the quad a diffuse one, which reflects nothing), its normal and
 // roughness, and the lit colour the image holds there.
-import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { paintPixel, rigFrameOf, type RigFrame } from './rigFrame.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 

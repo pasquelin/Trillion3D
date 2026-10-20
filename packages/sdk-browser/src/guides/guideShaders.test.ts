@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { GUIDE_WGSL } from './guideShaders.ts'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
 import { runShaderText } from '../visibility/shader/shaderText.fixture.ts'
 import {

@@ -5,7 +5,7 @@
 // read on the first the right one. The plane's geometry goes through the float pool (its second
 // set at the tail of the normal atlas, `uv1Tail.ts`) or through quantized pages that store it
 // (`compiledPages.ts`), drawn opaque or blended.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { level, MATTE, plane, type PlaneOptions } from './physicalLobesPage.ts'

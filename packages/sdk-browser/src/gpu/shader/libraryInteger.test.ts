@@ -3,8 +3,8 @@
 // quotient truncated —, against the processor's twins and an independent count of bits.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   bitLength,

@@ -14,7 +14,7 @@
 
 /** What poses a deformed placement's proxy from its rest shape: for each corner of the proxy's triangles, in
  *  triangle order and corner order, the vertex it was built from keeps its skin and its morph deltas
- *  (`world/page/runtimeDeform.ts`). A corner is `CORNER_INFLUENCES` joint ranks, as many weights, then the
+ *  (`geometry/runtime/runtimeDeform.ts`). A corner is `CORNER_INFLUENCES` joint ranks, as many weights, then the
  *  three deltas of each target: `8 + 3 × targets` floats. */
 export interface CutDeformation {
   /** Morph targets of the mesh. */

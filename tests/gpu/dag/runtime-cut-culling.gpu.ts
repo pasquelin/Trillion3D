@@ -5,12 +5,12 @@
 // the same candidates, a small share of the pages: the law is O(visible), not O(N).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
-import { cutDrawnTriangles } from '../../../packages/sdk-browser/src/world/page/runtimeCut.ts'
-import { cullingNodes } from '../../../packages/sdk-browser/src/page/selection/helpers.ts'
-import type { DagRoot } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import { cutDrawnTriangles } from '../../../packages/sdk-browser/src/geometry/runtime/runtimeCut.ts'
+import { cullingNodes } from '../../../packages/sdk-browser/src/geometry/selection/helpers.ts'
+import type { DagRoot } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import { posedSelection, type SelectionCase } from './selectionCase.ts'
 

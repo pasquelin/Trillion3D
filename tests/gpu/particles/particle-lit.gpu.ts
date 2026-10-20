@@ -8,7 +8,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts'
-import { createWebgpuParticles } from '../../../packages/sdk-browser/src/webgpu/particles/webgpuParticles.ts'
+import { createWebgpuParticles } from '../../../packages/sdk-browser/src/particles/gpu/webgpuParticles.ts'
 import { saturate } from '../../../packages/math/src/scalar/reals.ts'
 import { readTexture } from '../../kit/device/computeReadback.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'

@@ -1,27 +1,27 @@
 // The engine's own proxy over a field of cubes, its rays cast as the engine casts them: after a cut,
-// which fits the placement tree first (`gpu/dag/treeFollow.ts`). A tree before its first fit holds
+// which fits the placement tree first (`dag/tree/treeFollow.ts`). A tree before its first fit holds
 // the whole world in every node (`packPlacementTree`): a ray walking it opens every group and spends
 // its budget on the first members of the tree's order, never reaching the rest. The session's leaves
-// writer (`placement/treeLeaves.ts`) is stood in for by the leaves it writes (`leafBoxes`, proven
+// writer (`tree/treeLeaves.ts`) is stood in for by the leaves it writes (`leafBoxes`, proven
 // word for word against it), sent once, whole.
 import { walk } from './proxyWalks.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { cubeCut } from '../../../packages/sdk-browser/src/bounce/runtimeScene.fixture.ts'
+import { cubeCut } from '../../../packages/sdk-browser/src/lighting/bounce/runtime/runtimeScene.fixture.ts'
 import { packDoubles } from '../../../packages/math/src/float/splitDouble.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
-import { frontCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
-import { leafBoxes } from '../../../packages/sdk-browser/src/gpu/dag/treeRefitRun.fixture.ts'
-import type { RootsOnGpu } from '../../../packages/sdk-browser/src/gpu/dag/runtimeOps.ts'
-import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import { frontCamera } from '../../../packages/sdk-browser/src/geometry/selection/dag.fixture.ts'
+import { leafBoxes } from '../../../packages/sdk-browser/src/geometry/dag/tree/treeRefitRun.fixture.ts'
+import type { RootsOnGpu } from '../../../packages/sdk-browser/src/geometry/dag/runtime/runtimeOps.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import {
   scenePages,
   sceneRoots,
-} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
-import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { surface } from '../../../packages/sdk-browser/src/gpu/dag/proxyInstances.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/cut/cutFrontierScene.fixture.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/selection/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { surface } from '../../../packages/sdk-browser/src/geometry/dag/proxy/proxyInstances.fixture.ts'
 
 /** `count` cubes on a field `side` wide, three metres apart, each wearing the cube's cut. */
 function cubeField(count: number) {

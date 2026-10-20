@@ -1,10 +1,10 @@
 // The scene the tests of the shipped stages run over: quantized pages of 1 to 128 triangles
 // under every row kind, a source-buffer page, far from the origin; `stages` runs a shipped text
 // over it.
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
-import { encodePage } from '../../page/codec/encodePage.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
+import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
+import { encodePage } from '../../geometry/codec/encodePage.fixture.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import * as F from '../types.ts'
 import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'

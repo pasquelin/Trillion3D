@@ -1,9 +1,9 @@
 // Page of the in-place growth proof: the real WebGPU engine, a real device, a real reread image. A
 // tile is placed by rows as a partition places its cells' nodes (`partition/rows.ts`): rows sized
 // before the session opens, then one more node than they hold, grown under the running session
-// through the contract a partition calls (`sizeRows`, `placement/growth.ts`). The reference is a
+// through the contract a partition calls (`sizeRows`, `growth/growth.ts`). The reference is a
 // session opened on the three placements at once.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import {
   placedMesh,
@@ -11,8 +11,8 @@ import {
   takeRow,
   type PlacedMesh,
   type RowLink,
-} from '../../../packages/sdk-browser/src/partition/rows.ts'
-import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
+} from '../../../packages/sdk-browser/src/geometry/partition/rows.ts'
+import type { Engine } from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import { batisseur, cameraFace, engine, release } from '../../kit/device/sharedSceneProof.ts'
 import { drawnPixels, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'

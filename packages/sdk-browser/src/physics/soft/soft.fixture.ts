@@ -1,15 +1,18 @@
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import { FLAG } from '../../../../sdk-core/src/physics/layout.ts'
 import { PHYSICS_STEP } from '../../../../sdk-core/src/physics/options.ts'
-import { SOFT_STATE_WORDS } from '../../../../sdk-core/src/physics/softLayout.ts'
+import { SOFT_STATE_WORDS } from '../../../../sdk-core/src/physics/soft/softLayout.ts'
 import {
   softBodyOf,
   SOFT_AREAL_DENSITY,
   SOFT_FOOTPRINT,
   type SoftBodyOptions,
-} from '../../../../sdk-core/src/physics/soft.ts'
-import { writeSoft, type SoftBodyRecord } from '../../../../sdk-core/src/physics/softCommands.ts'
-import { softSettings } from '../../../../sdk-core/src/physics/softSettings.ts'
+} from '../../../../sdk-core/src/physics/soft/soft.ts'
+import {
+  writeSoft,
+  type SoftBodyRecord,
+} from '../../../../sdk-core/src/physics/soft/softCommands.ts'
+import { softSettings } from '../../../../sdk-core/src/physics/soft/softSettings.ts'
 import { plane } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { fromArrays } from '../../../../sdk-core/src/world/geometry/builder.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'

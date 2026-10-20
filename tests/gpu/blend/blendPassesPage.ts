@@ -3,7 +3,7 @@
 // middle of the view, the red one nearer, then the green one; above them a double-sided and a
 // front-only transparent tile, both turned to show their back; below them two masked tiles, one
 // whose opacity passes its cutoff and one whose opacity does not, and a hidden transparent tile.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { batisseur, cameraFace, engine, release } from '../../kit/device/sharedSceneProof.ts'
 import { colorAt, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'

@@ -23,7 +23,7 @@ import {
 } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/shader.ts'
 import {
   DROPOUT_DEG,
   angleBetween,

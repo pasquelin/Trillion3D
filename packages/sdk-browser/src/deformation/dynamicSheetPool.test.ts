@@ -8,14 +8,14 @@ import { test } from 'node:test'
 import { object } from '../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../sdk-core/src/world/material/index.ts'
-import { collectedPages, dynamicWorld } from '../world/core/worldDynamic.fixture.ts'
-import { describePageSlots, pageAddress } from '../webgpu/row/pageSlots.ts'
+import { collectedPages, dynamicWorld } from '../session/world/dynamic/dynamic.fixture.ts'
+import { describePageSlots, pageAddress } from '../geometry/rows/page/pageSlots.ts'
 import { assignDeformationOutputs } from './outputs.ts'
-import { rootCoverage } from '../page/selection/selection.ts'
-import { rootChildren } from '../residency/minimumCapacity.ts'
-import { pageHomes } from '../gpu/page/homes.ts'
+import { rootCoverage } from '../geometry/selection/selection.ts'
+import { rootChildren } from '../session/memory/minimumCapacity.ts'
+import { pageHomes } from '../geometry/pages/pool/homes.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../../sdk-core/src/contracts/poolBudgets.ts'
-import { sessionGeometryPool } from '../residency/sessionPool.ts'
+import { sessionGeometryPool } from '../session/memory/sessionPool.ts'
 
 /** The device of the report: a buffer of at most 4 294 967 292 bytes. */
 const DEVICE = { maxBufferSize: 4294967292, maxStorageBufferBindingSize: 4294967292 }
@@ -48,7 +48,7 @@ async function scene(scale: number) {
   return { sheet, roots, records }
 }
 
-/** The pool the session draws, as `webgpu/pages/prepare/setup.ts` draws it; and on a device whose
+/** The pool the session draws, as `frame/prepare/setup.ts` draws it; and on a device whose
  *  buffer holds every page at its own size twice: the pool there is the pages' own homes. */
 function poolOf({ roots, records }: Awaited<ReturnType<typeof scene>>) {
   const slots = describePageSlots(records)
@@ -66,7 +66,7 @@ function poolOf({ roots, records }: Awaited<ReturnType<typeof scene>>) {
 }
 
 // The report's sheet, then one four times larger: cut in runs of its source order a cluster wide
-// (`../page/codec/clusterTriangles.ts`), 630 root pages, then 2 500.
+// (`../geometry/codec/clusterTriangles.ts`), 630 root pages, then 2 500.
 for (const [scale, least] of [
   [1, 600],
   [2, 2400],

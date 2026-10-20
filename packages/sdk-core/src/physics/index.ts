@@ -29,14 +29,14 @@ export {
   type SoftBodyType,
   type SoftSettings,
   type SoftVolumeOptions,
-} from './soft.ts'
-export { Joint, joint } from './joint.ts'
+} from './soft/soft.ts'
+export { Joint, joint } from './joint/joint.ts'
 export type {
   JointKind,
   JointLimits,
   JointMotor,
   JointOptions,
   SixDofAxis,
-} from './jointOptions.ts'
-export * from './vehicle.ts'
-export { VEHICLE_SPECS, type VehicleSpec, type VehicleSpecs } from './vehicleSpec.ts'
+} from './joint/jointOptions.ts'
+export * from './vehicle/vehicle.ts'
+export { VEHICLE_SPECS, type VehicleSpec, type VehicleSpecs } from './vehicle/vehicleSpec.ts'

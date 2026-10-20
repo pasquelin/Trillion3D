@@ -1,6 +1,6 @@
 import { decomposeMatrix4 } from '../../../math/src/matrix/matrix4Trs.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
-import type { HostNodeMatrix, MatrixElements } from '../host/matrixElements.ts'
+import type { HostNodeMatrix, MatrixElements } from '../session/host/matrixElements.ts'
 import {
   writeEngineCamera,
   type CameraOptics,
@@ -8,7 +8,7 @@ import {
   type OrthographicBox,
 } from './engineCamera.ts'
 import type { ControlVector } from './controls/types.ts'
-import type { HostRotation } from '../host/scene/graphNodes.ts'
+import type { HostRotation } from '../scene/host/scan/graphNodes.ts'
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
@@ -42,7 +42,7 @@ import type { HostRotation } from '../host/scene/graphNodes.ts'
  *
  * WHAT THE CONTRACT GUARANTEES ABOUT FRAME REVISIONS. Nothing here reads or increments a
  * revision: neither `scene`, nor `resources`, nor `view`. The pose enters the decision to
- * hold or replay a frame by a single path, the view fingerprint (`../frame/viewRevision.ts`,
+ * hold or replay a frame by a single path, the view fingerprint (`../frame/view/viewRevision.ts`,
  * which the frame gate calls `viewChanged`), which compares the sixteen numbers of the view.
  * ORDER is therefore the guarantee: frame entry copies the pose BEFORE the adaptive threshold
  * (`resolvePixelError`) and BEFORE the view fingerprint, and the fingerprint is reread BEFORE

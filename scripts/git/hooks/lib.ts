@@ -7,7 +7,7 @@
 import { spawnSync, type SpawnSyncOptions } from 'node:child_process'
 import { accessSync, constants, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { git } from '../../git-paths.ts'
+import { git } from '../git-paths.ts'
 import { runChecked } from '../../test/run.ts'
 
 /**

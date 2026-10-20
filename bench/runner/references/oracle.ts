@@ -27,8 +27,8 @@ import { oracleBuilt } from './oracleCompare.ts'
 import { runView } from './oracleView.ts'
 import type { OracleSettings, OracleView } from './oracleView.ts'
 import { measureOutput } from '../../core/paths.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
-import { git } from '../../../scripts/git-paths.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
+import { git } from '../../../scripts/git/git-paths.ts'
 
 const args = process.argv.slice(2)
 // Same flag reader as benchmark: `--name value`, `--name=value`, `--name` alone.

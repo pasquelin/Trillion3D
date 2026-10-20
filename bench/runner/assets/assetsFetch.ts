@@ -8,7 +8,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SAMPLE_REPOSITORY, kebab, sceneGltfFile } from './assetsCatalogue.ts'
-import { git } from '../../../scripts/git-paths.ts'
+import { git } from '../../../scripts/git/git-paths.ts'
 
 /** Models of `wanted` (repository names) whose scene folder carries no glTF yet. */
 export const missingModels = (assets: string, wanted: string[]) =>

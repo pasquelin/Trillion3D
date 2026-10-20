@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 
 /** The text of WGSL function `name` of the resolve, to its closing brace. */
 const bodyOf = (name: string) => {

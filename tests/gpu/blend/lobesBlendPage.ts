@@ -2,7 +2,7 @@
 // proofs (`../visibility/physicalLobesPage.ts`), blended — a transparent surface the blend pass
 // lights in place, its lobes set by its own fragment (`physicalWgsl.ts`) —, rendered by the real
 // WebGPU engine until held.
-import type * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import type * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import {
   ANISOTROPY_CASES,

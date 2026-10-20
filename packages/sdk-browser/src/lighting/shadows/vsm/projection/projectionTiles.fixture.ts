@@ -1,0 +1,152 @@
+// The projection's tiles under test (`projectionTiles.test.ts`, `projectionTileBox.test.ts`): the
+// shipped module, generated tiles and lights, and what `shaderRun` needs to run the kernel's pieces.
+import { LIGHT_KIND } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
+import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
+import { builtins } from '../../../../materials/texture/shaderRunBuiltins.fixture.ts'
+import {} from '../constants.ts'
+import { vsmProjectionWgsl } from './projectionWgsl.ts'
+import { vsmLayout } from '../layout.ts'
+import { unitF32 } from '../../../../../../math/src/vector/unitF32.fixture.ts'
+
+export const PROJECTION_CODE = vsmProjectionWgsl(
+  vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
+)
+export type V3 = [number, number, number]
+export interface Light {
+  shiftedPosition: V3
+  radius: number
+  direction: V3
+  sourceRadius: number
+  cosCone: number
+  mapId: number
+  kind: number
+}
+export interface Pixel {
+  pos: [number, number]
+  inRect: boolean
+  info: {
+    valid: boolean
+    subsurface: boolean
+    worldNormal: V3
+    biasNormal: V3
+  }
+  sceneDepth: number
+  shifted: V3
+  screenRayWorld: number
+  noise: number
+}
+export type Result = { shadowFactor: number; rayCount: number }
+
+/** A frame of `count` lights around a tile near the origin: suns, points, spots, rectangles;
+ *  some lamps' spheres end a few units in the last place past or short of a pixel of the tile
+ *  (`edge`) — with `corner`, the tile's least corner, half of them beyond it, where that pixel is
+ *  the box's nearest point. */
+export function lightsOf(rand: () => number, count: number, edge: V3[], corner?: V3): Light[] {
+  return Array.from({ length: count }, (_, k) => {
+    const kind = [
+      LIGHT_KIND.directional,
+      LIGHT_KIND.point,
+      LIGHT_KIND.spot,
+      LIGHT_KIND.rect,
+      LIGHT_KIND.point,
+      LIGHT_KIND.spot,
+    ][Math.floor(rand() * 6)]
+    let at: V3 = [0, 1, 2].map(() => Math.fround((rand() - 0.5) * 40)) as V3
+    if (corner && rand() < 0.5)
+      at = corner.map((c) => Math.fround(c - (0.1 + rand()) * (0.5 + rand() * 8))) as V3
+    let radius = 0.5 + rand() * 20
+    if (kind !== LIGHT_KIND.directional && rand() < (corner ? 0.6 : 0.3)) {
+      // Its sphere through a pixel of the tile, give or take a few units in the last place.
+      const p = corner ?? edge[Math.floor(rand() * edge.length)]
+      const d = Math.hypot(at[0] - p[0], at[1] - p[1], at[2] - p[2])
+      radius = d * (1 + (Math.floor(rand() * 9) - 4) * 2 ** -23)
+    }
+    const cosCone = Math.fround(Math.cos(0.2 + rand() * 1.2))
+    return {
+      shiftedPosition: at,
+      radius: Math.fround(radius),
+      direction: unitF32([rand() - 0.5, rand() - 0.5, rand() - 0.5]),
+      sourceRadius: Math.fround(rand() * 0.5),
+      cosCone: kind === LIGHT_KIND.spot ? cosCone : -2,
+      mapId: k,
+      kind,
+    }
+  })
+}
+
+/** Tile `group`'s 64 pixels (Z-order is the kernel's own, not needed here): a surface patch
+ *  with lit, sky and out-of-rect pixels, in the proportions `kind` asks; a `corner` patch rises on
+ *  every axis from its first pixel, which faces down every axis. */
+export function pixelsOf(rand: () => number, group: [number, number], kind: string): Pixel[] {
+  const origin: V3 = [0, 1, 2].map(() => (rand() - 0.5) * 6) as V3
+  const scale = kind === 'far' ? 30 : 0.5 + rand() * 4
+  return Array.from({ length: 64 }, (_, i) => {
+    const x = i & 7,
+      y = i >> 3
+    const pos: [number, number] = [8 * group[0] + x, 8 * group[1] + y]
+    const inRect = kind !== 'edge' || x < 5
+    const lit = kind !== 'sky' && (kind !== 'mixed' || rand() < 0.6)
+    const valid = inRect && lit
+    const shifted: V3 = valid
+      ? ([
+          Math.fround(origin[0] + (x / 8) * scale),
+          Math.fround(origin[1] + (y / 8) * scale),
+          Math.fround(origin[2] + (kind === 'corner' ? (x + y) / 16 : rand()) * scale * 0.3),
+        ] as V3)
+      : [0, 0, 0]
+    if (valid && kind === 'infinite' && i === 9) shifted[1] = Infinity
+    const facing = kind === 'corner' ? [-1, -1, -1] : [0, 0, 1]
+    const normal = valid ? unitF32(facing.map((c) => c + rand() - 0.5)) : ([0, 0, 0] as V3)
+    const subsurface = rand() < 0.1
+    return {
+      pos,
+      inRect,
+      info: {
+        valid,
+        subsurface,
+        worldNormal: normal,
+        biasNormal: normal,
+      },
+      sceneDepth: valid ? 1 + rand() * 10 : 0,
+      shifted,
+      screenRayWorld: 0,
+      noise: 0,
+    }
+  })
+}
+
+/** What a run of the kernel's pieces reads beside them: the module's constants, an inverse square
+ *  root, and a vector's bits as floats. Its integer words stay exact: no binary32 rounding of
+ *  their arithmetic (\`F32_SCOPE\` rounds every sum). */
+export const PROJECTION_SCOPE = {
+  ...wgslConstants(PROJECTION_CODE),
+  inverseSqrt: (x: number) => 1 / Math.sqrt(x),
+  bitcast_vec3f: builtins.bitcast_f32,
+}
+export const NAMES = [
+  'vsmProjection',
+  'vsmTileBound',
+  'vsmTileCandidate',
+  'vsmPixelLights',
+  'vsmTileLayers',
+  'vsmProjectTile',
+  'vsmLightParticipates',
+  'vsmLightMayReachTile',
+  'vsmOrderedKey',
+  'vsmOrderedValue',
+  'vsmLightIsDirectional',
+  'localLightReaches',
+  'vsmFacesAwayFromSun',
+  'vsmFacesAwayFromLocal',
+  'vsmMaskCode',
+  'vsmLayerLights',
+  'vsmLightsBelow',
+  'ceilDiv',
+  'bitWord',
+  'bitMask',
+  'bitAt',
+  'bitIsSet',
+  'isFiniteWord',
+]
+
+export const CASES = ['lit', 'mixed', 'sky', 'edge', 'far', 'infinite', 'corner']

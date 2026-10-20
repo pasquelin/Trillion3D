@@ -26,8 +26,8 @@ fn pageUv1(page:PageInfo,h:ClusterHeader,vertex:u32,end:u32)->vec2f{
 
 /**
  * The coordinate a row's base map is read at by the cutout and the shadow's transmittance — what
- * every vertex stage hands them (`visWgsl.ts`, `../../gpu/raster/triWgsl.ts`,
- * `../../vsm/renderRasterWgsl.ts`, `../../vsm/transmissionRecordWgsl.ts`): the second set where the
+ * every vertex stage hands them (`visWgsl.ts`, `../raster/triWgsl.ts`,
+ * `../../lighting/shadows/vsm/render/renderRasterWgsl.ts`, `../../lighting/shadows/vsm/transmission/transmissionRecordWgsl.ts`): the second set where the
  * base map reads it (`FLAG_MAP_UV1`, glTF's `texCoord`) and the geometry stores one — a quantized
  * page in its header, a float geometry in the normal atlas bound at `binding` —, else the first.
  */

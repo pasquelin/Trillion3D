@@ -1,5 +1,5 @@
 import type { DeformationCapacity } from './source.ts'
-import type { PlacementOf, PlacementRows } from '../placement/rows.ts'
+import type { PlacementOf, PlacementRows } from '../placement/rows/rows.ts'
 import type { DeformedMesh } from './frame.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 

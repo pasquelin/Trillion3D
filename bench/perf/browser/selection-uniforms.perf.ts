@@ -1,20 +1,20 @@
 // What the selection dispatch writes on the CPU every view of every image (`selectionDispatchMs`):
 // the camera's selection uniforms, as `renderGpuCut` rewrites them in place with the camera's
 // motion (`packages/sdk-browser/src/gpu/core/selection.ts`), and one view's uniform block, as the
-// dispatch writes it for the camera (`gpu/dag/uniforms.ts`).
+// dispatch writes it for the camera (`geometry/dag/uniforms.ts`).
 import {
   cameraSelectionUniforms,
   createSelectionUniforms,
   type SelectionUniforms,
 } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
-import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
+import { writeDagUniforms } from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
+import { VIEW_BLOCK_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
 import {
   createEngineCamera,
   writeEngineCamera,
 } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import type { CameraMotion } from '../../../packages/sdk-browser/src/camera/motion.ts'
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
 import {
@@ -91,7 +91,7 @@ const LIST_CAP = 65536
 
 const resBlock = await measure({
   name: 'view uniform block',
-  fichier: 'packages/sdk-browser/src/gpu/dag/uniforms.ts',
+  fichier: 'packages/sdk-browser/src/geometry/dag/uniforms.ts',
   cas: [
     {
       name: 'camera and its view ahead',

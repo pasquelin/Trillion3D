@@ -1,0 +1,32 @@
+import { isImageSize } from '../../../math/src/scalar/integers.ts'
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import type { MeasuredWorldOptions } from './options.ts'
+import { devicePixels, pixelRatioOf } from './engine/common.ts'
+
+/** CSS owns layout; drawing-buffer attributes must never resize the observed layout. */
+export function interactiveSize(canvas: HTMLCanvasElement, options: MeasuredWorldOptions) {
+  const width = options.width ?? Math.floor(canvas.clientWidth)
+  const height = options.height ?? Math.floor(canvas.clientHeight)
+  const pixelRatio = pixelRatioOf(options, canvas.ownerDocument.defaultView)
+  if (!isImageSize(width, height))
+    throw new EngineError(
+      'INVALID_VIEWPORT',
+      'Give the canvas a positive CSS size or explicit dimensions',
+    )
+  if (!Number.isFinite(pixelRatio) || pixelRatio <= 0)
+    throw new EngineError('INVALID_PIXEL_RATIO', 'Pixel ratio must be finite and positive')
+  if (devicePixels(width, pixelRatio) < 1 || devicePixels(height, pixelRatio) < 1)
+    throw new EngineError(
+      'INVALID_VIEWPORT',
+      'Canvas drawing buffer must contain at least one pixel',
+    )
+  return { width, height, pixelRatio }
+}
+
+export function interactiveOptions(canvas: HTMLCanvasElement, options: MeasuredWorldOptions) {
+  if (!explorerSwitch(options, 'interactive')) return options
+  if (!canvas.ownerDocument.defaultView)
+    throw new EngineError('CANVAS_WINDOW_UNAVAILABLE', 'Interactive rendering requires a window')
+  return { ...options, ...interactiveSize(canvas, options) }
+}

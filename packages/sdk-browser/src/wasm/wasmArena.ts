@@ -68,7 +68,7 @@ export interface Arena {
 }
 
 /**
- * THE HAND-OFF of an answer the module sized only as it built it (`page-codec-wasm/src/held.rs`):
+ * THE HAND-OFF of an answer the module sized only as it built it (`page-codec-wasm/src/wasm/held.rs`):
  * the bytes its last build holds, cut into `parts` of the byte lengths given (the whole by
  * default), each copied out of linear memory into a buffer of its own, then let go in the module.
  * Called once the build returned, so read from the memory as it is then. Parts that do not add up

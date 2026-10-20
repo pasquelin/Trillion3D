@@ -21,10 +21,10 @@ import {
   REPOSITORY_ROOT,
   sourceFilesOf,
   unitOf,
-} from '../repository-files.ts'
+} from '../git/repository-files.ts'
 
 /** A function of a module this branch touches stays inside this many lines. The tree's own longest
- *  is 189 (`streaming/queue.ts`, `createStreamingQueue`), and 405 of its 4 637 functions are already
+ *  is 189 (`geometry/streaming/queue.ts`, `createStreamingQueue`), and 405 of its 4 637 functions are already
  *  over this bound. */
 export const MAX_FUNCTION_LINES = 60
 

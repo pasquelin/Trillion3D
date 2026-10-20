@@ -4,7 +4,7 @@
 // what the screen cannot answer is the sky's). `exactReflection`
 // is the mirror ray of a sphere pixel followed exactly, the reference the engine's image is read
 // against.
-import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'

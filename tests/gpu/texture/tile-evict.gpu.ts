@@ -1,4 +1,4 @@
-// A full tile pool's victims are the places no pixel read (`webgpu/tile/stampWgsl.ts`,
+// A full tile pool's victims are the places no pixel read (`materials/virtual/stampWgsl.ts`,
 // `evictSortWgsl.ts`, `evictSort.ts`): the feedback reduction stamps the place each asked tile's
 // entry names — the ancestor a streaming child's pixels read included —, the sort ranks the pool on
 // those stamps, and the queue the feedback readback brings back lists every other streamed place,

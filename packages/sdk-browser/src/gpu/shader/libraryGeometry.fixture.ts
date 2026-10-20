@@ -1,7 +1,7 @@
 // The triangle, plane and ray declarations of the maths library
 // (`packages/math/src/wgsl/geometry.ts`), their shipped text run in JavaScript, and the seeded draws
 // their tests feed it (`libraryGeometry.test.ts`, `libraryRays.test.ts`).
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   boxBehindPlane,

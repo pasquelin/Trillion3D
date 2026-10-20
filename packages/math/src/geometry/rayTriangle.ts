@@ -3,7 +3,7 @@
  * `near < t < far`: its parameter `t`, or `far` when it misses — a determinant of the edges and
  * the ray under `1e-12` (a ray in the triangle's plane, a degenerate triangle) or a hit outside the
  * triangle or the range. The Möller–Trumbore form, term by term and in the order of `ray_triangle`
- * of `packages/math/rust/src/triangle.rs`; `rayTriangleDistance` of `./../wgsl/geometry.ts` is its
+ * of `packages/math/rust/src/triangle.rs`; `rayTriangleDistance` of `../wgsl/geometry.ts` is its
  * shader twin (`packages/math/golden/ray_triangle.json`).
  */
 export function rayTriangle(

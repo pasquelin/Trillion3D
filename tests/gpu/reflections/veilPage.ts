@@ -6,7 +6,7 @@
 // rises past its top edge): the room's proxy answers alone, and shows the far wall's colour, a dark
 // one, never the background's.
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
-import { faceIndex } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+import { faceIndex } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { roomFrame } from './roomFrame.ts'
 import { settledImage } from './rigImage.ts'

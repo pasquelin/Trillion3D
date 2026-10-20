@@ -1,0 +1,99 @@
+import {
+  CORNER_VALUES,
+  PARTITION_BINDING,
+  PARTITION_KERNEL_BINDINGS,
+  ROW_DATA_U32,
+  STATE_WORDS,
+  TESTED_BOX,
+  PARTITION_UNI,
+} from './contract.ts'
+import { computeBufferEntry, computeTextureEntry } from '../../../gpu/core/computeBindings.ts'
+
+/**
+ * Buffers the GPU partition owns: they depend only on the drawable-row count, never on the frame.
+ * The rest bits are NOT here — they belong to the draw compact, which the
+ * partition writes in their place.
+ */
+export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
+  const rows = createGpuPartitionRows(device, slotCap)
+  // Zeroed each frame by the partition's first dispatch (`clearRows`), copied to the counts.
+  const state = device.createBuffer({
+    label: 'Trillion3D partition state v1',
+    size: STATE_WORDS * 4,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+  })
+  const uniforms = device.createBuffer({
+    label: 'Trillion3D partition uniform v1',
+    size: PARTITION_UNI.words * 4,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  return { ...rows, state, uniforms, all: [...rows.all, state, uniforms] }
+}
+
+/** The partition's buffers sized by row — what a grown table makes again (`factory.ts`). */
+export function createGpuPartitionRows(device: GPUDevice, slotCap: number) {
+  const rows = Math.max(1, slotCap)
+  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+  const corners = device.createBuffer({
+    label: 'Trillion3D partition corners v1',
+    size: rows * CORNER_VALUES * 4,
+    usage: storage,
+  })
+  const rowData = device.createBuffer({
+    label: 'Trillion3D partition rows v1',
+    size: rows * ROW_DATA_U32 * 4,
+    usage: storage | GPUBufferUsage.COPY_SRC,
+  })
+  const tested = device.createBuffer({
+    label: 'Trillion3D partition tested bounds v1',
+    size: rows * TESTED_BOX.words * 4,
+    usage: storage | GPUBufferUsage.COPY_SRC,
+  })
+  return { rows, corners, rowData, tested, all: [corners, rowData, tested] }
+}
+
+type Binding = keyof typeof PARTITION_BINDING
+export type PartitionKernel = keyof typeof PARTITION_KERNEL_BINDINGS
+/** The partition's resources by name: its buffers, and the Hi-Z pyramid's view. */
+export type PartitionResources = Record<Exclude<Binding, 'pyramid'>, GPUBuffer> & {
+  pyramid: GPUTextureView
+}
+const BINDING_TYPE: Record<Exclude<Binding, 'pyramid'>, GPUBufferBindingType> = {
+  corners: 'read-only-storage',
+  items: 'read-only-storage',
+  flags: 'storage',
+  rowData: 'storage',
+  tested: 'storage',
+  restBits: 'storage',
+  state: 'storage',
+  uniforms: 'uniform',
+  hizLevels: 'uniform',
+  selectionMask: 'read-only-storage',
+}
+/** The bind layout of one kernel: its resources alone, at the module's binding numbers — its
+ *  buffers, and the pyramid texture whose farthest layer it reads. */
+export function createGpuPartitionLayout(device: GPUDevice, kernel: PartitionKernel) {
+  return device.createBindGroupLayout({
+    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) =>
+      name === 'pyramid'
+        ? computeTextureEntry(PARTITION_BINDING[name], 'uint', '2d-array')
+        : computeBufferEntry(PARTITION_BINDING[name], BINDING_TYPE[name]),
+    ),
+  })
+}
+
+/** The bind group of one kernel, from the resources by name. */
+export function createGpuPartitionGroup(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  kernel: PartitionKernel,
+  resources: PartitionResources,
+) {
+  return device.createBindGroup({
+    layout,
+    entries: PARTITION_KERNEL_BINDINGS[kernel].map((name) => ({
+      binding: PARTITION_BINDING[name],
+      resource: name === 'pyramid' ? resources.pyramid : { buffer: resources[name] },
+    })),
+  })
+}

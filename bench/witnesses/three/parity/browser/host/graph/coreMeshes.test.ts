@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { InstancedMesh } from '../../../../../../../packages/sdk-core/src/world/object/instancedMesh.ts'
 import {
   Group,
@@ -15,9 +15,9 @@ import {
 import {
   isDrawnNode,
   isInstancedNode,
-} from '../../../../../../../packages/sdk-browser/src/host/graph/kinds.ts'
+} from '../../../../../../../packages/sdk-browser/src/scene/host/graph/kinds.ts'
 import { meshes } from '../../../../../../../packages/sdk-browser/src/scene/meshes.ts'
-import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
+import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/scene/host/scan/hooks.ts'
 
 const placed = () => new InstancedMesh(G.boxGeometry(), G.basicSurface(), 4)
 

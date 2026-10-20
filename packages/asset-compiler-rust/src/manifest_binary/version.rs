@@ -1,5 +1,5 @@
 //! The version, the magic and the header of the manifest's binary: the numbers the readers print
-//! from here (`scripts/shared-rules/formats.ts`).
+//! from here (`scripts/build/shared-rules/formats.ts`).
 
 /// Version 4 turns the fixed 16×16 preview entries into the variable progressive levels: the pixel
 /// column has no stride any more, each entry naming its own byte range. A file of another version is

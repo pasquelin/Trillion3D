@@ -1,12 +1,12 @@
 // The GPU timing names a timed pass by its label, or else by the method that began it
-// (`encoder.ts`), and the profile files a span by that label alone (`../../stage/passTable.ts`).
+// (`encoder.ts`), and the profile files a span by that label alone (`../../diagnostic/stage/passTable.ts`).
 // Every label a pass begins with is a constant of a label module, and every one of them is declared
-// once, with its stage and block, in that module (`../../stage/passDeclaration.ts`); the virtual
+// once, with its stage and block, in that module (`../../diagnostic/stage/passDeclaration.ts`); the virtual
 // shadow maps' passes, whose labels carry their chunk, set or kernel, are one declared family.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { WEBGPU_STAGES } from '../../stage/passDeclaration.ts'
-import { passRowOf } from '../../stage/passTable.ts'
+import { WEBGPU_STAGES } from '../../diagnostic/stage/passDeclaration.ts'
+import { passRowOf } from '../../diagnostic/stage/passTable.ts'
 import {
   AS_IS_SHARE_PASS,
   BLEND_ORDER_PASS,
@@ -69,8 +69,8 @@ import {
   XRAY_PASS,
   SEE_THROUGH_BACKGROUND_PASS,
   FRAME_DIFFERENCE_PASS,
-} from '../../stage/passLabels.ts'
-import { MIPS_PASSES, TEXTURE_MIPS_PASS } from '../../texture/mipsPass.ts'
+} from '../../diagnostic/stage/passLabels.ts'
+import { MIPS_PASSES, TEXTURE_MIPS_PASS } from '../../materials/texture/mipsPass.ts'
 import { DEFORMATION_PASS, DEFORMATION_PASSES } from '../../deformation/pass.ts'
 
 /** The labels the engine's passes begin with, as the passes import them. */

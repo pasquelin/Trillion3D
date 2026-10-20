@@ -1,6 +1,6 @@
 import type { GpuCut, SelectionSubmission, SelectionUniforms } from './selection.ts'
 
-/** A view's cut beside the main one, on the selection's own tables (`../dag/aside.ts`). */
+/** A view's cut beside the main one, on the selection's own tables (`../../geometry/dag/aside.ts`). */
 export type AsideCut = {
   /** Cuts `uniforms` into `shared`, the view's command buffer: its mask for this image, and its
    *  two lists read back into the view's own slot once the returned callback says the buffer was

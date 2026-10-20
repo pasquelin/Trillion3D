@@ -4,13 +4,13 @@
 // descent must list fewer candidates: the work the five passes after it do not walk.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/geometry/dag/shader/shader.ts'
 import {
   scenePages,
   sceneRoots,
-} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/cut/cutFrontierScene.fixture.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import { posedSelection } from './selectionCase.ts'
 

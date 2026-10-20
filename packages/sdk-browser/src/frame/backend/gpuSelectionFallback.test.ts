@@ -1,0 +1,161 @@
+import test from 'node:test'
+import { MANIFEST_IDENTITY } from '../../session/engine/pagesEngine.fixture.ts'
+import { triangleGeometry } from '../../session/engine/pagesEngineScenes.fixture.ts'
+import assert from 'node:assert/strict'
+import * as G from '../../scene/host/graph/graph.fixture.ts'
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { HostMesh } from '../../session/host/resources.ts'
+import { compareImages } from '../../../../sdk-core/src/runtime/compareImages.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import { webgpuPagesEngine } from './pages.ts'
+import { collectClusterPages } from '../../geometry/selection/collect.ts'
+import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
+import {
+  backendRasterRgba,
+  backendVisibilityIds,
+} from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
+import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { quadScene, camera } from './testScenes.fixture.ts'
+import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { surfaceOf } from '../../geometry/pages/surface.ts'
+import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { graphDraws } from '../../geometry/selection/drawSource.ts'
+import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
+import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+
+test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
+  installGpuGlobals()
+  const geoA = triangleGeometry([-1, -1, 0, 1, -1, 0, 1, 1, 0])
+  const geoB = triangleGeometry([8, -1, 0, 10, -1, 0, 10, 1, 0])
+  const material = G.basicSurface(),
+    meshA = G.mesh(geoA, material),
+    meshB = G.mesh(geoB, material),
+    source = new Group()
+  source.add(meshA, meshB)
+  const {
+    metadata: metadataPartial,
+    indices,
+    associations,
+  } = twoPrimitives(
+    meshA,
+    meshB,
+    rootPage('orphan', [-1, -1, 0], [1, 1, 0]),
+    rootPage('exact', [8, -1, 0], [10, 1, 0]),
+  )
+  const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY }
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
+  const packed = packDagSelection(collected.roots)
+  const { device } = fakeDevice({ ...BACKEND, packed })
+  const viewport: [number, number] = [32, 32]
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    source,
+    metadata,
+    indices,
+    draws: graphDraws(source, associations),
+    gpuDevice: device,
+    maxResidentPages: 4,
+    viewport,
+  })
+  const cam = G.perspectiveCamera(55, 1, 0.1, 100)
+  cam.position.set(9, 0, 5)
+  cam.lookAt(9, 0, 0)
+  cam.updateMatrixWorld()
+  await backend.prepare()
+  backend.render(cam)
+  await backend.flush()
+  backend.render(cam)
+  assert.deepEqual(backend.selectedPageIds(), ['exact'])
+  backend.dispose()
+  geoA.dispose()
+  geoB.dispose()
+  material.dispose()
+})
+
+// #1483: a mapping the device refuses reads nothing and is copied again; only `device.lost` says
+// the device is lost, never a readback.
+test('a failed GPU selection readback keeps the device: the cut is read again', async () => {
+  installGpuGlobals()
+  const { source, metadata, indices, associations, geometry, material } = quadScene()
+  const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
+  const packed = packDagSelection(collected.roots)
+  const { device } = fakeDevice({ ...BACKEND, packed, failMap: true })
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    source,
+    metadata,
+    indices,
+    draws: graphDraws(source, associations),
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  })
+  await backend.prepare()
+  backend.render(camera())
+  await backend.flush({ image: false })
+  assert.doesNotThrow(() => backend.render(camera()), 'no lost device')
+  backend.dispose()
+  geometry.dispose()
+  material.dispose()
+})
+
+test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => {
+  installGpuGlobals()
+  const { device, textures } = fakeDevice(BACKEND)
+  const { source, metadata, indices, associations, geometry, material } = quadScene()
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    source,
+    metadata,
+    indices,
+    draws: graphDraws(source, associations),
+    gpuDevice: device,
+    maxResidentPages: 2,
+    viewport: [32, 32],
+  })
+  const cam = camera()
+  await backend.prepare()
+  backend.render(cam)
+  await backend.flush()
+  backend.render(cam)
+  const mesh = source.children[0] as HostMesh
+  const pages = [
+    {
+      array: indices.get('0')!,
+      attributes: geometry.attributes,
+      material: surfaceOf(material),
+    },
+    {
+      array: indices.get('1')!,
+      attributes: geometry.attributes,
+      material: surfaceOf(material),
+    },
+  ]
+  const roots = [{ world: mesh.matrixWorld }],
+    locations = {
+      roots,
+      packed: pages.map((_, i) => i),
+      placement: { baseOfRoot: Int32Array.of(0), packedCount: pages.length },
+    }
+  const expected = rasterVisibilityIds(pages, locations, engineCamera(cam), [32, 32])
+  const observed = backendVisibilityIds(backend.rasterView())
+  assert.deepEqual(observed, expected)
+  assert.deepEqual(observed, backendVisibilityIds(backend.rasterView()))
+  const image = compareImages(
+    backendRasterRgba(backend.rasterView()),
+    shadeVisibility(expected, pages, locations, engineCamera(cam), [32, 32]),
+  )
+  assert.equal(image.maxChannelError, 0)
+  // No map: no colour pool is allocated, the white fill reads the stand-in.
+  assert.equal(
+    textures.find((t) => t.format === 'rgba8unorm-srgb'),
+    undefined,
+  )
+  backend.dispose()
+  geometry.dispose()
+  material.dispose()
+})

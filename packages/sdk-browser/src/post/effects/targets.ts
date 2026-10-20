@@ -25,9 +25,9 @@ export const effectPassTargets = (passes: number) => Math.min(passes, PASS_TARGE
 
 /**
  * Bytes of a chain's `targets` pass targets on a `width × height` image, each made in `HDR_FORMAT`
- * (`../../webgpu/effects/webgpuEffects.ts`). Every kind holds its own
+ * (`webgpuEffects.ts`). Every kind holds its own
  * besides (`EFFECT_KIND_BYTES`). The one rule the renderer counts its targets by and the memory
- * budget reserves them by (`../../residency/memoryBudget.ts`).
+ * budget reserves them by (`../../session/memory/memoryBudget.ts`).
  */
 export const effectTargetBytes = (width: number, height: number, targets: number) =>
   (textureBytesOf({ size: [width, height], format: HDR_FORMAT }) ?? 0) * targets

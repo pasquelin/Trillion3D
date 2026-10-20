@@ -1,6 +1,6 @@
 import { type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 import { BLENDS } from './drawWords.ts'
-import { displayTargets } from '../webgpu/blend/displayFilter.ts'
+import { displayTargets } from '../blend/display/displayFilter.ts'
 import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 

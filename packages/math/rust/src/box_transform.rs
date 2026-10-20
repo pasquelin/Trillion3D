@@ -1,6 +1,6 @@
 //! `boxTransform` of `packages/math/src/geometry/box.ts` (which calls `boxCornersInto`, `boxEmpty`
 //! and `boxExpandByPoint`) in f64, term by term and parentheses included: the same bits as
-//! JavaScript (why: `packages/page-codec-wasm/src/wasm_math.rs`), with its `Math.min` and `Math.max`
+//! JavaScript (why: `packages/page-codec-wasm/src/wasm/math.rs`), with its `Math.min` and `Math.max`
 //! (`js`).
 
 use crate::aabb::corner;

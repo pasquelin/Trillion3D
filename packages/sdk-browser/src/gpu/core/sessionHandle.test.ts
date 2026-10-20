@@ -4,7 +4,7 @@ import { claimGpuDevice } from './deviceOwners.ts'
 import { namesNoSession, sharedGpuDevice, tagsIn } from './sessionHandle.ts'
 import { installGpuDeviceLedger } from './deviceLedger.ts'
 import { validated } from './errorScope.ts'
-import { generateMaterialMips } from '../../texture/mipBatch.ts'
+import { generateMaterialMips } from '../../materials/texture/mipBatch.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -94,7 +94,7 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
   const caches = installGpuDeviceLedger(gpu.device, { counts: namesNoSession })
   const ledger = installGpuDeviceLedger(handle, { base: caches })
   handle.createBuffer({ size: 8, usage: GPUBufferUsage.STORAGE, label: 'page table' })
-  // A working texture's whole chain, read and stored by the reduction (`webgpu/tile/scratch.ts`).
+  // A working texture's whole chain, read and stored by the reduction (`materials/virtual/scratch.ts`).
   const texture = handle.createTexture({
     size: [4, 4],
     format: 'rgba8unorm',

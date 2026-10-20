@@ -4,7 +4,7 @@
 // once from the engine contracts, rather than cast at every reader.
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
-import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/residency/pools.ts'
+import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/session/memory/pools.ts'
 import type { BenchSettings } from '../harness/benchSettings.ts'
 import type { Bounds } from '../trajectory/poses.ts'
 import type { LightsPlan } from '../lighting/lamps.ts'

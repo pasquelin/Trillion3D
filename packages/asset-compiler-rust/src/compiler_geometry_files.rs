@@ -1,7 +1,7 @@
 //! THE GEOMETRY CONTAINERS: every streaming bundle of the compile's geometry pages in a few files,
 //! end to end, a bundle read by one byte range. A page is never a file of its own: a browser asks
 //! a handful of requests at once, and the queue reads the bundles a view asks side by side in a
-//! file by one request (`sdk-browser/src/streaming/queueRanges.ts`).
+//! file by one request (`sdk-browser/src/geometry/streaming/queueRanges.ts`).
 //!
 //! Order: the pinned bundles of every primitive first — the root covers, what the first image
 //! draws —, then the others precision band by band from the coarsest (`page_band`), within a band

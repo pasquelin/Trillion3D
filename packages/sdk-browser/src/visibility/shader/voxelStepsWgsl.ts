@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 
 /**
  * WHAT THE VOXEL TRACE COSTS, counted by the resolve of the voxel classes alone (`VOXEL`, folded

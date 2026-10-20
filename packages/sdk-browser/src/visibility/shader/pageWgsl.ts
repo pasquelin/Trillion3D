@@ -1,12 +1,12 @@
 import { VIS_UNIFORM } from './uniformLayout.ts'
 import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_MASK, FLAG_SAMPLED } from '../types.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
-import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
-import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts'
-import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
+import { VIS_BINDINGS } from '../../gpu/bind/bindLayout.ts'
+import { floatAtlasWgsl } from '../../gpu/core/floatAtlas.ts'
+import { INSTANCE_WORD_WGSL } from '../draw/contract.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LINE_DASH_WGSL } from './lineWgsl.ts'
-import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
+import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -69,10 +69,10 @@ export const PAGE_UV_WGSL = wgslBlock(
 )
 
 /** Normal and signed tangent of a vertex read as floats: seven per vertex, the normal then the
- *  tangent and its sign (`../../webgpu/core/geometryPrepare.ts`), from the float pool's atlas
- *  `normals` (`../../webgpu/core/floatAtlas.ts`, #1410), no storage buffer. Its second UV set, where
+ *  tangent and its sign (`../../geometry/pages/pool/geometryPrepare.ts`), from the float pool's atlas
+ *  `normals` (`../../gpu/core/floatAtlas.ts`, #1410), no storage buffer. Its second UV set, where
  *  the geometry has one: two floats a vertex counted back from the atlas's last texel
- *  (`../../webgpu/core/geometryPoolLayout.ts`), so neither the normals nor a growth move it. */
+ *  (`../../geometry/pages/pool/geometryPoolLayout.ts`), so neither the normals nor a growth move it. */
 const VERT_NORMAL_WGSL = wgslBlock(
   'VERT_NORMAL_WGSL',
   [floatAtlasWgsl('normals', 'normalAt')],
@@ -101,7 +101,7 @@ export const normalAtlasWgsl = (binding: number) =>
  *
  * `ddx`, `ddy` are the per-texel derivatives of the coordinate of the pass that reads — camera
  * pixel or shadow texel —: each reads the map at the level of its footprint (`maskAlpha`,
- * `../../webgpu/tile/wgsl.ts`), the camera through the colour's own read. This is the only cutout of
+ * `../../materials/virtual/wgsl.ts`), the camera through the colour's own read. This is the only cutout of
  * an opaque pixel: the resolve shades what the raster kept and never tests again. The compute
  * raster supplies analytical gradients of its covered sub-triangle so this same sampling path
  * chooses its footprint instead of forcing the finest level.

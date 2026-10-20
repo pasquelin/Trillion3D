@@ -13,9 +13,9 @@ import {
   coalesceRanges,
   writeRule,
   type RangeRule,
-} from '../../webgpu/residency/ranges.ts'
+} from '../../geometry/residency/ranges.ts'
 import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
-import type { UniformSlots } from '../../residency/pools.ts'
+import type { UniformSlots } from '../../session/memory/pools.ts'
 
 const HELD = new WeakMap<GPUBuffer, Uint32Array>(),
   NONE = new Uint32Array(0)

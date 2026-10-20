@@ -1,0 +1,137 @@
+import type { CullView } from '../../render/cutFreeze.ts'
+import type { CameraMotion } from '../../../camera/motion.ts'
+import type { HostCamera } from '../../../camera/world.ts'
+import type { DiagnosticMode } from '../../../../../sdk-core/src/runtime/diagnostics.ts'
+import type { PageRec } from '../../../geometry/selection/types.ts'
+import type { GpuSelection, SelectionUniforms } from '../../../gpu/core/selection.ts'
+import type { AsideCut } from '../../../gpu/core/aside.ts'
+import type { FrameGateCore } from '../../gate/gateCore.ts'
+import type { WebgpuBudgetState } from '../../../geometry/residency/budgetState.ts'
+import type { MovedWorlds } from '../../render/movedWorlds.ts'
+import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
+
+/** What the current image decided and counted: the cut, the coverage budget, the metrics the host
+ *  reads, and the occlusion history the next image inherits. */
+export interface WebgpuRunState extends WebgpuBudgetState {
+  /** The clear colour every pass reads, `0xrrggbb`; set in place by `io/clearColor.ts`. */
+  clearColor: number
+  lost: boolean
+  /** Why the device was lost, `reason: message`, the device's own cause added when it came after
+   *  (`io/lost.ts`); absent while it holds and after a dispose, which gives no cause. */
+  lostCause?: string
+  overBudget: boolean
+  visible: number
+  selectedTriangles: number
+  submittedTriangles: number
+  frustumRejected: number
+  lodLevel: number
+  frame: number
+  imageRevision: number
+  diagnostic: DiagnosticMode
+  diagnosticPixelError: number
+  lastCamera: HostCamera | undefined
+  gpuSelection: GpuSelection | undefined
+  /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
+  hizPyramidFresh: boolean
+  /** Level 0 of the Hi-Z holds this image's whole opaque depth: the pyramid's nearest layer,
+   *  which the reflections march, can be built from it (`../../../lighting/reflections/frame.ts`). */
+  depthDrawn: boolean
+  gpuMetricsReady: boolean
+  deferredDrops: Set<string>
+  /** Triangles of the transparent clusters the cut holds, counted once whatever the pass count. */
+  blendPagedTriangles: number
+  blendSubmittedTriangles: number
+  blendDrawCalls: number
+  blendFrustumRejected: number
+  gpuDrawCalls: number
+  /** Compute dispatches of the image: the opaque raster is not a draw call. */
+  gpuComputeDispatches: number
+  lastProgressMs: number
+  renderPathLogged: boolean
+  outputDiagnosticLogged: boolean
+  noOccluderHistory: boolean
+  rowsSyncedFrame: number
+  motion: CameraMotion
+  /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */
+  selectionUniforms: SelectionUniforms
+  /** The main view's cull view while its cut is frozen, none while it follows the camera
+   *  (`../../render/cutFreeze.ts`). */
+  cullView?: CullView
+  /** A freeze asked before the first image, put on it (`../../render/cutFreeze.ts`). */
+  cullPending?: boolean
+  /** A frame inspection asked (`../../../diagnostic/inspection/read.ts`): run once, right after the main
+   *  view's next image is submitted. */
+  inspect?: () => void
+  /** A view drawn beside the main one cuts there (`../../../geometry/dag/aside.ts`), from its first
+   *  image; the main view has none. */
+  asideCut: AsideCut | undefined
+  shown: PageRec[]
+  /** The packed rank of each shown page, rank by rank: one record serves many placements. */
+  shownPacked: number[]
+  desired: PageRec[]
+  /** The packed rank of each desired page, rank by rank. */
+  desiredPacked: number[]
+  drawn: PageRec[]
+  /** The packed rank of each drawn page, rank by rank: what a per-instance reader of `drawn` reads. */
+  drawnPacked: number[]
+  /** True when `drawn` copies `shown` as-is; written only by the copies in `../helpers.ts`. */
+  drawnMirrorsShown: boolean
+  /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
+  pagesEntered: number | null
+  pagesExited: number | null
+  // Reused every image; the cut changes, the arrays behind it do not.
+  pendingScratch: string[]
+  /** Records whose bytes are still awaited, refilled before each pending-address walk. */
+  awaitedScratch: PageRec[]
+  /** Array of the list returned to the host, for it alone: render tracking writes into the other, and
+   *  a list held from one image to the next would not survive that sharing. */
+  hostPendingScratch: string[]
+  /** True when adoption reread the sample already held: `desired` and `shown` have not moved. */
+  cutHeld: boolean
+  /** Age of the cut's lists: rises as soon as an adoption rewrites them, rendered or not. What a
+   *  keeper of a list from one image to the next reads. */
+  cutEpoch: number
+  /** Rises every time a page receives or loses its bytes: what the waited-for list reads. */
+  pageArrayEpoch: number
+  /** What each list returned to the host describes: the state that produced it, or `-1` if it is to
+   *  be remade. A list is kept only if everything it depends on is still that one. */
+  pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean }
+  ranksHeld: { epoch: number; cut: number; limited: boolean }
+  /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
+   *  held-image witness. See `../../gate/gateCore.ts`. */
+  gate: FrameGateCore
+  /** True when the current image was held and nothing more will be drawn unasked: no CPU step
+   *  was executed, and no device answer in flight asks another — targets refused included. */
+  frameHeld: boolean
+  /** Images submitted whose GPU work the device has not finished: the loop draws no further one
+   *  past `DAG_READBACK_SLOTS` of them (`../../loop/interactiveFrame.ts`, `skipsWebgpuFrame`). */
+  gpuFramesInFlight: number
+  /** A barrier converges the textures: every pixel publishes its image feedback. */
+  textureConverging: boolean
+  /** A pass of the image — opaque or blend — wrote the feedback target: something to reduce. */
+  feedbackWritten: boolean
+  /** Revision whose matrices are carried to the GPU and to transparent items. */
+  worldUploadRevision: number
+  /** The placements whose world a call wrote since the last upload (`../../render/movedWorlds.ts`). */
+  movedWorlds: MovedWorlds
+  /** Ordered signature of the tested half: two images that share it share their occluders, therefore
+   *  the partition the next one inherits. */
+  occluderSignature: number
+  /** The session's memory funding (`../../prepare/targetFunding.ts`, `../../io/memory.ts`). */
+  funding: WebgpuFunding
+}
+
+/** What the session's memory funding holds between two asks. */
+interface WebgpuFunding {
+  /** The device ledger's bytes the targets were last funded at: a refusal is said once a ledger
+   *  state, not every frame. */
+  ledgerBytes: number | undefined
+  /** The pools funded again beside targets already in place, one at a time. */
+  refreshing: DeviceGrant | undefined
+  /** Bytes of the cut's table about to be made, funded with what the tables hold, 0 between two
+   *  admissions (`admitCutTables`). */
+  cutAsked: number
+  /** The geometry pool's renewals, one after the other, each drawn from the catalogue as it
+   *  stands (`growWebgpuPagePool`). */
+  pending: Promise<unknown>
+}

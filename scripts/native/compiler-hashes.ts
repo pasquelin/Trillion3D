@@ -31,7 +31,7 @@ import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts'
 import { cacheVersions, classify } from './compiler-versions.ts'
 import { compileFullCache } from './native-compiler.ts'
 import { TEST_SCENES } from './scene-caches.ts'
-import { REPOSITORY_ROOT, readJson, filesUnder, posixPath } from '../repository-files.ts'
+import { REPOSITORY_ROOT, readJson, filesUnder, posixPath } from '../git/repository-files.ts'
 
 /** The scenes the distributed compiler is proved and trained on, both committed and read by the
  *  tests alone: a terrain of one large mesh, and a garden of parametric rings under a light. */

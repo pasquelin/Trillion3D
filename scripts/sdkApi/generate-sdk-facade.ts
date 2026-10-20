@@ -13,12 +13,9 @@ const CATEGORY_RULES: [string, RegExp][] = [
   ],
   [
     'math',
-    /^packages\/math\/src\/|\/src\/(?:hiz|world\/(?:math|transform)|runtime\/path)\/|\/world\/observed\.ts$|\/scene\/core\/nodeEdits\.ts$/,
+    /^packages\/math\/src\/|\/src\/(?:visibility\/hiz|world\/(?:math|transform)|runtime\/path)\/|\/world\/observed\.ts$|\/scene\/core\/nodeEdits\.ts$/,
   ],
-  [
-    'lighting',
-    /\/src\/(?:lighting|bounce|proxy|scene\/light(?:-shadow)?)\/|\/contracts\/proxy\.ts$/,
-  ],
+  ['lighting', /\/src\/(?:lighting|bounce|proxy|scene\/light)\/|\/contracts\/proxy\.ts$/],
   [
     'streaming',
     /\/src\/(?:manifest\/|page\/(?!contracts\.ts)|texture\/)|\/contracts\/(?:geometry|cache)\.ts$/,
@@ -67,13 +64,13 @@ await writeGenerated(
 const browserOnly = rows.filter(
   (row) => row.entries.includes('browser') && !row.entries.includes('core'),
 )
-// The browser facade is split like the common one, by area — the page words of the world families
+// The browser facade is split like the common one, by area — the session's page words
 // and the diagnostics apart from the engine's other browser exports — so no generated file outgrows
 // the line limit. A page word that shadows a common contract of the same name is named explicitly
 // in `installed-package/browser.ts`: two star exports of one name would cancel each other, an explicit one wins.
 const browserArea = (row: ExportRow) =>
-  /\/world\//.test(row.module)
-    ? 'world'
+  /\/sdk-browser\/src\/session\//.test(row.module)
+    ? 'session'
     : /\/diagnostic\//.test(row.module)
       ? 'diagnostic'
       : 'engine'

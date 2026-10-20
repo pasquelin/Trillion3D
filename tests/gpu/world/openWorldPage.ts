@@ -5,11 +5,8 @@
 // (`openWorld.golden.json`).
 import { createHash } from 'node:crypto'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
-import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
-import {
-  lastFrameOf,
-  sessionOf,
-} from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
+import { createWorld } from '../../../packages/sdk-browser/src/session/world/world.ts'
+import { lastFrameOf, sessionOf } from '../../../packages/sdk-browser/src/session/world/session.ts'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { MATERIAL_CLASS_KEYS, MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL } from '../../diagnostic/gpuGeometry.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test("a class's reject keeps exactly the pixels the material depth's equal test kept", () => {

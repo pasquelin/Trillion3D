@@ -18,7 +18,7 @@ let edits = 0
  * colour's `r`, `g`, `b` are noted once announced — `matrixWorldNeedsUpdate = true`, a light's
  * `needsUpdate = true` —. A reader keeps the count it read up to (`nodeWrites`) and reads the nodes
  * written since (`nodesWrittenSince`), never the scene: the scene watch reads those alone
- * (`host/scene/watch.ts`). Bounded: a ring of `JOURNAL_CAP` slots, and a reader left more than
+ * (`host/scan/watch.ts`). Bounded: a ring of `JOURNAL_CAP` slots, and a reader left more than
  * that behind reads every node it watches once.
  */
 const JOURNAL_CAP = 4096

@@ -9,7 +9,7 @@
 // output to that of the imported package path.
 import { frustumExcludesBox } from '../../../packages/math/src/geometry/frustum/box.ts'
 import { matrixWindingCw } from '../../../packages/math/src/matrix/orientation.ts'
-import type { BlendGpuItem } from '../../../packages/sdk-browser/src/webgpu/blend/state.ts'
+import type { BlendGpuItem } from '../../../packages/sdk-browser/src/blend/state.ts'
 
 /** The scene shape both the previous ranking and encode loop read. */
 export interface ReferenceScene {
@@ -27,7 +27,7 @@ const PIPELINE_NONE = 0,
   PIPELINE_FRONT = 1,
   PIPELINE_BACK = 2
 
-/** `packages/sdk-browser/src/webgpu/blend/plan.ts` from before: the two entries of a double-sided item, back then front.
+/** `packages/sdk-browser/src/blend/plan/plan.ts` from before: the two entries of a double-sided item, back then front.
  *  The item carries the engine's surface record where it carried a host material; the three
  *  host face constants this copy tested are that record's side, one for one —
  *  `DoubleSide` is `'double'`, `BackSide` is `'back'`, `FrontSide` is `'front'`. Nothing else
@@ -52,7 +52,7 @@ export function planReference(items: readonly BlendGpuItem[]) {
   return Uint32Array.from(blend)
 }
 
-/** `packages/sdk-browser/src/webgpu/blend/order.ts` from before: an item's key, the square of the eye-to-centre distance. */
+/** `packages/sdk-browser/src/blend/order/order.ts` from before: an item's key, the square of the eye-to-centre distance. */
 function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   const box = item.bounds,
     m = item.matrix.elements

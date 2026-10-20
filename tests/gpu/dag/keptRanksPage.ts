@@ -1,4 +1,4 @@
-// The engine's kept-rank tables (`gpu/dag/keptRanks.ts`) on the device the engine opens: a cut's
+// The engine's kept-rank tables (`geometry/dag/keptRanks.ts`) on the device the engine opens: a cut's
 // real resources, its two lists written as a cut leaves them, the shipped difference and keep
 // kernels run (`encodeDagDifference`), the difference read back. Lists drawn at random, repeats
 // included, up to the full cap — the table's load one half —, then the readout grown, its kept
@@ -7,16 +7,16 @@ import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readba
 import {
   createDagResources,
   type DagResources,
-} from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
-import { encodeDagDifference } from '../../../packages/sdk-browser/src/gpu/dag/encodeDifference.ts'
-import { growDagList } from '../../../packages/sdk-browser/src/gpu/dag/listGrowth.ts'
-import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/resources.ts'
+import { encodeDagDifference } from '../../../packages/sdk-browser/src/geometry/dag/encodeDifference.ts'
+import { growDagList } from '../../../packages/sdk-browser/src/geometry/dag/lists/listGrowth.ts'
+import { writeDagUniforms } from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
 import {
   SELECTION_HEADER_WORDS,
   differenceWord,
-} from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
-import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
-import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
+import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/geometry/dag/shader/viewsWgsl.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'

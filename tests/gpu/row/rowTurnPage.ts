@@ -1,20 +1,20 @@
 // Page of the R2 proof (`row-turn.gpu.ts`): a view slides across many placements of one primitive
-// on Dawn, through the engine's GPU cut with its row pass (`webgpu/row/rowEviction.ts`) — the
+// on Dawn, through the engine's GPU cut with its row pass (`geometry/rows/rowEviction.ts`) — the
 // closure stamping each placement's rows, the sort ranking them, the readback bringing the queue —
 // and the row cache over a table far smaller than the instances, every page's bytes resident. Beside
 // it, the same cut over a table that holds everything. Each frame read back: what it drew, what the
 // whole table draws at that pose, the requests it denied, the rows it took back.
-import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
-import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
-import { createRowEviction } from '../../../packages/sdk-browser/src/webgpu/row/rowEviction.ts'
-import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
-import { createGroupClosure } from '../../../packages/sdk-browser/src/page/cut/groupClosure.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/selection/selection.ts'
+import { packDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/pack/pack.ts'
+import { createRowEviction } from '../../../packages/sdk-browser/src/geometry/rows/rowEviction.ts'
+import { pageResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
+import { createGroupClosure } from '../../../packages/sdk-browser/src/geometry/cut/groupClosure.ts'
 import type { GpuCut, GpuSelection } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { rowCacheScene } from './rowCacheScene.ts'
-import { ROW_IN_USE } from '../../../packages/sdk-browser/src/webgpu/row/rowEvictSortWgsl.ts'
-import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
+import { ROW_IN_USE } from '../../../packages/sdk-browser/src/geometry/rows/rowEvictSortWgsl.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 /** The slide: across `span` placements in `flight` frames, then held still; a table of `table`. */
 const TURN = { copies: 64, table: 512, span: 3, flight: 90, hold: 60 }

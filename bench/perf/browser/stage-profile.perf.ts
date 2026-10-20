@@ -8,16 +8,16 @@ import type { GpuPassTimings } from '../../../packages/sdk-core/src/contracts/me
 import {
   addGpuPasses,
   directLightTimings,
-} from '../../../packages/sdk-browser/src/stage/mapping.ts'
-import { WEBGPU_STAGES } from '../../../packages/sdk-browser/src/stage/passDeclaration.ts'
+} from '../../../packages/sdk-browser/src/diagnostic/stage/mapping.ts'
+import { WEBGPU_STAGES } from '../../../packages/sdk-browser/src/diagnostic/stage/passDeclaration.ts'
 import {
   createStageProfiler,
   type StageAdd,
-} from '../../../packages/sdk-browser/src/stage/profiler.ts'
+} from '../../../packages/sdk-browser/src/diagnostic/stage/profiler.ts'
 import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
-} from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
+} from '../../../packages/sdk-browser/src/frame/render/cpuStepTable.ts'
 import { measure, parElement } from '../../core/measure.ts'
 import { stress } from '../../core/measureStress.ts'
 import { rapport } from '../../core/report.ts'
@@ -75,7 +75,7 @@ const referenceFileRows = (rows: Float64Array[]): Array<[string, StageQuantiles]
 
 const measureCpu = await measure({
   name: 'CPU bounds per stage',
-  fichier: 'packages/sdk-browser/src/stage/profiler.ts',
+  fichier: 'packages/sdk-browser/src/diagnostic/stage/profiler.ts',
   cas: [
     { name: `${NB_BORNES} bounds × 200 frames`, input: lignes(200), size: 200 * NB_BORNES },
     { name: 'no frames', input: [], size: 0 },
@@ -124,7 +124,7 @@ const sansEchantillon: (GpuPassTimings | null)[] = [null]
 
 const measureGpu = await measure({
   name: 'GPU passes per stage',
-  fichier: 'packages/sdk-browser/src/stage/mapping.ts',
+  fichier: 'packages/sdk-browser/src/diagnostic/stage/mapping.ts',
   cas: [
     { name: '200 samples of 22 passes', input: releves(200, 22), size: 200 * 22 },
     { name: 'truncated sample', input: truncatedSample, size: 1 },
@@ -136,7 +136,7 @@ const measureGpu = await measure({
 
 const measureLighting = await measure({
   name: 'direct-lighting durations',
-  fichier: 'packages/sdk-browser/src/stage/mapping.ts',
+  fichier: 'packages/sdk-browser/src/diagnostic/stage/mapping.ts',
   cas: [{ name: '1 000 samples', input: releves(1000, ETIQUETTES.length), size: 1000 }],
   calculation: parElement((sample: GpuPassTimings) => directLightTimings(sample)),
   expected: (input: GpuPassTimings[]) => input.map(referenceDirectLightTimings),

@@ -4,12 +4,12 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { MIB } from '../../../packages/math/src/constants.ts'
 import { compileFullCache } from '../../../scripts/native/native-compiler.ts'
-import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
-import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
-import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/world/session/target.ts'
+import type { MeasuredWorld } from '../../../packages/sdk-browser/src/session/explorer.ts'
+import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/session/options.ts'
+import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/session/target.ts'
 import { manifestUrlOf } from '../scenes/caches.ts'
 import { installProofGpu } from './onDawn.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 
 /** The measurement SDK the proofs open their worlds with, imported once Dawn is installed: its
  *  modules read the WebGPU globals as they load. */

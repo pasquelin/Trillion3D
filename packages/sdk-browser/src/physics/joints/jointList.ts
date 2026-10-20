@@ -1,5 +1,5 @@
-import type { Joint } from '../../../../sdk-core/src/physics/joint.ts'
-import { Vehicle } from '../../../../sdk-core/src/physics/vehicle.ts'
+import type { Joint } from '../../../../sdk-core/src/physics/joint/joint.ts'
+import { Vehicle } from '../../../../sdk-core/src/physics/vehicle/vehicle.ts'
 
 /**
  * The joints and vehicles a world holds, `world.physics.add` and `remove`; `changed` tells the

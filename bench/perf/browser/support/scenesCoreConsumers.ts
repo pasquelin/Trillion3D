@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 import { affines, matrices } from './scenesCore.ts'
 import { pageRecFixture } from './pageRecFixture.ts'
-import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
+import type { PageRec } from '../../../../packages/sdk-browser/src/geometry/selection/types.ts'
 
 const alea = xorshiftRandom(0xc0de5)
 

@@ -17,13 +17,13 @@
  * the tail only when it is full, amortised O(1) a float).
  */
 import { loadDeformationCode, prepareDeformationCompute } from './prepare.ts'
-import { placeFloatPages } from '../webgpu/core/geometryPrepare.ts'
-import type { MatrixElements } from '../host/matrixElements.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
+import { placeFloatPages } from '../geometry/pages/pool/geometryPrepare.ts'
+import type { MatrixElements } from '../session/host/matrixElements.ts'
+import type { ClusterRoot, PageRec } from '../geometry/selection/types.ts'
 import { assignDeformationOutputs } from './outputs.ts'
 import { deformsAny } from './session.ts'
-import { markWebgpuLost, stopped } from '../webgpu/pages/io/lost.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { markWebgpuLost, stopped } from '../frame/io/lost.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /**
  * The session can move what `roots` bring, the float geometries of the `pages` that read them
@@ -61,7 +61,7 @@ export function joinDeformation(
 }
 
 /**
- * The rows of a deformed placement are another buffer's (`rebound`, `placement/growth.ts`): the
+ * The rows of a deformed placement are another buffer's (`rebound`, `placement/growth/growth.ts`): the
  * records and the result blocks that name a placement by its world follow it.
  */
 export function rebindDeformedWorlds(

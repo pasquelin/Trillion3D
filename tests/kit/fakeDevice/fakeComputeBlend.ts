@@ -5,22 +5,22 @@
 // loop (`laneScan`), which a run of one thread after the other cannot interleave. The compaction's
 // count and scatter call the scan once, its value known before and only the lane's own prefix read
 // after: the lanes of a workgroup run in order, the scan their running sum.
-import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
-import { TRANSPARENT_COMPACT_SHADER } from '../../../packages/sdk-browser/src/webgpu/transparent/shader.ts'
-import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
-import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
-import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
-import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
+import { shaderRun } from '../../../packages/sdk-browser/src/materials/texture/shaderRun.fixture.ts'
+import { TRANSPARENT_COMPACT_SHADER } from '../../../packages/sdk-browser/src/blend/transparent/shader.ts'
+import { expandBlendPlan } from '../../../packages/sdk-browser/src/blend/expand/expandCpu.fixture.ts'
+import { RUN_WORDS } from '../../../packages/sdk-browser/src/blend/plan/planLayout.ts'
+import { EXPAND_UNI } from '../../../packages/sdk-browser/src/blend/expand/expandUniform.ts'
+import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/blend/expand/expandBindings.ts'
 import {
   ORDER_BINDING,
   ORDER_UNI,
-} from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
+} from '../../../packages/sdk-browser/src/blend/order/orderWgsl.ts'
 import {
   orderKernelOf,
   runOrderDispatch,
-} from '../../../packages/sdk-browser/src/webgpu/blend/orderRun.fixture.ts'
-import { runVerdict } from '../../../packages/sdk-browser/src/webgpu/blend/verdictRun.fixture.ts'
-import { VERDICT_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/verdictWgsl.ts'
+} from '../../../packages/sdk-browser/src/blend/order/orderRun.fixture.ts'
+import { runVerdict } from '../../../packages/sdk-browser/src/blend/verdict/verdictRun.fixture.ts'
+import { VERDICT_BINDING } from '../../../packages/sdk-browser/src/blend/verdict/verdictWgsl.ts'
 import type { ComputeBind } from './fakeCompute.ts'
 import { boundWords, vectors } from './fakeBuffers.ts'
 import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
@@ -85,7 +85,7 @@ function simulateTransparentCompaction(
 
 /**
  * Replays expansion of the sorted plan: the oracle of `BLEND_EXPAND_SHADER`
- * (`webgpu/blend/expandCpu.fixture.ts`). The double replays it at the last of the four kernels,
+ * (`blend/expand/expandCpu.fixture.ts`). The double replays it at the last of the four kernels,
  * when every input the GPU would read is there.
  */
 function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {

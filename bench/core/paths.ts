@@ -1,7 +1,7 @@
 // Measurement base paths, written once: repo root, fragment directory deposited by benchmarks,
 // baseline directory, the output folder of a batch, and rule mapping domain to filename.
 import { join } from 'node:path'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../scripts/git/repository-files.ts'
 
 export const FRAGMENTS = join(REPOSITORY_ROOT, '.mesure', 'perf')
 export const BASELINES = join(REPOSITORY_ROOT, '.mesure', 'baselines')

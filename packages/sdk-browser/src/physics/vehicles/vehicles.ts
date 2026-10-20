@@ -2,14 +2,14 @@ import { BODY_INDEX } from '../../../../sdk-core/src/physics/layout.ts'
 import {
   VEHICLE_STATE_WORDS,
   WHEEL_STATE_WORDS,
-} from '../../../../sdk-core/src/physics/vehicleLayout.ts'
+} from '../../../../sdk-core/src/physics/vehicle/vehicleLayout.ts'
 import {
   writeDrive,
   writeUnvehicle,
   writeVehicle,
-} from '../../../../sdk-core/src/physics/vehicleCommands.ts'
+} from '../../../../sdk-core/src/physics/vehicle/vehicleCommands.ts'
 import type { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
-import type { Vehicle } from '../../../../sdk-core/src/physics/vehicle.ts'
+import type { Vehicle } from '../../../../sdk-core/src/physics/vehicle/vehicle.ts'
 import { slerpArc } from '../../../../math/src/quaternion/quaternion.ts'
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'

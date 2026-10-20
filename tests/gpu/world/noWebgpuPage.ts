@@ -1,6 +1,6 @@
 // Page of the no-WebGPU proof: a world created on a page whose `navigator` offers no WebGPU, what
 // its `ready` settles with, and whether its canvas stayed untouched.
-import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
+import { createWorld } from '../../../packages/sdk-browser/src/session/world/world.ts'
 
 export async function execute() {
   const canvas = document.createElement('canvas')

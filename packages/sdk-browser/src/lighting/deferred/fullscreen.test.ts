@@ -115,7 +115,10 @@ test('every asker of a pipeline in flight shares its one compile', async () => {
 /** The modules that still make a pipeline synchronously, beside the one way: the translucent
  *  casters' transmission pass, which its owner moves onto it. A module may leave this list, never
  *  join it. */
-const STILL_SYNCHRONOUS = ['lighting/deferred/fullscreen.ts', 'vsm/transmissionPass.ts']
+const STILL_SYNCHRONOUS = [
+  'lighting/deferred/fullscreen.ts',
+  'lighting/shadows/vsm/transmission/transmissionPass.ts',
+]
 const SYNC_CREATE = /\.create(?:Render|Compute)Pipeline\(/
 
 test('no new module makes a pipeline synchronously', () => {

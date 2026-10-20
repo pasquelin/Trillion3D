@@ -3,9 +3,9 @@
 // cap's interval.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createScaleControl } from './scaleControl.ts'
+import { createScaleControl } from './scale/scaleControl.ts'
 import { createFrameCap, resetFrameCap } from './cadence.ts'
-import { HZ120, HZ60 } from './scaleFit.fixture.ts'
+import { HZ120, HZ60 } from './scale/scaleFit.fixture.ts'
 import { LAG, intervals, run } from './cadence.fixture.ts'
 
 test("a frame cap is a whole number of the display's refreshes, the fastest at or under it", () => {

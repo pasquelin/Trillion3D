@@ -4,7 +4,7 @@
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { animation } from '../../../packages/sdk-core/src/world/animation/family.ts'
-import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
+import { createWorld } from '../../../packages/sdk-browser/src/session/world/world.ts'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'

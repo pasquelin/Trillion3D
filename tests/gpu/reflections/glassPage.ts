@@ -6,7 +6,7 @@
 // with both of B's parts, with B's pane alone, without B at all, with B alone and with no pane, and
 // tells where on the image the exact mirror rays of the panes' pixels meet what they meet.
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { batisseur } from '../../kit/device/sharedSceneProof.ts'
 import { sunlitEngine, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { flipRows } from '../../kit/device/patternImage.ts'

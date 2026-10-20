@@ -18,9 +18,9 @@ import { WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
  * array), the loops every user of `laneRun` repeats: a lane totals its run, the scan gives the run
  * its offset, the lane walks the run handing each item its cursor.
  *
- * Shared by the draw prefix (`../draw/shader.ts`), the drawable-page prefix
- * (`../dag/shader/compactWgsl.ts`),
- * the blend expansion (`../../webgpu/blend/expandWgsl.ts`), the light grid's room in its pool
+ * Shared by the draw prefix (`../../visibility/draw/shader.ts`), the drawable-page prefix
+ * (`../../geometry/dag/shader/compactWgsl.ts`),
+ * the blend expansion (`../../blend/expand/expandWgsl.ts`), the light grid's room in its pool
  * (`../../lighting/tiles/compactWgsl.ts`).
  */
 export const LANE_SCAN_WGSL = wgslBlock(

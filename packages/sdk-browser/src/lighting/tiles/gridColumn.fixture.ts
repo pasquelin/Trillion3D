@@ -4,9 +4,9 @@
 // after the others'. Between two barriers the lanes meet only through atomic ORs and their own
 // words, so running them one after the other is one of the orders the GPU may take.
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
+import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { directLightWgsl } from '../direct/lightWgsl.ts'
 import { gridCompactWgsl } from './compactWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'

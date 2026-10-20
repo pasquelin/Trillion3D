@@ -1,0 +1,96 @@
+// A camera cut's frame words past what one storage buffer binds: one record table whatever the
+// world's size (`frameTable.ts`), bound once by the cut's one group, its kernels dispatched once
+// each — no range, no per-range group, no `SPLIT` stage. That the cut on such a device cuts as the
+// whole one is the GPU's to prove (`tests/gpu/dag/frame-ranges.gpu.ts`).
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createDagResources } from './resources.ts'
+import { cutBytes } from './cut/cutBuffers.ts'
+import { packDagSelection } from './pack/pack.ts'
+import { primitiveWordAt } from './worlds/worlds.ts'
+import { dagFixture } from '../selection/dag.fixture.ts'
+import { packed } from './selection/selectionHelpers.fixture.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { dagBindingOf } from './shader/bindings.fixture.ts'
+import { FRAME_ROW_WORDS } from './types.ts'
+import { FRAME_TABLE, MARK_WORD, ROOT_WORD } from './frameTable.ts'
+import { recordWordAt } from '../../gpu/core/recordTexture.fixture.ts'
+import { f32Bits } from '../../../../math/src/float/bits.ts'
+
+/** Forty-eight placements of the fixture's primitive, each `k + 1` metres along x — a translation
+ *  a new table does not hold already —, on a device whose storage binding holds twenty rows of
+ *  frame words. */
+async function narrow() {
+  const [root] = packed(dagFixture()).roots
+  const along = (k: number) => {
+    const elements = Array.from(root.world.elements)
+    elements[12] += k + 1
+    return { ...root, world: { elements } }
+  }
+  const dag = packDagSelection(Array.from({ length: 48 }, (_, k) => along(k)))
+  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 20 * FRAME_ROW_WORDS * 4 }
+  const fake = fakeDevice({ limits: { ...limits, maxStorageBuffersPerShaderStage: 16 } })
+  const resources = await createDagResources(fake.device, dag)
+  assert.ok(resources)
+  return { fake, resources }
+}
+
+test('the frame words are one record table the cut binds once, whatever one binding holds', async () => {
+  const { resources } = await narrow()
+  const { frames, bindGroup } = resources
+  const entries = Array.from((bindGroup as unknown as GPUBindGroupDescriptor).entries)
+  const at = (binding: number) => entries.find((e) => e.binding === binding)?.resource
+  const binding = dagBindingOf()
+  assert.equal(at(binding.frames), frames.rows.view, 'the frame words, a view')
+  assert.equal(at(binding.worlds), frames.worlds.view, 'the worlds, a view')
+  assert.ok(!('range' in binding), 'no range a group is told of')
+  const constants = (resources.preparePipeline as unknown as GPUProgrammableStage).constants
+  assert.equal(constants, undefined, 'the stages of a whole table')
+})
+
+test("the host's rows and words land at their placement's record, never on the stretch", async () => {
+  const { fake, resources } = await narrow()
+  const { frames, frameData } = resources
+  const rows = fake.textureWrites.filter((w) => w.destination.texture === frames.rows.texture)
+  const texels = (w: (typeof rows)[number]) =>
+    `${(w.destination.origin as number[])[0]}+${(w.size as number[])[0]}`
+  // The 48 rows in one write, from the table's first texel: no stretch, the root boxes pass's alone.
+  assert.equal(rows.map(texels).join(' '), `0+${48 * FRAME_ROW_WORDS}`)
+  // The worlds: one write of the 48 matrices, four texels each, and one of their exact
+  // translations, two texels each, beside them in the table's row (`worlds/worldTable.ts`). A translation
+  // the new table holds already — zero — is never sent (`worlds/worldOrigins.ts`).
+  const worlds = fake.textureWrites.filter((w) => w.destination.texture === frames.worlds.texture)
+  assert.equal(worlds.map(texels).join(' '), '0+192 4096+96')
+  const before = fake.textureWrites.length
+  frames.writeWord(25, ROOT_WORD, 7)
+  frames.flushWords()
+  const sent = fake.textureWrites.slice(before)
+  const row = recordWordAt(FRAME_TABLE, frames.rows.texture, 'Row', 25)
+  assert.equal(sent.map(texels).join(' '), `${row}+${FRAME_ROW_WORDS}`)
+  const words = (frames.rows.texture as unknown as { words: Uint32Array }).words
+  assert.equal(words[row + ROOT_WORD], 7, 'its row, its root word')
+  assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + ROOT_WORD], 7)
+  // The stretch is the root boxes pass's: a row sent again leaves its field as it is.
+  const stretchAt = recordWordAt(FRAME_TABLE, frames.rows.texture, 'Stretch', 25)
+  words[stretchAt] = f32Bits(3)
+  frames.writeWord(25, MARK_WORD, 9)
+  frames.flushWords()
+  assert.equal(words[stretchAt], f32Bits(3), "the GPU's stretch kept")
+  assert.equal(words[row + MARK_WORD], 9, 'the row sent')
+})
+
+test("a record table grown in place leaves the cut's ledger the bytes it replaced", async () => {
+  // The worlds grow for the proxy's copies (`proxy/proxyState.ts`, `hold`): the cut holds the new
+  // texture in the old one's place, never both — a ledger holding both refuses a later growth
+  // that fits (`admitInto`).
+  const { resources } = await narrow()
+  const { worlds } = resources.frames,
+    before = cutBytes(resources),
+    replaced = worlds.texture,
+    held = worlds.bytes
+  assert.ok(worlds.hold(2 * worlds.capacity + 1), 'the table grows')
+  assert.equal(cutBytes(resources), before - held + worlds.bytes, 'the replaced bytes left')
+  const textures = resources.textures.map(({ texture }) => texture)
+  assert.ok(!textures.includes(replaced), "the replaced texture is no longer the cut's")
+  assert.ok(textures.includes(worlds.texture), 'the grown one is')
+})

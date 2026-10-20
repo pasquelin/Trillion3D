@@ -19,8 +19,8 @@ import {
   PARTICLE_ARGS_BYTES,
   PARTICLE_PARTIAL_BYTES,
   PARTICLE_STATE_HEAD,
-} from '../../../packages/sdk-browser/src/webgpu/particles/particlesWgsl.ts'
-import { createStepWords } from '../../../packages/sdk-browser/src/webgpu/particles/stepWords.ts'
+} from '../../../packages/sdk-browser/src/particles/gpu/particlesWgsl.ts'
+import { createStepWords } from '../../../packages/sdk-browser/src/particles/gpu/stepWords.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { computeBufferEntry } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts'

@@ -1,5 +1,5 @@
 // A command buffer encoded and submitted while the image's own is open — the roots' before a cut
-// (`../../placement/rootPasses.ts`) — is timed beside it: each part's passes resume at a run of
+// (`../../placement/roots/rootPasses.ts`) — is timed beside it: each part's passes resume at a run of
 // their own, and the passes read in the order the parts were submitted (`encoder.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'

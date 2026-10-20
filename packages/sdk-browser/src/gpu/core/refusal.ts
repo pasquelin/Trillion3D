@@ -4,8 +4,8 @@
  * the room it measured (`roomBytes`): the budget's room is known, the ask comes back once it holds
  * it. A device refusal has no room to wait for — no measure predicts the device's —: it is asked
  * again after `wait` frames from `frame`, twice as long after each refusal in a row, up to
- * `RETRY_MAX` times the first. The shadow pool (`../../webgpu/pages/render/vsm/vsmGrant.ts`) and the
- * frame targets (`../../frame/scaleMemory.ts`) keep one each.
+ * `RETRY_MAX` times the first. The shadow pool (`../../lighting/shadows/vsm/frame/vsmGrant.ts`) and the
+ * frame targets (`../../frame/scale/scaleMemory.ts`) keep one each.
  */
 export type Refusal = {
   /** The ledger's room the grant waits for; `Infinity` for a device refusal. */

@@ -1,4 +1,4 @@
-import type { RasterView } from '../../../../packages/sdk-browser/src/webgpu/pages/runtime.ts'
+import type { RasterView } from '../../../../packages/sdk-browser/src/frame/backend/runtime.ts'
 import { shadeVisibility } from './shade.ts'
 import { rasterVisibilityIds } from './raster.ts'
 

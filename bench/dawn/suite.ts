@@ -11,7 +11,7 @@ import { stamp } from './runs/options.ts'
 import { suiteRuns } from './runs/suiteRuns.ts'
 import { ms, percent, sameImages } from './report/reportText.ts'
 import { table } from '../core/table.ts'
-import { readJson } from '../../scripts/repository-files.ts'
+import { readJson } from '../../scripts/git/repository-files.ts'
 
 const options = process.argv.slice(2)
 const list = options[0] && !options[0].startsWith('--') ? options.shift() : undefined

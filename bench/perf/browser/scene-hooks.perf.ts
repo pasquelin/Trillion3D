@@ -2,12 +2,12 @@
 // hooks a node by chaining listeners on its position, scale and rotation (`listen`), no field
 // redefined. The listener-hooked graph is walked against its plain twin, the witness; a plain case
 // gives the spread (A/A). The watch's per-frame read over the same nodes is measured on its own.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
-import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostMesh } from '../../../packages/sdk-browser/src/session/host/resources.ts'
 import { measure } from '../../core/measure.ts'
 import { rapport } from '../../core/report.ts'
-import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts'
+import { createHostSceneWatch } from '../../../packages/sdk-browser/src/scene/host/scan/watch.ts'
 
 const NODES = 20000
 const GROUPS = 200
@@ -60,7 +60,7 @@ const options = { warmup: 5, tours: 40, budgetMs: 4000 }
 const walks = await measure({
   name: 'updateMatrixWorld(true) over listener-hooked nodes',
   fichier: [
-    'packages/sdk-browser/src/host/scene/hooks.ts',
+    'packages/sdk-browser/src/scene/host/scan/hooks.ts',
     'packages/sdk-core/src/world/observed.ts',
   ],
   cas: [
@@ -79,8 +79,8 @@ let frame = 0
 const reads = await measure({
   name: 'watch.take() per frame',
   fichier: [
-    'packages/sdk-browser/src/host/scene/watch.ts',
-    'packages/sdk-browser/src/host/scene/scan.ts',
+    'packages/sdk-browser/src/scene/host/scan/watch.ts',
+    'packages/sdk-browser/src/scene/host/scan/scan.ts',
   ],
   cas: [
     { name: `${NODES} nodes, still scene`, input: still, size: NODES },

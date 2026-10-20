@@ -3,15 +3,15 @@
 // session's per-frame step (`world-partition-follow.fixture.ts`): a zoom out to 0.5 and a parent
 // scaled down leave no object missing, the rows grown in place, no session reopened. A zoom moves
 // no streaming source — a cell streams by the source's location, the camera's lens plays no part
-// (`partition/plan.ts`) —: the same cells stay held.
+// (`geometry/partition/plan.ts`) —: the same cells stay held.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts'
-import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts'
+import { createWorldPoses } from '../../packages/sdk-browser/src/session/world/poses/poses.ts'
 import { compiler, SPACING, world } from './world-partition.fixture.ts'
 import { assertNoneMissing, followed, served } from './world-partition-follow.fixture.ts'
-import { noModels } from '../../packages/sdk-browser/src/world/core/worldModels.fixture.ts'
+import { noModels } from '../../packages/sdk-browser/src/session/world/models/models.fixture.ts'
 
 const skip = !existsSync(compiler)
 const PREFIX = 'world-partition-follow-'

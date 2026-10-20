@@ -49,16 +49,6 @@ export const sameLinearPart = (
   sameRange(held, now, 3, heldAt + 4, nowAt + 4) &&
   sameRange(held, now, 3, heldAt + 8, nowAt + 8)
 
-/** `sameLinearPart` against float32 numbers: `held`'s are `now`'s rounded to float32. */
-export const sameLinearPartFloat32 = (
-  held: ArrayLike<number>,
-  now: ArrayLike<number>,
-  heldAt = 0,
-) =>
-  sameRangeFloat32(held, now, 3, heldAt) &&
-  sameRangeFloat32(held, now, 3, heldAt + 4, 4) &&
-  sameRangeFloat32(held, now, 3, heldAt + 8, 8)
-
 /** True when the sixteen numbers of `now` are `held`'s, sign of zero and `NaN` included:
  *  `Object.is`, not `sameRange`'s `!==`, which merges `-0` with `0` — two translations a zero's
  *  sign tells apart compose differently, and a `NaN` left in place is no change. */

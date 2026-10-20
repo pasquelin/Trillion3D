@@ -27,7 +27,7 @@ interface GraphNode {
 }
 
 /** The folder of `file` whose tests always run when it changes: two levels under a package's `src/`
- *  (`packages/sdk-browser/src/webgpu/shadow/`), none for a file at a source root or elsewhere. */
+ *  (`packages/sdk-browser/src/lighting/shadows/casters/`), none for a file at a source root or elsewhere. */
 export function domainOf(file: string): string | undefined {
   return /^packages\/[^/]+\/src\/[^/]+\/(?:[^/]+\/)?/.exec(file)?.[0]
 }

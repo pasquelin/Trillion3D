@@ -5,13 +5,13 @@
 // share a mode is read in its own.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Texture } from '../../../../packages/sdk-core/src/world/texture/texture.ts'
 import { Geometry } from '../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { createEngineCamera } from '../../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import { readCameraWorld } from '../../../../packages/sdk-browser/src/camera/world.ts'
-import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
-import { identityRoots } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
+import { surfaceOf } from '../../../../packages/sdk-browser/src/geometry/pages/surface.ts'
+import { identityRoots } from '../../../../packages/sdk-browser/src/geometry/selection/placements.fixture.ts'
 import {
   addressingCases,
   nearestTexel,

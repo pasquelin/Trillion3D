@@ -5,7 +5,7 @@ import { referenceIntervals } from '../../../../bench/oracles/browser/telemetry.
 import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { MIB } from '../../../math/src/constants.ts'
-import { FALLBACK_REFRESH_MS } from '../frame/scaleTargets.ts'
+import { FALLBACK_REFRESH_MS } from '../frame/scale/scaleTargets.ts'
 
 test('the frame report records frames and produces accurate statistics and bottlenecks', () => {
   const profiler = new EngineProfiler()

@@ -33,7 +33,7 @@ fn rgba(source: &[u8], width: u32, height: u32) -> Vec<u8> {
 }
 
 // Behaviour: the engine pins one white block per family (`WHITE_TAIL`,
-// `packages/sdk-browser/src/texture/blockFormats.ts`); the ETC2 one — an EAC
+// `packages/sdk-browser/src/materials/texture/blockFormats.ts`); the ETC2 one — an EAC
 // alpha at 255, an individual-mode colour at 15 on every channel — reads back
 // opaque white.
 #[test]

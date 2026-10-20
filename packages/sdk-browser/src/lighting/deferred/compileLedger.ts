@@ -1,6 +1,6 @@
 // The compiles in flight on a device, and whether its frames wait for each: the pipelines prepared
 // off the frame (`fullscreen.ts`), and the programs a frame needs that no ready one stands in for
-// (`track`, `held`). The frame gate reads it (`../../webgpu/frame/deviceAnswer.ts`).
+// (`track`, `held`). The frame gate reads it (`../../frame/loop/deviceAnswer.ts`).
 
 /** The compiles in flight on a device — a session's handle, or the device itself —, each with
  *  whether its frames wait for it, and how many they wait for. */
@@ -9,7 +9,7 @@ const ledgers = new WeakMap<GPUDevice, Ledger>()
 
 /** `compile`, in flight on `device` until it settles; its frames wait for it once `held` — a program
  *  a frame needs that no ready one stands in for, as a lobed surface's lobe code
- *  (`../../webgpu/pages/prepare/contractLight.ts`). `compile` keeps its identity while in flight:
+ *  (`../../frame/prepare/contractLight.ts`). `compile` keeps its identity while in flight:
  *  asked again, it adds nothing; none, nothing to track. */
 export function track(device: GPUDevice, compile: Promise<unknown> | undefined, held: boolean) {
   if (!compile) return

@@ -6,7 +6,7 @@ import { engineWalk } from './proxyEngineWalk.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
+import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
 
 /** `count` rays over a field `side` cubes wide spaced three metres apart: half cast down at a cube's
  *  neighbourhood from above, half anywhere. */

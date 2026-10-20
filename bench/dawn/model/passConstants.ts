@@ -12,7 +12,7 @@ import {
   REFLECTION_CONSTANTS,
   REFLECTION_COUNTS,
   REFLECTION_SIDE,
-} from '../../../packages/sdk-browser/src/reflections/constants.ts'
+} from '../../../packages/sdk-browser/src/lighting/reflections/constants.ts'
 import type { Work } from './floor.ts'
 
 export type Frame = {

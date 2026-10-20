@@ -1,11 +1,11 @@
-// Oracle of `packages/sdk-browser/src/stage/mapping.ts`, rewritten from its contract: a bound is deposited on its
+// Oracle of `packages/sdk-browser/src/diagnostic/stage/mapping.ts`, rewritten from its contract: a bound is deposited on its
 // stage unless that stage is `null`; a pass is deposited by its label with its own share of the
 // image (its span less what an earlier pass covered, the span itself where the timer gives no
 // share), an unknown label on no stage; a `null` duration leaves its stage unmeasured, a
 // truncated or missing sample deposits nothing.
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/contracts/metrics.ts'
-import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
-import { CPU_STEP_STAGES } from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
+import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/diagnostic/stage/passLabels.ts'
+import { CPU_STEP_STAGES } from '../../../packages/sdk-browser/src/frame/render/cpuStepTable.ts'
 
 /** Deposits `ms` onto the stage named `stage`. */
 export type StageNameAdd = (stage: string, ms: number) => void

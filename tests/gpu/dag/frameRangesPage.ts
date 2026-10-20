@@ -6,24 +6,24 @@
 // Only the capacity the cut reads changes; the device underneath is the same.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
-import { createDagResources } from '../../../packages/sdk-browser/src/gpu/dag/resources.ts'
-import { encodeDagKernels } from '../../../packages/sdk-browser/src/gpu/dag/encode.ts'
+import { createDagResources } from '../../../packages/sdk-browser/src/geometry/dag/resources.ts'
+import { encodeDagKernels } from '../../../packages/sdk-browser/src/geometry/dag/encode.ts'
 import {
   writeDagUniforms,
   parseDagOutput,
-} from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts'
-import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/gpu/dag/deviceRefusal.ts'
-import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
-import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
-import { cutTablesAt } from '../../../packages/sdk-browser/src/gpu/dag/queueGrowth.ts'
-import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts'
-import { residentAll } from '../../../packages/sdk-browser/src/gpu/dag/residentAll.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/uniforms.ts'
+import { FRAME_ROW_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import { dagDeviceRefusal } from '../../../packages/sdk-browser/src/geometry/dag/deviceRefusal.ts'
+import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
+import { selectionListCap } from '../../../packages/sdk-browser/src/geometry/dag/layout.ts'
+import { cutTablesAt } from '../../../packages/sdk-browser/src/geometry/dag/queueGrowth.ts'
+import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/geometry/dag/shader/viewsWgsl.ts'
+import { residentAll } from '../../../packages/sdk-browser/src/geometry/dag/residentAll.fixture.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { reporting } from '../../kit/device/reportingDevice.ts'
 import { sceneView } from './cutScene.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
-import { writeHostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
+import { writeHostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 /** Placements of a small pyramid, ten abreast, row behind row: the first half behind the camera,
  *  the second before it, its outer columns past the frustum's sides; the binding holds the frame

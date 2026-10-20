@@ -5,9 +5,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { simulateComputeDispatch } from './fakeCompute.ts'
-import { ROW_SORT_WGSL } from '../../../packages/sdk-browser/src/webgpu/row/rowEvictSortWgsl.ts'
-import { ROW_USE_WORDS } from '../../../packages/sdk-browser/src/webgpu/row/rowWords.ts'
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
+import { ROW_SORT_WGSL } from '../../../packages/sdk-browser/src/geometry/rows/rowEvictSortWgsl.ts'
+import { ROW_USE_WORDS } from '../../../packages/sdk-browser/src/geometry/rows/rowWords.ts'
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
 
 /** A four-buffer pool sort group over `use`, an empty readout and the uniform `uniform`. */
 const group = (use: number[], uniform: number[]) => ({

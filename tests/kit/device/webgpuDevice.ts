@@ -3,7 +3,7 @@
 // binds — so the engine is proved on the device a page gives it, never on WebGPU's default limits,
 // which it exceeds (eighteen sampled textures in a fragment stage where the default grants sixteen).
 
-import { requestExplorerDevice } from '../../../packages/sdk-browser/src/world/session/gpuDevice.ts'
+import { requestExplorerDevice } from '../../../packages/sdk-browser/src/session/gpuDevice.ts'
 
 /**
  * Opens the engine's device, hooks collection of uncaptured errors, and returns what is needed to

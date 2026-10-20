@@ -1,0 +1,125 @@
+/**
+ * What the descent is made of, frame by frame: its FRONTIER — the nodes where it stops, kept
+ * leaf or rejected subtree — and the INTERNAL nodes it walks to get there.
+ *
+ * That is the measurement that decides persistent selection. A cut kept from one frame to the
+ * next can only save the internals: the frontier itself must be re-examined every frame, because
+ * each node's screen error changes as soon as the camera moves. In a tree with `b` children the
+ * internals equal `frontier / (b-1)`, and that is therefore the ceiling of what exact persistence
+ * can return. A rejected node is the only one that can close back onto its parent — both
+ * rejections are monotone downward, so a rejected parent rejects its whole subtree, and
+ * conversely a kept node necessarily has a kept parent, which is useless to test.
+ *
+ * It also counts the other half of the problem: TOP-DOWN rejection. The node carries the
+ * replacement error CEILING from the manifest — enough to reject a too-fine subtree — and, since
+ * this batch, the own-error FLOOR, which `cullingBounds` derives from the pages at prepare time
+ * and `packCullingNodes` stores in the node: enough to reject the too-coarse as well, as the
+ * CPU cut already does (`../../cut/node.fixture.ts`). Nothing from the compiler, nothing from the
+ * format. Both descents are launched from here so the difference is measured, not deduced.
+ */
+import { DAG_NODE_FLOATS, type PackedDag } from '../types.ts'
+import { dagViewFrames, projectedError } from '../oracle/math.fixture.ts'
+import { dagNodeFloor, dagNodeVerdict } from '../oracle/nodeVerdict.fixture.ts'
+import { bandError, bandSphere, dagRecords } from '../records.fixture.ts'
+import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from '../nodeLayout.ts'
+import type { SelectionUniforms } from '../../../gpu/core/selection.ts'
+
+export type Descente = {
+  visites: number
+  internes: number
+  frontiereFeuilles: number
+  rejectedFrontier: number
+  candidats: number
+  /** Nodes the subtree error FLOOR rejected, when `plancher` is requested. */
+  plancherCoupe: number
+  /** Candidates that are actually too coarse, page by page: what top-down rejection AIMS AT. */
+  tooCoarse: number
+}
+
+/**
+ * The kernel descent, replayed verdict for verdict (`../shader/levelWgsl.ts`, `levelStep`), and
+ * counted. It does not produce a cut — the oracle already does — but says what each frame
+ * rereads, and in what form.
+ *
+ * `plancher` adds TOP-DOWN rejection and actually does it: the caller launches both descents
+ * and subtracts. Counting a rejected node's subtree would overestimate the difference — lower
+ * rejections, frustum and ceiling, already drop pages the descent would never have listed. The
+ * floor is read in the PACKED NODE, where the GPU reads it: packing is therefore measured with
+ * it.
+ */
+export function descenteComptee(
+  packed: PackedDag,
+  uniforms: SelectionUniforms,
+  plancher = false,
+): Descente {
+  const { nodes } = packed
+  const ints = new Uint32Array(nodes.buffer)
+  // The per-primitive prologue and the per-node verdict come from `../oracle/math.fixture.ts`, written
+  // once for the oracle and for this count: neither can drift from the kernel alone.
+  const frames = dagViewFrames(packed, uniforms)
+  const count: Descente = {
+    visites: 0,
+    internes: 0,
+    frontiereFeuilles: 0,
+    rejectedFrontier: 0,
+    candidats: 0,
+    plancherCoupe: 0,
+    tooCoarse: 0,
+  }
+  const records = dagRecords(packed)
+  // Pairs: a node, then the placement reading it — a primitive's nodes are its placements' alike.
+  let file: number[] = []
+  packed.rootNodes.forEach((root, w) => root !== 0xffffffff && file.push(root, w))
+  while (file.length) {
+    const suivante: number[] = []
+    for (let k = 0; k < file.length; k += 2) {
+      const n = file[k],
+        w = file[k + 1]
+      count.visites++
+      const children = dagNodeVerdict(frames, nodes, ints, n, w)
+      if (children < 0) {
+        count.rejectedFrontier++
+        continue
+      }
+      // The subtree error FLOOR, which the node does not yet carry as it carries its ceiling:
+      // none of its clusters is fine enough, so no candidate will come out of it.
+      if (plancher && dagNodeFloor(frames, nodes, ints, n, w) > frames.pixelError) {
+        count.plancherCoupe++
+        count.rejectedFrontier++
+        continue
+      }
+      if (children) {
+        count.internes++
+        const premier = ints[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
+        for (let c = 0; c < children; c++) suivante.push(premier + c, w)
+        continue
+      }
+      count.frontiereFeuilles++
+      const at = n * DAG_NODE_FLOATS
+      count.candidats += ints[at + NODE_PAGE_COUNT]
+      // What top-down rejection aims at: a cluster whose own error still exceeds the threshold
+      // is too coarse, the cut will not take it, and the descent listed it anyway.
+      for (let p = 0; p < ints[at + NODE_PAGE_COUNT]; p++) {
+        const i = packed.cutLinks[w].pageBase + ints[at + NODE_FIRST_PAGE] + p,
+          sphere = bandSphere(records, i, 0)
+        if (
+          projectedError(
+            bandError(records, i, 0),
+            records.hot[sphere],
+            records.hot[sphere + 1],
+            records.hot[sphere + 2],
+            records.hot[sphere + 3],
+            frames.views[w],
+            frames.stretches[w],
+            frames.focal,
+            frames.near,
+            frames.perspective,
+          ) > frames.pixelError
+        )
+          count.tooCoarse++
+      }
+    }
+    file = suivante
+  }
+  return count
+}

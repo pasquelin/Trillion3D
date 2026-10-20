@@ -3,7 +3,7 @@
 // (`voxelWgsl.ts`, `voxelCellTrace`), beside a plain square on its top face. Its depth: the square a hair
 // above the face covers every voxel, a hair below it none. Its normal: the brick and the square show
 // the same normal view. Its shadow: lifted over a floor under a sun, it darkens the floor.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import {
   encodeVoxelPage,
@@ -12,8 +12,8 @@ import {
   VOXEL_BRICK_INDICES,
 } from '../../../packages/sdk-core/src/page/voxelPage.ts'
 import type { VoxelFile } from '../../../packages/sdk-core/src/contracts/voxel.ts'
-import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
-import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
+import { manifestCulling } from '../../../packages/sdk-browser/src/geometry/dag/culling.fixture.ts'
+import type { PageSurface } from '../../../packages/sdk-browser/src/geometry/pages/surface.ts'
 import { OCT_BYTE_STEP } from '../../../packages/math/src/constants.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 import { length3 } from '../../../packages/math/src/vector/vector.ts'

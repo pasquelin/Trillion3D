@@ -1,0 +1,98 @@
+import { existsSync, readFileSync, readdirSync, type PathLike } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { gitPaths, gitPathsSync } from './git-paths.ts'
+import { localPaths } from './local-files.ts'
+
+/** The repository's root folder, the one place every script, bench and test reads it from. */
+export const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..')
+
+/** The TypeScript source folders of the packages, each its own namespace for the gates that read them. */
+export const SOURCE_UNITS = [
+  'packages/math/src',
+  'packages/sdk-core/src',
+  'packages/sdk-browser/src',
+  'packages/sdk-node/src',
+] as const
+
+/** The unit a maintained file belongs to, or null when it belongs to none: the gates read the
+ *  packages and leave the scripts, the tests and the bench to the gates that own them. */
+export const unitOf = (file: string) =>
+  SOURCE_UNITS.find((unit) => file.startsWith(unit + '/')) ?? null
+
+const TEST_TS = /\.(?:test|fixture|perf|gpu)\.m?ts$/
+const TEST_RS = /(?:^|\/)(?:tests?|\w+_tests?)(?:\.rs$|\/)/
+
+/** Whether `file` is a test module, a fixture or a GPU proof, which may keep its own small copies. */
+export const isTestModule = (file: string) =>
+  file.endsWith('.rs') ? TEST_RS.test(file) : TEST_TS.test(file)
+
+/** Shared tools inspect maintained files, never ignored personal files. */
+export function repositoryFiles(directory = REPOSITORY_ROOT): string[] | null {
+  if (!existsSync(resolve(directory, '.git'))) return null
+  return [
+    ...new Set(
+      gitPathsSync(['ls-files', '-co', '--exclude-standard', '-z'], directory).filter((file) =>
+        existsSync(resolve(directory, file)),
+      ),
+    ),
+  ]
+}
+
+/** The base a branch is compared with: the one the pre-push hook names, else `develop`. */
+const BASE_REF = process.env.TRILLION3D_BASE_REF ?? 'develop'
+
+/** The files a branch changes against its base, untracked ones included. A rename is its two
+ *  paths, the one left and the one taken, for every gate alike. */
+export async function changedFiles(directory = REPOSITORY_ROOT): Promise<Set<string>> {
+  const [diff, untracked] = await Promise.all([
+    gitPaths(['diff', '--name-only', '--no-renames', '-z', BASE_REF, '--'], directory),
+    gitPaths(['ls-files', '--others', '--exclude-standard', '-z'], directory),
+  ])
+  return new Set([...diff, ...untracked])
+}
+
+/** The `.gitignore` local paths as globs: a bare name at any depth, a path from the root. */
+export const localFileGlobs = (): string[] =>
+  localPaths(REPOSITORY_ROOT).map((path) => (path.includes('/') ? path : `**/${path}`))
+
+/**
+ * The maintained sources a gate reads, as path -> text, from the extensions it names.
+ *
+ * A gate that walks the tree wants the same three lines every time: the repository root, its tracked
+ * files, and a map of the ones it cares about. `jscpd` found the third of them copied between
+ * `../check/check-helpers.ts` and `../check/check-cohesion.ts`, which is what it is for.
+ */
+export function sourceFilesOf(
+  extensions: RegExp,
+  directory = REPOSITORY_ROOT,
+  keep: (file: string) => boolean = () => true,
+): Map<string, string> {
+  const tracked = repositoryFiles(directory)
+  if (!tracked) throw new Error('Not a Git repository.')
+  return new Map(
+    tracked
+      .filter((file) => extensions.test(file) && keep(file) && existsSync(resolve(directory, file)))
+      .map((file): [string, string] => [file, readFileSync(resolve(directory, file), 'utf8')]),
+  )
+}
+
+/** The JSON document at `path`. */
+export const readJson = (path: PathLike) => JSON.parse(readFileSync(path, 'utf8'))
+
+/** Every file under `directory`, depth first and sorted by name within a folder; a path for which
+ *  `skip(path, name)` holds is left out, a folder with it. */
+export function filesUnder(
+  directory: string,
+  skip: (path: string, name: string) => boolean = () => false,
+): string[] {
+  return readdirSync(directory, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .flatMap((entry) => {
+      const path = join(directory, entry.name)
+      if (skip(path, entry.name)) return []
+      return entry.isDirectory() ? filesUnder(path, skip) : [path]
+    })
+}
+
+/** `path` with forward slashes, the spelling of the repository's relative paths on every platform. */
+export const posixPath = (path: string) => path.replaceAll('\\', '/')

@@ -1,5 +1,5 @@
 // Bench inputs, realistic and hostile, from a seeded generator: two runs see the exact same floats.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as G from '../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { xorshiftRandom } from '../../../../packages/math/src/sequence/random.ts'
 

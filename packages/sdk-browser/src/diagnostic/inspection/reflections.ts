@@ -10,8 +10,8 @@ import {
 } from '../../../../math/src/vector/vector.ts'
 import { autoKernel } from '../../gpu/core/computeStages.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import { REFLECTION_COUNTS } from '../../reflections/constants.ts'
-import type { ReflectionGrids } from '../../reflections/grids.ts'
+import { REFLECTION_COUNTS } from '../../lighting/reflections/constants.ts'
+import type { ReflectionGrids } from '../../lighting/reflections/grids.ts'
 import { type InspectedView, unprojectInto, viewForward } from './camera.ts'
 import { INSPECTION_REFLECTION_CAP, type InspectedReflections } from './types.ts'
 
@@ -20,10 +20,10 @@ const SAMPLE_FLOATS = 8
 
 /**
  * One texel in `stride`² of a surface's grid, read where the last image left it
- * (`../../reflections/traceGroups.ts`): the history the accumulation wrote at the texel's
+ * (`../../lighting/reflections/trace/traceGroups.ts`): the history the accumulation wrote at the texel's
  * block's first pixel — its surface's linear depth (`historyDepth`) —, the fresh texel the trace wrote
  * — its hit's distance and valid bit (`freshPack`) —, and the ray's direction (`rayDirection`)
- * (`../../reflections/texelWgsl.ts` lays the words out).
+ * (`../../lighting/reflections/texelWgsl.ts` lays the words out).
  */
 const SAMPLES_WGSL = wgslProgram(
   `@group(0) @binding(0) var history:texture_2d<u32>;

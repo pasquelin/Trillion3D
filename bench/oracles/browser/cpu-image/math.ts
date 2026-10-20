@@ -1,4 +1,4 @@
-import type { HostAttribute } from '../../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostAttribute } from '../../../../packages/sdk-browser/src/session/host/resources.ts'
 import { srgbToLinear } from '../../../../packages/math/src/color/color.ts'
 import type { Texture } from '../../../../packages/sdk-core/src/texture/contract.ts'
 import { mapTexel } from '../../../../packages/sdk-browser/src/visibility/mapTexel.fixture.ts'
@@ -6,7 +6,7 @@ import { signedArea, type Projected } from './projection.ts'
 import { textureRgba } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 
 /** A colour byte times its alpha byte, as an 8-bit `premultiplyAlpha` upload stores it: the rule
- *  the GPU turn of raw texels applies in integers (`turnLevel`, `texture/mipsWgsl.ts`). */
+ *  the GPU turn of raw texels applies in integers (`turnLevel`, `materials/texture/mipsWgsl.ts`). */
 const premultipliedByte = (byte: number, alpha: number) => Math.round((byte * alpha) / 255)
 
 // The CPU image's reads of a page: the oracle's, not the engine's. The colour of a pixel is the

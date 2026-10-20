@@ -1,0 +1,114 @@
+/**
+ * PLACEMENT ROWS: the instance buffer of one drawn resource.
+ *
+ * A resource — a primitive cut into pages, worn with one surface — is drawn at many places. Its
+ * placements are not host nodes: they are rows of one buffer the owner writes, sixteen
+ * column-major floats each, a flag saying whether the row places the resource or is parked, and one
+ * saying whether it casts no shadow.
+ * The engine reads each row IN PLACE: a cluster root's world matrix is a view on its row
+ * (`placementWorld`), so a pose the owner writes is the pose the next frame reads, with nothing
+ * copied. A parked row keeps its root in every table and is skipped by every cut: taking it back
+ * is writing its matrix and raising its flag, never rebuilding a table.
+ *
+ * The capacity is the owner's decision; a resource that needs more rows than it holds is given a
+ * larger buffer, which the session grows into in place where its engine can
+ * (`../growth/growth.ts`), and waits otherwise, the owner saying it by name.
+ */
+import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import type { MatrixElements } from '../../session/host/matrixElements.ts'
+import type { ChangedRuns } from '../../geometry/residency/ranges.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
+import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
+
+/** The placement rows of mirrored meshes, one row per placed copy. */
+export type PlacementRows = {
+  /** Original owners of mirrored rows; their animation sources stay live when rows are reused. */
+  sources?: readonly (Mesh<object> | null)[]
+  /** Meshes sharing this resource, including those waiting for a placement row. */
+  sourceModels?: ReadonlySet<Mesh<object>>
+  /** Sixteen column-major floats per row, written by the owner. */
+  readonly matrices: Float64Array
+  /** 1 where the row places the resource, 0 where it is parked. */
+  readonly live: Uint8Array
+  /** 1 where the row casts no shadow (its mesh's `castShadow` is `false`), 0 where it casts. */
+  readonly shadowless: Uint8Array
+  /** Rows that fit before it grows. */
+  readonly capacity: number
+  /** The rows of the meshes of a loaded model (`session/world/models/models.ts`): each is the model's
+   *  world times the mesh's world within the model's graph, whose bones stand in that graph's
+   *  frame, never in the world's: a palette is read there (`DeformedMesh.frame`). */
+  local?: true
+  /** A blend item reads its rows (`../../blend/prepare.ts`): composed for that reader too
+   *  (`../compose/composeReaders.ts`), never left to a root. Kept by a growth. */
+  blended?: true
+  /** Where each row a partition placed lies (`../../geometry/partition/rowCells.ts`): its cell, its rank
+   *  among the cell's nodes, the placement of its model whose cells placed it (`instance`, 0 the
+   *  first), its cell's HLOD 0 cell, and whether it draws as that cell's HLOD 0 actor — its cell
+   *  past the main grid's loading range — rather than as the source mesh; a column of its own,
+   *  absent until a cell places one. */
+  cells?: (
+    { cell: number; node: number; instance: number; hlod: number; proxy: boolean } | undefined
+  )[]
+  /** The rows whose cell moved since a backend last linked them to the HLOD 0 cell they lie in
+   *  (`../../geometry/partition/rowCells.ts`, `takeCellsMoved`): one changed list, kept by a growth. */
+  cellsMoved?: ChangedRuns
+}
+
+export function createPlacementRows(capacity: number): PlacementRows {
+  const rows = Math.max(1, capacity)
+  return {
+    matrices: new Float64Array(rows * MATRIX_VALUES),
+    live: new Uint8Array(rows),
+    shadowless: new Uint8Array(rows),
+    capacity: rows,
+  }
+}
+
+/** A larger buffer for `needed` rows (`grownLength`): `before`'s rows copied first, the new
+ *  ones parked. */
+export function growPlacementRows(before: PlacementRows | null, needed: number) {
+  const rows = createPlacementRows(grownLength(before?.capacity ?? 0, needed))
+  if (before) {
+    rows.sources = before.sources
+    rows.sourceModels = before.sourceModels
+    if (before.local) rows.local = true
+    if (before.blended) rows.blended = true
+    rows.matrices.set(before.matrices)
+    rows.live.set(before.live)
+    rows.shadowless.set(before.shadowless)
+    rows.cells = before.cells?.slice()
+    rows.cellsMoved = before.cellsMoved
+  }
+  return rows
+}
+
+/** Row `row` of `rows` written as its owner writes it: its pose (`null` keeps the one it holds),
+ *  whether it places the resource, whether its mesh casts a shadow. */
+export function writePlacementRow(
+  rows: PlacementRows,
+  row: number,
+  matrix: ArrayLike<number> | null,
+  live: boolean,
+  castShadow: boolean,
+) {
+  if (matrix) rows.matrices.set(matrix, row * MATRIX_VALUES)
+  rows.live[row] = live ? 1 : 0
+  rows.shadowless[row] = castShadow ? 0 : 1
+}
+
+/** The world matrix of row `index`: a view on the buffer, never a copy. */
+export const placementWorld = (rows: PlacementRows, index: number): MatrixElements => ({
+  elements: rows.matrices.subarray(index * MATRIX_VALUES, (index + 1) * MATRIX_VALUES),
+})
+
+/** What a root or a blended copy carries of the row it was collected from: the rows, and its rank
+ *  in them. */
+export type PlacementOf = { rows: PlacementRows; index: number }
+
+/** True when `placement` names a row the owner parked: its draw is skipped, its place kept. */
+export const rowParked = (placement: PlacementOf | undefined) =>
+  !!placement && placement.rows.live[placement.index] === 0
+
+/** True when `placement` names a row whose mesh casts no shadow. */
+export const rowShadowless = (placement: PlacementOf) =>
+  placement.rows.shadowless[placement.index] === 1

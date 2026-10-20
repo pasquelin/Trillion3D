@@ -26,7 +26,7 @@ import {
   TRIANGLE_SIDE,
   WORK_THREADS,
 } from './machineWork.ts'
-import { readJson } from '../../../scripts/repository-files.ts'
+import { readJson } from '../../../scripts/git/repository-files.ts'
 import { validationScope } from '../../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 
 /** Changes when a kernel does: a machine file of another version is measured again. */

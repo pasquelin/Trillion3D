@@ -1,7 +1,7 @@
 // Each pass's GPU time per frame on the bench's own timer, every pass of every frame the engine did
 // not time itself, by label: its work apart from its wait, whether its timer can be trusted, and
 // what it encoded (workgroups, invocations, vertices, bytes).
-import { gpuPassStageOf } from '../../../packages/sdk-browser/src/stage/mapping.ts'
+import { gpuPassStageOf } from '../../../packages/sdk-browser/src/diagnostic/stage/mapping.ts'
 import type { FrameRecord } from '../capture/frames.ts'
 import { emptyWork, type PassWork } from './passWorkHooks.ts'
 import { passKey, spread } from '../report/summary.ts'

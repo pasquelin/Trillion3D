@@ -7,7 +7,7 @@ import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cacheRun } from './triangleCache.fixture.ts'
-import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
+import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { SHADE_TRIS_SHADER } from './shadeCacheWgsl.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 

@@ -1,10 +1,10 @@
 // The frame, cofactor and projection declarations of the maths library
-// (`packages/math/src/wgsl/basis.ts`, `matrix.ts`, `projection.ts`), their shipped text run in
+// (`packages/math/src/wgsl/basis.ts`, `matrix.ts`, `selection/projection.ts`), their shipped text run in
 // JavaScript against what each one claims: an orthonormal frame, det · M⁻ᵀ, a pixel and a uv.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { frameAround, intoFrame, outOfFrame } from '../../../../math/src/wgsl/basis.ts'
 import { cofactor3 } from '../../../../math/src/wgsl/matrix.ts'

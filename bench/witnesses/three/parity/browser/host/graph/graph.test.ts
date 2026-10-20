@@ -16,10 +16,10 @@ import { InstancedMesh } from '../../../../../../../packages/sdk-core/src/world/
 import { Camera } from '../../../../../../../packages/sdk-core/src/world/camera/camera.ts'
 import { perspectiveProjection } from '../../../../../../../packages/math/src/projection/camera.ts'
 import { Light } from '../../../../../../../packages/sdk-core/src/world/light/light.ts'
-import { familySurface } from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { familySurface } from '../../../../../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
 import { threeMaterials } from '../../../../fromSurface.ts'
 import { Texture } from '../../../../../../../packages/sdk-core/src/world/texture/texture.ts'
-import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
+import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/scene/host/scan/hooks.ts'
 import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { ulpBetween } from '../../../../../../../packages/math/src/float/ulp.fixture.ts'
 

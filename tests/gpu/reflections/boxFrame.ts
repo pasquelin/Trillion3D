@@ -10,7 +10,7 @@ import {
   rasterize,
   type Box,
   type Camera,
-} from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
+} from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { paintPixel, rigFrameOf } from './rigFrame.ts'
 

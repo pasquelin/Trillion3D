@@ -1,5 +1,5 @@
 import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'
-import { gpuPassBlockOf, gpuTotalsBy } from '../../stage/mapping.ts'
+import { gpuPassBlockOf, gpuTotalsBy } from '../../diagnostic/stage/mapping.ts'
 
 /** GPU time of a frame in three blocks: visibility, materials, the rest. */
 export type GpuPassBlockTotals = {
@@ -12,7 +12,7 @@ export type GpuPassBlockTotals = {
 }
 
 /**
- * GPU duration of each block in a sample (`../../stage/mapping.ts` says which is which).
+ * GPU duration of each block in a sample (`../../diagnostic/stage/mapping.ts` says which is which).
  *
  * `null` everywhere for a missing or truncated sample, and `null` for a block whose pass has no
  * usable duration: a partial sum would pass for a measurement. `null` also for a block the frame

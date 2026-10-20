@@ -81,7 +81,7 @@ export type {
 } from '../../sdk-core/src/scene/core/fog.ts'
 export { SceneNode } from '../../sdk-core/src/scene/core/node.ts'
 export type { ShadowFrameMetrics } from '../../sdk-core/src/contracts/shadowMetrics.ts'
-export type { SoftBodyType } from '../../sdk-core/src/physics/soft.ts'
+export type { SoftBodyType } from '../../sdk-core/src/physics/soft/soft.ts'
 export {
   TABLE_FILTERS,
   TABLE_FLAGS,

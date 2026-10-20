@@ -20,11 +20,11 @@
 //                written by hand as groups are broken; `--write-baseline` prints the ones the tree
 //                holds, for that shrinking, and a name the tree does not have is reported too.
 import ts from 'typescript'
-import { isTestModule, sourceFilesOf, unitOf } from '../repository-files.ts'
+import { isTestModule, sourceFilesOf, unitOf } from '../git/repository-files.ts'
 import { normalized } from './check-calls-normalize.ts'
 import { readBaseline, report } from './check-cycles-baseline.ts'
 import { MATH_UNIT, mathLayeringBreaks } from './check-math-layering.ts'
-import { REPOSITORY_ROOT } from '../repository-files.ts'
+import { REPOSITORY_ROOT } from '../git/repository-files.ts'
 
 const EXTS = /\.m?ts$/
 

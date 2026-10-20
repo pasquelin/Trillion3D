@@ -1,12 +1,12 @@
-import type { ClusterRoot } from '../page/selection/types.ts'
-import { rowParked, type PlacementOf } from './rows.ts'
+import type { ClusterRoot } from '../geometry/selection/types.ts'
+import { rowParked, type PlacementOf } from './rows/rows.ts'
 import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
-import { rootedUnder } from '../host/world/rooted.ts'
+import { rootedUnder } from '../scene/host/world/rooted.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** A see-through draw — a blend item — as visibility reads it: hidden with its source node, or
  *  parked with its row. Whether its row's HLOD 0 cell draws its placements is read on the GPU, from
- *  the very state word the descent gates an opaque placement by (`../webgpu/blend/verdictWgsl.ts`):
+ *  the very state word the descent gates an opaque placement by (`../blend/verdict/verdictWgsl.ts`):
  *  every primitive of a source shows and hides with its cell, a blended one too. */
 export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 
@@ -83,7 +83,7 @@ function followHidden<E extends { hidden?: boolean }>(
  * shown again, unless its row is parked. A root placed at its own node's world casts as its mesh
  * says (`castShadow`, its shadowless bit); a row says for its own (`followPlacementRows`). `flip`
  * hears the rank of each root that flipped: its rows, derived again, stale the shadow pages it left
- * or entered (`rowCastWgsl.ts`). A see-through draw of a hidden node takes `hidden`, which its
+ * or entered (`rows/rowCastWgsl.ts`). A see-through draw of a hidden node takes `hidden`, which its
  * selection reads (`notDrawn`), and `seeThrough.flipped` hears it and its rank. Read once per scene revision,
  * never per frame. `under`, when given, names the roots and the see-through draws to read — those
  * under the nodes the host flipped —, the others standing as they are.

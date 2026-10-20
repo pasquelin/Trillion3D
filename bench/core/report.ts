@@ -14,7 +14,7 @@ import {
 import { FRAGMENTS, fragmentPath } from './paths.ts'
 import { ligneMd } from './table.ts'
 import type { Measurement } from '../kit/measureTypes.ts'
-import { REPOSITORY_ROOT, readJson } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, readJson } from '../../scripts/git/repository-files.ts'
 
 /** A domain fragment deposited under `.measure/perf/`, for the report's two readers. */
 export interface Fragment {

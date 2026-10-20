@@ -45,7 +45,7 @@ test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
 /** Who is allowed to RESOLVE a world pose, and for which subject. */
 const RESOLVENT: Record<string, string> = {
   'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
-  'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
+  'frame/render/transform.ts': 'scene subtree moved by the host, not a camera',
   'physics/bodies/bodies.ts': 'a body the page moved, not a camera',
   'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',
 }
@@ -55,20 +55,20 @@ const POSE_LOCALE: Record<string, string> = {
   'camera/world.ts': 'the contract: it is what translates local pose into world pose',
   'world/camera/camera.ts': 'the host POSES its camera; the local pose is what it writes',
   'camera/controls/pose.ts': 'the camera-controller boundary: a controller writes a local pose',
-  'world/api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
-  'world/render/sessionState.ts': 'the session sets the local pose it is handed (`setPose`)',
-  'gpu/dag/oracle/predicates.fixture.ts':
+  'api/cameraApi.ts': 'host round-trip: `homePose` returns what `setCameraPose` rewrites',
+  'frame/schedule/sessionState.ts': 'the session sets the local pose it is handed (`setPose`)',
+  'geometry/dag/oracle/predicates.fixture.ts':
     'the oracle POSES a parentless camera from a world position',
-  'page/selection/dag.fixture.ts': 'test scene builder: it poses the camera',
-  'page/selection/blend.fixture.ts': 'test scene builder: it poses the camera',
+  'geometry/selection/dag.fixture.ts': 'test scene builder: it poses the camera',
+  'geometry/selection/blend.fixture.ts': 'test scene builder: it poses the camera',
   'visibility/buffer.fixture.ts': 'test scene builder: it poses the camera',
-  'webgpu/cut/resume.fixture.ts': 'test scene builder: it poses the camera',
-  'engine/pagesEngineScenes.fixture.ts': 'test scene builder: it poses the camera',
-  'webgpu/pages/testScenes.fixture.ts': 'test scene builder: it poses the camera',
-  'webgpu/pages/twoPlaces.fixture.ts': 'test scene builder: it poses the camera',
-  'gpu/dag/placementTree.fixture.ts': 'test scene builder: it poses the camera',
-  'gpu/dag/listCoarsen.fixture.ts': 'test scene builder: it poses the camera',
-  'gpu/dag/gridScene.fixture.ts': 'test scene builder: it poses the camera',
+  'geometry/cut/adoption/resume.fixture.ts': 'test scene builder: it poses the camera',
+  'session/engine/pagesEngineScenes.fixture.ts': 'test scene builder: it poses the camera',
+  'frame/backend/testScenes.fixture.ts': 'test scene builder: it poses the camera',
+  'frame/backend/twoPlaces.fixture.ts': 'test scene builder: it poses the camera',
+  'geometry/dag/placement/placementTree.fixture.ts': 'test scene builder: it poses the camera',
+  'geometry/dag/lists/listCoarsen.fixture.ts': 'test scene builder: it poses the camera',
+  'geometry/dag/gridScene.fixture.ts': 'test scene builder: it poses the camera',
 }
 
 /**
@@ -81,7 +81,7 @@ const POSE_LOCALE: Record<string, string> = {
  */
 const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',
-  'page/raster.fixture.ts': 'host-graph raster oracle — resolves (callable alone)',
+  'geometry/pages/raster.fixture.ts': 'host-graph raster oracle — resolves (callable alone)',
   'physics/view.ts': 'the eye, facing and range the physics worker is sent, once they change',
 }
 

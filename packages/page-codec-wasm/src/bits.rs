@@ -83,5 +83,4 @@ pub fn pow2(exponent: i32) -> f32 {
 }
 
 #[cfg(test)]
-#[path = "bits_tests.rs"]
 pub(crate) mod tests;

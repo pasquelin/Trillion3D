@@ -134,7 +134,7 @@ test('the tests of the domain folder of a changed file run, whatever they import
   ])
   assert.deepEqual(
     domainOf('packages/sdk-browser/src/webgpu/shadow/pass.ts'),
-    'packages/sdk-browser/src/webgpu/shadow/',
+    'packages/sdk-browser/src/lighting/shadows/casters/',
   )
   assert.equal(domainOf('packages/sdk-core/src/index.ts'), undefined)
   assert.deepEqual(

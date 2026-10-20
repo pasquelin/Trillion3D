@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile, readdir } from 'node:fs/promises'
 import { BENCH_READS_DECLARATION, DECLARATION, NAMES_THREE } from './engine-without-three-lists.ts'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT } from '../../scripts/git/repository-files.ts'
 
 const browser = join(REPOSITORY_ROOT, 'packages/sdk-browser/src')
 /** The benches of the browser package, keyed by their path from the repository root. */
@@ -18,7 +18,7 @@ const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witness
  * written as a string is the one form the stripping hides, so it is looked for on the raw text.
  *
  * What it cannot see: a host material reached under another name. A host mesh's own field is
- * `material` (`HostMesh`, `packages/sdk-browser/src/host/resources.ts`); renaming it would be
+ * `material` (`HostMesh`, `packages/sdk-browser/src/session/host/resources.ts`); renaming it would be
  * renaming the host library's, and no file on the engine's page path, which holds the record,
  * reads it. The transparent copy, which was the one
  * contract to hand a host material out under that name, no longer declares one at all
@@ -98,10 +98,10 @@ test('only declared files import the host library', async () => {
   assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`)
 })
 
-// `packages/sdk-browser/src/host/resources.ts` declares the crossing; the same closed list says who may call it, so the
+// `packages/sdk-browser/src/session/host/resources.ts` declares the crossing; the same closed list says who may call it, so the
 // doc of `asHostLibrary` stays a rule and not a hope.
 test('only the declared boundary files cross back through `asHostLibrary`', async () => {
-  const fuites = await outsideList(TRAVERSE, 'host/resources.ts')
+  const fuites = await outsideList(TRAVERSE, 'session/host/resources.ts')
   assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`)
 })
 

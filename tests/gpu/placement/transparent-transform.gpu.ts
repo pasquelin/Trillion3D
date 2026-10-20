@@ -2,7 +2,7 @@
 // node as by its parent, under a sheared matrix, out of view and on return,
 // including after the held image has settled (`transparentTransformPage.ts`). Out of view, the
 // GPU's frustum verdict rejects it and nothing is painted: its slots are encoded as in view, and
-// the GPU leaves each indirect draw without an instance (`webgpu/blend/verdictWgsl.ts`).
+// the GPU leaves each indirect draw without an instance (`blend/verdict/verdictWgsl.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
@@ -52,7 +52,7 @@ test('a transparent follows setTransform', async () => {
     assert.ok(out.rejected >= 1, say('out-of-view', 'the frustum did not reject it'))
     const back = at('back')
     // The draws of the image the move rendered: the later ones, unchanged, are held and encode
-    // nothing (`frame/hold.ts`), while the reject count comes back.
+    // nothing (`loop/hold.ts`), while the reject count comes back.
     const moved = at('out-of-view-0')
     assert.equal(moved.held, false, say('out-of-view-0', 'the move did not break the held image'))
     assert.equal(

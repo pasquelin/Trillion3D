@@ -29,8 +29,8 @@ import {
 } from './referenceStore.ts'
 import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts'
 import { readStreet } from '../street/street.ts'
-import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
-import { git } from '../../../scripts/git-paths.ts'
+import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
+import { git } from '../../../scripts/git/git-paths.ts'
 
 /** One scene: its poses drawn in reference mode, the record written under `<dir>/<scene>/`, the
  *  images under `<images>/<scene>/`. */

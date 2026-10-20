@@ -1,4 +1,4 @@
-// #1527: `world.raycast` is one GPU ray query over what the world draws (`webgpu/rays/`): each ray of
+// #1527: `world.raycast` is one GPU ray query over what the world draws (`lighting/rays/`): each ray of
 // a generated scene (`raycastPage.ts`) meets the object, at the distance, with the normal and on the
 // triangle a double-precision oracle finds (`raycastOracle.ts`) — a morphed quad where its morph
 // draws it, not where its rest pose lies; a blended quad; a box out of every view; the helper mark and

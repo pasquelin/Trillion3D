@@ -1,6 +1,6 @@
 /**
  * What the compiler and the runtime both state, written once here and printed into the compiler's
- * Rust (`scripts/shared-rules/abi.ts`, `packages/asset-compiler-rust/src/shared_math/abi.rs`): the
+ * Rust (`scripts/build/shared-rules/abi.ts`, `packages/asset-compiler-rust/src/shared_math/abi.rs`): the
  * one declaration of a compile job's fields, their defaults and their bounds, which the options
  * schema, the SDK's command line and `prepare` read too.
  */
@@ -162,7 +162,7 @@ export const TEMPORAL_AA_FIELD = 'temporalAntialiasing'
 /** The command line's flag naming the scene's temporal anti-aliasing, its value after the `=`. */
 export const TEMPORAL_AA_OPTION = '--temporal-antialiasing='
 /** The temporal anti-aliasing's quality levels, `off` first, then coarsest to finest: the
- *  anti-aliasing scalability levels 0 to 3 from `low` (`../../../sdk-browser/src/taa/levels.ts`). */
+ *  anti-aliasing scalability levels 0 to 3 from `low` (`../../../sdk-browser/src/post/taa/levels.ts`). */
 export const TEMPORAL_AA_LEVELS = ['off', 'low', 'medium', 'high', 'max'] as const
 /** A temporal anti-aliasing quality level. */
 export type TemporalAntialiasingLevel = (typeof TEMPORAL_AA_LEVELS)[number]

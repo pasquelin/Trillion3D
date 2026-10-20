@@ -3,7 +3,7 @@
 import { formatPattern } from '../test/changed-steps.ts'
 import { NATIVE_CRATES } from '../native/native-crates.ts'
 import { runChecked } from '../test/run.ts'
-import { git } from '../git-paths.ts'
+import { git } from '../git/git-paths.ts'
 
 const paths = (...args: string[]) =>
   git(process.cwd(), ...args)

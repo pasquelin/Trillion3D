@@ -1,0 +1,122 @@
+import test from 'node:test'
+import { MANIFEST_IDENTITY } from '../../session/engine/pagesEngine.fixture.ts'
+import assert from 'node:assert/strict'
+import { isDrawnNode } from '../../scene/host/graph/kinds.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import {
+  drawnPageIds,
+  indirectDraws,
+  installGpuGlobals,
+} from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND, dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import {
+  quadScene,
+  camera,
+  mixedBinScene,
+  quadBackend,
+  flushedGpuScene,
+} from '../backend/testScenes.fixture.ts'
+import { graphDraws } from '../../geometry/selection/drawSource.ts'
+
+test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
+  installGpuGlobals()
+  const { source, metadata, indices, associations, geometry, material } = quadScene()
+  const { draws, writes, dispatches, buffers, packed, backend } = await flushedGpuScene({
+    source,
+    metadata,
+    indices,
+    draws: graphDraws(source, associations),
+  })
+  draws.length = 0
+  backend.render(camera())
+  let pageMeshes = 0
+  backend.scene.traverse((o) => {
+    if (isDrawnNode(o)) pageMeshes++
+  })
+  assert.equal(pageMeshes, 0)
+  assert.equal(backend.metrics().clusters, 2)
+  assert.equal(backend.metrics().selectedTriangles, 2)
+  assert.equal(backend.metrics().residentPages, 2)
+  assert.ok(writes.length >= 2)
+  // The scene has one prepared material class, so its surface draw is one full-screen triangle that
+  // rejects the background itself; it wears no texture, so it writes no feedback.
+  const shade = draws.filter((d) => d.entryPoint === 'shade_vs')
+  assert.deepEqual(
+    shade.map((d) => [d.fragment, d.vertexCount]),
+    [['shade_fs', 3]],
+  )
+  // The hardware raster is the producer of the opaque image: the cut reaches it through the image
+  // mask, which its indirect commands consume as instances. The compute raster is not created in
+  // production — no binning, no opaque compute capability.
+  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
+  const vis = indirectDraws(draws)
+  assert.equal(
+    vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
+    2,
+  )
+  assert.equal(dispatchedEntries(dispatches).includes('bin'), false)
+  assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'))
+  backend.dispose()
+  geometry.dispose()
+  material.dispose()
+})
+
+test('vis drawIndirect consumes GPU instance indices against one unsorted page table', async () => {
+  installGpuGlobals()
+  const {
+    source,
+    metadata: metadataPartial,
+    indices,
+    associations,
+    geoA,
+    geoB,
+    front,
+    both,
+  } = mixedBinScene()
+  const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY }
+  const { draws, dispatches, buffers, packed, backend } = await flushedGpuScene({
+    source,
+    metadata,
+    indices,
+    draws: graphDraws(source, associations),
+  })
+  draws.length = 0
+  dispatches.length = 0
+  backend.render(camera())
+  // The two bins — front-only and double-sided — hold two indirect commands on a shared page
+  // table, and read the SAME image mask.
+  assert.deepEqual(drawnPageIds(buffers, packed), [0, 1])
+  assert.equal(dispatchedEntries(dispatches).includes('bin'), false)
+  const vis = indirectDraws(draws)
+  assert.ok(vis.length >= 2)
+  assert.equal(
+    vis.reduce((n, draw) => n + (draw.instanceCount ?? 0), 0),
+    2,
+  )
+  assert.deepEqual([...new Set(vis.map((draw) => draw.bindOffset ?? 0))], [0])
+  assert.ok(vis.every((draw) => draw.instanceBuffer && draw.groupsBuffer))
+  backend.dispose()
+  geoA.dispose()
+  geoB.dispose()
+  front.dispose()
+  both.dispose()
+})
+
+// Root pages stay resident outside the pool: a budget smaller than root coverage
+// is raised to it, by name, and the image is complete — never refused.
+test('a budget under root coverage is raised to it, by name, and the image prepares', async () => {
+  installGpuGlobals()
+  const { device } = fakeDevice(BACKEND)
+  const { fixture, backend } = quadBackend(device, {
+    maxResidentPages: 1,
+  })
+  await backend.prepare()
+  const metrics = backend.metrics()
+  assert.equal(metrics.geometryPoolClamp, 'root-cover')
+  assert.ok((metrics.geometryPoolSlots ?? 0) > 1, 'the slots hold root coverage')
+  assert.equal(metrics.coverageReady, true)
+  backend.dispose()
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})

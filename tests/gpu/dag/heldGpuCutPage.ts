@@ -3,7 +3,7 @@
 // GPU selection used to be thrown away. Nothing is read from the inside: the drawn cut the engine
 // publishes (`selectedPageIds`), whose coverage the proof checks leaf by leaf.
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import { wideCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { wideCamera } from '../../../packages/sdk-browser/src/geometry/selection/dag.fixture.ts'
 import { dagFixtureEngine } from '../../kit/device/dagFixtureEngine.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 

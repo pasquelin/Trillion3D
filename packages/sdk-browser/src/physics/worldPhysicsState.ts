@@ -8,7 +8,7 @@ import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
 import { GRAVITY_PRESETS, physicsBudgetOf } from '../../../sdk-core/src/physics/options.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { families } from '../host/families.ts'
+import { families } from '../session/host/families.ts'
 import { createJointList } from './joints/jointList.ts'
 import { createWaterCarry } from './water/waterCarry.ts'
 import type { PhysicsSession } from './session/session.ts'
@@ -87,7 +87,7 @@ function failed(s: PhysicsState, cause: EngineError, fatal = false) {
   if (fatal) enable(s, false)
 }
 
-/** The session's code is a family on demand (`../host/families.ts`): a world without physics
+/** The session's code is a family on demand (`../session/host/families.ts`): a world without physics
  *  loads none of it; one that could not load is `FAMILY_LOAD_FAILED`, asked again next time. */
 const start = (s: PhysicsState) =>
   families.physics.load().then(

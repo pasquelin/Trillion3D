@@ -1,27 +1,30 @@
-// The chunk bound on the device's own histograms (`vsm/rowBinsWgsl.ts`, the shipped kernel): an
+// The chunk bound on the device's own histograms (`rows/rowBinsWgsl.ts`, the shipped kernel): an
 // oblique low sun and a spot over a dense scene, half of its rows moving; the histogram binned on
 // Dawn, read back, landed (`landRowBins`); then the moving rows travel, within the margin they were
 // binned at and past it. Every frame, every K, the bound is held against the exact count of the
 // shipped cull at the rows' places (`bruteForce`, `bruteForceLocal`): the times it falls short.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
-import { MOBILITY_MOVING } from '../../../packages/sdk-browser/src/gpu/shadow/mobilityBits.ts'
-import { commitMotion } from '../../../packages/sdk-browser/src/gpu/shadow/rowMotion.ts'
-import { createVsmClipmap } from '../../../packages/sdk-browser/src/vsm/clipmap.ts'
-import { PROJECTION, VIEW } from '../../../packages/sdk-browser/src/vsm/clipmap.fixture.ts'
-import { rowBinTables } from '../../../packages/sdk-browser/src/vsm/rowBins.ts'
+import { MOBILITY_MOVING } from '../../../packages/sdk-browser/src/lighting/shadows/mobilityBits.ts'
+import { commitMotion } from '../../../packages/sdk-browser/src/lighting/shadows/rowMotion.ts'
+import { createVsmClipmap } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/clipmap.ts'
+import {
+  PROJECTION,
+  VIEW,
+} from '../../../packages/sdk-browser/src/lighting/shadows/vsm/clipmap.fixture.ts'
+import { rowBinTables } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/rows/rowBins.ts'
 import {
   binRows,
   onBuffers,
   topSums,
-} from '../../../packages/sdk-browser/src/vsm/rowBins.fixture.ts'
-import { rowBinsRequest } from '../../../packages/sdk-browser/src/vsm/rowBinsParams.ts'
-import { landRowBins } from '../../../packages/sdk-browser/src/vsm/rowBinsRecord.ts'
-import { ROW_BINS_WGSL } from '../../../packages/sdk-browser/src/vsm/rowBinsWgsl.ts'
+} from '../../../packages/sdk-browser/src/lighting/shadows/vsm/rows/rowBins.fixture.ts'
+import { rowBinsRequest } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/rows/rowBinsParams.ts'
+import { landRowBins } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/rows/rowBinsRecord.ts'
+import { ROW_BINS_WGSL } from '../../../packages/sdk-browser/src/lighting/shadows/vsm/rows/rowBinsWgsl.ts'
 import {
   createVsmRowBound,
   vsmChunkRows,
   type VsmBoundLight,
-} from '../../../packages/sdk-browser/src/vsm/rowPageBound.ts'
+} from '../../../packages/sdk-browser/src/lighting/shadows/vsm/rows/rowPageBound.ts'
 import {
   bruteForce,
   bruteForceLocal,
@@ -30,7 +33,7 @@ import {
   scene,
   worstOf,
   type SceneRows,
-} from '../../../packages/sdk-browser/src/vsm/rowPageBound.fixture.ts'
+} from '../../../packages/sdk-browser/src/lighting/shadows/vsm/rows/rowPageBound.fixture.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { hypot3 } from '../../../packages/math/src/float/hypot.ts'
 import { autoKernel, bufferHolding, groupZero } from '../../kit/device/computeReadback.ts'

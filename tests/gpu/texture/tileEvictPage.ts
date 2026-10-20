@@ -1,12 +1,12 @@
-// The tile pools' eviction on Dawn (`webgpu/tile/stampWgsl.ts`, `evictSortWgsl.ts`): the feedback
+// The tile pools' eviction on Dawn (`materials/virtual/stampWgsl.ts`, `evictSortWgsl.ts`): the feedback
 // reduction stamps the places its pixels read, the sort ranks a full pool's places on those stamps,
 // and the queue comes back in the feedback readback to the pool.
-import { createWebgpuTileAtlas } from '../../../packages/sdk-browser/src/webgpu/tile/atlas.ts'
-import { createWebgpuTileFeedback } from '../../../packages/sdk-browser/src/webgpu/tile/feedback.ts'
-import { createTilePublish } from '../../../packages/sdk-browser/src/webgpu/tile/publish.ts'
-import { stampedPlace } from '../../../packages/sdk-browser/src/webgpu/tile/stamp.fixture.ts'
-import { poolEncoding } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
-import { tileLayout } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { createWebgpuTileAtlas } from '../../../packages/sdk-browser/src/materials/virtual/atlas/atlas.ts'
+import { createWebgpuTileFeedback } from '../../../packages/sdk-browser/src/materials/virtual/feedback.ts'
+import { createTilePublish } from '../../../packages/sdk-browser/src/materials/virtual/publish.ts'
+import { stampedPlace } from '../../../packages/sdk-browser/src/materials/virtual/stamp.fixture.ts'
+import { poolEncoding } from '../../../packages/sdk-browser/src/materials/texture/blockFormats.ts'
+import { tileLayout } from '../../../packages/sdk-browser/src/materials/texture/tiles.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 /** A target of `width × height` pixels: the first `read` ask a level-0 tile each, the others the

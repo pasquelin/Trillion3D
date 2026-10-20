@@ -1,10 +1,10 @@
 // The engine's own build of the DAG selection stages (`createDagStages`, `stages.ts`) on the
 // machine's device, for each text: the stages `kernels-compile.gpu.ts` validates are the ones the
 // engine builds, never a hand copy.
-import { createDagStages } from '../../../packages/sdk-browser/src/gpu/dag/stages.ts'
-import { dagArmLayout } from '../../../packages/sdk-browser/src/gpu/dag/arm.ts'
-import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts'
-import { dagBindEntries } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts'
+import { createDagStages } from '../../../packages/sdk-browser/src/geometry/dag/stages.ts'
+import { dagArmLayout } from '../../../packages/sdk-browser/src/geometry/dag/arm.ts'
+import { dagWorkLayout } from '../../../packages/sdk-browser/src/geometry/dag/shader/floorWgsl.ts'
+import { dagBindEntries } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.ts'
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts'
 import { validationScope } from '../../../packages/sdk-browser/src/gpu/core/errorScope.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'

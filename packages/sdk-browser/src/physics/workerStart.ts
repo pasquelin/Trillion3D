@@ -1,6 +1,6 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { PHYSICS_LAYOUT_VERSION } from '../../../sdk-core/src/physics/layout.ts'
-import { checked } from '../cluster/checked.ts'
+import { checked } from '../geometry/cluster/checked.ts'
 import { openJolt, startJolt } from './joltModule.ts'
 import { joltWorkerPool } from './joltThreads.ts'
 import type { FromPhysics, ToPhysics } from './protocol.ts'

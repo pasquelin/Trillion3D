@@ -1,6 +1,6 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
-import { answering, type Answer } from '../../cluster/answers.fixture.ts'
+import { answering, type Answer } from '../../geometry/cluster/answers.fixture.ts'
 import { cooked, landed, modelFiles, modelStreamer, place, tile } from './tiles.fixture.ts'
 
 /** A cooked file of one two-triangle tile, `t0.bin`, placed once. */

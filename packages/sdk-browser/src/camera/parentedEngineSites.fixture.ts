@@ -3,22 +3,22 @@
 // write is recorded (view, blend, light and shadow uniforms included), with no GPU.
 import { createHash } from 'node:crypto'
 import { mock } from 'node:test'
-import { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
+import { webgpuPagesEngine } from '../frame/backend/pages.ts'
 import { installGpuGlobals } from '../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { camera, quadScene } from '../webgpu/pages/testScenes.fixture.ts'
-import { DAG, dagLevel } from '../engine/pagesEngine.fixture.ts'
-import { fanScene, quadCluster } from '../engine/pagesEngineScenes.fixture.ts'
+import { camera, quadScene } from '../frame/backend/testScenes.fixture.ts'
+import { DAG, dagLevel } from '../session/engine/pagesEngine.fixture.ts'
+import { fanScene, quadCluster } from '../session/engine/pagesEngineScenes.fixture.ts'
 import type { HostCamera } from './world.ts'
-import type { EngineContext, Engine } from '../engine/types.ts'
+import type { EngineContext, Engine } from '../session/engine/types.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
-import { graphDraws } from '../page/selection/drawSource.ts'
-import { createTextureCaches } from '../texture/textureCaches.ts'
-import { createPageCache } from '../streaming/pageCache.ts'
+import { graphDraws } from '../geometry/selection/drawSource.ts'
+import { createTextureCaches } from '../materials/texture/textureCaches.ts'
+import { createPageCache } from '../geometry/streaming/pageCache.ts'
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`
- *  (`packages/sdk-browser/src/engine/pagesEngineScenes.fixture.ts`), the fields the mock backend never reads left at neutral values. */
+ *  (`packages/sdk-browser/src/session/engine/pagesEngineScenes.fixture.ts`), the fields the mock backend never reads left at neutral values. */
 const FAN_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
   ...DAG,
   formatVersion: 1,

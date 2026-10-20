@@ -1,4 +1,4 @@
-// The placement tree's refit on the GPU (`gpu/dag/treeRefit.ts`) leaves the tree as the CPU build
+// The placement tree's refit on the GPU (`dag/tree/treeRefit.ts`) leaves the tree as the CPU build
 // fits it, word for word, after poses moved a long way, parks, marks that open a group and a whole
 // group parked — read and written in place in the tree's record table, a read-write storage
 // texture (`treeTable.ts`), the frame words read in theirs (`frameTable.ts`). The tree's order

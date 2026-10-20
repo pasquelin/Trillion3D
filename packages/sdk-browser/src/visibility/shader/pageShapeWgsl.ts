@@ -4,7 +4,7 @@ import { PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 
 /**
  * A row's sprite rule and line width (`PageShape`), read off its surface's record
- * (`materialAt`, `../../webgpu/material/materialWgsl.ts`) where its flags say it draws a sprite or
+ * (`materialAt`, `../../materials/table/materialWgsl.ts`) where its flags say it draws a sprite or
  * a line (`FLAG_SPRITE`, `FLAG_LINE`): a row of neither — nearly all of them — reads no record,
  * and its zeros are the very values the record holds for it. The host lists the material table at
  * its own binding.

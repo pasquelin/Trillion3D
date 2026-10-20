@@ -3,13 +3,13 @@
 // the engine's row words, and one uniform block per indirect slot plus one for the direct path.
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/visWords.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
+import { packedRowBase } from '../../../packages/sdk-browser/src/geometry/rows/page/pageRow.ts'
 import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
-} from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts'
-import { visLayoutEntries } from '../../../packages/sdk-browser/src/webgpu/visibility/shaders.ts'
-import { VIS_TARGETS } from '../../../packages/sdk-browser/src/webgpu/visibility/pipelines.ts'
+} from '../../../packages/sdk-browser/src/gpu/bind/bindLayout.ts'
+import { visLayoutEntries } from '../../../packages/sdk-browser/src/visibility/passes/shaders.ts'
+import { VIS_TARGETS } from '../../../packages/sdk-browser/src/visibility/passes/pipelines.ts'
 import { VIS_FRAGMENT } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
 import { VIS_UNIFORM } from '../../../packages/sdk-browser/src/visibility/shader/uniformLayout.ts'
 import { bufferHolding } from '../../kit/device/computeReadback.ts'

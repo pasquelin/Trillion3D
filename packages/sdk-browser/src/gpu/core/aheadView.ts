@@ -3,7 +3,7 @@ import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.
 import { rotationMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { PREFETCH_HORIZON_MS } from '../../engine/common.ts'
+import { PREFETCH_HORIZON_MS } from '../../session/engine/common.ts'
 import type { CameraMotion } from '../../camera/motion.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
@@ -17,7 +17,7 @@ import {
 /**
  * The VIEW AHEAD of a moving camera, in its render frame (`./selection.ts`): what the cut also
  * evaluates to request the pages the camera will need before they are on screen
- * (`../dag/shader/aheadWgsl.ts`).
+ * (`../../geometry/dag/shader/aheadWgsl.ts`).
  *
  * - `view` is the camera moved by its velocity and turned by its turn over the horizon
  *   (`CameraMotion.horizonMs`, else the published `PREFETCH_HORIZON_MS`): the view whose screen

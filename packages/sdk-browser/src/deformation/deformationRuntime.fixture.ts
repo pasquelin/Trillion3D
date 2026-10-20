@@ -1,8 +1,8 @@
 import { createDeformationFrame } from './frame.ts'
-import { createWebgpuLightState } from '../webgpu/pages/state/lights.ts'
+import { createWebgpuLightState } from '../frame/backend/state/lights.ts'
 import type { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
-import { createChangedRuns } from '../webgpu/residency/ranges.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { createChangedRuns } from '../geometry/residency/ranges.ts'
+import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /**
  * The pages runtime `updateWebgpuDeformation` reads, around one deformation `frame`: placements

@@ -1,7 +1,7 @@
 // Page of the water-cost measure (`bench/dawn/costs/waterCost.ts`), run only when
 // invoked: no engine optimisation, no pass timing reconstruction.
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import type { EngineFactory } from '../../../packages/sdk-browser/src/engine/factory.ts'
+import type { EngineFactory } from '../../../packages/sdk-browser/src/session/engine/factory.ts'
 import { summarize } from '../../../packages/sdk-core/src/runtime/stats.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
@@ -10,7 +10,7 @@ import { BACKGROUND, WATER_ATTACHMENT_BYTES } from './waterPassCases.ts'
 import {
   DISTORTION_APPLY_PASS,
   DISTORTION_PASS,
-} from '../../../packages/sdk-browser/src/stage/passLabels.ts'
+} from '../../../packages/sdk-browser/src/diagnostic/stage/passLabels.ts'
 import {
   SIZE,
   waterCostScene,

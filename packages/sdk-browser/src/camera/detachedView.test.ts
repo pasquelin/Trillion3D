@@ -3,7 +3,7 @@
 // camera's local pose, and reading it must leave the main view untouched.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../host/graph/graph.fixture.ts'
+import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createEngineCamera } from './engineCamera.ts'
 import { readCameraWorld } from './world.ts'

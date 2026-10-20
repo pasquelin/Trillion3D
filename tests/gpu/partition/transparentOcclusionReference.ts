@@ -8,12 +8,12 @@
 import {
   BOX_CORNER_VALUES,
   HIZ_BOUNDS_VALUES,
-} from '../../../packages/sdk-browser/src/hiz/corners.ts'
-import { projectCornersInto } from '../../../packages/sdk-browser/src/hiz/projection.fixture.ts'
-import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts'
+} from '../../../packages/sdk-browser/src/visibility/hiz/corners.ts'
+import { projectCornersInto } from '../../../packages/sdk-browser/src/visibility/hiz/projection.fixture.ts'
+import { hizNearestBound } from '../../../packages/sdk-browser/src/visibility/hiz/nearestBound.fixture.ts'
 import { buildHizPyramid } from '../../../bench/oracles/browser/hizPyramid.ts'
 import { hizRejectsFlat } from '../../../bench/oracles/browser/hizOcclusion.ts'
-import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts'
+import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/blend/transparent/occlusionAudit.ts'
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES)
 

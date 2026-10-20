@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { BOX_CORNER_VALUES } from '../../hiz/corners.ts'
-import { VERDICT_KEPT, VERDICT_REJECTED } from '../../gpu/partition/contract.ts'
-import { VsmCacheManager } from '../../vsm/cacheManager.ts'
-import { frame } from '../../vsm/clipmap.fixture.ts'
-import { VSM_ENTRY_DRAWABLE_BIT, VSM_ENTRY_MAPPED_BIT } from '../../vsm/constants.ts'
+import { BOX_CORNER_VALUES } from '../../visibility/hiz/corners.ts'
+import { VERDICT_KEPT, VERDICT_REJECTED } from '../../geometry/partition/gpu/contract.ts'
+import { VsmCacheManager } from '../../lighting/shadows/vsm/cacheManager.ts'
+import { frame } from '../../lighting/shadows/vsm/clipmap.fixture.ts'
+import {
+  VSM_ENTRY_DRAWABLE_BIT,
+  VSM_ENTRY_MAPPED_BIT,
+} from '../../lighting/shadows/vsm/constants.ts'
 import { inspectedCamera } from './camera.ts'
 import { cameraAt } from './inspection.fixture.ts'
 import { inspectedClusters, slotsRead, type ClusterSnapshot } from './clusters.ts'

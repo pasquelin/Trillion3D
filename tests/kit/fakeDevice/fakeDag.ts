@@ -1,6 +1,6 @@
-import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts'
-import { dagBindingOf } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.fixture.ts'
-import { viewWord } from '../../../packages/sdk-browser/src/gpu/dag/viewLayout.ts'
+import type { PackedDag } from '../../../packages/sdk-browser/src/geometry/dag/types.ts'
+import { dagBindingOf } from '../../../packages/sdk-browser/src/geometry/dag/shader/bindings.fixture.ts'
+import { viewWord } from '../../../packages/sdk-browser/src/geometry/dag/viewLayout.ts'
 import { floats, words } from './fakeBuffers.ts'
 import { recordWord, viewTexture, worldsAtEye } from './fakeWorldPose.ts'
 import {
@@ -10,8 +10,8 @@ import {
   PAGE_COUNT_WORD,
   RECORD_SHIFT_WORD,
   ROOT_WORD,
-} from '../../../packages/sdk-browser/src/gpu/dag/frameTable.ts'
-import { indexOfRanks } from '../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/frameTable.ts'
+import { indexOfRanks } from '../../../packages/sdk-browser/src/geometry/selection/placements.fixture.ts'
 
 type Bound = Map<number, { data: Uint8Array }>
 

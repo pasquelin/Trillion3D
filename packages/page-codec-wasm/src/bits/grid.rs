@@ -1,8 +1,8 @@
 //! The position and texture grids of a primitive, written once for both cuts: the compiler's
 //! (`geometry_page_quant::primitive_exponent`, `primitive_uv_exponent`) and the one the engine
 //! runs on drawn triangles or on a compiled primitive's own clusters
-//! (`packages/sdk-browser/src/world/page/runtimeCut.ts`), through the SDK module
-//! (`wasm_encode.rs`). Their logarithms are read from the bits (`log2.rs`): both cuts take the
+//! (`packages/sdk-browser/src/geometry/runtime/runtimeCut.ts`), through the SDK module
+//! (`wasm/encode.rs`). Their logarithms are read from the bits (`log2.rs`): both cuts take the
 //! same integers on every host.
 
 use super::log2::{ceil_log2, floor_log2};
@@ -142,5 +142,4 @@ pub fn widest_uv_span(uvs: &[f32], corners: &[u32], ranges: &[[u32; 2]]) -> f64 
 }
 
 #[cfg(test)]
-#[path = "grid_tests.rs"]
 mod tests;

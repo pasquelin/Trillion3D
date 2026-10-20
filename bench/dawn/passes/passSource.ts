@@ -4,7 +4,7 @@
 // checkout's own, relative to its root, never the machine's.
 import { readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { filesUnder } from '../../../scripts/repository-files.ts'
+import { filesUnder } from '../../../scripts/git/repository-files.ts'
 import { passKey } from '../report/summary.ts'
 
 /** Where a pass is encoded: the checkout's file and line, its function, and its shader modules. */

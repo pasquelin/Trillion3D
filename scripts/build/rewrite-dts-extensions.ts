@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { REPOSITORY_ROOT, filesUnder } from '../repository-files.ts'
+import { REPOSITORY_ROOT, filesUnder } from '../git/repository-files.ts'
 
 const checkOnly = process.argv.includes('--check')
 const dist = join(REPOSITORY_ROOT, 'dist')

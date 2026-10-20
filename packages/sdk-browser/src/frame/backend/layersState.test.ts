@@ -1,0 +1,90 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
+import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { webgpuPagesEngine } from './pages.ts'
+import { quadScene } from './testScenes.fixture.ts'
+import { BASE_SLOTS, DRAW_ITEM_U32, HALF_SLOTS } from '../../visibility/draw/contract.ts'
+import { createWebgpuVisState } from './state/vis.ts'
+import { createWebgpuPagesLayout } from '../prepare/layout.ts'
+import type { WebgpuPagesSetup } from '../prepare/setup.ts'
+import type { WebgpuPagesCore } from './runtime.ts'
+import { visSlotPipeline } from '../prepare/pipelineFor.ts'
+import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
+import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+
+// The coplanar-layer lot was reapplied in eleven WebGPU modules; each test below exercises the
+// layer in a module that `../../geometry/rows/page/pageRowDepthBias.test.ts` (`writePageRow` bias) does not cover.
+// `../../geometry/rows/page/pageRowWriter.ts` stays covered there and has no test here. The suite continues in
+// `../../visibility/passes/drawLayers.test.ts` for the per-image draw modules.
+
+const fakeSetup = (overrides: Partial<WebgpuPagesSetup> = {}) =>
+  ({
+    roots: [],
+    bootstrap: [],
+    slots: 4,
+    cap: 4,
+    pageBytes: 12,
+    ...overrides,
+  }) as unknown as WebgpuPagesSetup
+
+// state/vis.ts
+test('createWebgpuVisState starts with drawLayerSlots at one and no coplanar layer pipelines', () => {
+  const vis = createWebgpuVisState()
+  assert.equal(vis.drawLayerSlots, 1)
+  assert.deepEqual(vis.visLayerPipelines, [])
+})
+
+// prepare/layout.ts
+test('createWebgpuPagesLayout holds the draw words per drawable row, and no CPU corner', () => {
+  const layout = createWebgpuPagesLayout(fakeSetup(), undefined, () => -1)
+  // Per-slot counts no longer live here: the GPU partition writes them into the compaction buffer,
+  // and the rows pass writes the corners it reads (`../../placement/rows/rowWordsPass.ts`).
+  assert.equal('cornerPacked' in layout, false)
+  assert.equal(layout.drawItemWords.length, layout.drawSlots * DRAW_ITEM_U32)
+})
+
+// prepare/pipelineFor.ts
+test('visSlotPipeline routes a coplanar-layer slot to its own pipeline set, not the layer-0 one', () => {
+  const pipelines = Array.from({ length: 3 }, (_, i) => ({
+    id: i,
+  })) as unknown as GPURenderPipeline[]
+  const rt = {
+    vis: { drawLayerSlots: 2, visLayerPipelines: pipelines },
+    layout: { selectionRoots: [{ world: new Matrix4() }] },
+  } as unknown as WebgpuPagesCore
+  assert.equal(visSlotPipeline(rt, BASE_SLOTS), pipelines[0], 'layer 1, occluder, back cull')
+  assert.equal(visSlotPipeline(rt, BASE_SLOTS + 1), pipelines[1], 'layer 1, occluder, no cull')
+  // The tested half draws with the occluder half's pipelines (`GpuDraw.encodeTested`).
+  assert.equal(visSlotPipeline(rt, BASE_SLOTS + HALF_SLOTS), pipelines[0], 'its tested back cull')
+})
+
+// prepare/visibility.ts (orchestration: drawLayerSlots and the layer pipelines it builds)
+test('a page marked with a coplanar depth layer makes prepare() build that layer’s pipelines and report it', async () => {
+  installGpuGlobals()
+  const scene = quadScene()
+  ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 3
+  const { device } = fakeDevice(BACKEND)
+  const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    ...scene,
+    gpuDevice: device,
+    maxResidentPages: 4,
+    viewport: [32, 32],
+    onDiagnostic: (event) => events.push(event),
+  })
+  try {
+    await backend.prepare()
+    const ready = events.find((event) => event.phase === 'coplanar-layers-ready')
+    assert.ok(ready, 'a layered page triggers the coplanar-layers-ready diagnostic')
+    assert.equal(ready!.context!.layers, 3)
+    assert.ok((ready!.context!.pipelines as number) > 0, 'at least one layer pipeline was built')
+  } finally {
+    await backend.dispose()
+    scene.geometry.dispose()
+    scene.material.dispose()
+  }
+})

@@ -2,14 +2,18 @@
 // holds its quad: its root is never culled by a camera cut (`neverCulled`, `SPRITE_UNCULLED`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../host/graph/graph.fixture.ts'
-import { dagFixture } from '../../page/selection/dag.fixture.ts'
-import { dagCulling } from '../../page/selection/helpers.fixture.ts'
-import { cpuUrls, kernelUrls, packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
-import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts'
-import { primitiveFrameWords, primitiveWordAt } from '../../gpu/dag/worlds.ts'
+import * as G from '../../scene/host/graph/graph.fixture.ts'
+import { dagFixture } from '../../geometry/selection/dag.fixture.ts'
+import { dagCulling } from '../../geometry/selection/helpers.fixture.ts'
+import {
+  cpuUrls,
+  kernelUrls,
+  packed,
+} from '../../geometry/dag/selection/selectionHelpers.fixture.ts'
+import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/shader.ts'
+import { primitiveFrameWords, primitiveWordAt } from '../../geometry/dag/worlds/worlds.ts'
 import { neverCulled, spriteMark } from './spriteWgsl.ts'
-import { MARK_WORD } from '../../gpu/dag/frameTable.ts'
+import { MARK_WORD } from '../../geometry/dag/frameTable.ts'
 
 /** The test DAG worn as a sprite, its record's sprite facts written in place; `hierarchical` gives
  *  it its culling hierarchy. */

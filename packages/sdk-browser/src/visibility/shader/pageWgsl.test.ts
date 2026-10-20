@@ -11,8 +11,8 @@ import {
   DATA_SAMPLE_WGSL,
   SHADOW_TILE_POOL_WGSL,
   maskAlphaWgsl,
-} from '../../webgpu/tile/wgsl.ts'
-import { rasterSource } from '../../gpu/raster/shader.ts'
+} from '../../materials/virtual/wgsl.ts'
+import { rasterSource } from '../raster/shader.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
@@ -38,7 +38,7 @@ test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader t
     SMALL_SHADER,
     SHADE_SHADER,
     VIS_SHADER,
-    // The temporal resolve's page reader: its velocity pass (`../../taa/velocityWgsl.ts`).
+    // The temporal resolve's page reader: its velocity pass (`../../post/taa/velocityWgsl.ts`).
     TAA_VELOCITY: ENGINE_SHADERS.TAA_VELOCITY,
   })
 })
@@ -168,7 +168,7 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
     VIS_SHADER,
   }))
     // An atlas read (`let t=wrapUv(`), a tap of an anisotropic one (`let w=wrapUv(`, the level's
-    // four-tap read on a seam, `../../webgpu/tile/atlasReadWgsl.ts`) or the feedback that names it
+    // four-tap read on a seam, `../../materials/virtual/atlas/atlasReadWgsl.ts`) or the feedback that names it
     // (`return wrapUv(`): the coordinate the pixel asks for is the one it reads.
     assert.equal(
       occurrences(text, 'wrapUv('),

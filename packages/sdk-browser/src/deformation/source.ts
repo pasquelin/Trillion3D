@@ -1,5 +1,5 @@
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
-import type { MatrixElements } from '../host/matrixElements.ts'
+import type { MatrixElements } from '../session/host/matrixElements.ts'
 import type { Deformed, DeformedMesh } from './frame.ts'
 
 /** Largest source record needed by placements sharing one resource. */

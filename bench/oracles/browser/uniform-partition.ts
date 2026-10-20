@@ -2,8 +2,8 @@
 // plus a remainder f32; an anchored matrix keeps its three columns and sees its translation
 // recomputed at the anchor. The layout comes from the contract's one table (`PARTITION_UNI`), so
 // the oracle does not drift in silence; the pyramid's mips are the Hi-Z levels uniform's.
-import { PARTITION_UNI } from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
-import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
+import { PARTITION_UNI } from '../../../packages/sdk-browser/src/geometry/partition/gpu/contract.ts'
+import type { PartitionFrame } from '../../../packages/sdk-browser/src/geometry/partition/gpu/uniform.ts'
 
 export function referenceSplitDouble(out: Float32Array, top: number, bas: number, value: number) {
   out[top] = value

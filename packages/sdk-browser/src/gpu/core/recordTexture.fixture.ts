@@ -1,7 +1,7 @@
 // A record table's texels on the CPU (`recordTexture.ts`): where a record's field lies in a texture's
 // words, laid as WebGPU lays a texture's — layer after layer, row after row, texel after texel —,
 // what the kit's device keeps of a written table (`tests/kit/fakeDevice`) and what a shader run in JavaScript
-// loads (`textureLoad`, `../../texture/shaderRun.fixture.ts`).
+// loads (`textureLoad`, `../../materials/texture/shaderRun.fixture.ts`).
 import { fieldStart, recordExtent, texelAt, type RecordLayout } from './recordLayout.ts'
 import { textureExtent } from './textureExtent.ts'
 import { texelBytesOf } from './textureBytes.ts'

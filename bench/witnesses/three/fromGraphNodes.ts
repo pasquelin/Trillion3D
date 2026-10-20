@@ -7,10 +7,10 @@ import {
   aimOf,
   isDrawnNode,
   isInstancedNode,
-} from '../../../packages/sdk-browser/src/host/graph/kinds.ts'
-import { isPlacedLight } from '../../../packages/sdk-browser/src/host/graph/graphLights.fixture.ts'
+} from '../../../packages/sdk-browser/src/scene/host/graph/kinds.ts'
+import { isPlacedLight } from '../../../packages/sdk-browser/src/scene/host/graph/graphLights.fixture.ts'
 import { resolveCameraWorld } from '../../../packages/sdk-browser/src/camera/world.ts'
-import type { HostMaterials } from '../../../packages/sdk-browser/src/host/resources.ts'
+import type { HostMaterials } from '../../../packages/sdk-browser/src/session/host/resources.ts'
 import { threeGeometry } from './fromGraph.ts'
 import { threeMaterials } from './fromSurface.ts'
 import { Group, type Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'

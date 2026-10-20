@@ -1,0 +1,177 @@
+import type { DagResources } from './resources.ts'
+import { dispatchRows, groupWidth, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import { DAG_ARGS } from './shader/armWgsl.ts'
+import { DAG_PASS, encodeDifference } from './encodeDifference.ts'
+import { encodePoolSort } from '../../gpu/sort/sort.ts'
+import { BLOCK_MASK_WORDS } from './shader/floorWgsl.ts'
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+
+/**
+ * Cut kernels, encoded in order, in ONE compute pass. Each dispatch waits for the previous — the
+ * GPU empties its queue and caches between two —, and that wait is attributed to no kernel: it is
+ * the number of dispatches that fixes it, not their size. So only what the dependencies actually
+ * require remains: prepare carries thresholds, planes and block counts in one go, the live list's
+ * group count holds as additions come, and the mask itself counts the drawn of its block.
+ *
+ * Three lists have no bound the layout knows — the previous frame's drawn journal, the candidates,
+ * the live clusters —, so the kernels that walk them dispatch indirectly, on a group count the
+ * kernel that filled the list wrote in `work`. WebGPU refuses, in one dispatch, an argument
+ * buffer that a group its pipeline uses binds writable, and `work` is: the arming kernel copies
+ * the counts into `dispatchArgs`, which only its own group binds (`shader/armWgsl.ts`), as a
+ * dispatch of the same pass. A copy outside the pass would cut it in three, and a pass behind an
+ * off-pass copy costs about seventeen times a dispatch in the open pass (the measurement next to
+ * `hierarchyLevelSizes`, `hierarchy.ts`).
+ *
+ * Not that the three lists have no upper bound: `pageCount` is one for all. It is COARSE,
+ * 1,959,792 for 21,955 useful on the twelve-instance bench, when a level's stage hugs its queue:
+ * an armed count is traded against threads, and the trade only pays if the bound is tight.
+ */
+export function encodeDagKernels(
+  encoder: GPUCommandEncoder,
+  resources: DagResources,
+  differ = false,
+) {
+  // A DIAGNOSTIC variant alone re-encodes the cut. The repeat PRECEDES the cut that counts: each
+  // kernel restarts from the clear, the final state is therefore that of a single run, and the
+  // frame delta measures what the repeat actually cost — waits between dispatches included, which
+  // no pass envelope reports.
+  if (resources.repeat) {
+    encodeOnce(encoder, resources, resources.repeat === 'head', true, false)
+    encodeOnce(encoder, resources, false, false, differ)
+    return
+  }
+  encodeOnce(encoder, resources, false, true, differ)
+}
+
+function encodeOnce(
+  encoder: GPUCommandEncoder,
+  resources: DagResources,
+  headOnly: boolean,
+  clear: boolean,
+  differ = false,
+) {
+  const {
+    blockCount,
+    levelSizes,
+    dispatchArgs,
+    bindGroup,
+    preparePipeline,
+    clearDrawnPipeline,
+    levelPipelines,
+    wantedPipeline,
+    maskPipeline,
+    drawPrefixPipeline,
+    drawScatterPipeline,
+    commitPipeline,
+    requestSortPipeline,
+    raisePipeline,
+    evictSort,
+  } = resources
+  // Flat dispatches run in rows of the device's width.
+  const width = groupWidth(resources.device?.limits)
+  const pass = encoder.beginComputePass(DAG_PASS)
+  // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
+  // every flag, and the prepare that follows clears the journal. The journal is saved on the way
+  // for the view it was before, when the uniforms name its region (`swap/swap.ts`, `saveRegionFor`).
+  if (clear) {
+    arm(pass, resources)
+    pass.setPipeline(clearDrawnPipeline)
+    pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.drawn)
+  } else pass.setBindGroup(0, bindGroup)
+  // Its dispatch also resets the block counts.
+  flat(pass, preparePipeline, width, Math.max(levelEntries(resources), blockCount))
+  // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
+  // previous ones wrote — prepare and pass 0 already depended on that.
+  //
+  // Pass 0 starts from one root per primitive: the count of primitives and NOT `levelSizes[0]`,
+  // which would not always bound it: `dagPrepare` puts one entry per primitive, missing root
+  // included — pass 0 reads it there and rejects it —, where stage zero only counts roots that
+  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge.
+  flat(pass, levelPipelines[0], width, levelEntries(resources))
+  // Each following level reads only the nodes the previous one kept, and fills the next of the
+  // three queues — the one a level earlier cleared. Every level past pass 0 is dispatched on what
+  // the level before it deposited, its queue's groups armed in the pass (`shader/armWgsl.ts`):
+  // threads follow the view, never the world. No count the layout keeps bounds a queue: a member
+  // drawn whatever the view opens from queue 0 (`shader/placementTreeWgsl.ts`), so its root's
+  // children join level 1 beside the tree's own nodes, where the layout counts them levels lower.
+  for (let level = 1; level < levelSizes.length; level++) {
+    arm(pass, resources)
+    pass.setPipeline(levelPipelines[level % levelPipelines.length])
+    pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.queues[level % 3])
+  }
+  // Pages of kept leaves, and they alone: a page under a rejected node is not read.
+  arm(pass, resources)
+  pass.setPipeline(wantedPipeline)
+  pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.cand)
+  if (headOnly) {
+    // The groups it stamped raise their parents, as a whole cut's do (`shader/lastUseWgsl.ts`): the
+    // cut repeated after it finds them stamped, and raises no group again.
+    pass.setPipeline(raisePipeline)
+    pass.dispatchWorkgroups(1)
+    pass.end()
+    return
+  }
+  arm(pass, resources)
+  // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
+  // the previous one, it is no longer spoken on those it said nothing about.
+  pass.setPipeline(maskPipeline)
+  pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.live)
+  // The drawable-page list is compacted here, in increasing order: the snapshot no longer
+  // reports one flag per page but the count alone and its ranks.
+  // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
+  // workgroup, in the same pass (`shader/snapshotWgsl.ts`).
+  // Last, once every page this cut uses is stamped and the groups replacing them raised with them
+  // (`shader/lastUseWgsl.ts`), the eviction queue (`shader/evictWgsl.ts`).
+  pass.setPipeline(drawPrefixPipeline)
+  pass.dispatchWorkgroups(1)
+  pass.setPipeline(drawScatterPipeline)
+  pass.dispatchWorkgroupsIndirect(dispatchArgs, DAG_ARGS.live)
+  // The cut's mask and drawn log become the frame's, unless it dropped work: a thread a word of
+  // the masks (`shader/commitWgsl.ts`).
+  pass.setPipeline(commitPipeline)
+  dispatchRows(pass, workgroupCount(BLOCK_MASK_WORDS * blockCount, WORKGROUP_THREADS), 1, width)
+  pass.setPipeline(requestSortPipeline)
+  pass.dispatchWorkgroups(1)
+  pass.setPipeline(raisePipeline)
+  pass.dispatchWorkgroups(1)
+  // A thread a slot of the pool's list, its group stages armed for the list's own count by
+  // `dagPrepare` (`shader/evictWgsl.ts`, `armPoolSort`).
+  encodePoolSort(pass, evictSort, 0, width, dispatchArgs, DAG_ARGS.pool)
+  // The rows the cut's pages need, stamped, and their queue when a readback copies the cut
+  // (`../rows/rowEviction.ts`): the cut's group back after them.
+  if (resources.rowPass) {
+    resources.rowPass.encode(pass, differ)
+    pass.setBindGroup(0, resources.bindGroup)
+  }
+  if (differ) encodeDifference(pass, resources)
+  pass.end()
+}
+
+/** Every list's argument copied from `work` (`shader/armWgsl.ts`), then the cut's group back in
+ *  place: the kernels that follow bind it. */
+function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, bindGroup }: DagResources) {
+  pass.setPipeline(armPipeline)
+  pass.setBindGroup(0, armGroup)
+  pass.dispatchWorkgroups(1)
+  pass.setBindGroup(0, bindGroup)
+}
+
+/** The entries of queue 0, one `dagPrepare` thread each: without a placement tree, every
+ *  placement; with one, the tree's top nodes, then each member drawn whatever the view and each
+ *  placement of the world DAG (`shader/placementTreeWgsl.ts`). */
+function levelEntries({ packed, worldCount }: DagResources) {
+  const tree = packed.placementTree
+  if (!tree) return worldCount
+  return tree.levels[0].count + tree.always.set.count
+}
+
+/** A kernel on `threads` threads, in rows of `width` workgroups. */
+function flat(
+  pass: GPUComputePassEncoder,
+  pipe: GPUComputePipeline,
+  width: number,
+  threads: number,
+) {
+  pass.setPipeline(pipe)
+  dispatchRows(pass, workgroupCount(threads, WORKGROUP_THREADS), 1, width)
+}

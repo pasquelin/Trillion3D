@@ -2,11 +2,8 @@
 // it draws, and the comparison of a world a source joins while it runs with a world opened on all of
 // its sources at once.
 import { createHash } from 'node:crypto'
-import { createWorld } from '../../../packages/sdk-browser/src/world/core/world.ts'
-import {
-  lastFrameOf,
-  sessionOf,
-} from '../../../packages/sdk-browser/src/world/core/worldSession.ts'
+import { createWorld } from '../../../packages/sdk-browser/src/session/world/world.ts'
+import { lastFrameOf, sessionOf } from '../../../packages/sdk-browser/src/session/world/session.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { animationFrame } from '../../kit/device/frame.ts'

@@ -3,28 +3,28 @@
 // binds — every word a row's world decides is then the GPU's, as a session on a device writes it.
 // Each run names its entry function alone: `shaderRun` reaches every function it calls, so a
 // helper the engine renames or drops is never named here.
-import { shaderRun } from '../../../packages/sdk-browser/src/texture/shaderRun.fixture.ts'
+import { shaderRun } from '../../../packages/sdk-browser/src/materials/texture/shaderRun.fixture.ts'
 import {
   DERIVE_ROWS_ENTRY,
   DERIVE_ROWS_WGSL,
   ROW_NAMED,
   ROW_STALES,
-} from '../../../packages/sdk-browser/src/placement/rowWordsWgsl.ts'
+} from '../../../packages/sdk-browser/src/placement/rows/rowWordsWgsl.ts'
 import {
   COMPOSE_WORLDS_ENTRY,
   COMPOSE_WORLDS_WGSL,
-} from '../../../packages/sdk-browser/src/placement/gpuComposeWgsl.ts'
+} from '../../../packages/sdk-browser/src/placement/compose/gpuComposeWgsl.ts'
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
 import {
   ROOT_BOXES_ENTRY,
   ROOT_BOXES_FRAMES_BINDING,
   ROOT_BOXES_WGSL,
-} from '../../../packages/sdk-browser/src/placement/rootBoxesWgsl.ts'
+} from '../../../packages/sdk-browser/src/placement/roots/rootBoxesWgsl.ts'
 import { viewTexels } from './fakeWorldPose.ts'
 import {
   ENTRY_CORNERS_ENTRY,
   ENTRY_CORNERS_WGSL,
-} from '../../../packages/sdk-browser/src/webgpu/transparent/entryCornersWgsl.ts'
+} from '../../../packages/sdk-browser/src/blend/transparent/entryCornersWgsl.ts'
 import type { ComputeBind } from './fakeCompute.ts'
 import { boundFloats, boundResource, boundWords, vectors } from './fakeBuffers.ts'
 

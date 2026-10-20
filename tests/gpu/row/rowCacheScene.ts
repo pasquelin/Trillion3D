@@ -2,18 +2,18 @@
 // every instance far smaller than them, each instance's bytes resident; and the loop that cuts with
 // the shipped kernel, follows its readback in the row cache and syncs it until the drawn cut is the
 // one the view wants (`row-cache.gpu.ts`, `row-owner.gpu.ts`).
-import { slotTable } from '../../../packages/sdk-browser/src/webgpu/row/pageState.fixture.ts'
-import { rootOfPacked } from '../../../packages/sdk-browser/src/page/selection/placements.ts'
-import { rowGpu } from '../../../packages/sdk-browser/src/webgpu/row/rowCache.fixture.ts'
-import { createGroupClosure } from '../../../packages/sdk-browser/src/page/cut/groupClosure.ts'
-import { createWebgpuRowState } from '../../../packages/sdk-browser/src/webgpu/row/state.ts'
-import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/webgpu/row/sync.ts'
+import { slotTable } from '../../../packages/sdk-browser/src/geometry/rows/page/pageState.fixture.ts'
+import { rootOfPacked } from '../../../packages/sdk-browser/src/geometry/selection/placements.ts'
+import { rowGpu } from '../../../packages/sdk-browser/src/geometry/rows/rowCache.fixture.ts'
+import { createGroupClosure } from '../../../packages/sdk-browser/src/geometry/cut/groupClosure.ts'
+import { createWebgpuRowState } from '../../../packages/sdk-browser/src/geometry/rows/state.ts'
+import { createWebgpuRowSync } from '../../../packages/sdk-browser/src/geometry/rows/sync.ts'
 import { ROW_WORDS } from '../../../packages/sdk-browser/src/visibility/types.ts'
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
+import type { PageRec } from '../../../packages/sdk-browser/src/geometry/selection/types.ts'
 import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { openSelectionKernel } from '../dag/selectionKernel.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
-import { pageAddress } from '../../../packages/sdk-browser/src/webgpu/row/pageSlots.ts'
+import { pageAddress } from '../../../packages/sdk-browser/src/geometry/rows/page/pageSlots.ts'
 import { placedRuleDag } from '../../kit/device/placedRuleDag.ts'
 
 /** Placements apart along -x: one view sees one of them. */

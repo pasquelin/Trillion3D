@@ -1,5 +1,5 @@
 //! THE TRIANGLE CLUSTERER, one for the compiler's DAG levels and for the cuts the world makes at
-//! run time (`wasm_clusters.rs`, in the page worker): indexed triangles in, clusters out.
+//! run time (`wasm/clusters.rs`, in the page worker): indexed triangles in, clusters out.
 //!
 //! Free to reorder (an opaque cut, a cooked mesh), the clusters are the parts of the triangles'
 //! graph (`partition_triangles`, by `partition.rs`): two triangles that run one edge between the
@@ -268,5 +268,4 @@ impl Marks<'_> {
 }
 
 #[cfg(test)]
-#[path = "clusters_tests.rs"]
 mod tests;

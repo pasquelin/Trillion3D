@@ -1,0 +1,114 @@
+import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
+import type { BounceCascades } from '../../../../sdk-core/src/bounce/cascades.ts'
+import { TILE_NO_SLICE } from '../tiles/noSlice.ts'
+import { arrayOf, fieldLayout } from '../../gpu/core/fieldLayout.ts'
+
+/** A cascade level, one vector: its base cell (`base`) and its cell's side (`spacing`). */
+export const BOUNCE_LEVEL = fieldLayout('BounceLevel', [
+  ['base', 'vec3f'],
+  ['spacing', 'f32'],
+] as const)
+
+/**
+ * `BounceGrid`, one table the writer's words and the shaders' struct are both drawn from
+ * (`fieldLayout`): the range and the diagnostic view (`reach.xy`), the cascade sizes (`counts`:
+ * side, levels, probes a level, probes), the frame state (`frame`: light revision, dispatched
+ * groups, frame counter), the world light grid's records' first word in the light grid's buffer
+ * (`lists.x`, `bounceLightSlice`; `TILE_NO_SLICE` for none), then every level the declared count
+ * holds.
+ */
+export const BOUNCE_GRID = fieldLayout('BounceGrid', [
+  ['reach', 'vec4f'],
+  ['counts', 'vec4u'],
+  ['frame', 'vec4u'],
+  ['lists', 'vec4u'],
+  ['levels', arrayOf(BOUNCE_LEVEL, BOUNCE_SETTINGS.cascadeLevels)],
+] as const)
+
+/**
+ * Bytes of `BounceGrid`, the single source of truth: this uniform, the WGSL struct its readers
+ * declare, and the substitute buffer a frame without bounce reads all have the
+ * same size. An added cascade level grows it on all three sides at once, never on one —
+ * a substitute smaller than the struct fails the binding, hence loses the device, and that
+ * is exactly what a hand-written number has already cost.
+ */
+export const BOUNCE_GRID_BYTES = BOUNCE_GRID.words * 4
+
+const G = BOUNCE_GRID.at,
+  L = BOUNCE_LEVEL.at
+
+/**
+ * The uniform the bounce's readers share: the probe pass, deferred resolve and the reflections'
+ * proxy hits read the same cascade description, at the same slot.
+ *
+ * It is written once at construction for what never moves — range, sizes — and once per
+ * encoded frame for what moves: the base cells of the levels that follow the camera, and
+ * the batch each receives. Deferred resolve rereads it every frame, even when converged,
+ * when no pass is encoded any more: that is why it is never zeroed.
+ */
+export function createBounceUniform(device: GPUDevice, cascades: BounceCascades) {
+  // The uniform always carries the declared level count, even when the scene holds fewer:
+  // the array size is a shader constant, and `counts.y` says how many are real.
+  const packed = new ArrayBuffer(BOUNCE_GRID_BYTES)
+  const floats = new Float32Array(packed),
+    integers = new Uint32Array(packed)
+  const buffer = device.createBuffer({
+    label: 'Trillion3D bounce cascades v1',
+    size: packed.byteLength,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  floats[G.reach] = cascades.reach
+  integers.set(
+    [cascades.size, cascades.levels.length, cascades.probesPerLevel, cascades.probes],
+    G.counts,
+  )
+  // No world light lists yet (`bounceLightSlice`): every light.
+  integers[G.lists] = TILE_NO_SLICE
+  const upload = () => device.queue.writeBuffer(buffer, 0, packed)
+  // Word by word: this write happens every encoded frame, and therefore allocates nothing.
+  const writeLevels = () => {
+    integers[G.counts + 1] = cascades.levels.length
+    // A cascade-less frame has no lattice to list on: no lists (`bounceLightSlice`).
+    if (!cascades.levels.length) integers[G.lists] = TILE_NO_SLICE
+    cascades.levels.forEach((level, index) => {
+      const at = G.levels + index * BOUNCE_LEVEL.words
+      for (let axis = 0; axis < 3; axis++) floats[at + L.base + axis] = level.base[axis]
+      floats[at + L.spacing] = level.spacing
+    })
+  }
+  upload()
+  let view = false
+  return {
+    buffer,
+    /** Irradiance diagnostic view: it travels in the same uniform as the cascades. */
+    setIrradianceView(on: boolean) {
+      if (view === on) return
+      view = on
+      floats[G.reach + 1] = on ? 1 : 0
+      upload()
+    },
+    /** Encoded-frame state: light revision, dispatched groups, frame counter, levels. */
+    write(generation: number, groups: number, frame: number) {
+      floats[G.reach] = cascades.reach
+      integers[G.counts + 3] = cascades.probes
+      integers[G.frame] = generation
+      integers[G.frame + 1] = groups
+      integers[G.frame + 2] = frame
+      writeLevels()
+      upload()
+    },
+    /** The world light grid's records' first word in the light grid's buffer, or `undefined`:
+     *  none, every point walking every light (`bounceLightSlice`). */
+    setLightLists(start: number | undefined) {
+      const word = start ?? TILE_NO_SLICE
+      if (integers[G.lists] === word) return
+      integers[G.lists] = word
+      // The levels with it: the lattice the lists were listed on, even in a frame no update writes.
+      writeLevels()
+      upload()
+    },
+    dispose() {
+      buffer.destroy()
+    },
+  }
+}

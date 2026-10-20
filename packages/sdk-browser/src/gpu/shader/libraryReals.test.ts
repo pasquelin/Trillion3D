@@ -1,10 +1,10 @@
 // The fold, remap, texel, wireframe and extent declarations of the maths library
-// (`packages/math/src/wgsl/reals.ts`, `sampling.ts`, `barycentric.ts`, `geometry.ts`),
+// (`packages/math/src/wgsl/reals.ts`, `texture/sampling.ts`, `barycentric.ts`, `prepared/geometry.ts`),
 // their shipped text run in JavaScript against the processor's twins and what each one claims.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   floorMod,

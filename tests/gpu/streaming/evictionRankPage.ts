@@ -2,21 +2,21 @@
 // every page resident and in the pool, cut frame after frame at generated poses and clocks — the
 // stamps of what it draws and asks for, their raise up the groups and the pool sort, all on
 // the GPU — beside the CPU oracle of the same rules (`evict.fixture.ts`) fed the same readbacks.
-import { createGpuDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
+import { createGpuDagSelection } from '../../../packages/sdk-browser/src/geometry/dag/selection/selection.ts'
 import {
   listEvictions,
   pageKeys,
   raiseGroups,
-} from '../../../packages/sdk-browser/src/gpu/dag/evict.fixture.ts'
-import { KEY_PAGE_BITS } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts'
-import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/pool/rank.ts'
-import { poolRank } from '../../../packages/sdk-browser/src/gpu/pool/rank.fixture.ts'
-import { EVICTION_BURST } from '../../../packages/sdk-browser/src/gpu/dag/readoutWords.ts'
-import { pageResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
+} from '../../../packages/sdk-browser/src/geometry/dag/evict/evict.fixture.ts'
+import { KEY_PAGE_BITS } from '../../../packages/sdk-browser/src/geometry/dag/evict/evict.ts'
+import { EVICT_IN_USE } from '../../../packages/sdk-browser/src/gpu/sort/rank.ts'
+import { poolRank } from '../../../packages/sdk-browser/src/gpu/sort/rank.fixture.ts'
+import { EVICTION_BURST } from '../../../packages/sdk-browser/src/geometry/dag/readoutWords.ts'
+import { pageResidency } from '../../../packages/sdk-browser/src/geometry/dag/readiness.fixture.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { evictionWorld } from './evictionWorld.ts'
-import { hostStretches } from '../../../packages/sdk-browser/src/gpu/dag/hostStretches.fixture.ts'
+import { hostStretches } from '../../../packages/sdk-browser/src/geometry/dag/hostStretches.fixture.ts'
 
 /** One generated frame: the GPU's queue and old head, the oracle's, and what the cut read. */
 type RankFrame = {

@@ -9,8 +9,8 @@ import {
 import { CommandWriter } from '../../../../sdk-core/src/physics/commands.ts'
 import { FLAG, OP } from '../../../../sdk-core/src/physics/layout.ts'
 import { ObjectPhysics, type PhysicsHost } from '../../../../sdk-core/src/physics/objectPhysics.ts'
-import { SOFT_VERTEX_WORDS, SOFT_WORDS } from '../../../../sdk-core/src/physics/softLayout.ts'
-import { type SoftBodyOptions, SOFT_DAMPING } from '../../../../sdk-core/src/physics/soft.ts'
+import { SOFT_VERTEX_WORDS, SOFT_WORDS } from '../../../../sdk-core/src/physics/soft/softLayout.ts'
+import { type SoftBodyOptions, SOFT_DAMPING } from '../../../../sdk-core/src/physics/soft/soft.ts'
 
 import { plane } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'

@@ -1,5 +1,5 @@
 // One octahedral map for every caller (`packages/math/src/wgsl/octahedral.ts`), one fold
-// (`octFold`): on Dawn, the lobes' pack (`scene/physicalLobes.ts`), the shadow receiver's plane
+// (`octFold`): on Dawn, the lobes' pack (`surface/physicalLobes.ts`), the shadow receiver's plane
 // encode (`visibility/shader/receiverTargetWgsl.ts`) and the impostor card's direction to its grid
 // and back return, bit for bit, what each one's own formula
 // returned before they shared it — kept below as `develop` wrote it. The decode is the packed
@@ -16,7 +16,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeOnDawn } from '../../kit/device/computeRun.ts'
-import { LOBE_PACK_WGSL } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
+import { LOBE_PACK_WGSL } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 import {
   octDecode,

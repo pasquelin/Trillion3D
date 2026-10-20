@@ -3,11 +3,11 @@
  * by its stand-in, and the group made again only when one of them was replaced.
  */
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
+import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import type { DeferredPlaceholders } from './setup.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
 import type { ComposeInput } from './shaders.ts'
-import type { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
+import type { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import type { createCompositions } from './compositions.ts'
 import { sequentialEntries, namedEntries } from '../../gpu/core/computeBindings.ts'
 import type { DeferredBindings, DeferredSources, DirectLightResources } from './program.ts'

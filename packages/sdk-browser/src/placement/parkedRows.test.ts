@@ -2,14 +2,14 @@
 // A car the physics poses writes its placement rows (`physics/placer.ts`): a pose written again
 // within a float32 step of the one its mobility last saw — a parked body's pose rounded again, frame
 // after frame — names no root for its rows' derivation (`deriveRootRows`); its rows follow the
-// world sent, each appending what its own words changed (`rowCastWgsl.ts`); a millimetre is a move
+// world sent, each appending what its own words changed (`rows/rowCastWgsl.ts`); a millimetre is a move
 // again, the car moving already. The CPU declares no box.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { runtime, selectionRoot } from '../webgpu/core/transformShear.fixture.ts'
-import { createPlacementRows, placementWorld } from './rows.ts'
+import { runtime, selectionRoot } from '../gpu/core/transformShear.fixture.ts'
+import { createPlacementRows, placementWorld } from './rows/rows.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 
 test('a parked caster written again within a float32 step is no move, frame after frame', () => {

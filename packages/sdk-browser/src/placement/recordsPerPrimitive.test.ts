@@ -3,7 +3,7 @@
 // record carries no world, row, winding or packed rank of its own — its root does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { placedSession } from './webgpuGrowth.fixture.ts'
+import { placedSession } from './growth/webgpuGrowth.fixture.ts'
 
 test('a page record carries no world, row, winding, placement or packed rank: its root does', async () => {
   const session = await placedSession(5)

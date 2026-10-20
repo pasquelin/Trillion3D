@@ -3,7 +3,7 @@
 // (`preparedPipeline`, `preparedComputePipeline`, by key in `../../gpu/core/preparedPipelines.ts`):
 // asked at preparation or when what needs it enters the scene (`PreparedPipeline.ask`), it is
 // waited for there — the frame is held on it (`pipelinesCompiling`,
-// `../../webgpu/frame/deviceAnswer.ts`) — and a frame finds it compiled; one only started
+// `../../frame/loop/deviceAnswer.ts`) — and a frame finds it compiled; one only started
 // (`started`) holds no frame, and prepare's end waits for it. The deferred lighting and
 // composition, the temporal resolve, the distortion and the blend stages build theirs here
 // too; compute stages by entry point are built on it in `../../gpu/core/computeStages.ts`. The

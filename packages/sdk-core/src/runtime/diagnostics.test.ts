@@ -5,8 +5,8 @@ import {
   DIAGNOSTIC_VIEWS,
   LIT_VIEWS,
 } from '../../../sdk-browser/src/visibility/shader/shadeMode.ts'
-import { createExplorerDiagnosticApi } from '../../../sdk-browser/src/world/api/diagnosticApi.ts'
-import type { Engine } from '../../../sdk-browser/src/engine/types.ts'
+import { createExplorerDiagnosticApi } from '../../../sdk-browser/src/api/diagnosticApi.ts'
+import type { Engine } from '../../../sdk-browser/src/session/engine/types.ts'
 
 const modes = Object.keys(DIAGNOSTICS) as DiagnosticMode[]
 

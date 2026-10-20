@@ -1,0 +1,186 @@
+import { WRAP_MAP } from '../../visibility/wrapModes.ts'
+import {
+  FEEDBACK_EVERY,
+  FEEDBACK_STRIDE,
+  FEEDBACK_STRIDE_BITS,
+  FEEDBACK_STRIDE_MASK,
+  PICK_SHIFT,
+} from './feedback.ts'
+import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
+import { TILE_READ_WGSL } from '../texture/samplingFootprint.ts'
+import { TILE_POOL_WGSL } from './wgsl.ts'
+import { tileKindWgsl } from './kindWgsl.ts'
+import { samplingReadWgsl } from './atlas/atlasReadWgsl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
+/**
+ * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
+ * feedback target and reduced to counters by a compute pass (`reduce.ts`) for one pixel in
+ * sixteen. Level and address are those of the read — the default one, or `${k}Footprint` when
+ * `sampled` (`atlas/atlasReadWgsl.ts`) —, the texture's transform and addressing included: what a pixel
+ * asks is what it reads. An anisotropic read
+ * spreads its taps along the footprint, into tiles the centre does not touch: `along` (0, 1, 2)
+ * names the first tap, the middle one or the last (`tapOffset`), so the pixels of a footprint ask
+ * for all three. `aniso` is the read's: false for a pass that reads the isotropic level — an alpha
+ * cutout (`maskAlpha`) —, which is then the level asked. `missing` names the tile only when the
+ * table does not hold it at that level — the pool's own word, whose level is the finest resident
+ * ancestor's —: what a convergence looks for (`everyPick`). On the camera's pool
+ * (`TILE_POOL_WGSL`), whose level offset the request shares with the read. `${k}RequestAt` is the
+ * feedback rank of the tile a read of texture `s` at `uv` and `level` takes, plus one, or zero:
+ * none in the tail; when `missing`, none either for a tile the table holds at its level.
+ */
+const tileRequestIndexWgsl = (k: string) =>
+  wgslBlock(
+    `tileRequestIndexWgsl(${k})`,
+    [
+      TILE_POOL_WGSL,
+      TILE_READ_WGSL,
+      tileKindWgsl(k, TILE_POOL_WGSL),
+      samplingReadWgsl(k, TILE_POOL_WGSL),
+    ],
+    `fn ${k}RequestAt(s:TileSlot,uv:vec2f,level:u32,missing:bool)->u32{
+ if(level>=s.tail){return 0u;}
+ let entry=${k}Entry(s,uv,level);
+ let word=${k}Pages[entry];
+ if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
+ return entry-${k}Pages[2]+${k}Pages[0]+1u;
+}
+fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
+ let s=${k}Slot(slot);
+ if(s.tail==0u){return 0u;}
+ var at=uv;var lod=0.0;
+ if(sampled){
+  let r=${k}Footprint(slot,s,uv,ddx,ddy,aniso);
+  at=r.uv+r.axis*tapOffset(along*(r.taps-1u)/2u,r.taps);lod=r.lod;
+ }else{lod=slotLod(s,ddx,ddy);}
+ let level=u32(floor(lod))+select(0u,1u,next&&lod-floor(lod)>0.0);
+ return ${k}RequestAt(s,slotWrapped(s,at),level,missing);
+}`,
+  )
+
+/**
+ * THE ONE STRIDE RULE of the feedback: the pixels that speak an image are one per square of
+ * `feedbackStride(word)` pixels, at `feedbackOffset(word)` in it — `FEEDBACK_STRIDE` squares at the
+ * image's phase, or squares of one pixel, every pixel, during a convergence (`FEEDBACK_EVERY`).
+ * The request reads it (`feedbackPhase`), the reduction walks it (`reduceWgsl.ts`) and the CPU
+ * sizes the reduction by it (`feedbackStrideOf`).
+ */
+export const FEEDBACK_STRIDE_WGSL = wgslBlock(
+  'FEEDBACK_STRIDE_WGSL',
+  [],
+  `fn feedbackEvery(word:u32)->bool{return (word&${FEEDBACK_EVERY}u)!=0u;}
+fn feedbackStride(word:u32)->u32{return select(${FEEDBACK_STRIDE}u,1u,feedbackEvery(word));}
+fn feedbackOffset(word:u32)->vec2u{return select(vec2u(word&${FEEDBACK_STRIDE_MASK}u,(word>>${FEEDBACK_STRIDE_BITS}u)&${FEEDBACK_STRIDE_MASK}u),vec2u(0u),feedbackEvery(word));}`,
+)
+
+/**
+ * Whether a pixel speaks this image (`feedbackPhase`) and what it names: the rule every pass that
+ * asks for tiles shares. An ordinary image names ONE pick (`requestPick`), its position shifted by
+ * the image's pick turn. A convergence image (`feedbackEvery`) runs through all of a pixel's picks
+ * (`everyPick`, `PICK_TURNS` per map) and names the first whose tile is missing: one image asks
+ * every tile the pose reads, a sliver's included, so what a settled pose reads is what it asked,
+ * never what the pool kept of an earlier pose.
+ *
+ * It does so on every other row (`feedbackMissing`), the rows swapping each image: the others post
+ * their own pick as an ordinary image does, missing or not, and the reduction stamps the place it
+ * reads (`stampWgsl.ts`). A pixel's missing pick names the ancestor it reads, never its resident
+ * ones: were every pixel of a surface asking its missing normal tile, the base tile they all read
+ * would go unstamped and be given up while the image reads it. A pixel's read is stamped one image
+ * in two, inside the queue's in-use window; a missing tile is asked one image in two at worst.
+ */
+export const FEEDBACK_RULE_WGSL = wgslBlock(
+  'FEEDBACK_RULE_WGSL',
+  [FEEDBACK_STRIDE_WGSL],
+  `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;
+/** The pipeline writes the feedback target: false, folded at pipeline creation, every request is
+ *  zero and none of its code is reached — one module serves the pipelines with the target and
+ *  without it, whose targets leave the request's location empty. */
+override FEEDBACK:bool=true;
+fn feedbackMissing(p:vec2f,word:u32)->bool{return feedbackEvery(word)&&((u32(p.y)+word)&1u)==0u;}
+/** The pixel speaks this image: it is its square's speaking pixel (\`feedbackStride\`). */
+fn feedbackPhase(p:vec2f,word:u32)->bool{return all((vec2u(p)&vec2u(feedbackStride(word)-1u))==feedbackOffset(word));}
+struct RequestPick{sel:u32,next:bool,along:u32,}
+fn pickOf(px:u32,choices:u32)->RequestPick{
+ return RequestPick(px%choices,((px/choices)&${PICK_BLENDS - 1}u)==1u,(px/choices/${PICK_BLENDS}u)%${PICK_TAPS}u);
+}
+fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+(word>>${PICK_SHIFT}u),choices);}
+/** Pick \`turn\` of a pixel: \`choices*PICK_TURNS\` turns in a row name each of them once. */
+fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`,
+)
+
+/** The pipeline constants of a fragment stage writing the feedback target or not (`FEEDBACK`): the
+ *  one switch of every pass that asks tiles — opaque resolve, blends, transmissive layers. */
+export const feedbackConstants = (feedback: boolean) => ({ FEEDBACK: feedback ? 1 : 0 })
+
+/** What a surface's request loop is made of (`requestLoopFn`): its function's head, the pixel
+ *  position and feedback word it speaks by, the lines a surface runs before its phase (`before`) and those a
+ *  speaking pixel needs (`setup`), its count of picks, and its pick's call on a pick and `missing`. */
+type RequestLoop = {
+  head: string
+  pos: string
+  word: string
+  before?: string
+  setup?: string
+  choices: string
+  pick: (pick: string, missing: string) => string
+}
+
+/**
+ * THE REQUEST LOOP of every surface that asks tiles, under `FEEDBACK_RULE_WGSL`: a pixel out of its
+ * phase asks nothing; on a convergence's asking rows it names the first of its picks whose tile is
+ * missing (`everyPick`, `PICK_TURNS` per choice); else its own pick (`requestPick`). Each surface
+ * brings only its choices and its pick; the loop is this one text.
+ */
+export const requestLoopFn = ({ head, pos, word, before, setup, choices, pick }: RequestLoop) =>
+  `${head}{
+ if(!FEEDBACK){return 0u;}
+${before ? ` ${before}\n` : ''} if(!feedbackPhase(${pos},${word})){return 0u;}
+${setup ? ` ${setup}\n` : ''} let choices=${choices};
+ if(feedbackMissing(${pos},${word})){
+  for(var turn=0u;turn<choices*PICK_TURNS;turn++){
+   let rank=${pick(`everyPick(${pos},choices,turn)`, 'true')};
+   if(rank!=0u){return rank;}
+  }
+ }
+ return ${pick(`requestPick(${pos},choices,${word})`, 'false')};
+}`
+
+const m = WRAP_MAP
+/**
+ * Tile rank a pixel asks for, plus one, or zero: `colorRequestIndex(slot, uv, ddx, ddy, next,
+ * along, aniso, sampled, missing)` and `dataRequestIndex(...)`, `next` choosing the blend's second level.
+ *
+ * Then the rule common to both passes that write the feedback target — opaque resolve and blend —:
+ * a pixel speaks only if it is its phase (`feedbackPhase`, all of them during a convergence), and it
+ * asks for ONE map, chosen by its POSITION (`requestPick`): a tile covers dozens of pixels, so each
+ * map, each of the two blend levels and each end of an anisotropic footprint is named by a share
+ * of them. The image's pick turn shifts that position (`PICK_CYCLE`), and a convergence image
+ * names every pick of every pixel (`everyPick`). The camera cutout reads the
+ * base map as the shading does (`maskAlphaWgsl`), so a masked base map asks one level too. The
+ * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapPick`). Hosts build their slots from the page row or the transparent item.
+ */
+export const TILE_REQUEST_WGSL = wgslBlock(
+  'TILE_REQUEST_WGSL',
+  [tileRequestIndexWgsl('color'), tileRequestIndexWgsl('data'), FEEDBACK_RULE_WGSL],
+  `const MAP_CHOICES:u32=${MAP_CHOICES}u;
+/** The map a pick \`sel\` names: its slot — the base's where that map is absent, zero for none —,
+ *  whether it is a colour map, and its rank (\`WRAP_MAP\`), which names its UV set.
+ *  \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
+struct MapPick{slot:u32,isColor:bool,map:u32,}
+fn mapPick(sel:u32,color:vec2u,data:vec4u)->MapPick{
+ var k=MapPick(color.x,true,${m.base}u);
+ if(sel==${m.rough}u){k=MapPick(data.x,false,sel);}
+ else if(sel==${m.metal}u){k=MapPick(data.y,false,sel);}
+ else if(sel==${m.normal}u){k=MapPick(data.z,false,sel);}
+ else if(sel==${m.ao}u){k=MapPick(data.w,false,sel);}
+ else if(sel==${m.emissive}u){k=MapPick(color.y,true,sel);}
+ if(k.slot==0u){k=MapPick(color.x,true,${m.base}u);}
+ return k;
+}
+/** The tile map \`k\` asks at \`uv\`, plus one, or zero without a map. */
+fn pickRequest(p:RequestPick,missing:bool,k:MapPick,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->u32{
+ if(k.slot==0u){return 0u;}
+ if(k.isColor){return colorRequestIndex(k.slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);}
+ return dataRequestIndex(k.slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);
+}`,
+)

@@ -1,6 +1,6 @@
 // #1521: compiled models added to a world's scene while its session runs — a second model, one
 // whose coplanar layers the session was opened without, a crowd cut in cells a partition reads by
-// distance — join the session in place (`world/core/worldModelJoin.ts`): the session is not opened
+// distance — join the session in place (`world/models/modelJoin.ts`): the session is not opened
 // again, and its image is pixel for pixel the image of a world opened on all of them. A model that
 // leaves the scene is parked, and drawn again where the scene takes it back.
 import test from 'node:test'
