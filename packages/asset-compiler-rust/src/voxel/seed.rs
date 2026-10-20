@@ -90,9 +90,10 @@ impl SeedGroup {
     }
 }
 
-/// A mesh's shape preservation, read per mesh from its glTF `extras.shapePreservation` (`"none"`,
-/// the default, or `"voxelize"`), where the compiler reads every per-mesh build setting
-/// (`coplanar::surface`). Any other word reads as `None`.
+/// A mesh's shape preservation: `Voxelize` for a mesh the job voxelizes — by its `voxelize`
+/// match, its HLOD `voxel` chain or its own glTF `extras.shapePreservation` (`VOXELIZE_EXTRA`,
+/// `"none"` the default, or `"voxelize"`; any other word reads as `None`) —
+/// (`compiler_args::VoxelizeOptions::meshes`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum ShapePreservation {
     #[default]
@@ -101,10 +102,10 @@ pub(crate) enum ShapePreservation {
 }
 
 impl ShapePreservation {
-    /// The setting of glTF mesh `mesh`.
+    /// The setting glTF mesh `mesh`'s own `extras` names.
     pub(crate) fn of(mesh: &serde_json::Value) -> Self {
-        let named = mesh
-            .pointer("/extras/shapePreservation")
+        let named = (mesh.get("extras"))
+            .and_then(|e| e.get(crate::shared_math::abi::VOXELIZE_EXTRA))
             .and_then(|v| v.as_str());
         match named {
             Some("voxelize") => Self::Voxelize,

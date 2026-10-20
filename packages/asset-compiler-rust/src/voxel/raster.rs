@@ -2,6 +2,8 @@
 //! along the axis its normal leans on most, each from its plane's span over the column, every voxel
 //! kept by the separating-axis test (Akenine-Möller). A voxel the triangle only touches is kept, so
 //! a surface lying on a voxel face leaves no hole; the rays then give it to one side (`sample.rs`).
+use crate::proxy::tracer::{vertex, World};
+use std::collections::HashMap;
 use trillion3d_math::vec3::{cross, dominant_axis};
 use trillion3d_math::vecn::{dot, scale, sub};
 
@@ -71,4 +73,27 @@ fn overlaps(t: [[f64; 3]; 3], cell: Cell) -> bool {
     !(units.into_iter().any(separates)
         || separates(cross(edges[0], edges[1]))
         || crossed.into_iter().any(separates))
+}
+
+/// The triangles of `triangles` — ranks in `world` — overlapping each of `candidates`, cells of side
+/// `side`, by their rank: what both an HLOD cell's tiles and a mesh's far groups sample each voxel
+/// against.
+pub(super) fn binned(
+    world: &World,
+    (candidates, side): (&[Cell], f64),
+    triangles: impl Iterator<Item = usize>,
+) -> Vec<Vec<u32>> {
+    let at: HashMap<Cell, usize> = (candidates.iter().enumerate())
+        .map(|(i, &c)| (c, i))
+        .collect();
+    let mut bins: Vec<Vec<u32>> = vec![Vec::new(); candidates.len()];
+    for t in triangles {
+        let c = [0, 1, 2].map(|k| vertex(world, t, k));
+        cells(c, side, |cell| {
+            if let Some(&i) = at.get(&cell) {
+                bins[i].push(t as u32);
+            }
+        });
+    }
+    bins
 }

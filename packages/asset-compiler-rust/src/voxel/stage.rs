@@ -26,8 +26,8 @@
 //! is opaque voxels. A group keeps at least one voxel; a mesh none of whose sides keeps one has no
 //! far group, its roots drawn at every distance.
 use super::bricks::{brick_record, bricks, most, voxel_record, Brick, BRICK_BYTES, VOXEL_BYTES};
-use super::raster::{cells, Cell};
-use super::sample::{sample, Moments, Probe};
+use super::raster::{binned, cells, Cell};
+use super::sample::Probe;
 use super::seed::{SeedGroup, VoxelSeed};
 use super::solid::{solid, Voxel};
 use super::{ERROR_PER_SIZE, VOXEL_FILE, VOXEL_VERSION};
@@ -44,6 +44,7 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::Range;
 use std::path::Path;
+use trillion3d_math::aabb::aabb_of;
 use trillion3d_math::vecn::sub;
 
 /// Bytes of the head and of a group's record.
@@ -199,12 +200,7 @@ fn voxelize_mesh(
         tie: traceable.tie(),
     };
     let boxes: Vec<([f64; 3], [f64; 3])> = (0..count)
-        .map(|t| {
-            let c = [0, 1, 2].map(|k| vertex(&traceable.world, t, k));
-            let low = std::array::from_fn(|k| c[0][k].min(c[1][k]).min(c[2][k]));
-            let high = std::array::from_fn(|k| c[0][k].max(c[1][k]).max(c[2][k]));
-            (low, high)
-        })
+        .map(|t| aabb_of([0, 1, 2].map(|k| vertex(&traceable.world, t, k))))
         .collect();
     let whole = Surface {
         probe: &probe,
@@ -440,46 +436,23 @@ fn voxelize(
 
 /// Each of `candidates` sampled against the primitive's triangles that overlap it.
 fn sampled(surface: &Surface<'_>, candidates: &[Cell], side: f64) -> Vec<Voxel> {
-    let world = &surface.probe.mesh.world;
-    let at: HashMap<Cell, usize> = (candidates.iter().enumerate())
-        .map(|(i, &c)| (c, i))
-        .collect();
     let bound = |k: usize, pick: fn(i32, i32) -> i32, end: i32| {
         let c = candidates.iter().map(|c| c[k]).reduce(pick).unwrap_or(0);
         f64::from(c + end) * side
     };
     let low: [f64; 3] = std::array::from_fn(|k| bound(k, i32::min, 0));
     let high: [f64; 3] = std::array::from_fn(|k| bound(k, i32::max, 1));
-    let mut bins: Vec<Vec<u32>> = vec![Vec::new(); candidates.len()];
-    for (t, (from, to)) in surface.range.clone().zip(surface.boxes) {
-        if (0..3).any(|k| from[k] > high[k] || to[k] < low[k]) {
-            continue;
-        }
-        let c = [0, 1, 2].map(|k| vertex(world, t, k));
-        cells(c, side, |cell| {
-            if let Some(&i) = at.get(&cell) {
-                bins[i].push(t as u32);
-            }
-        });
-    }
+    let near = (surface.range.clone().zip(surface.boxes))
+        .filter(|(_, (from, to))| (0..3).all(|k| from[k] <= high[k] && to[k] >= low[k]))
+        .map(|(t, _)| t);
+    let bins = binned(&surface.probe.mesh.world, (candidates, side), near);
     (candidates.par_iter().zip(&bins))
         .map(|(&cell, ranks)| {
-            let (coverage, faces, seen) = sample(surface.probe, cell, side, ranks);
-            let materials = &surface.probe.mesh.materials;
-            let material = seen.and_then(|s| materials[s as usize]);
             let joint = surface.joints.and_then(|j| {
                 let of = ranks.iter().map(|&r| j[r as usize - surface.range.start]);
                 most(of.filter(|&j| j != u16::MAX))
             });
-            Voxel {
-                cell,
-                coverage,
-                faces,
-                shown: Moments::default(),
-                closed: 0,
-                material: material.map(|m| m.min(u64::from(u16::MAX - 1)) as u16),
-                joint,
-            }
+            Voxel::sampled(surface.probe, (cell, side), ranks, joint)
         })
         .collect()
 }
@@ -568,7 +541,7 @@ fn encode(done: &[Voxelled]) -> Vec<u8> {
         for brick in &group.bricks {
             brick_bytes.extend_from_slice(&brick_record(brick, first));
             for &v in &brick.voxels {
-                voxel_bytes.extend_from_slice(&voxel_record(&group.voxels[v], group.side));
+                voxel_bytes.extend_from_slice(&voxel_record(&group.voxels[v]));
             }
         }
     }
