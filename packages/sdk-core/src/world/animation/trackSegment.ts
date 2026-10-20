@@ -6,7 +6,7 @@ import {
   lengthQuaternion,
   slerpArc,
 } from '../../../../math/src/quaternion/quaternion.ts'
-import { saturate } from '../../../../math/src/scalar/reals.ts'
+import { lerp, saturate } from '../../../../math/src/scalar/reals.ts'
 
 /** What `segmentSpeed` gives a segment at whose end the value itself leaps. */
 export const LEAPS = -1
@@ -111,7 +111,7 @@ function normalised(a: Float64Array, b: Float64Array, span: number, bend: number
   for (let c = 0; c < 4; c++) along -= a[c] * (b[c] - a[c])
   const lambda = chord > 0 ? saturate(along / chord) : 0
   let near = 0
-  for (let c = 0; c < 4; c++) near += (a[c] + lambda * (b[c] - a[c])) ** 2
+  for (let c = 0; c < 4; c++) near += lerp(a[c], b[c], lambda) ** 2
   const least = Math.sqrt(near) - (bend * span * span) / 8
   return least > 0 && lengthQuaternion(a) > 0 && lengthQuaternion(b) > 0 ? speed / least : Infinity
 }

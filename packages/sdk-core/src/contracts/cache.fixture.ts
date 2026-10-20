@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { assertCacheIdentity, EngineError } from './cache.ts'
 
 export const root = {
-  schema: 11,
   formatVersion: 11,
   status: 'ready',
   scope: 'full',
@@ -12,9 +11,8 @@ export const root = {
   selectedTriangles: 0,
 }
 export const identity = {
-  schema: 11,
   formatVersion: 11,
-  errorModel: 'dag-group-qem-v3',
+  errorModel: 'dag-group-qem-v4',
   primitives: [],
 }
 /** `work` throws an engine error of `code`, with `details` and words naming each of `facts`;

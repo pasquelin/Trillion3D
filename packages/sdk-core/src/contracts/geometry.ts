@@ -1,7 +1,6 @@
 import type { DagReport, PrimitiveDagStall } from './dag.ts'
 import type { AssetScope } from './base.ts'
 import type { RuntimeCutProxy, SceneProxyDescriptor } from './proxy.ts'
-import type { ImpostorSection } from './impostor.ts'
 import type {
   GeometryPageDescriptor,
   GeometryPageFormat,
@@ -74,22 +73,6 @@ export function pageCarriesClusterError(page: Page) {
 export function primitiveUsesClusterErrors(primitive: Pick<Primitive, 'pages'>) {
   return primitive.pages.length > 0 && primitive.pages.every(pageCarriesClusterError)
 }
-/** Layout of an unsplit primitive kept outside the cluster DAG by the compiler:
- *  full mesh, source order preserved. The material property that leads there is
- *  transmission, never an object name. */
-export const UNSPLIT_PASS = 'shared-blend'
-/**
- * A primitive that this runtime can draw. Two forms, and two only: a DAG where each
- * cluster carries its screen error band, or an unsplit mesh that the compiler
- * left outside the DAG — that one has no pages, hence no band, which is its definition, not a
- * gap. A shared-blend primitive that still carries pages comes from a compiler
- * that we do not read: it is rejected like a DAG without band.
- */
-export function primitiveIsDrawable(primitive: Pick<Primitive, 'pages' | 'pass'>) {
-  return primitive.pass === UNSPLIT_PASS
-    ? primitive.pages.length === 0
-    : primitiveUsesClusterErrors(primitive)
-}
 /** Flat culling hierarchy over a primitive's clusters. `stride` numbers per node, node 0 is the root:
  *  min[3], max[3], sphere[4], maxParentError (-1 when the subtree holds a cluster with no
  *  replacement), firstChild, childCount, firstPage, pageCount. A leaf has childCount 0. */
@@ -112,8 +95,11 @@ export interface ClusterStructure {
   /** Clusters nothing replaces. */ roots: number[]
   /** Every group. */ groups: ClusterGroup[]
 }
-/** A file holding many clusters, fetched in one request. */ export interface StreamBundle {
-  /** Where it is read. */ url: string
+/** Clusters read together in one request, kept and dropped together. */ export interface StreamBundle {
+  /** Where it is read; for a range of a geometry container, its name in the page catalogue: the
+   *  container's address and its offset there. */ url: string
+  /** A range of a geometry container: `bytes` of the file at `file`, from `offset`. */
+  range?: { file: string; offset: number }
   /** Fingerprint of its bytes. */ sha256: string
   /** Its size. */ bytes: number
   /** Clusters it holds. */ count: number
@@ -155,26 +141,21 @@ export interface StreamCatalogue {
     joints: number[]
     targets: number[]
     softVertices?: number
-    softSourceIds?: number[]
     /** The soft body kind its node declares, when a soft body draws it (`drawnTwoSided`). */
     softKind?: SoftBodyType
   } | null
-  /** What the mesh's edges and corners look like. */ topology?: {
-    triangles: number
-    edges: { boundary: number; manifold: number; nonManifold: number }
-    vertices: { interior: number; boundary: number; locked: number; unused: number }
-    manifold: boolean
-  }
 }
 /** The manifest of a compiled model: its primitives, their pages and how it was made. */
 export interface ClusterManifest {
-  /** Cache format. */ formatVersion?: number
+  /** Cache format. */ formatVersion: number
   /** Compiler version. */ compilerVersion?: string
   /** How errors are measured. */ errorModel?: string
   /** The cluster page format of every `pages[].geometry`; absent from a cache without pages. */
   geometryPages?: GeometryPageFormat
   /** Whether meshes were simplified. */ simplification?: boolean
-  /** Manifest format. */ schema: number
+  /** The scene's temporal anti-aliasing level, only when its job named one (`TEMPORAL_AA_FIELD`):
+   *  the runtime's `'scene'` setting. */
+  temporalAntialiasing?: import('./compilerAbi.ts').TemporalAntialiasingLevel
   /** Compile outcome. */ status: string
   /** Cache key. */ key: string
   /** Full or streamed. */ scope: AssetScope
@@ -190,7 +171,8 @@ export interface ClusterManifest {
   /** One entry per decoded (texture, atlas), sorted by texture then by atlas; empty without a
    *  decodable image. */
   texturePreviews?: TexturePreview[]
-  /** Template for baked levels, relative to manifest: {sha} the source image digest,
+  /** Template for baked levels, relative to manifest: {sha} the chain's fingerprint — its source
+   *  image digest and the channels and cuts that decide its bytes —,
    *  {kind} the atlas name (PREVIEW_ATLAS_NAMES; `srgb-coverage-<C>` for a coverage chain cut at
    *  byte C), {level} the level rank. Absent from a
    *  cache compiled before baked levels, which this reader rejects via sidecar version. `version`
@@ -199,6 +181,4 @@ export interface ClusterManifest {
   /** Where to read the resident scene proxy and its BVH: geometry hit by rays.
    *  Absent from a cache compiled before bounce, which remains readable as is. */
   proxy?: SceneProxyDescriptor
-  /** Per-mesh impostor atlases baked by the compiler; absent from a pre-impostor cache. */
-  impostors?: ImpostorSection
 }

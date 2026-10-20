@@ -61,7 +61,7 @@ export class Box3 {
   }
   /** Whether the box holds nothing (`boxIsEmpty`). */
   isEmpty() {
-    return boxIsEmpty(this.toFlat(flat), 0)
+    return boxIsEmpty(boxToFlat(this, flat), 0)
   }
   /** Takes the corners of another box. */
   copy(b: Box3) {
@@ -73,31 +73,31 @@ export class Box3 {
   }
   /** Grows the box just enough to hold a point. */
   expandByPoint(p: XYZLike) {
-    boxExpandByPoint(this.toFlat(flat), 0, p.x, p.y, p.z)
-    return this.written()
+    boxExpandByPoint(boxToFlat(this, flat), 0, p.x, p.y, p.z)
+    return boxFromFlat(this, flat)
   }
   /** Grows the box by `s` on every side. */
   expandByScalar(s: number) {
-    boxGrow(flat, 0, this.toFlat(flat), 0, s)
-    return this.written()
+    boxGrow(flat, 0, boxToFlat(this, flat), 0, s)
+    return boxFromFlat(this, flat)
   }
   /** Grows the box to hold another box too. */
   union(b: Box3) {
-    boxUnion(this.toFlat(flat), 0, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z)
-    return this.written()
+    boxUnion(boxToFlat(this, flat), 0, b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z)
+    return boxFromFlat(this, flat)
   }
   /** The smallest box around a flat list of coordinates: every whole point, one each `itemSize`
    *  numbers. */
   setFromArray(array: ArrayLike<number>, itemSize = 3) {
     const count = array.length < 3 ? 0 : Math.floor((array.length - 3) / itemSize) + 1
     boxFromPoints(flat, 0, array, 0, count, itemSize)
-    return this.written()
+    return boxFromFlat(this, flat)
   }
   /** The smallest box around a list of points. */
   setFromPoints(points: XYZLike[]) {
     boxEmpty(flat, 0)
     for (const p of points) boxExpandByPoint(flat, 0, p.x, p.y, p.z)
-    return this.written()
+    return boxFromFlat(this, flat)
   }
   /** The world box of everything under `node`, each content's box carried by its world matrix. */
   setFromObject(node: BoundedNode) {
@@ -111,8 +111,8 @@ export class Box3 {
   }
   /** Moves the box by a matrix and keeps it lined up with the axes. */
   applyMatrix4(m: Matrix4) {
-    boxTransform(flat, 0, this.toFlat(flat), 0, m.elements)
-    return this.written()
+    boxTransform(flat, 0, boxToFlat(this, flat), 0, m.elements)
+    return boxFromFlat(this, flat)
   }
   /** The middle of the box (`boxCenter`); an empty box's is the origin. */
   getCenter(out = new Vector3()) {
@@ -127,11 +127,11 @@ export class Box3 {
   }
   /** Whether a point is inside the box, its faces included (`boxContainsPoint`). */
   containsPoint(p: XYZLike) {
-    return boxContainsPoint(this.toFlat(flat), 0, p.x, p.y, p.z)
+    return boxContainsPoint(boxToFlat(this, flat), 0, p.x, p.y, p.z)
   }
   /** Whether two boxes overlap, touching faces included (`boxesOverlap`). */
   intersectsBox(b: Box3) {
-    return boxesOverlap(this.toFlat(flat), 0, b.toFlat(other), 0)
+    return boxesOverlap(boxToFlat(this, flat), 0, boxToFlat(b, other), 0)
   }
   /** The sphere through the corners (`sphereFromBounds`); an empty box gives radius −1. */
   getBoundingSphere<T extends { center: Vector3; radius: number }>(out: T): T {
@@ -145,20 +145,23 @@ export class Box3 {
   equals(b: Box3) {
     return this.min.equals(b.min) && this.max.equals(b.max)
   }
-  /** The six bounds written flat into `into`, min then max. */
-  private toFlat(into: Float64Array) {
-    into[0] = this.min.x
-    into[1] = this.min.y
-    into[2] = this.min.z
-    into[3] = this.max.x
-    into[4] = this.max.y
-    into[5] = this.max.z
-    return into
-  }
-  /** The six bounds of `flat` written back into the corners. */
-  private written() {
-    this.min.set(flat[0], flat[1], flat[2])
-    this.max.set(flat[3], flat[4], flat[5])
-    return this
-  }
+}
+
+/** The six bounds of `box` written flat into `into`, min then max: not on the SDK's facade
+ *  (`index.ts` names `Box3` alone). */
+export function boxToFlat(box: Box3, into: Float64Array) {
+  into[0] = box.min.x
+  into[1] = box.min.y
+  into[2] = box.min.z
+  into[3] = box.max.x
+  into[4] = box.max.y
+  into[5] = box.max.z
+  return into
+}
+
+/** `box`'s corners from the six bounds of `from`, min then max. */
+export function boxFromFlat<T extends Box3>(box: T, from: ArrayLike<number>) {
+  box.min.set(from[0], from[1], from[2])
+  box.max.set(from[3], from[4], from[5])
+  return box
 }

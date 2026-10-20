@@ -6,7 +6,9 @@ import type {
   StreamBundle,
   StreamCatalogue,
 } from '../contracts/geometry.ts'
-import type { SlimPrimitiveBinary } from './binaryTypes.ts'
+import { streamBundleAddress } from '../page/contracts.ts'
+import * as format from './binaryFormat.ts'
+import type { GeometryFile, SlimPrimitiveBinary } from './binaryTypes.ts'
 
 /** Where the walk over the shared columns currently is. Each decoder advances its own cursor. */
 export interface PartCursors {
@@ -19,7 +21,7 @@ export interface PartCursors {
   dependency: number
 }
 
-/** The bundle columns: two words, a digest and a dependency list per bundle. */
+/** The bundle columns: four words, a digest and a dependency list per bundle. */
 export interface BundleColumns {
   bundleWords: Uint32Array
   bundleShaText: string
@@ -101,28 +103,38 @@ export function decodeStructure(
   return { version: binary.structure.version, roots, groups }
 }
 
-/** The streaming bundles of one primitive, each named by its own digest. */
+/** The streaming bundles of one primitive, each a range of the container `files` names at its
+ *  rank, named in the catalogue by where it lies (`streamBundleAddress`). */
 export function decodeStreams(
   binary: SlimPrimitiveBinary,
   { bundleWords: words, bundleShaText: shaText, ...lists }: BundleColumns,
-  url: { prefix: string; suffix: string },
+  files: readonly GeometryFile[],
   cursors: PartCursors,
-): StreamCatalogue | null | undefined {
-  if (binary.streams === undefined) return undefined
-  if (binary.streams === null) return null
+): StreamCatalogue | undefined {
+  if (!binary.streams) return undefined
   const pages: StreamBundle[] = new Array(binary.streams.pages)
   for (let b = 0; b < binary.streams.pages; b++, cursors.bundle++) {
-    const sha = shaText.substring(cursors.bundle * 64, cursors.bundle * 64 + 64)
-    const count = lists.bundleDependencyCount[cursors.bundle]
-    const dependencies = Array.from(
-      lists.bundleDependency.subarray(cursors.dependency, (cursors.dependency += count)),
-    )
+    const at = cursors.bundle * 4,
+      file = files[words[at + format.BUNDLE_FILE]]
+    if (!file)
+      throw new EngineError(
+        'INVALID_CACHE',
+        'A bundle lies in a geometry file the manifest lacks',
+        {
+          bundle: b,
+        },
+      )
+    const offset = words[at + format.BUNDLE_OFFSET],
+      count = lists.bundleDependencyCount[cursors.bundle]
     pages[b] = {
-      url: url.prefix + sha + url.suffix,
-      sha256: sha,
-      bytes: words[cursors.bundle * 2],
-      count: words[cursors.bundle * 2 + 1],
-      dependencies,
+      url: streamBundleAddress(file.url, offset),
+      range: { file: file.url, offset },
+      sha256: shaText.substring(cursors.bundle * 64, cursors.bundle * 64 + 64),
+      bytes: words[at + format.BUNDLE_BYTES],
+      count: words[at + format.BUNDLE_COUNT],
+      dependencies: Array.from(
+        lists.bundleDependency.subarray(cursors.dependency, (cursors.dependency += count)),
+      ),
     }
   }
   return {

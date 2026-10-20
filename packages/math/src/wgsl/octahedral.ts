@@ -1,5 +1,6 @@
 import { wgslConst, wgslFn } from './decl.ts'
 import { wgslF32 } from './number.ts'
+import { byteOf } from './integer.ts'
 import { OCT_BYTE_STEP as BYTE_STEP } from '../constants.ts'
 
 /**
@@ -27,13 +28,21 @@ export const octEncode = wgslFn(
 }`,
 )
 
+/** The point of the octahedron a square point lands from, not yet normalized: the impostor's map
+ *  swizzles it first, so its length sums the components in its own axes' order. */
+const octUnfold = wgslFn(
+  'octUnfold',
+  [octFold],
+  `fn octUnfold(e:vec2f)->vec3f{
+ let z=1.0-abs(e.x)-abs(e.y);
+ return vec3f(select(e,octFold(e),z<0.0),z);
+}`,
+)
+
 export const octDecode = wgslFn(
   'octDecode',
-  [octFold],
-  `fn octDecode(e:vec2f)->vec3f{
- let z=1.0-abs(e.x)-abs(e.y);
- return normalize(vec3f(select(e,octFold(e),z<0.0),z));
-}`,
+  [octUnfold],
+  'fn octDecode(e:vec2f)->vec3f{return normalize(octUnfold(e));}',
 )
 
 /**
@@ -57,13 +66,13 @@ export const octEncodeHemi = wgslFn(
 
 export const octDecodeHemi = wgslFn(
   'octDecodeHemi',
-  [octDecode],
+  [octUnfold],
   `fn octDecodeHemi(f:vec2f,hemi:f32)->vec3f{
  let hx=f.x-f.y;
  let hz=f.x+f.y-1.0;
  let hemiDir=normalize(vec3f(hx,1.0-abs(hx)-abs(hz),hz));
- let full=octDecode(f*2.0-1.0);
- return select(full.xzy,hemiDir,hemi==1.0);
+ let full=normalize(octUnfold(f*2.0-1.0).xzy);
+ return select(full,hemiDir,hemi==1.0);
 }`,
 )
 
@@ -73,4 +82,12 @@ export const OCT_BYTE_STEP = wgslConst(
   'OCT_BYTE_STEP',
   [],
   `const OCT_BYTE_STEP:f32=${wgslF32(BYTE_STEP)};`,
+)
+
+/** The unit vector of the two octahedral bytes at byte `k` of `word` (`OCT_BYTE_STEP`): a page's
+ *  normals and a voxel's contour normal, read the one way. */
+export const octBytesDecode = wgslFn(
+  'octBytesDecode',
+  [octDecode, byteOf, OCT_BYTE_STEP],
+  'fn octBytesDecode(word:u32,k:u32)->vec3f{return octDecode(vec2f(f32(byteOf(word,k)),f32(byteOf(word,k+1u)))*OCT_BYTE_STEP-1.0);}',
 )

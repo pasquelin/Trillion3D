@@ -5,19 +5,37 @@
  * corners with `Math.min` and `Math.max`, a NaN kept (`doubleOrder.ts`) — `boxTransform`.
  */
 import { wgslFn } from './decl.ts'
-import { dAdd, dDiv, dMul } from './double.ts'
+import { dAdd, dDiv, dDot3, dMul } from './double.ts'
 import { dIsZero } from './doubleWords.ts'
 import { dMathMax, dMathMin } from './doubleOrder.ts'
 import { D_INFINITY, D_NEG_INFINITY, D_ONE } from './doubleConstants.ts'
 
+/** One row of an affine product, its three factors `a`, `b`, `c` and its translation `t`:
+ *  `a·x + b·y + c·z + t`, summed left to right. */
+export const affineRow = wgslFn(
+  'affineRow',
+  [dAdd, dDot3],
+  `fn affineRow(a:vec2u,b:vec2u,c:vec2u,t:vec2u,x:vec2u,y:vec2u,z:vec2u)->vec2u{
+ return dAdd(dDot3(a,x,b,y,c,z),t);
+}`,
+)
+
 /** Row `i` of `w · (x, y, z, 1)`, `w` sixteen doubles column-major:
- *  `w[i]·x + w[4+i]·y + w[8+i]·z + w[12+i]`, summed left to right. */
+ *  `w[i]·x + w[4+i]·y + w[8+i]·z + w[12+i]` (`affineRow`). */
 export const affineAxis = wgslFn(
   'affineAxis',
-  [dAdd, dMul],
+  [affineRow],
   `fn affineAxis(w:array<vec2u,16>,i:u32,x:vec2u,y:vec2u,z:vec2u)->vec2u{
- return dAdd(dAdd(dAdd(dMul(w[i],x),dMul(w[4u+i],y)),dMul(w[8u+i],z)),w[12u+i]);
+ return affineRow(w[i],w[4u+i],w[8u+i],w[12u+i],x,y,z);
 }`,
+)
+
+/** Coordinate `axis` of corner `k` of a box (six doubles, its minima then its maxima): the maximum
+ *  when bit `axis` of `k` is set, else the minimum. */
+export const dBoxCorner = wgslFn(
+  'dBoxCorner',
+  [],
+  'fn dBoxCorner(box:array<vec2u,6>,k:u32,axis:u32)->vec2u{return select(box[axis],box[axis+3u],((k>>axis)&1u)!=0u);}',
 )
 
 /** The text of `boxTransform` of a box (six doubles, its minima then its maxima) by `m`: the union
@@ -34,7 +52,7 @@ function boxTransformText(name: string, projective: boolean) {
  let affine=dIsZero(m[3])&&dIsZero(m[7])&&dIsZero(m[11])&&m[15].x==D_ONE.x&&m[15].y==D_ONE.y;`
   const divide = `
   if(!affine){
-   let mw=dDiv(D_ONE,affineAxis(m,3u,lx,ly,lz));
+   let mw=dDiv(D_ONE,affineRow(m[3],m[7],m[11],m[15],lx,ly,lz));
    x=dMul(x,mw);
    y=dMul(y,mw);
    z=dMul(z,mw);
@@ -49,9 +67,9 @@ function boxTransformText(name: string, projective: boolean) {
   let lx=select(box[0],box[3],(i&1u)!=0u);
   let ly=select(box[1],box[4],(i&2u)!=0u);
   let lz=select(box[2],box[5],(i&4u)!=0u);
-  var x=affineAxis(m,0u,lx,ly,lz);
-  var y=affineAxis(m,1u,lx,ly,lz);
-  var z=affineAxis(m,2u,lx,ly,lz);${projective ? divide : ''}
+  var x=affineRow(m[0],m[4],m[8],m[12],lx,ly,lz);
+  var y=affineRow(m[1],m[5],m[9],m[13],lx,ly,lz);
+  var z=affineRow(m[2],m[6],m[10],m[14],lx,ly,lz);${projective ? divide : ''}
   out[0]=dMathMin(out[0],x);
   out[1]=dMathMin(out[1],y);
   out[2]=dMathMin(out[2],z);
@@ -66,7 +84,7 @@ function boxTransformText(name: string, projective: boolean) {
 /** `boxTransform` of a box by `m`, any matrix (`boxTransformText`): the enclosure's (`doubleEnclosure.ts`). */
 export const dBoxTransform = wgslFn(
   'dBoxTransform',
-  [affineAxis, dDiv, dMul, dIsZero, dMathMax, dMathMin, D_ONE, D_INFINITY, D_NEG_INFINITY],
+  [affineRow, dDiv, dMul, dIsZero, dMathMax, dMathMin, D_ONE, D_INFINITY, D_NEG_INFINITY],
   boxTransformText('dBoxTransform', true),
 )
 
@@ -74,6 +92,6 @@ export const dBoxTransform = wgslFn(
  *  a node tree composes, every one affine (`../../../sdk-browser/src/placement/`). */
 export const dBoxAffine = wgslFn(
   'dBoxAffine',
-  [affineAxis, dMathMax, dMathMin, D_INFINITY, D_NEG_INFINITY],
+  [affineRow, dMathMax, dMathMin, D_INFINITY, D_NEG_INFINITY],
   boxTransformText('dBoxAffine', false),
 )

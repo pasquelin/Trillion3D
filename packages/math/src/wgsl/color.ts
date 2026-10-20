@@ -2,6 +2,7 @@ import { wgslFn } from './decl.ts'
 import { wgslF32 } from './number.ts'
 import { byteOf } from './integer.ts'
 import {
+  SRGB_DECODE_THRESHOLD,
   SRGB_ENCODE_THRESHOLD,
   SRGB_GAMMA,
   SRGB_OFFSET,
@@ -22,6 +23,13 @@ export const unorm8 = wgslFn(
   'fn unorm8(word:u32,k:u32)->f32{return f32(byteOf(word,k))/255.0;}',
 )
 
+/** A unit value's byte, `x · 255` rounded: no clamp, a caller saturates first. */
+export const unorm8Byte = wgslFn(
+  'unorm8Byte',
+  [],
+  'fn unorm8Byte(x:f32)->u32{return u32(round(x*255.0));}',
+)
+
 /**
  * The sRGB encode: `12.92·C` at and under 0.0031308, `1.055·C^(1/2.4) − 0.055` above, the twin of
  * the processor's `linearToSrgb`. The exponent is the `f32` nearest 1/2.4 (`wgslF32`): a rounded
@@ -36,4 +44,23 @@ export const linearToSrgb = wgslFn(
  let curve=${SRGB_SCALE}*pow(max(c,vec3f(0.0)),vec3f(${wgslF32(1 / SRGB_GAMMA)}))-${SRGB_OFFSET};
  return select(curve,c*${SRGB_SLOPE},c<=vec3f(${SRGB_ENCODE_THRESHOLD}));
 }`,
+)
+
+/** The sRGB decode, display to linear: `C/12.92` at and under 0.04045, `((C + 0.055)/1.055)^2.4`
+ *  above, the twin of the processor's `srgbToLinear`. */
+export const srgbToLinear = wgslFn(
+  'srgbToLinear',
+  [],
+  `fn srgbToLinear(c:vec3f)->vec3f{
+ let curve=pow((max(c,vec3f(0.0))+${SRGB_OFFSET})/${SRGB_SCALE},vec3f(${SRGB_GAMMA}));
+ return select(curve,c/${SRGB_SLOPE},c<=vec3f(${SRGB_DECODE_THRESHOLD}));
+}`,
+)
+
+/** The luminance of a linear colour: the Y row of the sRGB (Rec. 709 primaries, D65) to XYZ
+ *  matrix, the working space's own weights, the one luminance every shader reads. */
+export const luminance = wgslFn(
+  'luminance',
+  [],
+  'fn luminance(c:vec3f)->f32{return dot(c,vec3f(0.2126390059,0.7151686788,0.0721923154));}',
 )

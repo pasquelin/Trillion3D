@@ -7,9 +7,11 @@ import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 /**
- * System prompt guiding an LLM on Trillion3D principles, budgets, and rendering options.
+ * System prompt guiding an LLM on Trillion3D principles, budgets, and rendering options. Built by a
+ * call marked pure: its text reads the settings, and a bundle that never prompts drops it whole.
  */
-export const TRILLION3D_SYSTEM_PROMPT = `You are an expert on the Trillion3D engine, a virtualized geometry renderer and dynamic lighting pipeline built for the Web.
+export const TRILLION3D_SYSTEM_PROMPT =
+  /* @__PURE__ */ (() => `You are an expert on the Trillion3D engine, a virtualized geometry renderer and dynamic lighting pipeline built for the Web.
 
 Fundamental principles and architecture of Trillion3D:
 1. Virtualized Geometry:
@@ -30,7 +32,7 @@ Fundamental principles and architecture of Trillion3D:
 
 4. Performance Trade-offs:
    - To increase frame rate on constrained devices: increase \`pixelError\` (e.g., 2.0 or 3.0), or reduce memory pool allocations via \`trillion3d_set_memory_budgets\`.
-   - For maximum visual fidelity: set \`pixelError = 0\`, and \`temporalAntialiasing = true\`.`
+   - For maximum visual fidelity: set \`pixelError = 0\`, and \`temporalAntialiasing = true\`.`)()
 
 /**
  * Generates the ready-to-use expert system prompt to prime an LLM.

@@ -1,39 +1,17 @@
 /**
- * The world roots' records as the cook writes them (`compiler_world_roots/records.rs`), for
- * a test that hands the reader a table or a DAG it states plainly: a header, fixed-size records,
- * then the `u32` pool their lists lie in.
+ * The world HLOD's records as the cook writes them (`compiler_world_roots/records.rs`), for a test
+ * that hands the reader a table or a DAG it states plainly: a header, fixed-size records, then the
+ * `u32` pool their lists lie in.
  */
 import { uint64Words } from '../../../math/src/scalar/uint64.fixture.ts'
 import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
 import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts'
+import { WORLD_ROOTS_VERSION } from '../contracts/writtenFormats.ts'
 
-/** One placed primitive of a world cell as the cook writes it: the world bundles its roots need,
- *  up to the top. */
-type WorldRootsObject = {
-  /** Its published node. */
-  node: number
-  /** Its primitive in the manifest. */
-  primitive: number
-  /** The bundles of that primitive's streams holding its roots. */
-  roots: number[]
-  /** Every world bundle those roots need, ascending, up to the top. */
-  dependencies: number[]
-}
-
-/** A world-roots table stated plainly: its pages and cells as lists. */
-export type WorldRootsSpec = Omit<WorldRoots, 'pages' | 'cells'> & {
+/** A world-roots table stated plainly: its pages as a list. */
+export type WorldRootsSpec = Omit<WorldRoots, 'pages'> & {
   pages: { bundle: number; offset: number; bytes: number; level: number; lodError: number }[]
-  /** Each cell's objects and, per node of its file, the first of the node's objects (-1 for
-   *  none); absent, every run of one published node is a node of the file. */
-  cells: { objects: WorldRootsObject[]; nodes?: number[] }[]
 }
-
-/** Per run of one published node among `objects`, its first object: the nodes when a spec states
- *  none. */
-const runsOf = (objects: readonly WorldRootsObject[]) =>
-  objects.flatMap((object, k) => (k === 0 || objects[k - 1].node !== object.node ? [k] : []))
-
-const NONE = 0xffffffff
 
 /** A records file being written: little-endian words, `f64`s, raw bytes, and the pool. */
 function writer(magic: string) {
@@ -71,7 +49,6 @@ const digest = (hex: string) =>
 /** `spec` as `world-roots.table`. */
 export function encodeWorldRoots(spec: WorldRootsSpec) {
   const r = writer('WRTB')
-  const objects = spec.cells.flatMap((cell) => cell.objects)
   r.raw(digest(spec.payload.sha256))
   for (const bundle of spec.bundles) {
     r.word(...uint64Words(bundle.offset), bundle.bytes, bundle.count)
@@ -82,27 +59,18 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
     r.word(page.bundle, page.offset, page.level, page.bytes)
     r.float(page.lodError)
   }
-  let first = 0
-  for (const cell of spec.cells) {
-    r.word(first, cell.objects.length)
-    r.pooled((cell.nodes ?? runsOf(cell.objects)).map((k) => (k < 0 ? NONE : k)))
-    first += cell.objects.length
-  }
-  for (const object of objects) {
-    r.word(object.node, object.primitive)
-    r.pooled(object.roots)
-    r.pooled(object.dependencies)
-  }
+  spec.hlod.forEach((held, cell) => {
+    r.pooled(held)
+    const parent = spec.chain.parent[cell]
+    r.word(parent < 0 ? 0xffffffff : parent, spec.chain.level[cell])
+    r.float(...spec.chain.bounds.subarray(6 * cell, 6 * cell + 6))
+  })
   const { bytes } = spec.payload
   return r.end((poolWords) => [
     spec.version,
-    spec.budgetBytes,
-    spec.pinned,
-    spec.pinnedTopBytes,
     spec.bundles.length,
     spec.pages.length,
-    spec.cells.length,
-    objects.length,
+    spec.hlod.length,
     poolWords,
     ...uint64Words(bytes),
   ])
@@ -120,19 +88,16 @@ export function encodeWorldRootsDag(
     groups: readonly ClusterGroup[]
     culling?: CullingHierarchy
   },
-  version = 6,
+  version = WORLD_ROOTS_VERSION,
 ) {
   const r = writer('WRTD')
-  const index = (value: number | null) => value ?? NONE
   for (const c of clusters) {
-    r.word(c.level, c.triangles, index(c.primitive), index(c.bundle), index(c.offset))
-    r.word(index(c.origin))
+    r.word(c.level, c.triangles, c.material, c.bundle, c.offset, c.hlod, 0, 0)
     r.float(c.lodError, c.parentError ?? NaN, ...c.sphere, ...(c.parentSphere ?? [NaN, 0, 0, 0]))
     r.float(...c.min, ...c.max)
     const p = c.page
-    r.word(p?.bytes ?? 0, p?.vertexCount ?? 0, p?.indexCount ?? 0, p?.flags ?? 0)
-    r.word(p?.uncompressedBytes ?? 0)
-    r.raw(new Uint8Array(Float32Array.of(p?.quantizationError ?? 0).buffer))
+    r.word(p.bytes, p.vertexCount, p.indexCount, p.flags, p.uncompressedBytes)
+    r.raw(new Uint8Array(Float32Array.of(p.quantizationError).buffer))
   }
   for (const g of groups) {
     r.word(g.level)

@@ -29,7 +29,6 @@ test('explorer arguments accept a complete host request and keep host extensions
       bounce: true,
       bounceBudgetMs: 1,
       importedLights: false,
-      textureSource: 'host',
       preload: 'all',
       stageProfile: true,
       diagnosticDetail: 'trace',
@@ -53,7 +52,7 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     'stageProfile',
   ])
     assert.equal(validate({ ...explorer, [field]: 'true' }), false, field)
-  for (const field of ['scope', 'textureSource', 'preload', 'diagnosticDetail'])
+  for (const field of ['scope', 'preload', 'diagnosticDetail'])
     assert.equal(validate({ ...explorer, [field]: 'unknown' }), false, field)
   for (const patch of [
     { geometryPoolBytes: 1 },

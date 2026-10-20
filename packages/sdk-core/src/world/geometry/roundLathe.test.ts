@@ -2,9 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lathe, capsule } from './round.ts'
 import { RECIPES } from './recipes.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 
-const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`)
+const close = (a: number, b: number) => near(a, b, 'the lathe', 1e-8)
 
 test('lathe spins translated profiles with slope normals and partial-arc endpoints', () => {
   const profile: [[number, number], [number, number], [number, number]] = [
@@ -25,15 +26,15 @@ test('lathe spins translated profiles with slope normals and partial-arc endpoin
   assert.equal(p.count, 15)
   assert.equal(g.index!.count, 48)
   for (let i = 0; i < p.count; i++) {
-    near(Math.hypot(p.getX(i), p.getZ(i)), [2, 3, 4][Math.floor(i / 5)])
-    near(p.getY(i), [-3, 0, 3][Math.floor(i / 5)])
-    near(n.getY(i), -1 / Math.sqrt(10))
-    near(Math.hypot(n.getX(i), n.getZ(i)), 3 / Math.sqrt(10))
-    near(n.getX(i) * p.getZ(i) - n.getZ(i) * p.getX(i), 0)
+    close(Math.hypot(p.getX(i), p.getZ(i)), [2, 3, 4][Math.floor(i / 5)])
+    close(p.getY(i), [-3, 0, 3][Math.floor(i / 5)])
+    close(n.getY(i), -1 / Math.sqrt(10))
+    close(Math.hypot(n.getX(i), n.getZ(i)), 3 / Math.sqrt(10))
+    close(n.getX(i) * p.getZ(i) - n.getZ(i) * p.getX(i), 0)
   }
-  near(p.getX(0), 2)
-  near(p.getZ(0), 0)
-  near(p.getX(4), -2)
+  close(p.getX(0), 2)
+  close(p.getZ(0), 0)
+  close(p.getX(4), -2)
   const uv = g.attributes.uv
   assert.deepEqual(
     [...uv.array],
@@ -53,12 +54,12 @@ test('capsule rings join two hemispheres to the declared straight cylinder', () 
   assert.deepEqual(g.recipe!.args, [2, 6, 2, 4])
   for (let i = 0; i < p.count; i++) {
     const centreY = p.getY(i) < 0 ? -3 : 3
-    near(Math.hypot(p.getX(i), p.getY(i) - centreY, p.getZ(i)), 2)
+    close(Math.hypot(p.getX(i), p.getY(i) - centreY, p.getZ(i)), 2)
   }
-  near(p.getY(0), -5)
-  near(p.getY(10), -3)
-  near(p.getY(15), 3)
-  near(p.getY(25), 5)
+  close(p.getY(0), -5)
+  close(p.getY(10), -3)
+  close(p.getY(15), 3)
+  close(p.getY(25), 5)
 })
 
 test('lathe angular UV direction and capsule lower hemisphere keep their declared seam', () => {

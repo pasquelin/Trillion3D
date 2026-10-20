@@ -27,14 +27,6 @@ export const tangentSide = wgslFn(
   'fn tangentSide(N:vec3f)->vec3f{return cross(N,select(vec3f(1.0,0.0,0.0),vec3f(0.0,1.0,0.0),abs(N.x)>0.9));}',
 )
 
-/** Not normalised: across `x` unless `N.x` is within 1e-6 of zero, so `√(1 − N.x²)` long, null
- *  along ±x. */
-export const tangentAcross = wgslFn(
-  'tangentAcross',
-  [],
-  'fn tangentAcross(N:vec3f)->vec3f{return cross(N,select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),abs(N.x)>1e-6));}',
-)
-
 /** An orthonormal frame, its rows `x`, `y`, `z`. */
 export const Frame3 = wgslStruct('Frame3', [], 'struct Frame3{x:vec3f,y:vec3f,z:vec3f,}')
 

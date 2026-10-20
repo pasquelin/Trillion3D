@@ -10,11 +10,11 @@ export const FORMAT_VERSION = 11
  *  format 11); source manifests keep their own format. */
 export const CLUSTERED_BLEND_FORMAT_VERSION = 12
 /**
- * Cache identity for per-cluster DAG errors: absolute group QEM error over positions, normals and
- * texture coordinates, clamped to the group's extent, never below the sampled Hausdorff distance
- * between a group's children and its outputs (#929); v1 and v2 caches are refused.
+ * Cache identity for per-cluster DAG errors: the group error, the simplifier's own over
+ * positions, normals and texture coordinates, never below the children's; v1 to v3 caches are
+ * refused.
  */
-export const DAG_ERROR_MODEL = 'dag-group-qem-v3'
+export const DAG_ERROR_MODEL = 'dag-group-qem-v4'
 /** The scope a model is compiled at when none is named: streamed in pages. */
 export const DEFAULT_SCOPE: AssetScope = 'slice'
 /** How a model may be compiled: `'slice'` streams it in pages, `'full'` keeps it whole. */

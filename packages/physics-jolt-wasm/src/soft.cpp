@@ -5,9 +5,11 @@
 //
 // Its solver's input is bounded when it is made, so that no soft body can run away: no bend is
 // stiffer than the solver resolves (`floorBends`, `softSettings.h`: a bend corrects at most five
-// sixths of its error a substep, never overshooting), and no vertex moves faster than its swing
-// or its fall (`hold`): its kinetic energy is at most half its mass times that speed squared,
-// whatever its solver does, and a vertex goes non-finite only on non-finite input (taken out,
+// sixths of its error a substep, never overshooting), no vertex ends a step faster than its swing
+// or its fall (`hold`), and no gas pushes a vertex past that speed within a step (`heldPressure`):
+// Jolt holds the speed only once the step is over (`SoftBodyMotionProperties::UpdateSoftBodyState`),
+// never between its substeps, so a pressure its skin cannot hold would carry a vertex metres before
+// the bound applies. A vertex goes non-finite only on non-finite input (taken out,
 // `World::diverged`). Carried further than `SOFT_TELEPORT`, it starts again in its rest shape.
 #include "binding.h"
 #include "blob.h"
@@ -41,6 +43,10 @@ constexpr float SOFT_VERTEX_RADIUS = 0.01f;
 /// Declared: a soft body carried further than this in one move, m, starts again at rest in its rest
 /// shape where it now is; a shorter move carries it as it lies, its motion kept.
 constexpr float SOFT_TELEPORT = 3;
+/// Declared: how far a soft body's free vertices start off their rest shape, along their normals,
+/// as a share of its size (`unsettle`): 3.6 µm on a 3.6 m flag, below any pixel it is drawn at; a
+/// body at rest still writes back its own vertices (`softWriteback.test.ts`).
+constexpr float SOFT_IMPERFECTION = 1e-6f;
 
 /// A static body a soft body's bounds met, judged once where both stand (`hangsOn`).
 struct Support {
@@ -59,6 +65,10 @@ struct Soft {
   /** The diagonal of its rest bounds in Jolt's frame of its vertices, m: its size, which its
    *  speed is held to (`SOFT_FALL`). */
   float rest = 0;
+  /** The gauge pressure its page gives its gas, Pa, the volume its faces enclose at rest, m³, and
+   *  the largest inverse mass times a third of the area of the faces meeting at a vertex, at rest
+   *  (`pressurePush`): what its held pressure is reckoned from (`heldPressure`). */
+  float pressure = 0, volume = 0, push = 0;
   /** Counts its placements: a support judged at an older one is out of date. */
   uint32_t placed = 0;
   /** The static bodies its bounds met, and whether its pins hang inside each. */
@@ -101,20 +111,76 @@ float pullOf(const MotionProperties &motion) {
   return std::max(world().system->GetGravity().Length() * std::abs(motion.GetGravityFactor()), STANDARD_GRAVITY);
 }
 
+/// The largest, over the vertices of `shared` at rest, of its inverse mass times a third of the area
+/// of the faces it is a corner of, m²/kg: Jolt's gas at pressure `p` pushes each vertex by
+/// `p · w · A / 3` (m/s²) (`SoftBodyMotionProperties::ApplyPressure`, each face's force shared by its
+/// three corners). Zero without faces, which no gas pushes.
+float pressurePush(const SoftBodySharedSettings &shared) {
+  std::vector<float> area(shared.mVertices.size(), 0.0f);
+  for (const SoftBodySharedSettings::Face &f : shared.mFaces) {
+    const Vec3 a(shared.mVertices[f.mVertex[0]].mPosition), b(shared.mVertices[f.mVertex[1]].mPosition),
+        c(shared.mVertices[f.mVertex[2]].mPosition);
+    const float third = (b - a).Cross(c - a).Length() / 6;
+    for (uint32 i : f.mVertex) area[i] += third;
+  }
+  float push = 0;
+  for (size_t i = 0; i < area.size(); ++i) push = std::max(push, shared.mVertices[i].mInvMass * area[i]);
+  return push;
+}
+
+/// The gauge pressure `soft`'s skin holds under the speed bound `fastest` (m/s) and the page's step
+/// `step` (s): Jolt bounds the speed only at the end of a step, and over its substeps, however many,
+/// its gas pushes a vertex at rest by `pressure · push · step` (`pressurePush`). The rule: that
+/// push never exceeds the bound, so a vertex blown from rest is no faster than the bound at the
+/// end of the step, the bound Jolt then holds it to. Squeezed below its rest volume a gas pushes
+/// harder, by the ratio of the volumes, which the skin's own constraints resist; blown out it
+/// pushes less. The page's pressure, under that.
+float heldPressure(const Soft &soft, float fastest, float step) {
+  return soft.push > 0 ? std::min(soft.pressure, fastest / (soft.push * step)) : soft.pressure;
+}
+
 /// Holds `soft` to the pull it is under now: the speed Jolt holds each of its vertices under — the
 /// faster of its swing (`SOFT_FALL`) and its fall through its own damping, `pull / damping`
-/// (Jolt's own bound with none): neither a body falling whole nor its swing is ever held back,
-/// and its energy is bounded whatever its solver does.
+/// (Jolt's own bound with none): neither a body falling whole nor its swing is ever held back —,
+/// and the pressure of its gas under what that speed lets its skin hold (`heldPressure`). Jolt's
+/// pressure is n·R·T, the gauge pressure times the volume, which a gas at one temperature keeps as
+/// it is squeezed: given at rest.
 void hold(const Soft &soft, Body &body) {
   auto &motion = *static_cast<SoftBodyMotionProperties *>(body.GetMotionProperties());
   const float pull = pullOf(motion);
   const float swing = std::sqrt(2 * pull * SOFT_FALL * soft.rest);
   const float damping = motion.GetLinearDamping();
-  motion.SetMaxLinearVelocity(std::max(swing, damping > 0 ? pull / damping : JOLT_FASTEST));
+  const float fastest = std::max(swing, damping > 0 ? pull / damping : JOLT_FASTEST);
+  motion.SetMaxLinearVelocity(fastest);
+  motion.SetPressure(heldPressure(soft, fastest, world().fixedStep) * soft.volume);
 }
 
-/// Brings `soft` back to its rest shape, at rest, where the page placed it. Jolt's bounds follow
-/// at the next step.
+/// Moves each free vertex of `soft` off its rest shape along its normal, by its share of
+/// `SOFT_IMPERFECTION` that a hash of its index gives, between minus and plus one: a sheet whose
+/// load lies in its own plane — a flag on its pole, a curtain, under gravity — is in an equilibrium
+/// that float arithmetic, exact under the sheet's own symmetry, never leaves, held flat and stiff
+/// in the air for ever. Off its plane, its own weight buckles it, as any real sheet's
+/// imperfections do. The same for every make of the same body: its steps stay reproducible.
+void unsettle(const Soft &soft, Body &body) {
+  auto &motion = *static_cast<SoftBodyMotionProperties *>(body.GetMotionProperties());
+  Array<SoftBodyVertex> &vertices = motion.GetVertices();
+  std::vector<Vec3> normals(vertices.size(), Vec3::sZero());
+  for (const SoftBodySharedSettings::Face &f : motion.GetSettings()->mFaces) {
+    const Vec3 a = vertices[f.mVertex[0]].mPosition;
+    const Vec3 n = (vertices[f.mVertex[1]].mPosition - a).Cross(vertices[f.mVertex[2]].mPosition - a);
+    for (uint32 i : f.mVertex) normals[i] += n;
+  }
+  for (size_t i = 0; i < vertices.size(); ++i) {
+    SoftBodyVertex &v = vertices[i];
+    if (v.mInvMass == 0 || normals[i].IsNearZero()) continue;
+    // Knuth's multiplicative hash of the index, its top bits a share in [-1, 1).
+    const float share = float(uint32_t(i + 1) * 2654435761u >> 8) / float(1 << 23) - 1;
+    v.mPreviousPosition = v.mPosition += normals[i].Normalized() * (share * SOFT_IMPERFECTION * soft.rest);
+  }
+}
+
+/// Brings `soft` back to its rest shape, at rest, where the page placed it (`unsettle`). Jolt's
+/// bounds follow at the next step.
 void bringBack(const Soft &soft, Body &body) {
   auto &motion = *static_cast<SoftBodyMotionProperties *>(body.GetMotionProperties());
   const SoftBodySharedSettings &shared = *motion.GetSettings();
@@ -126,6 +192,7 @@ void bringBack(const Soft &soft, Body &body) {
     v.mPreviousPosition = v.mPosition = Vec3(back * RVec3(soft.origin + turn * Vec3(shared.mVertices[i].mPosition)));
     v.mVelocity = Vec3::sZero();
   }
+  unsettle(soft, body);
 }
 
 /// Writes the vertices of `soft` into `state` from word `start` (`SOFT_STATE_WORDS`), each in its
@@ -181,11 +248,10 @@ bool addSoft(const uint32_t *w) {
   BodyInterface &bodies = world.system->GetBodyInterfaceNoLock();
   Body *body = bodies.CreateSoftBody(settings);
   if (!body) return (world.error = BODY_LIMIT, false);
-  // Jolt's pressure is n·R·T, the gauge pressure times the volume, which a gas at one temperature
-  // keeps as it is squeezed: given at rest, the volume Jolt's own faces enclose (positive when they
-  // face out).
+  // Its gas at rest: the volume Jolt's own faces enclose (positive when they face out); its pressure
+  // is set, held, with its speed (`hold`).
   auto &motion = *static_cast<SoftBodyMotionProperties *>(body->GetMotionProperties());
-  motion.SetPressure(f32(w + 18) * std::max(0.0f, motion.GetVolume()));
+  const float volume = std::max(0.0f, motion.GetVolume());
   bodies.AddBody(body->GetID(), EActivation::Activate);
   Slot &slot = world.slots[index];
   slot = {};
@@ -200,11 +266,15 @@ bool addSoft(const uint32_t *w) {
   soft.origin = vec3(w + 2);
   soft.inverseScale = Vec3::sReplicate(1) / vec3(w + 9);
   soft.inverse = quat(w + 5).Conjugated();
-  // Its size, pull and damping bound its speed (`hold`).
+  // Its size, pull and damping bound its speed, and its speed its gas (`hold`).
   soft.rest = rest;
+  soft.pressure = f32(w + 18);
+  soft.volume = volume;
+  soft.push = soft.pressure > 0 && volume > 0 ? pressurePush(*shared) : 0;
   // A page's soft body made again at another scale goes on from the one it replaces, still in its
   // slot until the REMOVE that follows (`carries`): its vertices' places and velocities carried,
-  // scaled from the old geometry frame into the new.
+  // scaled from the old geometry frame into the new. A new one starts just off its rest shape.
+  bool carried = false;
   if (const uint32_t carries = w[22]; carries != MISS) {
     const Slot &from = world.slots[carries & INDEX_MASK];
     BodyLockRead old(world.system->GetBodyLockInterfaceNoLock(), from.id);
@@ -212,8 +282,10 @@ bool addSoft(const uint32_t *w) {
       const Soft &was = softs[from.softAt];
       carryVertices(old.GetBody(), toGeometry(was.inverseScale, was.inverse, was.origin, old.GetBody()), *body,
                     toGeometry(soft.inverseScale, soft.inverse, soft.origin, *body));
+      carried = true;
     }
   }
+  if (!carried) unsettle(soft, *body);
   hold(soft, *body);
   return true;
 }

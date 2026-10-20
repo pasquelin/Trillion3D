@@ -1,4 +1,5 @@
 import { disposeOwned } from './jobDisposal.ts'
+import { followSignal } from '../followSignal.ts'
 
 const noop = () => {}
 /** Where a job stands: waiting, running, done, cancelled or failed. */
@@ -67,10 +68,7 @@ export function createJob<T>(
       /* Telemetry cannot turn successful work into failure. */
     }
   }
-  // Only ever listening on, or called for, the external signal.
-  const relay = () => controller.abort(external!.reason)
-  external?.addEventListener('abort', relay)
-  if (external?.aborted) relay()
+  const unfollow = followSignal(controller, external)
   const promise = Promise.resolve().then(async () => {
     let result: T | undefined
     try {
@@ -96,7 +94,7 @@ export function createJob<T>(
       })
       throw error
     } finally {
-      external?.removeEventListener('abort', relay)
+      unfollow()
     }
   })
   return {

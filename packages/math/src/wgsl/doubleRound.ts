@@ -10,6 +10,7 @@ import { wgslFn } from './decl.ts'
 import { dExponent, dSignificand, wideShiftLeft, wideShiftRight } from './doubleWords.ts'
 import { dAdd } from './double.ts'
 import { lowBits } from './integer.ts'
+import { D_ONE } from './doubleConstants.ts'
 
 /** `Math.trunc(a)`: toward zero, the sign of a zero kept. */
 const dTrunc = wgslFn(
@@ -39,11 +40,11 @@ export const dFloor = wgslFn(
 /** `Math.ceil(a)`: a positive value with a fraction one above its truncation; `-0.5` gives `-0`. */
 export const dCeil = wgslFn(
   'dCeil',
-  [dTrunc, dAdd],
+  [dTrunc, dAdd, D_ONE],
   `fn dCeil(a:vec2u)->vec2u{
  let t=dTrunc(a);
  if((a.x>>31u)!=0u||(t.x==a.x&&t.y==a.y)){return t;}
- return dAdd(t,vec2u(0x3ff00000u,0u));
+ return dAdd(t,D_ONE);
 }`,
 )
 

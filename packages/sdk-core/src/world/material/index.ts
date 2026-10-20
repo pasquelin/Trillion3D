@@ -46,8 +46,10 @@ export const material = {
   /** Invisible, except where shadows fall on it. */
   shadow: kind('shadow', { color: 0x000000, transparent: true, opacity: 0.5 }),
   /**
-   * A material whose look is written by the page, in shader code.
-   * @param p - The shader's vertex code, fragment code and uniforms.
+   * A material that holds shader code for the page's own use. The engine runs no shader code a
+   * page writes: a mesh wearing it is drawn with the default standard surface, and `scene.toJSON`
+   * refuses it (`SCENE_NOT_SAVABLE`).
+   * @param p - The shader's vertex code, fragment code and uniforms, kept as given.
    */
   createShader: (p: {
     vertex?: string

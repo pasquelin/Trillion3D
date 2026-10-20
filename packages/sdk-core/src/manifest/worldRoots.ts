@@ -1,9 +1,8 @@
 /**
- * The world roots and their binary (docs/FORMAT.md, World super-roots): the table of
- * the world DAG the compiler continues above every object's roots — its records read and checked
- * in `worldRootsTable.ts` —, and the pages of one of its bundles viewed on their bytes. A
- * table that breaks its own contract is refused whole, `INVALID_CACHE`: the runtime pins its first
- * `pinned` bundles for good.
+ * The world's HLOD and its binary (docs/FORMAT.md, World HLOD): the table of the HLOD 1 to 3 the
+ * compiler builds per HLOD cell (`compiler_world_roots.rs`, the HLOD chain) —
+ * its records read and checked in `worldRootsTable.ts`. A table that breaks its own contract is
+ * refused whole, `INVALID_CACHE`.
  */
 import { EngineError } from '../contracts/cache.ts'
 
@@ -13,24 +12,6 @@ export const WORLD_ROOTS_FILE = 'world-roots.table'
 export const WORLD_ROOTS_DAG = 'world-roots.dag'
 /** The binary the cook writes beside it, the one its `payload` names. */
 export const WORLD_ROOTS_BIN = 'world-roots.bin'
-
-/** The one address scheme of the world binary at `url`: bundle `bundle` is `url#bundle` — a page
- *  of the session's queue —, the page at byte `offset` inside it `url#bundle:offset` — a page of
- *  the engine's pool. */
-export const worldBundleAddress = (url: string, bundle: number) => `${url}#${bundle}`
-export const worldPageAddress = (url: string, bundle: number, offset: number) =>
-  `${worldBundleAddress(url, bundle)}:${offset}`
-/** The bundle and the offset a world page address names (`worldPageAddress`), read off its last
- *  `#` and the `:` after it; `WORLD_PAGE_ADDRESS` for any other. */
-export function worldPageLocation(address: string): { bundle: number; offset: number } {
-  const hash = address.lastIndexOf('#'),
-    colon = address.indexOf(':', hash)
-  const bundle = Number(address.slice(hash + 1, colon)),
-    offset = Number(address.slice(colon + 1))
-  if (hash < 0 || colon < 0 || !Number.isInteger(bundle) || !Number.isInteger(offset))
-    throw new Error(`WORLD_PAGE_ADDRESS: ${address}`)
-  return { bundle, offset }
-}
 
 /** One bundle of `world-roots.bin`: its range in the binary, its digest, its page count and the
  *  bundles it needs. */
@@ -43,20 +24,14 @@ export type WorldRootsBundle = {
   sha256: string
   /** How many pages it holds. */
   count: number
-  /** The bundles its pages need, ascending, up to the world top. */
+  /** The bundles its pages need, ascending, up to its HLOD cell's roots. */
   dependencies: number[]
 }
-/** `world-roots.table`: the world DAG the compiler continues above every object's roots — its
- *  bundles, pages and cells, the pinned top first —, its pages and cells read at their records. */
+/** `world-roots.table`: the world's HLOD — its bundles, pages and HLOD 0 cells —, its pages read at
+ *  their records. */
 export type WorldRoots = {
   /** Format version. */
   version: number
-  /** The most bytes the cook lets the pinned top weigh. */
-  budgetBytes: number
-  /** The first bundles, the world top: pinned. */
-  pinned: number
-  /** The bytes of the pinned top. */
-  pinnedTopBytes: number
   /** The binary the bundles lie in, end to end: its address, digest and length. */
   payload: { url: string; sha256: string; bytes: number }
   /** The bundles, in the binary's order. */
@@ -73,56 +48,23 @@ export type WorldRoots = {
       lodError: number
     }
   }
-  /** The world cells: how many, the placed primitives one holds, read at their records, and the
-   *  cell holding object `object` — an object root's `origin`. */
-  cells: {
-    count: number
-    /** The rank of `cell`'s first object among the table's: its record says it. */
-    first(cell: number): number
-    /** The number of objects `cell` holds. */
-    size(cell: number): number
-    /** Object `object`'s node and primitive, by its rank among the table's: two words read in
-     *  place, no record built. */
-    objectNode(object: number): number
-    objectPrimitive(object: number): number
-    /** Object `object`'s bundle dependencies, a view of the table's words. */
-    objectDependencies(object: number): Uint32Array
-    /** The first object of node `node` of `cell` — its rank in the cell's file, the order the
-     *  partition places it in —, counted from the cell's first; -1 for a node the cook continued
-     *  nothing of. The cook writes it (`compiler_world_roots/cells.rs`). */
-    nodeObject(cell: number, node: number): number
-    cellOf(object: number): number
-  }
+  /** The chain's HLOD cells, the HLOD 0 cells first, the partition's (`tablePartition.ts`, `hlod`):
+   *  per cell, the bundles holding
+   *  its actor's roots, ascending — what it holds while its actor is loaded. */
+  hlod: readonly (readonly number[])[]
+  /** The chain of HLOD cells (`compiler_tables/partition/hlod.rs`), the HLOD 0 cells first: per
+   *  cell, the cell its next level's actor lies in (-1 for a top cell, whose actor is always
+   *  loaded), its level — its actor's HLOD layer less one —, and the six bounds it streams by. */
+  chain: { parent: Int32Array; level: Uint8Array; bounds: Float64Array }
 }
-/** One super-root page viewed on its bundle's bytes: a geometry page, its vertices in world space
- *  with the attributes its objects carry, decoded and drawn as any page. */
-export type WorldRootsPage = {
-  /** Its geometry page's bytes (docs/FORMAT.md, Geometry pages). */
-  bytes: Uint8Array
-}
-
 export const refuseWorldRoots = (message: string): never => {
   throw new EngineError('INVALID_CACHE', `world roots: ${message}`)
 }
 const refuse = refuseWorldRoots
 
-/** The bundles past the pinned top the roots of `cell`'s objects need, ascending: what the cell
- *  holds while it is placed. */
-export function cellDependencies(table: WorldRoots, cell: number): number[] {
-  const needed = new Set<number>(),
-    { cells } = table
-  if (cell >= cells.count) return []
-  // Each object's list read in place: no record of the cell built.
-  const first = cells.first(cell)
-  for (let object = first; object < first + cells.size(cell); object++)
-    for (const bundle of cells.objectDependencies(object))
-      if (bundle >= table.pinned) needed.add(bundle)
-  return [...needed].sort((a, b) => a - b)
-}
-
 /** Each bundle's first page in the table, its pages lying in bundle order (`records.rs`). */
 const firstPages = new WeakMap<WorldRoots, Uint32Array>()
-export function firstPage(table: WorldRoots, bundle: number) {
+function firstPage(table: WorldRoots, bundle: number) {
   let first = firstPages.get(table)
   if (!first) {
     first = new Uint32Array(table.bundles.length + 1)
@@ -133,33 +75,30 @@ export function firstPage(table: WorldRoots, bundle: number) {
 }
 
 /**
- * The pages of bundle `bundle` of `table`, viewed on `bytes`, its range of the binary: each the
- * range its page record names, in binary order. A bundle whose pages do not tile it exactly, or
- * whose records name another bundle, is refused.
+ * The pages of bundle `bundle` of `table`: each one's offset and length in the bundle, in binary
+ * order, read off the table's records. A bundle whose pages do not tile it exactly, or whose
+ * records name another bundle, is refused.
  */
-export function worldBundlePages(table: WorldRoots, bundle: number, bytes: Uint8Array) {
-  const pages: WorldRootsPage[] = [],
-    { count } = table.bundles[bundle],
+export function bundlePageRanges(table: WorldRoots, bundle: number) {
+  const ranges: { offset: number; bytes: number }[] = [],
+    { count, bytes } = table.bundles[bundle],
     first = firstPage(table, bundle)
   let at = 0
   for (let page = first; page < first + count; page++) {
     const record = table.pages.at(page)
     if (record.bundle !== bundle || record.offset !== at || record.bytes < 1)
       refuse(`bundle ${bundle} page ${page - first}`)
-    if (at + record.bytes > bytes.byteLength) refuse(`bundle ${bundle} ends inside its pages`)
-    pages.push({ bytes: bytes.subarray(at, at + record.bytes) })
+    if (at + record.bytes > bytes) refuse(`bundle ${bundle} ends inside its pages`)
+    ranges.push({ offset: at, bytes: record.bytes })
     at += record.bytes
   }
-  if (at !== bytes.byteLength) refuse(`bundle ${bundle} holds more than its ${count} pages`)
-  return pages
+  if (at !== bytes) refuse(`bundle ${bundle} holds more than its ${count} pages`)
+  return ranges
 }
 
-/** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots),
- *  in rank order (`cluster` is its index, which the groups name): the fields the runtime cut
- *  projects, and where its page lives — a super-root its `bundle` and `offset` in the binary, an
- *  object root its `origin`, the rank among the table's objects of the placed object drawing it
- *  (`cells.cellOf` finds its cell). Kept out of the exported `WorldRoots`, whose
- *  shape is public. */
+/** One world cluster as the cook publishes it (FORMAT.md, World HLOD), in rank order (`cluster` is
+ *  its index, which the groups name): the fields the runtime cut projects, where its page lives —
+ *  its `bundle` and `offset` in the binary —, and the HLOD cell whose switch shows it. Kept out of the exported `WorldRoots`, whose shape is public. */
 export type WorldRootsCluster = {
   cluster: number
   level: number
@@ -170,18 +109,19 @@ export type WorldRootsCluster = {
   min: number[]
   max: number[]
   triangles: number
-  /** The primitive whose material and attributes it wears: its object's, or for a super-root one
-   *  of the objects it stands for, all wearing the same. */
-  primitive: number | null
-  bundle: number | null
-  offset: number | null
-  origin: number | null
-  /** What a super-root's geometry page says of itself, as a primitive page's `geometry` does; null
-   *  for an object root, whose pages are its object's. */
-  page: WorldRootsPageFacts | null
+  /** Its actor's rank: the flattened material it wears is the scene tables' `hlodMaterials` at
+   *  that rank. */
+  material: number
+  bundle: number
+  offset: number
+  /** Its HLOD cell (`WorldRoots.hlod`), whose switch shows it, and whose level gives its HLOD
+   *  layer (`WorldRoots.chain`). */
+  hlod: number
+  /** What its geometry page says of itself, as a primitive page's `geometry` does. */
+  page: WorldRootsPageFacts
 }
 
-/** A super-root page's length, vertex and index counts, attribute flags, decoded bytes and largest
+/** A world page's length, vertex and index counts, attribute flags, decoded bytes and largest
  *  position displacement (`pages.rs`). */
 export type WorldRootsPageFacts = {
   bytes: number

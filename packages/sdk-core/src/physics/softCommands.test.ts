@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { NO_INDEX } from '../../../math/src/constants.ts'
 import { plane } from '../world/geometry/basic.ts'
 import { CommandWriter } from './commands.ts'
 import { OP } from './layout.ts'
@@ -11,7 +12,7 @@ import { softSettings } from './softSettings.ts'
 
 const one = { x: 1, y: 1, z: 1 }
 /** Each SOFT field's word, as `soft.cpp` reads it: the pose, scale, matter and compliances from
- *  `pose`, the pressure, then the vertex, corner and byte counts. */
+ *  `pose`, the pressure, then the vertex, corner and byte counts and the body it carries. */
 const SOFT_AT = { pose: 2, pressure: 18, counts: 19 }
 const counts = (words: Uint32Array) => [...words.subarray(SOFT_AT.counts, SOFT_WORDS)]
 
@@ -31,7 +32,7 @@ test('SOFT carries its fixed words at their layout offsets, then the vertices an
     [...floats.subarray(SOFT_AT.pose, SOFT_AT.counts)],
     [1, 2, 3, 0, 0, 0, 1, 2, 3, 4, 0.125, 0.375, 0.5, 0.0625, 0.25, 0.5, 0.5],
   )
-  assert.deepEqual(counts(words), [4, 6, 0])
+  assert.deepEqual(counts(words), [4, 6, 0, NO_INDEX])
   assert.deepEqual([...floats.subarray(SOFT_WORDS, SOFT_WORDS + 16)], [...record.vertices])
   assert.deepEqual([...words.subarray(SOFT_WORDS + 16)], [...record.indices])
 })
@@ -46,7 +47,7 @@ test('a cooked SOFT carries no vertex nor corner: its settings bytes, padded to 
   })
   const words = writer.take()
   assert.equal(new Float32Array(words.buffer)[SOFT_AT.pressure], 7, 'the pressure word')
-  assert.deepEqual(counts(words), [0, 0, 5])
+  assert.deepEqual(counts(words), [0, 0, 5, NO_INDEX])
   assert.equal(words.length, SOFT_WORDS + 2)
   assert.deepEqual([...new Uint8Array(words.buffer, SOFT_WORDS * 4, 8)], [1, 2, 3, 4, 5, 0, 0, 0])
 })

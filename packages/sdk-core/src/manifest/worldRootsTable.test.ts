@@ -5,7 +5,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../contracts/cache.ts'
 import {
-  cellObjects,
   worldRootsDag,
   worldRootsFixture,
 } from '../../../sdk-browser/src/scene/worldRootsPages.fixture.ts'
@@ -14,51 +13,39 @@ import { readWorldRoots, readWorldRootsDag } from './worldRootsTable.ts'
 
 const refused = (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE'
 
-test('the table reads every bundle, page, cell and object back at its record', () => {
+test('the table reads every bundle, page and HLOD 0 cell back at its record', () => {
   const { spec, bytes } = worldRootsFixture((page) => page[0].toString(16).padStart(64, 'a'))
   const table = readWorldRoots(bytes)
-  const { pages, cells, ...head } = spec
-  const { pages: _pages, cells: _cells, ...read } = table
-  assert.deepEqual(read, head, 'its header, payload and bundles')
+  const { pages, ...head } = spec
+  const { pages: _pages, ...read } = table
+  assert.deepEqual(read, head, 'its header, payload, bundles and HLOD 0 cells')
   assert.equal(table.pages.count, pages.length)
   assert.deepEqual(
     pages.map((_, at) => table.pages.at(at)),
     pages,
   )
-  assert.equal(table.cells.count, cells.length)
-  const asRead = (c: (typeof cells)[number]) =>
-    c.objects.map(({ node, primitive, dependencies }) => ({ node, primitive, dependencies }))
-  assert.deepEqual(
-    cells.map((_, at) => cellObjects(table, at)),
-    cells.map(asRead),
-  )
-  // Each object, by its rank, is found in its cell: an object root's `origin` names it.
-  const ranks = cells.flatMap((cell, at) => cell.objects.map(() => at))
-  assert.deepEqual(
-    ranks.map((_, object) => table.cells.cellOf(object)),
-    ranks,
-  )
   // An unaligned view of the same bytes is read alike.
   const shifted = new Uint8Array(bytes.byteLength + 1)
   shifted.set(bytes, 1)
-  assert.deepEqual(cellObjects(readWorldRoots(shifted.subarray(1)), 1), asRead(cells[1]))
+  assert.deepEqual(readWorldRoots(shifted.subarray(1)).hlod, spec.hlod)
 })
 
 test('a binary past 4 GiB is named whole, its offsets in two words', () => {
   const { spec } = worldRootsFixture()
   const [first, second] = [3e9, 3e9]
-  spec.bundles[0].bytes = spec.pinnedTopBytes = first
+  spec.bundles[0].bytes = first
   spec.bundles[1] = { ...spec.bundles[1], offset: first, bytes: second }
   spec.bundles[2].offset = first + second
-  const page = spec.bundles[2].bytes
+  const page = spec.bundles[2].bytes,
+    last = spec.bundles[3].bytes
   spec.bundles[3].offset = first + second + page
-  spec.payload.bytes = first + second + 2 * page
+  spec.payload.bytes = first + second + page + last
   const table = readWorldRoots(encodeWorldRoots(spec))
   assert.deepEqual(
     table.bundles.map((bundle) => bundle.offset),
     [0, first, first + second, first + second + page],
   )
-  assert.equal(table.payload.bytes, first + second + 2 * page)
+  assert.equal(table.payload.bytes, first + second + page + last)
 })
 
 test('a table that breaks its contract is refused whole', () => {
@@ -66,12 +53,10 @@ test('a table that breaks its contract is refused whole', () => {
     // Version 3 wrote a placed object's roots apart and its pages as floats: an old cache is
     // refused, cooked again.
     (spec) => (spec.version = 3),
-    (spec) => (spec.pinned = 0),
-    (spec) => (spec.pinnedTopBytes += 1),
     (spec) => (spec.bundles[2].offset += 4),
     (spec) => (spec.payload.bytes -= 1),
     (spec) => spec.bundles[1].dependencies.push(9),
-    (spec) => spec.cells[0].objects[0].dependencies.push(4),
+    (spec) => (spec.hlod = [[1, 3, 4], ...spec.hlod.slice(1)]),
   ]
   for (const [at, breaks] of broken.entries()) {
     const { spec } = worldRootsFixture()

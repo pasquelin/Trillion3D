@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { add, cross, reflect, scale, subtract, unit } from './vectorTuple.ts'
+import { cross, subtract, unit } from './vectorTuple.ts'
+import { add, reflect, scale } from './vectorTuple.fixture.ts'
 
 test('tuple products preserve inputs and allocate a distinct result on each call', () => {
   const a: [number, number, number] = [1, 2, 3]

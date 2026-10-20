@@ -5,7 +5,7 @@
 export type EffectStage = 'before-tone-mapping' | 'after-tone-mapping'
 
 /** The built-in passes an engine knows how to draw. */
-export type EffectKind = 'bloom'
+export type EffectKind = 'bloom' | 'outline'
 
 /**
  * One pass of the chain. A pass says which built-in it is and where it runs; its settings are
@@ -18,6 +18,11 @@ export abstract class EffectPass {
   abstract readonly stage: EffectStage
   /** @internal The chain that holds the pass, told when a setting changes; `null` outside one. */
   _chain: EffectChain | null = null
+  /** True while the pass has nothing to draw — an outline of no object —: the engine passes it
+   *  by, drawing and allocating nothing for it. */
+  get idle() {
+    return false
+  }
   /** A setting changed: the chain's image is to be drawn again. */
   protected changed() {
     this._chain?._touch()
@@ -27,9 +32,10 @@ export abstract class EffectPass {
 /**
  * `world.effects`: the ordered passes drawn over the image after temporal antialiasing and before
  * it reaches the canvas. The passes that run before tone mapping read the linear radiance, in the
- * order they were added; those that run after read the display image, in theirs. An empty chain
- * costs nothing: no pass, no copy, no target. A transparent surface blending in `multiply` or
- * `subtractive` is drawn under the chain like any other.
+ * order they were added; those that run after draw over the display image, in theirs. An empty
+ * chain, or one whose passes are all idle, costs nothing: no pass, no copy, no target. A
+ * transparent surface blending in `multiply` or `subtractive` is drawn under the chain like any
+ * other.
  */
 export class EffectChain {
   private readonly list: EffectPass[] = []

@@ -1,20 +1,18 @@
 // camera.ts: pixels per unit at unit depth, the focal length in pixels, a pixel's footprint, the
-// projection scale of a half field and back, the diagonal slope and a frustum corner's distance —
+// projection scale of a half field and back, and the diagonal slope —
 // against exact cameras and the expressions they replace.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   focalPixels,
   focalScale,
-  frustumCornerDistance,
   halfAngleOfFocalScale,
   perspectiveDiagonalSlope,
   perspectiveProjection,
   perspectiveSlope,
   pixelScale,
 } from './camera.ts'
-import { length3 } from '../vector/vector.ts'
-import { assertSameFloat32, HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
+import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('pixelScale and focalPixels on a camera whose half picture is 2 units at depth 1', () => {
   // Projection scales 0.5 across and −0.25 up (a mirrored picture): half widths 2 and 4 at unit
@@ -68,25 +66,5 @@ test('perspectiveDiagonalSlope: the corner ray of a 90° square picture leans �
       zoom = haltonSpan(i, 5, 0.25, 8)
     const old = perspectiveSlope(fov, zoom) * Math.sqrt(1 + aspect ** 2)
     assert.ok(Object.is(perspectiveDiagonalSlope(fov, aspect, zoom), old), `${i}`)
-  }
-})
-
-test('frustumCornerDistance: the length of the corner (s·a·d, s·d, d), and the old body', () => {
-  // Depth 2, slope 3/4, aspect 4/3: the corner (2, 1.5, 2), of length √10.25.
-  assert.ok(
-    Math.abs(frustumCornerDistance(2, 0.75, 4 / 3) - Math.sqrt(10.25)) <= 4 * Number.EPSILON,
-  )
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const depth = haltonSpan(i, 2, 0.1, 1e5),
-      slope = haltonSpan(i, 3, 0.01, 10),
-      aspect = haltonSpan(i, 5, 0.1, 10)
-    const reference = length3(depth, depth * slope, depth * slope * aspect)
-    const distance = frustumCornerDistance(depth, slope, aspect)
-    assert.ok(Math.abs(distance - reference) <= 8 * Number.EPSILON * reference, `${i}`)
-    assertSameFloat32(
-      depth * Math.sqrt(1 + slope * slope * (1 + aspect * aspect)),
-      distance,
-      `${i}`,
-    )
   }
 })

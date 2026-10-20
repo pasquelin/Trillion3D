@@ -10,7 +10,7 @@ import { Quaternion } from '../math/quaternion.ts'
 import { Vector3 } from '../math/vector3.ts'
 import type { Object3D } from '../object/object3d.ts'
 
-import type { XYZLike } from '../math/likes.ts'
+import { loadXyz, loadXyzw, type XYZLike } from '../math/likes.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { frameAcross } from '../../../../math/src/vector/frame.ts'
 
@@ -54,11 +54,7 @@ function across(out: Float64Array, v: ArrayLike<number>) {
 
 /** Writes a node's world position into `out`. */
 function worldPoint(node: Object3D, out: Float64Array) {
-  const p = node.getWorldPosition(scratch.point)
-  out[0] = p.x
-  out[1] = p.y
-  out[2] = p.z
-  return out
+  return loadXyz(out, node.getWorldPosition(scratch.point))
 }
 
 /** Turns `node` by the world rotation `turn` (axis, angle), its local pose rewritten: the turn is
@@ -73,19 +69,11 @@ function turnInWorld(node: Object3D, axis: ArrayLike<number>, radians: number) {
   unit[1] = axis[1] / n
   unit[2] = axis[2] / n
   axisAngleQuaternion(turn, unit, radians)
-  const g = node.getWorldQuaternion(scratch.world)
-  global[0] = g.x
-  global[1] = g.y
-  global[2] = g.z
-  global[3] = g.w
+  loadXyzw(global, node.getWorldQuaternion(scratch.world))
   conjugateQuaternion(inverse, global)
   multiplyQuaternion(q, inverse, turn)
   multiplyQuaternion(q, q, global)
-  const l = node.quaternion
-  local[0] = l.x
-  local[1] = l.y
-  local[2] = l.z
-  local[3] = l.w
+  loadXyzw(local, node.quaternion)
   multiplyQuaternion(q, local, q)
   normalizeQuaternion(q)
   node.quaternion.set(q[0], q[1], q[2], q[3])
@@ -128,9 +116,7 @@ export function solveTwoBoneIK(
   worldPoint(root, a)
   worldPoint(mid, b)
   worldPoint(end, c)
-  t[0] = target.x
-  t[1] = target.y
-  t[2] = target.z
+  loadXyz(t, target)
   subVector3(ab, b, a)
   subVector3(cb, c, b)
   subVector3(ac, c, a)

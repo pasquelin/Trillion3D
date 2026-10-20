@@ -12,6 +12,7 @@ import type { AssetScope } from '../../sdk-core/src/contracts/base.ts'
 import type {
   BatchJob,
   BatchOptions,
+  BatchOutcome,
   BatchSummary,
   CompilationJob,
   CompilationJobOptions,
@@ -48,9 +49,37 @@ import {
   DEFAULT_RAM_BUDGET_MB,
   DEFAULT_SIMPLIFICATION,
   DEFAULT_TRIANGLE_BUDGET,
+  HLOD_OPTION,
   JOB_FIELDS,
   type JobField,
 } from '../../sdk-core/src/contracts/compilerAbi.ts'
+import { resolveHlod } from '../../sdk-core/src/contracts/hlodOptions.ts'
+import { materialFlags, materialJobFields } from '../../sdk-core/src/contracts/materialOptions.ts'
+export {
+  resolveMaterials,
+  resolveResponsive,
+  resolveTemporalAntialiasing,
+  temporalAntialiasingShare,
+} from '../../sdk-core/src/contracts/materialOptions.ts'
+export type {
+  MaterialSettings,
+  MaterialsOption,
+  ResponsiveOption,
+  TemporalAntialiasingOption,
+  TemporalAntialiasingShare,
+} from '../../sdk-core/src/contracts/materialOptions.ts'
+export type { TemporalAntialiasingLevel } from '../../sdk-core/src/contracts/compilerAbi.ts'
+export { resolveHlod, HLOD_QUALITIES } from '../../sdk-core/src/contracts/hlodOptions.ts'
+export type {
+  HlodExpert,
+  HlodGroup,
+  HlodMatch,
+  HlodOptions,
+  HlodPattern,
+  HlodQuality,
+  HlodSimple,
+} from '../../sdk-core/src/contracts/hlodOptions.ts'
+export type { HlodBuilder, HlodLayer } from '../../sdk-core/src/contracts/compilerAbi.ts'
 export { createTerminalProgress, createBatchProgress } from './cli/progress.mts'
 export { reviewCutouts } from './cutout/review.mts'
 /**
@@ -85,6 +114,17 @@ export async function prepare(
     simplification: options.simplification ?? DEFAULT_SIMPLIFICATION,
   }
   const args = JOB_FIELDS.map((field) => job[field])
+  // The HLOD, either form, as the compiler reads it (`resolveHlod`): a flag, never positional; the
+  // scene's temporal anti-aliasing, the responsive objects and the settings by material name, each
+  // a flag when named. What does not read is the job's refusal, as the compiler's.
+  try {
+    const hlod = resolveHlod(options.hlod)
+    if (hlod) args.push(`${HLOD_OPTION}${JSON.stringify(hlod)}`)
+    args.push(...materialFlags(options))
+  } catch (error) {
+    if (error instanceof TypeError) throw compilerError('INVALID_OPTIONS', error.message)
+    throw error
+  }
   const pointer = await runCompiler<CompilationPointer | CompilerRefusal>(
     args,
     options,
@@ -124,6 +164,44 @@ export async function prepareMany(
     if (typeof job.resourceBaseUrl !== 'string' || !job.resourceBaseUrl)
       throw compilerError('INVALID_OPTIONS', `job ${job.id ?? '?'}: resourceBaseUrl is required`)
   }
+  // Each job's HLOD, either form, and its temporal anti-aliasing options, as the compiler reads
+  // them. A job whose options do not read is that job's refusal (`INVALID_OPTIONS`), as the
+  // compiler refuses one, never the batch's: it is named as the compiler would name it.
+  const refused: BatchOutcome[] = []
+  const wired = jobs.flatMap((job, at) => {
+    const id = job.id || `job-${at}`
+    try {
+      return [
+        {
+          ...job,
+          id,
+          ...(job.hlod == null ? {} : { hlod: resolveHlod(job.hlod) }),
+          ...materialJobFields(job),
+        },
+      ]
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error
+      refused.push({ job: id, status: 'error', code: 'INVALID_OPTIONS', message: error.message })
+      return []
+    }
+  })
+  const summary: BatchSummary = wired.length
+    ? await runBatch(wired, options)
+    : { status: 'failed', completed: 0, failed: 0, cancelled: 0, jobs: [] }
+  if (!refused.length) return summary
+  return {
+    status: summary.completed > 0 ? 'partial' : 'failed',
+    completed: summary.completed,
+    failed: summary.failed + refused.length,
+    cancelled: summary.cancelled,
+    jobs: [...summary.jobs, ...refused].sort((a, b) =>
+      a.job < b.job ? -1 : a.job > b.job ? 1 : 0,
+    ),
+  }
+}
+
+/** Runs the batch of `jobs`, each in the compiler's form, in one compiler process. */
+async function runBatch(jobs: object[], options: BatchOptions): Promise<BatchSummary> {
   const directory = await mkdtemp(join(tmpdir(), 'trillion3d-batch-'))
   try {
     const file = join(directory, 'jobs.json')

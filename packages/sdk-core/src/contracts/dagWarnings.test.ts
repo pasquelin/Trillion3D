@@ -13,22 +13,22 @@ test('DAG warnings from cache surface as a diagnostic on open', () => {
     code: 'DAG_FLAT' as const,
     roots: 98,
     pages: 98,
-    groups: { seamLocked: 4 },
+    groups: { unreducible: 4 },
     rootTriangles: 12544,
-    cause: 'seam-locked' as const,
+    cause: 'unreducible' as const,
     seamVertices: 300,
     lockedVertices: 40,
     uvIslands: 98,
   }
   const stall = {
     level: 0,
-    cause: 'border-locked' as const,
+    cause: 'unreducible' as const,
     triangles: 64,
     seamVertices: 2,
     lockedVertices: 5,
     uvIslands: 1,
   }
-  const summary = { rootTriangles: 64, cause: 'border-locked' as const, seamVertices: 2 }
+  const summary = { rootTriangles: 64, cause: 'unreducible' as const, seamVertices: 2 }
   const row = { index: 0, mesh: 0, primitive: 0, ...summary, lockedVertices: 5, uvIslands: 1 }
   const primitives = [
     primitive(0, { warnings: [], stalls: [stall], ...summary, lockedVertices: 5, uvIslands: 1 }),

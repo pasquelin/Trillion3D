@@ -15,6 +15,11 @@ export function boxPointDistance(
   return length3(dx, dy, dz)
 }
 
+/** Distance on the ground from the point `(x, z)` to the box at `box[o]`, the up axis dropped as a
+ *  2D grid drops it: the gap past its four side faces, 0 over or under it. */
+export const boxGroundDistance = (box: ArrayLike<number>, o: number, x: number, z: number) =>
+  length3(Math.max(box[o] - x, 0, x - box[o + 3]), 0, Math.max(box[o + 2] - z, 0, z - box[o + 5]))
+
 /** Distance from the point `(x, y, z)` to the farthest corner of the box at `box[o]`: on each axis
  *  the bound farther from the point. Every point of the box lies within it. */
 export function boxPointReach(box: ArrayLike<number>, o: number, x: number, y: number, z: number) {

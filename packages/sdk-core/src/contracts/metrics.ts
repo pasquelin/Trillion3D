@@ -40,10 +40,10 @@ export type GpuFrameMs = number | null
   extends ShadowFrameMetrics, OcclusionFrameMetrics, TextureFrameMetrics, GpuMemoryFrameMetrics {
   /** Time between two frames, ms: from the rAF timestamp of the frame drawn before this one to its
    *  own, frames held for the readbacks spanned, so a whole number of `displayRefreshMs` on a
-   *  display that keeps its grid. Null before two frames and after a pause. */
+   *  display that keeps its grid. Null before two frames. */
   rafIntervalMs: number | null
   /** The display's refresh interval, ms, as the engine measured it on its frames' rAF timestamps
-   *  (the render-scale budget's clock); null until it found one. */
+   *  (the frame time budget's clock); null until it found one. */
   displayRefreshMs?: number | null
   /** Width in pixels the image was drawn at, before temporal antialiasing or the resample rebuilt
    *  it to the display: the display's own at a render scale of 1. Null before an image. */
@@ -56,7 +56,9 @@ export type GpuFrameMs = number | null
    *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null
   /** Clusters drawn. */ clusters: number | null
-  /** Triangles the cut selected. */ selectedTriangles: number | null
+  /** Triangles the cut selected: past its frustum and its detail levels, before the occlusion
+   *  test (`drawnTriangles`). */
+  selectedTriangles: number | null
   /** Pages held in memory. */ residentPages: number | null
   /** Submitted triangles: on the WebGPU-by-pages path, every drawable row — occlusion
    *  rejects after submit —, held by the table, hence exact and of this frame. */
@@ -151,11 +153,11 @@ export type GpuFrameMs = number | null
    *  cannot tell (it draws the cut it selected, so it never has one). */
   uncoveredTriangles?: number | null
   /**
-   * Triangles the CURRENT FRAME hands to the draw: its cluster cut, opaque and transparent of
-   * the hierarchy combined. Transparent meshes outside the hierarchy are not in it
-   * (`transparentSubmittedTriangles`), and occlusion reject is not subtracted
-   * (`hizRejectedTriangles`). Counted at cut adoption: no asynchronous GPU readback is waited for,
-   * so it is never `null` for lack of time, unlike `submittedTriangles`.
+   * Triangles the CURRENT FRAME draws: those the cut selected (`selectedTriangles`, opaque and
+   * transparent of the hierarchy combined) less those the occlusion test rejected
+   * (`hizRejectedTriangles`), as the GPU last sampled them, one frame in fifteen: nothing is
+   * subtracted before the first sample. Transparent meshes outside the hierarchy are not in it
+   * (`transparentSubmittedTriangles`). Never `null` for lack of time, unlike `submittedTriangles`.
    */
   drawnTriangles?: number | null
   /** Hierarchy nodes on which this frame's cut posed a test — frustum or
@@ -182,6 +184,24 @@ export type GpuFrameMs = number | null
    */
   pagesPlannedOffThread?: number | null
   /** Time spent planning arrivals. */ pagePlanMs?: number | null
+  /** The views drawn beside the main one in this frame (`world.addView`), in the order they were
+   *  added; a view its frame cap left out of the frame is absent. Every other field is the main
+   *  view's, and the world's alone: pages, memory, shadows. */
+  views?: readonly ViewFrameMetrics[]
+}
+/** What one view drawn beside the main one cost and drew in a frame (`FrameMetrics.views`). */
+export interface ViewFrameMetrics {
+  /** The view's place among the world's views, from 0 (`world.views`). */ index: number
+  /** GPU duration of the view's image, as `FrameMetrics.gpuFrameMs` is the main one's: its last
+   *  sample, a few images old. */
+  gpuFrameMs: GpuFrameMs
+  /** Its passes, as `FrameMetrics.gpuPassMs`. */ gpuPassMs: GpuPassTimings | null
+  /** Size in pixels the image was drawn at, before temporal antialiasing or the resample. */
+  renderWidth: number
+  /** Height beside `renderWidth`. */ renderHeight: number
+  /** The render scale it was drawn at. */ renderScale: number
+  /** Triangles it drew. */ drawnTriangles: number | null
+  /** Its frame targets' bytes: images, history, effect chain. */ frameTargetBytes: number
 }
 /** What the engine withholds now, by name: a capability the device, a setting or a program still
  *  compiling keeps from the image (`'temporal antialiasing'`, …); it leaves the list once served. */

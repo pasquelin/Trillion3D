@@ -102,6 +102,32 @@ export function waveTerms(waves: Waves, i: number, x: number, z: number, out: Fl
 /** One wave's terms, rewritten by each wave of `offset` and `normal`. */
 const terms = new Float64Array(TERM_COUNT)
 
+/** Every wave's three terms from slot `slot` summed into `out`, each times `sign`, from
+ *  `(0, startY, 0)`: the displacement `offset` adds, the normal's part `normal` takes away. */
+function sumTerms(
+  waves: Waves,
+  x: number,
+  z: number,
+  slot: number,
+  sign: number,
+  startY: number,
+  out: Float64Array | number[],
+) {
+  let ax = 0,
+    ay = startY,
+    az = 0
+  for (let i = 0; i < waves.count; i++) {
+    waveTerms(waves, i, x, z, terms)
+    ax += sign * terms[slot]
+    ay += sign * terms[slot + 1]
+    az += sign * terms[slot + 2]
+  }
+  out[0] = ax
+  out[1] = ay
+  out[2] = az
+  return out
+}
+
 /**
  * A set of trochoidal waves, clocked by `setTime`. Per wave `i`: its direction `(dx, dz)`, its wave
  * number `k`, its amplitude `A` and its lateral amplitude `Q·A`, where the steepnesses are scaled
@@ -185,19 +211,7 @@ export class Waves {
 
   /** Displacement `[x, y, z]` of the rest point `(x, 0, z)`, into `out`. */
   offset(x: number, z: number, out: Float64Array | number[]) {
-    let ox = 0,
-      oy = 0,
-      oz = 0
-    for (let i = 0; i < this.count; i++) {
-      waveTerms(this, i, x, z, terms)
-      ox += terms[OFFSET_X]
-      oy += terms[OFFSET_Y]
-      oz += terms[OFFSET_Z]
-    }
-    out[0] = ox
-    out[1] = oy
-    out[2] = oz
-    return out
+    return sumTerms(this, x, z, OFFSET_X, 1, 0, out)
   }
 
   /**
@@ -239,19 +253,7 @@ export class Waves {
 
   /** Unit normal `[x, y, z]` of the surface at the rest point `(x, z)`, into `out`. */
   normal(x: number, z: number, out: Float64Array | number[]) {
-    let nx = 0,
-      ny = 1,
-      nz = 0
-    for (let i = 0; i < this.count; i++) {
-      waveTerms(this, i, x, z, terms)
-      nx -= terms[NORMAL_X]
-      ny -= terms[NORMAL_Y]
-      nz -= terms[NORMAL_Z]
-    }
-    out[0] = nx
-    out[1] = ny
-    out[2] = nz
-    normalizeVector3(out)
+    normalizeVector3(sumTerms(this, x, z, NORMAL_X, -1, 1, out))
     return out
   }
 }

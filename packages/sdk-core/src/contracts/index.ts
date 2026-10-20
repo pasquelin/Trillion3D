@@ -1,5 +1,4 @@
 export * from './base.ts'
-export * from './impostor.ts'
 export * from './metrics.ts'
 export * from './geometry.ts'
 export * from '../page/contracts.ts'
@@ -13,7 +12,6 @@ export * from '../texture/previewContracts.ts'
 export {
   CUTOUT_SHEET_FILE,
   CUTOUT_SHEET_VERSION,
-  IMPOSTOR_VERSION,
   PROXY_CHILD_WORDS,
   PROXY_CHILDREN,
   PROXY_NODE_FLOATS,

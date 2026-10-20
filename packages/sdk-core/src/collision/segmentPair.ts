@@ -1,7 +1,7 @@
 // The closest points of two segments, the pair `closest.ts` measures a segment against each edge of
 // a triangle with.
 
-import { clampCompare } from '../../../math/src/scalar/reals.ts'
+import { clampCompare, lerp } from '../../../math/src/scalar/reals.ts'
 import { distanceSqVector3, dotScalar3 } from '../../../math/src/vector/vector.ts'
 
 /** `(first's end − second's start)·d2`: the second's unclamped parameter against the first's end, times `|d2|²`. */
@@ -56,8 +56,8 @@ export function closestBetweenSegments(
     // Stryker restore EqualityOperator
   }
   for (let k = 0; k < 3; k++) {
-    out[k] = s === 1 ? first[3 + k] : first[k] + s * (first[3 + k] - first[k])
-    out[3 + k] = t === 1 ? second[3 + k] : second[k] + t * (second[3 + k] - second[k])
+    out[k] = s === 1 ? first[3 + k] : lerp(first[k], first[3 + k], s)
+    out[3 + k] = t === 1 ? second[3 + k] : lerp(second[k], second[3 + k], t)
   }
   return distanceSqVector3(out, out, 0, 3)
 }

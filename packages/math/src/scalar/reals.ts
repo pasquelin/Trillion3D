@@ -37,10 +37,6 @@ export const wrap = (x: number, n: number) => ((x % n) + n) % n
  *  `fract`. A negative tiny `x` rounds to 1. */
 export const fract = (x: number) => x - Math.floor(x)
 
-/** `x` modulo `n` floored, the sign of `n`: `x − n · Math.floor(x / n)`. Unlike `wrap`
- *  it takes one division and one product, and a negative `n` folds into `(n, 0]`. */
-export const floorMod = (x: number, n: number) => x - n * Math.floor(x / n)
-
 /** The rate that leaves the share `left` of a quantity after `time` of exponential decay,
  *  `−ln(left) / time`: the inverse of `decayFactor`. */
 export const decayRate = (left: number, time: number) => -Math.log(left) / time

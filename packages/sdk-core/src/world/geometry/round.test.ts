@@ -4,6 +4,7 @@ import { SplineCurve, Path, Curve } from '../math/curves.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { torusKnot, tube, torus } from './round.ts'
 import { RECIPES } from './recipes.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 
 /** Every vertex of the last ring of a `(tubular + 1) × (radial + 1)` sweep sits on the first's. */
@@ -15,7 +16,7 @@ function assertCloses(position: ArrayLike<number>, tubular: number, radial: numb
   }
 }
 
-const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`)
+const close = (a: number, b: number) => near(a, b, 'the round geometry', 1e-8)
 
 class Slanted extends Curve {
   getPoint(t: number, out = new Vector3()) {
@@ -58,18 +59,18 @@ test('torus tube lies at the declared distance from its central circle, with out
     assert.equal(RECIPES[g.recipe!.type], torus)
     assert.deepEqual(g.recipe!.args, [5, 2, 4, 8, arc])
     for (let i = 0; i < p.count; i++) {
-      near(Math.hypot(Math.hypot(p.getX(i), p.getY(i)) - 5, p.getZ(i)), 2)
-      near(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)), 1)
-      near(p.getZ(i), 2 * n.getZ(i))
+      close(Math.hypot(Math.hypot(p.getX(i), p.getY(i)) - 5, p.getZ(i)), 2)
+      close(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)), 1)
+      close(p.getZ(i), 2 * n.getZ(i))
       const cx = p.getX(i) - 2 * n.getX(i),
         cy = p.getY(i) - 2 * n.getY(i)
-      near(Math.hypot(cx, cy), 5)
+      close(Math.hypot(cx, cy), 5)
       assert.ok(uv.getX(i) >= 0 && uv.getX(i) <= 1 && uv.getY(i) >= 0 && uv.getY(i) <= 1)
     }
-    near(p.getX(0), 7)
-    near(p.getY(0), 0)
-    near(p.getZ(9), 2)
-    near(p.getX(8), arc === Math.PI ? -7 : 7)
+    close(p.getX(0), 7)
+    close(p.getY(0), 0)
+    close(p.getZ(9), 2)
+    close(p.getX(8), arc === Math.PI ? -7 : 7)
     assert.equal(uv.getX(8), 1)
     assert.equal(uv.getY(36), 1)
   }
@@ -87,11 +88,11 @@ test('open tubes keep translated endpoints, radius and normals across either fra
     for (let i = 0; i < p.count; i++) {
       const centre = path.getPoint((i % 5) / 4),
         delta = new Vector3(p.getX(i), p.getY(i), p.getZ(i)).sub(centre)
-      near(delta.length(), 0.5)
-      near(delta.dot(end.clone().sub(start)), 0)
-      near(delta.x, 0.5 * n.getX(i))
-      near(delta.y, 0.5 * n.getY(i))
-      near(delta.z, 0.5 * n.getZ(i))
+      close(delta.length(), 0.5)
+      close(delta.dot(end.clone().sub(start)), 0)
+      close(delta.x, 0.5 * n.getX(i))
+      close(delta.y, 0.5 * n.getY(i))
+      close(delta.z, 0.5 * n.getZ(i))
     }
   }
   const knot = torusKnot(2, 0.25, 8, 4, 1, 2)

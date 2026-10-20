@@ -1,24 +1,16 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { lcgRandom } from '../sequence/random.ts'
-import { firstTrue, lastTrue } from './search.ts'
+import { lastTrue } from './search.ts'
 
 type Search = (low: number, high: number, holds: (index: number) => boolean) => number
 
-/** The same searches on BigInt bounds, whose midpoints never round. */
+/** The same search on BigInt bounds, whose midpoints never round. */
 function lastTrueExact(lo: bigint, hi: bigint, holds: (index: bigint) => boolean) {
   while (lo < hi) {
     const mid = lo + (hi - lo + 1n) / 2n
     if (holds(mid)) lo = mid
     else hi = mid - 1n
-  }
-  return lo
-}
-function firstTrueExact(lo: bigint, hi: bigint, holds: (index: bigint) => boolean) {
-  while (lo < hi) {
-    const mid = lo + (hi - lo) / 2n
-    if (holds(mid)) hi = mid
-    else lo = mid + 1n
   }
   return lo
 }
@@ -61,34 +53,20 @@ function sweepWindow(start: number, span: number) {
           Number(lastTrueExact(low64, high64, (i) => i <= at64)),
           `lastTrue ${label}`,
         )
-        assert.equal(
-          counted(firstTrue, low, high, (i) => i >= at, high),
-          Number(firstTrueExact(low64, high64, (i) => i >= at64)),
-          `firstTrue ${label}`,
-        )
       }
 }
 
-test('lastTrue and firstTrue stop where the bounds sum past 2^53: the two runaways of the summed midpoint', () => {
-  // The midpoint `ceilDiv(lo + hi, 2)` rounded back to `lo`, `Math.floor((lo + hi) / 2)` past `hi`
-  // into `hi + 1`: both loops stopped shrinking. Taken from `lo`, the midpoint stays inside.
+test('lastTrue stops where the bounds sum past 2^53: the runaway of the summed midpoint', () => {
+  // The midpoint `ceilDiv(lo + hi, 2)` rounded back to `lo`: the loop stopped shrinking. Taken
+  // from `lo`, the midpoint stays inside.
   const top = Number.MAX_SAFE_INTEGER
   assert.equal(
     counted(lastTrue, top - 1, top, () => true, top - 1),
     top,
   )
-  assert.equal(
-    counted(firstTrue, top - 2, top, () => true, top),
-    top - 2,
-  )
-  // The summed midpoint also returned an index past the range: `high + 1`.
-  assert.equal(
-    counted(firstTrue, 2 ** 53 - 128, 2 ** 53 - 124, (i) => i >= 2 ** 53 - 123, 2 ** 53 - 124),
-    2 ** 53 - 124,
-  )
 })
 
-test('lastTrue and firstTrue match the exact BigInt search on every range near ±2^53 and from 0', () => {
+test('lastTrue matches the exact BigInt search on every range near ±2^53 and from 0', () => {
   sweepWindow(Number.MAX_SAFE_INTEGER - 40, 40)
   sweepWindow(-Number.MAX_SAFE_INTEGER, 40)
   sweepWindow(0, 24)
@@ -102,10 +80,6 @@ test('lastTrue and firstTrue match the exact BigInt search on every range near �
     assert.equal(
       counted(lastTrue, low, high, (i) => i <= at, low),
       Number(lastTrueExact(BigInt(low), BigInt(high), (i) => i <= BigInt(at))),
-    )
-    assert.equal(
-      counted(firstTrue, low, high, (i) => i >= at, high),
-      Number(firstTrueExact(BigInt(low), BigInt(high), (i) => i >= BigInt(at))),
     )
   }
 })

@@ -12,6 +12,7 @@
 
 import { closestBetweenSegments } from './segmentPair.ts'
 import { triangleCross } from '../../../math/src/geometry/triangle.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 import { dotScalar3, lengthSqVector3, writeCrossVector3 } from '../../../math/src/vector/vector.ts'
 
 const edge = new Float64Array(6),
@@ -134,7 +135,7 @@ function pierces(
   if (d0 * d1 > 0 || d0 === d1) return false
   // Stryker restore all
   const t = d0 / (d0 - d1)
-  for (let k = 0; k < 3; k++) out[k] = out[3 + k] = segment[k] + t * (segment[3 + k] - segment[k])
+  for (let k = 0; k < 3; k++) out[k] = out[3 + k] = lerp(segment[k], segment[3 + k], t)
   return insideTriangle(out[0], out[1], out[2], v, at, normal)
 }
 

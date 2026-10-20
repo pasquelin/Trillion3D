@@ -28,19 +28,3 @@ export function lastAtMost(sorted: ArrayLike<number>, value: number) {
   }
   return lo
 }
-
-/** The first index of `[low, high]` where `holds` — false up to some index, true after — is true,
- *  `high` when none is, `low` when the range is empty (`high <= low`): `holds(high)` is never
- *  asked. The bounds are safe integers. The midpoint rounds down and is taken from `lo`,
- *  `lo + floor((hi − lo) / 2)`, never from the sum `lo + hi`, which rounds past 2^53: it lies in
- *  `[lo, hi)`, so every step shrinks the range. */
-export function firstTrue(low: number, high: number, holds: (index: number) => boolean) {
-  let lo = low,
-    hi = high
-  while (lo < hi) {
-    const mid = lo + Math.floor((hi - lo) / 2)
-    if (holds(mid)) hi = mid
-    else lo = mid + 1
-  }
-  return lo
-}

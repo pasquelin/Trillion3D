@@ -77,6 +77,15 @@ export function composeMatrix4<T extends NumberSink>(
   return out
 }
 
+const ORIGIN = [0, 0, 0],
+  UNIT = [1, 1, 1]
+
+/** `out = R`, the pure turn of the quaternion read at its start (no move, unit scale). */
+export function rotationMatrix4<T extends NumberSink>(out: T, quaternion: ArrayLike<number>): T {
+  composeMatrix4At(out, 0, ORIGIN, 0, quaternion, 0, UNIT, 0)
+  return out
+}
+
 /**
  * Composes `n` matrices. Two forms, and only two: everything flat, or everything as `n` sub-views
  * — `../batch/batch.ts` explains why a matrix travels as a sub-view. The form is settled BEFORE the

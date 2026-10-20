@@ -7,8 +7,10 @@ export type LlmToolFormat = 'openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-sc
  * Simplified JSON Schema for LLM function parameters.
  */
 export interface JsonSchemaProperty {
-  /** The value's kind. */
-  type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object'
+  /** The value's kind; left out where `anyOf` names the kinds it may take. */
+  type?: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object'
+  /** The shapes the value may take, one of them. */
+  anyOf?: readonly JsonSchemaProperty[]
   /** What it means. */
   description: string
   /** The allowed values. */

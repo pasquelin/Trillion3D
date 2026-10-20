@@ -1,5 +1,5 @@
 import { wgslFn } from './decl.ts'
-import { PLASTIC_STEP } from './constants.ts'
+import { PLASTIC_STEP, QUARTER_PI } from './constants.ts'
 
 /**
  * Where a shader samples: a seed folded into [0, 1), the interleaved gradient of a pixel, a texel
@@ -10,10 +10,11 @@ import { PLASTIC_STEP } from './constants.ts'
  */
 
 /**
- * One word of integer hash, the engine's one: an odd golden multiply, an xor-shift, a second
- * multiply, a last xor-shift (`mixWord` in `../scalar/integers.ts` on the processor, tested word for
- * word). Every hash that keys a table or settles a value reads it; a second word of one input is
- * `mixWord(x ^ GOLDEN_U32)`.
+ * One word of integer hash: an odd golden multiply, an xor-shift, a second multiply, a last
+ * xor-shift (`mixWord` in `../scalar/integers.ts` on the processor, tested word for word). Every
+ * hash that keys a table or settles a value reads it; a second word of one input is
+ * `mixWord(x ^ GOLDEN_U32)`. The denoiser's filter taps hash a 3D point their own way
+ * (`rand3dPcg16`).
  */
 export const mixWord = wgslFn(
   'mixWord',
@@ -33,6 +34,17 @@ export const additive2d = wgslFn(
   'fn additive2d(shift:vec2f,n:u32)->vec2f{return fract(shift+f32(n)*PLASTIC_STEP);}',
 )
 
+/** The interleaved gradient noise of pixel `p` at image `frame` (Jimenez 2014), in [0, 1): the
+ *  position moved by `frame · (47, 17) · 0.695` each image. */
+export const interleavedGradientNoise = wgslFn(
+  'interleavedGradientNoise',
+  [],
+  `fn interleavedGradientNoise(p:vec2f,frame:f32)->f32{
+ let uv=p+frame*vec2f(47.0,17.0)*0.695;
+ return fract(52.9829189*fract(dot(uv,vec2f(0.06711056,0.00583715))));
+}`,
+)
+
 export const hashUnit = wgslFn(
   'hashUnit',
   [],
@@ -41,6 +53,45 @@ export const hashUnit = wgslFn(
  x=((x>>((x>>28u)+4u))^x)*277803737u;
  x=(x>>22u)^x;
  return f32(x)*2.3283064e-10;
+}`,
+)
+
+/**
+ * Stratified points of a disc, the reflection denoiser's spatial filter taps: `rand3dPcg16`, three
+ * 16-bit words of a 3D integer point (a PCG-style 3D hash, Jarzynski & Olano 2020: one LCG step, six
+ * multiply-add Feistel rounds, the top halves); `hammersley16`, the `index`-th of `count` Hammersley
+ * points scrambled by two such words (Cranley-Patterson rotation of the first coordinate, an XOR
+ * scramble of the radical inverse); `uniformDiskConcentric`, Shirley & Chiu's 1997 concentric map
+ * of the unit square onto the unit disc, which keeps strata compact.
+ */
+export const rand3dPcg16 = wgslFn(
+  'rand3dPcg16',
+  [],
+  `fn rand3dPcg16(p:vec3i)->vec3u{
+ var v=bitcast<vec3u>(p)*1664525u+1013904223u;
+ v.x+=v.y*v.z;v.y+=v.z*v.x;v.z+=v.x*v.y;
+ v.x+=v.y*v.z;v.y+=v.z*v.x;v.z+=v.x*v.y;
+ return v>>vec3u(16u);
+}`,
+)
+export const hammersley16 = wgslFn(
+  'hammersley16',
+  [],
+  `fn hammersley16(index:u32,count:u32,random:vec2u)->vec2f{
+ let e1=fract(f32(index)/f32(count)+f32(random.x)*(1.0/65536.0));
+ return vec2f(e1,f32((reverseBits(index)>>16u)^random.y)*(1.0/65536.0));
+}`,
+)
+export const uniformDiskConcentric = wgslFn(
+  'uniformDiskConcentric',
+  [QUARTER_PI],
+  `fn uniformDiskConcentric(e:vec2f)->vec2f{
+ let p=2.0*e-0.99999994;
+ let a=abs(p);
+ let hi=max(a.x,a.y);
+ let phi=QUARTER_PI*(min(a.x,a.y)/(hi+5.42101086e-20)+2.0*f32(a.y>=a.x));
+ let unsigned=bitcast<vec2u>(vec2f(cos(phi),sin(phi)))&vec2u(0x7fffffffu);
+ return bitcast<vec2f>(unsigned|(bitcast<vec2u>(p)&vec2u(0x80000000u)))*hi;
 }`,
 )
 

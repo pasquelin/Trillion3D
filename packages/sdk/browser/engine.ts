@@ -19,6 +19,11 @@ export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.
 export type { ByteMeter } from '../../sdk-browser/src/cluster/byteMeter.ts'
 export { createPageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
 export type { CacheSession, PageCache } from '../../sdk-browser/src/streaming/pageCache.ts'
+export type {
+  CellBudget,
+  CellFrameIo,
+  CellPrimeIo,
+} from '../../sdk-browser/src/partition/cellsPrime.ts'
 export type { CellRows } from '../../sdk-browser/src/partition/cellDecode.ts'
 export type {
   ChangeListener,
@@ -33,12 +38,6 @@ export type {
   PhysicsHost,
 } from '../../sdk-core/src/physics/objectPhysics.ts'
 export type { CpuStepSummary } from '../../sdk-browser/src/stage/profiler.ts'
-export { createDiagnosticChannel } from '../../sdk-browser/src/diagnostic/channel.ts'
-export type {
-  DiagnosticChannel,
-  DiagnosticChannelOptions,
-  DiagnosticObserver,
-} from '../../sdk-browser/src/diagnostic/channel.ts'
 export { createGpuPageCache } from '../../sdk-browser/src/gpu/page/pages.ts'
 export type { GpuPageCacheOptions } from '../../sdk-browser/src/gpu/page/pages.ts'
 export { createPageStreamer } from '../../sdk-browser/src/streaming/pageStreamer.ts'
@@ -61,13 +60,11 @@ export type {
   PhysicsShape,
   PhysicsType,
 } from '../../sdk-core/src/physics/options.ts'
-export type { DiagnosticDetail, EngineDiagnostic } from '../../sdk-browser/src/diagnostic/types.ts'
 export type {
   DrawAssociations,
   DrawRanks,
   DrawSource,
 } from '../../sdk-browser/src/page/selection/drawSource.ts'
-export { EngineProfiler } from '../../sdk-browser/src/diagnostic/telemetry.ts'
 export type { EvictionOrder } from '../../sdk-browser/src/gpu/page/eviction.ts'
 export type { FirstPersonCameraControls } from '../../sdk-browser/src/camera/controls/firstPersonControls.ts'
 export type { FlyCameraControls } from '../../sdk-browser/src/camera/controls/flyControls.ts'
@@ -130,7 +127,6 @@ export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts'
 export type { PlacementGrowth } from '../../sdk-browser/src/placement/engineSceneUpdates.ts'
 export type { PlacementLink } from '../../sdk-browser/src/placement/gpuCompose.ts'
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts'
-export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts'
 export type { RangeAsk, ReadRange } from '../../sdk-browser/src/cluster/ranged.ts'
 export { Releasable } from '../../sdk-core/src/runtime/releasable.ts'
 export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts'
@@ -148,7 +144,6 @@ export type {
 } from '../../sdk-core/src/physics/soft.ts'
 export type { SurfaceBuffer, SurfaceCapture } from '../../sdk-browser/src/scene/surfaceBuffer.ts'
 export type { SurfaceDeclaration } from '../../sdk-browser/src/page/surfaceDeclaration.ts'
-export type { TelemetryReport } from '../../sdk-browser/src/diagnostic/telemetryTypes.ts'
 export type {
   TextureLevel,
   TextureLevelAddress,

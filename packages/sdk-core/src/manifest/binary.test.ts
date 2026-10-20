@@ -1,4 +1,4 @@
-import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
+import { BINARY, sha, manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assertManifestBinary } from './binaryTypes.ts'
@@ -18,7 +18,7 @@ function ownBuffer(view: Uint8Array): ArrayBuffer {
 
 test('a manifest survives the binary columns unchanged, field by field', () => {
   const source = manifest()
-  const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES)
+  const { manifest: slim, binary } = encodeManifestBinary(source, BINARY)
   slim.binary.sha256 = sha('f')
   const header = new Uint32Array(binary.buffer, binary.byteOffset, 4)
   assert.equal(header[0], MANIFEST_BINARY_MAGIC, 'the file names its own format')
@@ -26,7 +26,7 @@ test('a manifest survives the binary columns unchanged, field by field', () => {
   assert.equal(slim.binary.bytes, binary.byteLength)
   // The small JSON keeps what a reader parses and loses what it maps.
   const text = JSON.stringify(slim)
-  assert.ok(!text.includes(sha('a')), 'no cluster digest survives in the JSON')
+  assert.ok(!text.includes(sha('b')), 'no cluster digest survives in the JSON')
   assert.ok(!text.includes('lodError'), 'no per-cluster number survives in the JSON')
   assert.equal(slim.primitives[0].binary.pages, 2)
   assert.deepEqual(slim.primitives[0].binary.structure, { version: 1, groups: 1, roots: 1 })
@@ -34,7 +34,14 @@ test('a manifest survives the binary columns unchanged, field by field', () => {
     pages: 1,
     culling: null,
     structure: null,
-    streams: null,
+    streams: {
+      version: 1,
+      pinned: 1,
+      bundleBytes: 131072,
+      dependencyBound: 0,
+      maxDependencies: 0,
+      pages: 1,
+    },
   })
   const decoded = decodeManifestBinary(JSON.parse(text), ownBuffer(binary))
   assert.deepEqual(decoded, source)
@@ -47,7 +54,7 @@ test('a manifest survives the binary columns unchanged, field by field', () => {
 })
 
 test('a binary from another version, or shorter than it claims, is refused', () => {
-  const { manifest: slim, binary } = encodeManifestBinary(manifest(), TEMPLATES)
+  const { manifest: slim, binary } = encodeManifestBinary(manifest(), BINARY)
   slim.binary.sha256 = sha('f')
   const buffer = ownBuffer(binary)
   const bumped = buffer.slice(0)
@@ -80,11 +87,11 @@ test('a binary from another version, or shorter than it claims, is refused', () 
   )
 })
 
-test('a cluster url that does not follow the manifest template is refused at encoding', () => {
+test('a bundle that lies in no geometry file of the manifest is refused at encoding', () => {
   const source = manifest()
-  source.primitives[0].pages[0].url = 'pages/0.bin'
+  source.primitives[0].streams!.pages[0].range = { file: 'elsewhere.bin', offset: 0 }
   assert.throws(
-    () => encodeManifestBinary(source, TEMPLATES),
+    () => encodeManifestBinary(source, BINARY),
     (error: EngineError) => error.code === 'INVALID_CACHE',
   )
 })
@@ -95,12 +102,12 @@ test('encodeManifestBinary rejects a depth layer above 15 and accepts the four-b
   const tooDeep = manifest()
   tooDeep.primitives[0].pages[0].depthLayer = MAX_DEPTH_LAYER + 1
   assert.throws(
-    () => encodeManifestBinary(tooDeep, TEMPLATES),
+    () => encodeManifestBinary(tooDeep, BINARY),
     (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE',
   )
   const atLimit = manifest()
   atLimit.primitives[0].pages[0].depthLayer = MAX_DEPTH_LAYER
-  assert.doesNotThrow(() => encodeManifestBinary(atLimit, TEMPLATES))
+  assert.doesNotThrow(() => encodeManifestBinary(atLimit, BINARY))
 })
 
 // Behaviour 11: pageDepthLayer round-trips through the binary columns; layer 0
@@ -108,7 +115,7 @@ test('encodeManifestBinary rejects a depth layer above 15 and accepts the four-b
 test('depthLayer round-trips through the binary columns, and layer 0 leaves the field absent', () => {
   const source = manifest()
   source.primitives[0].pages[0].depthLayer = 7
-  const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES)
+  const { manifest: slim, binary } = encodeManifestBinary(source, BINARY)
   slim.binary.sha256 = sha('f')
   const decoded = decodeManifestBinary(JSON.parse(JSON.stringify(slim)), ownBuffer(binary))
   assert.equal(decoded.primitives[0].pages[0].depthLayer, 7)
@@ -131,9 +138,6 @@ test('assertManifestBinary accepts this version and refuses every other one', ()
     url: 'clusters.bin',
     sha256: 'a'.repeat(64),
     bytes: 8,
-    pageUrl: '../../objects/{sha}.bin',
-    geometryUrl: '../../objects/{sha}.bin',
-    bundleUrl: '../../objects/{sha}.bin',
     texturePreviews: 0,
     texturePreviewBytes: 0,
     texturePreviewBc7Bytes: 0,
@@ -156,9 +160,6 @@ test('assertManifestBinary rejects a descriptor with no texture preview count', 
     url: 'clusters.bin',
     sha256: 'a'.repeat(64),
     bytes: 8,
-    pageUrl: '../../objects/{sha}.bin',
-    geometryUrl: '../../objects/{sha}.bin',
-    bundleUrl: '../../objects/{sha}.bin',
   }
   assert.throws(
     () => assertManifestBinary(descriptor),
@@ -171,7 +172,7 @@ test('assertManifestBinary rejects a descriptor with no texture preview count', 
 })
 test('encodeManifestBinary and decodeManifestBinary round-trip the texture preview section', () => {
   const source = manifest()
-  const { manifest: slim, binary } = encodeManifestBinary(source, TEMPLATES)
+  const { manifest: slim, binary } = encodeManifestBinary(source, BINARY)
   slim.binary.sha256 = sha('f')
   assert.equal(slim.binary.texturePreviews, 1)
   const decoded = decodeManifestBinary(JSON.parse(JSON.stringify(slim)), ownBuffer(binary))

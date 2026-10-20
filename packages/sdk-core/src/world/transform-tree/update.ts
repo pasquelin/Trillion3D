@@ -1,5 +1,5 @@
 import { copyMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { composeMatrix4At } from '../../../../math/src/matrix/matrix4Compose.ts'
 import {
   NODE_AUTO_UPDATE,
   NODE_LOCAL_CHANGED,
@@ -31,26 +31,19 @@ export function markNodeWorldNeedsUpdate(tree: TransformTree, node: number) {
   tree.flags[node] |= NODE_WORLD_NEEDS_UPDATE
 }
 
-const composePosition = new Float64Array(3),
-  composeQuaternion = new Float64Array(4),
-  composeScale = new Float64Array(3)
-
 /** The local matrix from the node's position, rotation and scale. */
 function composeLocal(tree: TransformTree, node: number) {
   const { position, quaternion, scale } = tree
-  const p = node * 3,
-    q = node * 4
-  composePosition[0] = position[p]
-  composePosition[1] = position[p + 1]
-  composePosition[2] = position[p + 2]
-  composeQuaternion[0] = quaternion[q]
-  composeQuaternion[1] = quaternion[q + 1]
-  composeQuaternion[2] = quaternion[q + 2]
-  composeQuaternion[3] = quaternion[q + 3]
-  composeScale[0] = scale[p]
-  composeScale[1] = scale[p + 1]
-  composeScale[2] = scale[p + 2]
-  composeMatrix4(tree.localViews[node], composePosition, composeQuaternion, composeScale)
+  composeMatrix4At(
+    tree.localViews[node],
+    0,
+    position,
+    node * 3,
+    quaternion,
+    node * 4,
+    scale,
+    node * 3,
+  )
 }
 
 /**

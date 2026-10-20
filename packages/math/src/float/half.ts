@@ -1,8 +1,4 @@
-import { f32Bits } from './bits.ts'
-
-/** One float64 and its two 32-bit words, the buffer `fromHalf` builds a normal half through. */
-const f64 = new Float64Array(1),
-  f64Words = new Uint32Array(f64.buffer)
+import { f32Bits, fromF64Words } from './bits.ts'
 
 /**
  * The value of a half float's sixteen bits (IEEE 754 binary16): a normal half
@@ -11,9 +7,8 @@ const f64 = new Float64Array(1),
  * caller that meets infinity or NaN decodes it itself.
  *
  * A normal half is exact in a double, so its double is written as bits: the sign, the exponent
- * rebiased by 1023 − 15, the ten fraction bits on top of the double's fifty-two. Word 1 of the
- * buffer is the double's high word on a little-endian host — every typed array the engine runs on,
- * as `toHalf` reads float32 bits through one. A subnormal half takes the product, `-0` its sign.
+ * rebiased by 1023 − 15, the ten fraction bits on top of the double's fifty-two (`fromF64Words`).
+ * A subnormal half takes the product, `-0` its sign.
  */
 export function fromHalf(bits: number) {
   const exponent = (bits >> 10) & 31,
@@ -22,14 +17,12 @@ export function fromHalf(bits: number) {
     const magnitude = fraction * 2 ** -24
     return bits & 0x8000 ? -magnitude : magnitude
   }
-  f64Words[0] = 0
-  f64Words[1] = ((bits & 0x8000) << 16) | ((exponent + 1008) << 20) | (fraction << 10)
-  return f64[0]
+  return fromF64Words(((bits & 0x8000) << 16) | ((exponent + 1008) << 20) | (fraction << 10), 0)
 }
 
 /** The bits of the half float +∞: exponent all ones, no mantissa. A larger magnitude's sign is
  *  ORed onto it. */
-export const HALF_INFINITY = 0x7c00
+const HALF_INFINITY = 0x7c00
 
 /**
  * The nearest half float of `value`, its sixteen bits (IEEE 754 binary16, ties to even; NaN stays

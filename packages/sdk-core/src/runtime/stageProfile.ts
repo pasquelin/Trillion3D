@@ -61,7 +61,7 @@ export interface StageProfile {
 }
 
 /** Nameable stages of a frame, in the order they occur. */
-export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+export const STAGE_LABELS: Readonly<Record<string, string>> = /* @__PURE__ */ Object.freeze({
   physics: 'Physics and particles',
   animations: 'Animations and transforms',
   lights: 'Lighting: preparing lists and shadows',
@@ -84,7 +84,7 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   reflections: 'Screen reflections',
   lighting: 'Lighting (resolve)',
   antialiasing: 'Temporal antialiasing',
-  effects: 'Image effects (bloom)',
+  effects: 'Image effects (bloom, outline)',
   present: 'Present',
 })
 

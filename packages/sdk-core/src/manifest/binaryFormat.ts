@@ -5,7 +5,7 @@
  * JSON that is tens of megabytes the browser has to tokenize before the first frame; written as
  * typed-array columns it is a single `fetch` and a handful of views. The small JSON that stays
  * beside it keeps everything a human or a tool reads — primitives, materials, the group structure
- * counts, the bundle catalogue — plus the pointer to the columns.
+ * counts, the geometry containers — plus the pointer to the columns.
  *
  * Layout, little-endian:
  *
@@ -28,8 +28,6 @@ export const COLUMN_NAMES = [
   'pageError',
   'pageInt',
   'pageU32',
-  'pageSha',
-  'geometrySha',
   'geometryU32',
   'cullingNodes',
   'groupLevel',
@@ -64,9 +62,7 @@ export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
  * @property pageError - Each page's error and its replacement's.
  * @property pageInt - Each page's signed numbers.
  * @property pageU32 - Each page's counts.
- * @property pageSha - Each page's fingerprint.
- * @property geometrySha - Each geometry block's fingerprint.
- * @property geometryU32 - Each geometry block's counts.
+ * @property geometryU32 - Each geometry page's counts.
  * @property cullingNodes - The culling trees' nodes.
  * @property groupLevel - Each group's level.
  * @property groupError - Each group's error.
@@ -76,7 +72,7 @@ export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
  * @property groupOutputCount - How many clusters each group makes.
  * @property groupOutput - The clusters each group makes.
  * @property structureRoot - The clusters nothing replaces.
- * @property bundleU32 - Each bundle's counts.
+ * @property bundleU32 - Each bundle's container, offset there, size and cluster count.
  * @property bundleSha - Each bundle's fingerprint.
  * @property pageDepthLayer - Each page's coplanar depth layer.
  * @property texturePreviewU32 - Each texture preview's numbers.
@@ -96,8 +92,6 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   pageError: 'f64',
   pageInt: 'i32',
   pageU32: 'u32',
-  pageSha: 'u8',
-  geometrySha: 'u8',
   geometryU32: 'u32',
   cullingNodes: 'f64',
   groupLevel: 'i32',
@@ -129,9 +123,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   pageParentSphere: 4,
   pageError: 2,
   pageInt: 8,
-  pageU32: 2,
-  pageSha: 64,
-  geometrySha: 64,
+  pageU32: 1,
   geometryU32: 5,
   cullingNodes: 15,
   groupLevel: 1,
@@ -142,7 +134,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   groupOutputCount: 1,
   groupOutput: 1,
   structureRoot: 1,
-  bundleU32: 2,
+  bundleU32: 4,
   bundleSha: 64,
   pageDepthLayer: 1,
   texturePreviewU32: PREVIEW_WORDS,
@@ -169,6 +161,15 @@ export const INT_ID = 0,
   INT_STREAM_OFFSET = 5,
   INT_COUNT = 6,
   INT_START = 7
-/** `pageU32` slots. */
-export const U32_BYTES = 0,
-  U32_FLAGS = 1
+/** `geometryU32` slots: the page's facts. */
+export const GEOMETRY_BYTES = 0,
+  GEOMETRY_VERTICES = 1,
+  GEOMETRY_INDICES = 2,
+  GEOMETRY_FLAGS = 3,
+  GEOMETRY_UNCOMPRESSED = 4
+/** `bundleU32` slots: its container's rank in the manifest's `geometryFiles`, its offset there,
+ *  its size and its cluster count. */
+export const BUNDLE_FILE = 0,
+  BUNDLE_OFFSET = 1,
+  BUNDLE_BYTES = 2,
+  BUNDLE_COUNT = 3

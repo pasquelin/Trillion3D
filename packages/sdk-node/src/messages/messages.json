@@ -22,7 +22,7 @@
       "level": "error",
       "message": "A compile option is out of range.",
       "cause": "Scope, budgets, threads, base URL or simplification out of range",
-      "action": "Use a scope of `slice` or `full`, positive triangle budget, thread count and RAM budget, a resource base URL, and `none` or `qem-endpoints` as simplification."
+      "action": "Use a scope of `slice` or `full`, positive triangle budget, thread count and RAM budget, a resource base URL, and `qem-endpoints` or `none` as simplification."
     },
     {
       "id": "T3D-E004",
@@ -161,14 +161,6 @@
       "action": "Report it as a compiler bug, with the model if you can share it."
     },
     {
-      "id": "T3D-E021",
-      "code": "DAG_NORMAL_DEVIATION",
-      "level": "error",
-      "message": "A coarse cluster bends its normals past its group's bound.",
-      "cause": "A cluster's error above its parent's, or a coarse cluster's normal deviation past its group's bound ([checks](COMPILER.md#invocation))",
-      "action": "Report it as a compiler bug, with the model if you can share it."
-    },
-    {
       "id": "T3D-E022",
       "code": "PAGE_DEPENDENCY_BOUND",
       "level": "error",
@@ -247,14 +239,6 @@
       "message": "A glTF accessor has a missing or unknown type.",
       "cause": "An accessor `type` absent, or outside the ones glTF defines for the attribute that reads it.",
       "action": "Export the model again with standard accessor types (`SCALAR`, `VEC2`, `VEC3`, `VEC4`, `MAT4`)."
-    },
-    {
-      "id": "T3D-E031",
-      "code": "UNSUPPORTED_COMPONENT",
-      "level": "error",
-      "message": "A glTF accessor has a component type the compiler does not read.",
-      "cause": "An accessor `componentType` outside the glTF list, or not allowed for the attribute that reads it.",
-      "action": "Export the model again with float, normalised integer or unsigned integer components."
     },
     {
       "id": "T3D-E032",
@@ -377,22 +361,6 @@
       "action": "Check the mesh for degenerate or non-manifold parts, clean it, and compile again."
     },
     {
-      "id": "T3D-E047",
-      "code": "TEXTURE_ENCODE_FAILED",
-      "level": "error",
-      "message": "A baked texture level could not be encoded.",
-      "cause": "The lossless encoder refused a texture level baked from a decoded image.",
-      "action": "Report it as a compiler bug, with the texture if you can share it."
-    },
-    {
-      "id": "T3D-E048",
-      "code": "WORLD_TOP_OVER_BUDGET",
-      "level": "error",
-      "message": "The world's pinned top level is above its byte budget.",
-      "cause": "The always-resident top of a world holds more bytes than its budget; the message names the heaviest cell.",
-      "action": "Split the world into more cells, or simplify the objects that stay loaded everywhere."
-    },
-    {
       "id": "T3D-E049",
       "code": "INVALID_CUTOUT_DECISIONS",
       "level": "error",
@@ -421,8 +389,8 @@
       "code": "DAG_FLAT",
       "level": "warn",
       "message": "A primitive of several clusters built no coarser level, so it is drawn at full detail at every distance.",
-      "cause": "The cluster DAG of the primitive stopped at depth 0: every group of clusters failed to simplify (seam-locked, border-locked, too small or of unusable error); the warning carries the group count per outcome and the dominant cause.",
-      "action": "Look at the named cause in `clusters.json`: weld seams, remove locked borders or split UV islands in the authoring tool."
+      "cause": "The cluster DAG of the primitive stopped at depth 0: every group of clusters failed to simplify (border-locked, unreducible, too small or of unusable error); the warning carries the group count per outcome and the dominant cause.",
+      "action": "Look at the named cause in `clusters.json`: remove locked borders in the authoring tool."
     },
     {
       "id": "T3D-W004",
@@ -430,7 +398,7 @@
       "level": "warn",
       "message": "A primitive's DAG stopped rising mid-way and left many roots, so it stays heavy in the distance.",
       "cause": "More than an eighth of a primitive's pages are roots, on a primitive of at least eight clusters: its DAG stopped mid-way.",
-      "action": "Look at the named cause in `clusters.json`: weld seams, remove locked borders or split UV islands in the authoring tool."
+      "action": "Look at the named cause in `clusters.json`: remove locked borders in the authoring tool."
     },
     {
       "id": "T3D-E052",
@@ -578,10 +546,10 @@
     },
     {
       "id": "T3D-W015",
-      "code": "material-specular-ior",
+      "code": "ior-unsupported",
       "level": "warn",
       "message": "An index of refraction other than 1.5 was dropped.",
-      "cause": "An index of refraction (`Ni`) other than glTF's default 1.5",
+      "cause": "An index of refraction (`Ni`, `ior`) other than glTF's default 1.5: base glTF carries none",
       "action": "Nothing carries it in glTF; set the look with roughness and metalness instead."
     },
     {
@@ -660,9 +628,9 @@
       "id": "T3D-W025",
       "code": "texture-missing",
       "level": "warn",
-      "message": "A texture file the model cites was not found, so the material draws without it.",
-      "cause": "A referenced texture file absent from the source folder.",
-      "action": "Place the texture beside the model under the name the model cites."
+      "message": "A texture the model cites was not found, so the material draws without it.",
+      "cause": "A texture file absent, outside the source directory or of a format the image registry does not read, or a Unity GUID no project asset carries",
+      "action": "Place the texture in the model's folder, under the name the model cites, as PNG or JPEG."
     },
     {
       "id": "T3D-W026",
@@ -769,14 +737,6 @@
       "action": "Save the file again from a current Blender, or export it to glTF."
     },
     {
-      "id": "T3D-E067",
-      "code": "blend-mesh-invalid",
-      "level": "error",
-      "message": "A Blender mesh corner points outside its vertices.",
-      "cause": "A mesh corner points outside its own vertices",
-      "action": "Clean up the mesh in Blender (Merge by Distance, Delete Loose) and save again."
-    },
-    {
       "id": "T3D-W030",
       "code": "blend-collection-instance-unsupported",
       "level": "warn",
@@ -810,11 +770,11 @@
     },
     {
       "id": "T3D-W034",
-      "code": "blend-texture-channel-unsupported",
+      "code": "texture-channel-unsupported",
       "level": "warn",
-      "message": "An alpha taken from a colour channel was dropped; the declared alpha is kept.",
-      "cause": "`Alpha` from a channel of the base-colour image other than its alpha; reading it there would recompose bytes, so the declared factor is kept",
-      "action": "Store the alpha in the base-colour image's alpha channel."
+      "message": "A texture channel glTF does not read there was used; the map is carried as is.",
+      "cause": "An input bound to a channel glTF does not read there (metal from blue, roughness from green, an alpha or opacity from the base-colour image's alpha only); the map is carried as is, an alpha falls back to its declared value",
+      "action": "Pack metalness in blue and roughness in green, and opacity in the base colour's alpha."
     },
     {
       "id": "T3D-W035",
@@ -834,27 +794,11 @@
     },
     {
       "id": "T3D-W037",
-      "code": "blend-emission-clamped",
+      "code": "emission-clamped",
       "level": "warn",
       "message": "An emission above 1 was clamped.",
-      "cause": "Emission colour × strength above 1, which `emissiveFactor` cannot carry; clamped",
+      "cause": "An emission (colour × strength, an HDR emissive colour) above 1, which `emissiveFactor` cannot carry; clamped",
       "action": "Lower the emission strength, or accept the clamp."
-    },
-    {
-      "id": "T3D-W038",
-      "code": "blend-image-format",
-      "level": "warn",
-      "message": "An image in a format the image readers do not decode was dropped.",
-      "cause": "An image file the image registry cannot decode; the scene continues without it",
-      "action": "Convert the image to PNG or JPEG."
-    },
-    {
-      "id": "T3D-W039",
-      "code": "blend-image-outside-source",
-      "level": "warn",
-      "message": "An image outside the model's folder, not packed, was not copied.",
-      "cause": "An image outside the served root with no packed bytes; not copied beside the scene",
-      "action": "Pack the image in Blender, or move it into the model's folder."
     },
     {
       "id": "T3D-W040",
@@ -866,11 +810,11 @@
     },
     {
       "id": "T3D-W041",
-      "code": "blend-ngon-untriangulable",
+      "code": "ngon-untriangulable",
       "level": "warn",
       "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
       "cause": "A face the ear-clipping cut could not finish ([Polygon faces](COMPILER.md#polygon-faces)): self-crossing, or planeless (every corner collinear, zero area); it falls back to the fan from its first corner, which may overfill its outline",
-      "action": "Triangulate or fix the face in Blender (self-crossing or flat polygon)."
+      "action": "Triangulate or fix the face in the authoring tool (self-crossing or flat polygon)."
     },
     {
       "id": "T3D-I003",
@@ -1425,14 +1369,6 @@
       "action": "Export the model again with the texture's image."
     },
     {
-      "id": "T3D-W108",
-      "code": "texture-blocks-undecodable",
-      "level": "warn",
-      "message": "A compressed texture level did not decode back during its quality check.",
-      "cause": "A block-compressed level the compiler encoded and then failed to decode for its quality check.",
-      "action": "Report it as a compiler bug, with the texture if you can share it."
-    },
-    {
       "id": "T3D-E068",
       "code": "USDZ_LAYOUT_INVALID",
       "level": "error",
@@ -1458,10 +1394,10 @@
     },
     {
       "id": "T3D-W110",
-      "code": "usd-curves-unsupported",
+      "code": "curves-unsupported",
       "level": "warn",
       "message": "Curves were left out; only surfaces are drawn.",
-      "cause": "`BasisCurves`, `NurbsCurves` or `HermiteCurves`: not a surface",
+      "cause": "Curves (USD `BasisCurves`, `NurbsCurves`, `HermiteCurves`, an Alembic curves object): not a surface",
       "action": "Convert the curves to meshes (for example tubes) before exporting."
     },
     {
@@ -1482,19 +1418,19 @@
     },
     {
       "id": "T3D-I006",
-      "code": "usd-camera-unsupported",
+      "code": "camera-unsupported",
       "level": "info",
       "message": "A camera was left out; the host places its own.",
-      "cause": "`Camera`: the host places its own",
+      "cause": "A camera: the scene carries no viewpoint, the host places its own",
       "action": "Nothing to do; set the camera in your application."
     },
     {
       "id": "T3D-W113",
-      "code": "usd-light-unsupported",
+      "code": "light-unsupported",
       "level": "warn",
-      "message": "A light type with no glTF equivalent was left out.",
-      "cause": "A `UsdLux` schema with no glTF punctual equivalent — `DomeLight`, `CylinderLight`, `GeometryLight`, `PortalLight`, every `LightFilter`; sphere, disk, rect and distant lights are imported, with their declared emitter radius",
-      "action": "Replace it with a sphere, disk, rect or distant light."
+      "message": "A light with no glTF equivalent was left out.",
+      "cause": "A light with no punctual equivalent — USD `DomeLight`, `CylinderLight`, `GeometryLight`, `PortalLight`, every `LightFilter`, an Alembic light; sphere, disk, rect and distant lights are imported, with their declared emitter radius",
+      "action": "Replace it with a sphere, disk, rect or distant light, or add the light in the engine."
     },
     {
       "id": "T3D-W114",
@@ -1538,19 +1474,11 @@
     },
     {
       "id": "T3D-W119",
-      "code": "usd-mesh-invalid",
+      "code": "mesh-invalid",
       "level": "warn",
-      "message": "A mesh's arrays are missing or contradictory, so it is left out.",
-      "cause": "Required `Mesh` arrays missing or contradictory (`faceVertexCounts` not landing on `faceVertexIndices`)",
-      "action": "Export the mesh again from its authoring tool."
-    },
-    {
-      "id": "T3D-W120",
-      "code": "usd-ngon-untriangulable",
-      "level": "warn",
-      "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
-      "cause": "As `blend-ngon-untriangulable`",
-      "action": "Triangulate or fix the face in the authoring tool (self-crossing or flat polygon)."
+      "message": "A mesh's tables are missing or contradict themselves, so it is left out.",
+      "cause": "Face counts, indices and positions that disagree (a corner past the vertices, counts not landing on the indices); a Blender file holding one is refused whole, under `blend-mesh-invalid`",
+      "action": "Clean up the mesh in its authoring tool (merge by distance, delete loose) and export it again."
     },
     {
       "id": "T3D-W121",
@@ -1577,14 +1505,6 @@
       "action": "Give the material a UsdPreviewSurface shader."
     },
     {
-      "id": "T3D-W124",
-      "code": "usd-texture-missing",
-      "level": "warn",
-      "message": "A texture was not found, is outside the model's folder, or is in an unread format.",
-      "cause": "A texture file absent, outside the source directory, or of a format the image registry does not read",
-      "action": "Place the texture in the model's folder as PNG or JPEG."
-    },
-    {
       "id": "T3D-W125",
       "code": "usd-opacity-texture-unsupported",
       "level": "warn",
@@ -1593,28 +1513,20 @@
       "action": "Put the opacity into the alpha channel of the base-colour texture."
     },
     {
-      "id": "T3D-W126",
-      "code": "usd-texture-channel-unsupported",
-      "level": "warn",
-      "message": "A texture channel glTF does not read there was used; the map is carried as is.",
-      "cause": "An input bound to a channel glTF does not read there (metal from blue, roughness from green; an opacity on the base-colour image from alpha only); the map is carried as is, the opacity falls back to its written value",
-      "action": "Pack metalness in blue and roughness in green, and opacity in the base colour's alpha."
-    },
-    {
       "id": "T3D-W127",
-      "code": "usd-texture-unsupported",
+      "code": "texture-unsupported",
       "level": "warn",
       "message": "A texture could not be bound as is.",
-      "cause": "A texture not bindable as is: a UV set other than `st`, a `<UDIM>` pattern, or split metallic/roughness maps",
-      "action": "Use the `st` UV set, no UDIM, and one texture for metalness and roughness."
+      "cause": "A texture wired in a way glTF does not carry: an input computed rather than read from an image, a UV set other than the first, a `<UDIM>` pattern, a lone or split metalness/roughness map, or an opacity from another image than the base colour",
+      "action": "Use image textures on the first UV set, no UDIM, one texture for metalness and roughness, and opacity in the base colour's alpha."
     },
     {
       "id": "T3D-W128",
-      "code": "usd-texture-wrap-unsupported",
+      "code": "texture-wrap-unsupported",
       "level": "warn",
       "message": "A wrap mode glTF lacks was replaced by repeat.",
-      "cause": "A `UsdUVTexture` wrap mode glTF lacks — `black` (transparent border) or `useMetadata`; the texture repeats, USD's default",
-      "action": "Use `repeat`, `mirror` or `clamp` wrap modes."
+      "cause": "A wrap mode glTF lacks — USD `black` or `useMetadata`, Unity _Mirror Once_; the axis repeats",
+      "action": "Use repeat, mirror or clamp wrap modes."
     },
     {
       "id": "T3D-W129",
@@ -1647,14 +1559,6 @@
       "message": "A clearcoat layer was dropped; base glTF has none.",
       "cause": "A clearcoat (`clearcoat` above zero, with its roughness): base glTF has no such layer",
       "action": "Remove the clearcoat, or accept its loss."
-    },
-    {
-      "id": "T3D-W133",
-      "code": "usd-ior-unsupported",
-      "level": "warn",
-      "message": "An index of refraction other than 1.5 was dropped.",
-      "cause": "An index of refraction other than 1.5: base glTF carries none",
-      "action": "Nothing carries it in glTF; set the look with roughness and metalness instead."
     },
     {
       "id": "T3D-W134",
@@ -1706,18 +1610,18 @@
     },
     {
       "id": "T3D-E073",
-      "code": "alembic-file-invalid",
+      "code": "file-invalid",
       "level": "error",
-      "message": "The Alembic file is not a readable Ogawa archive.",
-      "cause": "No Ogawa header, block truncated, pointer outside the file, root group without its six blocks",
+      "message": "The source file's structure does not hold, so it is not read.",
+      "cause": "A truncated file, a missing header, a pointer outside the file, or text that is not the format's (an Alembic file with no Ogawa archive, a Maya ASCII file not opening with `//Maya ASCII` or stopping inside a quoted string); refused, not read up to the break",
       "action": "Export the file again; it is truncated or corrupt."
     },
     {
       "id": "T3D-E074",
-      "code": "alembic-size-unsupported",
+      "code": "size-unsupported",
       "level": "error",
-      "message": "An Alembic group or block is above the reader's size ceiling.",
-      "cause": "A group or data block beyond the plugin's allocation ceiling (4 Mi children, 1 GiB per block, 64 Mi face corners per mesh)",
+      "message": "A block of the source is above the reader's size ceiling.",
+      "cause": "A group, block, file or attribute beyond the reader's allocation ceiling (Alembic: 4 Mi children, 1 GiB per block, 64 Mi face corners per mesh; Maya ASCII: 512 MiB per file, 16 Mi elements per attribute)",
       "action": "Split the scene into smaller files."
     },
     {
@@ -1737,14 +1641,6 @@
       "action": "Clean up the mesh in the authoring tool and export again."
     },
     {
-      "id": "T3D-W136",
-      "code": "alembic-curves-unsupported",
-      "level": "warn",
-      "message": "Alembic curves were left out; only meshes are drawn.",
-      "cause": "An Alembic curves object; not converted.",
-      "action": "Convert the curves to meshes before exporting."
-    },
-    {
       "id": "T3D-W137",
       "code": "alembic-points-unsupported",
       "level": "warn",
@@ -1759,22 +1655,6 @@
       "message": "An Alembic NURBS patch was left out; it is not tessellated.",
       "cause": "An Alembic NURBS patch object; not converted.",
       "action": "Convert the patch to a mesh before exporting."
-    },
-    {
-      "id": "T3D-I008",
-      "code": "alembic-camera-unsupported",
-      "level": "info",
-      "message": "An Alembic camera was left out; the host places its own.",
-      "cause": "An Alembic camera object; not converted.",
-      "action": "Nothing to do; set the camera in your application."
-    },
-    {
-      "id": "T3D-W139",
-      "code": "alembic-light-unsupported",
-      "level": "warn",
-      "message": "An Alembic light was left out.",
-      "cause": "An Alembic light object; not converted.",
-      "action": "Add the lights in the engine, or export the scene as glTF with its lights."
     },
     {
       "id": "T3D-W140",
@@ -1818,19 +1698,19 @@
     },
     {
       "id": "T3D-W145",
-      "code": "alembic-normals-dropped",
+      "code": "normals-dropped",
       "level": "warn",
-      "message": "Alembic normals are inconsistent, so they are dropped and computed.",
-      "cause": "Normals whose count matches neither the vertices nor the face corners.",
+      "message": "Written normals did not match the mesh, so they are dropped and computed.",
+      "cause": "Normals whose count matches neither the vertices nor the face corners",
       "action": "Export the mesh again with one normal per vertex or per corner."
     },
     {
       "id": "T3D-W146",
-      "code": "alembic-uv-dropped",
+      "code": "uv-dropped",
       "level": "warn",
-      "message": "Alembic UVs are inconsistent, so they are dropped.",
-      "cause": "UVs whose count or indices do not match the mesh.",
-      "action": "Export the mesh again with one UV per vertex or per corner."
+      "message": "Texture coordinates that do not cover every corner were dropped.",
+      "cause": "UVs whose count or indices do not match the mesh, a UV set past the first, or a part where only some faces carry UVs (a glTF primitive has an attribute on all its vertices or none)",
+      "action": "Give every face of the mesh UVs in the first UV set, one per vertex or per corner."
     },
     {
       "id": "T3D-W147",
@@ -1842,19 +1722,11 @@
     },
     {
       "id": "T3D-W148",
-      "code": "alembic-degenerate-face",
+      "code": "degenerate-face",
       "level": "warn",
-      "message": "An Alembic face with fewer than three corners was dropped.",
-      "cause": "A face under three corners.",
+      "message": "A face with fewer than three corners was dropped.",
+      "cause": "A face under three corners",
       "action": "Clean up the mesh in the authoring tool."
-    },
-    {
-      "id": "T3D-W149",
-      "code": "alembic-ngon-untriangulable",
-      "level": "warn",
-      "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
-      "cause": "As `blend-ngon-untriangulable`.",
-      "action": "Triangulate or fix the face in the authoring tool (self-crossing or flat polygon)."
     },
     {
       "id": "T3D-W150",
@@ -1865,27 +1737,19 @@
       "action": "Export the mesh again with valid face sets."
     },
     {
-      "id": "T3D-W151",
-      "code": "alembic-mesh-invalid",
-      "level": "warn",
-      "message": "An Alembic mesh's arrays are contradictory, so it is left out.",
-      "cause": "A mesh whose counts, indices and positions disagree.",
-      "action": "Export the mesh again from its authoring tool."
-    },
-    {
       "id": "T3D-W152",
-      "code": "alembic-mesh-empty",
+      "code": "mesh-empty",
       "level": "warn",
-      "message": "An Alembic mesh has no triangle, so it is left out.",
-      "cause": "A mesh with no face, or only degenerate ones.",
+      "message": "A mesh has no triangle, so it is left out.",
+      "cause": "A mesh with no face, or only degenerate ones",
       "action": "Delete the empty mesh or give it faces."
     },
     {
       "id": "T3D-W153",
-      "code": "alembic-transform-invalid",
+      "code": "transform-invalid",
       "level": "warn",
-      "message": "An Alembic transform is not a finite number, so the node stays at identity.",
-      "cause": "A transform holding NaN or infinity.",
+      "message": "A transform is not a finite number, so the node stays at identity.",
+      "cause": "A transform holding NaN or infinity, or one that does not compose",
       "action": "Fix the node's transform in the authoring tool."
     },
     {
@@ -1898,27 +1762,11 @@
     },
     {
       "id": "T3D-W154",
-      "code": "alembic-hierarchy-too-deep",
+      "code": "hierarchy-too-deep",
       "level": "warn",
-      "message": "An Alembic hierarchy is deeper than the limit, so the deeper branch is cut.",
-      "cause": "A hierarchy past the reader's depth limit.",
+      "message": "A hierarchy is deeper than the limit, so the deeper branch is cut.",
+      "cause": "A hierarchy past the reader's depth limit, nested prefabs and circular parent chains included; the branch is cut there without overflowing the stack",
       "action": "Flatten the hierarchy in the authoring tool."
-    },
-    {
-      "id": "T3D-E077",
-      "code": "ma-file-invalid",
-      "level": "error",
-      "message": "The file is not a readable Maya ASCII file.",
-      "cause": "Does not open with `//Maya ASCII`, is not valid UTF-8, or stops inside a quoted string; refused, not read up to the break",
-      "action": "Save the file again from Maya as Maya ASCII."
-    },
-    {
-      "id": "T3D-E078",
-      "code": "ma-size-unsupported",
-      "level": "error",
-      "message": "The Maya ASCII file or one of its attributes is above the size ceiling.",
-      "cause": "File above the 512 MiB ceiling, or an attribute index past the 16 Mi element ceiling",
-      "action": "Split the scene into smaller files."
     },
     {
       "id": "T3D-W155",
@@ -1969,22 +1817,6 @@
       "action": "Give the nodes unique names, or reference them by full path."
     },
     {
-      "id": "T3D-W161",
-      "code": "ma-transform-invalid",
-      "level": "warn",
-      "message": "A transform is not a finite number, so the node stays at identity.",
-      "cause": "Non-finite `transform`; the node stays at identity",
-      "action": "Fix the node's transform in Maya."
-    },
-    {
-      "id": "T3D-W162",
-      "code": "ma-hierarchy-too-deep",
-      "level": "warn",
-      "message": "A hierarchy is deeper than 256 levels or circular, so the branch is cut.",
-      "cause": "Deeper than 256 levels, a circular parent chain included; the branch is cut there without overflowing the stack",
-      "action": "Flatten the hierarchy in Maya."
-    },
-    {
       "id": "T3D-W163",
       "code": "ma-matrix-unsupported",
       "level": "warn",
@@ -2001,44 +1833,12 @@
       "action": "Nothing to do; delete construction history to remove it."
     },
     {
-      "id": "T3D-W164",
-      "code": "ma-mesh-invalid",
-      "level": "warn",
-      "message": "A mesh's arrays are contradictory, so it is left out.",
-      "cause": "Contradictory `mesh` arrays: no `.vt`, a face corner outside the edge table, or an edge outside the vertex table",
-      "action": "Clean up the mesh in Maya (Mesh > Cleanup) and save again."
-    },
-    {
-      "id": "T3D-W165",
-      "code": "ma-mesh-empty",
-      "level": "warn",
-      "message": "A mesh has no triangle, so it is left out.",
-      "cause": "A `mesh` yielding no triangle: no face, or all degenerate",
-      "action": "Delete the empty mesh or give it faces."
-    },
-    {
-      "id": "T3D-W166",
-      "code": "ma-degenerate-face",
-      "level": "warn",
-      "message": "A face with fewer than three corners was dropped.",
-      "cause": "A face under three corners",
-      "action": "Clean up the mesh in Maya (Mesh > Cleanup)."
-    },
-    {
       "id": "T3D-W167",
       "code": "ma-face-hole-unsupported",
       "level": "warn",
       "message": "A face with a hole was left out.",
       "cause": "A face declaring a hole (`h` record), which the fan would fill; the silhouette is not guessed",
       "action": "Fill or cut the hole into regular faces in Maya."
-    },
-    {
-      "id": "T3D-W168",
-      "code": "ma-ngon-untriangulable",
-      "level": "warn",
-      "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
-      "cause": "As `blend-ngon-untriangulable`",
-      "action": "Triangulate or fix the face in Maya (self-crossing or flat polygon)."
     },
     {
       "id": "T3D-W169",
@@ -2055,22 +1855,6 @@
       "message": "A face record attached to no face was ignored.",
       "cause": "A `.fc` record attached to no face",
       "action": "Save the scene again from Maya."
-    },
-    {
-      "id": "T3D-W171",
-      "code": "ma-uv-dropped",
-      "level": "warn",
-      "message": "UVs were dropped from a mesh part.",
-      "cause": "UVs dropped: a `mu` record with no face, a UV set past the first, a slot outside `.uvst[0].uvsp`, or a material part where only some faces carry UVs (a glTF primitive has an attribute on all its vertices or none)",
-      "action": "Give every face of the mesh UVs in the first UV set."
-    },
-    {
-      "id": "T3D-W172",
-      "code": "ma-normals-dropped",
-      "level": "warn",
-      "message": "Written normals did not match the mesh, so they are dropped and computed.",
-      "cause": "`.n` counts neither one vector per vertex nor one per corner; dropped, normals computed",
-      "action": "Save the mesh with one normal per vertex or per corner."
     },
     {
       "id": "T3D-I011",
@@ -2113,22 +1897,6 @@
       "action": "Use a grey transparency."
     },
     {
-      "id": "T3D-W177",
-      "code": "ma-emission-clamped",
-      "level": "warn",
-      "message": "An emission above 1 was clamped.",
-      "cause": "Emission above one, which `emissiveFactor` cannot carry; clamped",
-      "action": "Lower the emission, or accept the clamp."
-    },
-    {
-      "id": "T3D-W178",
-      "code": "ma-texture-missing",
-      "level": "warn",
-      "message": "A texture was not found, is outside the model's folder, or is in an unread format.",
-      "cause": "A texture file absent, outside the source directory, or of a format the image registry does not read",
-      "action": "Place the texture in the model's folder as PNG or JPEG."
-    },
-    {
       "id": "T3D-W179",
       "code": "ma-bump-height-unsupported",
       "level": "warn",
@@ -2159,14 +1927,6 @@
       "message": "A texture mirroring was dropped.",
       "cause": "A `place2dTexture` mirroring (`mirrorU`, `mirrorV`); no glTF wrap mode folds so",
       "action": "Bake the mirroring into the UVs in Maya."
-    },
-    {
-      "id": "T3D-W183",
-      "code": "ma-texture-unsupported",
-      "level": "warn",
-      "message": "A texture could not be bound as is.",
-      "cause": "A texture not bindable as is: an input computed rather than from a `file` node, a lone metalness or roughness map, or an opacity from another image than the base colour",
-      "action": "Use file textures, one texture for metalness and roughness, and opacity in the base colour's alpha."
     },
     {
       "id": "T3D-W184",
@@ -2215,14 +1975,6 @@
       "message": "An object in a Unity file could not be parsed, so it is skipped.",
       "cause": "A serialized object whose body does not parse in an otherwise readable file; skipped with the reason, the rest read",
       "action": "Save the asset again from the Unity editor with text serialization."
-    },
-    {
-      "id": "T3D-W190",
-      "code": "unity-hierarchy-too-deep",
-      "level": "warn",
-      "message": "A Unity hierarchy is deeper than the limit, so the deeper branch is not built.",
-      "cause": "A transform hierarchy, nested prefabs included, deeper than the limit; the subtree is not built",
-      "action": "Flatten the hierarchy in the Unity editor."
     },
     {
       "id": "T3D-W191",
@@ -2321,14 +2073,6 @@
       "action": "Add the missing material asset to the project."
     },
     {
-      "id": "T3D-W201",
-      "code": "unity-texture-missing",
-      "level": "warn",
-      "message": "A referenced texture is not in the project.",
-      "cause": "A GUID no project asset carries",
-      "action": "Add the missing texture asset to the project."
-    },
-    {
       "id": "T3D-W202",
       "code": "unity-prefab-missing",
       "level": "warn",
@@ -2393,22 +2137,6 @@
       "action": "Author a glTF-style map (roughness in green, metalness in blue)."
     },
     {
-      "id": "T3D-W210",
-      "code": "unity-texture-format",
-      "level": "warn",
-      "message": "A texture in a format the image readers do not decode was dropped.",
-      "cause": "A texture format the image registry does not claim; dropped",
-      "action": "Convert the texture to PNG or JPEG."
-    },
-    {
-      "id": "T3D-W211",
-      "code": "unity-texture-outside-source",
-      "level": "warn",
-      "message": "A texture outside the project's served folder was not copied.",
-      "cause": "A texture outside the served root, which no URI names",
-      "action": "Move the texture into the project folder."
-    },
-    {
       "id": "T3D-W212",
       "code": "unity-texture-transform",
       "level": "warn",
@@ -2417,28 +2145,12 @@
       "action": "Bake the tiling and offset into the UVs or the texture."
     },
     {
-      "id": "T3D-W213",
-      "code": "unity-texture-wrap-unsupported",
-      "level": "warn",
-      "message": "A wrap mode glTF lacks (Mirror Once) was replaced by repeat.",
-      "cause": "A `TextureImporter` wrap mode glTF lacks (_Mirror Once_); the axis repeats",
-      "action": "Use Repeat, Clamp or Mirror wrap modes."
-    },
-    {
       "id": "T3D-W214",
       "code": "unity-texture-filter-unsupported",
       "level": "warn",
       "message": "A texture filter outside point, bilinear and trilinear was replaced by the default.",
       "cause": "A `TextureImporter` filter outside point, bilinear and trilinear; glTF default kept",
       "action": "Use point, bilinear or trilinear filtering."
-    },
-    {
-      "id": "T3D-W215",
-      "code": "unity-emission-clamped",
-      "level": "warn",
-      "message": "An HDR emission above 1 was clamped.",
-      "cause": "An emissive colour above 1 (Unity's HDR emission), `emissiveFactor` being bounded to [0, 1]",
-      "action": "Lower the emission intensity, or accept the clamp."
     },
     {
       "id": "T3D-I014",
@@ -2575,6 +2287,30 @@
       "message": "The world roots' table could not be written as its records.",
       "cause": "A world-roots table whose page, bundle, cluster or group names a value its fixed-size record cannot hold (a word past 32 bits, a missing field, a digest that is not 64 lowercase hexadecimal digits); the message names the field ([World super-roots](FORMAT.md#world-super-roots)).",
       "action": "Report it as a compiler bug, with the field the message names."
+    },
+    {
+      "id": "T3D-E092",
+      "code": "blend-mesh-invalid",
+      "level": "error",
+      "message": "A Blender mesh's tables contradict themselves, so the file is refused.",
+      "cause": "A mesh with a corner pointing outside its vertices; the other drivers leave such a mesh out under `mesh-invalid`, the Blender reader refuses the file whole",
+      "action": "Clean up the mesh in Blender (merge by distance, delete loose) and save the file again."
+    },
+    {
+      "id": "T3D-E093",
+      "code": "INCOMPLETE_CLUSTER_DAG",
+      "level": "error",
+      "message": "An internal check on the cluster tree failed: a primitive would be published without its error bands, which the runtime refuses.",
+      "cause": "A primitive with no page, or a page without a finite error and a sound sphere",
+      "action": "Report it as a compiler bug, with the model if you can share it."
+    },
+    {
+      "id": "T3D-E094",
+      "code": "HLOD_ATLAS",
+      "level": "error",
+      "message": "An HLOD actor's flattened material atlas could not be cooked.",
+      "cause": "The atlas a flattened HLOD layer bakes for its cells did not form an image, or its texture levels or PNG could not be encoded.",
+      "action": "Report it as a compiler bug, with the model and its HLOD option if you can share them."
     }
   ]
 }

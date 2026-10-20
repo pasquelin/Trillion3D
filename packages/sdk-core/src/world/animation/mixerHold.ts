@@ -7,7 +7,8 @@ import type { Object3D } from '../object/object3d.ts'
 import { clipTimeOf, type Clip } from './clip.ts'
 import type { Action, Mixer } from './mixer.ts'
 import { rigReach, type RigReach } from './rigLevers.ts'
-import { BLEND_SIN, holdTables, intervalOf, type HoldTable } from './poseHold.ts'
+import { BLEND_SIN, holdTables, type HoldTable } from './poseHold.ts'
+import { lastAtMost } from '../../../../math/src/scalar/search.ts'
 import { screenErrorBound } from '../../lod/screenErrorBound.ts'
 import { objectEdits } from '../../scene/core/nodeEdits.ts'
 import { dotScalar3, dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
@@ -319,7 +320,7 @@ function readAt(table: HoldTable, t: number, into: Placement, i: number) {
   let j = into.hint[i] ?? 0
   if (!(j <= last && times[j] <= t && (j === last || t < times[j + 1]))) {
     j++
-    if (!(j < last && times[j] <= t && t < times[j + 1])) j = intervalOf(times, t)
+    if (!(j < last && times[j] <= t && t < times[j + 1])) j = lastAtMost(times, t)
   }
   const dt = Math.min(t, times[last]) - times[j]
   into.hint[i] = j

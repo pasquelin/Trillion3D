@@ -12,7 +12,6 @@ import {
   GOLDEN_FRACTION,
   GOLDEN_U32,
   HALF_MAX,
-  HALF_OVERFLOW,
   HALF_PI,
   MIB,
   NO_INDEX,
@@ -82,13 +81,10 @@ test('the golden salt, the octahedral byte step and the least normal float32', (
   assert.equal(f32Bits(FLOAT32_MIN_NORMAL), 0x00800000)
 })
 
-test('the half-float bounds: the greatest finite half, and where a half turns infinite', () => {
+test('the half-float bound: the greatest finite half', () => {
   // binary16: ten fraction bits, the greatest exponent 15.
   assert.equal(HALF_MAX, (2 - 2 ** -10) * 2 ** 15)
-  assert.equal(HALF_OVERFLOW, 2 ** 16 - 2 ** 4)
   assert.equal(toHalf(HALF_MAX), 0x7bff)
-  assert.equal(toHalf(HALF_OVERFLOW - 2 ** -6), 0x7bff)
-  assert.equal(toHalf(HALF_OVERFLOW), 0x7c00)
 })
 
 test('FAR_VALUE is 1e30, its float32 square past the float32 range', () => {

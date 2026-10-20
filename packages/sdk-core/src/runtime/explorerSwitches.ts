@@ -2,7 +2,6 @@
  *  out; the LLM schema of the options advertises the same values. */
 const EXPLORER_SWITCHES = {
   interactive: false,
-  temporalAntialiasing: true,
   lodAdaptive: false,
   bounce: false,
   importedLights: true,

@@ -1,6 +1,6 @@
 import { GeometryBuilder, fromArrays } from './builder.ts'
 import { flatGeometry } from './drawnFlat.ts'
-import { signedArea, triangulate } from './triangulate.ts'
+import { triangulate, wind } from './triangulate.ts'
 import type { Shape } from '../math/curves.ts'
 import { cross2, normalizeVector2 } from '../../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
@@ -14,14 +14,8 @@ const UNREAD_NORMAL = [0, 0, 0] as const
 /** The outline and holes of a shape, sampled, each a list of plane points. */
 function rings(shape: Shape, curveSegments: number) {
   const outline = shape.getPoints(curveSegments).map((p): P => [p.x, p.y])
-  // Stryker disable next-line EqualityOperator: a flat outline encloses nothing either way round
-  if (signedArea(outline) < 0) outline.reverse()
-  const holes = shape.holes.map((hole) => {
-    const ring = hole.getPoints(curveSegments).map((p): P => [p.x, p.y])
-    // Stryker disable next-line EqualityOperator: as a flat outline
-    return signedArea(ring) > 0 ? ring.reverse() : ring
-  })
-  // Counter-clockwise outline, clockwise holes: the solid always lies to the left of travel.
+  const holes = shape.holes.map((hole) => hole.getPoints(curveSegments).map((p): P => [p.x, p.y]))
+  wind(outline, holes)
   return { outline, holes }
 }
 

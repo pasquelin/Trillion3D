@@ -40,6 +40,7 @@ export function sameSceneEnvironment(a: SceneEnvironment, b: SceneEnvironment) {
   return (
     a.exposure === b.exposure &&
     a.toneMapping === b.toneMapping &&
+    a.sharpness === b.sharpness &&
     sameVector(a.irradiance, b.irradiance) &&
     sameSceneFog(a.fog, b.fog)
   )

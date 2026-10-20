@@ -41,6 +41,7 @@ export type { BufferTypedArray } from '../../sdk-core/src/world/buffer/elements.
 export { camera } from '../../sdk-core/src/world/camera/index.ts'
 export { Camera } from '../../sdk-core/src/world/camera/camera.ts'
 export type { CameraParameters, CameraPose } from '../../sdk-core/src/world/camera/camera.ts'
+export { canvasRay } from '../../sdk-browser/src/world/core/worldRaycast.ts'
 export type { CanvasPoint, RaycastOptions } from '../../sdk-browser/src/world/core/worldRaycast.ts'
 export { capability } from '../../sdk-browser/src/world/capability/index.ts'
 export { capture } from '../../sdk-browser/src/world/capture/index.ts'
@@ -100,6 +101,8 @@ export { Mesh } from '../../sdk-core/src/world/object/mesh.ts'
 export type { Primitive } from '../../sdk-core/src/world/object/mesh.ts'
 export { metric } from '../../sdk-browser/src/world/api/metricFamily.ts'
 export { object } from '../../sdk-core/src/world/object/index.ts'
+export { Outline } from '../../sdk-core/src/world/effect/outline.ts'
+export type { OutlineOptions } from '../../sdk-core/src/world/effect/outline.ts'
 export { page } from '../../sdk-browser/src/world/page/index.ts'
 export type { PageStreamer, WorldPageSource } from '../../sdk-browser/src/world/page/index.ts'
 export { texture } from '../../sdk-browser/src/world/texture/index.ts'
@@ -144,6 +147,12 @@ export type {
 export { TransformNode } from '../../sdk-core/src/world/object/transformNode.ts'
 export { Vector3 } from '../../sdk-core/src/world/math/vector3.ts'
 export type { Vec3Input } from '../../sdk-core/src/world/math/vector3.ts'
+export type {
+  ViewFrameInfo,
+  ViewOptions,
+  ViewRect,
+  WorldView,
+} from '../../sdk-browser/src/world/core/worldViews.ts'
 export type { WindOptions } from '../../sdk-core/src/world/animation/wind.ts'
 export type { WorldControls } from '../../sdk-browser/src/world/core/worldCamera.ts'
 export type { WorldOptions } from '../../sdk-browser/src/world/core/worldOptions.ts'

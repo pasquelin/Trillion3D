@@ -51,9 +51,6 @@ export const GOLDEN_U32 = 0x9e3779b9
 export const OCT_BYTE_STEP = 0.007843137718737125
 /** The greatest finite half float, `(2 - 2 ** -10) * 2 ** 15`: a half-float target's bound. */
 export const HALF_MAX = 65504
-/** The least magnitude a half float rounds to infinity, `HALF_MAX + 2 ** 4` (half the step past
- *  the greatest half, rounded to even away from it): every value under it stores finite. */
-export const HALF_OVERFLOW = 65520
 /** The least positive normal float32, `2 ** -126`. */
 export const FLOAT32_MIN_NORMAL = 1.1754943508222875e-38
 /** `1e30`, a distance or a bound past any scene's: an empty range's start, a ray's exit along an

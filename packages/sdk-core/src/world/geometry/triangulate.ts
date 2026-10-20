@@ -25,6 +25,17 @@ function crosses(a: P, b: P, c: P, d: P) {
 }
 
 /**
+ * Turns, in place, the outline counter-clockwise and each hole clockwise: the solid then lies to
+ * the left of travel.
+ */
+export function wind(outline: P[], holes: readonly P[][]) {
+  // Stryker disable next-line EqualityOperator: a flat outline encloses nothing either way round
+  if (signedArea(outline) < 0) outline.reverse()
+  // Stryker disable next-line EqualityOperator: a flat hole takes nothing, either way round
+  for (const hole of holes) if (signedArea(hole) > 0) hole.reverse()
+}
+
+/**
  * Ear clipping of a polygon with holes, in the plane. The outline is taken counter-clockwise and
  * each hole clockwise; each hole is joined to the outline by a bridge from its rightmost vertex to
  * the nearest outline vertex the bridge can reach without crossing an edge, which makes one
@@ -33,10 +44,8 @@ function crosses(a: P, b: P, c: P, d: P) {
  */
 export function triangulate(outline: readonly P[], holes: readonly (readonly P[])[] = []) {
   const ring = [...outline]
-  if (signedArea(ring) < 0) ring.reverse()
-  // Stryker disable next-line EqualityOperator: a flat hole takes nothing, either way round
-  const clockwise = (h: readonly P[]) => (signedArea(h) > 0 ? [...h].reverse() : [...h])
-  const rings = holes.filter((h) => h.length >= 3).map(clockwise)
+  const rings = holes.filter((h) => h.length >= 3).map((h) => [...h])
+  wind(ring, rings)
   // Stryker disable next-line all: any order bridges validly, every ring's edges being checked
   rings.sort((a, b) => Math.max(...b.map((p) => p[0])) - Math.max(...a.map((p) => p[0])))
   for (const hole of rings) {

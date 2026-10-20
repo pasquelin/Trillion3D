@@ -10,7 +10,8 @@
  * the diffuse lobe: `albedo · (1 − metalness) / π · E(N)`.
  *
  * The second is the display chain: exposure multiplies linear radiance, then a tone-mapping
- * curve brings it into the display range (P4). Neither is a light: a scene with neither lamp nor
+ * curve brings it into the display range (P4), the linear image sharpened before it (`sharpness`).
+ * Neither is a light: a scene with neither lamp nor
  * environment irradiance stays black whatever its exposure.
  */
 import type { NumberSink } from '../../../../math/src/matrix/matrix4.ts'
@@ -47,12 +48,22 @@ export const environmentExposure = (environment: { exposure: number } | undefine
 export const environmentCurve = (environment: { toneMapping?: SceneToneMapping } | undefined) =>
   TONE_MAPPING_RANK[environment?.toneMapping ?? DEFAULT_TONE_MAPPING]
 
-/** The light around a scene: exposure, display curve and light from every direction. */
+/** The sharpening of a scene that declares none: AMD's contrast-adaptive sharpening at this
+ *  strength, measured on distant sub-pixel window grids to add no shimmer (#1527). */
+export const DEFAULT_SHARPNESS = 0
+/** The sharpening strength a scene's environment declares, or the default where it declares none. */
+export const environmentSharpness = (environment: { sharpness?: number } | undefined) =>
+  environment?.sharpness ?? DEFAULT_SHARPNESS
+
+/** The light around a scene: exposure, display curve, sharpening and light from every direction. */
 export interface SceneEnvironment {
   /** Multiplier of linear radiance, applied before the curve. */
   exposure: number
   /** The display curve; `DEFAULT_TONE_MAPPING` when absent. */
   toneMapping?: SceneToneMapping
+  /** The tonemapper's sharpening, before the curve — it restores the edges the temporal resolve
+   *  softens —, from 0 (none, the image as composed) to 1; `DEFAULT_SHARPNESS` when absent. */
+  sharpness?: number
   /**
    * The irradiance arriving from every direction, as 27 numbers: nine coefficients, each an RGB
    * triple, in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`.
@@ -144,15 +155,22 @@ export function packEnvironment(environment: SceneEnvironment | undefined, out: 
     for (let c = 0; c < 3; c++) out[k * 4 + c] = sh[k * 3 + c]
   return out
 }
-/** Checks the scene's exposure, curve and surrounding light. */
+/** Checks the scene's exposure, curve, sharpening and surrounding light. */
 export function validateSceneEnvironment(environment: SceneEnvironment): SceneEnvironment {
   if (!finite(environment?.exposure) || environment.exposure <= 0)
     throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'exposure must be > 0', {
       exposure: environment?.exposure,
     })
   const validated: SceneEnvironment = { exposure: environment.exposure }
-  const { toneMapping, irradiance, fog } = environment
+  const { toneMapping, sharpness, irradiance, fog } = environment
   if (fog !== undefined) validated.fog = validateSceneFog(fog)
+  if (sharpness !== undefined) {
+    if (!finite(sharpness) || sharpness < 0 || sharpness > 1)
+      throw new EngineError('INVALID_SCENE_ENVIRONMENT', 'sharpness must be in [0, 1]', {
+        sharpness,
+      })
+    validated.sharpness = sharpness
+  }
   if (toneMapping !== undefined) {
     if (!(toneMapping in TONE_MAPPING_RANK))
       throw new EngineError('INVALID_SCENE_ENVIRONMENT', `unknown tone mapping ${toneMapping}`, {

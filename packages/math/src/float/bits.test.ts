@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lcgRandom } from '../sequence/random.ts'
 import { FLOAT32_MAX, FLOAT32_MIN_NORMAL } from '../constants.ts'
-import { f32Bits, f32Up, fromF32Bits } from './bits.ts'
+import { f32Bits, f32Up, f64High, f64Low, fromF32Bits, fromF64Words } from './bits.ts'
 
 test('a float32 reads as the bits IEEE 754 gives it, sign and zero kept', () => {
   assert.equal(f32Bits(1), 0x3f800000)
@@ -46,4 +46,17 @@ test('a double rounds up to the least float32 at or above it, never below, one s
   assert.equal(f32Up(-(2 ** 130)), -FLOAT32_MAX)
   assert.equal(f32Up(2 ** 130), Infinity)
   assert.ok(Number.isNaN(f32Up(NaN)))
+})
+
+test('a double reads as its two words, high then low, and the words read back as that double', () => {
+  assert.equal(f64High(1), 0x3ff00000)
+  assert.equal(f64Low(1), 0)
+  assert.equal(f64High(-0), 0x80000000)
+  assert.equal(f64Low(2 ** -1074), 1)
+  const next = lcgRandom(1527)
+  for (let i = 0; i < 10_000; i++) {
+    const value = (next() - 0.5) * 10 ** Math.floor(next() * 600 - 300)
+    assert.equal(fromF64Words(f64High(value), f64Low(value)), value)
+  }
+  assert.ok(Object.is(fromF64Words(0x80000000, 0), -0))
 })

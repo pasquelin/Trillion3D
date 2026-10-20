@@ -19,8 +19,8 @@ export const deforms = (g: Geometry) =>
 /** How far morph target `t` of `g` moves component `c` of source vertex `vertex`: its position's
  *  delta, or its normal's (`normal`) — 0 for a target without normals —, read as `g` stores its
  *  targets, relative or absolute (`morphTargetsRelative`). The one read of a target's delta: the
- *  drawn triangles' and a whole copy's inputs (`deformation/wholeInputs.ts`) both take it. */
-export function morphDelta(g: Geometry, t: number, vertex: number, c: number, normal: boolean) {
+ *  drawn triangles take it. */
+function morphDelta(g: Geometry, t: number, vertex: number, c: number, normal: boolean) {
   const target = (normal ? g.morphAttributes.normal : g.morphAttributes.position)?.[t]
   if (!target) return 0
   const base = normal ? g.attributes.normal : g.attributes.position

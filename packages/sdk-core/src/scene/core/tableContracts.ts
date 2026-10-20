@@ -1,8 +1,9 @@
 /**
  * The tables the compiler writes beside the pages (`scene-tables.json`,
- * `packages/asset-compiler-rust/src/compiler_tables.rs`): the node graph, the lights, the
- * surfaces and the geometry layout of the prepared scene — everything the runtime builds that
- * scene from, said by the cache instead of being read back out of the source file.
+ * `packages/asset-compiler-rust/src/compiler_tables.rs`): the node graph, the cameras, the surfaces
+ * and the geometry layout of the prepared scene — everything the runtime builds that scene from,
+ * said by the cache instead of being read back out of the source file. The source's lamps are not
+ * among them: `lights.json` carries them, read once (`sdk-browser/src/lighting/importedLights.ts`).
  *
  * A texture slot names a glTF rank, never a host object: the tables are read by a runtime that
  * has no rendering library, and the rank is what ties a slot to the previews the sidecar bakes.
@@ -21,20 +22,23 @@ import {
 export const SCENE_TABLES_FILE = 'scene-tables.json'
 /** Version of the product as a whole; each table it carries is versioned in turn. 5 names the
  *  manifest pages the node table needs (`meshPages`, #751), 6 carries the skins and the clips
- *  (#357), 7 lays out the one published document (`document`), not a map of them (#1483). */
-const SCENE_TABLES_VERSION = 7
+ *  (#357), 7 lays out the one published document (`document`), not a map of them (#1483), 8
+ *  carries no `lights`: `lights.json` is the one reading of a lamp, 9 names the table rank of each
+ *  flattened material the world's HLOD actors wear (`hlodMaterials`). */
+const SCENE_TABLES_VERSION = 9
 /** The version of the node table this runtime reads: every node but those a cell places, with its
- *  local pose, whether it is visible and the skin it bends its mesh by. */
-const NODE_TABLE_VERSION = 5
-/** The version of the material table this runtime reads. */
-const MATERIAL_TABLE_VERSION = 4
+ *  local pose, whether it is visible and the skin it bends its mesh by. 6 names no light. */
+const NODE_TABLE_VERSION = 6
+/** The version of the material table this runtime reads: 5 names an entry's history share
+ *  (`temporalAntialiasing`, below 1 only) in place of 4's `responsive`. */
+const MATERIAL_TABLE_VERSION = 5
 /** The version of the geometry layout this runtime reads. */
 const GEOMETRY_TABLE_VERSION = 1
 
 /**
- * One node of the scene graph, at its glTF rank: its children, the mesh, the punctual light and
- * the camera it carries, and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation
- * and scale, each `null` when silent. Several nodes naming one mesh is what instancing is here.
+ * One node of the scene graph, at its glTF rank: its children, the mesh and the camera it carries,
+ * and its LOCAL pose exactly as declared — a matrix, or any of translation, rotation and scale,
+ * each `null` when silent. Several nodes naming one mesh is what instancing is here.
  */
 export interface TableNode {
   /** Original u32 source rank as eight lowercase hexadecimal digits: fixed-width through partition renumbering. */
@@ -45,8 +49,6 @@ export interface TableNode {
   children: readonly number[]
   /** The mesh it draws. */
   mesh: number | null
-  /** The light it hangs. */
-  light: number | null
   /** The camera it carries. */
   camera: number | null
   /** The skin its mesh bends by, a rank of `skins`. */
@@ -64,23 +66,6 @@ export interface TableNode {
   /** `false` when it declares itself hidden (`KHR_node_visibility`): it and the nodes under it
    *  are not drawn until a page shows it. */
   visible: boolean
-}
-/** A punctual light as `KHR_lights_punctual` declares it, each silent field `null`. */
-export interface TableLight {
-  /** Its name. */
-  name: string
-  /** Its kind. */
-  type: 'directional' | 'point' | 'spot'
-  /** Its colour, linear. */
-  color: readonly [number, number, number] | null
-  /** Its intensity, photometric. */
-  intensity: number | null
-  /** Its reach. */
-  range: number | null
-  /** Inner cone of a spot. */
-  innerConeAngle: number | null
-  /** Outer cone of a spot. */
-  outerConeAngle: number | null
 }
 /** A camera as the glTF file declares it, each silent field `null`. */
 export interface TableCamera {
@@ -120,8 +105,6 @@ export interface PreparedSceneTables {
   /** The slots of the manifest's mesh pages the meshes of `nodes` lie in: what a runtime that
    *  holds the manifest by the view reads at open, the cells naming the rest (#751). */
   meshPages: readonly string[]
-  /** The lights the nodes hang. */
-  lights: TableLight[]
   /** The cameras the nodes carry. */
   cameras: TableCamera[]
   /** The skins the nodes' meshes bend by. */
@@ -134,6 +117,9 @@ export interface PreparedSceneTables {
   textures: TableTexture[]
   /** The geometry layout of the published scene file (`source.gltf`). */
   document: TableDocument
+  /** Per HLOD actor above HLOD 0, by the rank its world clusters name, the rank in `materials` of
+   *  the flattened material it wears (`compiler_world_roots/flatten`). */
+  hlodMaterials: readonly number[]
 }
 
 /** The tables as `scene-tables.json` carries them: of the partition, only its root
@@ -168,12 +154,12 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
   const tabled = [
     'nodes',
     'meshPages',
-    'lights',
     'cameras',
     'skins',
     'animations',
     'materials',
     'textures',
+    'hlodMaterials',
   ] as const
   const missing = tabled.filter((field) => !Array.isArray(tables[field]))
   const laidOut = !!tables.document && typeof tables.document === 'object'

@@ -1,8 +1,8 @@
 /**
  * The render settings registry: one typed table of the engine's switchable settings, each value
- * resolved from four sources by priority, `default < quality < page < editor`. A source never
- * overwrites a stronger one: a preset writes the `quality` layer, the page its own, and a value the
- * page set holds through every preset change. The table references the engine's own constants as
+ * resolved from five sources by priority, `default < scene < quality < page < editor`. A source
+ * never overwrites a stronger one: a loaded scene's manifest writes the `scene` layer, a preset the
+ * `quality` layer, the page its own, and a value the page set holds through every preset change. The table references the engine's own constants as
  * its defaults, never a copy, so with nothing written every setting is exactly today's value.
  */
 
@@ -25,8 +25,8 @@ export type QualityGroup = (typeof QUALITY_GROUPS)[number]
  * ready; `pipeline`, a program compiled aside, never in the middle of a frame.
  */
 type RenderSettingApply = 'uniform' | 'frame' | 'pipeline' | 'resources'
-/** What a change throws away: nothing, the cached shadow pages, or the antialiasing's history. */
-type RenderSettingInvalidation = 'none' | 'shadowCache' | 'taaHistory'
+/** What a change throws away: nothing, or the antialiasing's history. */
+type RenderSettingInvalidation = 'none' | 'taaHistory'
 
 interface EntryBase {
   /** When a change reaches the image. */
@@ -43,16 +43,22 @@ interface EntryBase {
 export type RenderSettingEntry =
   | (EntryBase & { kind: 'flag'; default: boolean })
   | (EntryBase & { kind: 'int' | 'float'; default: number; range: readonly [number, number] })
+  | (EntryBase & { kind: 'choice'; default: string; choices: readonly string[] })
 
-/** A setting's value: a switch, or a number. */
-export type RenderSettingValue = boolean | number
+/** A setting's value: a switch, a number, or one of its choices. */
+export type RenderSettingValue = boolean | number | string
 /** The value type of `entry`. */
-type ValueOf<E extends RenderSettingEntry> = E extends { kind: 'flag' } ? boolean : number
+type ValueOf<E extends RenderSettingEntry> = E extends { kind: 'flag' }
+  ? boolean
+  : E extends { kind: 'choice'; choices: readonly (infer C)[] }
+    ? C
+    : number
 
-/** Who wrote a value, weakest first after the default: a preset, the page, the editor. */
-export type RenderSettingSource = 'quality' | 'page' | 'editor'
+/** Who wrote a value, weakest first after the default: the loaded scene's manifest, a preset, the
+ *  page, the editor. */
+export type RenderSettingSource = 'scene' | 'quality' | 'page' | 'editor'
 /** The written sources, strongest first: the first that holds a value gives it. */
-const STRONGEST_FIRST: readonly RenderSettingSource[] = ['editor', 'page', 'quality']
+const STRONGEST_FIRST: readonly RenderSettingSource[] = ['editor', 'page', 'quality', 'scene']
 
 /** Throws unless `value` is one `entry` takes from `source`. */
 function check(name: string, entry: RenderSettingEntry, value: unknown, source: string) {
@@ -61,10 +67,12 @@ function check(name: string, entry: RenderSettingEntry, value: unknown, source: 
   const fits =
     entry.kind === 'flag'
       ? typeof value === 'boolean'
-      : typeof value === 'number' &&
-        (entry.kind === 'float' ? Number.isFinite(value) : Number.isInteger(value)) &&
-        value >= entry.range[0] &&
-        value <= entry.range[1]
+      : entry.kind === 'choice'
+        ? typeof value === 'string' && entry.choices.includes(value)
+        : typeof value === 'number' &&
+          (entry.kind === 'float' ? Number.isFinite(value) : Number.isInteger(value)) &&
+          value >= entry.range[0] &&
+          value <= entry.range[1]
   if (!fits) throw new Error(`RENDER_SETTING_VALUE: ${name} does not take ${String(value)}`)
 }
 
@@ -78,6 +86,7 @@ export function createRenderSettings<T extends Readonly<Record<string, RenderSet
 ) {
   type Name = keyof T & string
   const layers: Record<RenderSettingSource, Map<string, RenderSettingValue>> = {
+    scene: new Map(),
     quality: new Map(),
     page: new Map(),
     editor: new Map(),
@@ -111,6 +120,11 @@ export function createRenderSettings<T extends Readonly<Record<string, RenderSet
     source(name: Name): RenderSettingSource | 'default' {
       entryOf(name)
       return STRONGEST_FIRST.find((source) => layers[source].has(name)) ?? 'default'
+    },
+    /** Whether the layer of `source` holds a value of `name`. */
+    holds(name: Name, source: RenderSettingSource) {
+      entryOf(name)
+      return layers[source].has(name)
     },
     /** Writes `value` into the layer of `source`; refused when out of the entry's bounds. */
     set<N extends Name>(name: N, value: ValueOf<T[N]>, source: RenderSettingSource) {

@@ -15,7 +15,8 @@ import {
   setNodeQuaternion,
 } from './transformTree.ts'
 import { updateNodeMatrixWorld } from './update.ts'
-import { near, transformPoint } from './points.fixture.ts'
+import { transformPoint } from './points.fixture.ts'
+import { nearly } from '../../../../math/src/float/near.fixture.ts'
 
 const FIELDS = [1, 30, 60, 90, 120, 170]
 const ASPECTS = [0.25, 1, 16 / 9, 4]
@@ -36,16 +37,16 @@ test('projection: the edges of the near rectangle map to +-1 on both axes, whate
     const hy = (n * Math.tan((fov * Math.PI) / 360)) / zoom
     const hx = aspect * hy
     const [x, y] = transformPoint(p, [hx, hy, -n])
-    assert.ok(near(x, 1, 1e-9) && near(y, 1, 1e-9), `${fov} ${aspect} ${n} ${zoom}: ${x} ${y}`)
+    assert.ok(nearly(x, 1, 1e-9) && nearly(y, 1, 1e-9), `${fov} ${aspect} ${n} ${zoom}: ${x} ${y}`)
     const [nx, ny] = transformPoint(p, [-hx, -hy, -n])
-    assert.ok(near(nx, -1, 1e-9) && near(ny, -1, 1e-9))
+    assert.ok(nearly(nx, -1, 1e-9) && nearly(ny, -1, 1e-9))
   })
 })
 
 test('projection: depth is near / distance, 1 on the near plane, falling toward 0 and never reaching it', () => {
   eachProjection((p, _fov, _aspect, n) => {
-    assert.ok(near(transformPoint(p, [0, 0, -n])[2], 1))
-    assert.ok(near(transformPoint(p, [0, 0, -4 * n])[2], 0.25))
+    assert.ok(nearly(transformPoint(p, [0, 0, -n])[2], 1))
+    assert.ok(nearly(transformPoint(p, [0, 0, -4 * n])[2], 0.25))
     const far = transformPoint(p, [0, 0, -1e9 * n])[2]
     assert.ok(far > 0 && far < 1e-8)
   })

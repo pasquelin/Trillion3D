@@ -87,3 +87,9 @@ export function mixWord(x: number) {
   h ^= h >>> 13
   return h >>> 0
 }
+
+/** Backward-shift removal in an open-addressed table of `mask + 1` slots: whether the entry at
+ *  `next`, whose home slot is `home`, may move into the hole at `hole` — its home is not strictly
+ *  between them. */
+export const movesIntoHole = (next: number, home: number, hole: number, mask: number) =>
+  ((next - home) & mask) >= ((next - hole) & mask)

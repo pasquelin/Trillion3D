@@ -125,6 +125,9 @@ export const BODY_INDEX = 0x00ffffff
 /** Where the generation starts in an engine id, and how many a slot counts before wrapping. */
 export const GENERATION_SHIFT = 24
 export const GENERATIONS = 128
+/** The engine id of slot `index` at `generation` (below `GENERATIONS`, so the id stays positive). */
+export const engineId = (index: number, generation: number) =>
+  index | (generation << GENERATION_SHIFT)
 
 /**
  * Words of the fixed part of ADD: `op, engine id, motion, layer, shape, flags, px, py, pz, qx, qy,

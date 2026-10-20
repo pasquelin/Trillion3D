@@ -132,3 +132,29 @@ export const rayTriangleDistance = wgslFn(
  return distance;
 }`,
 )
+
+/** How far along `direction` from `origin` the ray passes within `reach` of the segment `a, b`: the
+ *  parameter of its point nearest the segment, or `limit` when it passes farther — or at or under
+ *  1e-4, or at or past `limit`, as `rayTriangleDistance`. The segment's point nearest the ray's
+ *  line, then the ray's point nearest that one, each clamped, twice: what a line with no area
+ *  meets, within the reach a ray is given. */
+export const raySegmentDistance = wgslFn(
+  'raySegmentDistance',
+  [],
+  `fn raySegmentDistance(origin:vec3f,direction:vec3f,a:vec3f,b:vec3f,reach:f32,limit:f32)->f32{
+ let edge=b-a;
+ let dd=dot(direction,direction);
+ let ee=dot(edge,edge);
+ let de=dot(direction,edge);
+ let offset=origin-a;
+ let denominator=dd*ee-de*de;
+ var s=0.0;
+ if(denominator>1e-12*dd*ee){s=clamp((dd*dot(edge,offset)-de*dot(direction,offset))/denominator,0.0,1.0);}
+ var t=max(0.0,dot(direction,a+edge*s-origin)/max(dd,1e-30));
+ if(ee>0.0){s=clamp(dot(edge,origin+direction*t-a)/ee,0.0,1.0);}
+ t=max(0.0,dot(direction,a+edge*s-origin)/max(dd,1e-30));
+ let gap=origin+direction*t-(a+edge*s);
+ if(dot(gap,gap)>reach*reach||t<=1e-4||t>=limit){return limit;}
+ return t;
+}`,
+)

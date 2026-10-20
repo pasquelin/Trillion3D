@@ -4,7 +4,7 @@ import {
   FORMAT_VERSION,
   type AssetScope,
 } from './base.ts'
-import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometry.ts'
+import { primitiveUsesClusterErrors, type ClusterManifest } from './geometry.ts'
 import { TEXTURE_PREVIEW_VERSION } from './writtenFormats.ts'
 
 /**
@@ -74,13 +74,7 @@ export function assertCacheRoot(root: unknown, scope: AssetScope): void {
     throw new EngineError('INVALID_CACHE', 'cache manifest is not a JSON object', {})
   const value = root as Record<string, unknown>
   // The number first: an earlier format is refused by it, never by a field it wrote otherwise.
-  const formatVersion = (value.formatVersion ?? value.schema) as number
-  assertFormat(formatVersion)
-  if (value.schema !== formatVersion)
-    throw new EngineError('UNSUPPORTED_FORMAT', 'Cache schema and formatVersion differ', {
-      schema: value.schema,
-      formatVersion,
-    })
+  assertFormat(value.formatVersion as number)
   if (value.status !== 'ready')
     throw new EngineError('INVALID_CACHE', 'Unsupported Trillion3D cache', {
       status: value.status ?? null,
@@ -114,10 +108,11 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
   return value.selectedTriangles
 }
 /**
- * Rejects any cache this runtime cannot draw. The runtime reads one geometry model: a DAG of
- * clusters where every cluster carries its own screen-error band, or a whole mesh the compiler kept
- * outside the DAG (`shared-blend`), which carries no cluster at all. A cache whose clusters carry no
- * band is refused by name here rather than half-read later.
+ * Rejects any cache this runtime cannot draw. The runtime reads one geometry model, every
+ * primitive's — blended and transmissive ones too —: a DAG of clusters where every cluster carries
+ * its own screen-error band. A primitive without one, a cache whose clusters carry no band or one
+ * from a compiler that left a whole mesh outside the DAG, is refused by name here rather than
+ * half-read later.
  */
 export function assertCacheIdentity(metadata: ClusterManifest) {
   // A manifest with a binary sidecar describes its clusters in columns; identity is a property of
@@ -128,13 +123,8 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       'A manifest with a binary sidecar must be decoded before its identity is checked',
       {},
     )
-  const formatVersion = metadata.formatVersion ?? metadata.schema
+  const formatVersion = metadata.formatVersion
   assertFormat(formatVersion)
-  if (metadata.schema !== formatVersion)
-    throw new EngineError('UNSUPPORTED_FORMAT', 'Cache schema and formatVersion differ', {
-      schema: metadata.schema,
-      formatVersion,
-    })
   if (
     formatVersion !== CLUSTERED_BLEND_FORMAT_VERSION &&
     metadata.primitives.some((primitive) => primitive.pass === 'clustered-blend')
@@ -144,16 +134,14 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       `clustered-blend requires cache format ${CLUSTERED_BLEND_FORMAT_VERSION}`,
       { formatVersion },
     )
-  const missing = metadata.primitives.findIndex((primitive) => !primitiveIsDrawable(primitive))
+  const missing = metadata.primitives.findIndex(
+    (primitive) => !primitiveUsesClusterErrors(primitive),
+  )
   if (missing >= 0) {
     const primitive = metadata.primitives[missing]
-    const cause =
-      primitive.pass === UNSPLIT_PASS
-        ? `is ${UNSPLIT_PASS} yet carries ${primitive.pages.length} cluster pages`
-        : 'has no per-cluster error band'
     throw new EngineError(
       'STALE_CACHE',
-      `Cache without a cluster DAG cannot be used: primitive ${primitive.mesh}/${primitive.primitive} ${cause}; recompile with ${DAG_ERROR_MODEL}`,
+      `Cache without a cluster DAG cannot be used: primitive ${primitive.mesh}/${primitive.primitive} has no per-cluster error band; recompile with ${DAG_ERROR_MODEL}`,
       {
         mesh: primitive.mesh,
         primitive: primitive.primitive,

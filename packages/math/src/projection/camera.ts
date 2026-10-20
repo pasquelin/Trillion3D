@@ -1,4 +1,5 @@
 import {
+  FAR_PLANE_SLOT,
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
@@ -40,12 +41,6 @@ export function perspectiveDiagonalSlope(fov: number, aspect: number, zoom = 1) 
   return perspectiveSlope(fov, zoom) * length2(1, aspect)
 }
 
-/** The distance from the eye to a corner of the frustum's section at view `depth`, a vertical
- *  `slope` and picture `aspect`: `depth · √(1 + slope² · (1 + aspect²))`, each square a product. */
-export function frustumCornerDistance(depth: number, slope: number, aspect: number) {
-  return depth * Math.sqrt(1 + slope * slope * (1 + aspect * aspect))
-}
-
 /** The projection scale of a perspective of half field `half` radians: `1 / Math.tan(half)`, the
  *  cotangent its first two diagonal entries hold. */
 export const focalScale = (half: number) => 1 / Math.tan(half)
@@ -67,7 +62,7 @@ export function pixelScale<T extends NumberSink>(out: T, p: ArrayLike<number>, w
 
 /** Pixels per unit on one axis of `size` pixels whose projection scale is `scale`:
  *  `(size·|scale|) / 2`, `pixelScale`'s term. */
-const axisPixels = (size: number, scale: number) => (size * Math.abs(scale)) / 2
+export const axisPixels = (size: number, scale: number) => (size * Math.abs(scale)) / 2
 
 /** The larger of `pixelScale`'s two (`axisPixels`): the focal length in pixels a screen-space
  *  error is measured with. */
@@ -79,7 +74,7 @@ type Box = { left: number; right: number; top: number; bottom: number }
 
 /** The view of an orthographic camera: its `box` scaled by `zoom` about the box centre, as
  *  `[centre x, centre y, half width, half height]` written into `out`. */
-export function orthographicView(box: Box, zoom: number, out = new Float64Array(4)) {
+function orthographicView(box: Box, zoom: number, out = new Float64Array(4)) {
   out[0] = (box.right + box.left) / 2
   out[1] = (box.top + box.bottom) / 2
   out[2] = (box.right - box.left) / (2 * zoom)
@@ -222,10 +217,22 @@ export function updateCameraFrame(
   far = Infinity,
 ) {
   invertMatrix4(frame.view, world)
-  multiplyMatrix4(frame.viewProjection, projection, frame.view)
-  frustumPlanesFromMatrix(frame.planes, frame.viewProjection)
-  frustumFarPlane(frame.planes, 16, frame.view, far, true)
+  viewFrustum(frame.viewProjection, frame.planes, projection, frame.view, far)
   return frame
+}
+
+/** The frustum of `view` under `projection` into `viewProjection` (`projection · view`) and its
+ *  six normalized `planes`, the far one at the declared `far` (`frustumFarPlane`). */
+export function viewFrustum(
+  viewProjection: Float64Array,
+  planes: Float32Array | Float64Array,
+  projection: Float64Array,
+  view: Float64Array,
+  far: number,
+) {
+  multiplyMatrix4(viewProjection, projection, view)
+  frustumPlanesFromMatrix(planes, viewProjection)
+  frustumFarPlane(planes, FAR_PLANE_SLOT * 4, view, far, true)
 }
 
 /** The clip w of a point at view depth `depth`: `perspective·depth + (1 − perspective)` — its

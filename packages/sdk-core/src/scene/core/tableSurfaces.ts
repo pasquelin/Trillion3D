@@ -30,7 +30,7 @@ export const TABLE_NUMBERS = [
 /** The colour fields of a material in the tables, three numbers each. */
 export const TABLE_TRIPLETS = ['baseColor', 'emissive', 'attenuationColor'] as const
 /** The yes-or-no fields of a material in the tables. */
-export const TABLE_FLAGS = ['lit', 'doubleSided', 'backSide'] as const
+export const TABLE_FLAGS = ['lit', 'doubleSided', 'backSide', 'hasIor'] as const
 type TableSlotName = (typeof TABLE_SLOTS)[number]
 
 /** One filled map slot: which texture, which coordinate set, and the transform it declares. */
@@ -91,6 +91,7 @@ export interface TableTexture {
  * @property lit - Whether lights shade it.
  * @property doubleSided - Whether both faces are drawn.
  * @property backSide - Whether only the back face is drawn.
+ * @property hasIor - Whether it declares `KHR_materials_ior`: only then does it refract.
  * @property metalness - How metallic, 0 to 1.
  * @property roughness - How rough, 0 to 1.
  * @property alphaTest - Alpha below which pixels drop.
@@ -126,6 +127,10 @@ export type TableMaterial = {
   /** What the physical extensions add, under the host's own parameter names: a factor, a colour
    *  or a range as numbers, a map as a slot. */
   extensions: Readonly<Record<string, number | readonly number[] | TableTextureSlot>>
+  /** The most of its history the temporal anti-aliasing keeps where it is worn, in [0, 1] — the
+   *  compiler's one resolution of the job's `materials`, its `responsive` match and the material's
+   *  `extras` —; written only below 1, absent for the engine's own blend. */
+  temporalAntialiasing?: number
 } & Record<(typeof TABLE_FLAGS)[number], boolean> &
   Record<(typeof TABLE_NUMBERS)[number], number> &
   Record<(typeof TABLE_TRIPLETS)[number], readonly [number, number, number]> &

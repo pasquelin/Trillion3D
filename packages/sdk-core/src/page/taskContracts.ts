@@ -3,11 +3,12 @@ import type { CullingHierarchy, Page } from '../contracts/geometry.ts'
 import type { readCellPage } from '../scene/core/tablePartition.ts'
 
 /**
- * Off-main-thread page-task contract, version 10: `cut` turns drawn triangles into pages, which
+ * Off-main-thread page-task contract, version 11: `cut` turns drawn triangles into pages, which
  * come back as bytes with their descriptors and their normal cone, in the order of the culling
  * hierarchy that comes back with them (version 10), the packed triangles carrying
- * whether their pages keep one; `cells` reads a partition's cell file into the rows it places, and
- * `cellPage` a page of its cell index (#575). No geometry page is decoded on the CPU: the GPU reads
+ * whether their pages keep one; `cells` reads a partition's cell file into the rows it places,
+ * `cellPage` a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to
+ * RGBA8 for a device that samples none (version 11, `texture/blockDecode.ts`). No geometry page is decoded on the CPU: the GPU reads
  * it in place (#1483), and a fetched page's digest is taken where it lands (`crypto.subtle`, which
  * runs off the main thread already).
  *
@@ -21,13 +22,14 @@ import type { readCellPage } from '../scene/core/tablePartition.ts'
  * synchronous fallback) returns exactly the same values: the contract does not say how the work
  * travels, only what it returns.
  */
-export const PAGE_TASK_PROTOCOL = 10
+export const PAGE_TASK_PROTOCOL = 11
 
 /** `cut`: drawn triangles, packed as five lengths, whether their pages keep a cone, whether a
  *  blended material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`:
  *  a partition's cell file, read into each node's parent, mesh and local matrix. `cellPage`: a page
- *  of its cell index, read into the pages it lists or its cells. */
-type PageTaskOp = 'cut' | 'cells' | 'cellPage'
+ *  of its cell index, read into the pages it lists or its cells. `blocks`: a tile record's BC7
+ *  blocks — BC5 when `blocks.twoChannel` —, decoded to RGBA8. */
+export type PageTaskOp = 'cut' | 'cells' | 'cellPage' | 'blocks'
 
 /** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */
 export interface PageCutPage {
@@ -69,6 +71,14 @@ export interface PageTaskRequest {
   source: ArrayBuffer
   /** `cells`, `cellPage`: the file the source was read from, which a refusal names. */
   name?: string
+  /** `blocks`: the surface the blocks cover, in texels, and whether they are BC5. */
+  blocks?: PageTaskBlocks
+}
+/** The surface a `blocks` task decodes. */
+export type PageTaskBlocks = {
+  /** Texels across. */ width: number
+  /** Texels down. */ height: number
+  /** BC5, X and Y with Z rebuilt, rather than BC7. */ twoChannel: boolean
 }
 
 /** A worker's answer when a page request succeeded. */ export interface PageTaskDone {
@@ -83,6 +93,8 @@ export interface PageTaskRequest {
   cells?: { nodes: number; ranks: ArrayBuffer; locals: ArrayBuffer }
   /** `cellPage`: the page's slots, or its cells (`readCellPage`). Absent otherwise. */
   cellPage?: ReturnType<typeof readCellPage>
+  /** `blocks`: the RGBA8 texels, whole blocks wide (`decodeBcLevel`), transferred. */
+  texels?: ArrayBuffer
   /** Task time, measured by the executor itself. */
   taskMs: number
 }

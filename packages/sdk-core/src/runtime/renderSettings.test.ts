@@ -21,6 +21,15 @@ const TABLE = {
     editorOnly: true,
     invalidates: 'none',
   },
+  level: {
+    kind: 'choice',
+    default: 'high',
+    choices: ['low', 'high'],
+    apply: 'pipeline',
+    group: 'edgeSmoothing',
+    editorOnly: false,
+    invalidates: 'none',
+  },
   glow: {
     kind: 'flag',
     default: true,
@@ -39,10 +48,12 @@ test('with nothing written, every setting is its default', () => {
   }
 })
 
-test('default < quality < page < editor: a weaker source never overwrites a stronger one', () => {
+test('default < scene < quality < page < editor: a weaker source never overwrites a stronger one', () => {
   const settings = createRenderSettings(TABLE)
   settings.set('rays', 4, 'page')
   settings.set('rays', 2, 'quality')
+  settings.set('rays', 3, 'scene')
+  assert.ok(settings.holds('rays', 'scene'))
   assert.equal(settings.get('rays'), 4, 'the preset under the page value changes nothing')
   assert.equal(settings.source('rays'), 'page')
   settings.set('rays', 8, 'editor')
@@ -52,7 +63,11 @@ test('default < quality < page < editor: a weaker source never overwrites a stro
   settings.clear('rays', 'page')
   assert.equal(settings.get('rays'), 2, 'then the preset value')
   settings.clear('rays', 'quality')
+  assert.equal(settings.get('rays'), 3, "then the scene's value")
+  assert.equal(settings.source('rays'), 'scene')
+  settings.clear('rays', 'scene')
   assert.equal(settings.get('rays'), 7, 'then the default')
+  assert.ok(!settings.holds('rays', 'scene'))
 })
 
 test('a hook runs once per change of the resolved value, never for a hidden write', () => {
@@ -75,6 +90,9 @@ test('a value out of its entry is refused, and an editor setting is the editorâ€
   assert.throws(() => settings.set('rays', 0, 'page'), /RENDER_SETTING_VALUE/)
   assert.throws(() => settings.set('rays', 2.5, 'page'), /RENDER_SETTING_VALUE/)
   assert.throws(() => settings.set('glow', 1 as never, 'page'), /RENDER_SETTING_VALUE/)
+  assert.throws(() => settings.set('level', 'ultra' as never, 'scene'), /RENDER_SETTING_VALUE/)
+  settings.set('level', 'low', 'scene')
+  assert.equal(settings.get('level'), 'low')
   assert.throws(() => settings.set('bias', 0, 'quality'), /RENDER_SETTING_EDITOR_ONLY/)
   assert.throws(() => settings.set('bias', Number.NaN, 'editor'), /RENDER_SETTING_VALUE/)
   settings.set('bias', 0.5, 'editor')

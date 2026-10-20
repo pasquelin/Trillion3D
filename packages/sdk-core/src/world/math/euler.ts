@@ -1,13 +1,11 @@
-import { composeMatrix4At } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { rotationMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
 import { eulerFromRotationMatrix } from '../../../../math/src/matrix/euler.ts'
 import { Observed } from '../observed.ts'
-import type { XYZWLike } from './likes.ts'
+import { loadXyzw, type XYZWLike } from './likes.ts'
 
 const rotation = new Float64Array(16),
   turn = new Float64Array(4),
-  angles = new Float64Array(3),
-  ORIGIN = [0, 0, 0],
-  UNIT = [1, 1, 1]
+  angles = new Float64Array(3)
 
 /** Three angles in radians, applied in `order` (intrinsic, the first letter outermost). */
 export class Euler extends Observed {
@@ -92,11 +90,7 @@ export class Euler extends Observed {
   }
   /** The three angles that make the same turn as a quaternion. */
   setFromQuaternion(q: XYZWLike, order = this._order, quiet = false) {
-    turn[0] = q.x
-    turn[1] = q.y
-    turn[2] = q.z
-    turn[3] = q.w
-    composeMatrix4At(rotation, 0, ORIGIN, 0, turn, 0, UNIT, 0)
+    rotationMatrix4(rotation, loadXyzw(turn, q))
     return this.fromElements(rotation, order, quiet)
   }
   /** The angles of the rotation in the upper 3×3 of the column-major `e`, read in place
@@ -115,12 +109,8 @@ export class Euler extends Observed {
    * alone, thousands a frame for the physics, and pays for the angles the page reads, not all.
    */
   _follow(q: XYZWLike) {
-    const seen = this._seen
     this._source = q
-    seen[0] = q.x
-    seen[1] = q.y
-    seen[2] = q.z
-    seen[3] = q.w
+    loadXyzw(this._seen, q)
   }
   private resolve() {
     const q = this._source!,

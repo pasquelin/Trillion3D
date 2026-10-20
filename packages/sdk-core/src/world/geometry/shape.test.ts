@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { Path, Shape } from '../math/curves.ts'
 import { extrude, shape } from './shape.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { crossVector3, dotVector3 } from '../../../../math/src/vector/vector.ts'
 
 type G = ReturnType<typeof shape>
@@ -41,8 +42,6 @@ const square = (x0: number, y0: number, side: number, clockwise = false) => {
   ])
   return clockwise ? new Shape([...s.getPoints()].reverse().map((p) => [p.x, p.y] as const)) : s
 }
-const near = (a: number, b: number, label: string) =>
-  assert.ok(Math.abs(a - b) < 1e-5, `${label}: ${a} ≠ ${b}`)
 
 test('a flat shape faces +z, its uv its plane position, either way round', () => {
   for (const clockwise of [false, true]) {
@@ -87,21 +86,26 @@ test('a hole, either way round, is left open', () => {
             [1, 2],
           ]),
     )
-    near(volume(extrude(s, { bevelEnabled: false })), 16 - 0.75, `extruded, ${clockwise}`)
+    near(volume(extrude(s, { bevelEnabled: false })), 16 - 0.75, `extruded, ${clockwise}`, 1e-5)
   }
 })
 
 test('an extrusion without bevel is the shape pushed over its depth, in slices', () => {
   const g = extrude(square(0, 0, 1, true), { depth: 2, steps: 3, bevelEnabled: false })
-  near(volume(g), 2, 'volume')
+  near(volume(g), 2, 'volume', 1e-5)
   assert.deepEqual(bounds(g), [
     [0, 1],
     [0, 1],
     [0, 2],
   ])
   assert.equal(arrays(g).index.length / 3, 2 * 2 + 2 * 4 * 3, 'two caps and three slices of walls')
-  near(volume(extrude(square(0, 0, 1))), volumeOfBevel(1, 1, 0.2, 0.1, 3), 'default bevel')
-  near(volume(extrude(square(0, 0, 1), { steps: 0, bevelEnabled: false })), 1, 'one slice at least')
+  near(volume(extrude(square(0, 0, 1))), volumeOfBevel(1, 1, 0.2, 0.1, 3), 'default bevel', 1e-5)
+  near(
+    volume(extrude(square(0, 0, 1), { steps: 0, bevelEnabled: false })),
+    1,
+    'one slice at least',
+    1e-5,
+  )
 })
 
 /** A square of side `side` beveled as `extrude` does: a stack of square frustums. */
@@ -134,7 +138,7 @@ function volumeOfBevel(
 test('a bevel rounds the rims as its thickness, size and segments say', () => {
   const options = { depth: 2, bevelThickness: 0.3, bevelSize: 0.25, bevelSegments: 5 }
   const g = extrude(square(0, 0, 1), options)
-  near(volume(g), volumeOfBevel(1, 2, 0.3, 0.25, 5), 'volume')
+  near(volume(g), volumeOfBevel(1, 2, 0.3, 0.25, 5), 'volume', 1e-5)
   assert.deepEqual(bounds(g), [
     [-0.25, 1.25],
     [-0.25, 1.25],
@@ -143,7 +147,7 @@ test('a bevel rounds the rims as its thickness, size and segments say', () => {
   // Rings: 6 on the front bevel, 1 at the back of the slice, 5 on the back bevel: 11 bands.
   assert.equal(arrays(g).index.length / 3, 2 * 4 * 11 + 2 * 2, 'walls and caps')
   const flat = extrude(square(0, 0, 1), { bevelSegments: 0 })
-  near(volume(flat), volumeOfBevel(1, 1, 0.2, 0.1, 1), 'one bevel step at least')
+  near(volume(flat), volumeOfBevel(1, 1, 0.2, 0.1, 1), 'one bevel step at least', 1e-5)
   assert.deepEqual(bounds(extrude(square(0, 0, 1), { bevelSize: 0 }))[0], [0, 1], 'no reach')
 })
 

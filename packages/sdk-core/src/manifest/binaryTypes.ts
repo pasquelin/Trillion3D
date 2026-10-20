@@ -2,7 +2,7 @@ import { EngineError } from '../contracts/cache.ts'
 import type { Primitive, ClusterManifest } from '../contracts/geometry.ts'
 import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 
-/** Where the binary sits and how a cluster, a packed page and a bundle name their object. */
+/** Where the binary sits, and the counts its columns are read by. */
 export interface ManifestBinaryDescriptor {
   /** Format version. */
   version: number
@@ -12,12 +12,6 @@ export interface ManifestBinaryDescriptor {
   sha256: string
   /** Its size. */
   bytes: number
-  /** `{sha}` is replaced by the 64 hexadecimal characters of the object digest. */
-  pageUrl: string
-  /** Address pattern of a geometry block. */
-  geometryUrl: string
-  /** Address pattern of a stream bundle. */
-  bundleUrl: string
   /** Entries of the progressive-level section; zero when the source has no decodable image. */
   texturePreviews: number
   /** Bytes of the pixel column: entries have no fixed stride, so their total is written here. */
@@ -69,17 +63,28 @@ export interface SlimPrimitiveBinary {
   /** Its group links' counts. */
   structure?: SlimStructure | null
   /** Its stream bundles' counts. */
-  streams?: SlimStreams | null
+  streams?: SlimStreams
 }
 /** A primitive whose long lists live in the binary file. */
 export type SlimPrimitive = Omit<Primitive, 'pages' | 'culling' | 'structure' | 'streams'> & {
   /** Where to find its lists. */
   binary: SlimPrimitiveBinary
 }
+/** One geometry container of a compile: every geometry page lies in one, read by byte range. */
+export interface GeometryFile {
+  /** Where it is read, against the manifest. */
+  url: string
+  /** Fingerprint of its bytes. */
+  sha256: string
+  /** Its size. */
+  bytes: number
+}
 /** A manifest whose long lists live in a binary file beside it. */
 export type SlimClusterManifest = Omit<ClusterManifest, 'primitives'> & {
   /** The binary file. */
   binary: ManifestBinaryDescriptor
+  /** The geometry containers its pages name by rank; none on the head page. */
+  geometryFiles?: GeometryFile[]
   /** Its primitives. */
   primitives: SlimPrimitive[]
 }
@@ -106,7 +111,7 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
       `Expected manifest binary version ${MANIFEST_BINARY_VERSION}, received ${String(descriptor.version)}`,
       { version: descriptor.version ?? null, expected: MANIFEST_BINARY_VERSION },
     )
-  for (const key of ['url', 'sha256', 'pageUrl', 'geometryUrl', 'bundleUrl'] as const)
+  for (const key of ['url', 'sha256'] as const)
     if (typeof descriptor[key] !== 'string' || !descriptor[key])
       throw new EngineError('UNSUPPORTED_FORMAT', `Manifest binary descriptor misses ${key}`, {
         key,
@@ -118,11 +123,4 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
         [key]: value ?? null,
       })
   }
-  for (const key of ['pageUrl', 'geometryUrl', 'bundleUrl'] as const)
-    if (!descriptor[key]!.includes('{sha}'))
-      throw new EngineError(
-        'UNSUPPORTED_FORMAT',
-        `Manifest binary template ${key} has no {sha} placeholder`,
-        { key, template: descriptor[key] },
-      )
 }

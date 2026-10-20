@@ -30,6 +30,7 @@ import {
   wideShiftRight,
   wideSub,
 } from './doubleWords.ts'
+import { D_HALF } from './doubleConstants.ts'
 import { lowBits, wideProduct } from './integer.ts'
 import { fromF32, toF32 } from './f32.ts'
 
@@ -160,6 +161,13 @@ export const dMul = wgslFn(
 }`,
 )
 
+/** `a0·b0 + a1·b1 + a2·b2`, each product and sum rounded once, summed left to right. */
+export const dDot3 = wgslFn(
+  'dDot3',
+  [dAdd, dMul],
+  `fn dDot3(a0:vec2u,b0:vec2u,a1:vec2u,b1:vec2u,a2:vec2u,b2:vec2u)->vec2u{return dAdd(dAdd(dMul(a0,b0),dMul(a1,b1)),dMul(a2,b2));}`,
+)
+
 /**
  * `a / b`, rounded once. Both significands brought to bit 52, the dividend doubled when below the
  * divisor so the first quotient bit is one; then 56 quotient bits by long division, the leading one
@@ -235,11 +243,11 @@ export const dLess = wgslFn(
  */
 export const dRsqrt = wgslFn(
   'dRsqrt',
-  [dMul, dSub, wideSub],
+  [dMul, dSub, wideSub, D_HALF],
   `fn dRsqrt(a:vec2u)->vec2u{
  var r=wideSub(vec2u(0x5fe6eb50u,0xc7b537a9u),vec2u(a.x>>1u,(a.y>>1u)|(a.x<<31u)));
  for(var i=0u;i<5u;i++){
-  let half=dMul(dMul(a,dMul(r,r)),vec2u(0x3fe00000u,0u));
+  let half=dMul(dMul(a,dMul(r,r)),D_HALF);
   r=dMul(r,dSub(vec2u(0x3ff80000u,0u),half));
  }
  return r;

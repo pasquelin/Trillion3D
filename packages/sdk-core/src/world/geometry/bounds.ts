@@ -8,7 +8,7 @@ import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts
 import { distanceSqVector3 } from '../../../../math/src/vector/vector.ts'
 import type { VertexAttribute } from '../buffer/attribute.ts'
 import type { Geometry } from './geometry.ts'
-import { Box3 } from '../math/box3.ts'
+import { Box3, boxFromFlat } from '../math/box3.ts'
 import { Vector3 } from '../math/vector3.ts'
 import type { Sphere } from '../math/volumes.ts'
 
@@ -88,10 +88,7 @@ export function spanBox(box: Box3, morphed: Morphed) {
   const plain = plainUnmorphed(morphed)
   if (plain) return box.setFromArray(plain.array, plain.itemSize)
   if (!span(morphed)) return box.makeEmpty()
-  return box.set(
-    { x: whole[0], y: whole[1], z: whole[2] },
-    { x: whole[3], y: whole[4], z: whole[5] },
-  )
+  return boxFromFlat(box, whole)
 }
 
 /** Writes the sphere centred on the box and reaching the farthest vertex or morphed vertex into
@@ -137,13 +134,12 @@ export const readComponent = (
     : attribute.getComponent(index, component)
 
 /** The positions as a list of numbers, three a vertex, at their values: the list itself when its
- *  numbers are (`plainPoints`), else a copy read vertex by vertex (`pointAt`); none without an
+ *  numbers are (`plainPoints`), else a copy read vertex by vertex (`readInto`); none without an
  *  attribute. */
 export function readPoints(attribute: VertexAttribute | undefined): ArrayLike<number> {
   if (!attribute) return []
   const plain = plainPoints(attribute)
   if (plain) return plain.array
-  const out = new Float32Array(attribute.count * 3)
-  for (let i = 0; i < attribute.count; i++) out.set(pointAt(attribute, i, point), i * 3)
-  return out
+  const count = attribute.count
+  return attribute.readInto(new Float32Array(count * 3), 0, 3, 0, count, 3, 0)
 }

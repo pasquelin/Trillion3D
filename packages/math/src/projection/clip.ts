@@ -31,10 +31,8 @@ export function clipWindowMatrix4<T extends NumberSink>(
   return out
 }
 
-/** The pixel of the clip point `clip` in an image `width` × `height` pixels, y down, and its depth
- *  `z / w`: the CPU twin of `clipToFramebuffer` (`../wgsl/projection.ts`), operation for operation. */
-export function clipToPixel(clip: ArrayLike<number>, width: number, height: number) {
-  const x = clip[0] / clip[3],
-    y = clip[1] / clip[3]
-  return [(x * 0.5 + 0.5) * width, (0.5 - y * 0.5) * height, clip[2] / clip[3]]
-}
+/** The pixel column of clip `x` at clip `w` across `width` pixels: with `clipPixelY`, the CPU twin
+ *  of `clipToFramebuffer` (`../wgsl/projection.ts`), operation for operation. */
+export const clipPixelX = (x: number, w: number, width: number) => ((x / w) * 0.5 + 0.5) * width
+/** The pixel row of clip `y` at clip `w` down `height` pixels, y down (`clipPixelX`). */
+export const clipPixelY = (y: number, w: number, height: number) => (0.5 - (y / w) * 0.5) * height

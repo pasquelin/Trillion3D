@@ -11,6 +11,13 @@ export function release(released: Set<() => void>) {
   released.clear()
 }
 
+/** Runs each hook of `hooks` once, in order, and forgets them: a hook added meanwhile waits for the
+ *  next call. */
+export function releaseAll(hooks: (() => void)[]) {
+  if (!hooks.length) return
+  for (const hook of hooks.splice(0)) hook()
+}
+
 /** Releases what a resource holds; each hook runs once, when it is given back. */
 export class Releasable {
   /** Called when the resource is given back: what the engine's own copy of it listens to. */

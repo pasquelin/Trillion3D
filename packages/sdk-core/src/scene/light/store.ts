@@ -201,9 +201,14 @@ export function createSceneLightStore() {
       const validated = validateSceneEnvironment(next)
       // Same rule as `set`: an exposure reset as-is does not stale the frame.
       if (environment && sameSceneEnvironment(environment, validated)) return
+      // Neither the fog nor the sharpening carries light: a change of theirs alone moves no transport.
+      const untransported = { fog: undefined, sharpness: undefined }
       if (
         environment &&
-        sameSceneEnvironment({ ...environment, fog: undefined }, { ...validated, fog: undefined })
+        sameSceneEnvironment(
+          { ...environment, ...untransported },
+          { ...validated, ...untransported },
+        )
       )
         notTransport++
       environment = validated

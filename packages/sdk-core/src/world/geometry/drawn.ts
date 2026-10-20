@@ -52,33 +52,35 @@ function drawTriangles(
   const position = geometry.attributes.position
   if (!position || position.count === 0) return null
   const p = Array.from(readPoints(position))
-  const corners = geometry.index
-    ? Array.from(geometry.index.array)
-    : Array.from({ length: position.count }, (_, i) => i)
+  const corners = drawnCorners(geometry, position.count)
   if (reading === 'points') {
-    const drawn = solids(points(p, (options.size ?? 1) / 2))
-    if (drawn && traced)
-      drawn.sourceVertices = Uint32Array.from({ length: drawn.positions.length / 3 }, (_, v) =>
-        Math.floor(v / POINT_VERTICES),
-      )
-    return drawn
+    const drawn = solids(points(gather(p, 3, corners), (options.size ?? 1) / 2))
+    if (!drawn) return null
+    // Each drawn vertex comes from the corner whose octahedron it is.
+    const sources = Uint32Array.from(
+      { length: drawn.positions.length / 3 },
+      (_, v) => corners[Math.floor(v / POINT_VERTICES)],
+    )
+    return sourced(drawn, sources, geometry, position.count, traced)
   }
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
     const loop = reading === 'lineLoop' && corners.length > 2
-    return quads(p, lineCorners(corners, reading), traced, options.dashed, loop)
+    const drawn = quads(p, lineCorners(corners, reading), options.dashed, loop)
+    return drawn && sourced(drawn.drawn, drawn.sources, geometry, position.count, traced)
   }
   if (corners.length < 3) return null
   if (options.wireframe) {
-    // Every edge once, however many triangles share it (`edgesOf`).
-    const segments = [...edgesOf(geometry).values()].flatMap(({ a, b }) => [a, b])
-    return quads(p, segments, traced, options.dashed)
+    // Every edge of the drawn triangles once, however many of them share it (`edgesOf`).
+    const segments = [...edgesOf(geometry, corners).values()].flatMap(({ a, b }) => [a, b])
+    const drawn = quads(p, segments, options.dashed)
+    return drawn && sourced(drawn.drawn, drawn.sources, geometry, position.count, traced)
   }
   const drawn = {
     positions: new Float32Array(p),
     normals: readList(geometry, 'normal', 3, position.count),
     uvs: readList(geometry, 'uv', 2, position.count),
     colors: readList(geometry, 'color', 4, position.count),
-    indices: new Uint32Array(corners.slice(0, corners.length - (corners.length % 3))),
+    indices: Uint32Array.from(corners.slice(0, corners.length - (corners.length % 3))),
   }
   if (options.flat) return flatten(drawn, traced)
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) }
@@ -96,6 +98,41 @@ export function readList(g: Geometry, name: string, width: number, n: number, ou
   return a.readInto(out, 0, width, 0, n, width, 1, readsStored(g, a))
 }
 
+/** The corners drawn: the index, or every vertex in order, within the geometry's `drawRange`,
+ *  clamped to what exists. */
+function drawnCorners(geometry: Geometry, vertices: number) {
+  const index = geometry.index?.array
+  const { start, count } = geometry.drawRange
+  const from = Math.max(0, Math.floor(start))
+  const to = Math.min(index ? index.length : vertices, from + count)
+  return Array.from({ length: Math.max(0, to - from) }, (_, i) =>
+    index ? index[from + i] : from + i,
+  )
+}
+
+/** The `width` numbers of `list` for each vertex of `sources`, in order. */
+function gather(list: ArrayLike<number>, width: number, sources: ArrayLike<number>) {
+  const out: number[] = []
+  for (let i = 0; i < sources.length; i++)
+    for (let c = 0; c < width; c++) out.push(list[sources[i] * width + c])
+  return out
+}
+
+/** Points and line quads made of the geometry's vertices `sources`: each keeps its vertex's
+ *  colour, and which vertex it came from when the geometry deforms. */
+function sourced(
+  drawn: DrawnTriangles,
+  sources: Uint32Array,
+  geometry: Geometry,
+  vertices: number,
+  traced: boolean,
+): DrawnTriangles {
+  const colors = readList(geometry, 'color', 4, vertices)
+  if (colors) drawn.colors = new Float32Array(gather(colors, 4, sources))
+  if (traced) drawn.sourceVertices = sources
+  return drawn
+}
+
 /** The segments a line reading draws, as `[a, b]` corner pairs: each pair of `lineSegments`,
  *  each step of `lineStrip`, and `lineLoop` closed from its last corner back to its first. */
 export function lineCorners(
@@ -110,19 +147,14 @@ export function lineCorners(
   return segments
 }
 
-/** Two triangles per segment; normal signs widen endpoints on screen, UVs retain dash distance. */
-function quads(
-  p: number[],
-  segments: number[],
-  traced: boolean,
-  dashed = false,
-  loop = false,
-): DrawnTriangles | null {
+/** Two triangles per segment; normal signs widen endpoints on screen, UVs retain dash distance.
+ *  `sources` holds the vertex each corner sits on. */
+function quads(p: number[], segments: number[], dashed = false, loop = false) {
   const positions: number[] = [],
     normals: number[] = [],
     uvs: number[] = [],
     indices: number[] = [],
-    sourceVertices: number[] = []
+    sources: number[] = []
   let distance = 0
   for (let s = 0; s + 1 < segments.length; s += 2) {
     const a = segments[s] * 3,
@@ -139,7 +171,7 @@ function quads(
       [b, 1],
       [b, -1],
     ]) {
-      if (traced) sourceVertices.push(at / 3)
+      sources.push(at / 3)
       positions.push(p[at], p[at + 1], p[at + 2])
       normals.push(d[0] * side, d[1] * side, d[2] * side)
       if (dashed) uvs.push(at === a ? distance : end, 0)
@@ -148,15 +180,15 @@ function quads(
     indices.push(first, first + 1, first + 3, first, first + 3, first + 2)
   }
   if (!indices.length) return null
-  return {
+  const drawn: DrawnTriangles = {
     positions: new Float32Array(positions),
     normals: new Float32Array(normals),
     uvs: dashed ? new Float32Array(uvs) : null,
     colors: null,
     indices: new Uint32Array(indices),
     lines: true,
-    ...(traced && { sourceVertices: new Uint32Array(sourceVertices) }),
   }
+  return { drawn, sources: new Uint32Array(sources) }
 }
 
 /** A builder's triangles as drawn arrays. */

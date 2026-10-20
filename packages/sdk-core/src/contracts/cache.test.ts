@@ -42,12 +42,11 @@ test('pointers return their URL only when ready, with compatible optional scope 
 
 test('cache roots reject malformed, unfinished, mismatched and unsupported metadata', () => {
   assert.doesNotThrow(() => assertCacheRoot(root, 'full'))
-  assert.doesNotThrow(() => assertCacheRoot({ ...root, formatVersion: undefined }, 'full'))
   for (const value of [undefined, null, [], 'root'])
     refuses(() => assertCacheRoot(value, 'full'), 'INVALID_CACHE')
-  refuses(() => assertCacheRoot({ ...root, schema: 12 }, 'full'), 'UNSUPPORTED_FORMAT', {
-    schema: 12,
-    formatVersion: 11,
+  const unnumbered = { ...root, formatVersion: undefined }
+  refuses(() => assertCacheRoot(unnumbered, 'full'), 'UNSUPPORTED_FORMAT', {
+    formatVersion: undefined,
   })
   refuses(() => assertCacheRoot({ ...root, status: undefined }, 'full'), 'INVALID_CACHE', {
     status: null,
@@ -80,17 +79,17 @@ test('ready cache counts must be finite numbers and nodes must be safe integers'
   ])
     refuses(() => assertCacheReady({ ...root, ...patch }, 'full'), 'INVALID_CACHE')
   const dag = { ...root, clusterStrategy: 'dag-groups' }
-  assert.equal(assertCacheReady({ ...dag, errorModel: 'dag-group-qem-v3' }, 'full'), 0)
+  assert.equal(assertCacheReady({ ...dag, errorModel: 'dag-group-qem-v4' }, 'full'), 0)
   refuses(
     () => assertCacheReady(dag, 'full'),
     'STALE_CACHE',
-    { errorModel: null, expected: 'dag-group-qem-v3' },
-    ['absent', 'dag-group-qem-v3'],
+    { errorModel: null, expected: 'dag-group-qem-v4' },
+    ['absent', 'dag-group-qem-v4'],
   )
   refuses(
     () => assertCacheReady({ ...dag, errorModel: 'legacy-v2' }, 'full'),
     'STALE_CACHE',
-    { errorModel: 'legacy-v2', expected: 'dag-group-qem-v3' },
-    ['legacy-v2', 'dag-group-qem-v3'],
+    { errorModel: 'legacy-v2', expected: 'dag-group-qem-v4' },
+    ['legacy-v2', 'dag-group-qem-v4'],
   )
 })

@@ -3,7 +3,6 @@ import test from 'node:test'
 import {
   clusterSphereValid,
   pageCarriesClusterError,
-  primitiveIsDrawable,
   primitiveUsesClusterErrors,
   type Page,
 } from './geometry.ts'
@@ -24,12 +23,8 @@ test('only finite four-component spheres with nonnegative radii can project an e
   assert.equal(pageCarriesClusterError({ ...page, sphere: [] }), false)
 })
 
-test('all pages need valid bands, while an unsplit transmitted surface must carry none', () => {
+test('a primitive needs pages, and all of them valid bands', () => {
   assert.equal(primitiveUsesClusterErrors({ pages: [] }), false)
   assert.equal(primitiveUsesClusterErrors({ pages: [page] }), true)
   assert.equal(primitiveUsesClusterErrors({ pages: [page, { ...page, lodError: NaN }] }), false)
-  assert.equal(primitiveIsDrawable({ pass: 'shared-blend', pages: [] }), true)
-  assert.equal(primitiveIsDrawable({ pass: 'shared-blend', pages: [page] }), false)
-  assert.equal(primitiveIsDrawable({ pass: 'exact-clusters', pages: [page] }), true)
-  assert.equal(primitiveIsDrawable({ pass: 'exact-clusters', pages: [] }), false)
 })

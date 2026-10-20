@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { TEMPLATES, sha, manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
+import { BINARY, sha, manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts'
 import { EngineError } from '../contracts/cache.ts'
@@ -9,7 +9,7 @@ import { EngineError } from '../contracts/cache.ts'
 test('a page without a cone decodes the open cone, and a malformed cone is refused', () => {
   const bare = manifest()
   delete bare.primitives[0].pages[0].cone
-  const { manifest: slim, binary } = encodeManifestBinary(bare, TEMPLATES)
+  const { manifest: slim, binary } = encodeManifestBinary(bare, BINARY)
   slim.binary.sha256 = sha('f')
   const decoded = decodeManifestBinary(slim, binary.slice().buffer)
   assert.deepEqual(decoded.primitives[0].pages[0].cone, { axis: [0, 0, 1], angle: Math.PI })
@@ -24,7 +24,7 @@ test('a page without a cone decodes the open cone, and a malformed cone is refus
     const bad = manifest()
     bad.primitives[0].pages[0].cone = cone as never
     assert.throws(
-      () => encodeManifestBinary(bad, TEMPLATES),
+      () => encodeManifestBinary(bad, BINARY),
       (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE',
     )
   }

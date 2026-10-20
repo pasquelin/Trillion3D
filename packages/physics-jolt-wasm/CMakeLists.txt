@@ -63,7 +63,7 @@ if (NOT EMSCRIPTEN)
     src/buoyancy.cpp src/submerged.cpp src/polyVolume.cpp src/joints.cpp src/jointSettings.cpp src/jointMotors.cpp src/keptPath.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp
     ${PROFILE_SOURCES})
   target_link_libraries(joltBench PRIVATE Jolt)
-  target_compile_options(joltBench PRIVATE -O3)
+  target_compile_options(joltBench PRIVATE -O3 -fno-rtti)
   return()
 endif ()
 
@@ -71,10 +71,11 @@ add_executable(${NAME} src/world.cpp src/contacts.cpp src/contactImpulse.cpp src
   src/buoyancy.cpp src/submerged.cpp src/polyVolume.cpp src/joints.cpp src/jointSettings.cpp src/jointMotors.cpp src/keptPath.cpp src/vehicles.cpp src/soft.cpp src/softContacts.cpp src/waterPlanes.cpp src/roundVolume.cpp ${SOURCES} ${PROFILE_SOURCES})
 target_link_libraries(${NAME} PRIVATE Jolt)
 set_target_properties(${NAME} PROPERTIES SUFFIX ".wasm")
-target_compile_options(${NAME} PRIVATE -O3 -msimd128)
+# Jolt is built without RTTI: a constraint of ours derived from its classes (`keptPath.cpp`) too.
+target_compile_options(${NAME} PRIVATE -O3 -msimd128 -fno-rtti)
 target_link_options(${NAME} PRIVATE
   -O3 -msimd128 --no-entry ${THREAD_OPTIONS}
   -sSTANDALONE_WASM=1 -sIMPORTED_MEMORY=1 -sALLOW_MEMORY_GROWTH=1
   -sINITIAL_MEMORY=33554432 -sMAXIMUM_MEMORY=4294967296 -sSTACK_SIZE=1048576
   -sFILESYSTEM=0 -sASSERTIONS=0 -sERROR_ON_UNDEFINED_SYMBOLS=1
-  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_dropped_events','_jolt_update_error','_jolt_refused_count','_jolt_refused','_jolt_diverged_count','_jolt_diverged','_jolt_recovered_count','_jolt_recovered','_jolt_error','_jolt_active_count','_jolt_owed_leaves','_jolt_cast_buffer','_jolt_cast','_jolt_character','_jolt_water_query','_jolt_water_pieces','_jolt_broken_count','_jolt_broken','_jolt_link_visits','_jolt_path_visits','_jolt_break_visits','_jolt_place_visits','_jolt_vehicles','_jolt_vehicle_words','_jolt_soft','_jolt_soft_words','_jolt_concurrency','_jolt_wave_buffer','_jolt_water_planes'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")
+  "-sEXPORTED_FUNCTIONS=['_jolt_init','_jolt_buffer','_jolt_step','_jolt_event_count','_jolt_dropped_events','_jolt_update_error','_jolt_refused_count','_jolt_refused','_jolt_diverged_count','_jolt_diverged','_jolt_error','_jolt_active_count','_jolt_owed_leaves','_jolt_cast_buffer','_jolt_cast','_jolt_character','_jolt_water_query','_jolt_water_pieces','_jolt_broken_count','_jolt_broken','_jolt_link_visits','_jolt_break_visits','_jolt_place_visits','_jolt_vehicles','_jolt_vehicle_words','_jolt_soft','_jolt_soft_words','_jolt_concurrency','_jolt_wave_buffer','_jolt_water_planes'${THREAD_EXPORTS}${PROFILE_EXPORTS}]")

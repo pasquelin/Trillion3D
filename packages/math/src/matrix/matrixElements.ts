@@ -1,4 +1,5 @@
 import { FLOAT32_STEP } from '../constants.ts'
+import { boxAxisMagnitude, rowReach } from '../geometry/box.ts'
 
 /** Whether the `count` numbers `a` holds from `aAt` are those `b` holds from `bAt`, each `!==`:
  *  `-0` matches `0` and a `NaN` never matches. The one equality loop of numbers. */
@@ -9,7 +10,7 @@ export function sameRange<T>(a: ArrayLike<T>, b: ArrayLike<T>, count: number, aA
 
 /** `sameRange` against float32 numbers: `held`'s are `now`'s rounded to float32,
  *  `held[heldAt + i] === Math.fround(now[nowAt + i])`. */
-export function sameRangeFloat32(
+function sameRangeFloat32(
   held: ArrayLike<number>,
   now: ArrayLike<number>,
   count: number,
@@ -86,18 +87,18 @@ export function poseHoldsBox(
 ) {
   if (sameElements(held, now, heldAt)) return true
   for (let i = 3; i < 16; i += 4) if (held[heldAt + i] !== now[i]) return false
+  const x = boxAxisMagnitude(box, 0),
+    y = boxAxisMagnitude(box, 1),
+    z = boxAxisMagnitude(box, 2)
   let moved = 0,
     reach = 0
   for (let row = 0; row < 3; row++) {
-    let shift = Math.abs(now[12 + row] - held[heldAt + 12 + row]),
-      far = Math.abs(now[12 + row])
-    for (let col = 0; col < 3; col++) {
-      const extent = Math.max(Math.abs(box[col]), Math.abs(box[3 + col]))
-      shift += Math.abs(now[col * 4 + row] - held[heldAt + col * 4 + row]) * extent
-      far += Math.abs(now[col * 4 + row]) * extent
-    }
+    let shift = Math.abs(now[12 + row] - held[heldAt + 12 + row])
+    shift += Math.abs(now[row] - held[heldAt + row]) * x
+    shift += Math.abs(now[4 + row] - held[heldAt + 4 + row]) * y
+    shift += Math.abs(now[8 + row] - held[heldAt + 8 + row]) * z
     moved = Math.max(moved, shift)
-    reach = Math.max(reach, far)
+    reach = Math.max(reach, rowReach(now, row, x, y, z))
   }
   return moved < FLOAT32_STEP * reach
 }

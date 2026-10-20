@@ -11,7 +11,7 @@ import {
   uniqueSortedInPlace,
 } from './integers.ts'
 import { hasBit, setBit } from './bits.ts'
-import { firstTrue, lastAtMost, lastTrue } from './search.ts'
+import { lastAtMost, lastTrue } from './search.ts'
 import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 
 test('nextPow2 is exact on its whole domain: each power, either side of it, and reals', () => {
@@ -61,7 +61,7 @@ test('lastAtMost is lastTrue over a sorted array, with repeats and either end', 
     }
 })
 
-test('lastTrue and firstTrue: the searches they replace, every edge and empty range', () => {
+test('lastTrue: the search it replaces, every edge and empty range', () => {
   const oldLast = (low: number, high: number, holds: (i: number) => boolean) => {
     while (low < high) {
       const mid = (low + high + 1) >> 1
@@ -70,37 +70,18 @@ test('lastTrue and firstTrue: the searches they replace, every edge and empty ra
     }
     return low
   }
-  const oldFirst = (low: number, high: number, holds: (i: number) => boolean) => {
-    while (low < high) {
-      const mid = (low + high) >> 1
-      if (holds(mid)) high = mid
-      else low = mid + 1
-    }
-    return low
-  }
   for (let low = 0; low <= 6; low++)
     for (let high = low - 2; high <= 14; high++)
-      for (let edge = low - 1; edge <= high + 1; edge++) {
-        const label = `[${low}, ${high}] edge ${edge}`
+      for (let edge = low - 1; edge <= high + 1; edge++)
         assert.equal(
           lastTrue(low, high, (i) => i <= edge),
           oldLast(low, high, (i) => i <= edge),
-          label,
+          `[${low}, ${high}] edge ${edge}`,
         )
-        assert.equal(
-          firstTrue(low, high, (i) => i >= edge),
-          oldFirst(low, high, (i) => i >= edge),
-          label,
-        )
-      }
   // Past 2^31 the shift wraps; the division does not.
   assert.equal(
     lastTrue(0, 2 ** 32, (i) => i <= 2 ** 32 - 5),
     2 ** 32 - 5,
-  )
-  assert.equal(
-    firstTrue(0, 2 ** 32, (i) => i >= 2 ** 31 + 7),
-    2 ** 31 + 7,
   )
 })
 

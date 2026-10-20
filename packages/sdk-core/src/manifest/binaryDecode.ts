@@ -1,12 +1,12 @@
 import type { ClusterManifest, Page, Primitive } from '../contracts/geometry.ts'
-import type { GeometryPageDescriptor } from '../page/contracts.ts'
+import { geometryPageAddress, type GeometryPageDescriptor } from '../page/contracts.ts'
+import { EngineError } from '../contracts/cache.ts'
 import { decodeCulling, decodeStreams, decodeStructure } from './binaryDecodeParts.ts'
 import { decodeTexturePreviews } from './binaryPreview.ts'
 import * as format from './binaryFormat.ts'
 import {
   FLAG_ROLE,
   FLAG_COARSE,
-  FLAG_GEOMETRY,
   FLAG_CLUSTER_ERROR,
   FLAG_PARENT_ERROR,
   FLAG_PARENT_ERROR_FINITE,
@@ -17,7 +17,10 @@ import {
 } from './binaryPageWords.ts'
 import { readManifestColumns } from './binaryRead.ts'
 import type { SlimClusterManifest } from './binaryTypes.ts'
-/** Turns a binary manifest back into the full manifest a runtime reads. */
+/** Turns a binary manifest back into the full manifest a runtime reads. A page is read as its
+ *  geometry page, a slice of its streaming bundle — a range of the container `slim.geometryFiles`
+ *  names at its rank —: its `url` names where it lies (`geometryPageAddress`), its `bytes` are its
+ *  own and its `sha256` the bundle's, which proves it. */
 export function decodeManifestBinary(
   slim: SlimClusterManifest,
   buffer: ArrayBuffer,
@@ -31,8 +34,6 @@ export function decodeManifestBinary(
       ints,
       words,
       geometryWords,
-      pageShaText,
-      geometryShaText,
       pageDepthLayer,
       pageCone,
     },
@@ -40,39 +41,49 @@ export function decodeManifestBinary(
     bundles,
     previews,
     cullingNodes,
-    urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
   } = readManifestColumns(slim, buffer)
+  const files = slim.geometryFiles ?? []
   const cursors = { node: 0, group: 0, child: 0, output: 0, root: 0, bundle: 0, dependency: 0 }
   let page = 0
   const primitives: Primitive[] = slim.primitives.map((entry) => {
     const binary = entry.binary
+    const streams = decodeStreams(binary, bundles, files, cursors)
     const pages: Page[] = new Array(binary.pages)
     for (let i = 0; i < binary.pages; i++, page++) {
-      const flags = words[page * 2 + format.U32_FLAGS],
-        base = page * 8
-      const sha = pageShaText.substring(page * 64, page * 64 + 64)
+      const flags = words[page],
+        base = page * 8,
+        at = page * 5
+      const stream = ints[base + format.INT_STREAM],
+        bundle = streams?.pages[stream]
+      if (!bundle)
+        throw new EngineError('INVALID_CACHE', 'A page lies in no bundle of its primitive', {
+          page,
+          stream,
+        })
+      const offset = ints[base + format.INT_STREAM_OFFSET]
+      const geometry: GeometryPageDescriptor = {
+        url: geometryPageAddress(bundle.range!.file, bundle.range!.offset + offset),
+        bundle: { url: bundle.url, offset },
+        sha256: bundle.sha256,
+        bytes: geometryWords[at + format.GEOMETRY_BYTES],
+        vertexCount: geometryWords[at + format.GEOMETRY_VERTICES],
+        indexCount: geometryWords[at + format.GEOMETRY_INDICES],
+        flags: geometryWords[at + format.GEOMETRY_FLAGS],
+        uncompressedBytes: geometryWords[at + format.GEOMETRY_UNCOMPRESSED],
+      }
       const item: Page = {
         id: ints[base + format.INT_ID],
-        url: pagePrefix + sha + pageSuffix,
-        sha256: sha,
-        bytes: words[page * 2 + format.U32_BYTES],
+        url: geometry.url,
+        sha256: geometry.sha256,
+        bytes: geometry.bytes,
         count: ints[base + format.INT_COUNT],
         min: [bounds[page * 6], bounds[page * 6 + 1], bounds[page * 6 + 2]],
         max: [bounds[page * 6 + 3], bounds[page * 6 + 4], bounds[page * 6 + 5]],
+        geometry,
+        stream,
+        streamOffset: offset,
       }
       if (flags & FLAG_ROLE) item.role = flags & FLAG_COARSE ? 'coarse' : 'exact'
-      if (flags & FLAG_GEOMETRY) {
-        const geometrySha = geometryShaText.substring(page * 64, page * 64 + 64)
-        item.geometry = {
-          url: geometryPrefix + geometrySha + geometrySuffix,
-          sha256: geometrySha,
-          bytes: geometryWords[page * 5],
-          vertexCount: geometryWords[page * 5 + 1],
-          indexCount: geometryWords[page * 5 + 2],
-          flags: geometryWords[page * 5 + 3],
-          uncompressedBytes: geometryWords[page * 5 + 4],
-        } as GeometryPageDescriptor
-      }
       if (ints[base + format.INT_START] >= 0) item.start = ints[base + format.INT_START]
       if (ints[base + format.INT_LEVEL] >= 0) item.level = ints[base + format.INT_LEVEL]
       if (flags & FLAG_CLUSTER_ERROR) {
@@ -100,10 +111,6 @@ export function decodeManifestBinary(
         item.group = ints[base + format.INT_GROUP] >= 0 ? ints[base + format.INT_GROUP] : null
       if (flags & FLAG_SOURCE)
         item.source = ints[base + format.INT_SOURCE] >= 0 ? ints[base + format.INT_SOURCE] : null
-      if (ints[base + format.INT_STREAM] >= 0) {
-        item.stream = ints[base + format.INT_STREAM]
-        item.streamOffset = ints[base + format.INT_STREAM_OFFSET]
-      }
       // Layer 0 is the untouched draw; leaving the field out keeps one shape for every page record.
       if (pageDepthLayer[page] > 0) item.depthLayer = pageDepthLayer[page]
       // Every page of version 9 carries its cone.
@@ -115,12 +122,6 @@ export function decodeManifestBinary(
     }
     const culling = decodeCulling(binary, cullingNodes, cursors)
     const structure = decodeStructure(binary, groupColumns, cursors)
-    const streams = decodeStreams(
-      binary,
-      bundles,
-      { prefix: bundlePrefix, suffix: bundleSuffix },
-      cursors,
-    )
     const { binary: _ignored, ...rest } = entry
     const result = { ...rest, pages } as Primitive
     if (culling !== undefined) result.culling = culling
@@ -128,7 +129,7 @@ export function decodeManifestBinary(
     if (streams !== undefined) result.streams = streams
     return result
   })
-  const { binary: _descriptor, primitives: _slimPrimitives, ...top } = slim
+  const { binary: _descriptor, primitives: _slimPrimitives, geometryFiles: _files, ...top } = slim
   return {
     ...top,
     primitives,

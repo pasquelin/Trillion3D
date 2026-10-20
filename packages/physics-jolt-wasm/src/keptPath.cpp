@@ -2,10 +2,14 @@
 // velocity across the tangent where the body stands; but a body leaves each step along the tangent
 // of the point it started from, so on a bend the cut takes the share 1 − cos dθ of its speed,
 // dθ = v·dt / R the step's turn: v²·dt / R² of its kinetic energy per second, 4 % a second at
-// 20 m/s on a 13 m loop at 60 Hz. Here the path's own velocity setup turns the velocity it held
-// along the last tangent onto the tangent where the body now stands, its speed kept, before the
-// solver cuts anything: a frictionless bend turns the body and takes nothing from it. Jolt's
-// `PathConstraint` (final) solves everything else; this constraint is the one the world holds.
+// 20 m/s on a 13 m loop at 60 Hz. Here the path's own warm start turns the velocity the body
+// ended its last step with, held along the last tangent, onto the tangent where it now stands,
+// its speed kept, before the solver cuts anything: a frictionless bend turns the body and takes
+// nothing from it. What came since — this step's gravity, damping and forces, a velocity the page
+// set — is added as it is: Jolt applies gravity before the solve, so the velocity the step starts
+// from is no longer along any tangent. The warm start runs in the body's island, after gravity;
+// the velocity setup would race gravity on another thread. Jolt's `PathConstraint` (final) solves
+// everything else; this constraint is the one the world holds.
 #include "joints.h"
 
 #include <Jolt/Physics/Body/Body.h>
@@ -27,20 +31,27 @@ public:
   void ResetWarmStart() override { path->ResetWarmStart(); }
   void SetupVelocityConstraint(float dt) override {
     path->SetupVelocityConstraint(dt);
-    Vec3 tangent = tangentAt(path->GetPathFraction());
+    next = tangentAt(path->GetPathFraction());
+  }
+  void WarmStartVelocityConstraint(float ratio) override {
     Body &body = *mBody2;
     // A path on a moving body carries its body at their relative velocity: not turned here. Only a
     // velocity the path held, along the tangent it held it along (not a spinning body's centre
     // off its point on the path).
-    Vec3 v = body.GetLinearVelocity();
-    if (mBody1->IsStatic() && body.IsDynamic() && !held.IsNearZero() && !tangent.IsNearZero() &&
-        (v - held * v.Dot(held)).LengthSq() <= 1e-6f * v.LengthSq())
-      body.SetLinearVelocityClamped(Quat::sFromTo(held, tangent) * v);
-    held = tangent;
+    if (ended && mBody1->IsStatic() && body.IsDynamic() && !held.IsNearZero() && !next.IsNearZero() &&
+        (end - held * end.Dot(held)).LengthSq() <= 1e-6f * end.LengthSq())
+      body.SetLinearVelocityClamped(body.GetLinearVelocity() + Quat::sFromTo(held, next) * end - end);
+    held = next;
+    ended = false;
+    path->WarmStartVelocityConstraint(ratio);
   }
-  void WarmStartVelocityConstraint(float ratio) override { path->WarmStartVelocityConstraint(ratio); }
   bool SolveVelocityConstraint(float dt) override { return path->SolveVelocityConstraint(dt); }
-  bool SolvePositionConstraint(float dt, float baumgarte) override { return path->SolvePositionConstraint(dt, baumgarte); }
+  bool SolvePositionConstraint(float dt, float baumgarte) override {
+    // After the velocity solve: the velocity the body ends the step with.
+    end = mBody2->GetLinearVelocity();
+    ended = true;
+    return path->SolvePositionConstraint(dt, baumgarte);
+  }
 #ifdef JPH_DEBUG_RENDERER
   void DrawConstraint(DebugRenderer *renderer) const override { path->DrawConstraint(renderer); }
 #endif
@@ -66,8 +77,12 @@ private:
     path->GetPath()->GetPointOnPath(fraction, point, tangent, normal, binormal);
     return (mBody1->GetRotation() * path->GetConstraintToBody1Matrix().Multiply3x3(tangent)).NormalizedOr(Vec3::sZero());
   }
-  /// The tangent the last step held the body along.
-  Vec3 held = Vec3::sZero();
+  /// The tangent the last step held the body along, and the one this step holds it along.
+  Vec3 held = Vec3::sZero(), next = Vec3::sZero();
+  /// The velocity the body ended the last step with, and whether the last step solved its position
+  /// since the last warm start (none with no position step): no turn without it.
+  Vec3 end = Vec3::sZero();
+  bool ended = false;
 };
 
 }  // namespace

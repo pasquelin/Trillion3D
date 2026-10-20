@@ -1,9 +1,9 @@
-// A placed cell holds the world bundles its objects need, and a bundle's pages are viewed on
-// their bytes. The table's records are read in `worldRootsTable.test.ts`.
+// An HLOD 0 cell holds the bundles of its HLOD 1 roots, and a bundle's pages are ranges of it,
+// read off the table. The table's records are read in `worldRootsTable.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EngineError } from '../contracts/cache.ts'
-import { cellDependencies, worldBundlePages } from './worldRoots.ts'
+import { bundlePageRanges } from './worldRoots.ts'
 import {
   worldPage,
   worldRootsFixture,
@@ -13,26 +13,31 @@ import { readWorldRoots } from './worldRootsTable.ts'
 
 const refused = (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE'
 
-test('a cell holds the bundles past the pinned top its objects need, each once', () => {
+test('each HLOD 0 cell names the bundles it holds, ascending', () => {
   const { table } = worldRootsFixture()
-  assert.deepEqual(cellDependencies(table, 0), [1, 3])
-  assert.deepEqual(cellDependencies(table, 1), [2, 3])
-  assert.deepEqual(cellDependencies(table, 2), [], 'the top alone: pinned, never held')
-  assert.deepEqual(cellDependencies(table, 3), [], 'a cell the table does not hold')
+  assert.deepEqual(table.hlod, [[1, 3], [2, 3], [0]])
 })
 
-test("a bundle's pages are the geometry pages its records name, tiling it exactly", () => {
+test("a bundle's pages are the ranges its records name, tiling it exactly", () => {
   const { table, bin } = worldRootsFixture()
   const { offset, bytes } = table.bundles[2]
-  const [page] = worldBundlePages(table, 2, bin.subarray(offset, offset + bytes))
-  assert.deepEqual([...page.bytes], [...worldPage(2).bytes])
+  const [page] = bundlePageRanges(table, 2)
   const own = bin.subarray(offset, offset + bytes)
-  assert.throws(() => worldBundlePages(table, 2, own.subarray(1)), refused, 'a page past its bytes')
-  const longer = Uint8Array.from([...own, 0, 0, 0, 0])
-  assert.throws(() => worldBundlePages(table, 2, longer), refused, 'bytes past its pages')
+  assert.deepEqual(
+    [...own.subarray(page.offset, page.offset + page.bytes)],
+    [...worldPage(2).bytes],
+  )
+  assert.deepEqual(
+    bundlePageRanges(table, 3).map(({ offset }) => offset),
+    [0, 1, 2].map((k) => k * worldPage(3).bytes.byteLength),
+    'a bundle of three pages, end to end',
+  )
   // A record naming another bundle, or a page that does not start where the last ended.
   const { spec } = worldRootsFixture()
   spec.pages[2] = { ...spec.pages[2], offset: 4 }
-  const moved = readWorldRoots(encodeWorldRoots(spec))
-  assert.throws(() => worldBundlePages(moved, 2, own), refused, 'a page out of its place')
+  assert.throws(
+    () => bundlePageRanges(readWorldRoots(encodeWorldRoots(spec)), 2),
+    refused,
+    'a page out of its place',
+  )
 })

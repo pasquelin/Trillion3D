@@ -134,10 +134,6 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
   const pageDepthLayer = column('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n))
   const pageCone = column('pageCone', (b, o, n) => new Float64Array(b, o, n))
   const decoder = new TextDecoder('latin1')
-  const pageShaText = decoder.decode(column('pageSha', (b, o, n) => new Uint8Array(b, o, n)))
-  const geometryShaText = decoder.decode(
-    column('geometrySha', (b, o, n) => new Uint8Array(b, o, n)),
-  )
   const bundleShaText = decoder.decode(column('bundleSha', (b, o, n) => new Uint8Array(b, o, n)))
   const previewWords = column('texturePreviewU32', (b, o, n) => new Uint32Array(b, o, n))
   const previewShaText = decoder.decode(
@@ -150,9 +146,6 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     astc: bytes('texturePreviewAstc'),
     etc2: bytes('texturePreviewEtc2'),
   }
-  const [pagePrefix, pageSuffix] = slim.binary.pageUrl.split('{sha}')
-  const [geometryPrefix, geometrySuffix] = slim.binary.geometryUrl.split('{sha}')
-  const [bundlePrefix, bundleSuffix] = slim.binary.bundleUrl.split('{sha}')
   return {
     pages: {
       bounds,
@@ -162,8 +155,6 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
       ints,
       words,
       geometryWords,
-      pageShaText,
-      geometryShaText,
       pageDepthLayer,
       pageCone,
     },
@@ -186,6 +177,5 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
       previewBlocks,
     },
     cullingNodes,
-    urls: { pagePrefix, pageSuffix, geometryPrefix, geometrySuffix, bundlePrefix, bundleSuffix },
   }
 }

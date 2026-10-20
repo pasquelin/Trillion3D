@@ -3,7 +3,7 @@
 // homogeneous transform of a box lands in once each of those errors is bounded — the CPU form of the
 // law a shader's emulated-double enclosure applies on the GPU.
 import { FLOAT32_MAX, FLOAT32_STEP } from '../constants.ts'
-import { boxTransform } from './box.ts'
+import { boxAxisMagnitude, boxRowReach, boxTransform } from './box.ts'
 import { FLUSH, ROUNDING_GAMMA } from '../float/guards.ts'
 
 /** Four float32 steps at 1: WGSL division's allowed error on a divided coordinate. Products and
@@ -13,7 +13,7 @@ export const ROUND = 4 * FLOAT32_STEP
 /** Include conversion, arithmetic and permitted subnormal flushing in a coordinate interval. */
 export function widenBox(box: Float64Array, distance = 0) {
   for (let axis = 0; axis < 3; axis++) {
-    const error = Math.max(Math.abs(box[axis]), Math.abs(box[axis + 3])) * ROUNDING_GAMMA + FLUSH
+    const error = boxAxisMagnitude(box, axis) * ROUNDING_GAMMA + FLUSH
     box[axis] -= distance + error
     box[axis + 3] += distance + error
   }
@@ -44,29 +44,13 @@ export function encloseTransform(
   if (!(minimumW > errorW) || !Number.isFinite(maximumW)) return false
   boxTransform(out, 0, box, 0, matrix)
   for (let axis = 0; axis < 3; axis++) {
-    let magnitude = Math.abs(matrix[12 + axis])
-    for (let column = 0; column < 3; column++)
-      magnitude +=
-        Math.abs(matrix[column * 4 + axis]) *
-        Math.max(Math.abs(box[column]), Math.abs(box[column + 3]))
+    const magnitude = boxRowReach(matrix, box, axis)
     if (!(magnitude < FLOAT32_MAX)) return false
-    const bound = Math.max(Math.abs(out[axis]), Math.abs(out[axis + 3]))
+    const bound = boxAxisMagnitude(out, axis)
     error[axis] =
       (ROUNDING_GAMMA * magnitude + FLUSH + bound * errorW) / (minimumW - errorW) + ROUND * bound
     out[axis] -= error[axis]
     out[axis + 3] += error[axis]
   }
   return out.every(Number.isFinite)
-}
-
-/** How far the pose `m` (column-major) stretches a length, bounded: the larger of its linear
- *  part's column and row sums of magnitudes, `max(‖M‖₁, ‖M‖∞)`, above its largest singular value;
- *  1 for a rigid pose along the axes. The CPU twin of `dStretchBound`
- *  (`../wgsl/doubleEnclosure.ts`), sum for sum. */
-export function stretchBound(m: ArrayLike<number>) {
-  const sum = (a: number, b: number, c: number) => Math.abs(m[a]) + Math.abs(m[b]) + Math.abs(m[c])
-  let stretch = 0
-  for (let k = 0; k < 3; k++)
-    stretch = Math.max(Math.max(stretch, sum(4 * k, 4 * k + 1, 4 * k + 2)), sum(k, 4 + k, 8 + k))
-  return stretch
 }

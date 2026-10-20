@@ -2,6 +2,7 @@ import { BufferAttribute, indexList, ownAttribute } from '../buffer/attribute.ts
 import type { VertexAttribute } from '../buffer/attribute.ts'
 import { createListeners } from '../../runtime/listeners.ts'
 import { Releasable } from '../../runtime/releasable.ts'
+import { jsonCopy } from '../../runtime/jsonCopy.ts'
 import { Box3 } from '../math/box3.ts'
 import { Sphere } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
@@ -31,8 +32,16 @@ export class Geometry extends Releasable {
   index: BufferAttribute | null = null
   /** Index ranges drawn with `material[materialIndex]` when a mesh carries several. */
   readonly groups: { start: number; count: number; materialIndex: number }[] = []
-  /** The range of the index drawn. */
-  drawRange = { start: 0, count: Infinity }
+  /** Its `drawRange`, whose every write cuts the pages again. */
+  private readonly range = watchedRange(() => this._changed(false))
+  /** The range drawn: `count` corners of the index from `start`, or of the vertices in order
+   *  when it has none; `Infinity` draws to the end. Writing it, or either field, draws anew. */
+  get drawRange(): { start: number; count: number } {
+    return this.range
+  }
+  set drawRange({ start, count }: { start: number; count: number }) {
+    this.setDrawRange(start, count)
+  }
   /** Free room for the data of whoever built the geometry. */
   userData: Record<string, unknown> = {}
   /** The box around every vertex, once computed; `null` until then. */
@@ -94,6 +103,12 @@ export class Geometry extends Releasable {
   addGroup(start: number, count: number, materialIndex = 0) {
     this.groups.push({ start, count, materialIndex })
     return this._changed(false)
+  }
+  /** Draws `count` corners from `start` (`drawRange`). */
+  setDrawRange(start: number, count: number) {
+    this.range.start = start
+    this.range.count = count
+    return this
   }
   /** Removes every material group. */
   clearGroups() {
@@ -185,7 +200,7 @@ export class Geometry extends Releasable {
     copy.morphTargetsRelative = this.morphTargetsRelative
     for (const group of this.groups) copy.groups.push({ ...group })
     copy.drawRange = { ...this.drawRange }
-    copy.userData = JSON.parse(JSON.stringify(this.userData)) as Record<string, unknown>
+    copy.userData = jsonCopy(this.userData)
     return copy
   }
   /** Gives the geometry back: runs every release hook once and forgets the holders; a disposed
@@ -194,4 +209,23 @@ export class Geometry extends Releasable {
     super.dispose()
     this._listeners.clear()
   }
+}
+
+/** A `{ start, count }` whose every write tells `changed`: a range edited field by field is
+ *  heard as one assigned whole. */
+function watchedRange(changed: () => void) {
+  const held = { start: 0, count: Infinity }
+  const field = (name: keyof typeof held): PropertyDescriptor => ({
+    enumerable: true,
+    get: () => held[name],
+    set: (value: number) => {
+      if (held[name] === value) return
+      held[name] = value
+      changed()
+    },
+  })
+  return Object.defineProperties(
+    {},
+    { start: field('start'), count: field('count') },
+  ) as typeof held
 }

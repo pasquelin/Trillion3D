@@ -52,16 +52,17 @@ export const previewAtlasOf = (atlas: number) =>
   atlasByte(atlas) === PREVIEW_ATLAS_COVERAGE ? PREVIEW_ATLAS_COLOR : atlas
 /** The block families a chain may be baked in, in the order of their sidecar columns and of an
  *  entry's layout words, each named by its RGBA codec: BC for desktop cards, ASTC 4×4 and ETC2 for
- *  mobile ones; `png` is the lossless file beside them, what a device with none of them reads. */
+ *  mobile ones. */
 export const PREVIEW_BLOCK_FORMATS = ['bc7', 'astc', 'etc2'] as const
 /** A block family a texture can be baked in. */
 export type TextureBlockFormat = (typeof PREVIEW_BLOCK_FORMATS)[number]
-/** The lossless file format beside the block families. */
-export const PREVIEW_LOSSLESS_FORMAT = 'png'
-/** What a family holds of a chain, by layout word: nothing — the chain stays lossless there —,
- *  RGBA blocks (BC7 mode 6, ASTC colour endpoint mode 12, ETC2 RGBA8), or two-channel blocks for a
- *  normal map (BC5, ASTC luminance + alpha on two planes, EAC RG11: X in R, Y in G or A, Z rebuilt
- *  by the shader). */
+/** The family every chain is stored in (`BlockFormat::STORED`): its level files exist for every
+ *  baked chain, and a device that samples none of the families reads them decoded to RGBA8. */
+export const PREVIEW_STORED_FORMAT: TextureBlockFormat = 'bc7'
+/** What a family holds of a chain, by layout word: nothing — `lossless`, the chain is not in that
+ *  family and its pool is RGBA8 —, RGBA blocks (BC7, ASTC colour endpoint mode 12, ETC2 RGBA8), or
+ *  two-channel blocks for a normal map (BC5, ASTC luminance + alpha on two planes, EAC RG11: X in
+ *  R, Y in G or A, Z rebuilt by the shader). */
 export const PREVIEW_LAYOUT_NAMES = ['lossless', 'rgba', 'two-channel'] as const
 /** What a block family holds of a texture: nothing, colour blocks, or two-channel blocks. */
 export type TextureLayout = (typeof PREVIEW_LAYOUT_NAMES)[number]

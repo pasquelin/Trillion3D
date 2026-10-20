@@ -20,8 +20,8 @@ import { updateNodeWorldMatrix } from './update.ts'
  * basis whose `z` axis lies on the line of sight, with `x = up × z` and `y = z × x`; its local
  * rotation then removes the parent's world rotation, a unit quaternion whose inverse is its
  * conjugate. Two aims have no line of sight or no `x`, and each keeps a defined answer: the eye on
- * the target takes `z = (0, 0, 1)`; a line of sight along `up` moves `z` by `0.0001` off the up
- * axis, renormalises it, and crosses again. The parent's rotation and scale are those of
+ * the target takes `z = (0, 0, 1)`; a line of sight along `up` takes as `x` the first row of the
+ * frame around `z`, `frameAcross`. The parent's rotation and scale are those of
  * `decomposeMatrix4`: a parent of negative determinant carries its mirror on `x`, and the node's
  * world `z` and `y` still follow the aim, its `x` mirrored. A parent with non-uniform or sheared
  * scale is not compensated exactly: its rotation is read from its normalised columns.

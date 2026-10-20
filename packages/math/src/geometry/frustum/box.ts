@@ -52,13 +52,6 @@ export function frustumClipBox(
   maxZ: number,
 ) {
   if (frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ)) return 0
-  for (let p = 0; p < 24; p += 4) {
-    const a = planes[p],
-      b = planes[p + 1],
-      c = planes[p + 2],
-      d = planes[p + 3]
-    if (a * (a > 0 ? minX : maxX) + b * (b > 0 ? minY : maxY) + c * (c > 0 ? minZ : maxZ) + d < 0)
-      return 1
-  }
-  return 2
+  // Bounds swapped: the most trailing corner behind a plane means the box crosses it.
+  return frustumExcludesBox(planes, maxX, maxY, maxZ, minX, minY, minZ) ? 1 : 2
 }

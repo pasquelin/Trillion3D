@@ -1,7 +1,4 @@
 export * from './contracts/index.ts'
-export * from './impostor/switch.ts'
-export type { ImpostorRoot } from './impostor/switchTable.ts'
-export { impostorBakedByMesh } from './impostor/baked.ts'
 export * from './bounce/contracts.ts'
 export * from './contracts/proxy.ts'
 export * from './bounce/cascades.ts'
@@ -43,7 +40,7 @@ export {
   PREVIEW_BLOCK_FORMATS,
   PREVIEW_BLOCK_SIDE,
   PREVIEW_LAYOUT_NAMES,
-  PREVIEW_LOSSLESS_FORMAT,
+  PREVIEW_STORED_FORMAT,
   type TextureBlockFormat,
   type TextureLayout,
 } from './texture/previewFormat.ts'
@@ -175,8 +172,13 @@ export { createSceneLightStore } from './scene/light/store.ts'
 export type { SceneLightStore } from './scene/light/store.ts'
 export { SHADOW_PAGE } from './scene/light-shadow/sunEntries.ts'
 export type { Counts } from './manifest/binaryLayout.ts'
-export type { SlimCulling, SlimStreams, SlimStructure } from './manifest/binaryTypes.ts'
-export type { WorldRoots, WorldRootsBundle, WorldRootsPage } from './manifest/worldRoots.ts'
+export type {
+  GeometryFile,
+  SlimCulling,
+  SlimStreams,
+  SlimStructure,
+} from './manifest/binaryTypes.ts'
+export type { WorldRoots, WorldRootsBundle } from './manifest/worldRoots.ts'
 export * from './llm/types.ts'
 export { EXPLORER_OPTIONS_SCHEMA } from './llm/explorerOptionsSchema.ts'
 export { COMPILER_OPTIONS_SCHEMA } from './llm/compilerOptionsSchema.ts'

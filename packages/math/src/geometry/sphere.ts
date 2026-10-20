@@ -19,15 +19,17 @@ export function sphereFromBounds(
   maxY: number,
   maxZ: number,
 ) {
-  if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) {
-    out[o] = 0
-    out[o + 1] = 0
-    out[o + 2] = 0
-    out[o + 3] = -1
-    return
-  }
+  if (boundsAreEmpty(minX, minY, minZ, maxX, maxY, maxZ)) return adopt(out, o, 0, 0, 0, -1)
   boxCenter(out, o, minX, minY, minZ, maxX, maxY, maxZ)
   out[o + 3] = boundsDiagonal(minX, minY, minZ, maxX, maxY, maxZ) * 0.5
+}
+
+/** Stores the sphere `(x, y, z, radius)` at `into[at]`: the union's result when one side wins. */
+function adopt(into: Float64Array, at: number, x: number, y: number, z: number, radius: number) {
+  into[at] = x
+  into[at + 1] = y
+  into[at + 2] = z
+  into[at + 3] = radius
 }
 
 /**
@@ -53,10 +55,7 @@ export function sphereUnion(
     cz = sphere[from + 2]
   const held = into[at + 3]
   if (!(held >= 0)) {
-    into[at] = cx
-    into[at + 1] = cy
-    into[at + 2] = cz
-    into[at + 3] = radius
+    adopt(into, at, cx, cy, cz, radius)
     return
   }
   const dx = cx - into[at],
@@ -65,10 +64,7 @@ export function sphereUnion(
   const distance = plainLength3(dx, dy, dz)
   if (distance + radius <= held) return
   if (distance + held <= radius) {
-    into[at] = cx
-    into[at + 1] = cy
-    into[at + 2] = cz
-    into[at + 3] = radius
+    adopt(into, at, cx, cy, cz, radius)
     return
   }
   const next = (distance + held + radius) * 0.5,

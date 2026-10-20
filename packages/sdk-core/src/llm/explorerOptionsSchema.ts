@@ -2,6 +2,8 @@ import type { JsonSchemaObject } from './types.ts'
 import { ASSET_SCOPES, DEFAULT_SCOPE } from '../contracts/base.ts'
 import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
+import { DEFAULT_PIXEL_ERROR } from '../lod/policy.ts'
+import { DEFAULT_TEMPORAL_AA_LEVEL, TEMPORAL_AA_LEVELS } from '../contracts/compilerAbi.ts'
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
@@ -10,9 +12,10 @@ import {
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
- * Enables LLMs to understand, validate, and tune the 3D engine configuration.
+ * Enables LLMs to understand, validate, and tune the 3D engine configuration. Built by a call
+ * marked pure: its defaults read the settings, and a bundle that never reads the schema drops it.
  */
-export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
+export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => ({
   type: 'object',
   description:
     'Initialization options for the Trillion3D rendering engine (openMeasuredWorld). Configures virtualized geometry (clusters streamed through a DAG), temporal antialiasing (TAA), fixed GPU memory pools, dynamic lighting, and virtual shadow maps.',
@@ -21,7 +24,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     // bundle that never reads the schema drops it.
     interactive: {
       type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('interactive'),
+      default: explorerSwitchDefault('interactive'),
       description:
         'Browser-owned controls, CSS size, device pixel ratio and demand-driven rendering. Defaults to direct WebGPU; rejects when unavailable.',
     },
@@ -58,26 +61,28 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
         'CPU time budget per frame for copying virtual texture tiles into the pools (in milliseconds). Default 1.0 ms; tiles beyond it wait for the next frame and show their coarser level meanwhile.',
     },
     temporalAntialiasing: {
-      type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('temporalAntialiasing'),
-      description:
-        'Temporal antialiasing (TAA) enabled by default: Halton(2,3) sub-pixel jitter and reprojection accumulation. Disable (false) for pixel-exact benchmarks without history.',
+      anyOf: [
+        { type: 'string', enum: [...TEMPORAL_AA_LEVELS], description: 'A quality level.' },
+        { type: 'boolean', description: `true ${DEFAULT_TEMPORAL_AA_LEVEL}, false off.` },
+      ],
+      default: DEFAULT_TEMPORAL_AA_LEVEL,
+      description: `Temporal antialiasing (TAA): Halton(2,3) sub-pixel jitter and reprojection accumulation, at a quality level (${TEMPORAL_AA_LEVELS.join(', ')}), ${DEFAULT_TEMPORAL_AA_LEVEL} by default. Disable ('off' or false) for pixel-exact benchmarks without history.`,
     },
     pixelError: {
       type: 'number',
-      default: 0,
+      default: DEFAULT_PIXEL_ERROR,
       minimum: 0,
       description:
-        'Screen-space error threshold in pixels for cluster LOD selection. 0 = exact leaf clusters; 1 to 2 = standard reference fidelity; > 2 = aggressive simplification for low-end hardware.',
+        'Screen-space error threshold in pixels for cluster LOD selection. Default: the balanced preset. 0 = exact leaf clusters; 1 to 2 = standard reference fidelity; > 2 = aggressive simplification for low-end hardware.',
     },
     lodAdaptive: {
       type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('lodAdaptive'),
+      default: explorerSwitchDefault('lodAdaptive'),
       description: 'Enables dynamic adaptation of LOD error threshold based on scene workload.',
     },
     bounce: {
       type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('bounce'),
+      default: explorerSwitchDefault('bounce'),
       description:
         'Dynamic global illumination (GI) via radiance probe bounce. Incompatible with very tight GPU time budgets.',
     },
@@ -90,16 +95,9 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     importedLights: {
       type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('importedLights'),
+      default: explorerSwitchDefault('importedLights'),
       description:
         'Enables lights imported from the source scene file. false opens the scene with zero lights.',
-    },
-    textureSource: {
-      type: 'string',
-      enum: ['host', 'cache'],
-      default: 'cache',
-      description:
-        "Whether the prepared scene reads the source images: 'cache' (skipped, the engine reads the baked levels) or 'host' (decoded too, for a backend that draws the host scene). The engine reads the baked levels either way, and falls back to 'host' by itself where a mounted backend samples the host images.",
     },
     preload: {
       type: 'string',
@@ -110,7 +108,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     stageProfile: {
       type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('stageProfile'),
+      default: explorerSwitchDefault('stageProfile'),
       description: 'Enables per-stage GPU/CPU timing accessible via explorer.stageProfile().',
     },
     diagnosticDetail: {
@@ -134,4 +132,4 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   },
   required: ['manifestUrl'],
   additionalProperties: true,
-}
+}))()

@@ -1,10 +1,7 @@
-/** Why a DAG group stalled, named by the compiler by rerunning the stalled reduction with a
- *  constraint lifted: `too-small` (fewer than two live triangles), `border-locked` (with no lock
- *  it advances), `seam-locked` (with no lock it still stalls, with position copies also welded
- *  across every texture seam it advances), `unreducible` (neither advances), `border-lost` (a
- *  shared position disappeared on every retry), `unusable-error`. */
-export type DagStallCause =
-  'too-small' | 'seam-locked' | 'border-locked' | 'unreducible' | 'border-lost' | 'unusable-error'
+/** Why a DAG group stalled: `unreducible` (no target cluster size down to half a cluster
+ *  re-splits what the simplifier left into the group's parents), `unusable-error` (the
+ *  simplifier returned a non-finite error). */
+export type DagStallCause = 'unreducible' | 'unusable-error'
 /** What the stalls of a primitive come to: the level-0 triangles left as roots, the cause of
  *  the stalls holding the most triangles (`null` without a stall), and the seam, locked and
  *  texture-island counts summed over its stalled groups. */

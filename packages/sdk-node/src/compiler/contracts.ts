@@ -1,5 +1,11 @@
 import type { AssetScope, PreparationProgress } from '../../../sdk-core/src/contracts/base.ts'
 import type { Simplification } from '../../../sdk-core/src/contracts/compilerAbi.ts'
+import type { HlodOptions } from '../../../sdk-core/src/contracts/hlodOptions.ts'
+import type {
+  MaterialsOption,
+  ResponsiveOption,
+  TemporalAntialiasingOption,
+} from '../../../sdk-core/src/contracts/materialOptions.ts'
 import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
 import type { JobSnapshot } from '../../../sdk-core/src/runtime/jobs/jobs.ts'
 
@@ -62,8 +68,25 @@ export interface CompilerEvent {
   /** The address the model's files load from. */ resourceBaseUrl: string
   /** The compiler program to run. */ executable?: string
   /** Threads the compiler may use; every core of the machine when omitted. */ threads?: number
-  /** Memory the compiler may use, in MB. @defaultValue 256 */ ramBudgetMb?: number
-  /** How meshes are simplified. @defaultValue 'none' */ simplification?: Simplification
+  /** Memory the compiler may use, in MB. @defaultValue 4096 */ ramBudgetMb?: number
+  /** How meshes are simplified. @defaultValue 'qem-endpoints' */ simplification?: Simplification
+  /** The world's HLOD: the simple form (`levels`, `quality`, `groups`) or the expert form
+   *  (`layers`, `assign`, `default`), over the objects a node's `extras.hlod` mark or a group or
+   *  rule names. @defaultValue none: the job builds no HLOD */
+  hlod?: HlodOptions
+  /** The scene's temporal anti-aliasing level, written in its manifest — `'off'`, `'low'`,
+   *  `'medium'`, `'high'`, `'max'`, `true` the default level, `false` off —: the runtime's
+   *  `'scene'` setting, below the quality, the page and the editor; the first loaded scene naming
+   *  it decides (`resolveTemporalAntialiasing`). @defaultValue none: the runtime's own, `'max'` */
+  temporalAntialiasing?: TemporalAntialiasingOption
+  /** The objects whose materials keep a responsive temporal history: a node's name, a pattern on
+   *  it, or a match (`resolveResponsive`). @defaultValue none */
+  responsive?: ResponsiveOption
+  /** Settings by material name — `{ name: { temporalAntialiasing, responsive } }`, the history
+   *  share a name of `'normal'`, `'responsive'`, `'soft'`, `'off'` or a number in [0, 1] —,
+   *  winning over `responsive` and the material's own `extras` (`resolveMaterials`).
+   *  @defaultValue none */
+  materials?: MaterialsOption
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void
@@ -114,8 +137,7 @@ export interface CompilationPointer extends CompilationSummary {
 }
 
 /** What `prepare` returns. */ export interface CompilationResult extends CompilationSummary {
-  /** Result format. */ schema: number
-  /** Cache format. */ formatVersion?: number
+  /** Cache format. */ formatVersion: number
   /** Nodes kept. */ selectedNodes: number
   /** Primitives. */ primitives: unknown[]
   /** Reuse proof. */ reused?: ReusedFolder | null
@@ -126,7 +148,16 @@ export interface CompilationPointer extends CompilationSummary {
  *  them; its scope defaults to `'full'`. */
 export interface BatchJob extends Pick<
   CompilationJobOptions,
-  'resourceBaseUrl' | 'scope' | 'triangleBudget' | 'threads' | 'ramBudgetMb' | 'simplification'
+  | 'resourceBaseUrl'
+  | 'scope'
+  | 'triangleBudget'
+  | 'threads'
+  | 'ramBudgetMb'
+  | 'simplification'
+  | 'hlod'
+  | 'temporalAntialiasing'
+  | 'responsive'
+  | 'materials'
 > {
   /** Its name. */ id?: string
   /** The source file. */ source: string

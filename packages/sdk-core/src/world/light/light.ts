@@ -36,8 +36,10 @@ export interface LightParameters {
   radius?: number
   /** Directional source angular radius, in radians. */
   angularRadius?: number
-  /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients in the band
-   *  order of `scene/core/environment.ts`, scaled by `intensity`. Absent, the probe is uniform. */
+  /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients of the radiance
+   *  in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`, scaled by
+   *  `intensity`; built by `emptyIrradiance` and the `add…Irradiance` helpers. Absent, the probe is
+   *  uniform. */
   sh?: ArrayLike<number>
 }
 

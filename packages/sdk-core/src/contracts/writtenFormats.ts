@@ -6,7 +6,9 @@
 //   packages/page-codec-wasm/src/culling.rs
 //   packages/page-codec-wasm/src/wasm_clusters.rs
 //   packages/asset-compiler-rust/src/cutout.rs
-//   packages/asset-compiler-rust/src/impostor/stage.rs
+//   packages/asset-compiler-rust/src/voxel.rs
+//   packages/asset-compiler-rust/src/voxel/bricks.rs
+//   packages/asset-compiler-rust/src/compiler_world_roots.rs
 //   packages/asset-compiler-rust/src/texture_preview.rs
 //   packages/asset-compiler-rust/src/texture_preview/levels.rs
 //   packages/asset-compiler-rust/src/physics_cook.rs
@@ -38,8 +40,16 @@
  * `page-codec-wasm/src/clusters.rs` (the spatial rule) and the culling tree a page order follows
  * is built by the one builder of `page-codec-wasm/src/culling.rs`, each split on the axis of least
  * cost: the DAG, its nodes and its pages differ from a version-11 cook's for the same source.
+ * Version 13 lays every geometry page in a streaming bundle of the compile's geometry containers:
+ * a bundle names its file, by rank in the manifest's `geometryFiles`, its offset and its digest,
+ * a page its bundle and its place there, and the index objects and the per-page digests are gone;
+ * a version-12 reader would look for objects that no longer exist, so it refuses. 13 also rounded
+ * the clusters the one clusterer cut free, its upper cuts across the longest side (both since
+ * replaced by the parts of the triangles' graph, `page-codec-wasm/src/partition.rs`): the
+ * level-0 clusters, hence every page, differ from a version-12 cook's for the same source; and it measures each page's cone on the positions the page decodes
+ * to (`page-codec-wasm/src/encode.rs:decoded_cone`), not the source's, so the cone column differs.
  */
-export const MANIFEST_BINARY_VERSION = 12
+export const MANIFEST_BINARY_VERSION = 13
 
 /**
  * 'W','G','M','B' read as a little-endian u32.
@@ -125,9 +135,36 @@ export const CLUSTER_ORDERED = 1
 export const CUTOUT_SHEET_VERSION = 1
 
 /**
- * Format of the `impostors` section a runtime reads, baked by the compiler.
+ * Format of `voxels.bin` and of the manifest's `voxels` section (`stage.rs` lays it out).
  */
-export const IMPOSTOR_VERSION = 1
+export const VOXEL_VERSION = 2
+
+/**
+ * Bytes of a brick and of a voxel.
+ */
+export const VOXEL_BRICK_BYTES = 16
+
+export const VOXEL_RECORD_BYTES = 16
+
+/**
+ * Version of the world-roots products: 2 since their records, 3 since an object root names its
+ * object by its table rank, 4 since a placed object is one level-0 cluster and a super-root a
+ * `WGP3` page carrying its attributes, 5 since a cell names each node's first object, 6 since the
+ * DAG lies in the order of the world's culling hierarchy and carries its nodes, 7 since a placed
+ * object's record no longer lists its own roots' bundles, 8 since a placed object is written at
+ * error 0 and every band and ceiling raised by the world grid's displacement, and a blended
+ * primitive enters no world DAG, 9 since a placed object stands at its coarsest level and the
+ * world's levels count on from it, 10 since the world is HLOD 1: one merged DAG per HLOD 0
+ * cell from its objects' full geometry, each cluster naming its cell and layer, the table its
+ * cells' bundles and nothing pinned, 11 since the chain runs HLOD 1 to HLOD 3, each table cell
+ * naming its parent, layer and bounds, 12 since each actor above HLOD 0 wears its own flattened
+ * material, a cluster naming its actor's rank in the scene tables' `hlodMaterials` where it named
+ * the primitive whose material it wore, 13 since a merged layer's actor may wear a material of
+ * the scene or another actor's flattened one, its rank in `hlodMaterials` naming it, and the
+ * world's pages carry every attribute its actors carry, 14 since a cluster no longer names its HLOD
+ * layer — its cell's level, which the table carries, gives it.
+ */
+export const WORLD_ROOTS_VERSION = 14
 
 /**
  * Section contract: moving level scale, order, reduction rule, color space,
@@ -142,9 +179,17 @@ export const IMPOSTOR_VERSION = 1
  * level file out in tile records, one HTTP Range each (#962, `tile_records`);
  * the manifest's `textures.version` names it for the engine. Version 7 adds
  * the ETC2 family (ETC2 RGBA8, EAC RG11): a third block column and layout
- * word, and every family cooked by default.
+ * word, and every family cooked by default. Version 8 stores every level in BC, no PNG: BC7
+ * searched in every mode, a chain under the bar left to its source image, each tile record of a
+ * block level file deflated behind a head of record ends (`tile_records`). Version 9 encodes each
+ * BC7 block whose fast read-back misses the gate's bars again with the slow search (`Effort`), and
+ * keys a chain's folder by its source and the sheet that decides its bytes (`GateSheet::key`):
+ * two readings of one image under other channels or cuts never share a file. Version 10 moves
+ * the BC7 bytes of most blocks: the vendored encoder's axis search starts from the covariance's
+ * widest row instead of grey (`block_compression`, `compute_axis`), which every block's search
+ * goes through — the ones varying orthogonally to grey, flat before, gain the most.
  */
-export const TEXTURE_PREVIEW_VERSION = 7
+export const TEXTURE_PREVIEW_VERSION = 10
 
 /**
  * Largest side sidecar level can have. Choice bounds section: at most

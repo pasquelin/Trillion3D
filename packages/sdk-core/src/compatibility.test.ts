@@ -39,7 +39,6 @@ test('Public core imports without DOM and rejects unknown format with a structur
 })
 test('a cache without a cluster DAG is refused by name, with the primitive that lacks one', () => {
   const base = {
-    schema: FORMAT_VERSION,
     formatVersion: FORMAT_VERSION,
     status: 'ready',
     key: 'k',
@@ -108,7 +107,6 @@ test('cache readers accept the current format and the clustered BLEND one explic
       (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
     )
   const blend = {
-    schema: CLUSTERED_BLEND_FORMAT_VERSION,
     formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     status: 'ready',
     key: 'blend-v2',
@@ -131,7 +129,7 @@ test('cache readers accept the current format and the clustered BLEND one explic
   }
   assertCacheIdentity(blend)
   assert.throws(
-    () => assertCacheIdentity({ ...blend, schema: FORMAT_VERSION, formatVersion: FORMAT_VERSION }),
+    () => assertCacheIdentity({ ...blend, formatVersion: FORMAT_VERSION }),
     (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
   )
 })

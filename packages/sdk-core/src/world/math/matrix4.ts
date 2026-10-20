@@ -5,21 +5,19 @@ import {
   multiplyMatrix4,
   transposeMatrix4,
 } from '../../../../math/src/matrix/matrix4.ts'
-import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { composeMatrix4, rotationMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
 import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
 import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
-import type { XYZSink, XYZWLike, XYZWSink } from './likes.ts'
+import { loadXyz, loadXyzw, type XYZSink, type XYZWLike, type XYZWSink } from './likes.ts'
 
 const t = new Float64Array(3),
   r = new Float64Array(4),
   s = new Float64Array(3),
   scratch = new Float64Array(16)
-const ORIGIN = [0, 0, 0],
-  UNIT = [1, 1, 1]
 
 /** A 4×4 matrix, column-major, over the core's free functions (`mathMatrix4*.ts`). */
 export class Matrix4 {
@@ -82,17 +80,7 @@ export class Matrix4 {
   }
   /** Builds the matrix from a position, a rotation and a size. */
   compose(position: XYZSink, quaternion: XYZWLike, scale: XYZSink) {
-    t[0] = position.x
-    t[1] = position.y
-    t[2] = position.z
-    r[0] = quaternion.x
-    r[1] = quaternion.y
-    r[2] = quaternion.z
-    r[3] = quaternion.w
-    s[0] = scale.x
-    s[1] = scale.y
-    s[2] = scale.z
-    composeMatrix4(this.elements, t, r, s)
+    composeMatrix4(this.elements, loadXyz(t, position), loadXyzw(r, quaternion), loadXyz(s, scale))
     return this
   }
   /** Splits the matrix into position, rotation and size. */
@@ -121,20 +109,13 @@ export class Matrix4 {
     return this.set(x, 0, 0, 0, 0, y, 0, 0, 0, 0, z, 0, 0, 0, 0, 1)
   }
   /** Becomes the turn a quaternion makes. */ makeRotationFromQuaternion(q: XYZWLike) {
-    r[0] = q.x
-    r[1] = q.y
-    r[2] = q.z
-    r[3] = q.w
-    composeMatrix4(this.elements, ORIGIN, r, UNIT)
+    rotationMatrix4(this.elements, loadXyzw(r, q))
     return this
   }
   /** The rotation about `axis`, made unit first (`axisAngleQuaternion`). */
   makeRotationAxis(axis: { x: number; y: number; z: number }, angle: number) {
-    t[0] = axis.x
-    t[1] = axis.y
-    t[2] = axis.z
-    normalizeVector3(t)
-    composeMatrix4(this.elements, ORIGIN, axisAngleQuaternion(r, t, angle), UNIT)
+    normalizeVector3(loadXyz(t, axis))
+    rotationMatrix4(this.elements, axisAngleQuaternion(r, t, angle))
     return this
   }
   /** Becomes a turn around x. */ makeRotationX(a: number) {

@@ -13,10 +13,10 @@ import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
-const near = (actual: Vector3, expected: number[]) => {
-  actual.toArray().forEach((value, i) => assert.ok(Math.abs(value - expected[i]) < 1e-12))
-}
+const nearVector = (actual: Vector3, expected: number[]) =>
+  near(actual.toArray(), expected, 'the vector', 1e-12)
 
 // Re-deriving Euler angles from the quaternion would swap (0, y, 0) past ±90° for the equivalent
 // (π, π − y, π); a later one-axis write would then keep x = z = π and turn the node another way.
@@ -159,36 +159,36 @@ test('axis rotation helpers turn the local basis and translation follows the tur
   ] as const) {
     const node = new Object3D()
     assert.equal(node[`rotate${axis}`](HALF_PI), node)
-    near(node.getWorldDirection(), [...expected])
+    nearVector(node.getWorldDirection(), [...expected])
   }
   const node = new Object3D()
   assert.equal(node.rotateOnAxis(new Vector3(0, 0, 1), HALF_PI), node)
   assert.equal(node.translateOnAxis(new Vector3(1, 0, 0), 3), node)
-  near(node.position, [0, 3, 0])
-  near(node.getWorldPosition(), [0, 3, 0])
+  nearVector(node.position, [0, 3, 0])
+  nearVector(node.getWorldPosition(), [0, 3, 0])
 })
 
 test('numeric and vector lookAt both update the readable quaternion and world direction', () => {
   const node = new Object3D()
   node.position.set(1, 2, 3)
   node.lookAt(6, 2, 3)
-  near(node.getWorldDirection(), [1, 0, 0])
-  near(new Vector3(0, 0, 1).applyQuaternion(node.quaternion), [1, 0, 0])
+  nearVector(node.getWorldDirection(), [1, 0, 0])
+  nearVector(new Vector3(0, 0, 1).applyQuaternion(node.quaternion), [1, 0, 0])
   node.lookAt(new Vector3(-4, 2, 3))
-  near(node.getWorldDirection(), [-1, 0, 0])
-  near(new Vector3(0, 0, 1).applyQuaternion(node.quaternion), [-1, 0, 0])
+  nearVector(node.getWorldDirection(), [-1, 0, 0])
+  nearVector(new Vector3(0, 0, 1).applyQuaternion(node.quaternion), [-1, 0, 0])
 })
 
 test('applyMatrix4 uses the current pose in automatic mode and the authored matrix in manual mode', () => {
   const automatic = new Object3D()
   automatic.position.set(2, 3, 4)
   automatic.applyMatrix4(new Matrix4().makeScale(2, 3, 4))
-  near(automatic.position, [4, 9, 16])
-  near(automatic.scale, [2, 3, 4])
+  nearVector(automatic.position, [4, 9, 16])
+  nearVector(automatic.scale, [2, 3, 4])
   const manual = new Object3D()
   manual.matrixAutoUpdate = false
   manual.matrix.makeTranslation(5, 6, 7)
   manual.position.set(100, 100, 100)
   manual.applyMatrix4(new Matrix4().makeTranslation(1, 2, 3))
-  near(manual.position, [6, 8, 10])
+  nearVector(manual.position, [6, 8, 10])
 })

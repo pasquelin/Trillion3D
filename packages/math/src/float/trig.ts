@@ -6,7 +6,7 @@
  * are `packages/math/rust/src/trig.rs` and `acos.rs`: a kernel that runs either side gives
  * the same numbers. The square root is the instruction's (`Math.sqrt`, correctly rounded, as
  * `libm`'s own). High words are read as thresholds on the magnitude: `|x| < fromHigh(h + 1)` is
- * `highWord(|x|) <= h`.
+ * `f64High(|x|) <= h`.
  *
  * The original notice, which fdlibm asks to keep:
  *
@@ -15,19 +15,12 @@
  * distribute this software is freely granted, provided that this notice is preserved.
  */
 
-const bits = new Float64Array(1),
-  words = new Uint32Array(bits.buffer)
-/** The double whose high word is `high`, its low word 0 (little-endian words). */
-function fromHigh(high: number) {
-  words[1] = high
-  words[0] = 0
-  return bits[0]
-}
+import { f64High, fromF64Words } from './bits.ts'
+
+/** The double whose high word is `high`, its low word 0. */
+const fromHigh = (high: number) => fromF64Words(high, 0)
 /** The biased exponent of `x`. */
-function exponent(x: number) {
-  bits[0] = x
-  return (words[1] >>> 20) & 0x7ff
-}
+const exponent = (x: number) => (f64High(x) >>> 20) & 0x7ff
 
 // k_sin.rs, k_cos.rs.
 const S1 = -1.66666666666666324348e-1,
@@ -46,10 +39,14 @@ const C1 = 4.16666666666666019037e-2,
 /** sin(x + y), |x| ≤ π/4, `y` the tail of a reduced argument. */
 function kernelSin(x: number, y: number) {
   const z = x * x,
-    w = z * z,
-    r = S2 + z * (S3 + z * S4) + z * w * (S5 + z * S6),
+    r = sinPoly(z),
     v = z * x
   return x - (z * (0.5 * y - v * r) - y - v * S1)
+}
+/** The sine kernel's polynomial in `z = x²`, past its first term: both kernels' `r`. */
+function sinPoly(z: number) {
+  const w = z * z
+  return S2 + z * (S3 + z * S4) + z * w * (S5 + z * S6)
 }
 /** cos(x + y), |x| ≤ π/4. */
 function kernelCos(x: number, y: number) {
@@ -114,14 +111,9 @@ function quarterTurns(x: number, n: number) {
   reduced[1] = z - y0 - k * PIO2_1T
   return k
 }
-/** The high word of `a`. */
-function highWord(a: number) {
-  bits[0] = a
-  return words[1]
-}
 /** Whether the 20 mantissa bits of `a`'s high word are π/2's, `0x921fb`: a near multiple of π/2,
  *  whose one-round reduction would cancel. */
-const nearHalfTurns = (a: number) => (highWord(a) & 0xfffff) === 0x921fb
+const nearHalfTurns = (a: number) => (f64High(a) & 0xfffff) === 0x921fb
 
 /** π/2's high word, `0x3ff921fb`, as a range of magnitudes: there one round would cancel. */
 const HALF_TURN_FROM = fromHigh(0x3ff921fb),
@@ -143,10 +135,8 @@ export function fdlibmSin(x: number) {
 /** sin x, |x| ≤ π/4: the kernel without a tail. */
 function kernelSinAlone(x: number) {
   const z = x * x,
-    w = z * z,
-    r = S2 + z * (S3 + z * S4) + z * w * (S5 + z * S6),
     v = z * x
-  return x + v * (S1 + z * r)
+  return x + v * (S1 + z * sinPoly(z))
 }
 /** cos of `z` less `tail` (one quarter turn's low part, signed), reduced in one round. */
 function kernelCosOff(z: number, tail: number) {
@@ -162,8 +152,8 @@ function sinReduced(x: number, a: number) {
     if (nearHalfTurns(a)) n = medium(x)
     else n = quarterTurns(x, a < PIO3_4 ? 1 : 2)
   } else if (a < PIO9_4) {
-    if (a < PIO7_4) n = highWord(a) === 0x4012d97c ? medium(x) : quarterTurns(x, 3)
-    else n = highWord(a) === 0x401921fb ? medium(x) : quarterTurns(x, 4)
+    if (a < PIO7_4) n = f64High(a) === 0x4012d97c ? medium(x) : quarterTurns(x, 3)
+    else n = f64High(a) === 0x401921fb ? medium(x) : quarterTurns(x, 4)
   } else if (a < MEDIUM_END) n = medium(x)
   else return Math.sin(x)
   const y0 = reduced[0],
@@ -222,7 +212,7 @@ export function fdlibmAcos(x: number) {
     s = Math.sqrt(z)
   // `s` with its low word cleared, its high part whose square is exact: rebuilt from the high
   // word, its exponent's power of two times 1 and twenty bits (s >= 2^-27, a normal number).
-  const high = highWord(s),
+  const high = f64High(s),
     df = POWERS_OF_TWO[high >>> 20] * (1 + (high & 0xfffff) * 2 ** -20),
     c = (z - df * df) / (s + df),
     w = rational(z) * s + c

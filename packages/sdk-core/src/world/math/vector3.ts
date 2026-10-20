@@ -19,20 +19,13 @@ import { fromSpherical } from '../../../../math/src/vector/spherical.ts'
 import { ObservedComponents } from '../observed.ts'
 import type { Matrix4 } from './matrix4.ts'
 import type { Matrix3 } from './matrix3.ts'
-import type { XYZLike, XYZWLike } from './likes.ts'
+import { loadXyz, loadXyzw, type XYZLike, type XYZWLike } from './likes.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 const a = new Float64Array(3),
   b = new Float64Array(3),
   h = new Float64Array(4),
   q = new Float64Array(4)
-/** A vector read into flat numbers, for the core functions that take them. */
-const load = (into: Float64Array, v: XYZLike) => {
-  into[0] = v.x
-  into[1] = v.y
-  into[2] = v.z
-  return into
-}
 
 /**
  * A point or a direction in three dimensions, chainable. The numbers live in `elements`, which
@@ -67,29 +60,29 @@ export class Vector3 extends ObservedComponents {
     return new Vector3(this.x, this.y, this.z)
   }
   /** Adds another vector. */ add(v: XYZLike) {
-    return this.written(addVector3(a, this.elements, load(b, v)))
+    return this.written(addVector3(a, this.elements, loadXyz(b, v)))
   }
   /** Adds `s` to x, y and z. */ addScalar(s: number) {
     return this.set(this.x + s, this.y + s, this.z + s)
   }
   /** Becomes `u + v`. */ addVectors(u: XYZLike, v: XYZLike) {
-    return this.written(addVector3(a, load(a, u), load(b, v)))
+    return this.written(addVector3(a, loadXyz(a, u), loadXyz(b, v)))
   }
   /** Adds `v` times `s`. */ addScaledVector(v: XYZLike, s: number) {
-    return this.written(addScaledVector3(load(a, this), load(b, v), s))
+    return this.written(addScaledVector3(loadXyz(a, this), loadXyz(b, v), s))
   }
   /** Takes another vector away. */ sub(v: XYZLike) {
-    return this.written(subVector3(a, this.elements, load(b, v)))
+    return this.written(subVector3(a, this.elements, loadXyz(b, v)))
   }
   /** Becomes `u − v`: `u` copied first, then `v` taken from what was written. */
   subVectors(u: XYZLike, v: XYZLike) {
-    return this.copy(u).written(subVector3(a, this.elements, load(b, v)))
+    return this.copy(u).written(subVector3(a, this.elements, loadXyz(b, v)))
   }
   /** Multiplies x, y and z one by one. */ multiply(v: XYZLike) {
     return this.set(this.x * v.x, this.y * v.y, this.z * v.z)
   }
   /** Multiplies x, y and z by `s`. */ multiplyScalar(s: number) {
-    return this.written(scaleVector3(load(a, this), s))
+    return this.written(scaleVector3(loadXyz(a, this), s))
   }
   /** Divides x, y and z by `s`. */ divideScalar(s: number) {
     return this.multiplyScalar(1 / s)
@@ -104,13 +97,13 @@ export class Vector3 extends ObservedComponents {
     return this.set(Math.max(this.x, v.x), Math.max(this.y, v.y), Math.max(this.z, v.z))
   }
   /** How much two arrows point the same way. */ dot(v: XYZLike) {
-    return dotVector3(this.elements, load(b, v))
+    return dotVector3(this.elements, loadXyz(b, v))
   }
   /** Becomes the arrow square to both. */ cross(v: XYZLike) {
     return this.crossVectors(this, v)
   }
   /** Becomes the arrow square to `u` and `v`. */ crossVectors(u: XYZLike, v: XYZLike) {
-    return this.written(crossVector3(a, load(a, u), load(b, v)))
+    return this.written(crossVector3(a, loadXyz(a, u), loadXyz(b, v)))
   }
   /** The length, squared: quicker to get. */ lengthSq() {
     return lengthSqVector3(this.elements)
@@ -122,15 +115,15 @@ export class Vector3 extends ObservedComponents {
     return this.normalize().multiplyScalar(length)
   }
   /** Keeps the direction, makes the length 1. */ normalize() {
-    load(a, this)
+    loadXyz(a, this)
     normalizeVector3(a)
     return this.written(a)
   }
   /** The distance to a point, squared. */ distanceToSquared(v: XYZLike) {
-    return distanceSqVector3(this.elements, load(b, v))
+    return distanceSqVector3(this.elements, loadXyz(b, v))
   }
   /** The distance to a point. */ distanceTo(v: XYZLike) {
-    return distanceVector3(this.elements, load(b, v))
+    return distanceVector3(this.elements, loadXyz(b, v))
   }
   /** Moves `t` of the way to `v`. */ lerp(v: XYZLike, t: number) {
     return this.lerpVectors(this, v, t)
@@ -159,11 +152,7 @@ export class Vector3 extends ObservedComponents {
     return this.written(transformDirectionVector3(a, m.elements, this.x, this.y, this.z))
   }
   /** Turns the vector by a quaternion. */ applyQuaternion(r: XYZWLike) {
-    q[0] = r.x
-    q[1] = r.y
-    q[2] = r.z
-    q[3] = r.w
-    return this.written(rotateByQuaternion(a, q, this.x, this.y, this.z))
+    return this.written(rotateByQuaternion(a, loadXyzw(q, r), this.x, this.y, this.z))
   }
   /** Takes the move part of a matrix. */ setFromMatrixPosition(m: Matrix4) {
     return this.written(m.elements.subarray(12, 15))

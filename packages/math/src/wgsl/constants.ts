@@ -9,7 +9,6 @@ import {
   GOLDEN_ANGLE as ANGLE,
   GOLDEN_U32 as GOLDEN_WORD,
   HALF_MAX as HALF,
-  HALF_OVERFLOW as HALF_PAST,
   PLASTIC_STEP_X,
   PLASTIC_STEP_Y,
   QUARTER_PI as QUARTER,
@@ -112,14 +111,6 @@ export const FLOAT32_MIN_NORMAL = wgslConst(
 
 /** The greatest finite half float, 65504: a half-float target's bound. */
 export const HALF_MAX = wgslConst('HALF_MAX', [], `const HALF_MAX:f32=${wgslF32(HALF)};`)
-
-/** 65520, the least magnitude a half float rounds to infinity: every value under it stores
- *  finite in a half-float target. */
-export const HALF_OVERFLOW = wgslConst(
-  'HALF_OVERFLOW',
-  [],
-  `const HALF_OVERFLOW:f32=${wgslF32(HALF_PAST)};`,
-)
 
 /** The floor a divisor or a root's argument is held to: under every square a scene's
  *  derivatives, densities or angles give, over the `f32` underflow, so the quotient stays finite —

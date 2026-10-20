@@ -2,7 +2,8 @@
 // the expressions they replace bit for bit.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { decayFactor, decayRate, floorMod, fract, lerp, lerpArray, snap, wrap } from './reals.ts'
+import { decayFactor, decayRate, fract, lerp, lerpArray, snap, wrap } from './reals.ts'
+import { floorMod } from './reals.fixture.ts'
 import { mean, quantileOf, summaryOf } from './quantile.ts'
 import { HALTON_SWEEP, haltonSpan } from '../sequence/sweep.fixture.ts'
 

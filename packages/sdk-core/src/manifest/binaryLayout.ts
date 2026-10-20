@@ -37,8 +37,6 @@ const COLUMN_ROWS: Record<ColumnName, RowCount> = {
   pageError: 'pages',
   pageInt: 'pages',
   pageU32: 'pages',
-  pageSha: 'pages',
-  geometrySha: 'pages',
   geometryU32: 'pages',
   pageDepthLayer: 'pages',
   pageCone: 'pages',
@@ -53,14 +51,14 @@ const COLUMN_ROWS: Record<ColumnName, RowCount> = {
   structureRoot: 'roots',
   bundleU32: 'bundles',
   bundleSha: 'bundles',
-  bundleDependencyCount: 'bundles',
-  bundleDependency: 'bundleDependencies',
   texturePreviewU32: 'previews',
   texturePreviewSha: 'previews',
   texturePreviewPixels: 'previewBytes',
   texturePreviewBc7: 'bc7',
   texturePreviewAstc: 'astc',
   texturePreviewEtc2: 'etc2',
+  bundleDependencyCount: 'bundles',
+  bundleDependency: 'bundleDependencies',
 }
 
 /** Whether a row count is a block family's bytes. */

@@ -1,6 +1,5 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
 import { length3, transformPointRow } from '../vector/vector.ts'
-import { sameRange } from '../matrix/matrixElements.ts'
 
 /**
  * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
@@ -16,12 +15,7 @@ export const BOX_VALUES = 6
 
 /** Sets an empty box: lower bounds at `+Infinity`, upper bounds at `-Infinity`. */
 export function boxEmpty(out: Float64Array, o: number) {
-  out[o] = Infinity
-  out[o + 1] = Infinity
-  out[o + 2] = Infinity
-  out[o + 3] = -Infinity
-  out[o + 4] = -Infinity
-  out[o + 5] = -Infinity
+  writeBounds(out, o, Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity)
 }
 
 /** True when an upper bound falls below its lower bound; a NaN bound does not make it empty. */
@@ -128,10 +122,6 @@ export function boxesOverlap(a: ArrayLike<number>, ao: number, b: ArrayLike<numb
     b[bo + 2] > a[ao + 5]
   )
 }
-
-/** True when boxes `a` at `ao` and `b` at `bo` hold the same six values, bit for bit. */
-export const boxEquals = (a: ArrayLike<number>, ao: number, b: ArrayLike<number>, bo: number) =>
-  sameRange(a, b, BOX_VALUES, ao, bo)
 
 /** Expands the box to contain a point: the union with the box of that point alone. */
 export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: number, z: number) {
@@ -314,3 +304,28 @@ export const boxDiagonal = (box: ArrayLike<number>, o = 0) =>
 /** The radius of the sphere about the box at `box[o]`, centred at the box's centre: half its
  *  diagonal, `boxDiagonal · 0.5`, the radius `sphereFromBounds` writes. No empty test. */
 export const boxRadius = (box: ArrayLike<number>, o = 0) => boxDiagonal(box, o) * 0.5
+
+/** The larger magnitude of the box's two bounds on `axis`: how far that axis reaches from 0. */
+export const boxAxisMagnitude = (box: ArrayLike<number>, axis: number) =>
+  Math.max(Math.abs(box[axis]), Math.abs(box[axis + 3]))
+
+/** How far row `row` of an affine column-major matrix carries the box from the origin:
+ *  `|m[12+row]| + Σ |m[4c+row]| · boxAxisMagnitude(box, c)`, the columns in order. */
+export const boxRowReach = (matrix: ArrayLike<number>, box: ArrayLike<number>, row: number) =>
+  rowReach(
+    matrix,
+    row,
+    boxAxisMagnitude(box, 0),
+    boxAxisMagnitude(box, 1),
+    boxAxisMagnitude(box, 2),
+  )
+
+/** `boxRowReach` with the box's three axis magnitudes (`boxAxisMagnitude`) given: a caller reading
+ *  several rows of one box computes them once. The same sum, the columns in order. */
+export function rowReach(matrix: ArrayLike<number>, row: number, x: number, y: number, z: number) {
+  let reach = Math.abs(matrix[12 + row])
+  reach += Math.abs(matrix[row]) * x
+  reach += Math.abs(matrix[4 + row]) * y
+  reach += Math.abs(matrix[8 + row]) * z
+  return reach
+}

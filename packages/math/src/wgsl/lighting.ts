@@ -24,6 +24,15 @@ export const fresnelSchlick = wgslFn(
   'fn fresnelSchlick(f0:vec3f,cosine:f32)->vec3f{return vec3f(fresnelScalar(f0.x,cosine),fresnelScalar(f0.y,cosine),fresnelScalar(f0.z,cosine));}',
 )
 
+/** Schlick's Fresnel (Schlick 1994) on a specular colour `f0`, its grazing value
+ *  `f90 = clamp(50·f0.g)`: no real material reflects under 2%, so a lower specular is taken as
+ *  specular occlusion baked into the material and dims the grazing reflection with it. */
+export const fresnelSchlickOccludedF90 = wgslFn(
+  'fresnelSchlickOccludedF90',
+  [],
+  'fn fresnelSchlickOccludedF90(f0:vec3f,cosine:f32)->vec3f{let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;let Fc=x2*x2*x;return clamp(50.0*f0.g,0.0,1.0)*Fc+(1.0-Fc)*f0;}',
+)
+
 export const f0Of = wgslFn(
   'f0Of',
   [DIELECTRIC_F0],

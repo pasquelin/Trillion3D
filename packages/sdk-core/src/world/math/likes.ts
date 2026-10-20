@@ -29,6 +29,21 @@ export type XYZWLike = {
   /** The fourth number. */
   w: number
 }
+/** `v` read into the flat numbers `into`, for the core functions that take them. */
+export function loadXyz(into: Float64Array, v: XYZLike) {
+  into[0] = v.x
+  into[1] = v.y
+  into[2] = v.z
+  return into
+}
+/** `q` read into the flat numbers `into`, for the core functions that take them. */
+export function loadXyzw(into: Float64Array, q: XYZWLike) {
+  into[0] = q.x
+  into[1] = q.y
+  into[2] = q.z
+  into[3] = q.w
+  return into
+}
 /** Three angles and the order they apply in (`Euler`). */
 export type EulerLike = XYZLike & {
   /** The order the three turns apply in, such as `'XYZ'`. */

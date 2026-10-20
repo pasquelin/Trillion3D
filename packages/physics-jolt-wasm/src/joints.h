@@ -49,7 +49,7 @@ JPH::Ref<JPH::TwoBodyConstraintSettings> jointSettings(uint32_t kind, const Fram
 /// Drives a hinge (radians), a slider (metres), a swing-twist, a six-DOF's `axis` (0 to 5) or a
 /// path by its motor in `mode` (layout.h MotorMode), with at most `maxForce` (N·m or N; 0 is no
 /// bound), and wakes it (`jointMotors.cpp`); a kind without one is left as it is.
-void driveJoint(JPH::Constraint *constraint, uint32_t kind, uint32_t mode, float target, float maxForce,
+void driveJoint(JPH::TwoBodyConstraint *constraint, uint32_t kind, uint32_t mode, float target, float maxForce,
                 uint32_t axis);
 /// Gives a gear its wheels' hinges and a rack and pinion its pinion's hinge and rack's slider, in
 /// Jolt's body order (null when one is missing): Jolt's position correction reads their angle and

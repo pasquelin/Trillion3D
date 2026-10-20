@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { manifest, TEMPLATES } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
+import { manifest, BINARY } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import { EMPTY, pagedManifest } from '../../../../tests/fixtures/manifest/pagedManifest.ts'
 import type { EngineError } from '../contracts/cache.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
@@ -9,7 +9,7 @@ import { readPagedManifest } from './paged.ts'
 
 /** The manifest one column file gave, before the manifest was paged. */
 function whole() {
-  const { manifest: slim, binary } = encodeManifestBinary(manifest(), TEMPLATES)
+  const { manifest: slim, binary } = encodeManifestBinary(manifest(), BINARY)
   return decodeManifestBinary(
     { ...slim, binary: { ...slim.binary, sha256: 'f' } },
     binary.buffer as ArrayBuffer,

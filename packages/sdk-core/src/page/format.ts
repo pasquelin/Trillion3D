@@ -83,9 +83,10 @@ export const UV_EXPONENT = -14
 export const DAG_CLUSTER_TRIANGLES = 128
 
 /**
- * Vertex limit of a cluster; a 128 triangle cluster never needs more.
+ * Vertex limit of an encoded cluster. The partition never reads it: a cluster over it is halved
+ * once every level is built (`clusters::constrain_wide`).
  */
-export const DAG_CLUSTER_VERTICES = 255
+export const DAG_CLUSTER_VERTICES = 256
 
 /** Decoded name, float width and presence bit of each optional attribute, in stream order. */
 export const OPTIONAL = [

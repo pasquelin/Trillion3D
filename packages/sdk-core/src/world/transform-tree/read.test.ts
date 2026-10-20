@@ -12,8 +12,7 @@ import {
   setNodeScale,
 } from './transformTree.ts'
 import { nodeWorldDirection, nodeWorldPosition, nodeWorldQuaternion } from './read.ts'
-
-const near = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol
+import { nearly } from '../../../../math/src/float/near.fixture.ts'
 
 test('nodeWorldPosition updates a stale ancestor before reading', () => {
   const tree = createTransformTree(4)
@@ -33,7 +32,7 @@ test('nodeWorldQuaternion decomposes the world matrix of a rotated and scaled no
   setNodeScale(tree, node, 2, 3, 4)
   const q = new Float64Array(4)
   nodeWorldQuaternion(q, tree, node)
-  assert.ok(near(Math.abs(q[1]), 1) && near(q[0], 0) && near(q[2], 0))
+  assert.ok(nearly(Math.abs(q[1]), 1) && nearly(q[0], 0) && nearly(q[2], 0))
 })
 
 test('nodeWorldDirection: object presents +z, camera looks toward -z, at identity', () => {

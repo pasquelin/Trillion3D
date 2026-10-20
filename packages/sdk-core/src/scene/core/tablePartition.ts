@@ -1,12 +1,13 @@
 /**
  * The world partition the scene tables carry (`scene-tables.json`, `partition`;
  * `packages/asset-compiler-rust/src/compiler_tables/partition.rs`): the nodes that only place a
- * mesh are not in the node table the runtime reads before its first frame, but in spatial cells
- * read by distance to the camera — each cell under one stream unit, boxed in the frame of each core
- * parent it hangs nodes under, so a page that moves that parent moves the box. The tables keep only
- * a root: its slots, the core ranks the cells under each hang nodes under, and per mesh the nodes
- * placed and the rows a view holds; the cells' records lie in pages beside them
- * (`partition/pages.rs`), which the runtime reads as its view reaches them (`readCellPage`).
+ * mesh are not in the node table the runtime reads before its first frame, but in the cells of
+ * the partition's main grid, streamed by distance to the camera — each cell file under one stream
+ * unit, boxed in the frame of each core parent it hangs nodes under, and naming the world bounds
+ * its grid cell and its HLOD cells stream by. The tables keep only a root: its slots, the core ranks
+ * the cells under each hang nodes under, per mesh the nodes placed and the rows a view holds, and
+ * the grids' loading ranges; the cells' records lie in pages beside them (`partition/pages.rs`),
+ * which the runtime reads as its view reaches them (`readCellPage`).
  */
 import { EngineError } from '../../contracts/cache.ts'
 import {
@@ -22,8 +23,10 @@ import {
   type TableSlot,
 } from './tablePages.ts'
 
-/** The version of the partition and of its pages this runtime reads. */
-const PARTITION_VERSION = 4
+/** The version of the partition and of its pages this runtime reads: 5 since a lamp's node may
+ *  stand in a cell, 6 since the cells are the main grid's cells, each naming its HLOD cells'
+ *  bounds and the root the grids' loading ranges. */
+const PARTITION_VERSION = 6
 /** The pages of the cell records. */
 const CELL_PAGES: PageKind = {
   prefix: 'scene-page-',
@@ -55,6 +58,13 @@ export interface TableCell {
   /** The slots of the manifest's mesh pages its meshes lie in: its region page's list,
    *  which a runtime holding the manifest by the view reads with the cell. */
   meshPages: readonly string[]
+  /** Its main grid cell: level, then its coordinates on the plane (`partition/grid.rs`). */
+  grid: readonly [number, number, number]
+  /** The world bounds its grid cell streams by, at the declared poses: its content. */
+  bounds: readonly number[]
+  /** Its HLOD 0 cell, then the bounds that cell streams by on the HLOD 0 grid and those of the
+   *  HLOD 1 cell its HLOD 1 actor streams in (`partition/hlod.rs`). */
+  hlod: readonly [number, readonly number[], readonly number[]]
 }
 
 /** The partition of a scene as its root gives it, before any page is read. */
@@ -74,6 +84,9 @@ export interface TablePartition {
   parents: readonly number[]
   /** The root's pages, the top of the cell index. */
   pages: readonly TableSlot[]
+  /** The loading ranges, metres, of the main grid and of each HLOD layer's grid, and how many HLOD
+   *  0 cells the cells name. */
+  hlod: { ranges: readonly number[]; cells: number }
 }
 
 /** The partition as the tables carry it: its version, `FAN_OUT` slots, empty ones zeros, beside
@@ -85,13 +98,24 @@ export type TablePartitionRoot = {
   parents: readonly string[]
   meshes: readonly string[]
   cube: string
+  /** The grids' loading ranges as `f64` bits, sixteen hexadecimal digits each, and the HLOD 0
+   *  cells' count in eight. */
+  hlod: { ranges: readonly string[]; cells: string }
 }
 /** The root, `null` when the scene has none, or a named refusal of another version or shape. */
 export function assertTablePartition(value: unknown): TablePartitionRoot | null {
   if (value === null || value === undefined) return null
   const root = versioned(CELL_PAGES, value, 'scene partition') as Partial<TablePartitionRoot>
+  const ranges = root.hlod?.ranges
   const shaped =
-    hexes(root.meshes, 16 + 8 * RUNGS) && rankLists(root.parents, FAN_OUT) && hexes([root.cube], 16)
+    hexes(root.meshes, 16 + 8 * RUNGS) &&
+    rankLists(root.parents, FAN_OUT) &&
+    hexes([root.cube], 16) &&
+    hexes(ranges, 16) &&
+    // The main grid's and the HLOD 0 grid's at least, which the plan reads (`placedReach`): a
+    // scene of no HLOD layer has those two alone (`partition.rs`).
+    ranges.length >= 2 &&
+    hexes([root.hlod?.cells], 8)
   if (!shaped || !Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
     throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its root', {})
   return root as TablePartitionRoot
@@ -109,7 +133,8 @@ export function tablePartition(root: TablePartitionRoot): TablePartition {
   const rows = new Map(listed.map(([mesh, , ...rungs]) => [mesh, rungs]))
   const parents = [...new Set(pages.flatMap((slot) => slot.parents))].sort((a, b) => a - b)
   const cube = float64(root.cube)
-  return { bounds, meshes: [...totals.keys()], totals, rows, cube, parents, pages }
+  const hlod = { ranges: root.hlod.ranges.map(float64), cells: eights(root.hlod.cells)[0] }
+  return { bounds, meshes: [...totals.keys()], totals, rows, cube, parents, pages, hlod }
 }
 
 /** A page of the cell index, from its verified bytes: the slots of the pages it lists, or its
@@ -132,7 +157,13 @@ export function readCellPage(bytes: Uint8Array, url: string) {
     throw new EngineError(CELL_PAGES.invalid, `${url} misses the rank of its first cell`, {})
   if (!Array.isArray(meshPages) || !meshPages.every(isSlot))
     throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {})
-  const valid = (cell: TableCell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents)
+  const valid = (cell: TableCell) =>
+    Array.isArray(cell?.meshes) &&
+    Array.isArray(cell.parents) &&
+    Array.isArray(cell.bounds) &&
+    cell.bounds.length === 6 &&
+    Array.isArray(cell.hlod) &&
+    Number.isSafeInteger(cell.hlod[0])
   if (!Array.isArray(cells) || !cells.every(valid))
     throw new EngineError(CELL_PAGES.invalid, `${url} lists neither pages nor cells`, {})
   return {

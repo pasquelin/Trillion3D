@@ -1,5 +1,6 @@
 import type { NumberSink } from '../matrix/matrix4.ts'
 import { MATRIX_VALUES } from '../batch/strides.ts'
+import { f64WordsInto } from './bits.ts'
 
 /**
  * A double coordinate written as TWO single-precision values: round-to-nearest, then what it
@@ -24,13 +25,7 @@ export function packDoubles(
   from = 0,
   count = values.length - from,
 ) {
-  for (let k = 0; k < count; k++) {
-    cell[0] = values[from + k]
-    out[at + k * 2] = cellWords[1]
-    out[at + k * 2 + 1] = cellWords[0]
-  }
+  for (let k = 0; k < count; k++) f64WordsInto(out, at + k * 2, values[from + k])
 }
 /** Words of a matrix packed in doubles (`packDoubles`): its sixteen values, two words each. */
 export const PACKED_MATRIX_WORDS = MATRIX_VALUES * 2
-const cell = new Float64Array(1),
-  cellWords = new Uint32Array(cell.buffer)

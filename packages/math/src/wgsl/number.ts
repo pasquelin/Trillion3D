@@ -1,5 +1,5 @@
 import { FLOAT32_MAX } from '../constants.ts'
-import { packDoubles } from '../float/splitDouble.ts'
+import { f64WordsInto } from '../float/bits.ts'
 
 /**
  * A WGSL float literal naming the single-precision value nearest `value`, the one the processor
@@ -35,9 +35,9 @@ export const wgslMatrix3 = (m: readonly number[]) =>
 
 const doubleWords = new Uint32Array(2)
 /** A WGSL double of the library (`double.ts`), `vec2u(high word, low word)`, naming `value` to the
- *  bit — its IEEE words as `packDoubles` writes them, not a decimal —: infinities, signed zeros
+ *  bit — its IEEE words as `f64WordsInto` writes them, not a decimal —: infinities, signed zeros
  *  and every double included. */
 export const wgslDouble = (value: number) => (
-  packDoubles(doubleWords, 0, [value]),
+  f64WordsInto(doubleWords, 0, value),
   `vec2u(${doubleWords[0]}u,${doubleWords[1]}u)`
 )

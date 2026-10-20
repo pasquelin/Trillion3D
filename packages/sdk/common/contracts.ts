@@ -15,19 +15,6 @@ export type {
   SceneToneMapping,
 } from '../../sdk-core/src/scene/core/environment.ts'
 export type { AlphaMode, LinearRgb, Material, Side } from '../../sdk-core/src/contracts/material.ts'
-export {
-  assertImpostorSection,
-  impostorMeshBaked,
-  validateImpostorSection,
-} from '../../sdk-core/src/contracts/impostor.ts'
-export type {
-  ImpostorLevel,
-  ImpostorMap,
-  ImpostorMaps,
-  ImpostorMesh,
-  ImpostorSection,
-  ImpostorSwitchDepth,
-} from '../../sdk-core/src/contracts/impostor.ts'
 export { assertSceneProxy, decodeSceneProxy } from '../../sdk-core/src/scene/core/proxy.ts'
 export { createSafetyPolicy } from '../../sdk-core/src/runtime/safety/safety.ts'
 export type {
@@ -48,7 +35,6 @@ export { createSceneRoot, SceneRoot } from '../../sdk-core/src/scene/core/root.t
 export {
   CUTOUT_SHEET_FILE,
   CUTOUT_SHEET_VERSION,
-  IMPOSTOR_VERSION,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
   PREVIEW_BASE,
@@ -78,23 +64,13 @@ export {
   MAX_DEPTH_LAYER,
   TRANSPARENT_DEPTH_LAYER,
 } from '../../sdk-core/src/lod/depthLayer.ts'
-export {
-  drawsImpostor,
-  impostorRadius,
-  impostorSwitchDepth,
-  impostorSwitchOf,
-  impostorTexelDepth,
-  impostorTriangleDepth,
-} from '../../sdk-core/src/impostor/switch.ts'
-export type { ImpostorSwitchInput } from '../../sdk-core/src/impostor/switch.ts'
+export { geometryPageAddress, streamBundleAddress } from '../../sdk-core/src/page/contracts.ts'
 export type {
   GeometryPageDescriptor,
   GeometryPageFormat,
   PrimitiveQuantization,
 } from '../../sdk-core/src/page/contracts.ts'
 export type { GpuMemoryFrameMetrics } from '../../sdk-core/src/contracts/gpuMemory.ts'
-export { impostorBakedByMesh } from '../../sdk-core/src/impostor/baked.ts'
-export type { ImpostorRoot } from '../../sdk-core/src/impostor/switchTable.ts'
 export type { OcclusionFrameMetrics } from '../../sdk-core/src/contracts/occlusionMetrics.ts'
 export { SCENE_MODEL_VERSION } from '../../sdk-core/src/scene/core/nodeContracts.ts'
 export type { SceneNodeOptions, SceneState } from '../../sdk-core/src/scene/core/nodeContracts.ts'

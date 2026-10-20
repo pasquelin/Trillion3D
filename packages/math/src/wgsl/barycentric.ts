@@ -54,11 +54,20 @@ export const planeBarycentric = wgslFn(
 }`,
 )
 
-/** The wireframe's edge weight at the barycentric `b` of a pixel, `width` the barycentrics' change
- *  across one pixel: 1 on an edge, falling to 0 over 1.2 pixels inward, the least of the three
- *  edges' smoothsteps taken. */
+/** The weights of a triangle's corner `corner` (0, 1 or 2) on its own triangle: one on itself, zero
+ *  on the two others — what a vertex stage hands its fragments for them to interpolate. */
+export const cornerBarycentric = wgslFn(
+  'cornerBarycentric',
+  [],
+  'fn cornerBarycentric(corner:u32)->vec3f{return vec3f(f32(corner==0u),f32(corner==1u),f32(corner==2u));}',
+)
+
+/** The wireframe's coverage at the barycentric `b` of a pixel, `deltas` the barycentrics' change
+ *  across one pixel, |d/dx| + |d/dy|: one minus the least of the three smoothsteps from a
+ *  thickness of 0.05 deltas over a smoothing of one delta — 0 inside, where no edge is drawn: an
+ *  edge stays about one pixel wide whatever the triangle's size on screen. */
 export const wireframeEdge = wgslFn(
   'wireframeEdge',
   [],
-  'fn wireframeEdge(b:vec3f,width:vec3f)->f32{return 1.0-min(min(smoothstep(0.0,width.x*1.2,b.x),smoothstep(0.0,width.y*1.2,b.y)),smoothstep(0.0,width.z*1.2,b.z));}',
+  'fn wireframeEdge(b:vec3f,deltas:vec3f)->f32{let s=smoothstep(deltas*0.05,deltas*1.05,b);return 1.0-min(min(s.x,s.y),s.z);}',
 )

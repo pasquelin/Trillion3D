@@ -10,6 +10,7 @@ export {
 export type { PageSource } from '../../sdk-core/src/contracts/cache.ts'
 export { assertManifestBinary } from '../../sdk-core/src/manifest/binaryTypes.ts'
 export type {
+  GeometryFile,
   ManifestBinaryDescriptor,
   SlimClusterManifest,
   SlimCulling,
@@ -30,9 +31,7 @@ export {
 export {
   clusterSphereValid,
   pageCarriesClusterError,
-  primitiveIsDrawable,
   primitiveUsesClusterErrors,
-  UNSPLIT_PASS,
 } from '../../sdk-core/src/contracts/geometry.ts'
 export type {
   ClusterGroup,
@@ -83,7 +82,7 @@ export {
   PREVIEW_BLOCK_FORMATS,
   PREVIEW_BLOCK_SIDE,
   PREVIEW_LAYOUT_NAMES,
-  PREVIEW_LOSSLESS_FORMAT,
+  PREVIEW_STORED_FORMAT,
 } from '../../sdk-core/src/texture/previewFormat.ts'
 export type { TextureBlockFormat, TextureLayout } from '../../sdk-core/src/texture/previewFormat.ts'
 export { readPagedManifest } from '../../sdk-core/src/manifest/paged.ts'
@@ -92,8 +91,4 @@ export type { TextureFrameMetrics } from '../../sdk-core/src/texture/metricsCont
 export { textureLevelFormat, textureLevelUrl } from '../../sdk-core/src/texture/levelUrl.ts'
 export type { TextureLevelFormat } from '../../sdk-core/src/texture/levelUrl.ts'
 export type { TexturePreview } from '../../sdk-core/src/texture/previewContracts.ts'
-export type {
-  WorldRoots,
-  WorldRootsBundle,
-  WorldRootsPage,
-} from '../../sdk-core/src/manifest/worldRoots.ts'
+export type { WorldRoots, WorldRootsBundle } from '../../sdk-core/src/manifest/worldRoots.ts'

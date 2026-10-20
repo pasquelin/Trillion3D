@@ -1,3 +1,12 @@
+/** The detail a view is cut at when its host names none: one pixel, so a coarser level
+ *  strays at most one pixel from the finer one and a building keeps its shape as the view moves.
+ *  The source preset (0 px) keeps every leaf, a list no device holds on a large scene. Plain
+ *  numbers the presets read, so a bundle that takes neither keeps no preset. */
+export const DEFAULT_PIXEL_ERROR = 1
+/** The threshold a coarsened cut starts from when its own is finer: detail no one can tell from
+ *  the source, the high preset. A factor on 0 px leaves 0 px, and the cut would fall back to its
+ *  roots. */
+export const COARSEN_FLOOR_PIXEL_ERROR = 1
 /** Runtime LOD presets. pixelError is the screen-space threshold consumed by exact-cluster selection; 0 keeps exact leaves. */
 export const LOD_QUALITY = {
   /** Every triangle of the source. */
@@ -12,7 +21,7 @@ export const LOD_QUALITY = {
   high: {
     id: 'high',
     label: 'High quality',
-    pixelError: 1,
+    pixelError: COARSEN_FLOOR_PIXEL_ERROR,
     anisotropy: 'maximum',
     adaptive: false,
   },

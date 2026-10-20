@@ -28,10 +28,19 @@ const UNWIRED: Readonly<Record<QualityLevel, QualityLevelValues>> = {
   max: {},
 }
 
-/** The engine's quality table. */
-export const QUALITY_LEVELS: QualityLevels = Object.fromEntries(
-  QUALITY_GROUPS.map((group) => [group, UNWIRED]),
-) as unknown as QualityLevels
+/** The engine's quality table. The edge smoothing's levels are the temporal anti-aliasing's
+ *  (`TEMPORAL_AA_LEVELS`): `max` writes nothing, the default level `max`, and each coarser preset one level below. */
+export const QUALITY_LEVELS: QualityLevels = {
+  ...(Object.fromEntries(
+    QUALITY_GROUPS.map((group) => [group, UNWIRED]),
+  ) as unknown as QualityLevels),
+  edgeSmoothing: {
+    smooth: { antialiasing: 'low' },
+    balanced: { antialiasing: 'medium' },
+    fine: { antialiasing: 'high' },
+    max: {},
+  },
+}
 
 /**
  * The resolution modes: the fraction of the display, per axis, each draws at — the public ratios

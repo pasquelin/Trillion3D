@@ -1,4 +1,5 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
+import { SHADOW_PAGE } from '../light-shadow/sunEntries.ts'
 /**
  * A scene light, version 2. Units are radiometric and linear (P1): `color` is a linear colour and
  * `intensity` a strictly positive radiometric intensity — a radiance for a `rect`. Four kinds,
@@ -86,7 +87,7 @@ export const LIGHT_SETTINGS = {
    * Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of
    * invalidation. A moving object only stales the pages its projected box covers.
    */
-  shadowPage: 128,
+  shadowPage: SHADOW_PAGE,
   /** Side of a lamp face's finest mip, in texels: 32 × 32 pages of 128 (pool: `shadowPoolSize`). */
   lampFaceSize: 4096,
   /** Virtual pages the shading may request per frame at least, as many as the pool holds past it;
@@ -118,6 +119,16 @@ export const LIGHT_SETTINGS = {
    * no bias is a length of the scene.
    */
   shadowNormalOffsetTexels: 0.5,
+  /**
+   * How a translucent surface reads a light's shadow: 0, the default and the cheaper, one sample
+   * of the light's map (`vsmSampleLight`); 1, the receiver's full trace the opaque projection runs, the translucent
+   * casters' colour along its rays included (`vsmTraceFactor`).
+   */
+  translucentShadowQuality: 0 as 0 | 1,
+  /** Whether a local light's shadow reaches a translucent surface, default off to spare each
+   *  translucent pixel a shadow lookup per local light: off, a shadowed local light lights it
+   *  unshadowed. */
+  translucentLocalShadows: false as boolean,
 } as const
 /**
  * Shadow slices the atlas addresses, under the page table's own rules — never a limit on

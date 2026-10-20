@@ -7,7 +7,7 @@ import type { Object3D } from '../object/object3d.ts'
 import type { Clip, Track } from './clip.ts'
 import type { RigReach } from './rigLevers.ts'
 import { clipKeys, clipMotion, type TrackMotion } from './trackMotion.ts'
-import { lastTrue } from '../../../../math/src/scalar/search.ts'
+import { lastAtMost } from '../../../../math/src/scalar/search.ts'
 import { SQRT3 } from '../../../../math/src/constants.ts'
 
 /** A clip playing into the pose, at its weight; `additive` adds it to the others. */
@@ -176,7 +176,7 @@ function tableOf(clip: Clip, w: number, rig: RigTerms): HoldTable {
     table.turned[i + 1] = table.turned[i] + (turn > 0 ? turn * span : 0)
   }
   for (const motion of motions)
-    for (const at of motion.leapsAt) table.leaps[intervalOf(times, at)]++
+    for (const at of motion.leapsAt) table.leaps[lastAtMost(times, at)]++
   for (let i = 1; i < n; i++) table.leaps[i] += table.leaps[i - 1]
   return table
 }
@@ -230,10 +230,5 @@ function isEulerTriple(tr: Track) {
 function speedAt(tr: Track, motion: TrackMotion, t: number) {
   const { times } = tr
   if (!(t >= times[0]) || !(t < times[times.length - 1])) return 0
-  return motion.speeds[intervalOf(times, t)] ?? 0
-}
-
-/** The last index of `times` (in order) at or before `t`; 0 before the first. */
-export function intervalOf(times: ArrayLike<number>, t: number) {
-  return lastTrue(0, times.length - 1, (mid) => times[mid] <= t)
+  return motion.speeds[lastAtMost(times, t)] ?? 0
 }

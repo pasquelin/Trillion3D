@@ -12,26 +12,24 @@ const LEVELS = TEXTURE_PREVIEW_VERSION,
 
 test('identity refuses undecoded sidecars, incompatible formats and stale texture layouts', () => {
   assert.doesNotThrow(() => assertCacheIdentity(identity as never))
-  assert.doesNotThrow(() => assertCacheIdentity({ ...identity, formatVersion: undefined } as never))
   refusesIdentity({ ...identity, binary: { url: 'columns.bin' } }, 'INVALID_CACHE', {})
-  refusesIdentity({ ...identity, schema: 12 }, 'UNSUPPORTED_FORMAT', {
-    schema: 12,
-    formatVersion: 11,
+  refusesIdentity({ ...identity, formatVersion: undefined }, 'UNSUPPORTED_FORMAT', {
+    formatVersion: undefined,
   })
-  refusesIdentity({ ...identity, formatVersion: 1, schema: 1 }, 'UNSUPPORTED_FORMAT', {
+  refusesIdentity({ ...identity, formatVersion: 1 }, 'UNSUPPORTED_FORMAT', {
     formatVersion: 1,
   })
   refusesIdentity(
     { ...identity, errorModel: undefined },
     'STALE_CACHE',
-    { errorModel: null, expected: 'dag-group-qem-v3' },
-    ['absent', 'dag-group-qem-v3'],
+    { errorModel: null, expected: 'dag-group-qem-v4' },
+    ['absent', 'dag-group-qem-v4'],
   )
   refusesIdentity(
     { ...identity, errorModel: 'dag-group-qem-v1' },
     'STALE_CACHE',
-    { errorModel: 'dag-group-qem-v1', expected: 'dag-group-qem-v3' },
-    ['dag-group-qem-v1', 'dag-group-qem-v3'],
+    { errorModel: 'dag-group-qem-v1', expected: 'dag-group-qem-v4' },
+    ['dag-group-qem-v1', 'dag-group-qem-v4'],
   )
   refusesIdentity(
     { ...identity, textures: {} },
@@ -50,13 +48,12 @@ test('identity refuses undecoded sidecars, incompatible formats and stale textur
   )
 })
 
-test('identity accepts whole meshes and refuses stale primitives with actionable identity', () => {
+test('identity refuses whole meshes and stale primitives with actionable identity', () => {
   const page = { lodError: 0, sphere: [0, 0, 0, 1] }
   const blend = { mesh: 3, primitive: 7, pass: 'clustered-blend', pages: [page] }
   assert.doesNotThrow(() =>
     assertCacheIdentity({
       ...identity,
-      schema: 12,
       formatVersion: 12,
       primitives: [blend],
     } as never),
@@ -68,14 +65,14 @@ test('identity accepts whole meshes and refuses stale primitives with actionable
     { formatVersion: 11 },
     ['clustered-blend', 'format 12'],
   )
+  // A whole mesh a compiler left outside the DAG, no cluster: refused, the runtime draws pages.
   const whole = { mesh: 3, primitive: 7, pass: 'shared-blend', pages: [] }
-  assert.doesNotThrow(() => assertCacheIdentity({ ...identity, primitives: [whole] } as never))
-  const stale = { errorModel: 'dag-group-qem-v3', expected: 'dag-group-qem-v3' }
+  const stale = { errorModel: 'dag-group-qem-v4', expected: 'dag-group-qem-v4' }
   refusesIdentity(
-    { ...identity, primitives: [{ ...whole, pages: [page] }] },
+    { ...identity, primitives: [whole] },
     'STALE_CACHE',
     { mesh: 3, primitive: 7, pass: 'shared-blend', ...stale },
-    ['3/7', 'carries 1 cluster pages'],
+    ['3/7', 'error band'],
   )
   refusesIdentity(
     { ...identity, primitives: [{ mesh: 11, primitive: 13, pages: [{ lodError: 0 }] }] },

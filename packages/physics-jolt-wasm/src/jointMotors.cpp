@@ -92,7 +92,7 @@ bool driveMotor(Constraint *constraint, uint32_t kind, EMotorState state, float 
 
 }  // namespace
 
-void driveJoint(Constraint *constraint, uint32_t kind, uint32_t mode, float target, float maxForce, uint32_t axis) {
+void driveJoint(TwoBodyConstraint *constraint, uint32_t kind, uint32_t mode, float target, float maxForce, uint32_t axis) {
   float limit = maxForce > 0 && std::isfinite(maxForce) ? maxForce : FLT_MAX;
   EMotorState state = mode == MOTOR_VELOCITY ? EMotorState::Velocity : mode == MOTOR_POSITION ? EMotorState::Position : EMotorState::Off;
   if (driveMotor(constraint, kind, state, target, limit, axis))

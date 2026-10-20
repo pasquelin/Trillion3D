@@ -1,15 +1,16 @@
-import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+import { dotVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import { triangleCross } from '../../../../math/src/geometry/triangle.ts'
 import { BufferAttribute } from '../buffer/attribute.ts'
 import { Geometry } from './geometry.ts'
 import { pointAt } from './bounds.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 
-/** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders. */
-export function edgesOf(geometry: Geometry) {
+/** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders;
+ *  of the triangles `corners` make when given (a wireframe's drawn range). */
+export function edgesOf(geometry: Geometry, corners?: readonly number[]) {
   const position = geometry.attributes.position
   const count = position?.count ?? 0
-  const corners = geometry.index
+  corners ??= geometry.index
     ? Array.from(geometry.index.array)
     : Array.from({ length: count }, (_, i) => i)
   // Corners that share a position share an edge, whatever their other attributes.
@@ -51,12 +52,7 @@ export function edges(geometry: Geometry, thresholdAngle = 1) {
   const limit = Math.cos(thresholdAngle * DEG2RAD)
   return segments(
     geometry,
-    (normals) =>
-      normals.length < 2 ||
-      normals[0][0] * normals[1][0] +
-        normals[0][1] * normals[1][1] +
-        normals[0][2] * normals[1][2] <=
-        limit,
+    (normals) => normals.length < 2 || dotVector3(normals[0], normals[1]) <= limit,
   )
 }
 

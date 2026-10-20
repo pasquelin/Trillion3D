@@ -84,19 +84,20 @@ export function removeTreeNode(tree: TransformTree, node: number) {
 export function releaseTransformNode(tree: TransformTree, node: number) {
   assertNode(tree, node)
   unlinkTransformNode(tree, node)
-  for (let child = tree.firstChild[node]; child >= 0; child = tree.nextSibling[child]) {
-    tree.parent[child] = -1
-    markTransformNode(tree, child, NODE_LOCAL_CHANGED)
-    hangDepths(tree, child)
-  }
-  for (let child = tree.firstLazy[node]; child >= 0; child = tree.nextSibling[child]) {
-    tree.parent[child] = -1
-    tree.flags[child] &= ~NODE_WORLD_LAZY
-    markTransformNode(tree, child, NODE_LOCAL_CHANGED)
-    hangDepths(tree, child)
-  }
+  orphan(tree, tree.firstChild[node], 0)
+  orphan(tree, tree.firstLazy[node], NODE_WORLD_LAZY)
   tree.firstLazy[node] = tree.lastLazy[node] = -1
   freeNode(tree, node)
+}
+
+/** Turns the list from `first` on into roots, each losing the flags `clear`. */
+function orphan(tree: TransformTree, first: number, clear: number) {
+  for (let child = first; child >= 0; child = tree.nextSibling[child]) {
+    tree.parent[child] = -1
+    tree.flags[child] &= ~clear
+    markTransformNode(tree, child, NODE_LOCAL_CHANGED)
+    hangDepths(tree, child)
+  }
 }
 
 /** A freed slot keeps only its place in `listed`, which the frame pass skips; the lazy leaves

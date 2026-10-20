@@ -2,12 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assertCacheIdentity, assertCachePointer, assertCacheReady, EngineError } from './cache.ts'
 import { CLUSTERED_BLEND_FORMAT_VERSION, DAG_ERROR_MODEL, FORMAT_VERSION } from './base.ts'
-import {
-  pageCarriesClusterError,
-  primitiveIsDrawable,
-  primitiveUsesClusterErrors,
-  UNSPLIT_PASS,
-} from './geometry.ts'
+import { pageCarriesClusterError, primitiveUsesClusterErrors } from './geometry.ts'
 import { MANIFEST_BINARY_VERSION } from './writtenFormats.ts'
 test('a cache whose pages carry their own cluster errors requires the DAG error model', () => {
   const page = (
@@ -33,7 +28,7 @@ test('a cache whose pages carry their own cluster errors requires the DAG error 
     parentSphere,
   })
   const metadata = {
-    schema: FORMAT_VERSION,
+    formatVersion: FORMAT_VERSION,
     status: 'ready',
     key: 'k',
     scope: 'full' as const,
@@ -103,7 +98,6 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
   const slim = {
     status: 'ready',
     scope: 'full',
-    schema: CLUSTERED_BLEND_FORMAT_VERSION,
     formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     clusterStrategy: 'dag-groups',
     errorModel: DAG_ERROR_MODEL,
@@ -117,7 +111,6 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     assertCacheReady(
       {
         ...slim,
-        schema: FORMAT_VERSION,
         formatVersion: FORMAT_VERSION,
         clusterStrategy: undefined,
         errorModel: undefined,
@@ -133,12 +126,8 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     [{ ...slim, selectedNodes: [0] }, 'INVALID_CACHE'],
     [{ ...slim, status: 'pending' }, 'INVALID_CACHE'],
     [{ ...slim, scope: 'slice' }, 'SCOPE_MISMATCH'],
-    [
-      { ...slim, schema: FORMAT_VERSION, formatVersion: CLUSTERED_BLEND_FORMAT_VERSION },
-      'UNSUPPORTED_FORMAT',
-    ],
     ...[1, 5, 6].map((v) => [
-      { ...slim, schema: v, formatVersion: v, selectedNodes: [0] },
+      { ...slim, formatVersion: v, selectedNodes: [0] },
       'UNSUPPORTED_FORMAT', // formats 5 and 6 carry `selectedNodes` as a list
     ]),
     ...['bounds-diagonal-boundary-v1', 'dag-group-qem-v1', 'dag-group-qem-v2', undefined].map(
@@ -150,12 +139,11 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
       (error: unknown) => error instanceof EngineError && error.code === code,
     )
 })
-test('an unsplit primitive has no error band, and the cache remains readable', () => {
-  // The compiler keeps outside the DAG any primitive required by a material property — transmission
-  // in KHR_materials_transmission, skinning, morph targets. It then has
-  // no cluster, hence no band: loading accepts it, instead of rejecting the scene.
+test('a primitive left outside the DAG, no cluster and so no band, is refused by name', () => {
+  // A compiler that kept a whole mesh outside the DAG — a transmission, once — left it no page: the
+  // runtime draws every primitive from its clusters, and asks for a recompile.
   const metadata = {
-    schema: FORMAT_VERSION,
+    formatVersion: FORMAT_VERSION,
     status: 'ready',
     key: 'k',
     scope: 'full' as const,
@@ -164,32 +152,12 @@ test('an unsplit primitive has no error band, and the cache remains readable', (
     selectedTriangles: 2,
     selectedNodes: 1,
     totalNodes: 1,
-    primitives: [{ mesh: 0, primitive: 0, pass: UNSPLIT_PASS, pages: [] }],
+    primitives: [{ mesh: 0, primitive: 0, pass: 'shared-blend', pages: [] }],
   }
-  assertCacheIdentity(metadata)
-  assert.equal(primitiveIsDrawable(metadata.primitives[0]), true)
   assert.equal(primitiveUsesClusterErrors(metadata.primitives[0]), false)
-  // It does not open the door: an unsplit primitive that still carries pages
-  // comes from a compiler this runtime cannot read, and it is rejected like a DAG without error band.
-  const withPages = {
-    ...metadata,
-    primitives: [
-      {
-        mesh: 0,
-        primitive: 0,
-        pass: UNSPLIT_PASS,
-        pages: [
-          { id: 0, url: '0', sha256: 'x', bytes: 12, count: 3, min: [0, 0, 0], max: [1, 1, 1] },
-        ],
-      },
-    ],
-  }
   assert.throws(
-    () => assertCacheIdentity(withPages),
+    () => assertCacheIdentity(metadata),
     (error: unknown) =>
-      error instanceof EngineError &&
-      error.code === 'STALE_CACHE' &&
-      error.details.pass === UNSPLIT_PASS,
+      error instanceof EngineError && error.code === 'STALE_CACHE' && error.details.mesh === 0,
   )
-  assert.equal(primitiveIsDrawable(withPages.primitives[0]), false)
 })
