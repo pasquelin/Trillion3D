@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import {
   TAA_SAMPLES,
-  taaStillFrames,
   jitterViewProjection,
   taaJitter,
   upscaleMipBias,
@@ -46,22 +45,6 @@ test('a prime number of distinct jitters, centred in the pixel, deterministic an
   // The same rank yields the same jitter, and the cycle closes: that is what makes two runs
   // identical and the A/A witness possible.
   assert.deepEqual([...taaJitter(3, out)], [...taaJitter(3 + TAA_SAMPLES, new Float64Array(2))])
-  // A hold closes a whole number of cycles, the first with 64 draws: six cycles of eleven.
-  assert.equal(taaStillFrames(TAA_SAMPLES), 6 * TAA_SAMPLES)
-})
-
-test('a still hold is a whole number of cycles of at least 64 images, at every phase count', () => {
-  for (const [phases, frames] of [
-    [11, 66],
-    [17, 68],
-    [19, 76],
-    [37, 74],
-    [131, 131],
-  ]) {
-    assert.equal(taaStillFrames(phases), frames, `${phases} phases`)
-    assert.equal(frames % phases, 0)
-    assert.ok(frames >= 64)
-  }
 })
 
 test('jitter is a translation in clip space, zero when the offset is zero', () => {
@@ -116,8 +99,10 @@ test('jitter phases follow the render-to-display ratio, a prime, distinct and st
   }
 })
 
-test('the texture level offset is zero at native size and log2 of the scale below it', () => {
-  assert.equal(upscaleMipBias(3456, 3456), 0)
-  assert.equal(upscaleMipBias(1728, 3456), -1)
-  assert.equal(upscaleMipBias(2312, 3456), Math.log2(2312 / 3456))
+test('the texture level offset is log2 of the scale, −0.3 added and quantised under a temporal resolve', () => {
+  // No temporal upscale: no offset.
+  for (const render of [3456, 1728, 2312]) assert.equal(upscaleMipBias(render, 3456, false), 0)
+  const step = 8 / 1024
+  assert.equal(upscaleMipBias(3456, 3456), Math.ceil(-0.3 / step) * step)
+  assert.equal(upscaleMipBias(1728, 3456), Math.ceil(-1.3 / step) * step)
 })

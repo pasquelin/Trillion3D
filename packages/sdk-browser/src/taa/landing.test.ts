@@ -1,35 +1,16 @@
-// A shadow page drawn on a still image restarts the still average, else the shadow drawn
-// at rest stays diluted in the average, faint. The virtual shadow maps count the pages they drew
-// (`renderedTotal`, read back a few frames late, `vsmSettle.ts`): each new count is a landing.
+// Only what the history no longer describes — a view cut, new targets, the pass switched — drops
+// it, the jitter back to phase zero, as a camera cut restarts the sample sequence.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { restartTaaOnShadowLanding } from './landing.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { dropTaaHistory } from './landing.ts'
+import { createTaaFrameState } from './frameState.ts'
 
-test('pages the shadow maps drew restart the still average, once each', () => {
-  const frame = { active: true, stillFrames: 0, hasHistory: true, shadowsSeen: 0 },
-    settle = { renderedTotal: 4 },
-    rt = {
-      gpu: { temporal: { frame } },
-      lights: { vsm: { settle } },
-    } as never as WebgpuPagesRuntime
-  const land = () => restartTaaOnShadowLanding(rt)
-  const still = (frames: number) => Object.assign(frame, { stillFrames: frames, hasHistory: true })
-  land()
-  still(5)
-  land()
-  assert.equal(frame.stillFrames, 5, 'nothing landed: the average goes on')
-  settle.renderedTotal = 6
-  land()
-  assert.deepEqual([frame.stillFrames, frame.hasHistory], [0, false], 'two pages landed')
-  still(3)
-  land()
-  assert.equal(frame.stillFrames, 3, 'each landing restarts it once')
+test('a dropped history restarts the jitter at phase zero', () => {
+  const frame = Object.assign(createTaaFrameState(), { sample: 3, hasHistory: true })
+  dropTaaHistory(frame)
+  assert.deepEqual([frame.sample, frame.hasHistory], [0, false])
 })
 
-test('a session without shadow maps lands nothing', () => {
-  const frame = { active: true, stillFrames: 4, hasHistory: true, shadowsSeen: 0 },
-    rt = { gpu: { temporal: { frame } }, lights: {} } as never as WebgpuPagesRuntime
-  restartTaaOnShadowLanding(rt)
-  assert.equal(frame.stillFrames, 4)
+test('a view without the pass has nothing to drop', () => {
+  assert.doesNotThrow(() => dropTaaHistory(undefined))
 })

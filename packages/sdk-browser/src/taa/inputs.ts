@@ -4,7 +4,7 @@ import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 import { namedEntries } from '../gpu/core/computeBindings.ts'
 
 /** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
- *  identifiers, the page-record table, placement motion matrices and the surface flags — absent
+ *  identifiers, the page-record table, placement motion matrices, and the as-is flags — absent
  *  when no as-is pixel is in the frame, which the flagless resolve reads none of. */
 export interface TaaInputs {
   current: GPUTextureView
@@ -14,8 +14,9 @@ export interface TaaInputs {
   motion: GPUBuffer
   flags?: GPUTextureView
   share?: GPUTextureView
-  /** The reactive value the blends, particles and water wrote, in its green channel
-   *  (`../lighting/deferred/asIsShare.ts`); absent, none is (a 1×1 zero is bound). */
+  /** The reactive value the blends, particles and water wrote, in its green channel — their
+   *  accumulated opacity over the pixel (`../lighting/deferred/asIsShare.ts`); absent, none is (a
+   *  1×1 zero is bound). */
   reactive?: GPUTextureView
   /** The display layers of a frame whose blends filter (`../webgpu/blend/displayFilter.ts`). */
   filter?: DisplayLayers
@@ -25,53 +26,35 @@ export interface TaaInputs {
   positions: GPUBuffer
   uvs: GPUBuffer
 }
-export const INPUTS = [
-  'current',
-  'depth',
-  'ids',
-  'pages',
-  'motion',
-  'flags',
-  'share',
-  'reactive',
-  'filter',
-  'pool',
-  'positions',
-  'uvs',
-] as const
+/** What the history update's groups name, in their identity order. */
+export const INPUTS = ['current', 'flags', 'share', 'filter'] as const
 
 /**
- * The pass's bindings but the display layers', reading history `image`: its colour and its share
- * target (`historyWgsl.ts`); the flags, or a blended share, when the frame has them; `noReactive`
- * when the frame hands no reactive value; `texelSampler`, the resolve's gathers'.
+ * The history update's bindings but the display layers', reading history `image`: its colour and
+ * its share target (`resolveWgsl.ts`); the flags, or a blended share, when the frame has them;
+ * the analysis's outputs (`analysis.ts`): each render texel's hole-filled reprojection vector,
+ * shading rejection, and the spatial anti-aliaser's offset and noise filtering.
  */
 export function taaGroupEntries(
   inputs: TaaInputs,
   image: AccumulatedImage,
   sampler: GPUSampler,
-  texelSampler: GPUSampler,
   uniform: GPUBuffer,
-  noReactive: GPUTextureView,
-  geometry: GPUTextureView,
-  shading: GPUTextureView,
+  analysis: {
+    vectors: GPUTextureView
+    rejection: GPUTextureView
+    antiAliasing: GPUTextureView
+  },
 ): GPUBindGroupEntry[] {
   return namedEntries(TAA_BINDINGS, {
     current: inputs.current,
     history: image.color,
     historySampler: sampler,
-    texelSampler,
-    depth: inputs.depth,
-    ids: inputs.ids,
-    pages: { buffer: inputs.pages },
-    motion: { buffer: inputs.motion },
+    rejection: analysis.rejection,
+    vectors: analysis.vectors,
+    antiAliasing: analysis.antiAliasing,
     view: { buffer: uniform },
-    reactive: inputs.reactive ?? noReactive,
     shareHistory: image.share,
-    geometryHistory: geometry,
-    shadingHistory: shading,
-    indices: { buffer: inputs.pool },
-    positions: { buffer: inputs.positions },
-    uvs: { buffer: inputs.uvs },
     ...((inputs.flags || inputs.share) && { flags: inputs.share ?? inputs.flags! }),
   })
 }

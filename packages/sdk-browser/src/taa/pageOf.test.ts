@@ -1,16 +1,16 @@
-// The page record a pixel's identifier names is indexed once, by `pageOf`: the identity the
-// geometry history keeps and the dynamic test both come from that one read (`pageIdWgsl.ts`).
+// The page record a pixel's identifier names is indexed once, by `pageOf`: the dynamic test comes
+// from that one read (`pageIdWgsl.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { PAGE_OF_WGSL } from './pageIdWgsl.ts'
-import { taaResolveShader } from './resolveWgsl.ts'
+import { velocityShader } from './velocityWgsl.ts'
 import { taaBuiltins } from './taaBuiltins.fixture.ts'
 
 type Page = { placement: number; flags: number; deformOutput: number }
-type PageOf = (id: number) => { identity: number; animated: number }
+type PageOf = (id: number) => { animated: number }
 
 /** `pageOf` over `records`, and the table indexes it made. */
 function run(records: Page[]) {
@@ -33,12 +33,10 @@ const page = (placement: number, flags = 0, deformOutput = 0): Page => ({
   deformOutput,
 })
 
-test('history identity distinguishes placements separated by 255 and preserves the sky', () => {
-  const { pageOf, indexed } = run([page(0), page(255), page(0xffffff)])
-  assert.equal(pageOf(0).identity, 0)
-  assert.deepEqual(indexed, [], 'the background names no row: none is read')
-  assert.notEqual(pageOf(1 << 8).identity, pageOf(2 << 8).identity)
-  assert.equal(pageOf(3 << 8).identity, 0x1000000)
+test('the background names no row: none is read, and it is not animated', () => {
+  const { pageOf, indexed } = run([page(0, FLAG_DYNAMIC)])
+  assert.equal(pageOf(0).animated, 0)
+  assert.deepEqual(indexed, [])
 })
 
 test('a pixel is animated where its geometry changes with no tracked deformation', () => {
@@ -51,7 +49,7 @@ test('a pixel is animated where its geometry changes with no tracked deformation
   )
 })
 
-test('the record is indexed once for the identity and the dynamic test together', () => {
+test('the record is indexed once for the dynamic test', () => {
   const { pageOf, indexed } = run([page(4, FLAG_DYNAMIC), page(9, FLAG_DYNAMIC, 3)])
   for (const id of [1 << 8, (2 << 8) | 5]) {
     indexed.length = 0
@@ -60,9 +58,9 @@ test('the record is indexed once for the identity and the dynamic test together'
   }
 })
 
-test('the resolve reads the record once, and no function of its own indexes the table again', () => {
+test('the nearest velocity reads the record once, and its entry indexes the table no other way', () => {
   for (const [name, shader, main] of [
-    ['resolve, fragment', taaResolveShader(false), 'resolve'],
+    ['nearest velocity, compute', velocityShader(), 'nearestVelocity'],
   ] as const) {
     const calls = (text: string, call: string) => text.split(call).length - 1
     assert.equal(calls(functionsOf(shader, ['pageOf']), 'pages['), 1, `${name}: pageOf`)

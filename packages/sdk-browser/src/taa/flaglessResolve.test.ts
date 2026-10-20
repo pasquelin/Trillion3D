@@ -4,24 +4,37 @@ import { createTemporalAntialiasing } from './temporalAntialiasing.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { TAA_BINDINGS } from './bindingsWgsl.ts'
 
-// Both resolves compile with the pass; a frame handed no flags draws the flagless one, on
-// a group and layout without the flags, and compiles nothing.
+// The resolves compile with the pass, the analysis's programs after them — five compute passes and
+// the spatial anti-aliaser's draw —; a frame handed no flags draws the flagless one, on a group and
+// layout without the flags, and compiles nothing.
 test('a frame with no as-is pixel resolves flagless, and switching compiles no pipeline', async () => {
-  const { device, renderPipelines, draws } = fakeDevice()
-  const modules = () => renderPipelines.map(({ fragment }) => fragment!.module.label)
+  const { device, renderPipelines, computePipelines, draws: all } = fakeDevice()
+  // The resolves' draws, past the spatial anti-aliaser's before each.
+  const resolves = () =>
+    all.filter(({ pipeline }) => pipeline.fragment!.module.label.startsWith('TAA_RESOLVE'))
+  const modules = () => [
+    ...renderPipelines.map(({ fragment }) => fragment!.module.label),
+    ...computePipelines.map(({ compute }) => compute.module.label),
+  ]
   const temporal = await createTemporalAntialiasing(device, [])
-  // The ones that read no reactive value compile after them, off the preparation.
-  assert.deepEqual(modules().slice(0, 3), [
+  assert.deepEqual(modules(), [
     'TAA_RESOLVE',
     'TAA_RESOLVE_FLAGLESS',
     'TAA_RESOLVE_BLENDED',
+    'TAA_SPATIAL_AA',
+    'TAA_VELOCITY',
+    'TAA_REPROJECT',
+    'TAA_THIN_GEOMETRY',
+    'TAA_FLICKER',
+    'TAA_HELD_MEASURE',
+    'TAA_REJECTION',
   ])
   const prepared = modules().length
-  temporal.resize(8, 4)
+  temporal.resize(8, 4, 8, 4)
   const encoder = device.createCommandEncoder()
   /** Each resolve drawn: its module, the bindings its group binds and those its layout declares. */
   const drawn = () =>
-    draws.map(({ pipeline, groups: [group] }) => {
+    resolves().map(({ pipeline, groups: [group] }) => {
       const { entries, layout } = group as GPUBindGroupDescriptor
       return {
         module: pipeline.fragment!.module.label,
@@ -43,12 +56,10 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
     positions: buffer,
     uvs: buffer,
   }
-  // Handed a reactive value, a frame draws the resolve that reads it, whether or not the one that
-  // reads none has compiled yet.
   const reading = { ...inputs, reactive: view() }
-  temporal.encode(encoder, reading)
-  temporal.encode(encoder, { ...reading, flags: view() })
-  temporal.encode(encoder, { ...reading, share: view() })
+  temporal.encode(encoder, reading, [4, 2])
+  temporal.encode(encoder, { ...reading, flags: view() }, [4, 2])
+  temporal.encode(encoder, { ...reading, share: view() }, [4, 2])
   assert.equal(modules().length, prepared, 'no pipeline compiled in a frame')
   // The share history is the share target every resolve binds: the flags alone are the flagless'
   // difference.
@@ -61,22 +72,25 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   assert.ok(first[1].bindings.includes(flags))
   assert.equal(first[2].module, 'TAA_RESOLVE_BLENDED')
   assert.ok(first[2].bindings.includes(flags))
-  // Every resolve reads the share target and gathers through the texel sampler.
+  // Every resolve reads the share target and the analysis: the reprojection vectors, the shading
+  // rejection and the spatial anti-aliaser.
   for (const { bindings, layout } of first)
-    for (const binding of [TAA_BINDINGS.shareHistory, TAA_BINDINGS.texelSampler])
+    for (const binding of [
+      TAA_BINDINGS.shareHistory,
+      TAA_BINDINGS.vectors,
+      TAA_BINDINGS.rejection,
+      TAA_BINDINGS.antiAliasing,
+    ])
       assert.ok(bindings.includes(binding) && layout.includes(binding), `binding ${binding}`)
-  // Off the preparation, the flagless and as-is resolves that read no reactive value compile; a
-  // frame handed none then draws them, one handed one the reading resolve.
-  do await new Promise((done) => setImmediate(done))
-  while (modules().length < 5)
-  temporal.encode(encoder, inputs)
-  temporal.encode(encoder, { ...inputs, flags: view() })
-  temporal.encode(encoder, { ...inputs, reactive: view() })
+  // A frame handed no reactive value draws the same resolves, the zero texel read in its place.
+  temporal.encode(encoder, inputs, [4, 2])
+  temporal.encode(encoder, { ...inputs, flags: view() }, [4, 2])
   assert.deepEqual(
     drawn()
       .slice(3)
       .map(({ module }) => module),
-    ['TAA_RESOLVE_FLAGLESS_UNREACTIVE', 'TAA_RESOLVE_UNREACTIVE', 'TAA_RESOLVE_FLAGLESS'],
+    ['TAA_RESOLVE_FLAGLESS', 'TAA_RESOLVE'],
   )
+  assert.equal(modules().length, prepared, 'nor in a frame without a reactive value')
   temporal.dispose()
 })

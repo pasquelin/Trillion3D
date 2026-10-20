@@ -9,17 +9,28 @@ import {
 
 import { transformDirectionRow } from '../../../math/src/vector/vector.ts'
 import { TAA_VIEW, TAA_VIEW_BYTES } from './bindingsWgsl.ts'
-import { historyWeightMax } from './layers.ts'
-import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
+import { IMAGE_SAMPLES } from './historyWgsl.ts'
+import { THIN_GEOMETRY_PERIODS, flickerCountRate, flickerParallaxInverse } from './flickerWgsl.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { stochasticSlot, type TaaFrameState } from './frameState.ts'
+import { TAA_LEVEL_KNOBS, type TaaLevelKnobs } from './levels.ts'
 
 const T = TAA_VIEW.at,
   anchored = new Float64Array(16),
   packed = new Float32Array(TAA_VIEW_BYTES / 4)
 
-/** Writes `(width, height, 1/width, 1/height)` at `at`. */
-function writeGrid(into: Float32Array, at: number, [width, height]: readonly number[]) {
+/** The exposure every measured colour of the pass is exposed by: `environment`'s, kept above zero
+ *  so its ratio to the last image's stays finite. */
+export const taaExposure = (environment: SceneEnvironment | undefined) =>
+  Math.max(environmentExposure(environment), 1e-6)
+
+/** Whether `projection` (column-major) is orthographic: its `w` does not follow the depth. */
+export const isOrthographic = (projection: ArrayLike<number>) => projection[11] === 0
+
+/** Writes `(width, height, 1/width, 1/height)` of `grid` at `at`. */
+function writeGrid(into: Float32Array, at: number, grid: ArrayLike<number>) {
+  const width = grid[0],
+    height = grid[1]
   into[at] = width
   into[at + 1] = height
   into[at + 2] = 1 / width
@@ -44,13 +55,36 @@ function writeReprojection(
 }
 
 /**
- * The pass's uniform for this frame (`TaaView`, `shaderWgsl.ts`): both matrices at the eye, the
- * display grid the history has, the history flags, the `render` grid the frame was drawn in, its
- * jitter, whether it moves and its stochastic slot (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the
- * last image's; `deformed`, a GPU deformation moved; `environment`, the scene's, whose exposure the
- * history's luma and the blend weights are measured in (`shadingHistoryWgsl.ts`); the camera's
- * parallax since the last image, the flicker rates, counted in images, and a render pixel's
- * width in the world (`shadingStill`).
+ * The projection's depth terms (`view.depth`, `view.radius`, `depthWgsl.ts`) from the column-major
+ * `projection` and the render width: a view point `(0, 0, t)` projects to `z = p₁₀·t + p₁₄`,
+ * `w = p₁₁·t + p₁₅`; its scene depth is `|t|`, `t` of the sign that puts it ahead (`radius.z`). A
+ * render pixel's world radius is `1 / (|p₀| · width)` per unit of depth under a perspective, at any
+ * depth under an orthographic projection (`radius.w`).
+ */
+function writeDepthTerms(into: Float32Array, projection: ArrayLike<number>, renderWidth: number) {
+  into[T.depth] = projection[10]
+  into[T.depth + 1] = projection[14]
+  into[T.depth + 2] = projection[11]
+  into[T.depth + 3] = projection[15]
+  const radius = 1 / ((Math.abs(projection[0]) || 1) * renderWidth)
+  const perspective = !isOrthographic(projection)
+  into[T.radius] = perspective ? radius : 0
+  into[T.radius + 1] = perspective ? 0 : radius
+  into[T.radius + 2] = perspective ? Math.sign(projection[11]) : -Math.sign(projection[10]) || 1
+  into[T.radius + 3] = perspective ? 0 : 1
+}
+
+/**
+ * The pass's uniform for this frame (`TaaView`, `bindingsWgsl.ts`): both matrices at the eye, the
+ * display grid the history has, whether the history describes nothing (a cut), the display layers'
+ * history holds the last image's (`layers`), a placement moved (`moved`), the `render` grid the frame
+ * was drawn in, its jitter and its rank, the eye and whether a GPU deformation moved (`deformed`);
+ * the `exposure` every measured colour is exposed by (`taaExposure`), and its ratio to the last
+ * image's; the flicker rates for a frame `frameIntervalMs` long; what the resolve outputs in place
+ * of the accumulated colour (`output`, `taaViewCode`); the camera's parallax since the last image; the blend factor a whole shading history takes the image at (`IMAGE_SAMPLES`); the
+ * projection's depth terms;
+ * the last image's render grid and the render-resolution histories' allocated size (`analysisGrid`);
+ * the level's `knobs`, the finest level's by default.
  */
 export function writeTaaView(
   device: GPUDevice,
@@ -59,29 +93,36 @@ export function writeTaaView(
   cam: EngineCamera,
   render: readonly number[],
   display: readonly number[],
+  analysisGrid: readonly number[],
   moved: boolean,
   layers = false,
   deformed = false,
-  environment?: SceneEnvironment,
+  exposure = taaExposure(undefined),
+  frameIntervalMs: number | null = null,
+  output = 0,
+  knobs: TaaLevelKnobs = TAA_LEVEL_KNOBS.max,
 ) {
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
   // on its texel — re-read to the jitter, it would be resampled bilinearly every image and would
   // soften without end.
   writeReprojection(packed, state.previousViewProjection, cam.viewProjection, cam.eye, display)
-  // The most weight a history holds, the frame's own (`historyWeightMax`).
-  packed[T.params] = historyWeightMax(render[0], display[0])
-  packed[T.params + 1] = state.hasHistory ? 1 : 0
+  // A view cut or no history yet: every history is off screen, the image taken whole.
+  packed[T.params] = state.hasHistory ? 0 : 1
+  packed[T.params + 1] = layers ? 1 : 0
   packed[T.params + 2] = moved ? 1 : 0
-  packed[T.params + 3] = layers ? 1 : 0
+  packed[T.params + 3] = output
   writeGrid(packed, T.render, render)
   packed[T.jitter] = state.jitter[0]
   packed[T.jitter + 1] = state.jitter[1]
-  packed[T.jitter + 2] = state.stillFrames > 0 ? 0 : 1
+  packed[T.jitter + 2] = state.stochasticSample
   packed[T.jitter + 3] = stochasticSlot(state)
   packed.set(cam.eye, T.eye)
   packed[T.eye + 3] = deformed ? 1 : 0
-  packed[T.tsr] = Math.max(environmentExposure(environment), 1e-6)
+  packed[T.exposure] = exposure
+  packed[T.exposure + 1] = state.hasHistory ? exposure / state.previousExposure : 1
+  packed[T.exposure + 2] = flickerCountRate(frameIntervalMs)
+  packed[T.exposure + 3] = flickerCountRate(frameIntervalMs, THIN_GEOMETRY_PERIODS)
   // The last projection of the eye's move since: `previous · (lastEye − eye, 0)`, its three first
   // columns, which anchoring at the eye leaves as they are.
   const last = state.previousViewProjection,
@@ -91,9 +132,17 @@ export function writeTaaView(
     dz = state.previousEye[2] - eye[2]
   for (let row = 0; row < 4; row++)
     packed[T.parallax + row] = transformDirectionRow(last, row, dx, dy, dz)
-  packed[T.moire] = FLICKER_COUNT_RATE
-  packed[T.moire + 1] = flickerParallax(display[0])
-  // A render pixel's world width at a clip w of one: 2 / (projection x scale · render width).
-  packed[T.moire + 2] = 2 / ((Math.abs(cam.projection?.[0] ?? 1) || 1) * render[0])
+  packed[T.rates] = flickerParallaxInverse(render[0], frameIntervalMs)
+  // The blend factor of a render pixel's history holding the image's samples, at this render scale.
+  packed[T.rates + 1] = 1 / (1 + IMAGE_SAMPLES / (render[0] / display[0]) ** 2)
+  packed[T.rates + 2] = 0
+  packed[T.rates + 3] = 0
+  writeDepthTerms(packed, cam.projection, render[0])
+  writeGrid(packed, T.prevRender, state.previousRender[0] > 0 ? state.previousRender : render)
+  writeGrid(packed, T.analysisGrid, analysisGrid)
+  packed[T.quality] = knobs.flicker ? 1 : 0
+  packed[T.quality + 1] = knobs.antiAliasIterations
+  packed[T.quality + 2] = knobs.movesFar ? 1 : 0
+  packed[T.quality + 3] = 0
   device.queue.writeBuffer(uniform, 0, packed)
 }

@@ -42,3 +42,26 @@ fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  return vec4f(q+m*(b.x*d0+b.y*d1+b.z*d2),1.0);
 }`,
 )
+
+/**
+ * Where the surface point `here` a render texel shows stood in the last frame, relative to this
+ * frame's eye (`pointBefore`): a geometry texel's point through its own motion matrix —
+ * `previous·current⁻¹`, identity for those that have not moved — after its deformation moved it
+ * back; the background, at zero depth (reversed, infinite far plane), is a direction and goes back
+ * as it is, which keeps the silhouette stable when the camera turns. `id` is the identifier of the
+ * texel, read once for its identity, its motion and its deformation. The nearest velocity pass
+ * reprojects it (`velocityWgsl.ts`).
+ */
+export const TAA_REPROJECT_WGSL = wgslBlock(
+  'TAA_REPROJECT_WGSL',
+  [TAA_DEFORM_WGSL, visPageIndex],
+  `
+fn placementOf(id:u32)->u32{return pages[visPageIndex(id)].placement;}
+fn pointBefore(here:vec4f,id:u32)->vec4f{
+ var position=here;
+ // A deformed surface was elsewhere in the last frame: its point moves back first.
+ if(view.eye.w!=0.0){position=deformedPrevious(id,position);}
+ if(view.params.z!=0.0&&!(${NO_PAGE_ID})){position=motion[placementOf(id)]*position;}
+ return position;
+}`,
+)

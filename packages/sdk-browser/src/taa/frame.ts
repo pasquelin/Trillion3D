@@ -1,73 +1,52 @@
-import { jitterViewProjection, taaJitter, taaStillFrames, upscalePhases } from './jitter.ts'
-import { writeTaaView } from './view.ts'
+import { jitterViewProjection, taaJitter, upscalePhases } from './jitter.ts'
+import { isOrthographic, taaExposure, writeTaaView } from './view.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { AccumulatedImage } from '../lighting/deferred/program.ts'
 import { writtenFilter } from '../webgpu/blend/displayFilter.ts'
-import { drawFrameAt } from '../webgpu/pages/state/renderScale.ts'
-import { renderExtent } from '../frame/renderScaleOption.ts'
-import { restartTaaAverage, restartTaaOnShadowLanding } from './landing.ts'
+import { drawFrameAt, scalesTargets, taaRuns } from '../webgpu/pages/state/renderScale.ts'
+import { dropTaaHistory } from './landing.ts'
 import { encodeComposedMotion } from '../placement/composedMotionPass.ts'
+import { taaViewCode } from '../visibility/shader/shadeMode.ts'
+import { TAA_LEVEL_KNOBS } from './levels.ts'
 
 /**
- * Image entry of the pass, called once per image, where the quiet of the image is known. A
+ * Image entry of the pass, called once per image drawn, where the image's motion is known. A
  * surface capture and a diagnostic view do not accumulate: they render at the centre of the
- * pixel, as their contract says. Otherwise: at the first quiet image the history is dropped and
- * jitter restarts at phase zero; the current rank's jitter is set on the render view-projection,
- * selection always reads the engine camera's own planes.
+ * pixel, as their contract says; so does an image with the pass off, drawn at the controller's
+ * scale, which the composition upscales. Otherwise the current
+ * rank's jitter is set on the render view-projection, selection always reads the engine camera's
+ * own planes. The pass runs on every image drawn, so a still view keeps converging; its history
+ * is reset on a view cut alone (`dropTaaHistory`), the jitter back to phase zero with it;
+ * each display pixel between render texels meets the phases that align with it (`sampleWeight`).
  */
-export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: boolean) {
+export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const temporal = rt.gpu.temporal
   // Switched off, the pass is kept but nothing accumulates (`setWebgpuTemporalAntialiasing`).
-  const active = rt.gpu.temporalWanted && !rt.capture.capturing && rt.run.diagnostic === 'beauty'
+  const active = taaRuns(rt)
   if (temporal) temporal.frame.active = active
-  if (!temporal || !active) return drawFrameAt(rt, 1)
-  const state = temporal.frame
-  const revision = rt.run.gate.temporalRevision
-  const discontinuity = revision !== undefined && revision !== state.viewSeen
-  // A convergence image remakes the last ordinary image, at its scale; it does not accumulate. A
-  // capture's barrier makes resident what its still image will read: at that image's scale, one
-  // jitter phase after another (`stillPhase`), whatever the path before it.
-  const converging = rt.run.textureConverging || !!rt.feedbackAB?.force
-  if (converging) quiet = temporal.replay()
-  // A view cut drops the history: after the replay, which brings back the checkpoint's own.
-  if (discontinuity) {
-    restartTaaAverage(state)
+  if (!temporal || !active) {
+    // No temporal upscaler: the dynamic scale still steers a beauty image, which the composition
+    // upscales spatially; a capture or a
+    // diagnostic view at the bounds' maximum.
+    const { scale } = rt.views.active
+    if (scalesTargets(rt)) return drawFrameAt(rt, scale.wanted(), !rt.run.textureConverging)
+    return drawFrameAt(rt, scale.bounds.max, scale.bounds.max === scale.wanted())
+  }
+  const state = temporal.frame,
+    { gate, textureConverging } = rt.run
+  const revision = gate.temporalRevision
+  if (revision !== undefined && revision !== state.viewSeen) {
+    dropTaaHistory(state)
     state.viewSeen = revision
   }
-  if (converging) {
-    if (state.stillPhase !== null) state.scale = rt.scale.wanted()
-  } else {
-    // A still image is drawn at the controller's scale like a moving one, the frame's budget, in
-    // targets made at the bounds' maximum (`allocated`): the resolve rebuilds the display's detail
-    // from its jitter phases (`resolveWgsl.ts`), averaged uniformly over their whole cycles before
-    // the hold (`taaSettled`). The average is of one drawn size, its phases and jitter grid: the
-    // controller changing it, which still images only lower, restarts it at the new one.
-    const scale = rt.scale.wanted(),
-      { displaySize } = rt.gpu
-    if (
-      quiet &&
-      (renderExtent(displaySize[0], scale) !== renderExtent(displaySize[0], state.scale) ||
-        renderExtent(displaySize[1], scale) !== renderExtent(displaySize[1], state.scale))
-    )
-      restartTaaAverage(state)
-    state.scale = scale
-    temporal.checkpoint(quiet)
-  }
-  drawFrameAt(rt, state.scale, !converging, quiet)
-  if (!quiet) state.stillFrames = 0
-  else if (state.stillFrames++ === 0) {
-    state.hasHistory = false
-    state.sample = 0
-  }
+  // Drawn at the controller's scale, which a texture convergence image does not steer.
+  drawFrameAt(rt, rt.views.active.scale.wanted(), !textureConverging)
   // The jitter is in the pixels the frame is drawn in; its phases follow the ratio to the display.
   const { targetSize, displaySize } = rt.gpu
   state.phases = upscalePhases(targetSize[0], displaySize[0])
-  // An image its still average still needs is the image arriving (`taaArrivals`).
-  if (quiet && !converging && state.stillFrames <= taaStillFrames(state.phases)) state.stillDrawn++
-  const offset = converging ? (state.stillPhase ?? 0) : 0
-  taaJitter(state.sample + offset, state.jitter, state.phases)
+  taaJitter(state.sample, state.jitter, state.phases)
   state.jitterGrid[0] = targetSize[0]
   state.jitterGrid[1] = targetSize[1]
   jitterViewProjection(
@@ -103,8 +82,9 @@ export function taaRenderProjection(rt: WebgpuPagesRuntime, cam: EngineCamera, o
 /**
  * Encodes this image's temporal pass and its display layers; returns the accumulated image
  * composition reads, `undefined` when none. Writes the uniform, updates motion, advances the
- * jitter, keeps the unjittered view-projection; `asIs` false reads no flags; the image is
- * reconstructed to the display from whatever size it was drawn at. `share`, seeded when blends or particles draw,
+ * jitter, keeps the unjittered view-projection, the render grid and the exposure the
+ * render-resolution histories are kept at; `asIs` false reads no as-is flags; the image is reconstructed to the display from whatever size it
+ * was drawn at. `share`, seeded when blends or particles draw,
  * holds the as-is share and the reactive value the blends, particles and water wrote
  * (`../lighting/deferred/asIsShare.ts`), which shortens a moving pixel's history.
  */
@@ -123,7 +103,6 @@ export function encodeTaaPass(
   if (!temporal?.frame.active || !gpu.depthView || !gpu.surfaces || !vis.visView || !vis.pageTable)
     return undefined
   if (!pool || !vis.concatPos || !vis.concatUv) return undefined
-  restartTaaOnShadowLanding(rt)
   const state = temporal.frame,
     scene = run.gate.revisions.scene
   const scan = state.sceneSeen !== scene
@@ -134,6 +113,7 @@ export function encodeTaaPass(
   const { targetSize, displaySize } = gpu
   const { inputs, filterHistory } = temporal
   inputs.filter = writtenFilter(gpu.displayFilter) // `displayFilter.ts`
+  const exposure = taaExposure(rt.lights.store?.environment)
   writeTaaView(
     device,
     temporal.uniform,
@@ -141,10 +121,15 @@ export function encodeTaaPass(
     cam,
     targetSize,
     displaySize,
+    temporal.analysisSize,
     temporal.motion.moved || !!rt.compose?.moving,
     !!inputs.filter && filterHistory.written,
     !!vis.deformationCompute,
-    rt.lights.store?.environment,
+    exposure,
+    // The display's interval, the world's controller's (`rt.views.main`), whichever view is drawn.
+    rt.views.main.scale.frameIntervalMs,
+    taaViewCode(run.diagnostic),
+    TAA_LEVEL_KNOBS[gpu.temporalLevel],
   )
   inputs.current = current
   inputs.depth = gpu.depthView
@@ -157,42 +142,23 @@ export function encodeTaaPass(
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined
   inputs.share = asIs ? share : undefined
   inputs.reactive = share
-  const output = temporal.encode(encoder, inputs)
+  const output = temporal.encode(encoder, inputs, targetSize, isOrthographic(cam.projection))
   if (inputs.filter) gpu.targetBytes += filterHistory.uncounted()
-  run.gpuDrawCalls++
+  // Its two draws, the spatial anti-aliaser and the history update; the analysis' passes are
+  // dispatches.
+  run.gpuDrawCalls += 2
   state.sceneSeen = scene
   state.previousViewProjection.set(cam.viewProjection)
   state.previousEye.set(cam.eye)
+  state.previousRender[0] = targetSize[0]
+  state.previousRender[1] = targetSize[1]
+  state.previousExposure = exposure
   state.hasHistory = true
   state.sample = (state.sample + 1) % state.phases
   state.stochasticSample++
   return output
 }
 
-/** A capture's barrier (`settlePose`) asks its convergence images for the still image's jitter
- *  phases in turn: `phase` after the replayed one, or `null` once it ends. */
-export function convergeStillPhase(rt: WebgpuPagesRuntime, phase: number | null) {
-  if (rt.gpu.temporal) rt.gpu.temporal.frame.stillPhase = phase
-}
-
-/** Quiet images drawn so far into still averages not yet whole (`stillDrawn`): the image still
- *  arriving, as a page landing is, so the interactive loop never pauses before it holds. */
-export const taaArrivals = (rt: WebgpuPagesRuntime) => rt.gpu.temporal?.frame.stillDrawn ?? 0
-
-/** Jitter phases a still image averages: one without temporal accumulation. */
+/** Jitter phases of the view's cycle: one without temporal accumulation. */
 export const taaPhaseCount = (rt: WebgpuPagesRuntime) =>
   rt.gpu.temporal?.frame.active ? rt.gpu.temporal.frame.phases : 1
-
-/**
- * True when a quiet image can be held without freezing an accumulation in progress: without
- * temporal antialiasing, switched off, or once the quiet images drawn close the still average's
- * whole cycles (`taaStillFrames`), every phase in it as often as every other. Read before the
- * image's entry, which a held image never makes: the image held is the last one drawn, and a
- * barrier's convergence image then replays it, to the bit. A view that does not accumulate
- * keeps the count.
- */
-export function taaSettled(rt: WebgpuPagesRuntime) {
-  const temporal = rt.gpu.temporal
-  if (!temporal || !rt.gpu.temporalWanted) return true
-  return temporal.frame.stillFrames >= taaStillFrames(temporal.frame.phases)
-}

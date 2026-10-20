@@ -4,16 +4,12 @@ import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts'
 import { createTaaLayout } from './bindingsWgsl.ts'
 import { taaResolveShader } from './resolveWgsl.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
+import { TAA_PASS } from '../stage/passLabels.ts'
 
-/** As-is share, flicker gradient, still weight and history count. Geometry uses an integer target. */
-export const SHARE_FORMAT: GPUTextureFormat = 'rgba8unorm'
-/** The flicker measure: the blurred luma history's half-float bits, then the flicker total and
- *  count in a byte each, one word (`shadingPack`). */
-export const MOIRE_FORMAT: GPUTextureFormat = 'r32uint'
-/** Full placement identity and reversed depth of each display pixel (`geometryHistoryWgsl.ts`). */
-export const GEOMETRY_FORMAT: GPUTextureFormat = 'rg32uint'
-/** A history's targets, in the resolve's order: colour, as-is share, geometry, flicker measure. */
-export const HISTORY_FORMATS = [HDR_FORMAT, SHARE_FORMAT, GEOMETRY_FORMAT, MOIRE_FORMAT] as const
+/** The share target: the as-is share in red, the history's validity in green, eight bits each. */
+export const SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
+/** A history's targets, in the resolve's order: colour, share target. */
+export const HISTORY_FORMATS = [HDR_FORMAT, SHARE_FORMAT] as const
 
 /** The usage of a target a resolve writes: drawn and read, never stored — a stored texture is never
  *  losslessly compressed on an Apple GPU (Metal's `shaderWrite`, which Dawn sets for
@@ -21,11 +17,23 @@ export const HISTORY_FORMATS = [HDR_FORMAT, SHARE_FORMAT, GEOMETRY_FORMAT, MOIRE
 export const resolveTargetUsage = () =>
   GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
 
+/** A pass of the temporal pass into `views`, each cleared — on a tiled GPU a clear loads nothing —,
+ *  under its label: the history update's and the anti-aliaser's. */
+export const taaPass = (views: readonly GPUTextureView[]): GPURenderPassDescriptor => ({
+  label: TAA_PASS,
+  colorAttachments: views.map((view) => ({
+    view,
+    loadOp: 'clear',
+    storeOp: 'store',
+    clearValue: [0, 0, 0, 0],
+  })),
+})
+
 type TaaResolveKind = 'asIs' | 'flagless' | 'blended'
 
 /**
- * The pass's resolves (`taaResolveShader`, one program for every render scale, the display's size
- * its ratio one), all compiled at preparation, so a frame that switches compiles nothing: the one
+ * The pass's history updates (`taaResolveShader`, one program for every render scale, the display's
+ * size its ratio one), all compiled at preparation, so a frame that switches compiles nothing: the one
  * of a frame with an as-is pixel, the flagless one, which binds no surface flags and reads no as-is
  * share, and the blended one. A `filtered` one, resolving the display layers too (`layers.ts`) —
  * two more targets, which a frame without a filtering blend never pays —, compiles off the frame

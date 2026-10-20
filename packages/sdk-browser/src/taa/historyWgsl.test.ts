@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { CATMULL_ROM_WGSL, CURRENT_SHARE_WGSL, HISTORY_CAP_WGSL } from './historyWgsl.ts'
+import { CATMULL_ROM_TAPS_WGSL } from './historyWgsl.ts'
 import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
@@ -10,90 +10,45 @@ import { writeTaaView } from './view.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 import { AS_IS_SHARE_SHADER } from '../lighting/deferred/asIsShareWgsl.ts'
-import { REACTIVE_MAX } from './reactive.ts'
 import { blendTargets } from '../webgpu/blend/blendTargets.ts'
 import { particleTargets } from '../particles/particleTargets.ts'
-import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts'
-import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts'
-import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
-import { bilinearRead } from '../texture/bilinear.fixture.ts'
+import { TAA_VIEW } from './bindingsWgsl.ts'
 
-type Share = { currentShare: (share: number, rho: number, fresh: boolean) => number }
-const { currentShare } = shaderRun<Share>(wgslSource(CURRENT_SHARE_WGSL), ['currentShare'], {})
-const MOVING = 1 / 8
+const T = TAA_VIEW.at
 
-test('a pixel with no history takes the current sample whole', () => {
-  for (const [share, rho] of [
-    [MOVING, 0],
-    [0, 0],
-    [0.3, 0.95],
-  ])
-    assert.equal(currentShare(share, rho, true), 1, `share ${share}, reactive ${rho}`)
-})
+type Taps = { uv: number[][]; weight: number[] }
+const { catmullRomTaps } = shaderRun<{
+  catmullRomTaps: (uv: number[], size: number[], inv: number[]) => Taps
+}>(CATMULL_ROM_TAPS_WGSL, ['catmullRomTaps'], {})
+const SIZE = [16, 8]
+const INV = SIZE.map((s) => 1 / s)
 
-test('a reactive value raises the current share to at least itself, never above 0.9', () => {
-  assert.equal(REACTIVE_MAX, 0.9)
-  assert.equal(currentShare(MOVING, 0, false), MOVING, 'no reactive: the accumulation’s share')
-  assert.equal(currentShare(MOVING, 0.05, false), MOVING, 'below the share: nothing')
-  for (const rho of [0.3, 0.5, 0.9]) assert.equal(currentShare(MOVING, rho, false), rho)
-  for (const rho of [0.95, 1]) assert.equal(currentShare(MOVING, rho, false), REACTIVE_MAX)
-  assert.equal(currentShare(0, 0.4, false), 0.4, 'even for a sample of no weight')
-})
-
-type Cap = { historyCap: (speed: number, now: number, kept: number) => number }
-const { historyCap } = shaderRun<Cap>(wgslSource(HISTORY_CAP_WGSL), ['historyCap'], {})
-
-test('a moving history keeps four samples beside the current one at a pixel a frame', () => {
-  assert.ok(historyCap(0, 0.5, 0.5) >= 16, 'still: the full sixteen')
-  assert.equal(historyCap(1, 0.5, 0.5), 5, 'a display pixel a frame: 4 + 1')
-  assert.equal(historyCap(3, 0.5, 0.5), 5, 'faster: no fewer')
-  assert.equal(historyCap(0.5, 0.5, 0.5), 11, 'linear below: 10 + 1 at half')
-  // A high-contrast edge keeps that share of the full history: |dL| / max(L).
-  assert.ok(Math.abs(historyCap(1, 1, 0.2) - (1 + 16 * 0.8)) < 1e-9)
-  assert.equal(historyCap(1, 0, 0), 5, 'black: no contrast')
-})
-
-/** A history of 8×8 texels read bilinearly, clamped to its edge: a step from 0 to 1 at column 4,
- *  every row the same. */
-const step = (x: number) => (x < 4 ? 0 : 1)
-function bilinear([u, v]: number[]) {
-  const value = bilinearRead(step, 8, 8, u * 8, v * 8)
-  return [value, value, value, 1]
-}
-/** A row's centre: the vertical taps land on it. */
-const ROW = 4.5 / 8
-type Read = { historyCatmullRom: (uv: number[]) => number[] }
-const { historyCatmullRom } = shaderRun<Read>(wgslSource(CATMULL_ROM_WGSL), ['historyCatmullRom'], {
-  view: { viewport: [8, 8, 1 / 8, 1 / 8] },
-  history: null,
-  historySampler: null,
-  textureSampleLevel: (_: null, __: null, uv: number[]) => bilinear(uv),
-})
-
-test('the moving history keeps its sharpness where bilinear softens it', () => {
-  // At a texel centre both read the texel itself.
-  for (const x of [2, 3, 4, 5]) {
-    const uv = [(x + 0.5) / 8, ROW]
-    assert.ok(Math.abs(historyCatmullRom(uv)[0] - step(x)) < 1e-9, `texel ${x}`)
+test('the five-tap Catmull-Rom weighs one in all, and a texel centre is read as itself', () => {
+  for (const uv of [
+    [0.3, 0.7],
+    [5.2 / 16, 3.9 / 8],
+    [0.01, 0.99],
+  ]) {
+    const { weight } = catmullRomTaps(uv, SIZE, INV)
+    assert.ok(Math.abs(weight.reduce((a, b) => a + b, 0) - 1) < 1e-6, `${uv}`)
   }
-  // A quarter of a pixel past the last dark texel: bilinear lets a quarter of the edge in,
-  // Catmull-Rom about a fifth — the step stays a step instead of spreading by a fraction each image.
-  const uv = [3.75 / 8, ROW],
-    soft = bilinear(uv)[0],
-    sharp = historyCatmullRom(uv)[0]
-  assert.equal(soft, 0.25)
-  assert.ok(Math.abs(sharp - 0.203125) < 1e-9, `Catmull-Rom ${sharp}`)
-  // Never below zero, whatever its negative lobes.
-  assert.ok(historyCatmullRom([4.2 / 8, 0.3]).every((c) => c >= 0 && c <= 1.1))
+  const centre = [5.5 / 16, 2.5 / 8]
+  const { uv, weight } = catmullRomTaps(centre, SIZE, INV)
+  assert.deepEqual(weight, [0, 0, 1, 0, 0])
+  assert.ok(
+    uv[2].every((v, i) => Math.abs(v - centre[i]) < 1e-9),
+    `${uv[2]}`,
+  )
 })
 
 test('blends and particles write their coverage as the reactive value, seeded 0', () => {
   // The seed: the as-is share in red, a reactive value of 0 in green.
   assert.match(AS_IS_SHARE_SHADER, /return vec2f\(f32\(.*\),0\.0\);/)
   // A blend writes 1 in green at its coverage, over what the pixel holds.
-  assert.match(BLEND_SHADER, /s\.request,vec4f\(0\.0,1\.0,0\.0,s\.alpha\*r\.keep\),/)
-  const share = blendTargets('normal', 0xf, false)[1]!
+  assert.match(BLEND_SHADER, /s\.request,vec4f\(0\.0,1\.0,0\.0,alpha\*r\.keep\),/)
+  // The share's slot follows the request's, empty without feedback.
+  const share = blendTargets('normal', 0xf, false)[2]!
   assert.equal(share.format, 'rg8unorm')
   assert.equal(share.blend?.color.srcFactor, 'src-alpha')
   assert.equal(share.blend?.color.dstFactor, 'one-minus-src-alpha')
@@ -106,19 +61,7 @@ test('blends and particles write their coverage as the reactive value, seeded 0'
       assert.equal(particleTargets(blend, routed).at(-1), REACTIVE_TARGET)
 })
 
-test('the uniform tells the resolve whether the image moves: at rest, today’s resolve', () => {
-  const { device, writes } = fakeDevice(),
-    state = createTaaFrameState(),
-    cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera
-  const moves = (stillFrames: number) => {
-    state.stillFrames = stillFrames
-    writeTaaView(device, {} as GPUBuffer, state, cam, [8, 8], [16, 16], false)
-    return (writes.at(-1)!.data as Float32Array)[58]
-  }
-  assert.deepEqual([0, 1, 5].map(moves), [1, 0, 0])
-})
-
-test('the uniform carries the camera parallax, the flicker rates and a pixel width', () => {
+test('the uniform carries the parallax, the flicker rates, the blend factor and the depth terms', () => {
   const { device, writes } = fakeDevice(),
     state = createTaaFrameState()
   // Last image: the identity view at the eye (1, 2, 3); this one: the eye moved by (0.5, 0, 0).
@@ -127,53 +70,27 @@ test('the uniform carries the camera parallax, the flicker rates and a pixel wid
   state.stochasticSample = 13
   const projection = new Float64Array(16)
   projection[0] = 2
+  projection[11] = -1
+  projection[14] = 0.1
   const cam = {
     viewProjection: IDENTITY_MATRIX4,
     eye: [1.5, 2, 3],
     projection,
   } as unknown as EngineCamera
-  const written = () => {
-    writeTaaView(device, {} as GPUBuffer, state, cam, [960, 540], [1920, 1080], false)
-    return writes.at(-1)!.data as Float32Array
-  }
-  const u = written()
+  writeTaaView(device, {} as GPUBuffer, state, cam, [960, 540], [1920, 1080], [960, 540], false)
+  const u = writes.at(-1)!.data as Float32Array
   // `previous · (lastEye − eye, 0)`: the identity's image of (−0.5, 0, 0, 0).
-  assert.deepEqual([...u.subarray(68, 72)], [-0.5, 0, 0, 0])
-  assert.ok(Math.abs(u[72] - (1 - 0.95 ** 2)) < 1e-7, 'two images a period: 1 − 0.95²')
-  assert.ok(Math.abs(u[73] - 1 / 5) < 1e-7, 'five 1080p pixels an image, whatever the frame rate')
-  assert.ok(Math.abs(u[74] - 2 / (2 * 960)) < 1e-9, 'a render pixel at clip w one')
-  assert.equal(u[59], 13 % 8, 'the image rank among eight')
-})
-
-// A 3×3 of one as-is share clamps any history to it: the share target is sampled for it only where
-// its box spans two values, or where a still average below the display needs the weight it holds.
-test('an as-is share whose box is one value reads no share history but a still weight', () => {
-  // The point texel (the tag) is read; the bilinear sample at the point, never.
-  const tags = (p: number[]) => {
-    if (p.every(Number.isInteger)) return [0, 0.5, 0, 0.6]
-    throw new Error('the as-is share history sampled')
-  }
-  const color = () => [0.3, 0.3, 0.3, 1]
-  const cases = [
-    [false, AS_IS_FLAG, 1],
-    [false, 1, 0],
-    [true, 0.25, 0.25],
-  ] as const
-  for (const [blended, flag, share] of cases)
-    for (const size of [6, 4]) {
-      const frame: UpscaleFrame = {
-        render: [size, size],
-        display: [6, 6],
-        moving: true,
-        color,
-        history: color,
-        tags,
-        id: () => 256,
-        depth: () => 0.4,
-        historyGeometry: () => [1, 0.4],
-        flag: () => flag,
-      }
-      const resolved = upscaleRun(frame, true, false, { blended })(2, 3)
-      assert.ok(Math.abs(resolved.share - share) < 1e-6, `${blended} ${size}`)
-    }
+  assert.deepEqual([...u.subarray(T.parallax, T.parallax + 4)], [-0.5, 0, 0, 0])
+  assert.ok(Math.abs(u[T.exposure + 2] - (1 - 0.95 ** 2)) < 1e-7, 'two images a period: 1 − 0.95²')
+  assert.ok(Math.abs(u[T.exposure + 3] - (1 - 0.95 ** 6)) < 1e-7, 'thin geometry: three periods')
+  assert.ok(Math.abs(u[T.rates] - 1 / 5) < 1e-7, 'ten 1080p pixels at 60 Hz: five of 960')
+  assert.ok(Math.abs(u[T.rates + 1] - 1 / (1 + 16 / 0.25)) < 1e-7, 'half the display: 1 / 65')
+  assert.deepEqual(
+    [...u.subarray(T.depth, T.depth + 4)].map((v) => Math.fround(v)),
+    [0, Math.fround(0.1), -1, 0],
+  )
+  assert.ok(Math.abs(u[T.radius] - 1 / (2 * 960)) < 1e-9, 'a render pixel radius per unit depth')
+  assert.equal(u[T.radius + 2], -1, 'the view looks down its negative axis')
+  assert.equal(u[T.params], 1, 'no history yet: a cut')
+  assert.equal(u[T.jitter + 3], 13 % 8, 'the image rank among eight')
 })

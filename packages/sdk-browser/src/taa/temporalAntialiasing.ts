@@ -1,23 +1,25 @@
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts'
-import { createTaaResolves, resolveTargetUsage } from './resolve.ts'
+import { createTaaResolves, resolveTargetUsage, taaPass } from './resolve.ts'
 import { createTaaHistoryTargets } from './historyTargets.ts'
 import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts'
-import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts'
+import { createTaaFrameState } from './frameState.ts'
 import { createPlacementMotion, type MotionRoot } from './motion.ts'
-import { createTaaFilterHistory } from './layers.ts'
-import { TAA_PASS } from '../stage/passLabels.ts'
-
-/** A history target's attachment: cleared by the pass that writes it. */
-const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const
+import { createTaaFilterHistory, type DisplayLayers } from './layers.ts'
+import { createTaaAnalysis } from './analysis.ts'
+import { standInTexture } from '../gpu/core/standInTexture.ts'
 
 /**
- * Temporal antialiasing pass: two histories in ping-pong, each a colour, its share target, its
- * geometry and its flicker measure (`historyTargets.ts`), one read and the other
- * written each frame, and composition reads the one just written. Targets follow the display size
- * (`resize`); bind groups are rebuilt when an input changes identity, never per frame. The resolve
- * is a fullscreen draw into the targets, one program for every render scale (`resolveWgsl.ts`).
+ * Temporal antialiasing pass: two histories in ping-pong at the display size, each a colour and its
+ * share target (`historyTargets.ts`), one read and the other written each frame, composition reading
+ * the colour just written; and the render-resolution histories of the analysis (`analysis.ts`) —
+ * the shading history and the flicker measure —, one of each, read first
+ * and written last. The histories
+ * follow the display size, the analysis the render targets' (`resize`); bind groups are rebuilt when
+ * an input changes identity, never per frame. The analysis runs over the rendered size, then the
+ * history update, a fullscreen draw into the display targets, one program for every render scale
+ * (`resolveWgsl.ts`).
  */
 export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
   const resolves = await createTaaResolves(device)
@@ -28,6 +30,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     size: TAA_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
+  // Bilinear and clamped: the histories' reads and the anti-aliaser's luma reads, which must not
+  // wrap across the image's edge.
   const sampler = device.createSampler({
     label: 'Trillion3D TAA history sampler',
     magFilter: 'linear',
@@ -35,75 +39,96 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     addressModeU: 'clamp-to-edge',
     addressModeV: 'clamp-to-edge',
   })
-  // Nearest and clamped to the edge: what the resolve's gathers read through, the edge their clamp.
-  const texelSampler = device.createSampler({
-    label: 'Trillion3D TAA texel sampler',
-    addressModeU: 'clamp-to-edge',
-    addressModeV: 'clamp-to-edge',
-  })
+  const analysis = await createTaaAnalysis(device, sampler, uniform)
   // A frame with no transparent reads zero as its reactive value, from this one texel.
-  const noReactive = device.createTexture({
-    label: 'Trillion3D TAA no reactive',
-    size: { width: 1, height: 1 },
-    format: AS_IS_SHARE_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING,
-  })
+  const noReactive = standInTexture(device, 'Trillion3D TAA no reactive', AS_IS_SHARE_FORMAT)
   const noReactiveView = noReactive.createView()
   const history = createTaaHistoryTargets(device),
-    { images, geometry, shading } = history,
-    /** The two groups (one a history target read) for each identity the inputs were seen with:
-     *  the lit image is one of two HDR targets that take turns (`reflections/radiance.ts`). */
+    { images } = history,
+    /** The history update's two groups, one per history read, for each identity the inputs were
+     *  seen with: the lit image is one of two HDR targets that take turns
+     *  (`reflections/radiance.ts`). */
     held: (GPUBindGroup | undefined)[][] = []
-  /** Target read on the next frame: the other is written. */
+  /** History read on the next frame: the other is written. */
   let read = 0
   /** What the groups name: the layout, then each of `INPUTS` (`bindIdentity.ts`); two held, the
    *  HDR targets' turns. */
   const identity = createWebgpuBindIdentity(2)
   const frame = createTaaFrameState()
-  /** Where the last ordinary frame started: what a convergence frame replays, `read` with it. */
-  const saved = createTaaCheckpoint(frame)
-  let savedRead = 0
+  /** The size the render-resolution histories are allocated at, the uniform's analysis grid. */
+  const analysisSize = [0, 0]
+  /** Each history's update pass, made once its targets are: without the display layers, and with
+   *  the layers it was last made for. */
+  const passes: {
+    plain?: GPURenderPassDescriptor
+    filter?: DisplayLayers
+    layered?: GPURenderPassDescriptor
+  }[] = []
+  const passOf = (write: number, filter: DisplayLayers | undefined) => {
+    const made = (passes[write] ??= {}),
+      { color, share } = images[write]
+    const base = [color, share]
+    if (!filter) return (made.plain ??= taaPass(base))
+    if (made.filter !== filter) {
+      made.filter = filter
+      made.layered = taaPass([...base, ...filter])
+    }
+    return made.layered!
+  }
   const dropTargets = () => {
     history.drop()
     held.length = 0
+    passes.length = 0
     filterHistory.drop()
+    analysis.release()
   }
   return {
     uniform,
     motion,
     filterHistory,
-    /** Bytes of the two targets as allocated: what a capture must count beside its own. */
+    /** The size the analysis's targets and render-resolution histories are made at. */
+    get analysisSize(): readonly number[] {
+      analysisSize[0] = analysis.width
+      analysisSize[1] = analysis.height
+      return analysisSize
+    },
+    /** Bytes of the targets as allocated: what a capture must count beside its own. */
     get historyBytes() {
-      return history.bytes + filterHistory.bytes
+      return history.bytes + filterHistory.bytes + analysis.bytes
     },
     /** Draft of the frame inputs, filled by `encodeTaaPass`: nothing is allocated per frame. */
     inputs: {} as TaaInputs,
-    /** What the pass keeps from frame to frame on the CPU: jitter, history, hold. */
+    /** What the pass keeps from frame to frame on the CPU: jitter, history, motion. */
     frame,
-    /** An ordinary frame's entry remembers where it started; a convergence frame (re-rendering the
-     *  pose for arrived tiles) COMES BACK to it, remaking the image to the bit without accumulating. */
-    checkpoint(quiet: boolean) {
-      savedRead = read
-      saved.save(quiet)
-      filterHistory.checkpoint()
-    },
-    /** Returns the stillness of the replayed frame: its own, not the one arrived tiles disturbed. */
-    replay() {
-      read = savedRead
-      filterHistory.replay()
-      return saved.restore()
-    },
-    /** Remakes the targets at another size, history gone: true when something was reallocated. */
-    resize(w: number, h: number) {
-      if (w === history.width && h === history.height && images.length === 2) return false
-      dropTargets()
-      history.allocate(w, h)
+    /** Remakes the targets at another size: the histories at the display's `w × h`, the analysis's
+     *  at the render targets' `rw × rh`, the largest a frame is drawn at. Another render size at the
+     *  same display and render target size keeps every history. True when a history was
+     *  reallocated — the render-resolution ones go with the analysis's targets —, and so is gone. */
+    resize(w: number, h: number, rw: number, rh: number) {
+      const kept = w === history.width && h === history.height && images.length === 2
+      if (kept && rw === analysis.width && rh === analysis.height) return false
+      // The groups name the render-resolution targets: made again with them.
+      held.length = 0
+      if (!kept) {
+        dropTargets()
+        history.allocate(w, h)
+      }
+      analysis.allocate(rw, rh)
       return true
     },
-    /** Encode the pass, its uniform written first: reads `inputs.current` and history, writes the
-     *  other target, then swaps roles. Returns the written colour, share and display layers. */
-    encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
+    /** Encode the pass, its uniform written first: the analysis of `inputs` drawn at `render`
+     *  (`[width, height]`) through an `orthographic` projection or not, then the history update,
+     *  which reads it and the history, writes the other target, then swaps roles. Returns the
+     *  written colour, share and display layers. */
+    encode(
+      encoder: GPUCommandEncoder,
+      inputs: TaaInputs,
+      render: readonly [number, number],
+      orthographic = false,
+    ) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING')
+      inputs.reactive ??= noReactiveView
+      analysis.encode(encoder, inputs, render, orthographic)
       const kind = inputs.share ? 'blended' : inputs.flags ? 'asIs' : 'flagless'
       const layered = inputs.filter && resolves.filtered(kind)
       // Until the layered resolve is compiled, the image resolves no layer: composition reads the raw ones.
@@ -116,31 +141,15 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       for (let i = 0; i < INPUTS.length; i++) next[1 + i] = inputs[INPUTS[i]]
       const moved = identity.moved(),
         groups = (held[identity.slot] ??= [undefined, undefined])
-      if (moved || !groups[0]) {
+      if (moved || !groups[0])
         for (let i = 0; i < 2; i++) {
-          const entries = taaGroupEntries(
-            inputs,
-            images[i],
-            sampler,
-            texelSampler,
-            uniform,
-            noReactiveView,
-            geometry[i],
-            shading[i],
-          )
+          const entries = taaGroupEntries(inputs, images[i], sampler, uniform, analysis)
           entries.push(...filterHistory.entries(inputs.filter, i))
           groups[i] = device.createBindGroup({ layout, entries })
         }
-      }
       const write = 1 - read,
-        { color, share } = images[write],
         filter = inputs.filter && filterHistory.target(write)
-      const pass = encoder.beginRenderPass({
-        label: TAA_PASS,
-        colorAttachments: [color, share, geometry[write], shading[write], ...(filter ?? [])].map(
-          (view) => ({ view, ...CLEAR }),
-        ),
-      })
+      const pass = encoder.beginRenderPass(passOf(write, filter))
       pass.setPipeline(resolve.pipeline)
       pass.setBindGroup(0, groups[read]!)
       pass.draw(3)
@@ -150,7 +159,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       images[write].filter = filter
       return images[write]
     },
-    /** Releases the two targets with the frame targets, history gone, until the next `resize`. */
+    /** Releases the targets with the frame targets, history gone, until the next `resize`. */
     release: dropTargets,
     dispose() {
       dropTargets()

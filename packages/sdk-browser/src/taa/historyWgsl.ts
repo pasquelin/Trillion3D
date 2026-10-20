@@ -1,165 +1,107 @@
-import * as layer from './layers.ts'
-import { REACTIVE_MAX } from './reactive.ts'
-import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
-import { clampToExtent, hashUnit } from '../../../math/src/wgsl/sampling.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
-/** The samples a history read a display pixel or more away keeps beside the current one. */
+/** The most samples a pixel of the image holds at the display's resolution: sixteen images
+ *  average the jitter's noise away while a change still shows within a fraction of a second — the
+ *  factor the shading history takes the image at follows it (`view.rates.y`). */
+export const IMAGE_SAMPLES = 16
+/** The display history's density: what a history of twice the display's resolution holds per
+ *  display pixel, four of its pixels. */
+const HISTORY_DENSITY = 4
+/**
+ * The most samples a display pixel's history holds: the image's, times the density — each image
+ * weighs a 64th of a whole history, so a still pixel's history moves by a 64th of its jitter's
+ * swing an image, and a thin, contrasted pattern the jitter samples differently every image stays
+ * still. Motion and a shading rejection still cap it in images (`MOVING_SAMPLES`,
+ * `REJECTED_SAMPLES`), so its sharpness in motion and its reaction to a change are those of the
+ * sixteen.
+ */
+export const HISTORY_SAMPLES = IMAGE_SAMPLES * HISTORY_DENSITY
+/** The most it keeps after a full shading rejection: two, enough to damp the new shading's first
+ *  noisy image without dragging the old one along. */
+const REJECTED_SAMPLES = 2
+/** The most it keeps once its pixel slides `MOVING_PIXEL_SPEED` a frame: four — each resample of a
+ *  moving history softens it. */
 const MOVING_SAMPLES = 4
-
-/** `text` in a resolve that carries the as-is share, `none` in the flagless one. */
-export const shareText =
-  (asIs: boolean) =>
-  (text: string, none = '') =>
-    asIs ? text : none
+/** The speed, in the history update's measure of a pixel's motion, at which `MOVING_SAMPLES` holds. */
+const MOVING_PIXEL_SPEED = 1
+/** The share of a whole history one image of full alignment weighs. */
+export const HISTORY_HYSTERESIS = 1 / HISTORY_SAMPLES
 
 /**
- * The history read, moving or still: Catmull-Rom on the 4×4 texels around the point, in five
- * bilinear taps — the four corners, which weigh least, dropped and the rest renormalised.
- * Bilinear softens the history a little every image the pixel moves by a fraction;
- * Catmull-Rom keeps its sharpness. Its negative lobes may overshoot: the neighbour box clamps them.
- * At rest the point is a texel centre, where its weights are (0, 1, 0, 0) on each axis: the one
- * centre tap, the texel itself, exactly.
+ * The bicubic Catmull-Rom read of a texture at `uv` in five bilinear taps, the four corners'
+ * weights folded into the cross (an approximation of the 4×4's separable weights): the
+ * centre tap at the bilinear point that carries the inner 2×2, and one tap beyond each side. The
+ * weights sum to one; a tap's coordinates are the caller's to clamp. At a texel centre the weights
+ * are those of the texel itself, its neighbours' lobes cancelling.
  */
-export const CATMULL_ROM_WGSL = wgslBlock(
-  'CATMULL_ROM_WGSL',
+export const CATMULL_ROM_TAPS_WGSL = wgslBlock(
+  'CATMULL_ROM_TAPS_WGSL',
   [],
   `
-fn historyCatmullRom(uv:vec2f)->vec4f{
- let p=uv*view.viewport.xy;
- let c=floor(p-0.5)+0.5;
- let f=p-c;
- let w0=f*(-0.5+f*(1.0-0.5*f));
- let w1=1.0+f*f*(-2.5+1.5*f);
- let w2=f*(0.5+f*(2.0-1.5*f));
- let w3=f*f*(-0.5+0.5*f);
- let w12=w1+w2;
- let t0=(c-1.0)*view.viewport.zw;
- let t3=(c+2.0)*view.viewport.zw;
- let t12=(c+w2/w12)*view.viewport.zw;
- var sum=textureSampleLevel(history,historySampler,vec2f(t12.x,t0.y),0.0)*(w12.x*w0.y);
- sum+=textureSampleLevel(history,historySampler,vec2f(t0.x,t12.y),0.0)*(w0.x*w12.y);
- sum+=textureSampleLevel(history,historySampler,t12,0.0)*(w12.x*w12.y);
- sum+=textureSampleLevel(history,historySampler,vec2f(t3.x,t12.y),0.0)*(w3.x*w12.y);
- sum+=textureSampleLevel(history,historySampler,vec2f(t12.x,t3.y),0.0)*(w12.x*w3.y);
- let total=w12.x*w0.y+w0.x*w12.y+w12.x*w12.y+w3.x*w12.y+w12.x*w3.y;
- return max(sum/total,vec4f(0.0));
+struct TaaTaps{uv:array<vec2f,5>,weight:array<f32,5>}
+fn catmullRomTaps(uv:vec2f,size:vec2f,inv:vec2f)->TaaTaps{
+ let pc=uv*size;
+ let iuv=floor(pc-0.5)+1.0;
+ let f=pc-iuv;let f2=f*f;let f_2=f+f;
+ let u=((1.25-f2)*f+0.5)*inv;
+ let t0=(0.25*f2-0.0625)*(1.125-0.5*f2.yx);
+ let w0=t0-f_2*t0;let w3=t0+f_2*t0;
+ let c=(iuv-0.5)*inv;
+ return TaaTaps(
+  array<vec2f,5>(c+vec2f(-inv.x,u.y),c+vec2f(2.0*inv.x,u.y),c+u,c+vec2f(u.x,-inv.y),c+vec2f(u.x,2.0*inv.y)),
+  array<f32,5>(w0.x,w3.x,1.0-w0.x-w3.x-w0.y-w3.y,w0.y,w3.y));
 }`,
 )
 
 /**
- * The history texel a pixel's shading measures are read from: the nearest to its reprojected point,
- * after an offset of up to half a texel drawn per pixel and image: a point read, dithered. A still
- * pixel reads its own texel; a moving one does not drift by always rounding one way.
+ * The display history read at the reprojected point `uv` (`resolveWgsl.ts`): the colour and the
+ * share target — the as-is share in red, the history's validity in green — both through the
+ * five-tap Catmull-Rom, each tap clamped half a texel inside the history. A highlight's negative
+ * lobes may sum below zero: a colour with a negative channel takes the centre tap's alone, floored
+ * at zero; the share target is floored at zero.
  */
-export const HISTORY_TEXEL_WGSL = wgslBlock(
-  'HISTORY_TEXEL_WGSL',
-  [hashUnit, clampToExtent, GOLDEN_U32],
+export const HISTORY_READ_WGSL = wgslBlock(
+  'HISTORY_READ_WGSL',
+  [CATMULL_ROM_TAPS_WGSL],
   `
-fn historyTexel(uv:vec2f,coord:vec2i)->vec2i{
- let seed=(u32(coord.y)*65536u+u32(coord.x))*8u+u32(view.jitter.w);
- // The golden salt flips the seed for the second coordinate, so it is decorrelated from the first (historyTexel.test.ts).
- let offset=vec2f(hashUnit(seed),hashUnit(seed^GOLDEN_U32))*0.999-0.4995;
- return clampToExtent(vec2i(floor(uv*view.viewport.xy+offset)),vec2i(view.viewport.xy));
-}`,
-)
-
-/**
- * The most samples a moving pixel's history keeps, the current one included (a history at the
- * display's size): four beside the current one once the history is read a display pixel or more
- * away, linearly more below, up to `HISTORY_SAMPLES_MAX` still — the history resampled each image
- * softens, a short one less —, unless the current luma differs from the kept history's by more: a
- * high-contrast edge keeps that share of the full history, so it stays stable.
- * `speed`: how far the history moved under the pixel, display pixels; `now` and `kept`: the YCoCg
- * luma of the current image and of the boxed history. (A history kept at twice the display's size
- * would need no such cap, at four times this one's cost.)
- */
-export const HISTORY_CAP_WGSL = wgslBlock(
-  'HISTORY_CAP_WGSL',
-  [],
-  `
-fn historyCap(speed:f32,now:f32,kept:f32)->f32{
- let contrast=abs(now-kept)/max(max(now,kept),1e-6);
- return 1.0+${HISTORY_SAMPLES_MAX}.0*max(1.0-${1 - MOVING_SAMPLES / HISTORY_SAMPLES_MAX}*saturate(speed),contrast);
-}`,
-)
-
-/**
- * The current image's share (the blend's sixth point): the accumulation's `share`, raised to the
- * pixel's reactive value `rho`, never above `REACTIVE_MAX`; a pixel with no history (`fresh`) takes
- * the current sample whole.
- */
-export const CURRENT_SHARE_WGSL = wgslBlock(
-  'CURRENT_SHARE_WGSL',
-  [],
-  `
-fn currentShare(share:f32,rho:f32,fresh:bool)->f32{
- if(fresh){return 1.0;}
- return max(share,min(rho,${REACTIVE_MAX}));
-}`,
-)
-
-/**
- * What the resolve closes with, once `previous` (and the points it came from, `here` and
- * `before`), `speed`, `motion`, `refused`, `filtered`, its luma `lumaNow` and measurement lumas
- * (`now`, `blurred`, `blurRange`), the YCoCg box `lo`–`hi`, `centre` (the render texel of the display
- * pixel), `sampleWeight`, `nearPage` and, with `asIs`, `share` and its box are known: one blend and
- * one law, the image's motion entering only as the continuous weight `motion`. The history is read
- * at the reprojected point with Catmull-Rom (exact at a texel centre) and takes the current image by
- * the engine's one accumulation law (`ACCUMULATION_WGSL`): the sample's weight over the weight the
- * history holds (`held`, kept in the share target's alpha, `historyWeightIn`, less what is refused),
- * up to the history's length. With `motion`:
- * - the length goes from the weight maximum (`view.params.x`), the exact weighted mean of a still
- *   image's phases, to what the history's confidence (`shadingConfidence`) and its speed
- *   (`historyCap`) let it keep;
- * - the box the history is clamped to closes from open — the box of one image's 3×3 would bias the
- *   average of stochastic shading toward its dark samples, a penumbra lit half the time of radiance
- *   1 settling at 0.30 for 0.48 over 64 images (`historySequence.test.ts`), and clip the detail finer
- *   than the render grid only the phases carry — to the 3×3's, widened by the flicker measure's
- *   error (the luma to at least three times it, in the measurement curve, the chroma by the luma's
- *   mean widening);
- * - the weight by the inverse of each one's luminance, so a spark does not settle, and the reactive
- *   value the blends, particles and water wrote (the zero texel bound in its place where none did,
- *   `inputs.ts`), whole on a dynamic geometry's pixel (`pageOf`), whose vertices moved within their
- *   placement, which no motion matrix follows: its history is another shape, dropped rather than
- *   smeared.
- * A history wholly refused never comes here: the resolve writes the current image, a fresh flicker
- * measure and its own weight. The as-is share is read bilinear at the point only where its box spans
- * two values: a box of one value clamps any history to it.
- */
-export const taaHistoryBlend = (asIs: boolean, filtered = false) => {
-  const share = shareText(asIs)
-  return ` let pastAt=historyTexel(previous.xy,coord);
- let tag=textureLoad(shareHistory,pastAt,0);let past=shadingRead(pastAt,tag.g);
- let read=historyCatmullRom(previous.xy);let readY=toYcocg(read.rgb);
-${share(` var sharePast=vec4f(0.0);if(shareLo!=shareHi){sharePast=${PAST_SHARE};}\n`)} let cover=textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g;
- let animated=nearPage.animated;
- let range=vec2f(shadingLuma(lo.x),shadingLuma(hi.x));
- let measure=shadingMoire(now,blurred,shadingLuma(readY.x),range,blurRange,past,shadingStill(here,before,animated>0.0),cover);
- gradient=measure.gradient;moire=shadingPack(measure);
- let error=measure.error*motion;
- if(error>0.0){
-  let wide=${LUMA_TO_CHANNEL}.0*error;
-  let lumaLo=min(lo.x,shadingLinear(min(range.x,range.y-wide)));
-  let lumaHi=max(hi.x,shadingLinear(max(range.y,range.x+wide)));
-  let chroma=0.5*(lo.x-lumaLo+lumaHi-hi.x);
-  lo=vec4f(lumaLo,lo.yz-chroma,lo.w);hi=vec4f(lumaHi,hi.yz+chroma,hi.w);
+struct TaaPast{color:vec4f,tag:vec4f}
+fn historyRead(uv:vec2f)->TaaPast{
+ var taps=catmullRomTaps(uv,view.viewport.xy,view.viewport.zw);
+ let lo=0.5*view.viewport.zw;let hi=vec2f(1.0)-lo;
+ var color=vec4f(0.0);var tag=vec4f(0.0);var middle=vec4f(0.0);
+ for(var k=0;k<5;k++){
+  let at=clamp(taps.uv[k],lo,hi);
+  let c=textureSampleLevel(history,historySampler,at,0.0);
+  if(k==2){middle=c;}
+  color+=c*taps.weight[k];
+  tag+=textureSampleLevel(shareHistory,historySampler,at,0.0)*taps.weight[k];
  }
- let held=${layer.historyWeightIn('tag.a')}*(1.0-refused);
- let allowed=min(shadingConfidence(abs(blurred-past.x),range.y-range.x,error,held),historyCap(speed,lumaNow,clamp(readY.x,lo.x,hi.x)));
- let longest=mix(view.params.x,allowed,motion);
- let alpha=currentShare(accumulationShare(held,sampleWeight,longest),max(cover,animated)*motion,held<=0.0);
- count=accumulationCount(held,sampleWeight,longest);
- if(sampleWeight>0.0){count=min(count,sampleWeight/alpha);}
- lo=mix(vec4f(-RANGE_BOUND),lo,motion);hi=mix(vec4f(RANGE_BOUND),hi,motion);
- let clamped=clamp(vec4f(readY,read.a),lo,hi);
- let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
-${share(' let keptShare=clamp(sharePast.r,shareLo,shareHi);\n')} let tone=view.tsr.x*motion;let wc=alpha/(1.0+lumaNow*tone);
- let wh=(1.0-alpha)/(1.0+clamped.x*tone);
- let blendScale=1.0/(wc+wh);
-${layer.layerText(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true)};`
-}
+ if(any(color.rgb<vec3f(0.0))){color=max(middle,vec4f(0.0));}
+ return TaaPast(color,max(tag,vec4f(0.0)));
+}`,
+)
 
-/** The share target's as-is share, read bilinear at the reprojected point. */
-const PAST_SHARE = 'textureSampleLevel(shareHistory,historySampler,previous.xy,0.0)'
+/** An inverse that is zero at zero (and below). */
+export const SAFE_RCP_WGSL = wgslFn(
+  'safeRcp',
+  [],
+  'fn safeRcp(x:f32)->f32{return select(0.0,1.0/x,x>0.0);}',
+)
+
+/**
+ * The weight laws of the history update, in whole histories (`HISTORY_HYSTERESIS` an image of
+ * full alignment): `prevMultiplier`, the history's weight per unit of the image's at blend factor
+ * `b`, `(1 − b) / b`; and `safeRcp`.
+ */
+export const HISTORY_WEIGHTS_WGSL = wgslBlock(
+  'HISTORY_WEIGHTS_WGSL',
+  [SAFE_RCP_WGSL],
+  `
+const HISTORY_HYSTERESIS:f32=${wgslF32(HISTORY_HYSTERESIS)};
+const HISTORY_SAMPLES:f32=${HISTORY_SAMPLES}.0;
+const REJECTED_VALIDITY_DROP:f32=${wgslF32(1 - REJECTED_SAMPLES * HISTORY_HYSTERESIS)};
+const MOVING_VALIDITY_DROP:f32=${wgslF32(1 - MOVING_SAMPLES * HISTORY_HYSTERESIS)};
+const MOVING_SPEED_INVERSE:f32=${wgslF32(1 / MOVING_PIXEL_SPEED)};
+fn prevMultiplier(b:f32)->f32{return (1.0-b)/max(b,1e-30);}`,
+)

@@ -2,8 +2,8 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * The engine's one temporal accumulation law, which every history it keeps reads — the bounce
- * probes (`../bounce/probeWgsl.ts`), the temporal antialiasing's colour (`historyWgsl.ts`) and,
- * once they adopt it, the reflections' history: a history holding the weight `held` takes a new
+ * probes (`../bounce/probeWgsl.ts`) and the reflections' history
+ * (`../reflections/temporalWgsl.ts`): a history holding the weight `held` takes a new
  * sample of weight `weight` with the share `weight / min(held + weight, most)` — the exact weighted
  * mean of its samples while their weight is below `most`, then an exponential average of that
  * length — and holds `min(held + weight, most)` after it (`accumulationCount`); a sample of weight

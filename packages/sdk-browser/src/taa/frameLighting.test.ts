@@ -3,22 +3,11 @@ import assert from 'node:assert/strict'
 import { TAA_SAMPLES } from './jitter.ts'
 import { runtime } from './frame.fixture.ts'
 
-test('a shadow arriving before resolve rejects old still shading in that same image', () => {
-  const { rt, temporal, frame } = runtime()
-  for (let i = 0; i < 5; i++) frame(true)
-  assert.equal(temporal.frame.hasHistory, true)
-  rt.lights.vsm!.settle.renderedTotal++
-  const uniform = frame(true)!
-  assert.equal(uniform[37], 0, 'the landing image reads no old shadow history')
-  assert.equal(temporal.frame.shadowsSeen, 1)
-  assert.equal(frame(true)![37], 0, 'the full phase cycle restarts from its first sample')
-  assert.equal(frame(true)![37], 1, 'subsequent samples accumulate the current shading')
-})
-
 test('quiet lighting samples do not repeat when the spatial jitter phases repeat', () => {
   const { temporal, frame } = runtime()
   const spatial = [],
     lighting = []
+  frame(false) // The view's first image moves: nothing before it.
   for (let image = 0; image < 2 * TAA_SAMPLES; image++) {
     frame(true)
     spatial.push([...temporal.frame.jitter])
@@ -28,7 +17,7 @@ test('quiet lighting samples do not repeat when the spatial jitter phases repeat
   assert.equal(new Set(lighting).size, 2 * TAA_SAMPLES)
   assert.deepEqual(
     lighting,
-    Array.from({ length: 2 * TAA_SAMPLES }, (_, i) => i),
+    Array.from({ length: 2 * TAA_SAMPLES }, (_, i) => i + 1),
   )
 })
 

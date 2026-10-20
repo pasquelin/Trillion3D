@@ -1,11 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { restartTaaAverage } from './landing.ts'
-import { taaRenderMatrix, taaSettled } from './frame.ts'
+import { dropTaaHistory } from './landing.ts'
+import { taaRenderMatrix } from './frame.ts'
 import { runtime } from './frame.fixture.ts'
-import { TAA_STILL_FRAMES } from './stillFrames.fixture.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 import type { TaaInputs } from './inputs.ts'
+import { TAA_VIEW } from './bindingsWgsl.ts'
+
+/** The uniform's words a frame writes: whether the history describes nothing (a cut, none yet),
+ *  and whether a placement moved. */
+const CUT = TAA_VIEW.at.params,
+  MOVED = CUT + 2
 
 test("without accumulation this frame, the render matrix is the camera's and composition reads the lit image", () => {
   const { rt, cam, encoded, frame } = runtime()
@@ -17,9 +22,6 @@ test("without accumulation this frame, the render matrix is the camera's and com
   rt.run.diagnostic = 'screen-error' as never
   assert.equal(frame(false), null)
   assert.equal(taaRenderMatrix(rt, cam), cam.viewProjection)
-  // With no pass rigged at all, the frame is held.
-  rt.gpu.temporal = undefined
-  assert.equal(taaSettled(rt), true)
 })
 
 test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {
@@ -29,84 +31,41 @@ test('an accumulated frame advances jitter, writes the uniform and returns the w
   assert.equal(encoded.length, 1)
   assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from')
   assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken')
-  // Without history, `params.y` is 0; the next frame has it, and nobody moved (`params.z`).
-  assert.equal(u[37], 0)
+  // Without history the frame is a cut (`params.x`); the next one reads it, and nobody moved
+  // (`params.z`).
+  assert.equal(u[CUT], 1)
   u = frame(false)!
-  assert.equal(u[37], 1)
-  assert.equal(u[38], 0)
+  assert.equal(u[CUT], 0)
+  assert.equal(u[MOVED], 0)
   assert.deepEqual(temporal.motion.updates, [false], 'unchanged scene: no pose comparison')
   assert.equal(temporal.frame.sample, 2)
-  // The nine filter weights sum to one.
-  let sum = 0
-  for (let k = 0; k < 9; k++) sum += u[40 + k]
-  assert.ok(Math.abs(sum - 1) < 1e-5)
   // A scene change makes poses be compared, and a placement that moved is told to the pass.
   rt.run.gate.revisions.scene++
   temporal.motion.moved = true
   u = frame(false)!
   assert.deepEqual(temporal.motion.updates, [false, true])
-  assert.equal(u[38], 1)
+  assert.equal(u[MOVED], 1)
   frame(false, false)
   assert.equal((encoded.at(-1) as TaaInputs).flags, undefined, 'no as-is pixel, no flags (OMB-11)')
 })
 
-test('hold waits for a full cycle of still frames, averaged uniformly from a fixed phase', () => {
-  const { rt, temporal, frame } = runtime()
-  // Three moving frames: the history's own share (`historyCap`), no uniform one; jitter advances.
+test('the jitter runs on every image, a cut drops the history', () => {
+  const { temporal, frame } = runtime()
+  // Three moving frames: the jitter advances.
   for (let i = 0; i < 3; i++) frame(false)
   assert.equal(temporal.frame.sample, 3)
-  assert.equal(frame(false)![36], 0)
-  assert.equal(taaSettled(rt), false)
-  // First still frame: history is dropped, jitter restarts from zero.
+  frame(false)
+  // A still frame: the history is read, the jitter rank runs on.
+  const start = temporal.frame.sample
   let u = frame(true)!
-  assert.equal(u[37], 0, 'without history: the pass returns the filtered current image')
-  assert.equal(temporal.frame.sample, 1, 'phase zero replayed')
-  assert.equal(temporal.frame.stillFrames, 1)
-  // The following weigh 1/k: the sixteenth gives the uniform average of sixteen frames.
-  u = frame(true)!
-  assert.equal(u[37], 1)
-  assert.equal(Math.fround(u[36]), Math.fround(1 / 2))
-  for (let k = 3; k < TAA_STILL_FRAMES; k++) frame(true)
-  assert.equal(taaSettled(rt), false, 'one image short of the whole cycles, nothing is held')
-  assert.equal(temporal.frame.sample, TAA_SAMPLES - 1, 'the last phase of the cycle is still owed')
-  u = frame(true)!
-  assert.equal(Math.fround(u[36]), Math.fround(1 / TAA_STILL_FRAMES))
-  assert.equal(temporal.frame.sample, 0, 'the images drawn close whole cycles')
-  assert.equal(taaSettled(rt), true, 'read before entry: every phase drawn as often, held')
-  // Something moves: the count restarts, history stays and mixes at its own share.
+  assert.equal(u[CUT], 0, 'the history is kept')
+  assert.equal(temporal.frame.sample, start + 1, 'the jitter rank runs on')
+  for (let k = 1; k < TAA_SAMPLES; k++) frame(true)
+  assert.equal(temporal.frame.sample, start, 'the cycle turns on still images')
+  // Something moves: history stays and mixes at its own share.
   u = frame(false)!
-  assert.equal(temporal.frame.stillFrames, 0)
-  assert.equal(u[37], 1)
-  assert.equal(u[36], 0)
-  assert.equal(taaSettled(rt), false)
-  // Reallocated targets lose history and the count.
-  for (let i = 0; i < TAA_STILL_FRAMES; i++) frame(true)
-  assert.equal(taaSettled(rt), true)
-  restartTaaAverage(temporal.frame)
+  assert.equal(u[CUT], 0)
+  dropTaaHistory(temporal.frame)
   assert.equal(temporal.frame.hasHistory, false)
-  assert.equal(taaSettled(rt), false)
-})
-
-// A convergence frame — the barrier that re-renders the same pose to show arrived tiles —
-// replays the last ordinary frame: same jitter, same stillness, instead of accumulating once more.
-test('a convergence frame replays the last ordinary frame instead of advancing jitter', () => {
-  const { rt, temporal, frame } = runtime()
-  let replayed = 0,
-    checkpoints = 0
-  temporal.checkpoint = () => {
-    checkpoints++
-  }
-  temporal.replay = () => {
-    replayed++
-    return true
-  }
-  frame(false)
-  assert.equal(checkpoints, 1, 'an ordinary frame remembers where it started')
-  assert.equal(replayed, 0)
-  rt.run.textureConverging = true
-  frame(false)
-  assert.equal(replayed, 1, 'a convergence frame replays')
-  assert.equal(checkpoints, 1, 'and remembers nothing new')
-  // The replayed stillness is that of the reference frame, not the one the tiles disturbed.
-  assert.equal(temporal.frame.stillFrames, 1)
+  assert.equal(temporal.frame.sample, 0)
 })

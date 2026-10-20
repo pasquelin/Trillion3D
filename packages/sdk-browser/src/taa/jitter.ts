@@ -9,7 +9,6 @@
  * space: it only reaches the matrix the raster, shading and blend read, never the engine camera —
  * selection, its planes and its screen-error threshold see none of this jitter.
  */
-import { alignUp } from '../../../math/src/scalar/integers.ts'
 import { halton } from '../../../math/src/sequence/halton.ts'
 import { clipWindowMatrix4 } from '../../../math/src/projection/clip.ts'
 
@@ -31,8 +30,7 @@ function primeAtLeast(n: number) {
  * Jitter phases of a frame drawn `render` pixels wide and shown `display` wide: eight positions
  * per display pixel's worth of render pixel, `8 · (display / render)²` rounded, so every display
  * pixel receives samples of its own, raised to the next prime from eleven — 11 at native size, 17
- * at three quarters, 37 at half. A still frame covers every phase before holding
- * (`taaStillFrames`).
+ * at three quarters, 37 at half.
  */
 export const upscalePhases = (render: number, display: number) =>
   primeAtLeast(
@@ -42,23 +40,26 @@ export const upscalePhases = (render: number, display: number) =>
 /** Cycle length at the display's size: eleven. */
 export const TAA_SAMPLES = upscalePhases(1, 1)
 
-/** Still images a hold needs at least: the shading is stochastic (shadow rays, light samples), so
- *  the uniform average must hold enough draws for its noise to fall to the converged image's:
- *  sixteen left a penumbra visibly grainier. */
-export const TAA_STILL_DRAWS = 64
-
-/** Holding is legal only after the still average has converged and every phase has contributed
- *  as often as every other: a whole number of cycles, the first to hold `TAA_STILL_DRAWS` draws —
- *  66 at native size, six cycles of eleven; 74 at half, two of 37. */
-export const taaStillFrames = (phases: number) => alignUp(TAA_STILL_DRAWS, phases)
+/** The view's texture level offset: −0.3 added, −2 at least, quantised in 1024 steps over
+ *  [−4, 4] so a small change of the render scale does not move every texture read. */
+const MIP_BIAS_OFFSET = -0.3
+const MIP_BIAS_MIN = -2
+const MIP_BIAS_STEP = 8 / 1024
 
 /**
- * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the
- * material pass's footprint is a render pixel, `log2(render / display)` brings it back to a display
- * pixel, so a texture keeps its native texel density. Zero at native size. No further bias is
- * added: the truth is the native image, and one level finer would show more than it and shimmer.
+ * Texture level offset of a frame drawn at `render` pixels per display row of `display`, the
+ * automatic view mip bias under a temporal upscale: the material
+ * pass's footprint is a render pixel, `log2(render / display)` (never above zero) brings it back to
+ * a display pixel, and the offset of −0.3 sharpens what the accumulation resolves; at least −2,
+ * quantised up to its step. `temporal` false, no temporal upscale: zero, since no accumulation
+ * resolves the finer texels a negative offset would read.
  */
-export const upscaleMipBias = (render: number, display: number) => Math.log2(render / display)
+export function upscaleMipBias(render: number, display: number, temporal = true) {
+  if (!temporal) return 0
+  const footprint = Math.log2(render / display)
+  const bias = Math.max(Math.min(footprint, 0) + MIP_BIAS_OFFSET, MIP_BIAS_MIN)
+  return Math.ceil(bias / MIP_BIAS_STEP) * MIP_BIAS_STEP
+}
 
 /**
  * Pixel offset for cycle sample `sample` among `phases`, in the pixels the frame is drawn in and

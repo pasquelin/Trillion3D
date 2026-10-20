@@ -1,7 +1,6 @@
 import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
-import { HISTORY_SAMPLES_MAX, gradientOut } from './shadingHistoryWgsl.ts'
 import { computeTextureEntry } from '../gpu/core/computeBindings.ts'
 
 /** The display layers, the tint and the added value (`../webgpu/blend/displayFilter.ts`). */
@@ -21,9 +20,10 @@ const LAYERS = [
 type Part = (name: string, now: keyof typeof LAYER_BINDINGS, history: typeof now) => string
 
 /** What a `filtered` resolve adds, per layer, to the others: each is summed, boxed, clamped and
- *  mixed with its history as the as-is share is, its history read only when it holds the last
- *  image's (`params.w`) and its box is not one value — a pixel no filtering surface covers sees `(1, 0)` all round, and a box
- *  of one value clamps any history to it. */
+ *  mixed with its history as the as-is share is, its history read at the reprojected point
+ *  (`prevUv`) only when it holds the last image's (`view.params.y`) and its box is not one value —
+ *  a pixel no filtering surface covers sees `(1, 0)` all round, and a box of one value clamps any
+ *  history to it. */
 const PARTS = {
   bindings: (_, now, history) =>
     [now, history]
@@ -34,45 +34,24 @@ const PARTS = {
     `  let ${n}At=textureLoad(${now},at,0);${n}+=${n}At*weight;${n}Lo=min(${n}Lo,${n}At);${n}Hi=max(${n}Hi,${n}At);\n`,
   scaled: (n) => ` ${n}=clamp(${n}/max(total,1e-4),${n}Lo,${n}Hi);\n`,
   kept: (n, _, history) =>
-    ` var ${n}Kept=${n};if(view.params.w!=0.0){${n}Kept=${n}Lo;if(any(${n}Lo!=${n}Hi)){${n}Kept=clamp(textureSampleLevel(${history},historySampler,previous.xy,0.0),${n}Lo,${n}Hi);}}\n`,
-  out: (n) => `,${n}`,
+    ` var ${n}Kept=${n};if(view.params.y!=0.0){${n}Kept=${n}Lo;if(any(${n}Lo!=${n}Hi)){${n}Kept=clamp(textureSampleLevel(${history},historySampler,prevUv,0.0),${n}Lo,${n}Hi);}}\n`,
   mixed: (n) => `,${weighed(n, `${n}Kept`)}`,
 } satisfies Record<string, Part>
 
-/** The current value `now` and the history's `kept` by the blend's weights, one reciprocal
- *  (`blendScale`, `1/(wc+wh)`) shared by every output. */
+/** The current value `now` and the history's `kept` by the blend's weights — the image's `wc`, the
+ *  history's `wh`, each a weight times its tone weight —, one reciprocal (`blendScale`,
+ *  `1/(wc+wh)`) shared by every output. */
 const weighed = (now: string, kept: string) => `(${now}*wc+${kept}*wh)*blendScale`
 
 /** The text of `part` for both layers in a `filtered` resolve; nothing in the others. */
 export const layerText = (filtered: boolean, part: keyof typeof PARTS) =>
   filtered ? LAYERS.map(([n, now, past]) => (PARTS[part] as Part)(n, now, past)).join('') : ''
 
-/** The resolve's output: the current image alone, or `mixed` with the history kept; the share is 0
- *  in a resolve without it (`asIs` false), and written beside the flicker gradient
- *  (`shadingHistoryWgsl.ts`, in eight bits, `gradientOut`), a free byte, and the weight the history
- *  holds, `count` (`historyWeightOut`); then the pixel's geometry (`historyWgsl.ts`) and its flicker
- *  measure, `moire`. */
-export const taaOut = (asIs: boolean, filtered: boolean, mixed = false) => {
-  const mix = (now: string, kept: string) => (mixed ? weighed(now, kept) : now)
-  return `TaaOut(${mix('filtered', 'kept')},vec4f(${asIs ? mix('share', 'keptShare') : '0.0'},${gradientOut('gradient')},0.0,${historyWeightOut('count')}),geometry,moire${layerText(filtered, mixed ? 'mixed' : 'out')})`
-}
-
-/**
- * The most weight a history records (`view.params.x`, written once a frame, `historyWeightMax`):
- * `64·(render/display)²`, the frame's own, and never below the moving history's
- * `HISTORY_SAMPLES_MAX`. One still image gives a display pixel `(render/display)²/2` on average (the
- * window of one display pixel, integrated over render texels: an eighth at half the display), and a
- * still image ends at the hold, 74 images at most from the render scale's floor of one half
- * (`taaStillFrames`) — at least 1.7 times the weight held then, never saturating. A fixed maximum (16)
- * saturated from three quarters of the display on and turned the average into an exponential one,
- * five to fourteen times noisier than the exact mean (`upscaleStill.test.ts`).
- */
-export const historyWeightMax = (render: number, display: number) =>
-  Math.max(64 * (render / display) ** 2, HISTORY_SAMPLES_MAX)
-/** The weight `count` in eight bits, finer near zero where the first images weigh most; read
- *  back by `historyWeightIn`. */
-const historyWeightOut = (count: string) => `sqrt(saturate(${count}/view.params.x))`
-export const historyWeightIn = (stored: string) => `${stored}*${stored}*view.params.x`
+/** The history update's output: the colour, the share target — the as-is share (0 in a resolve
+ *  without it, `asIs` false) and the history's validity in eight bits (`validity`) — then the
+ *  display layers, each the current value mixed with its history's by the colour's weights. */
+export const taaOut = (asIs: boolean, filtered: boolean) =>
+  `TaaOut(color,vec4f(${asIs ? weighed('share', 'keptShare') : '0.0'},validity,0.0,0.0)${layerText(filtered, 'mixed')})`
 
 /** The layers' four textures in a `filtered` resolve's layout, read by the fragment stage. */
 export const layerEntries = (filtered: boolean): GPUBindGroupLayoutEntry[] =>
@@ -91,10 +70,9 @@ export const layerEntries = (filtered: boolean): GPUBindGroupLayoutEntry[] =>
 export function createTaaFilterHistory(device: GPUDevice, usage: GPUTextureUsageFlags) {
   const textures: GPUTexture[] = [],
     views: DisplayLayers[] = []
-  let saved = false,
-    counted = 0
+  let counted = 0
   const history = {
-    /** The target read next holds the last image's layers: what `params.w` tells the resolve. */
+    /** The target read next holds the last image's layers: what `params.y` tells the resolve. */
     written: false,
     get bytes() {
       return textures.reduce(
@@ -127,9 +105,6 @@ export function createTaaFilterHistory(device: GPUDevice, usage: GPUTextureUsage
       ]),
     /** The targets history `rank` is written through, when the image resolves layers. */
     target: (rank: number): DisplayLayers | undefined => views[rank],
-    /** A convergence image replays the history the image it remakes read (`checkpoint`). */
-    checkpoint: () => void (saved = history.written),
-    replay: () => void (history.written = saved),
     drop() {
       // This image's commands may still name them: retired, destroyed after the frame's submit.
       for (const texture of textures) retire(device, texture)

@@ -1,6 +1,5 @@
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import * as layer from './layers.ts'
-import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import {
   computeBufferEntry,
@@ -8,54 +7,37 @@ import {
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
 
-/** Pass bindings, in the order of its layout entries. */
+/** The history update's bindings, in the order of its layout entries (`resolveWgsl.ts`). */
 export const TAA_BINDINGS = {
   current: 0,
   history: 1,
   historySampler: 2,
-  depth: 3,
-  ids: 4,
-  pages: 5,
-  motion: 6,
-  view: 7,
-  flags: 8,
-  texelSampler: 9,
+  rejection: 3,
+  vectors: 4,
+  antiAliasing: 5,
+  view: 6,
+  flags: 7,
+  shareHistory: 8,
   ...layer.LAYER_BINDINGS,
-  reactive: 14,
-  shareHistory: 15,
-  indices: 16,
-  positions: 17,
-  uvs: 18,
-  geometryHistory: 19,
-  shadingHistory: 20,
 } as const
 
-/** The pass's bind group layout: one entry per binding above. A flagless resolve neither
- *  binds nor reads the flags; a `filtered` one binds the layers'. The reactive value and the share
- *  target — the as-is share history beside the flicker gradient, still weight and count — are
- *  bound in every resolve (`historyWgsl.ts`). */
+/** The history update's bind group layout: one entry per binding above. A flagless resolve
+ *  neither binds nor reads the flags; a `filtered` one binds the layers'. */
 export function createTaaLayout(device: GPUDevice, asIs = true, blended = false, filtered = false) {
   const stage = GPUShaderStage.FRAGMENT
   const entries: GPUBindGroupLayoutEntry[] = [
     computeTextureEntry(TAA_BINDINGS.current, 'unfilterable-float', '2d', stage),
     computeTextureEntry(TAA_BINDINGS.history, 'float', '2d', stage),
     computeSamplerEntry(TAA_BINDINGS.historySampler, 'filtering', stage),
-    computeTextureEntry(TAA_BINDINGS.depth, 'depth', '2d', stage),
-    computeTextureEntry(TAA_BINDINGS.ids, 'uint', '2d', stage),
-    computeBufferEntry(TAA_BINDINGS.pages, 'read-only-storage', stage),
-    computeBufferEntry(TAA_BINDINGS.motion, 'read-only-storage', stage),
+    // The shading rejection of each render texel (`rejectionWgsl.ts`).
+    computeTextureEntry(TAA_BINDINGS.rejection, 'float', '2d', stage),
+    // The reprojection vector of each render texel, hole-filled (`reprojectWgsl.ts`).
+    computeTextureEntry(TAA_BINDINGS.vectors, 'uint', '2d', stage),
+    // The spatial anti-aliaser's offset and noise filtering (`spatialAntiAliasingWgsl.ts`).
+    computeTextureEntry(TAA_BINDINGS.antiAliasing, 'uint', '2d', stage),
     computeBufferEntry(TAA_BINDINGS.view, 'uniform', stage),
     computeTextureEntry(TAA_BINDINGS.flags, blended ? 'float' : 'uint', '2d', stage),
-    // Gathers only (`geometryHistoryWgsl.ts`): never filters, so depth and integers may use it.
-    computeSamplerEntry(TAA_BINDINGS.texelSampler, 'non-filtering', stage),
-    computeTextureEntry(TAA_BINDINGS.reactive, 'float', '2d', stage),
     computeTextureEntry(TAA_BINDINGS.shareHistory, 'float', '2d', stage),
-    computeTextureEntry(TAA_BINDINGS.geometryHistory, 'uint', '2d', stage),
-    computeTextureEntry(TAA_BINDINGS.shadingHistory, 'uint', '2d', stage),
-    // The page pool and the float pool the page geometry reads a deformed pixel's triangle from.
-    ...[TAA_BINDINGS.indices, TAA_BINDINGS.positions, TAA_BINDINGS.uvs].map((binding) =>
-      computeBufferEntry(binding, 'read-only-storage', stage),
-    ),
   ]
   const kept = asIs ? entries : entries.filter(({ binding }) => binding !== TAA_BINDINGS.flags)
   return device.createBindGroupLayout({
@@ -63,9 +45,7 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
   })
 }
 
-/** The pass uniform's fields (`TAA_VIEW_WGSL`), in order: two matrices, two quadruplets, then the
- *  render grid, the jitter, the eye, the scene's exposure, the camera's parallax and the flicker
- *  rates. */
+/** The pass uniform's fields (`TAA_VIEW_WGSL`), in order. */
 export const TAA_VIEW = fieldLayout('TaaView', [
   ['prevViewProj', 'mat4x4f'],
   ['invViewProj', 'mat4x4f'],
@@ -74,53 +54,65 @@ export const TAA_VIEW = fieldLayout('TaaView', [
   ['render', 'vec4f'],
   ['jitter', 'vec4f'],
   ['eye', 'vec4f'],
-  ['tsr', 'vec4f'],
+  ['exposure', 'vec4f'],
   ['parallax', 'vec4f'],
-  ['moire', 'vec4f'],
+  ['rates', 'vec4f'],
+  ['depth', 'vec4f'],
+  ['radius', 'vec4f'],
+  ['prevRender', 'vec4f'],
+  ['analysisGrid', 'vec4f'],
+  ['quality', 'vec4f'],
 ] as const)
 export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
 
 /**
- * Pass uniform. `prevViewProj` and `invViewProj` are REPORTED TO THIS FRAME'S EYE and
- * both WITHOUT jitter: the inverse yields, for the unshifted pixel centre and the depth read at
- * the sample, a position relative to the eye; the previous one takes it as-is — the same
- * anchoring as the partition, so five-digit world coordinates of an urban model do not eat
- * the single-precision of the reprojection. `viewport` = (width, height, 1/width,
- * 1/height) of the display, which the history has; `params` = (the most weight a history holds,
- * `historyWeightMax`, history valid, a placement
- * moved, the layers' history is the last image's); `render` = the same four of the grid the frame
- * was drawn in, and `jitter` its offset in render pixels (`resolveWgsl.ts`), then whether the image
- * moves and the image's rank among eight, which
- * dithers the history texel read (`historyWgsl.ts`); `eye` the eye in the world, and in `w` whether
- * a GPU deformation moved this frame (`deformWgsl.ts`); `tsr.x` the exposure composition
- * applies, which the history's luma is measured in (`shadingHistoryWgsl.ts`); `parallax` the last
- * view-projection's image of the eye's move since then, `prevViewProj · (lastEye − eye, 0)`: what a
- * point's last projection gains when the camera only turned, its parallax; `moire` the flicker
- * count's fade-in rate and the parallax limit's inverse (`FLICKER_COUNT_RATE`, `flickerParallax`), a render pixel's
- * width in the world at a clip w of one (`shadingStill`).
+ * Pass uniform, read by every temporal pass. `prevViewProj` and `invViewProj` are REPORTED TO THIS
+ * FRAME'S EYE and both WITHOUT jitter: the inverse yields, for an unshifted pixel centre and a depth,
+ * a position relative to the eye; the previous one takes it as is — the anchoring of the partition,
+ * so five-digit world coordinates do not eat the single precision of the reprojection.
+ * - `viewport`: `(width, height, 1/width, 1/height)` of the display, which the history has;
+ *   `render`: the same four of the grid this frame was drawn in; `prevRender`: of the grid the
+ *   last image was drawn in, which the render-resolution histories hold; `analysisGrid`: of the textures
+ *   those histories are allocated at.
+ * - `params`: the history describes nothing — a cut, no history yet — (`x`), the display layers'
+ *   history holds the last image's (`y`), a placement moved (`z`), what the resolve outputs in place
+ *   of the accumulated colour (`w`, `taaViewCode`: 0 the colour, a diagnostic view's code else).
+ * - `jitter`: this frame's offset in render pixels, its accumulated image's rank, and that rank
+ *   among eight.
+ * - `eye`: the eye in the world, and in `w` whether a GPU deformation moved this frame
+ *   (`deformWgsl.ts`).
+ * - `exposure`: the exposure composition applies (`x`), every measured colour multiplied by it; the
+ *   ratio of this image's exposure to the last one's, which corrects the histories kept in an
+ *   exposed space (`y`); the flicker count's fade-in rate (`z`, `flickerCountRate`), and a thin
+ *   geometry region's, over three flicker periods (`w`, `THIN_GEOMETRY_PERIODS`).
+ * - `parallax`: the last view-projection's image of the eye's move since the last image,
+ *   `prevViewProj · (lastEye − eye, 0)`: what a point's last projection gains when the camera only
+ *   turned.
+ * - `rates`: the inverse of the parallax speed past which a pixel is moving to the flicker measure,
+ *   in render pixels an image (`x`), and the blend factor a history fully kept takes the image at
+ *   (`y`).
+ * - `depth`: the projection's third and fourth rows' depth terms `(z·z, z·w, w·z, w·w)`, which turn a
+ *   device depth into a scene depth and back (`depthWgsl.ts`); `radius`: a render pixel's world
+ *   radius per unit of scene depth and at none (`xy`), and the sign of the view axis (`z`).
+ * - `quality`: the level's knobs (`TaaLevelKnobs`, `levels.ts`): the flicker rejection on (`x`,
+ *   1 or 0), the spatial anti-aliaser's samples a side, 0 for none (`y`), and the history
+ *   update's kernel moving its far neighbour (`z`, 1 or 0).
  */
-const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
+export const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
 
+/** The history update's bindings (`resolveWgsl.ts`). */
 export const BINDINGS_WGSL = wgslBlock(
   'BINDINGS_WGSL',
-  [PAGE_INFO_STRUCT_WGSL, TAA_VIEW_WGSL],
+  [TAA_VIEW_WGSL],
   `
 @group(0) @binding(${TAA_BINDINGS.current}) var current:texture_2d<f32>;
 @group(0) @binding(${TAA_BINDINGS.history}) var history:texture_2d<f32>;
 @group(0) @binding(${TAA_BINDINGS.historySampler}) var historySampler:sampler;
-@group(0) @binding(${TAA_BINDINGS.depth}) var depth:texture_depth_2d;
-@group(0) @binding(${TAA_BINDINGS.ids}) var ids:texture_2d<u32>;
-@group(0) @binding(${TAA_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
-@group(0) @binding(${TAA_BINDINGS.motion}) var<storage,read> motion:array<mat4x4f>;
+@group(0) @binding(${TAA_BINDINGS.rejection}) var rejection:texture_2d<f32>;
+@group(0) @binding(${TAA_BINDINGS.vectors}) var vectors:texture_2d<u32>;
+@group(0) @binding(${TAA_BINDINGS.antiAliasing}) var antiAliasing:texture_2d<u32>;
 @group(0) @binding(${TAA_BINDINGS.view}) var<uniform> view:TaaView;
-@group(0) @binding(${TAA_BINDINGS.reactive}) var reactive:texture_2d<f32>;
-@group(0) @binding(${TAA_BINDINGS.shareHistory}) var shareHistory:texture_2d<f32>;
-@group(0) @binding(${TAA_BINDINGS.geometryHistory}) var geometryHistory:texture_2d<u32>;
-@group(0) @binding(${TAA_BINDINGS.shadingHistory}) var shadingHistory:texture_2d<u32>;
-@group(0) @binding(${TAA_BINDINGS.texelSampler}) var texelSampler:sampler;
-@group(0) @binding(${TAA_BINDINGS.indices}) var<storage,read> indices:array<u32>;
-@group(0) @binding(${TAA_BINDINGS.positions}) var<storage,read> positions:array<f32>;
-@group(0) @binding(${TAA_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;`,
+@group(0) @binding(${TAA_BINDINGS.shareHistory}) var shareHistory:texture_2d<f32>;`,
 )
 export const shareBindingsWgsl = (blended: boolean) =>
   wgslBlock(
