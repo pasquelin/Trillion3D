@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { exitOnSignals } from './child.ts'
-import { lockHolder, processAlive, tryLock } from '../../../scripts/machine-lock.ts'
+import { lockHolder, processAlive, tryLock } from '../../../scripts/native/machine-lock.ts'
 
 /** The machine's one bench lock: in the home directory, so every clone and worktree sees it. */
 const BENCH_LOCK = join(homedir(), '.trillion3d', 'gpu-bench.lock')

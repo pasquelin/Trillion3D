@@ -3,7 +3,7 @@ import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 /**
  * THE FITTED SPECULAR LOBE OF THE RECTANGLES, as data (`packages/sdk-browser/src/lighting/direct/rectLightWgsl.ts`).
  *
- * `fitLtcTable(LTC_SIZE, 24)` (`scripts/ltc-fit.ts`) fits the engine's own GGX lobe in 64 × 64 cells in
+ * `fitLtcTable(LTC_SIZE, 24)` (`scripts/dev/ltc-fit.ts`) fits the engine's own GGX lobe in 64 × 64 cells in
  * about two minutes; its result changes only when the lobe does, so it is fitted once and kept
  * here, encoded by `encodeLtcTable`. Refit and re-encode it whenever `standardLighting.ts`'s
  * lobe changes. Six half floats a cell — M⁻¹'s four entries, the lobe's magnitude and its

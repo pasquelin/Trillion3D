@@ -7,7 +7,7 @@
 // finely tessellated sphere, for the distance law. Prints the manifest's path.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { compileFullCache } from '../../../scripts/native-compiler.ts'
+import { compileFullCache } from '../../../scripts/native/native-compiler.ts'
 import { measureOutput } from '../../core/paths.ts'
 import { sceneGltf, type SceneMesh, type SceneNode } from './gltf.ts'
 import { lawObject, lawWorld } from './world.ts'

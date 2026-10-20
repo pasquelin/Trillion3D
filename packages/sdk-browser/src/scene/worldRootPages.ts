@@ -1,6 +1,6 @@
 // The world stream's own code, a family on demand (`../host/families.ts`): the world pages named at
 // their address in the cook's rank. A scene opens without it; it imports no engine code, so the CDN
-// bundle makes one chunk of it alone (`scripts/bundle-fold.ts`), and the engine's shapes stay the
+// bundle makes one chunk of it alone (`scripts/build/bundle-fold.ts`), and the engine's shapes stay the
 // core's (`worldHlod.ts`).
 //
 // A world page (`world-roots.bin`, docs/FORMAT.md, World HLOD) is a `WGP3` geometry page: its

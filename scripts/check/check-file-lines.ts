@@ -1,0 +1,72 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { changedFiles, isTestModule, repositoryFiles, unitOf } from '../repository-files.ts'
+
+export const MAX_LINES = 300
+const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
+
+/**
+ * The bound the runtime source does not answer to, and what answers in its place.
+ *
+ * A line count on a file stopped describing the code: 42 modules sat at exactly `MAX_LINES` and 14
+ * commits in a week existed only to get back under it, `19ca7891a` splitting one 5-line import in
+ * two to save three lines. What made a module hard to change was never its length but the length
+ * and the branching of its functions, which a file bound cannot see — a module of six one-line
+ * functions and a module of one 189-line function both passed it. `check:cohesion` measures those
+ * two instead, on the modules a branch touches — the 405 functions of the tree already over 60 lines
+ * are its queue rather than a failure, which is why it is not a step of `validate`.
+ *
+ * The tests keep the bound: a test is long by nature, its cases are its sections, and the split
+ * that stays under it is by the behaviour under test (`b237eb625`). The scripts keep it too — they
+ * are read whole, one gate or one step each.
+ */
+
+/** Whether the file still answers to the bound. A maintained runtime module of TypeScript does not,
+ *  and `check:cohesion` reads it instead; nor does a vendored crate, kept as published but for its
+ *  patch. A test, a fixture, a script, the bench and the Rust crates all do — each is read whole,
+ *  and a Rust function's length is not what makes it hard to change either, but no gate reads it
+ *  yet, so the bound stays where it still holds. */
+export const keepsLineBound = (file: string): boolean =>
+  !file.includes('/vendor/') &&
+  (!unitOf(file) || isTestModule(file) || file.endsWith('/index.ts') || file.endsWith('/index.mts'))
+
+export function lineCount(source: string): number {
+  if (!source) return 0
+  return source.split('\n').length - Number(source.endsWith('\n'))
+}
+
+/** Every selected file that keeps the bound must fit it. A runtime module that does not is read by
+ *  `check:cohesion` instead, and reporting it here would only restate a bound it does not answer
+ *  to. */
+export function lineLimitViolations(
+  lines: Map<string, number>,
+  selected: Set<string> = new Set(lines.keys()),
+): string[] {
+  const errors: string[] = []
+  for (const file of selected) {
+    const count = lines.get(file)
+    if (count !== undefined && count > MAX_LINES && keepsLineBound(file))
+      errors.push(`${file}: ${count} lines; maximum ${MAX_LINES}`)
+  }
+  return errors
+}
+
+async function main(): Promise<void> {
+  const changedOnly = process.argv.includes('--changed')
+  const paths = new Set(repositoryFiles())
+  const changed = changedOnly ? await changedFiles() : paths
+  const lines = new Map(
+    [...paths]
+      .filter((file) => sourceFile.test(file) && existsSync(file))
+      .map((file): [string, number] => [file, lineCount(readFileSync(file, 'utf8'))]),
+  )
+  const selected = new Set([...changed].filter((file) => sourceFile.test(file)))
+  const errors = lineLimitViolations(lines, selected)
+  if (errors.length) {
+    console.error(errors.join('\n'))
+    process.exitCode = 1
+  } else {
+    console.log(`All checked source files have at most ${MAX_LINES} lines.`)
+  }
+}
+
+if (import.meta.main) await main()

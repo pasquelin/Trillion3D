@@ -32,7 +32,7 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 //  1. WITNESS ENGINES are written with the host library, and that is their function: they are the
 //     reference against which the engine is compared, frame by frame. They live outside the
 //     package, beside the bench (`bench/witnesses/`), are bundled for it by
-//     `scripts/build-witnesses.ts` into `dist/witnesses/`, which the package leaves out, and draw
+//     `scripts/build/build-witnesses.ts` into `dist/witnesses/`, which the package leaves out, and draw
 //     in pages of their own (`bench/runner/witness/threeMeasurePage.ts`), never as the engine.
 //  2. The pages, copies and lights a page hands back are objects of the engine's own graph
 //     (`packages/sdk-browser/src/host/pageObjects.ts`, `packages/sdk-browser/src/host/graph/`).

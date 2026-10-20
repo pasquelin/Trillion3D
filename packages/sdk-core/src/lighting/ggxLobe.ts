@@ -2,7 +2,7 @@ import { PI } from '../../../math/src/constants.ts'
 
 /**
  * The standard material's GGX lobe on the CPU, in its usual form: the CPU image and the lobe fit
- * of the area-light table (`scripts/ltc-fit.ts`) read it, so a lobe changed on one side is changed
+ * of the area-light table (`scripts/dev/ltc-fit.ts`) read it, so a lobe changed on one side is changed
  * on both. The shader writes the distribution with the squared sine of the half vector instead
  * (`standardLighting.ts`): another operation order, the same lobe.
  */

@@ -1,14 +1,14 @@
 # Files written by a tool or a third party, never by hand: GitHub folds them in a diff.
 pnpm-lock.yaml linguist-generated
 **/Cargo.lock linguist-generated
-# scripts/generate-sdk-facade.ts
+# scripts/sdkApi/generate-sdk-facade.ts
 packages/sdk/index.ts linguist-generated
 packages/sdk/browser.ts linguist-generated
 packages/sdk/node.mts linguist-generated
 packages/sdk/common/** linguist-generated
 packages/sdk/browser/** linguist-generated
-# The record of scripts/check-english.ts (`--write`)
-scripts/english-baseline.json linguist-generated
+# The record of scripts/check/check-english.ts (`--write`)
+scripts/check/english-baseline.json linguist-generated
 # The format goldens: the compiler's output, rewritten by a `regenerate_*` test or on a format bump
 tests/fixtures/formats/**/expected.json linguist-generated
 # A generated scene source, as in .prettierignore

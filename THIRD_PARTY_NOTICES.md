@@ -9,7 +9,7 @@ Trillion3D ships the following third-party software in its builds. Each keeps it
   repository.
 - Shipped as: `packages/sdk-browser/src/physics/joltPhysics.wasm` and
   `packages/sdk-browser/src/physics/joltPhysicsThreads.wasm` (the threaded build), both built from
-  those sources by `scripts/build-physics-wasm.ts`. This notice travels with them in the npm
+  those sources by `scripts/build/build-physics-wasm.ts`. This notice travels with them in the npm
   package.
 - Licence: MIT.
 

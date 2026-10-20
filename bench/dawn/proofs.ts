@@ -13,7 +13,7 @@
 // out loud, never in silence.
 import { spawnSync } from 'node:child_process'
 import { join, relative } from 'node:path'
-import { isUnitTest } from '../../scripts/unit-tests.ts'
+import { isUnitTest } from '../../scripts/test/unit-tests.ts'
 import { entryPath, underNodeTest } from '../core/entryPoint.ts'
 import { LOCK_OWNER, takeBenchLock } from './runs/lock.ts'
 import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/repository-files.ts'
@@ -109,7 +109,7 @@ export async function runProofs(args = process.argv.slice(2)) {
   const [suffix, targets] = chrome ? [CHROME_SUFFIX, args.slice(1)] : [PROOF_SUFFIX, args]
   takeBenchLock(chrome ? 'Chrome proofs' : 'GPU proofs')
   // Cooked under the lock: a compile beside a measurement would disturb it.
-  const { compileCaches } = await import('../../scripts/scene-caches.ts')
+  const { compileCaches } = await import('../../scripts/native/scene-caches.ts')
   compileCaches()
   const excluded = reportedExclusions(suffix)
   if (targets.length === 0 && excluded.length > 0)

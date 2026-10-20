@@ -27,7 +27,7 @@ import { isKind, rangeWindow } from './lightReachWgsl.ts'
  * plane is the horizon's own. Whole above, the form factor is F·z; whole below, zero.
  * - Diffuse: the cosine itself — the rectangle as it is, around the normal: exact.
  * - Specular: the engine's GGX lobe, Fresnel apart, is the cosine seen through the matrix M
- *   fitted for its roughness and view angle (`scripts/ltc-fit.ts`, `ltcTable.ts`); the rectangle, in the
+ *   fitted for its roughness and view angle (`scripts/dev/ltc-fit.ts`, `ltcTable.ts`); the rectangle, in the
  *   frame of the normal and the view, is moved by M⁻¹ and integrated the same way, then weighed
  *   by the lobe's magnitude and its Fresnel share: F0·norm + (1 − F0)·share.
  *

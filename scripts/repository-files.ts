@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, type PathLike } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { gitPaths, gitPathsSync } from './git-paths.ts'
-import { localPaths } from './local-files.ts'
+import { localPaths } from './git/local-files.ts'
 
 /** The repository's root folder, the one place every script, bench and test reads it from. */
 export const REPOSITORY_ROOT = resolve(import.meta.dirname, '..')
@@ -60,7 +60,7 @@ export const localFileGlobs = (): string[] =>
  *
  * A gate that walks the tree wants the same three lines every time: the repository root, its tracked
  * files, and a map of the ones it cares about. `jscpd` found the third of them copied between
- * `check-helpers.ts` and `check-cohesion.ts`, which is what it is for.
+ * `check/check-helpers.ts` and `check/check-cohesion.ts`, which is what it is for.
  */
 export function sourceFilesOf(
   extensions: RegExp,

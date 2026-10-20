@@ -1,4 +1,4 @@
-// The second pass of `check:unused` (`scripts/check-unused.ts`, #1366): the entries of
+// The second pass of `check:unused` (`scripts/check/check-unused.ts`, #1366): the entries of
 // `knip.config.ts` without the tests, the fixtures and the test kit, plus every script and bench
 // module, which run outside `pnpm test`. Only `packages/` is reported: a source file or an
 // export that only a test reaches is dead code, as one that nothing reaches.

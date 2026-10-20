@@ -3,7 +3,7 @@
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { MIB } from '../../../packages/math/src/constants.ts'
-import { compileFullCache } from '../../../scripts/native-compiler.ts'
+import { compileFullCache } from '../../../scripts/native/native-compiler.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
 import type { MeasuredWorldTarget } from '../../../packages/sdk-browser/src/world/session/target.ts'

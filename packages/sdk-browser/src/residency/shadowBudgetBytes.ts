@@ -21,7 +21,7 @@ import { alignUp } from '../../../math/src/scalar/integers.ts'
  * `../vsm/constants.ts`) and the
  * coloured transmission's first atlas (`vsmTransmissionBytes`, `../vsm/transmissionLayout.ts`).
  * The projection's mask, sized by the canvas, is a frame target. Only the shadows' size modules,
- * never a pass: the core holds this budget, and no shadow pass (`scripts/core-sources.ts`).
+ * never a pass: the core holds this budget, and no shadow pass (`scripts/build/core-sources.ts`).
  */
 function oneSunShadowMaps() {
   const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })

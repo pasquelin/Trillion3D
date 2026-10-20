@@ -57,7 +57,7 @@ The measurement entry point (`packages/sdk-browser/src/measurement/measurement.t
 branch plus the measured world, the backend factories and choice) has no subpath in `exports`, so
 it never reaches a package consumer; `bench/witnesses/measurement.ts` adds the witness entry.
 
-`apiInventory()` (`scripts/sdk-api-inventory.ts`) lists, with the TypeScript checker, every entry
+`apiInventory()` (`scripts/sdkApi/sdk-api-inventory.ts`) lists, with the TypeScript checker, every entry
 point and binding the facades expose.
 
 ## Create a world

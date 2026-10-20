@@ -1,2 +1,2 @@
 #!/bin/sh
-exec node scripts/hooks/delegate.ts "$(basename "$0")" "$@"
+exec node scripts/git/hooks/delegate.ts "$(basename "$0")" "$@"

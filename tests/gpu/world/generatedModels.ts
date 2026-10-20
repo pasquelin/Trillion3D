@@ -5,7 +5,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { compileFullCache } from '../../../scripts/native-compiler.ts'
+import { compileFullCache } from '../../../scripts/native/native-compiler.ts'
 import { measureOutput } from '../../../bench/core/paths.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 

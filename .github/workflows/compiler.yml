@@ -2,8 +2,8 @@ name: Compiler
 
 # The distributed compiler on its five platforms: each built on its own runner, trained on
 # the reference scenes (profile-guided), and its caches of those scenes fingerprinted
-# (`scripts/compiler-dist.ts`); every fingerprint must equal Linux x64's, and on a pull request
-# `develop`'s (`scripts/compiler-hashes.ts`), and each binary's size is printed. The Jolt collider
+# (`scripts/native/compiler-dist.ts`); every fingerprint must equal Linux x64's, and on a pull request
+# `develop`'s (`scripts/native/compiler-hashes.ts`), and each binary's size is printed. The Jolt collider
 # shapes alone may differ from a base whose Jolt cook still fuses multiply-adds: they change once to
 # the unfused bytes, and the comparison is whole again once that base is merged. It runs on a pull
 # request that touches what the compiler is built from, and on every release.
@@ -34,11 +34,11 @@ on:
       - packages/physics-jolt-wasm/JoltPhysics
       - packages/compiler/**
       - .cargo/**
-      - scripts/compiler-*.ts
+      - scripts/native/compiler-*.ts
       # What the scripts above run and read: the compile, the scenes, the platform names.
-      - scripts/native-compiler.ts
-      - scripts/build-wasm.ts
-      - scripts/scene-caches.ts
+      - scripts/native/native-compiler.ts
+      - scripts/build/build-wasm.ts
+      - scripts/native/scene-caches.ts
       - packages/sdk-node/src/compiler/platform.mts
       - tests/fixtures/scenes/mountain-terrain/**
       - tests/fixtures/scenes/kinetic-garden/**
@@ -112,7 +112,7 @@ jobs:
         with:
           workspaces: packages/asset-compiler-rust
           key: dist-${{ matrix.platform }}
-      - run: node scripts/compiler-dist.ts ${{ matrix.platform }}.json
+      - run: node scripts/native/compiler-dist.ts ${{ matrix.platform }}.json
         shell: bash
       - uses: actions/upload-artifact@v4
         with:
@@ -151,7 +151,7 @@ jobs:
         shell: bash
       - run: cargo build --release --locked --bin trillion3d-compiler --manifest-path packages/asset-compiler-rust/Cargo.toml
         working-directory: base
-      - run: node scripts/compiler-hashes.ts base/packages/asset-compiler-rust/target/release/trillion3d-compiler base.json "${{ github.base_ref }}"
+      - run: node scripts/native/compiler-hashes.ts base/packages/asset-compiler-rust/target/release/trillion3d-compiler base.json "${{ github.base_ref }}"
       # Whether the base cooks Jolt without its cross-platform mode, so with fused multiply-adds.
       - id: jolt
         run: |
@@ -165,7 +165,7 @@ jobs:
           name: compiler-base
           path: base.json
 
-  # Every fingerprint against Linux x64's, `develop`'s included (a family whose version changed may differ: `scripts/compiler-hashes.ts`); the sizes are printed beside them.
+  # Every fingerprint against Linux x64's, `develop`'s included (a family whose version changed may differ: `scripts/native/compiler-hashes.ts`); the sizes are printed beside them.
   compare:
     needs: [scope, build, base]
     if: ${{ !cancelled() && needs.scope.outputs.build == 'true' }}
@@ -186,10 +186,10 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           test "$BUILD" = success
-          node scripts/compiler-hashes.ts --compare linux-x64.json darwin-arm64.json darwin-x64.json linux-arm64.json win32-x64.json
+          node scripts/native/compiler-hashes.ts --compare linux-x64.json darwin-arm64.json darwin-x64.json linux-arm64.json win32-x64.json
           if [ "$EVENT" = pull_request ]; then
             test "$BASE" = success
             allow=""
             if [ "$FUSED" = true ]; then allow=--colliders-may-differ; fi
-            node scripts/compiler-hashes.ts --compare --against-base $allow linux-x64.json base.json
+            node scripts/native/compiler-hashes.ts --compare --against-base $allow linux-x64.json base.json
           fi

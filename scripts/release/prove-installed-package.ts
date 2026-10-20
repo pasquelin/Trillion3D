@@ -1,0 +1,199 @@
+#!/usr/bin/env node
+import { readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { basename, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import type { Metafile } from 'esbuild'
+import { evidenceSummary, installedEvidence } from './installed-package/evidence.ts'
+import {
+  browserEvidence,
+  emitInstalledBrowserBundle,
+  proveInstalledBrowserModes,
+} from './installed-package/bundle.ts'
+import { compileInstalledScene, type CompiledScene } from './installed-package/scene.ts'
+import { packPlatformPackages, platformOverrides } from './installed-package/platforms.ts'
+import { currentCompilerExecutable } from '../../packages/sdk-node/src/compiler/executable.mts'
+import { installedCompiler } from '../../packages/sdk-node/src/compiler/platform.mts'
+import { readRelease } from './release-packages.ts'
+import { proveInstalledRuntime } from './installed-package/runtime.ts'
+import { proveInstalledTypes } from './installed-package/types.ts'
+import {
+  createInstalledFixture,
+  type ExportsManifest,
+  type PackageJson,
+  packArchive,
+} from './installed-package/fixture.ts'
+import { REPOSITORY_ROOT, readJson } from '../repository-files.ts'
+
+/** Whether the fixture's virtual store holds any version of the host library. */
+const installedThree = (fixture: string) =>
+  readdirSync(join(fixture, 'node_modules/.pnpm')).some((name) => /^three@|_three@/.test(name))
+
+const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const { fixture, logs, run, write, bundle, installedVersion } =
+  createInstalledFixture(REPOSITORY_ROOT)
+// `--archives <folder>`: the six archives of a release (`scripts/release.ts pack`) installed
+// as the registry would serve them, nothing built here; the compiler proved is the one they carry.
+const archivesAt = process.argv.indexOf('--archives')
+const release = archivesAt >= 0 ? readRelease(resolve(process.argv[archivesAt + 1])) : null
+
+try {
+  const proveBrowser = process.argv.includes('--browser')
+  // `--bundle`: the browser bundle emitted and checked, no browser launched.
+  const proveBundle = process.argv.includes('--bundle') && !proveBrowser
+  const proveNative =
+    release !== null || process.argv.includes('--native') || proveBrowser || proveBundle
+  // The compiler reaches the application in this machine's platform package: the
+  // checkout's build just made, refused if older than its sources; a release builds nothing.
+  let built: string | null = null
+  if (!release) run(pnpm, ['run', 'build'])
+  if (!release && proveNative) {
+    run(pnpm, ['run', 'build:native'])
+    built = currentCompilerExecutable(undefined, {})
+  }
+  const packed = release?.archives.at(-1) ?? packArchive(run, pnpm, REPOSITORY_ROOT, fixture)
+  const archive = join(fixture, basename(packed.filename)) // where the CDN proof unpacks it
+  if (release) writeFileSync(archive, readFileSync(packed.filename))
+  const source = readJson(join(REPOSITORY_ROOT, 'package.json')) as PackageJson
+  // The consumer installs the package alone: it neither declares nor needs the host
+  // library, and the proof reads the installed tree to say so.
+  const dependencies: Record<string, string> = { [source.name]: `file:${archive}` }
+  const devDependencies = Object.fromEntries(
+    ['@types/node', '@webgpu/types', 'typescript'].map((name): [string, string] => [
+      name,
+      installedVersion(name),
+    ]),
+  )
+  write(
+    'package.json',
+    `${JSON.stringify(
+      {
+        name: 'trillion3d-installed-proof',
+        private: true,
+        type: 'module',
+        packageManager: source.packageManager,
+        dependencies,
+        devDependencies,
+      },
+      null,
+      2,
+    )}\n`,
+  )
+  write(
+    'pnpm-workspace.yaml',
+    release
+      ? platformOverrides(release.archives.slice(0, -1))
+      : packPlatformPackages({ root: REPOSITORY_ROOT, fixture, run, pnpm, binary: built }),
+  )
+  run(pnpm, ['install', '--frozen-lockfile=false'], fixture)
+  // A release's compiler, found from the installed package as its CLI finds it: absent, or not
+  // executable, the proof stops here.
+  const installed = join(fixture, 'node_modules', source.name, 'package.json')
+  const executable = release
+    ? installedCompiler(process.platform, process.arch, pathToFileURL(realpathSync(installed)))
+    : built
+  if (proveNative && !executable) throw new Error('the installed package carries no compiler')
+  if (installedThree(fixture)) throw new Error('a clean install of the package pulls three')
+  const packageName = source.name
+  write(
+    'runtime.mjs',
+    `import { getSdkProvenance,multiplyMatrix4,prepare } from '${packageName}';\n` +
+      `if(typeof multiplyMatrix4!=='function'||typeof prepare!=='function')process.exit(2);\n` +
+      `const translation=(x,y,z)=>new Float64Array([1,0,0,0,0,1,0,0,0,0,1,0,x,y,z,1]),out=new Float64Array(16);\n` +
+      `multiplyMatrix4(out,translation(2,3,4),translation(5,7,11));if(out[12]!==7||out[13]!==10||out[14]!==15)process.exit(4);\n` +
+      `const p=await getSdkProvenance();if(!p.files['dist/sdk-node/src/index.mjs'])process.exit(3);\n` +
+      `for(const path of ['/core','/node','/browser','/dist/sdk-core/src/index.js'])try{await import('${packageName}'+path);process.exit(5)}catch(e){if(e.code!=='ERR_PACKAGE_PATH_NOT_EXPORTED')process.exit(6)}\n`,
+  )
+  run(process.execPath, ['runtime.mjs'], fixture)
+  proveInstalledTypes({ fixture, packageName, run, write })
+  let native: { primer: CompiledScene; replay: CompiledScene } | null = null
+  let compilerVersion: string | null = null
+  if (executable) {
+    const compile = (name: string, variant: number) =>
+      compileInstalledScene({ fixture, run, pnpm, name, variant })
+    compilerVersion = run(executable, ['--version']).trim()
+    native = {
+      primer: compile('primer', 0),
+      replay: compile('replay', 0.01),
+    }
+  }
+  const bundles: Record<string, Metafile> = {
+    default: bundle(
+      'default',
+      `import { multiplyMatrix4 } from '${packageName}';\nconsole.log(multiplyMatrix4);\n`,
+      'neutral',
+      [],
+    ),
+    types: bundle(
+      'types',
+      `import type { CameraPose } from '${packageName}';\nconst pose:CameraPose={position:[0,0,1],target:[0,0,0],fov:45,near:.1,far:10};\nconsole.log(pose.position.length);\n`,
+      'neutral',
+      [],
+    ),
+  }
+  for (const name of ['default']) {
+    const inputs = bundles[name].outputs[`${name}.js`].inputs
+    if (
+      Object.entries(inputs).some(
+        ([path, contribution]) =>
+          contribution.bytesInOutput > 0 &&
+          (path.includes('/three/') ||
+            path.includes('sdk-node') ||
+            (name === 'default' && path.includes('sdk-browser'))),
+      )
+    )
+      throw new Error(`${name} bundle reaches renderer or Node modules`)
+  }
+  if (
+    Object.keys(bundles.types.outputs['types.js'].inputs).some((path) => path.includes(packageName))
+  )
+    throw new Error('type-only import was not erased')
+  const manifest = readJson(
+    join(fixture, `node_modules/${source.name}/package.json`),
+  ) as ExportsManifest
+  const runtimeProof = proveInstalledRuntime({ fixture, packageName, run, write, bundle })
+  bundles.maths = runtimeProof.bundles.maths
+  bundles.worker = bundle('common-worker', runtimeProof.workerSource)
+  const browserOptions = {
+    fixture,
+    packageName: source.name,
+    browserEntry: manifest.exports['.'].browser?.import ?? 'dist/sdk-browser/src/index.js',
+    bundler: join(REPOSITORY_ROOT, 'node_modules/.bin/esbuild'),
+    run,
+  }
+  const browserRun = proveBrowser ? await proveInstalledBrowserModes(browserOptions) : null
+  const browserBundle =
+    browserRun?.bundled.bundle ?? (proveBundle ? emitInstalledBrowserBundle(browserOptions) : null)
+  const browserProof = browserRun?.bundled.proof ?? null
+  if (browserBundle) bundles.explorer = browserBundle.metafile
+  const evidence = {
+    package: `${manifest.name}@${manifest.version}`,
+    commit: run('git', ['rev-parse', 'HEAD']).trim(),
+    ...installedEvidence({
+      fixture,
+      packageName,
+      packed,
+      tools: {
+        node: process.version,
+        pnpm: run(pnpm, ['--version']).trim(),
+        typescript: installedVersion('typescript'),
+        esbuild: installedVersion('esbuild'),
+      },
+      compilerVersion,
+      browserProof,
+      proveNative,
+      proveBrowser,
+    }),
+    bundles,
+    native,
+    browser: browserEvidence(browserRun),
+  }
+  const output = process.argv.indexOf('--output')
+  if (output >= 0)
+    writeFileSync(resolve(process.argv[output + 1]), `${JSON.stringify(evidence, null, 2)}\n`)
+  process.stdout.write(`${evidenceSummary(evidence)}\n`)
+} catch (error) {
+  console.error(JSON.stringify({ error: String(error), fixture, logs }, null, 2))
+  throw error
+} finally {
+  rmSync(fixture, { recursive: true, force: true })
+}

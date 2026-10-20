@@ -1,2 +1,2 @@
 #!/bin/sh
-exec node scripts/hooks/pre-push.ts "$@"
+exec node scripts/git/hooks/pre-push.ts "$@"

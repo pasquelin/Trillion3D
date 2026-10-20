@@ -1,6 +1,6 @@
 # Builds Jolt Physics (pinned submodule `JoltPhysics/`) and this package's flat batched C API into
 # one standalone WebAssembly module: `joltPhysics.wasm`, or with `-DTHREADS=ON`
-# `joltPhysicsThreads.wasm` (atomics, bulk memory, shared memory, Jolt's thread pool). Driven by `scripts/build-physics-wasm.ts`;
+# `joltPhysicsThreads.wasm` (atomics, bulk memory, shared memory, Jolt's thread pool). Driven by `scripts/build/build-physics-wasm.ts`;
 # needs emscripten (`emcmake cmake`). No JavaScript glue is produced or kept: the engine's own
 # loader (`packages/sdk-browser/src/physics/joltModule.ts`) instantiates the module.
 cmake_minimum_required(VERSION 3.20)

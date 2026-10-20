@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 /** The folders whose scenes keep a compiled cache beside their committed source, which git never
- *  tracks (`scripts/scene-caches.ts` compiles them, `.gitignore` names them). */
+ *  tracks (`scripts/native/scene-caches.ts` compiles them, `.gitignore` names them). */
 export const SCENE_ROOTS = ['tests/fixtures/scenes'] as const
 
 /** Whether `folder`, relative to the repository root, is a scene under a scene root whose source

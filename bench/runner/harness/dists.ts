@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { pnpmCommand } from '../../../scripts/only-pnpm.ts'
+import { pnpmCommand } from '../../../scripts/lint/only-pnpm.ts'
 import { git } from '../../../scripts/git-paths.ts'
 
 const buildDist = (dir: string) =>
@@ -64,7 +64,7 @@ function resolveDist(value: string, label: string, root: string): { dist: string
 
 /**
  * The browser entries a built dist may carry, newest layout first: the witness entry
- * (`dist/witnesses/`, built by `scripts/build-witnesses.ts` since the witnesses left the package),
+ * (`dist/witnesses/`, built by `scripts/build/build-witnesses.ts` since the witnesses left the package),
  * then the measurement entry that still named the witnesses itself, under `src/` since the package
  * sources are foldered, then at the package root as a dist built before that move has it, then the
  * published entry of a dist built before the measurement entry existed, which named the witnesses

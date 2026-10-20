@@ -7,7 +7,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { ASSETS } from '../../../bench/runner/assets/scene.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import { listen, staticServer } from '../../../scripts/static-server.ts'
+import { listen, staticServer } from '../../../scripts/test/static-server.ts'
 import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 
 /** A scene cache's content-addressed object, geometry pages among them. */

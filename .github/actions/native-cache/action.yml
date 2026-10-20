@@ -30,7 +30,7 @@ runs:
     # Jolt tree, the cargo configuration's C++ flags), the message catalogue the compiler embeds,
     # and every non-Rust file the native tests read (the golden values, the screen-error table
     # of `page-codec-wasm`, the error-model contract of `sdk-core`, the proxy and format fixtures): a hit skips those tests
-    # (`quality.yml`) (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The
+    # (`quality.yml`) (`scripts/test/validate-steps.ts` says why Cargo cannot decide this itself). The
     # crates are globbed, never listed: every crate at `packages/<name>` or `packages/<name>/<dir>`
     # — its manifest, lock and Rust sources — so a crate the compiler comes to link is keyed
     # already; the globs stop at that depth, short of the `node_modules` and the Jolt tree.

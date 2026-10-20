@@ -1,0 +1,140 @@
+// Runs inside the browser page (`page.evaluate`): DOM globals (`location`, `devicePixelRatio`,
+// `crypto.subtle`, `Worker`) are ambient.
+import { readFileSync } from 'node:fs'
+import { stripTypeScriptTypes } from 'node:module'
+import type { EvaluatedInstalledPage, LooseSdk, LooseWorld } from './browser-page-types.ts'
+
+/** `hexOfBytes`'s module as a function body the page runs (`new Function`): the page cannot import
+ *  it, and a copy written beside it would be a second hex writer. */
+export function hexModuleSource() {
+  const source = readFileSync(
+    new URL('../../../packages/math/src/scalar/hex.ts', import.meta.url),
+    'utf8',
+  )
+  return `${stripTypeScriptTypes(source).replace('export function', 'function')}\nreturn hexOfBytes`
+}
+
+export async function evaluateInstalledPage({
+  moduleName,
+  manifestUrl,
+  replayUrl,
+  commonWorkerPath,
+  hexSource,
+}: {
+  moduleName: string | null
+  manifestUrl: string
+  replayUrl: string
+  commonWorkerPath: string
+  /** The body of `hexOfBytes` (`packages/math/src/scalar/hex.ts`), as `hexModuleSource` writes it. */
+  hexSource: string
+}): Promise<EvaluatedInstalledPage> {
+  const hexOfBytes = new Function(hexSource)() as (bytes: ArrayLike<number>) => string
+  const deadline = performance.now() + 10_000
+  while (!moduleName && !globalThis.__installedSdk && performance.now() < deadline)
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  const sdk: LooseSdk | undefined = moduleName
+    ? ((await import(moduleName)) as LooseSdk)
+    : globalThis.__installedSdk
+  if (!sdk) throw new Error('installed explorer bundle did not start')
+  const translation = (x: number, y: number, z: number) =>
+    new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1])
+  const out = new Float64Array(16)
+  sdk.multiplyMatrix4(out, translation(2, 3, 4), translation(5, 7, 11))
+  const product = Array.from(out.subarray(12, 15))
+  if (product.join(',') !== '7,10,15') throw new Error('installed browser maths did not execute')
+  const commonWorker = await new Promise<unknown>((resolve, reject) => {
+    const worker = new Worker(commonWorkerPath, { type: 'module' })
+    const timeout = setTimeout(() => {
+      worker.terminate()
+      reject(new Error('installed common worker timed out'))
+    }, 30_000)
+    worker.onmessage = ({ data }) => {
+      clearTimeout(timeout)
+      worker.terminate()
+      resolve(data)
+    }
+    worker.onerror = (event) => {
+      clearTimeout(timeout)
+      worker.terminate()
+      reject(new Error(event.message))
+    }
+  })
+  // A world on the page's canvas, the compiled model loaded into it, framed by its own bounds
+  // and drawn at a zero pixel error once the pages the view reads are resident.
+  const open = async (target: string, url: string) => {
+    const world = sdk.createWorld(target, { interactive: false })
+    await world.ready
+    const model = await world.scene.load(url)
+    const view = sdk.pose.fromBounds(model.bounds, {
+      aspect: world.canvas.width / Math.max(1, world.canvas.height),
+    })
+    world.camera.set(view)
+    world.pixelError = 0
+    await world.awaitPages()
+    // A session that failed to open is named with its cause, never met later as a world that
+    // "draws nothing yet"; `page.evaluate` carries only the message out.
+    const failure = world.diagnostic.error
+    if (failure) {
+      const cause = failure.details?.cause
+      throw new Error(
+        `installed world ${target} did not open: ${failure.message}${cause === undefined ? '' : ` (${String(cause)})`}`,
+      )
+    }
+    world.render()
+    return { world, view, metrics: sdk.metric.frame(world) }
+  }
+  const primer = await open('primer', manifestUrl)
+  await new Promise((resolve) => setTimeout(resolve, 1_000))
+  const replay = await open('replay', replayUrl)
+  const samples = [primer, replay].map((item) => item.metrics)
+  const value: Record<string, number> = { ...samples[1] }
+  for (const key of ['pagesChecked', 'pagesPlannedOffThread'])
+    value[key] = Math.max(...samples.map((sample) => sample?.[key] ?? 0))
+  const pointerUrl = new URL(manifestUrl, location.href)
+  const pointer = (await (await fetch(pointerUrl)).json()) as { url: string }
+  const metadataUrl = new URL(pointer.url, pointerUrl)
+  const root: unknown = await (await fetch(metadataUrl)).json()
+  const metadata = await sdk.readPagedManifest(
+    root,
+    async ({ url }) => new Uint8Array(await (await fetch(new URL(url, metadataUrl))).arrayBuffer()),
+  )
+  const geometry = metadata.primitives
+    .flatMap((primitive) => primitive.pages)
+    .find((item) => item.geometry)?.geometry
+  if (!geometry) throw new Error('installed cache carries no geometry page')
+  const size = { width: replay.world.canvas.width, height: replay.world.canvas.height }
+  const read = async (world: LooseWorld) => (await sdk.capture.buffer(world, size)).data
+  const capture = await read(replay.world)
+  replay.world.render()
+  const repeated = await read(replay.world)
+  let aaDifferentPixels = 0
+  for (let index = 0; index < capture.length; index += 4)
+    if (
+      capture[index] !== repeated[index] ||
+      capture[index + 1] !== repeated[index + 1] ||
+      capture[index + 2] !== repeated[index + 2] ||
+      capture[index + 3] !== repeated[index + 3]
+    )
+      aaDifferentPixels++
+  const hash = async (bytes: Uint8Array<ArrayBuffer>): Promise<string> =>
+    hexOfBytes(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+  const captureEvidence = {
+    sha256: await hash(capture),
+    repeatedSha256: await hash(repeated),
+    aaDifferentPixels,
+    byteLength: capture.byteLength,
+    width: size.width,
+    height: size.height,
+    dpr: devicePixelRatio,
+    pixelError: 0,
+    camera: replay.view,
+  }
+  replay.world.dispose()
+  primer.world.dispose()
+  return {
+    metrics: value,
+    capture: captureEvidence,
+    product,
+    commonWorker,
+  }
+}

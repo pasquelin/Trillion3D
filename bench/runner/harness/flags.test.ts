@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { frenchWords } from '../../../scripts/check-english.ts'
+import { frenchWords } from '../../../scripts/check/check-english.ts'
 
 const HERE = join(import.meta.dirname, '..')
 const read = (file: string) => readFileSync(join(HERE, file), 'utf8')

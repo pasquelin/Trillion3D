@@ -19,7 +19,7 @@ import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 import { axisAngleQuaternion } from '../../../packages/math/src/quaternion/quaternion.ts'
-import { bufferPacker } from '../../../scripts/fixtures/gltf.ts'
+import { bufferPacker } from '../../../scripts/dev/fixtures/gltf.ts'
 import { groundHeight, groundTile, lathe, PROPS, type ShapeMesh } from './aerialModel.ts'
 
 /** The world: `TILES`² ground tiles of `TILE` metres, `CELLS`² quads each, `RELIEF` metres of relief. */

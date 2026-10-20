@@ -1,2 +1,2 @@
 #!/bin/sh
-exec node scripts/hooks/pre-commit.ts "$@"
+exec node scripts/git/hooks/pre-commit.ts "$@"

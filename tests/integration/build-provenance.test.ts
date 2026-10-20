@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { fingerprintBuild } from '../../scripts/write-build-provenance.ts'
+import { fingerprintBuild } from '../../scripts/build/write-build-provenance.ts'
 
 test('build identity tracks executed modules and ignores its own generated provenance', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'trillion3d-build-'))

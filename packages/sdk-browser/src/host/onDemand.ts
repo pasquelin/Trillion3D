@@ -6,7 +6,7 @@ import { cpuNow, msSince } from '../diagnostic/stopwatch.ts'
 
 /**
  * The engine's one on-demand loader: a module imported on its first use, which the
- * CDN bundle makes a chunk of its own (`scripts/bundle-fold.ts`) that a page without that family
+ * CDN bundle makes a chunk of its own (`scripts/build/bundle-fold.ts`) that a page without that family
  * never downloads. An import that fails is tried again as the HTTP loader asks a file again
  * (`checked`, `HTTP_ATTEMPTS` in all: a failed import carries no status, which `checked` treats as
  * the network's, worth a second try); what still fails is a `FAMILY_LOAD_FAILED` naming the

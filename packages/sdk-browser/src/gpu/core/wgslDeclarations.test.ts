@@ -20,7 +20,7 @@ function sources() {
 }
 
 test('every program holds each library declaration once, as the library writes it', () => {
-  // No source of the tree writes a library declaration (`scripts/check-wgsl-library.ts`, a gate of
+  // No source of the tree writes a library declaration (`scripts/check/check-wgsl-library.ts`, a gate of
   // `validate` and `check:changed`). What the assembler guarantees of a program it writes, each
   // declaration once and as the library's very text, is read here on the text every program finally
   // holds, whoever wrote it: another text is a second formula.

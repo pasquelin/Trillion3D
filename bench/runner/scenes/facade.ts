@@ -19,7 +19,7 @@ import { join } from 'node:path'
 import { parseArgs } from '../harness/flags.ts'
 import { ASSETS } from '../assets/scene.ts'
 import { mulberry32 } from '../../../packages/math/src/sequence/random.ts'
-import { bufferPacker } from '../../../scripts/fixtures/gltf.ts'
+import { bufferPacker } from '../../../scripts/dev/fixtures/gltf.ts'
 import { baySubdivision, facadePlan, facadeWalls, type WallMesh } from './facadeModel.ts'
 import { facadeTexture } from './facadeTexture.ts'
 

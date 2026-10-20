@@ -16,7 +16,7 @@ one folder per nature:
   `server/`, one bit-exact comparison and one hostile-value list in `assert/`.
 
 A test-only module is named `*.fixture.ts` and stays out of the build. The tracked git hooks
-(`.githooks/`, one-line shims onto `scripts/hooks/*.ts`) are proved in a throwaway repository by
+(`.githooks/`, one-line shims onto `scripts/git/hooks/*.ts`) are proved in a throwaway repository by
 `tests/integration/workflow-gates.test.ts`. The compiler's own tests stay in its crate
 (`packages/asset-compiler-rust/src/tests/` by topic, `tests/` for the CLI).
 
@@ -38,16 +38,16 @@ published).
 | `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src`                                |
 | `pnpm run perf:all`      | every benchmark of `bench/perf/`, then the aggregated report                       |
 
-`check:changed` (`scripts/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
-overriding) and runs the unit tests a change can affect (`scripts/affected-tests.ts`); a change of
+`check:changed` (`scripts/test/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
+overriding) and runs the unit tests a change can affect (`scripts/test/affected-tests.ts`); a change of
 documentation alone (Markdown, images outside the code trees) runs the gates only. It type-checks (`tsc --noEmit`) every tracked
 `tsconfig*.json` project owning a changed TypeScript file, by listing it or by import
-(`scripts/ts-projects.ts`); a changed file no project reaches fails, unless a type-check-only
+(`scripts/test/ts-projects.ts`); a changed file no project reaches fails, unless a type-check-only
 (`noEmit`) project's `include` covers it and its `exclude` takes it back. A project reading
 `trillion3d` from `dist/` (the tools) is checked after `pnpm run build`.
 
 CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one per
-group of `scripts/validate-steps.ts`, the `unit` group split into shards of one file list
+group of `scripts/test/validate-steps.ts`, the `unit` group split into shards of one file list
 (`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path.
 The single required check, `validate`, needs every job; it runs on every pull request, on `develop`
 and on every push of a branch named `<issue>-<name>`. Push and pull request runs never share a
@@ -62,7 +62,7 @@ and proves nothing about the image. What a shader computes is proved on a device
 
 ### Mutation Measurement
 
-`pnpm run test:mutation [--out <dir>] [--mutate <glob>…]` (`scripts/test-mutation.ts`) runs
+`pnpm run test:mutation [--out <dir>] [--mutate <glob>…]` (`scripts/test/test-mutation.ts`) runs
 Stryker on `packages/sdk-core/src`: each mutant (a `<` turned into `<=`, a branch emptied) runs
 against the package's unit test files that reach it, and the report credits each test file with
 the mutants it kills. It is a measurement, never a gate, and the CI does not run it: an hour or
@@ -84,7 +84,7 @@ of an area are the modules its proofs load. They run on Dawn in Node — the Web
 Chrome runs, on the machine's GPU, no browser (`tests/gpu/kit/onDawn.ts`).
 
 `pnpm run test:gpu` (`bench/dawn/proofs.ts`) takes the machine's bench lock, compiles the test
-scenes (`TEST_SCENES`, `scripts/scene-caches.ts`) under it, then runs every `*.gpu.ts` in one
+scenes (`TEST_SCENES`, `scripts/native/scene-caches.ts`) under it, then runs every `*.gpu.ts` in one
 sequential `node --test`. The proofs are found by rule, never by a hand-curated list:
 `bench/dawn/proofs.test.ts` keeps launched ∪ excluded == disk, and no exclusion outlives the proof
 it names. A proof never opens the GPU from an import: only an explicit run does
@@ -165,7 +165,7 @@ machine, not a campaign, which uses the [harness](../bench/runner/README.md) und
 
 ## 4. Quality Gates
 
-The gates and their order are `VALIDATE_GROUPS` in `scripts/validate-steps.ts`; each gate's rule is
+The gates and their order are `VALIDATE_GROUPS` in `scripts/test/validate-steps.ts`; each gate's rule is
 in its script's header, and `pnpm run check:changed` runs them on what a branch changed. Two rules
 that shape every file: a maintained JS, TS or Rust file holds at most 300 lines (`check:lines`),
 except the runtime modules of `sdk-core`, `sdk-browser`, and `sdk-node`, which answer

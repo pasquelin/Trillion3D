@@ -1,4 +1,4 @@
-import { fingerprintBuild } from '../../../scripts/write-build-provenance.ts'
+import { fingerprintBuild } from '../../../scripts/build/write-build-provenance.ts'
 import { analyseFile, neighboringCut } from '../series/cutAnalysis.ts'
 import { readsCache, sceneDerived } from '../assets/scene.ts'
 import { assetIdentity } from './provenance.ts'

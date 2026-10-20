@@ -9,7 +9,7 @@ import {
   reply,
   staticServer,
   type Mount,
-} from '../../../scripts/static-server.ts'
+} from '../../../scripts/test/static-server.ts'
 
 const TYPESCRIPT = /\.m?ts$/
 

@@ -31,7 +31,7 @@ export function compilerPackage(platform: string, arch: string): string | null {
  * The compiler of the platform package installed beside this module — resolved as Node resolves
  * an import from `from` —, or null when that package is not installed or carries no binary. In
  * this checkout the package is a workspace link to `packages/compiler/`, outside any
- * `node_modules`: it is not an install, and a binary copied there by `scripts/compiler-dist.ts`
+ * `node_modules`: it is not an install, and a binary copied there by `scripts/native/compiler-dist.ts`
  * would pass the checkout's own build unchecked for freshness, so it is ignored.
  */
 export function installedCompiler(

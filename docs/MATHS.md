@@ -71,7 +71,7 @@ The declared exceptions, each held to bits the rule would change:
   within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`);
   `spriteRow` of `packages/sdk-browser/src/world/core/worldPoses.ts`, where a uniform scale's two
   axis lengths must round alike; and the generator whose committed files hold the builtin's bits,
-  the normals of `scripts/fixtures/garden-source.ts` (`hypot3`).
+  the normals of `scripts/dev/fixtures/garden-source.ts` (`hypot3`).
 - The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
   `vec3.rs`): `plainLength3` and `plainLength2` (`vector/vector.ts`), `Math.sqrt` of the three (two) squares
   summed left to right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
@@ -146,7 +146,7 @@ Three gates keep a formula in its one home; each runs in `check:changed` and in 
 `validate`:
 
 - the lint (`no-restricted-syntax`, the selectors of
-  [`scripts/lint-maths.ts`](../scripts/lint-maths.ts)) refuses, outside `packages/math`, the
+  [`scripts/lint/lint-maths.ts`](../scripts/lint/lint-maths.ts)) refuses, outside `packages/math`, the
   inline forms the package holds: `Math.ceil(a / b)` (`ceilDiv`), a clamp written with
   `Math.min` and `Math.max` (`clamp`, `clampLowWins`), `Math.hypot` (`length2`, `length3`, or a
   `hypot` declared above), a sixteen-element copy loop (`copyMatrix4`), `Math.PI` times or over a

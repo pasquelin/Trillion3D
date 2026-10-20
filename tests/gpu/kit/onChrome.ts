@@ -12,7 +12,7 @@ import { assertBrowserEntryPoint, launchChrome } from '../../../bench/runner/har
 import { ENGINES } from '../../../bench/runner/harness/sideOptions.ts'
 import { resolveMounts } from '../../../bench/runner/harness/options.ts'
 import { startServer } from '../../kit/server/staticServer.ts'
-import type { Mount } from '../../../scripts/static-server.ts'
+import type { Mount } from '../../../scripts/test/static-server.ts'
 import { REPOSITORY_ROOT, posixPath } from '../../../scripts/repository-files.ts'
 
 /** The repository, whose files the page imports by their path. */

@@ -17,26 +17,26 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/page/work/pageWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
-        // The public API's source (`scripts/sdk-api-model.ts`, `ENTRIES`): the facade below is
+        // The public API's source (`scripts/sdkApi/sdk-api-model.ts`, `ENTRIES`): the facade below is
         // generated from these three entries, so every name they export is public.
         'packages/sdk-core/src/index.ts',
         'packages/sdk-browser/src/index.ts',
         'packages/sdk-node/src/index.mts',
         'packages/sdk/{index,browser,node}.{ts,mts}',
-        // The second pass of `check:unused` (`scripts/check-unused.ts`), read by knip itself.
+        // The second pass of `check:unused` (`scripts/check/check-unused.ts`), read by knip itself.
         'knip.production.config.ts',
         // Every unit test runs by `node --test`: an entry by rule.
         '{packages,bench,tests,scripts}/**/*.test.ts',
         // The scripts `package.json` and the workflows run are found by knip itself. Any other
         // script is dead.
         // Run by hand: the area-light table fit (`ltcTable.ts`).
-        'scripts/ltc-fit.ts',
-        // Run by `scripts/build.ts`, steps of `pnpm run build`.
-        'scripts/{build-witnesses,copy-resources}.ts',
+        'scripts/dev/ltc-fit.ts',
+        // Run by `scripts/build/build.ts`, steps of `pnpm run build`.
+        'scripts/build/{build-witnesses,copy-resources}.ts',
         // Run by git through the one-line shims of `.githooks/`.
-        'scripts/hooks/{delegate,pre-commit,pre-push}.ts',
+        'scripts/git/hooks/{delegate,pre-commit,pre-push}.ts',
         // Run by the pre-commit hook.
-        'scripts/format-staged.ts',
+        'scripts/lint/format-staged.ts',
         'bench/runner/bench.ts',
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
         // first module of its worker threads, started by URL (`bench/kit/worker.ts`).
@@ -97,7 +97,7 @@ const config: KnipConfig = {
       },
       // Rust and its formatter, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as
       // one) are platform tools. The tap runner is a Stryker plugin, loaded by name
-      // (`scripts/test-mutation.ts`).
+      // (`scripts/test/test-mutation.ts`).
       ignoreDependencies: ['@stryker-mutator/tap-runner'],
       // `ioreg` and `sips`: macOS's own, the GPU bench reads how busy other programs keep the GPU
       // and decodes the images its pages load.

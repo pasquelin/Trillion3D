@@ -9,7 +9,7 @@ benchmark-runs/
 /.worktrees
 # Personal files stay local. Shared checks read these patterns. No entry ends with a slash: a
 # pattern that does matches directories alone, and a linked worktree carries these as symbolic
-# links (scripts/local-files.ts), which git would then see as files to track.
+# links (scripts/git/local-files.ts), which git would then see as files to track.
 # Local files begin
 .claude
 .codex
@@ -36,7 +36,7 @@ tests/assets/
 # Compiled from their sources by `pnpm run compile:caches` and the test runners.
 tests/fixtures/scenes/*/cache/
 
-# The compiler binary a platform package ships, copied in by `scripts/compiler-dist.ts` (#1352).
+# The compiler binary a platform package ships, copied in by `scripts/native/compiler-dist.ts` (#1352).
 packages/compiler/*/bin
 
 # macOS folder metadata

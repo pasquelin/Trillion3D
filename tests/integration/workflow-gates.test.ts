@@ -1,9 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 
 const env = {
@@ -36,10 +44,14 @@ function makeRepo() {
     recursive: true,
     verbatimSymlinks: true,
   })
-  cpSync(join(REPOSITORY_ROOT, 'scripts/hooks/'), join(work, 'scripts/hooks'), { recursive: true })
+  cpSync(join(REPOSITORY_ROOT, 'scripts/git/hooks/'), join(work, 'scripts/git/hooks'), {
+    recursive: true,
+  })
   // The hooks run git and the gates through the scripts' own helpers.
-  for (const helper of ['git-paths.ts', 'run.ts'])
+  for (const helper of ['git-paths.ts', 'test/run.ts']) {
+    mkdirSync(dirname(join(work, 'scripts', helper)), { recursive: true })
     cpSync(join(REPOSITORY_ROOT, 'scripts', helper), join(work, 'scripts', helper))
+  }
   ok(work, 'config', 'core.hooksPath', '.githooks')
   ok(work, 'remote', 'add', 'origin', remote)
   localHook(work, 'post-commit', 'echo ran >> "$(git rev-parse --show-toplevel)/local.log"')
@@ -77,24 +89,27 @@ test('the gates of the checkout hold a commit and a push: format-staged, then ch
   const work = makeRepo()
   ok(work, 'switch', '-q', '-c', '12-thing')
   const gate = (name: string, body: string) => {
-    execFileSync('mkdir', ['-p', join(work, 'scripts')])
+    execFileSync('mkdir', ['-p', dirname(join(work, 'scripts', name))])
     writeFileSync(join(work, 'scripts', name), body)
   }
-  gate('format-staged.ts', 'process.exit(2)\n')
-  assert.match(commit(work, 'unformatted').stderr, /scripts\/format-staged\.ts failed/)
-  gate('format-staged.ts', '')
+  gate('lint/format-staged.ts', 'process.exit(2)\n')
+  assert.match(commit(work, 'unformatted').stderr, /scripts\/lint\/format-staged\.ts failed/)
+  gate('lint/format-staged.ts', '')
   assert.equal(commit(work, 'formatted').status, 0)
   // The push is checked against origin/develop, the base the CI's pull request merges into, by
   // every gate but the tests, which stay the CI's.
   gate(
-    'check-changed.ts',
+    'test/check-changed.ts',
     "import { writeFileSync } from 'node:fs'\n" +
       "writeFileSync('base.log', [process.env.TRILLION3D_BASE_REF, ...process.argv.slice(2)].join(' '))\n" +
       'process.exit(1)\n',
   )
-  assert.match(git(work, 'push', '-q', 'origin', '12-thing').stderr, /check-changed\.ts failed/)
+  assert.match(
+    git(work, 'push', '-q', 'origin', '12-thing').stderr,
+    /test\/check-changed\.ts failed/,
+  )
   assert.equal(readFileSync(join(work, 'base.log'), 'utf8'), 'origin/develop --push')
-  gate('check-changed.ts', '')
+  gate('test/check-changed.ts', '')
   assert.equal(git(work, 'push', '-q', 'origin', '12-thing').status, 0)
 })
 
@@ -119,14 +134,14 @@ test('a failing tool-installed hook still stops git, and pre-push hands it the r
   assert.match(refs, /^refs\/heads\/12-thing [0-9a-f]{40} refs\/heads\/12-thing 0{40}\n$/)
 })
 
-test('the tracked hooks hold no shell logic: each is a one-line shim onto scripts/hooks', () => {
+test('the tracked hooks hold no shell logic: each is a one-line shim onto scripts/git/hooks', () => {
   const hooks = join(REPOSITORY_ROOT, '.githooks/')
   for (const name of readdirSync(hooks)) {
     const lines = readFileSync(join(hooks, name), 'utf8').trimEnd().split('\n')
     assert.equal(lines[0], '#!/bin/sh', name)
     assert.equal(lines.length, 2, `${name} is more than a shim`)
-    const script = /^exec node (scripts\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '')
-    assert.ok(script?.[1], `${name} does not run a scripts/hooks script`)
+    const script = /^exec node (scripts\/git\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '')
+    assert.ok(script?.[1], `${name} does not run a scripts/git/hooks script`)
     assert.ok(existsSync(join(REPOSITORY_ROOT, script[1])), `${script[1]} is missing`)
   }
 })
