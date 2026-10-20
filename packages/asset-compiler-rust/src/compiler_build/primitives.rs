@@ -23,12 +23,14 @@ pub(super) fn compile_primitives(
     // each mesh's world scale, read before the loop: the proxy threshold is in metres.
     let world = compiler_world::world_matrices(g)?;
     let mesh_scales = proxy::placement::mesh_scales(g, chosen, &world)?;
+    let voxelized = o.voxelize()?.meshes(g, o.hlod()?)?;
     let primitive_inputs = PrimitiveInputs {
         o,
         g,
         bin,
         mesh_values: values(g, "meshes")?,
         mesh_map,
+        voxelized: &voxelized,
         mesh_scales: &mesh_scales,
         scene_triangles: unique_triangles,
         validated: accessors,

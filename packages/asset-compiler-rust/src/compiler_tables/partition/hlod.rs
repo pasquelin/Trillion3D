@@ -1,18 +1,22 @@
 //! The HLOD cells of the main grid's cells, the HLOD chain: at level 0, each main cell's objects
 //! of one layer make one HLOD actor of that layer — the job's `instanced` layers, the source
 //! meshes themselves, batched —, bounded by its objects' bounds and placed on the HLOD 0 grid; at
-//! each next level, each cell of the grid below makes one HLOD actor of its layer's parent layer,
+//! each next level, each cell of the grid below makes one HLOD actor of its actor layer
+//! (`HlodNode::actor_layer`),
 //! placed on that level's grid — cell and range doubled each level, each actor standing in twice as
 //! far as the cells it replaces. An HLOD actor is hidden while the cell its sources stream in is
 //! shown, so the two never draw the same ground: an HLOD `l` cell is the source cell of its HLOD
 //! `l + 1` actor, and that actor loads while the HLOD `l + 1` cell it lies in is shown.
 //!
 //! Each object follows its layer's chain of parents (`Hlod`): chains of different layers build
-//! distinct cells and actors over the same ground, one per layer and cell, and end at different
-//! levels. A cell whose layer's parent is a chain's top makes that top's actor, placed on no grid
-//! and always loaded: wherever nothing finer is shown, a chain's top is, and the world stays drawn
-//! to the horizon. A cell streams by its content's bounds, not its grid cell's, so an object
-//! overrunning its loose cell is loaded before the view reaches it.
+//! distinct cells and actors over the same ground, one per layer and cell. A chain's top actors,
+//! placed on no grid, are always loaded: wherever nothing finer is shown, a chain's top is, and
+//! the world stays drawn to the horizon. They are made by cells of the `grid::TOP_LEVEL` grid
+//! (2 048 m) or a coarser one, so they stay one per large cell whatever the chain: the main
+//! chain's four levels end there on their own; a shorter chain's top actors made below it — the
+//! foliage's, per HLOD 0 cell, one per 256 m — lie in that grid's cells, whose own actors, the
+//! same top's again, are the ones always loaded — no level added: the chain skips those between. A cell streams by its content's bounds, not its
+//! grid cell's, so an object overrunning its loose cell is loaded before the view reaches it.
 use super::grid::{self, Coord};
 use super::split::GridCell;
 use super::*;
@@ -20,9 +24,10 @@ use crate::Hlod;
 
 /// One HLOD cell of the chain — a cell of the HLOD `level` grid —: the bounds it streams by on that
 /// grid — shown within its range, the HLOD `level + 1` actor made of it hidden (`actor_level`) —,
-/// the HLOD `level + 1` cell that actor lies in (`parent`), `None` for a cell whose actor is its
-/// chain's top, always loaded, and the rank of the job's HLOD layer it is a cell of (`layer`; its
-/// actor is built by that layer's parent) — `None` for a cell of objects in no layer, a leaf that never
+/// the cell that actor lies in (`parent`: of level `level + 1`, or of `grid::TOP_LEVEL` for a
+/// short chain's top actor), `None` for a cell whose actor is its
+/// chain's top, always loaded, and the rank of the job's HLOD layer it is a cell of (`layer`; the
+/// layer that builds its actor is `actor_layer`) — `None` for a cell of objects in no layer, a leaf that never
 /// rises: nothing stands for them beyond its range. Leaves — layer 0, the HLOD 0 cells — come
 /// first, then each level's cells in turn.
 #[derive(Clone, Debug)]
@@ -37,6 +42,14 @@ impl HlodNode {
     /// The HLOD level of the actor its sources make: its own level's next.
     pub(crate) fn actor_level(&self) -> usize {
         self.level + 1
+    }
+
+    /// The rank of the job's layer that builds its actor: its layer's parent, or — a cell above
+    /// HLOD 0 of a top layer — that top again; none for a cell of objects in no layer, nor for an
+    /// HLOD 0 cell of a layer with no parent.
+    pub(crate) fn actor_layer(&self, hlod: &Hlod) -> Option<usize> {
+        let layer = self.layer?;
+        (hlod.layers[layer].parent).or((self.level > 0).then_some(layer))
     }
 }
 
@@ -70,14 +83,18 @@ fn placed_on(
 }
 
 /// The HLOD 0 cell of each of `cells`, by rank, and the chain's cells (`HlodNode`), leaves first,
-/// each level up for the cells whose layer's parent builds actors that have a parent of their own.
+/// each level up for the cells whose actors are no top — their layer has a parent of its own —,
+/// and on the `grid::TOP_LEVEL` grid at once for the cells below it whose actors are a top's.
 pub(super) fn hlod_cells(cells: &[GridCell], hlod: &Hlod) -> (Vec<usize>, Vec<HlodNode>) {
     let contents: Vec<(Option<usize>, Box6)> = cells.iter().map(|c| (c.layer, c.content)).collect();
     // Level 0: one HLOD 0 actor per main cell and layer, bounded by its content, on the HLOD 0 grid.
     let (leaf_of, mut level_cells) = placed_on(&contents, 0);
     let mut nodes: Vec<HlodNode> = Vec::new();
+    // The cells whose actors wait for the level they lie in: each its rank, its actor's layer and
+    // content, and that level.
+    let mut rising: Vec<(usize, (Option<usize>, Box6), usize)> = Vec::new();
     let (mut first, mut level) = (0, 0);
-    while !level_cells.is_empty() {
+    while !level_cells.is_empty() || !rising.is_empty() {
         nodes.extend(level_cells.iter().map(|&(layer, content)| HlodNode {
             parent: None,
             level,
@@ -85,20 +102,31 @@ pub(super) fn hlod_cells(cells: &[GridCell], hlod: &Hlod) -> (Vec<usize>, Vec<Hl
             // A cell streams by its content's bounds, which a loose cell's objects may overrun.
             shown: content,
         }));
-        // The next level: one actor per cell here whose layer's parent has a parent of its own —
-        // else that actor is its chain's top, placed on no grid —, its cell its parent layer's.
-        let rising: Vec<(usize, (Option<usize>, Box6))> = (level_cells.iter().enumerate())
-            .filter_map(|(at, &(layer, content))| {
-                let parent = hlod.layers[layer?].parent?;
-                hlod.layers[parent].parent?;
-                Some((at, (Some(parent), content)))
-            })
-            .collect();
-        let here: Vec<(Option<usize>, Box6)> = rising.iter().map(|(_, cell)| *cell).collect();
+        // Each actor made here lies in a cell of its actor layer: the next level's, or — a top's
+        // made below `TOP_LEVEL` — that level's, its top made there again on the large grid; a
+        // top's made at `TOP_LEVEL` or above is its chain's top, placed on no grid.
+        for (rank, node) in nodes.iter().enumerate().skip(first) {
+            let Some(actor) = node.actor_layer(hlod) else {
+                continue;
+            };
+            let target = if hlod.layers[actor].parent.is_some() {
+                level + 1
+            } else if level < grid::TOP_LEVEL {
+                grid::TOP_LEVEL
+            } else {
+                continue;
+            };
+            rising.push((rank, (Some(actor), node.shown), target));
+        }
+        let (now, later): (Vec<_>, Vec<_>) = rising
+            .into_iter()
+            .partition(|&(_, _, target)| target == level + 1);
+        rising = later;
+        let here: Vec<(Option<usize>, Box6)> = now.iter().map(|&(_, cell, _)| cell).collect();
         let (parent_of, next) = placed_on(&here, level + 1);
         let base = first + level_cells.len();
-        for ((at, _), parent) in rising.iter().zip(parent_of) {
-            nodes[first + at].parent = Some(base + parent);
+        for (&(rank, _, _), parent) in now.iter().zip(parent_of) {
+            nodes[rank].parent = Some(base + parent);
         }
         first = base;
         level_cells = next;

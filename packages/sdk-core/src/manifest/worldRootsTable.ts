@@ -10,6 +10,7 @@ import { uint64FromWords } from '../../../math/src/scalar/uint64.ts'
 import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
 import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
 import {
+  CHAIN_ACTOR,
   WORLD_ROOTS_BIN,
   refuseWorldRoots,
   type WorldRoots,
@@ -116,19 +117,25 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
   const chain = {
     parent: new Int32Array(hlodCount),
     level: new Uint8Array(hlodCount),
+    actor: new Uint8Array(hlodCount),
     bounds: new Float64Array(6 * hlodCount),
   }
   const hlod = Array.from({ length: hlodCount }, (_, cell) => {
     const at = hlodAt + cell * HLOD_CELL,
       held = list(at)
     if (!below(held, bundleCount)) refuseWorldRoots(`HLOD cell ${cell} bundles`)
+    // The level in the low 16 bits, whether its actor's build failed in the high 16 (`records.rs`);
+    // an actor built is one whose bundles hold roots.
     const parent = word(at + 8),
-      level = word(at + 12)
+      level = word(at + 12) & 0xffff,
+      failed = (word(at + 12) >>> 16) & 1
+    const actor = (held.length ? CHAIN_ACTOR.built : 0) | (failed ? CHAIN_ACTOR.failed : 0)
     // A cell's next level's actor lies in a cell of the next level, after it in the chain.
     if (parent !== 0xffffffff && (parent <= cell || parent >= hlodCount))
       refuseWorldRoots(`HLOD cell ${cell} parent`)
     chain.parent[cell] = parent === 0xffffffff ? -1 : parent
     chain.level[cell] = level
+    chain.actor[cell] = actor
     for (let k = 0; k < 6; k++)
       chain.bounds[6 * cell + k] = file.view.getFloat64(at + 16 + 8 * k, true)
     return [...held]

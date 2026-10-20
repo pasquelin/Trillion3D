@@ -62,6 +62,7 @@ pub(crate) fn options(source: PathBuf, cache: PathBuf) -> Options {
         texture_formats: vec![crate::texture_preview::BlockFormat::Bc7],
         hlod: crate::Hlod::read(None),
         materials: crate::MaterialOptions::read(None, None, None),
+        voxelize: crate::VoxelizeOptions::read(None),
         cancelled: Arc::new(AtomicBool::new(false)),
     }
 }

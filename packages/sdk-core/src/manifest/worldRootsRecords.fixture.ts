@@ -5,7 +5,7 @@
  */
 import { uint64Words } from '../../../math/src/scalar/uint64.fixture.ts'
 import type { ClusterGroup, CullingHierarchy } from '../contracts/geometry.ts'
-import type { WorldRoots, WorldRootsCluster } from './worldRoots.ts'
+import { CHAIN_ACTOR, type WorldRoots, type WorldRootsCluster } from './worldRoots.ts'
 import { WORLD_ROOTS_VERSION } from '../contracts/writtenFormats.ts'
 
 /** A world-roots table stated plainly: its pages as a list. */
@@ -62,7 +62,10 @@ export function encodeWorldRoots(spec: WorldRootsSpec) {
   spec.hlod.forEach((held, cell) => {
     r.pooled(held)
     const parent = spec.chain.parent[cell]
-    r.word(parent < 0 ? 0xffffffff : parent, spec.chain.level[cell])
+    r.word(
+      parent < 0 ? 0xffffffff : parent,
+      spec.chain.level[cell] | (spec.chain.actor[cell] & CHAIN_ACTOR.failed ? 1 << 16 : 0),
+    )
     r.float(...spec.chain.bounds.subarray(6 * cell, 6 * cell + 6))
   })
   const { bytes } = spec.payload

@@ -1,5 +1,5 @@
 //! The nearest-first trace over a set known to hold every triangle a ray can hit (`Among`): the
-//! voxel faces', whose rays are parallel (`voxel::sample` lists the set).
+//! voxels', each against the triangles that overlap its voxel (`voxel::sample` lists the set).
 use super::{normal_of, triangle_hit, Hit, World};
 use trillion3d_math::vecn::dot;
 

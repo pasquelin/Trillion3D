@@ -28,7 +28,9 @@ pub(crate) fn validate_compile_options(o: &Options) -> Result<()> {
             SIMPLIFICATIONS.join(" or ")
         ))
     } else {
-        (o.hlod.as_ref().err().cloned()).or_else(|| o.materials.as_ref().err().cloned())
+        (o.hlod.as_ref().err().cloned())
+            .or_else(|| o.materials.as_ref().err().cloned())
+            .or_else(|| o.voxelize.as_ref().err().cloned())
     };
     match refusal {
         Some(message) => Err(CompilerError::new("INVALID_OPTIONS", message)),

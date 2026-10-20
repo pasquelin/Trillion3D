@@ -5,15 +5,20 @@
 //! roots.
 use super::dag_records::encode_dag;
 use super::merge::WorldDag;
-use super::records::{encode_table, Page};
+use super::records::{encode_table, Page, CHAIN_ACTOR_FAILED};
 use super::*;
 use crate::compiler_page_bundles::lay_bundles;
 use crate::compiler_tables::partition::HlodNode;
 
 /// Packs `world` and lays its pages (`lay_bundles`: every page reaches its HLOD 0 cell's roots),
 /// and returns the payload of the bundles with the table and the DAG records that describe them,
-/// written straight from the world (`records.rs`); `tree` the partition's chain of HLOD cells.
-pub(super) fn pack_world(world: &WorldDag, tree: &[HlodNode]) -> Result<Cooked> {
+/// written straight from the world (`records.rs`); `tree` the partition's chain of HLOD cells,
+/// `failed` the cells whose actor could not be made.
+pub(super) fn pack_world(
+    world: &WorldDag,
+    tree: &[HlodNode],
+    failed: &BTreeSet<usize>,
+) -> Result<Cooked> {
     let (dag, groups) = (&world.clusters, &world.groups);
     // The world lies in its culling order already (`WorldDag::in_culling_order`): rank is slot.
     let order: Vec<usize> = (0..dag.len()).collect();
@@ -45,7 +50,15 @@ pub(super) fn pack_world(world: &WorldDag, tree: &[HlodNode]) -> Result<Cooked> 
         hlod[world.hlod(slot)].insert(laid.bundle_of[slot]);
     }
     let dag_bytes = encode_dag(world, &laid.at)?;
-    let table = encode_table((&laid.bundles, &pages, (&hlod, tree)), &laid.payload)?;
+    // Each cell whose actor's build failed (`CHAIN_ACTOR_FAILED`): one built is one whose bundles
+    // hold roots, which the table says already.
+    let actors: Vec<u32> = (0..tree.len())
+        .map(|cell| u32::from(failed.contains(&cell)) * CHAIN_ACTOR_FAILED)
+        .collect();
+    let table = encode_table(
+        (&laid.bundles, &pages, (&hlod, tree, &actors)),
+        &laid.payload,
+    )?;
     let roots = dag.iter().filter(|c| c.is_root()).count();
     let report = json!({"version":WORLD_ROOTS_VERSION,"file":WORLD_ROOTS_FILE,
         "hlodCells":tree.iter().filter(|node| node.level == 0).count(),"chainCells":tree.len(),

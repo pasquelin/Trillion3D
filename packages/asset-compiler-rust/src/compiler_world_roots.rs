@@ -33,6 +33,7 @@ mod records;
 mod table_tests;
 #[cfg(test)]
 mod tests;
+mod voxels;
 mod world;
 pub(crate) use cover::SourceCover;
 
@@ -51,8 +52,13 @@ pub(crate) use cover::SourceCover;
 /// the primitive whose material it wore, 13 since a merged layer's actor may wear a material of
 /// the scene or another actor's flattened one, its rank in `hlodMaterials` naming it, and the
 /// world's pages carry every attribute its actors carry, 14 since a cluster no longer names its HLOD
-/// layer — its cell's level, which the table carries, gives it.
-pub(crate) const WORLD_ROOTS_VERSION: u32 = 14;
+/// layer — its cell's level, which the table carries, gives it, 15 since each table cell's level
+/// word carries in its high 16 bits whether its actor's build failed, so a failed top keeps its
+/// content standing where a cell of objects in no layer follows its range alone, 16 since a
+/// cluster of a voxel layer's actor holds a voxel page, flagged `GEOMETRY_VOXEL`, its triangles
+/// its bricks' boxes', 17 since that page's head is six words, its bricks five — the rank of their
+/// first voxel added —, its voxels twelve bytes (`trillion3d_page_codec::voxel`).
+pub(crate) const WORLD_ROOTS_VERSION: u32 = 17;
 /// The table a load reads: bundles, pages and HLOD cells, as records (`records.rs`).
 pub(crate) const WORLD_ROOTS_FILE: &str = "world-roots.table";
 /// The world clusters and groups the world stream reads on its first use, as records.
@@ -102,7 +108,8 @@ pub(crate) fn cook(
     builder: &world::Builder,
 ) -> Result<(Cooked, Vec<world::Actor>)> {
     let (world, actors, failures, measures) = world::world_dag(instances, tree, builder)?;
-    let mut cooked = pack::pack_world(&world, tree)?;
+    let failed: BTreeSet<usize> = failures.iter().map(|&(_, cell, _)| cell).collect();
+    let mut cooked = pack::pack_world(&world, tree, &failed)?;
     let per_layer = |f: &dyn Fn(&world::Actor) -> usize| -> Vec<usize> {
         (1..=measures.stages.len())
             .map(|level| {

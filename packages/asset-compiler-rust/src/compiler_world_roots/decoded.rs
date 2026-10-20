@@ -108,7 +108,12 @@ pub(crate) fn table(bytes: &[u8]) -> Value {
         })
         .collect();
     let hlod: Vec<Value> = (0..hlod)
-        .map(|_| json!({"bundles":r.pooled(),"parent":r.index(),"level":r.word(),"bounds":r.floats(6)}))
+        .map(|_| {
+            let (bundles, parent, word) = (r.pooled(), r.index(), r.word());
+            // The level in the low 16 bits, the actor's flags in the high 16 (`encode_table`).
+            json!({"bundles":bundles,"parent":parent,"level":word & 0xffff,"actor":word >> 16,
+                "bounds":r.floats(6)})
+        })
         .collect();
     json!({"version":version,"payload":{"bytes":length,"sha256":sha256},"bundles":bundles,
         "pages":pages,"hlod":hlod,"poolWords":pool})

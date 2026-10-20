@@ -25,10 +25,18 @@ pub enum HlodBuilder {
     Merge,
     /// The cell's objects remeshed into one closed surface.
     Proxy,
+    /// The cell's objects voxelized together: levels of bricks, no shell, no atlas.
+    Voxel,
 }
 
 impl HlodBuilder {
-    const ALL: [Self; 4] = [Self::Instanced, Self::Approximate, Self::Merge, Self::Proxy];
+    const ALL: [Self; 5] = [
+        Self::Instanced,
+        Self::Approximate,
+        Self::Merge,
+        Self::Proxy,
+        Self::Voxel,
+    ];
 
     /// Its word (`HLOD_BUILDERS`).
     pub fn name(self) -> &'static str {
@@ -39,10 +47,11 @@ impl HlodBuilder {
     /// layer its voxel, deviation and atlas; a proxy layer its voxel and atlas — its deviation is
     /// its own (`proxy_lod`) —; a merged layer its deviation — the LOD it takes of each source, its
     /// merged mesh never simplified —, its LOD of each source, whether it merges its materials
-    /// and, merging them, its atlas.
+    /// and, merging them, its atlas. A voxel layer names none: its voxels are as fine as the cut's
+    /// pixel error asks where each level is drawn.
     fn settings(self) -> &'static [&'static str] {
         match self {
-            Self::Instanced => &[],
+            Self::Instanced | Self::Voxel => &[],
             Self::Approximate => &[
                 "accuracy",
                 "accuracyPixels",
@@ -436,6 +445,21 @@ impl Hlod {
             }
         }
         Ok(())
+    }
+
+    /// Whether the chain above `layer` voxelizes its cells — a `voxel` layer in it —: its objects'
+    /// meshes are then voxelized far away too, so each object's own levels end in the bricks its
+    /// cell's continue (`VoxelizeOptions::meshes`).
+    pub fn voxelizes(&self, layer: Option<usize>) -> bool {
+        (self.ancestors(layer)).any(|l| self.layers[l].builder == HlodBuilder::Voxel)
+    }
+
+    /// The layers above `layer`, its parent first, up its chain: one per step, never more than
+    /// there are layers — the chains were checked free of cycles (`chains`), and the bound keeps
+    /// the walk finite even past that check.
+    pub fn ancestors(&self, layer: Option<usize>) -> impl Iterator<Item = usize> + '_ {
+        let first = layer.and_then(|l| self.layers[l].parent);
+        std::iter::successors(first, |&l| self.layers[l].parent).take(self.layers.len())
     }
 
     /// Published node `node` of `g`'s assignment, the one every stage reads (`Assigned`): the

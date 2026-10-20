@@ -16,7 +16,7 @@
 //! options compiles as before, its cache key unchanged. Read and checked here once; what does not
 //! read is the job's refusal (`INVALID_OPTIONS`, `validate_compile_options`), never the batch's —
 //! an `extras` share that does not read included, when the shares are resolved.
-use super::name_match::{name_of, present, NameMatch, NodeNames, Pattern};
+use super::name_match::{name_of, present, NameMatch, NodeNames};
 use super::*;
 use crate::compiler_validate::OPTIONS;
 
@@ -94,16 +94,12 @@ impl MaterialOptions {
                     TEMPORAL_AA_LEVELS.join(", ")
                 ))
             })?);
-            out.identity.insert(TEMPORAL_AA_FIELD.into(), value.clone());
+            // The level resolved, not its spelling: `true` and `"max"` are one product, one key.
+            out.identity
+                .insert(TEMPORAL_AA_FIELD.into(), Value::from(out.level));
         }
         if let Some(value) = present(responsive) {
-            // A name or a regular expression is a node's, as a match names it.
-            let pattern = value.is_string() || value.get("regex").is_some();
-            out.responsive = Some(if pattern {
-                NameMatch::node(Pattern::of(value, RESPONSIVE_FIELD)?)
-            } else {
-                NameMatch::read(value, RESPONSIVE_FIELD)?
-            });
+            out.responsive = Some(NameMatch::option(value, RESPONSIVE_FIELD)?);
             out.identity.insert(RESPONSIVE_FIELD.into(), value.clone());
         }
         if let Some(value) = present(materials) {

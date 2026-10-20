@@ -8,6 +8,8 @@ pub(super) struct PrimitiveInputs<'a> {
     pub bin: &'a [u8],
     pub mesh_values: &'a [Value],
     pub mesh_map: &'a BTreeMap<usize, usize>,
+    /// The source meshes whose far levels may be voxels (`VoxelizeOptions::meshes`).
+    pub voxelized: &'a BTreeSet<usize>,
     /// Largest world scale under which each source mesh is placed: it is what
     /// brings the proxy threshold, expressed in metres, into the primitive's
     /// object space.
@@ -71,6 +73,7 @@ pub(super) fn compile_primitive(
         bin,
         mesh_values,
         mesh_map,
+        voxelized,
         mesh_scales,
         scene_triangles,
         validated,
@@ -142,7 +145,10 @@ pub(super) fn compile_primitive(
         &index_values,
         demand,
         blended,
-        crate::voxel::ShapePreservation::of(item(mesh_values, *old, "mesh")?),
+        match voxelized.contains(old) {
+            true => crate::voxel::ShapePreservation::Voxelize,
+            false => crate::voxel::ShapePreservation::None,
+        },
         (trillion3d_page_codec::bits::grid::tile_log2(scale), scale),
         &encode,
     )?;

@@ -4,10 +4,11 @@
 //! corner that decodes bit for bit onto a corner of its group's children takes that child corner's
 //! vertex — a position the simplification kept —; every other corner takes the source vertex
 //! nearest its position, the nearest normal among equally near ones (`Source::nearest`). A page
-//! passes when it decodes, when every corner lies in the page's published bounds and sphere, when
-//! each corner of an exact page lies within the page's quantization error of its vertex — an
-//! encode or decode that moves a vertex fails there —, and, for a coarse page, when every point of
-//! its triangles lies near its group's children: within their longest edge plus the group error.
+//! passes when it decodes, when every corner lies in the page's published bounds — an exact
+//! page's in its sphere too —, when each corner of an exact page lies within the page's
+//! quantization error of its vertex — an encode or decode that moves a vertex fails there —, and,
+//! for a coarse page, when every point of its triangles lies near its group's children: within
+//! their longest edge plus the group error.
 pub(in crate::tests) use super::cooked_page_defects::cooked_page_defects;
 use super::cooked_scene::CookedScene;
 use super::silhouette::Mesh;

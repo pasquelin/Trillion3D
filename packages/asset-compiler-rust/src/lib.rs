@@ -84,6 +84,9 @@ pub struct Options {
     /// `MaterialOptions::read`): none when the job names none;
     /// `Err` with the job's refusal when they do not read.
     pub materials: std::result::Result<MaterialOptions, String>,
+    /// The voxelized objects (`voxelize`, `VoxelizeOptions::read`): none when the job names none;
+    /// `Err` with the job's refusal when they do not read.
+    pub voxelize: std::result::Result<VoxelizeOptions, String>,
     pub cancelled: Arc<AtomicBool>,
 }
 fn check(o: &Options) -> Result<()> {
@@ -149,7 +152,7 @@ use compiler_accessor_create::*;
 use compiler_accessor_types::*;
 pub use compiler_args::{
     job_options, machine_threads, parse_compiler_args, positive, Hlod, HlodBuilder, HlodLayer,
-    HlodLodSelection, JobDefaults, MaterialOptions, ID_FIELD,
+    HlodLodSelection, JobDefaults, MaterialOptions, VoxelizeOptions, ID_FIELD,
 };
 use compiler_buffers::*;
 pub use compiler_build::compile;

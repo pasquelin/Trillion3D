@@ -172,13 +172,23 @@ pub(super) enum Shell {
     Proxy,
 }
 
-impl Shell {
-    /// The shell `builder` makes, `None` for a merged or instanced layer, which makes none.
-    pub(super) fn of(builder: HlodBuilder) -> Option<Self> {
+/// What a layer's builder makes of a cell — a closed shell, its objects merged, or its voxels —:
+/// the one mapping of `HlodBuilder` the jobs' estimate and make both match on (`world.rs`).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Recipe {
+    Shell(Shell),
+    Merge,
+    Voxel,
+}
+
+impl Recipe {
+    /// What `builder` makes: an instanced layer's cells merge, as a merged layer's do.
+    pub(super) fn of(builder: HlodBuilder) -> Self {
         match builder {
-            HlodBuilder::Approximate => Some(Self::Approximate),
-            HlodBuilder::Proxy => Some(Self::Proxy),
-            HlodBuilder::Merge | HlodBuilder::Instanced => None,
+            HlodBuilder::Approximate => Self::Shell(Shell::Approximate),
+            HlodBuilder::Proxy => Self::Shell(Shell::Proxy),
+            HlodBuilder::Merge | HlodBuilder::Instanced => Self::Merge,
+            HlodBuilder::Voxel => Self::Voxel,
         }
     }
 }

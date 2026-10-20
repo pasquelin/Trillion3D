@@ -93,6 +93,10 @@ pub(super) fn cache_key(
     {
         material["materials"] = named;
     }
+    // The voxelized objects, only when the job names some: a job naming none keeps its key.
+    if let Some(named) = o.voxelize.as_ref().ok().and_then(VoxelizeOptions::identity) {
+        material["voxelize"] = named.clone();
+    }
     keyed(material, crate::physics_cook::JOLT_COMMIT)
 }
 

@@ -52,7 +52,7 @@ pub const HLOD_OPTION: &str = "--hlod=";
 /// The key of a glTF node's `extras` marking its object for an HLOD group or layer, by name.
 pub const HLOD_MARK: &str = "hlod";
 /// How an HLOD layer builds its actors.
-pub const HLOD_BUILDERS: [&str; 4] = ["instanced", "approximate", "merge", "proxy"];
+pub const HLOD_BUILDERS: [&str; 5] = ["instanced", "approximate", "merge", "proxy", "voxel"];
 /// Which LOD of each source a merged layer takes.
 pub const HLOD_LOD_SELECTIONS: [&str; 2] = ["calculate", "lowest"];
 /// The atlas sides, in texels, an approximated layer may name, and its side when it names none.
@@ -88,3 +88,8 @@ pub const TEMPORAL_AA_SHARES: [(&str, f64); 4] = [
     ("off", 0.00),
 ];
 pub const MATERIAL_SETTINGS: [&str; 2] = ["temporalAntialiasing", "responsive"];
+/// The job field naming the voxelized objects, the command line's flag holding it as JSON, and the
+/// key of a glTF mesh's `extras` asking for voxels.
+pub const VOXELIZE_FIELD: &str = "voxelize";
+pub const VOXELIZE_OPTION: &str = "--voxelize=";
+pub const VOXELIZE_EXTRA: &str = "shapePreservation";

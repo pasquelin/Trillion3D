@@ -9,17 +9,20 @@
 //! - a merged layer (`flatten::mesh_merge`): at HLOD 1 per HLOD 0 cell its objects at the LOD its
 //!   deviation selects, above it the child actors' meshes as they are drawn, merged as they are —
 //!   one actor per material, each wearing a material of the scene or a child's flattened one, or,
-//!   its materials merged, one actor wearing its own.
+//!   its materials merged, one actor wearing its own;
+//! - a voxel layer (`voxels.rs`): per cell its objects voxelized together, levels of bricks with
+//!   no shell nor atlas, above HLOD 1 its children's levels.
 //!
 //! Every cell's actors are one job of a single graph (`compiler_budget::admission`): a cell's job
 //! starts once the jobs of the cells below it are done — no barrier between layers —, estimated
 //! from what they made (`working_bytes`, `merged_bytes`), the widest first, as many at once as the
 //! process's resident memory admits. The jobs come back in cell order, the order the layers and
 //! their cells always ranked the actors in, whatever order they ran in.
-use super::flatten::{self, step, Library, Shell};
+use super::flatten::{self, step, Library, Recipe, Shell};
 use super::merge::WorldDag;
 use super::pages::encode_pages;
 use super::place::{conform, empty, gather};
+use super::voxels;
 use super::*;
 use crate::compiler_budget::admission::{run_admitted, Done, Room};
 use crate::compiler_tables::partition::{grid::hlod_grid, HlodNode};
@@ -86,8 +89,13 @@ pub(crate) struct Actor {
     /// (`sources::atlas_surface`), taken by the merged-materials job that reads it last
     /// (`take_worn`), dropped once the graph is done.
     pub atlas: Mutex<Option<flatten::Atlas>>,
-    /// Its mesh's triangles before its DAG simplifies them.
+    /// Its mesh's triangles before its DAG simplifies them; a voxel actor's voxels.
     pub triangles: usize,
+    /// A voxel actor's page per cluster of its build (`voxels.rs`); none for a mesh's.
+    pub voxels: Vec<crate::voxel::VoxelPage>,
+    /// A voxel actor's levels, kept for a voxel layer above, which reads them, until the graph is
+    /// done.
+    pub levels: Option<Vec<crate::voxel::VoxelLevel>>,
 }
 
 impl Actor {
@@ -190,6 +198,8 @@ fn actor(
         wears: Wears::Flattened(images),
         atlas: Mutex::new(keep.then_some(atlas)),
         triangles,
+        voxels: Vec::new(),
+        levels: None,
     })
 }
 
@@ -263,7 +273,7 @@ fn take_worn(children: &[(usize, &Actor)], done: &Done<Job>) -> BTreeMap<usize, 
 /// Whether the layer `above` reads remeshes the actors under it into a shell: it then reads their
 /// closed meshes (`flatten::Placed`).
 fn remeshes(above: Option<HlodBuilder>) -> bool {
-    above.is_some_and(|b| Shell::of(b).is_some())
+    above.is_some_and(|b| matches!(Recipe::of(b), Recipe::Shell(_)))
 }
 
 /// The actor of cell `cell` wearing its own flattened material that `made` holds, its atlas kept
@@ -425,6 +435,8 @@ fn merged_actors(
             wears: Wears::Merged(material),
             atlas: Mutex::new(None),
             triangles,
+            voxels: Vec::new(),
+            levels: None,
         });
     }
     let job = Job {
@@ -596,8 +608,9 @@ impl Measures {
 }
 
 /// The world DAG of `instances` over the chain `tree` (`HlodNode`, leaves first), its actors and
-/// the cells whose actor could not be made: per cell whose job layer has a parent, that parent's
-/// actors — HLOD 1 per HLOD 0 cell, then each next level up to each chain's top —, a cell of
+/// the cells whose actor could not be made: per cell whose actor a job layer builds
+/// (`HlodNode::actor_layer`), that layer's actors — HLOD 1 per HLOD 0 cell, then each next level up
+/// to each chain's top, a short chain's top built once more on the `TOP_LEVEL` grid —, a cell of
 /// objects in no layer building none; the clusters of actor `k` wear what it wears (`Wears`), and
 /// name `k`. In culling order, its pages written; with what the making measured.
 pub(super) fn world_dag(
@@ -609,11 +622,7 @@ pub(super) fn world_dag(
     let cpu = crate::perf::rss::cpu_ms();
     let layers = &builder.hlod.layers;
     // The job layer that builds the actor of cell `cell`; none for a cell of objects in no layer.
-    let built_by = |cell: usize| {
-        (tree[cell].layer)
-            .and_then(|layer| layers[layer].parent)
-            .map(|p| &layers[p])
-    };
+    let built_by = |cell: usize| tree[cell].actor_layer(builder.hlod).map(|p| &layers[p]);
     // The builder of the layer that reads cell `cell`'s actors.
     let above = |cell: usize| {
         tree[cell]
@@ -665,12 +674,28 @@ pub(super) fn world_dag(
             .collect()
     };
     let families = builder.o.texture_formats.len();
+    // The objects of a voxel job no child actor stands for: every member at HLOD 1, above it those
+    // of the children whose actor failed — or that were never made.
+    let orphans_of = |job: usize, done: &Done<Job>| -> Vec<usize> {
+        if inputs[job].is_empty() {
+            return jobs[job].1.clone();
+        }
+        let covered: BTreeSet<usize> = (inputs[job].iter())
+            .filter(|&&child| done.get(child).made.is_ok())
+            .flat_map(|&child| jobs[child].1.iter().copied())
+            .collect();
+        (jobs[job].1.iter())
+            .filter(|i| !covered.contains(i))
+            .copied()
+            .collect()
+    };
     let hlod_of = |job: usize| built_by(jobs[job].0).expect("a cell whose layer builds actors");
     let level_of = |job: usize| tree[jobs[job].0].actor_level();
     let estimate = |job: usize, done: &Done<Job>| {
         let (hlod, members) = (hlod_of(job), jobs[job].1.as_slice());
-        match Shell::of(hlod.builder) {
-            Some(shell) => {
+        match Recipe::of(hlod.builder) {
+            Recipe::Voxel => voxels::working_bytes(instances, &orphans_of(job, done)),
+            Recipe::Shell(shell) => {
                 let below: usize = (inputs[job].iter())
                     .map(|&child| {
                         let held = lock(&closed[child]);
@@ -689,7 +714,7 @@ pub(super) fn world_dag(
                 let on = (level_of(job), shell, hlod, families);
                 working_bytes(instances, on, (members, below))
             }
-            None => {
+            Recipe::Merge => {
                 let children = children_of(&inputs[job], done);
                 let atlases = worn_sizes(&children, done);
                 let on = (level_of(job), hlod, families);
@@ -701,14 +726,31 @@ pub(super) fn world_dag(
         (builder.checkpoint)()?;
         let (cell, members) = (jobs[job].0, jobs[job].1.as_slice());
         let (hlod, level, above) = (hlod_of(job), level_of(job), above(cell));
-        let (made, left) = match Shell::of(hlod.builder) {
-            Some(shell) => {
+        let (made, left) = match Recipe::of(hlod.builder) {
+            Recipe::Voxel => {
+                let children: Vec<&Actor> = (children_of(&inputs[job], done).into_iter())
+                    .map(|(_, actor)| actor)
+                    .collect();
+                let orphans = orphans_of(job, done);
+                let on = (members, children.as_slice(), orphans.as_slice());
+                let library = (builder.library, builder.checkpoint);
+                let made = voxels::voxel_actor(instances, (level, cell), on, library)?;
+                let made = made.map(|actor| vec![actor]);
+                (
+                    Job {
+                        made,
+                        spent: Spent::default(),
+                    },
+                    Vec::new(),
+                )
+            }
+            Recipe::Shell(shell) => {
                 let below: Vec<flatten::Placed> =
                     inputs[job].iter().flat_map(|&c| below_of(c)).collect();
                 let on = (shell, hlod, above);
                 approximated_actor(instances, (level, cell), on, (members, &below), builder)?
             }
-            None => {
+            Recipe::Merge => {
                 let children = children_of(&inputs[job], done);
                 // Only a job that merges its materials reads its children's atlases.
                 let atlases = if hlod.merge_materials {
@@ -748,8 +790,9 @@ pub(super) fn world_dag(
         let stages = match made {
             Ok(made) => {
                 for mut actor in made {
-                    // No layer reads an atlas once the graph is done.
+                    // No layer reads an atlas, nor a voxel actor's levels, once the graph is done.
                     *actor.atlas.get_mut().unwrap_or_else(|e| e.into_inner()) = None;
+                    actor.levels = None;
                     if let Wears::Merged(Material::Actor(id)) = actor.wears {
                         actor.wears = Wears::Merged(Material::Actor(rank(id)));
                     }
@@ -801,7 +844,8 @@ pub(super) fn world_dag(
         // The world's attributes on the actor's vertices, zeros for one it lacks.
         let arrays = conform(carried, layout, positions.len() / 3);
         let arrays: Vec<&Attribute> = arrays.iter().collect();
-        world.splice(dag, (&positions, &arrays), actor.cell);
+        let voxels = std::mem::take(&mut actor.voxels);
+        world.splice(dag, (&positions, &arrays), (voxels, actor.cell));
     }
     world.in_culling_order();
     world.pages = encode_pages(&world)?;

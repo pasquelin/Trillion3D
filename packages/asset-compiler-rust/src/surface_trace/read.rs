@@ -73,7 +73,6 @@ impl Traceable {
         }
         let mut read = Self::new(triangles, tags, corners, surfaces);
         read.primitives = ranges;
-        read.materials = materials;
         Ok(read)
     }
 }

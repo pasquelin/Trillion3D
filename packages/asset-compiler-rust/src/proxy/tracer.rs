@@ -1,8 +1,7 @@
 //! The CPU ray tracer, the only one on the Rust side. The oracle traces the source scene
 //! (`oracle`), its rays going every way, by walking `proxy::bvh`'s flattened tree (`walk`); the
-//! voxel faces trace the level-0 mesh (`surface_trace`), a face's rays parallel, each against the
-//! triangles it can hit, nearest first (`among`), through a hit filter that lets a ray through a
-//! cut texel.
+//! voxels trace the level-0 mesh (`surface_trace`), each ray against the triangles that overlap its
+//! voxel (`among`), through a hit filter that lets a ray through a cut texel.
 use trillion3d_math::triangle::{ray_triangle, triangle_cross};
 use trillion3d_math::vec3::unit_or_itself;
 use trillion3d_page_codec::proxy::PROXY_TRIANGLE_FLOATS;

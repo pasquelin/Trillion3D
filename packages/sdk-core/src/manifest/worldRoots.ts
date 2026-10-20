@@ -54,9 +54,25 @@ export type WorldRoots = {
   hlod: readonly (readonly number[])[]
   /** The chain of HLOD cells (`compiler_tables/partition/hlod.rs`), the HLOD 0 cells first: per
    *  cell, the cell its next level's actor lies in (-1 for a top cell, whose actor is always
-   *  loaded), its level — its actor's HLOD layer less one —, and the six bounds it streams by. */
-  chain: { parent: Int32Array; level: Uint8Array; bounds: Float64Array }
+   *  loaded), its level — its actor's HLOD layer less one —, its actor's flags (`CHAIN_ACTOR`:
+   *  built, failed, none for a cell no layer builds an actor of), and the six bounds it streams
+   *  by. */
+  chain: { parent: Int32Array; level: Uint8Array; actor: Uint8Array; bounds: Float64Array }
 }
+/** A chain cell's actor flags (`WorldRoots.chain.actor`), the one word every reader asks whether
+ *  a cell has an actor: built — its bundles hold its roots —; a layer builds it and that build
+ *  failed (the table's flag). Neither: objects in no layer. */
+export const CHAIN_ACTOR = { built: 1, failed: 2 } as const
+
+/** Each cell's children in a chain of `parent`s (-1 for a top cell): the cells whose actors lie in
+ *  it. */
+export function chainChildren(parent: ArrayLike<number>) {
+  const below: number[][] = Array.from({ length: parent.length }, () => [])
+  for (let cell = 0; cell < parent.length; cell++)
+    if (parent[cell] >= 0) below[parent[cell]].push(cell)
+  return below
+}
+
 export const refuseWorldRoots = (message: string): never => {
   throw new EngineError('INVALID_CACHE', `world roots: ${message}`)
 }

@@ -137,6 +137,15 @@ impl NameMatch {
         }
     }
 
+    /// The match a job field naming objects holds (`responsive`, `voxelize`): a name or a regular
+    /// expression a node's, as a match names it, else a match (`read`).
+    pub fn option(value: &Value, field: &str) -> Result<Self> {
+        match value.is_string() || value.get("regex").is_some() {
+            true => Ok(Self::node(Pattern::of(value, field)?)),
+            false => Self::read(value, field),
+        }
+    }
+
     /// The match `value` names; one naming nothing — which would take every object — refused.
     pub fn read(value: &Value, what: &str) -> Result<Self> {
         let map = OPTIONS.known(value, &MATCH_FIELDS, what)?;

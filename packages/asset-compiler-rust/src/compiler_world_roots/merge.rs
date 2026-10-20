@@ -3,16 +3,18 @@
 //! the record files' order. No build reaches another: an HLOD actor is its own mesh, and its
 //! cell's switch shows or hides it whole.
 use crate::dag::bounds::culling_clusters;
-use crate::dag::{DagCluster, DagGroup};
+use crate::dag::{append_dag, DagCluster, DagGroup};
 use trillion3d_page_codec::culling::{build_culling_bvh, CullingNode};
-use trillion3d_page_codec::encode::{Attribute, Encoded};
+use trillion3d_page_codec::encode::Attribute;
+use trillion3d_page_codec::facts::PageFacts;
 
 /// Every cluster of the world, on one world-space vertex buffer and the normals and texture
 /// coordinates every actor carries. Per cluster, the rank of the actor whose flattened material it
 /// wears (`actors`); per actor, the HLOD cell whose switch shows it (`cells`, a rank of the chain,
 /// `HlodNode`; its layer is that cell's plus one). Once built, the clusters lie in the order of the
 /// world's culling hierarchy (`culling`, `in_culling_order`), each of its nodes owning a
-/// contiguous range of them.
+/// contiguous range of them. A voxel actor's clusters each hold a voxel page (`voxels`), their one
+/// triangle on their box's corners naming the bounds the culling reads.
 #[derive(Default)]
 pub(super) struct WorldDag {
     pub positions: Vec<f32>,
@@ -22,8 +24,10 @@ pub(super) struct WorldDag {
     pub actors: Vec<usize>,
     pub cells: Vec<usize>,
     pub culling: Vec<CullingNode>,
+    /// Each cluster's voxel page, none for a cluster of triangles (`voxel::voxel_dag`).
+    pub voxels: Vec<Option<crate::voxel::VoxelPage>>,
     /// Each cluster's page (`pages.rs`), in culling order.
-    pub pages: Vec<Encoded>,
+    pub pages: Vec<PageFacts>,
 }
 
 impl WorldDag {
@@ -33,14 +37,16 @@ impl WorldDag {
     }
 
     /// Appends the next actor's build on its own `arrays` — its attributes laid out as the world's
-    /// (`place::conform`) —, its clusters and groups renumbered after the world's, the actor shown
-    /// by the switch of HLOD cell `cell`.
+    /// (`place::conform`) —, its clusters and groups renumbered after the world's, each cluster's
+    /// voxel page if it is a voxel actor's (`voxels`, one per cluster, or none), the actor shown by
+    /// the switch of HLOD cell `cell`.
     pub(super) fn splice(
         &mut self,
         (dag, groups): (Vec<DagCluster>, Vec<DagGroup>),
         (positions, attributes): (&[f32], &[&Attribute]),
-        cell: usize,
+        (voxels, cell): (Vec<crate::voxel::VoxelPage>, usize),
     ) {
+        let mut voxels = voxels.into_iter();
         let actor = self.cells.len();
         self.cells.push(cell);
         let vertex_base = (self.positions.len() / 3) as u32;
@@ -51,19 +57,14 @@ impl WorldDag {
                 .extend_from_slice(&source.values[..vertices * target.width]);
         }
         self.positions.extend_from_slice(positions);
-        let (group_base, cluster_base) = (self.groups.len(), self.clusters.len());
-        for mut cluster in dag {
-            cluster.group = cluster.group.map(|g| g + group_base);
-            cluster.source = cluster.source.map(|g| g + group_base);
-            cluster.indices.iter_mut().for_each(|v| *v += vertex_base);
-            self.clusters.push(cluster);
-            self.actors.push(actor);
-        }
-        for mut group in groups {
-            group.children.iter_mut().for_each(|c| *c += cluster_base);
-            group.outputs.iter_mut().for_each(|c| *c += cluster_base);
-            self.groups.push(group);
-        }
+        let count = dag.len();
+        append_dag(
+            (&mut self.clusters, &mut self.groups),
+            (dag, groups),
+            vertex_base,
+        );
+        self.actors.extend(std::iter::repeat_n(actor, count));
+        self.voxels.extend((0..count).map(|_| voxels.next()));
     }
 
     /// Builds the world's culling hierarchy (`build_culling_bvh`, the one a primitive's is built
@@ -85,6 +86,7 @@ impl WorldDag {
         }
         permuted(&mut self.clusters, &order);
         permuted(&mut self.actors, &order);
+        permuted(&mut self.voxels, &order);
         for group in &mut self.groups {
             group.children.iter_mut().for_each(|c| *c = rank_of[*c]);
             group.outputs.iter_mut().for_each(|c| *c = rank_of[*c]);

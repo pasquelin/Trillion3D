@@ -17,8 +17,10 @@ mod hlod;
 mod materials;
 mod name_match;
 mod texture_formats;
+mod voxelize;
 pub use hlod::{marked, Hlod, HlodBuilder, HlodLayer, HlodLodSelection};
 pub use materials::MaterialOptions;
+pub use voxelize::VoxelizeOptions;
 
 /// Job fields the command line gives as numbers.
 const NUMBER_FIELDS: [&str; 3] = [
@@ -55,20 +57,22 @@ pub struct JobDefaults {
 pub const ID_FIELD: &str = "id";
 
 /// The fields a job names as JSON, beside `JOB_FIELDS`: the HLOD, the scene's temporal
-/// anti-aliasing, the responsive objects and the settings by material name.
-const JSON_FIELDS: [&str; 4] = [
+/// anti-aliasing, the responsive objects, the settings by material name and the voxelized objects.
+const JSON_FIELDS: [&str; 5] = [
     HLOD_FIELD,
     TEMPORAL_AA_FIELD,
     RESPONSIVE_FIELD,
     MATERIALS_FIELD,
+    VOXELIZE_FIELD,
 ];
 
 /// The one reading of a compile job, whichever form named it: a batch file's job object, or the
 /// command line's values keyed by `JOB_FIELDS`. A key outside `JOB_FIELDS`, `id`,
 /// `texturesFormat` and `JSON_FIELDS`, or a text field holding another type, is refused by name: a
 /// misspelt or mistyped field never cooks at its default unannounced. The values are checked by
-/// `compile`; the HLOD's and the material settings' names and patterns are read here
-/// (`Hlod::read`, `MaterialOptions::read`), what does not read refused with them.
+/// `compile`; the HLOD's, the material settings' and the voxelized objects' names and patterns
+/// are read here (`Hlod::read`, `MaterialOptions::read`, `VoxelizeOptions::read`), what does not
+/// read refused with them.
 pub fn job_options(
     job: &Map<String, Value>,
     defaults: &JobDefaults,
@@ -115,6 +119,7 @@ pub fn job_options(
             job.get(RESPONSIVE_FIELD),
             job.get(MATERIALS_FIELD),
         ),
+        voxelize: VoxelizeOptions::read(job.get(VOXELIZE_FIELD)),
         cancelled,
     })
 }
@@ -155,7 +160,7 @@ fn usage() -> String {
         })
         .collect();
     format!(
-        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}{}] [{HLOD_OPTION}JSON] [{TEMPORAL_AA_OPTION}{}|true|false] [{RESPONSIVE_OPTION}JSON] [{MATERIALS_OPTION}JSON]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
+        "Usage: trillion3d-compiler {} [{TEXTURE_FORMAT_OPTION}{}] [{HLOD_OPTION}JSON] [{TEMPORAL_AA_OPTION}{}|true|false] [{RESPONSIVE_OPTION}JSON] [{MATERIALS_OPTION}JSON] [{VOXELIZE_OPTION}JSON]\n       trillion3d-compiler --jobs FILE|-\n       {} is a directory or a file in one of the formats --version lists",
         line.join(" "),
         texture_format_choices().join("|"),
         TEMPORAL_AA_LEVELS.join("|"),
@@ -176,6 +181,7 @@ pub fn parse_compiler_args(
         (TEMPORAL_AA_OPTION, TEMPORAL_AA_FIELD),
         (RESPONSIVE_OPTION, RESPONSIVE_FIELD),
         (MATERIALS_OPTION, MATERIALS_FIELD),
+        (VOXELIZE_OPTION, VOXELIZE_FIELD),
     ];
     let is_json = |arg: &String| json_flags.iter().any(|(option, _)| arg.starts_with(option));
     let (flags, args): (Vec<String>, Vec<String>) = args
@@ -236,6 +242,11 @@ impl Options {
     /// This job's material settings, or their refusal (`INVALID_OPTIONS`) when they do not read.
     pub(crate) fn materials(&self) -> crate::Result<&MaterialOptions> {
         (self.materials.as_ref())
+            .map_err(|refusal| crate::CompilerError::new("INVALID_OPTIONS", refusal.clone()))
+    }
+    /// This job's voxelized objects, or their refusal (`INVALID_OPTIONS`) when they do not read.
+    pub(crate) fn voxelize(&self) -> crate::Result<&VoxelizeOptions> {
+        (self.voxelize.as_ref())
             .map_err(|refusal| crate::CompilerError::new("INVALID_OPTIONS", refusal.clone()))
     }
     /// This job's RAM budget in bytes, `ramBudgetMb`; past what a `usize` counts, no bound.

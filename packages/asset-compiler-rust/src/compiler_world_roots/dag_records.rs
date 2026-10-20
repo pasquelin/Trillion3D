@@ -6,24 +6,23 @@ use super::merge::WorldDag;
 use super::records::{index, nullable, Records, DAG_MAGIC};
 use super::*;
 use crate::dag::bounds::cluster_bounds;
-use trillion3d_page_codec::encode::Encoded;
+use trillion3d_page_codec::facts::PageFacts;
 
 /// What a page's geometry descriptor says of it, as a primitive page's `geometry` does
 /// (`compiler_page_record::geometry_record`), without its address — the world names it by its
 /// bundle and offset —: five words and an `f32`.
-fn page_facts(r: &mut Records, page: &Encoded) -> Result<()> {
-    let header = &page.header;
+fn page_facts(r: &mut Records, page: &PageFacts) -> Result<()> {
     for value in [
         page.bytes.len(),
-        header.vertex_count,
-        header.index_count,
-        header.flags as usize,
-        header.decoded_bytes(),
+        page.vertex_count,
+        page.index_count,
+        page.flags as usize,
+        page.decoded_bytes,
     ] {
         r.word(index(value)?);
     }
     // The page's own `f32`, four bytes as the record lays it out (`CLUSTER`, `worldRootsTable.ts`).
-    let error = header.quantization_error;
+    let error = page.quantization_error;
     r.out
         .raw(&(if error.is_finite() { error } else { 0.0 }).to_le_bytes());
     Ok(())
@@ -43,7 +42,7 @@ fn cluster(
     let (min, max) = cluster_bounds(&world.positions, &cluster.indices);
     let root = !cluster.parent_error.is_finite();
     r.word(index(cluster.level)?);
-    r.word(index(cluster.triangles())?);
+    r.word(index(world.pages[slot].triangles)?);
     r.word(index(world.actors[slot])?);
     r.word(nullable(located[slot].map(|(bundle, _)| bundle))?);
     r.word(nullable(located[slot].map(|(_, offset)| offset))?);

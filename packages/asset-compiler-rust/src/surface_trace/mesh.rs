@@ -37,13 +37,10 @@ pub(crate) struct Traceable {
     pub radius: f64,
     /// Each triangle primitive read (`read`): its index in the mesh and its triangles' ranks.
     pub primitives: Vec<(usize, std::ops::Range<usize>)>,
-    /// Each surface's material in the source (`read`), by the rank `tags` hold.
-    pub materials: Vec<Option<u64>>,
 }
 
 /// What a kept hit carries to the texel.
 pub(crate) struct Sample {
-    pub distance: f64,
     pub colour: [f64; 3],
     pub normal: [f64; 3],
     pub orm: [f64; 3],
@@ -78,7 +75,6 @@ impl Traceable {
             centre,
             radius,
             primitives: Vec::new(),
-            materials: Vec::new(),
         }
     }
 
@@ -145,8 +141,7 @@ impl Traceable {
             .map_or([1.0; 4], |c| mix::<4>(&c[..], at))
     }
 
-    /// The first hit whose material covers its texel, its surface's transmission and its triangle:
-    /// a voxel reads it alone, far glass opaque.
+    /// The first hit whose material covers its texel: a voxel reads it alone, far glass opaque.
     pub fn hit(
         &self,
         origin: [f64; 3],
@@ -154,7 +149,7 @@ impl Traceable {
         limit: f64,
         among: Among<'_>,
         footprint: Footprint,
-    ) -> Option<(Sample, f64, usize)> {
+    ) -> Option<Sample> {
         let keep = |triangle: usize, at| {
             let surface = self.surface(triangle);
             surface.cut.is_none() || {
@@ -184,11 +179,10 @@ impl Traceable {
         let tint = self.vertex_colour(hit.triangle, hit.barycentric);
         let colour = surface.colour(read[0].0, read[0].1);
         let sample = Sample {
-            distance: hit.distance,
             colour: [0, 1, 2].map(|c| colour[c] * tint[c]),
             normal,
             orm: surface.orm(read.map(|r| r.0), read.map(|r| r.1)),
         };
-        Some((sample, surface.transmission, hit.triangle))
+        Some(sample)
     }
 }

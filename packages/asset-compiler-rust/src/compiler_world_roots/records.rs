@@ -96,15 +96,25 @@ pub(super) struct Page {
     pub lod_error: f64,
 }
 
+/// A chain cell's actor flag: a layer builds its actor, and that build failed: the runtime keeps
+/// its content standing for it, where a cell of objects in no layer follows its range alone. An
+/// actor built is one whose bundles hold its roots: no flag of its own.
+pub(super) const CHAIN_ACTOR_FAILED: u32 = 1;
+
 /// `world-roots.table` of the world's `bundles`, `pages` and HLOD cells over `payload`: a 64-byte
 /// header (magic, version, the three counts, the pool's length, the binary's length as two words,
 /// then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages (bundle, offset, level
 /// and length, then the error as `f64`), 64-byte HLOD cells of the chain, leaves first (the bundles
 /// holding its roots, in the pool; the cell its next level's actor lies in, `u32::MAX` for a cell
-/// whose actor is its chain's top, always loaded; its level; then as `f64` the bounds it streams
-/// by) and the pool.
+/// whose actor is its chain's top, always loaded; its level in the low 16 bits, its actor's flags
+/// in the high 16 — `CHAIN_ACTOR_FAILED`, or none —; then as `f64` the bounds it streams by) and
+/// the pool.
 pub(super) fn encode_table(
-    (bundles, pages, (hlod, tree)): (&[Bundle], &[Page], (&[BTreeSet<usize>], &[HlodNode])),
+    (bundles, pages, (hlod, tree, actors)): (
+        &[Bundle],
+        &[Page],
+        (&[BTreeSet<usize>], &[HlodNode], &[u32]),
+    ),
     payload: &[u8],
 ) -> Result<Vec<u8>> {
     let mut r = Records::default();
@@ -133,10 +143,14 @@ pub(super) fn encode_table(
         }
         r.float(page.lod_error);
     }
-    for (held, node) in hlod.iter().zip(tree) {
+    for ((held, node), &actor) in hlod.iter().zip(tree).zip(actors) {
         r.pooled(held.iter())?;
         r.word(nullable(node.parent)?);
-        r.word(index(node.level)?);
+        let level = index(node.level)?;
+        if level > 0xffff {
+            return Err(invalid(&format!("HLOD level {level} past 16 bits")));
+        }
+        r.word(level | actor << 16);
         r.floats(Some(&node.shown));
     }
     Ok(r.end(pool_words))

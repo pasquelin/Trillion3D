@@ -19,7 +19,9 @@ pub mod clusters;
 pub mod culling;
 pub mod cut_error;
 pub mod deform;
+pub mod edges;
 pub mod encode;
+pub mod facts;
 #[doc(hidden)]
 pub mod fixtures;
 pub mod hash;
@@ -38,6 +40,7 @@ pub mod simd;
 pub mod split;
 pub mod triangles;
 mod unpack;
+pub mod voxel;
 #[cfg(target_arch = "wasm32")]
 mod wasm_clusters;
 #[cfg(target_arch = "wasm32")]

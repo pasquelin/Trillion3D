@@ -49,7 +49,7 @@ fn cache_identity(path: &Path) -> PathBuf {
         }
     }
 }
-/// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangleBudget":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..,"texturesFormat":..,"hlod":{..},"temporalAntialiasing":"high","responsive":{..},"materials":{..}}]}`,
+/// Batch file: `{"workers":2,"ramBudgetMb":16384,"threads":4,"jobs":[{"id":..,"source":..,"cache":..,"scope":..,"triangleBudget":..,"resourceBaseUrl":..,"simplification":..,"threads":..,"ramBudgetMb":..,"texturesFormat":..,"hlod":{..},"temporalAntialiasing":"high","responsive":{..},"materials":{..},"voxelize":{..}}]}`,
 /// each job read by `job_options`, as the command line's one job is; a job's scope defaults to `full`.
 /// Per-job RAM defaults to the batch budget divided by the admitted concurrency, which is itself
 /// lowered until the jobs running at the same time fit in that budget.

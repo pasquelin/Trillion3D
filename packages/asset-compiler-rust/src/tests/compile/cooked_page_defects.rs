@@ -1,8 +1,10 @@
 //! The defects of a cooked primitive's decoded pages against their source: every corner inside its
-//! page's bounds and sphere, each corner of an exact page within its page's quantization error of
-//! its vertex, and a coarse page's triangles held to the children of the group that produced it.
+//! page's bounds, each corner of an exact page inside its sphere — its vertices' smallest ball —
+//! and within its page's quantization error of its vertex, and a coarse page's triangles held to
+//! the children of the group that produced it. A coarse page's sphere is its children's balls',
+//! which projects the error and bounds nothing it draws (`dag/reduce.rs`).
 //!
-//! A coarse page is held to its bounds, its sphere and its children's surface alone. Its vertices
+//! A coarse page is held to its bounds and its children's surface alone. Its vertices
 //! sit where each merge's quadric put them, optimized off both ends of the edge it collapsed, and
 //! the page quantizes that position: a coarse corner is neither a source vertex within the
 //! quantization error nor one of its children's vertices, and the nearest source vertex it is
@@ -54,7 +56,7 @@ pub(in crate::tests) fn cooked_page_defects(
             if (0..3).any(|a| p[a] < min[a] - slack(p) || p[a] > max[a] + slack(p)) {
                 defects.push(format!("page {id}: vertex {s} at {p:?} outside its bounds"));
             }
-            if distance(p, [sphere[0], sphere[1], sphere[2]]) > sphere[3] + slack(p) {
+            if exact && distance(p, [sphere[0], sphere[1], sphere[2]]) > sphere[3] + slack(p) {
                 defects.push(format!("page {id}: vertex {s} at {p:?} outside its sphere"));
             }
         }

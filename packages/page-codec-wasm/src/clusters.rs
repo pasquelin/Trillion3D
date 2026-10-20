@@ -16,16 +16,17 @@
 //! A cluster lists its triangles in their source order; the result is the same on every build.
 mod cut;
 
+use crate::edges::{position_key, weld_by, DirectedEdges};
 use crate::encode::vertices::first_use;
 use crate::partition::{Fork, Islands, Partitioner, Serial};
 use crate::split::centres_and_boxes;
 use cut::cut_in_order;
-use trillion3d_math::scalar::normalized_bits;
+use trillion3d_math::aabb::aabb_of_f32;
 use trillion3d_math::vec3::point_checked;
 
 /// The cost of an edge two triangles share, and of a locality link.
-const SHARED_EDGE_COST: i64 = 4 * 65;
-const LOCALITY_COST: i64 = 1;
+const SHARED_EDGE_COST: i32 = 4 * 65;
+const LOCALITY_COST: i32 = 1;
 /// How far under `max` triangles a part may fall.
 const PART_SLACK: usize = 4;
 
@@ -110,11 +111,38 @@ pub fn partition_triangles(
             ends,
         };
     }
-    let corner = welded_corners(positions, indices);
-    let edges = OppositeEdges::of(&corner);
+    // Each corner's vertex welded by position; a vertex past the positions is its own.
+    let vertices = (positions.len() / 3).max(indices.iter().max().map_or(0, |&v| v as usize + 1));
+    let weld = weld_by(vertices, indices, |v| {
+        let i = v as usize * 3;
+        match positions.get(i..i + 3) {
+            Some(_) => (false, position_key(positions, v), 0),
+            None => (true, [0; 3], v),
+        }
+    });
+    let next = |e: usize| e / 3 * 3 + (e % 3 + 1) % 3;
+    let ends = |e: usize| (weld[indices[e] as usize], weld[indices[next(e)] as usize]);
+    let corners = count * 3;
+    let edges = DirectedEdges::of(
+        (0..corners)
+            .map(|e| (ends(e), e as u32))
+            .filter(|&((a, b), _)| a != b)
+            .map(|((a, b), e)| (a, b, e))
+            .collect(),
+        |edges| edges.sort_unstable(),
+    );
+    // Each edge's run, then the edges running it back, in edge order.
+    let mut run_of = vec![u32::MAX; corners];
+    for run in 0..edges.runs() {
+        edges
+            .run(run)
+            .iter()
+            .for_each(|&(_, _, e)| run_of[e as usize] = run as u32);
+    }
+    let opposite = |e: usize| opposite(&edges, &run_of, e);
     let mut islands = Islands::new(count);
-    for e in 0..corner.len() {
-        for o in edges.of_edge(e) {
+    for e in 0..corners {
+        for &(_, _, o) in opposite(e) {
             islands.union((e / 3) as u32, o / 3);
         }
     }
@@ -132,9 +160,9 @@ pub fn partition_triangles(
     };
     let mut partitioner = Partitioner::new(count, max.saturating_sub(PART_SLACK), max);
     partitioner.locality_links(&mut islands, vertex_bounds(positions), centre);
-    let graph = partitioner.graph(LOCALITY_COST, |t, links| {
+    let graph = partitioner.graph(corners, LOCALITY_COST, |t, links| {
         for e in t as usize * 3..t as usize * 3 + 3 {
-            for o in edges.of_edge(e) {
+            for &(_, _, o) in opposite(e) {
                 if o / 3 != t {
                     links.push((o / 3, SHARED_EDGE_COST));
                 }
@@ -154,84 +182,24 @@ pub fn partition_triangles(
     Clustered { indices: out, ends }
 }
 
-/// The box of every position, NaN aside: the bounds a partition's locality order is laid on
-/// (`Partitioner::locality_links`).
-pub fn vertex_bounds(positions: &[f32]) -> ([f32; 3], [f32; 3]) {
-    let mut low = [f32::INFINITY; 3];
-    let mut high = [f32::NEG_INFINITY; 3];
-    for p in positions.as_chunks::<3>().0 {
-        for k in 0..3 {
-            low[k] = low[k].min(p[k]);
-            high[k] = high[k].max(p[k]);
-        }
+/// The edges running edge `e` back (`DirectedEdges::back`), `run_of` each edge's run.
+fn opposite<'e>(edges: &'e DirectedEdges, run_of: &[u32], e: usize) -> &'e [(u32, u32, u32)] {
+    match run_of[e] {
+        u32::MAX => &[],
+        run => edges
+            .back(run as usize)
+            .map_or(&[][..], |back| edges.run(back)),
     }
+}
+
+/// The box of every position, NaN aside: the bounds a partition's locality order is laid on
+/// (`Partitioner::locality_links`); a point's at the origin when there is none.
+pub fn vertex_bounds(positions: &[f32]) -> ([f32; 3], [f32; 3]) {
+    let (low, high) = aabb_of_f32(positions.as_chunks::<3>().0.iter().copied());
     if low[0] > high[0] {
         return ([0.0; 3], [0.0; 3]);
     }
     (low, high)
-}
-
-/// Each corner's position, numbered: two corners on equal coordinates (`-0` as `+0`) share a
-/// number, whatever vertex each names; a corner past the positions is its own.
-fn welded_corners(positions: &[f32], indices: &[u32]) -> Vec<u32> {
-    let key = |v: u32| -> Option<[u32; 3]> {
-        let i = v as usize * 3;
-        positions
-            .get(i..i + 3)
-            .map(|p| [p[0], p[1], p[2]].map(normalized_bits))
-    };
-    let mut sorted: Vec<(Option<[u32; 3]>, u32)> = (0..indices.len() as u32)
-        .map(|c| (key(indices[c as usize]), c))
-        .collect();
-    sorted.sort_unstable();
-    let mut number = vec![0u32; indices.len()];
-    let mut next = 0u32;
-    for (i, &(k, c)) in sorted.iter().enumerate() {
-        if i > 0 && (k.is_none() || k != sorted[i - 1].0) {
-            next += 1;
-        }
-        number[c as usize] = next;
-    }
-    number
-}
-
-/// For each edge — corner `e` to the next corner of its triangle — the edges that run between the
-/// same two positions the other way, in edge order.
-struct OppositeEdges<'c> {
-    corner: &'c [u32],
-    /// Every edge with two positions, as (from, to, edge), sorted.
-    sorted: Vec<(u32, u32, u32)>,
-}
-
-impl<'c> OppositeEdges<'c> {
-    fn of(corner: &'c [u32]) -> Self {
-        let mut edges = Self {
-            corner,
-            sorted: Vec::new(),
-        };
-        let mut sorted: Vec<(u32, u32, u32)> = (0..corner.len())
-            .filter_map(|e| edges.ends(e).map(|(a, b)| (a, b, e as u32)))
-            .collect();
-        sorted.sort_unstable();
-        edges.sorted = sorted;
-        edges
-    }
-
-    /// The positions edge `e` runs from and to, `None` when they are one.
-    fn ends(&self, e: usize) -> Option<(u32, u32)> {
-        let next = e / 3 * 3 + (e % 3 + 1) % 3;
-        let (a, b) = (self.corner[e], self.corner[next]);
-        (a != b).then_some((a, b))
-    }
-
-    fn of_edge(&self, e: usize) -> impl Iterator<Item = u32> + '_ {
-        let run = self.ends(e).map_or(0..0, |(a, b)| {
-            let start = self.sorted.partition_point(|x| (x.0, x.1) < (b, a));
-            let end = self.sorted.partition_point(|x| (x.0, x.1) <= (b, a));
-            start..end
-        });
-        self.sorted[run].iter().map(|x| x.2)
-    }
 }
 
 /// The ordered clusters (`cluster`'s `keep_order`): the source order cut at the least cost among

@@ -163,7 +163,7 @@ fn defects_with_a_vertex_moved(
 /// An exact page with one vertex half a metre off is reported, since the source and not the page
 /// is the reference; a coarse one with a vertex moved by a quarter of its representable range,
 /// a sheet across the sky that still encodes on the primitive grid, is reported on every count a
-/// coarse page answers to: its bounds, its sphere and its children's surface — a coarse vertex
+/// coarse page answers to: its bounds and its children's surface — a coarse vertex
 /// sits where its merge optimized it, on no source vertex (`cooked_page_defects.rs`).
 fn assert_moved_vertices_are_reported(scene: &CookedScene) {
     let positions = scene.positions(&scene.result["primitives"][0]);
@@ -174,7 +174,7 @@ fn assert_moved_vertices_are_reported(scene: &CookedScene) {
         .expect("exponent") as i32;
     let up = 2f32.powi(exponent + trillion3d_page_codec::bits::MAX_BITS as i32 - 2);
     let coarse = defects_with_a_vertex_moved(scene, &positions, 1, up);
-    for defect in ["outside its bounds", "outside its sphere", "leaves group"] {
+    for defect in ["outside its bounds", "leaves group"] {
         assert!(
             coarse.iter().any(|d| d.contains(defect)),
             "{defect}: {coarse:#?}"

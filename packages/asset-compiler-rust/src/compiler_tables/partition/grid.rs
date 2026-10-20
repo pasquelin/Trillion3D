@@ -6,8 +6,10 @@
 //! System and Units"). The origin is the world's.
 //!
 //! The partition: the main grid loads its cells within `MAIN_LOADING_RANGE` = 256 m on cells of
-//! half that range; HLOD layer `i`, from 0, gets a grid of cell `MAIN_CELL · (2 << i)` and range
-//! `MAIN_LOADING_RANGE · (2 << i)`: each layer stands in twice as far as the one below.
+//! half that range; HLOD level `i`, from 0, gets a grid of cell `MAIN_CELL · (2 << i)` and range
+//! `MAIN_LOADING_RANGE · (2 << i)` — each level standing in twice as far as the one below —, but
+//! from `TOP_LEVEL` on twice more: 256, 512, then 2 048 m cells, where the four levels of the main
+//! chain end on their top.
 use super::Box6;
 
 /// The axes a 2D grid keeps: all but glTF's up, `Y`.
@@ -17,9 +19,16 @@ const PLANE: [usize; 2] = [0, 2];
 pub(crate) const MAIN_LOADING_RANGE: f64 = 256.0;
 /// The main partition's cell side: half its loading range.
 pub(crate) const MAIN_CELL: f64 = MAIN_LOADING_RANGE / 2.0;
-/// HLOD layer `layer`'s grid: its cell side and loading range, `· (2 << layer)` the main ones.
-pub(crate) fn hlod_grid(layer: usize) -> (f64, f64) {
-    let scale = f64::from(2u32 << layer);
+/// The HLOD level whose cells make every chain's top actors, at least: a top actor stands for one
+/// cell of this grid or a coarser one — 2 048 m —, never for a finer cell, so the actors always
+/// loaded number one per 4 km² of ground whatever a chain's length (`hlod.rs`). The main chain's
+/// four levels reach it on their own: HLOD 0 and 1 on 256 and 512 m cells, its HLOD 2 cells on
+/// this grid making its HLOD 3 actors.
+pub(crate) const TOP_LEVEL: usize = 2;
+/// HLOD level `level`'s grid: its cell side and loading range, `· (2 << level)` the main ones,
+/// doubled once more from `TOP_LEVEL` on.
+pub(crate) fn hlod_grid(level: usize) -> (f64, f64) {
+    let scale = f64::from(2u32 << (level + usize::from(level >= TOP_LEVEL)));
     (MAIN_CELL * scale, MAIN_LOADING_RANGE * scale)
 }
 
