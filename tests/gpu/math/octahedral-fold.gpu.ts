@@ -1,7 +1,7 @@
 // One octahedral map for every caller (`packages/math/src/wgsl/octahedral.ts`), one fold
 // (`octFold`): on Dawn, the lobes' pack (`scene/physicalLobes.ts`), the shadow receiver's plane
 // encode (`visibility/shader/receiverTargetWgsl.ts`) and the impostor card's direction to its grid
-// and back (`visibility/shader/impostorWgsl.ts`) return, bit for bit, what each one's own formula
+// and back return, bit for bit, what each one's own formula
 // returned before they shared it — kept below as `develop` wrote it. The decode is the packed
 // page normals' (`cluster/decodeWgsl.ts`) and the compiler's `oct_decode`: the lower half folded
 // per axis in one rounding, `1 − |other|` on its side. The lobes' unpack and the receiver's plane

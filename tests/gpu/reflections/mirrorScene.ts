@@ -6,6 +6,7 @@
 // roughness, and the lit colour the image holds there.
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { paintPixel, rigFrameOf, type RigFrame } from './rigFrame.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
 
 export const MIRROR = {
   size: 128,
@@ -16,7 +17,7 @@ export const MIRROR = {
 }
 
 /** The eye of the frame: at the origin, looking down -z, 60° vertically. */
-const eye = () => camera([0, 0, 0], [0, 0, -1], MIRROR.size, MIRROR.size, Math.PI / 3, MIRROR.near)
+const eye = () => camera([0, 0, 0], [0, 0, -1], MIRROR.size, MIRROR.size, TAU / 6, MIRROR.near)
 
 /** The frame: its floor a metal of roughness `rough` (polished by default), white and of metalness
  *  one, so that the share is the lobe's own weight. */

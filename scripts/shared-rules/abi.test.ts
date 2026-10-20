@@ -10,6 +10,7 @@ import {
   RESPONSIVE_FIELD,
   SIMPLIFICATIONS,
   TEMPORAL_AA_FIELD,
+  VOXELIZE_FIELD,
 } from '../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import { COMPILER_OPTIONS_SCHEMA } from '../../packages/sdk-core/src/llm/compilerOptionsSchema.ts'
 import { REPOSITORY_ROOT } from '../repository-files.ts'
@@ -31,7 +32,14 @@ test('the compiler reads the job fields, scopes and simplifications the schema n
   assert.deepEqual(words(rust, 'pub mod job_field'), [...JOB_FIELDS])
   assert.deepEqual(
     Object.keys(COMPILER_OPTIONS_SCHEMA.properties).sort(),
-    [...JOB_FIELDS, HLOD_FIELD, TEMPORAL_AA_FIELD, RESPONSIVE_FIELD, MATERIALS_FIELD].sort(),
+    [
+      ...JOB_FIELDS,
+      HLOD_FIELD,
+      TEMPORAL_AA_FIELD,
+      RESPONSIVE_FIELD,
+      MATERIALS_FIELD,
+      VOXELIZE_FIELD,
+    ].sort(),
   )
   assert.deepEqual(words(rust, 'pub const SCOPES'), [...ASSET_SCOPES])
   assert.deepEqual(COMPILER_OPTIONS_SCHEMA.properties.scope.enum, ASSET_SCOPES)

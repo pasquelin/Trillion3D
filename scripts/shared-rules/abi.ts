@@ -98,6 +98,11 @@ pub const TEMPORAL_AA_SHARES: [(&str, f64); ${Object.keys(compiler.TEMPORAL_AA_S
     .map(([name, share]) => `(${JSON.stringify(name)}, ${share.toFixed(2)})`)
     .join(', ')}];
 pub const MATERIAL_SETTINGS: ${strings(compiler.MATERIAL_SETTINGS)};
+/// The job field naming the voxelized objects, the command line's flag holding it as JSON, and the
+/// key of a glTF mesh's \`extras\` asking for voxels.
+pub const VOXELIZE_FIELD: &str = ${JSON.stringify(compiler.VOXELIZE_FIELD)};
+pub const VOXELIZE_OPTION: &str = ${JSON.stringify(compiler.VOXELIZE_OPTION)};
+pub const VOXELIZE_EXTRA: &str = ${JSON.stringify(compiler.VOXELIZE_EXTRA)};
 `
 }
 
