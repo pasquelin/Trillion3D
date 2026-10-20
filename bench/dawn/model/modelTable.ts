@@ -1,11 +1,11 @@
 // The frame's cost model against a measured frame: each pass's floor (`floor.ts`) from its work
-// (`passes.ts`) on the machine's rates (`../machine.ts`), its measured time (the bench's own share of the pass,
-// `../passTimer.ts`), their ratio and the milliseconds above the floor, ranked by the latter.
+// (`passes.ts`) on the machine's rates (`../machine/machine.ts`), its measured time (the bench's own share of the pass,
+// `../passes/passTimer.ts`), their ratio and the milliseconds above the floor, ranked by the latter.
 // Passes the model does not hold are listed with their time alone. Pure.
-import type { BenchReport } from '../merge.ts'
+import type { BenchReport } from '../report/merge.ts'
 import { table } from '../../core/table.ts'
 import { floorOf } from './floor.ts'
-import type { Machine } from '../machine.ts'
+import type { Machine } from '../machine/machine.ts'
 import { PASSES } from './passes.ts'
 import type { Frame } from './passConstants.ts'
 

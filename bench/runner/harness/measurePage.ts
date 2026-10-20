@@ -46,14 +46,15 @@ export function networkFrom(depuis: number): NetworkBytes {
 }
 
 /** Frames a pose is drawn after its pages landed: four times the temporal history's sixteen
- *  samples, which the temporal pass, running every frame, then holds whole. */
+ *  samples, so the temporal history is whole when the last one is drawn. */
 export const HOLD_FRAME_LIMIT = 64
 
 /**
  * Settles the pose: waits for the pages it reads (`awaitPages`), then draws it `limit` frames, or
  * fewer where the engine holds the image earlier — a view without temporal accumulation, which
- * holds once nothing changes; a view whose temporal pass runs draws every frame and never holds
- * (its jitter moves the image each frame). A capture after it depends on the pose, not on the
+ * holds once nothing changes; a view whose temporal pass runs draws every frame, its converged
+ * image too, since the bench opens its sessions with `drawConverged` (`explorerOptions`): each
+ * measured frame costs a draw. A capture after it depends on the pose, not on the
  * trajectory's arrivals. Returns how many frames it drew, or `null` if the engine reports no hold
  * at all (the Three witness, for example).
  */

@@ -1,6 +1,6 @@
 // The scale laws' open world, one source for both its forms: the scene cooked as a published one
 // is (`cook.ts`) and the same world built in the page at run time (`world.html`, `runtime=<n>`),
-// the bench mapping its import (`../page.ts`). Its ground reaches past the objects, which are
+// the bench mapping its import (`../page/page.ts`). Its ground reaches past the objects, which are
 // pebbles, rocks and towers at their seeded places (`scatter.ts`), each kind one shape
 // (`meshes.ts`) and one matte paint.
 import type { SceneMesh } from './gltf.ts'

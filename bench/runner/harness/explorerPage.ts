@@ -55,7 +55,10 @@ export function explorerOptions(
     ...(options.textureCompression ? { textureCompression: options.textureCompression } : {}),
     // The frame drawn below the display and reconstructed to it; the display without it.
     ...(options.renderScale ? { renderScale: options.renderScale } : {}),
-    // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
-    ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
+    // Temporal antialiasing at the level asked, when one is; `off` the pre-batch image, sampled at
+    // the pixel centre. None asked leaves the scene's level, else the engine's.
+    ...(options.temporalAntialiasing ? { temporalAntialiasing: options.temporalAntialiasing } : {}),
+    // A converged temporal view drawn every frame, never held: each measured frame costs a draw.
+    drawConverged: true,
   }
 }

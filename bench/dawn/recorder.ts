@@ -1,9 +1,9 @@
 // Records what a person plays on a page in their own browser, as a bench scenario the bench replays
-// frame for frame (`scenario.ts`): `node bench/dawn/recorder.ts` prints a snippet to paste in the
+// frame for frame (`runs/scenario.ts`): `node bench/dawn/recorder.ts` prints a snippet to paste in the
 // page's console; play, then `__rec.stop()` downloads the scenario. Times are put on the bench's
 // 120 Hz clock from the events' own timestamps, so a browser that drew fewer frames records the
 // same moments.
-import { REFRESH_MS } from './frames.ts'
+import { REFRESH_MS } from './capture/frames.ts'
 
 /** The snippet: listens on the page's canvas and document, numbers each event by its 120 Hz frame
  *  since the start, and turns the recording into a scenario of one segment, then a still one. */

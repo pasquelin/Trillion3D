@@ -3,12 +3,12 @@
 //   node bench/dawn/model/run.ts <report.json> --machine <machine.json> [--segment <name>]
 //     [--cover 1] [--reach 1] [--reflecting 0] [--placements 0]
 // `report.json`: a bench run's merged report (`.mesure/out/bench-gpu/*.json`); `machine.json`: the
-// machine a run measured and kept (`../machine.ts`, `~/.trillion3d/machine/`). What no counter of the report says — the covered share of
+// machine a run measured and kept (`../machine/machine.ts`, `~/.trillion3d/machine/`). What no counter of the report says — the covered share of
 // the pixels, the share a shadowed light reaches, the reflecting share, the placements the
 // cut walks — is given; a floor taken from a share too large is lower, never higher.
 import { parseArgs } from 'node:util'
-import type { BenchReport } from '../merge.ts'
-import type { Machine } from '../machine.ts'
+import type { BenchReport } from '../report/merge.ts'
+import type { Machine } from '../machine/machine.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
 import { readJson } from '../../../scripts/repository-files.ts'
 

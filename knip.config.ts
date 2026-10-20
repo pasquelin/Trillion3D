@@ -10,7 +10,7 @@ const config: KnipConfig = {
   workspaces: {
     '.': {
       entry: [
-        // Served to a bench page as `../runtime/kit.js` (`bench/dawn/page.ts`).
+        // Served to a bench page as `../runtime/kit.js` (`bench/dawn/page/page.ts`).
         'bench/kit/index.ts',
         // The report format the site reads from a pinned engine checkout: a public contract.
         'bench/kit/report/*.ts',
@@ -45,7 +45,7 @@ const config: KnipConfig = {
         // The cost model's command lines: the scale laws' sweeps, the model itself.
         'bench/dawn/{laws/sweep,laws/cook,laws/table,model/run}.ts',
         // The water and anisotropy costs on Dawn, launched by hand.
-        'bench/dawn/{waterCost,anisotropyCost}.ts',
+        'bench/dawn/costs/{waterCost,anisotropyCost}.ts',
         'bench/runner/trajectory/trajectory.ts',
         'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
@@ -76,7 +76,7 @@ const config: KnipConfig = {
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
         'bench/runner/screenError/screenError.ts',
         'bench/perf/*/*.perf.ts',
-        'bench/runner/perf/*.ts',
+        'bench/perf/*.ts',
         // The GPU proofs (render proofs and kebab-case probes), the page modules they load by path,
         // and the public-API fixtures the type-check test compiles by path. Kit, support and fixture
         // helpers are not entries: an export no test imports is reported.

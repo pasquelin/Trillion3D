@@ -1,0 +1,112 @@
+// What a bench run is asked, from its command line (`../run.ts` lists the options).
+import { basename } from 'node:path'
+import { parseArgs, type ParseArgsOptionsConfig } from 'node:util'
+import { DEFAULT_LEAST_MS } from '../report/abStats.ts'
+import { engineRoot } from '../page/engineRoot.ts'
+import { pageFile } from '../page/page.ts'
+import { PROFILES } from '../report/profiles.ts'
+import { readScenario } from './scenario.ts'
+
+/** Every option of a run, by name: what `parseArgs` reads, and what `childArgs.ts` reads of which take
+ *  no value. */
+export const OPTIONS = {
+  scenario: { type: 'string', default: 'orbit' },
+  repeat: { type: 'string', default: '3' },
+  switch: { type: 'string', multiple: true, default: [] },
+  scale: { type: 'string', default: '0.5' },
+  profile: { type: 'string', default: 'desktop' },
+  display: { type: 'string' },
+  'features-off': { type: 'string', default: '' },
+  'cpu-profile': { type: 'boolean', default: false },
+  warm: { type: 'string', default: '120' },
+  timeout: { type: 'string', default: '600' },
+  engine: { type: 'string' },
+  dirty: { type: 'boolean', default: false },
+  recalibrate: { type: 'boolean', default: false },
+  'no-capture': { type: 'boolean', default: false },
+  dissect: { type: 'string' },
+  ab: { type: 'string' },
+  'ab-b': { type: 'string' },
+  rounds: { type: 'string', default: '6' },
+  least: { type: 'string', default: String(DEFAULT_LEAST_MS) },
+  'dissect-segment': { type: 'string' },
+  'child-report': { type: 'string' },
+} satisfies ParseArgsOptionsConfig
+
+/** `--ab A B` is two values: the second goes to `--ab-b`, so it is no page. */
+const abArgs = (args: string[]) => {
+  const at = args.indexOf('--ab')
+  if (args.some((arg) => arg.startsWith('--ab=')))
+    throw new Error('usage: node bench/dawn/run.ts <page> --ab <checkout A> <checkout B>')
+  if (at < 0) return args
+  const [a, b] = [args[at + 1], args[at + 2]]
+  if (!a || !b || a.startsWith('--') || b.startsWith('--'))
+    throw new Error('usage: node bench/dawn/run.ts <page> --ab <checkout A> <checkout B>')
+  return [...args.slice(0, at), '--ab', a, '--ab-b', b, ...args.slice(at + 3)]
+}
+
+/** The run's page, scenario, machine profile, display, repeats and address switches. */
+export function benchOptions(args = process.argv.slice(2)) {
+  args = abArgs(args)
+  const { positionals, values } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: OPTIONS,
+  })
+  if (values.ab && !values['ab-b'])
+    throw new Error('usage: node bench/dawn/run.ts <page> --ab <checkout A> <checkout B>')
+  const rounds = Number(values.rounds)
+  const least = Number(values.least)
+  if (values.ab && values.dissect)
+    throw new Error('usage: --dissect and --ab are two runs, one at a time')
+  if (values.ab && (!Number.isInteger(rounds) || rounds < 2))
+    throw new Error(`BENCH_AB: --rounds ${values.rounds}: two rounds at least, a whole number`)
+  if (values.ab && !(least >= 0))
+    throw new Error(`BENCH_AB: --least ${values.least}: a number of ms, zero or more`)
+  const scenario = readScenario(values.scenario)
+  const page = positionals[0] ?? scenario.page
+  if (!page || positionals.length > 1)
+    throw new Error(
+      'usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|<file>] …',
+    )
+  // An A/B or a dissect measures through its children, which refuse a dirty checkout themselves.
+  const engine = engineRoot(values.engine, values.dirty || Boolean(values.ab || values.dissect))
+  const file = pageFile(page, engine.root)
+  const profile = PROFILES[values.profile]
+  if (!profile)
+    throw new Error(`BENCH_PROFILE: ${values.profile}; one of ${Object.keys(PROFILES).join(', ')}`)
+  const [size, ratio = '1'] = (values.display ?? '').split('@')
+  const [width, height] = size.split('x').map(Number)
+  return {
+    engine,
+    file,
+    name: basename(file, '.html'),
+    scenario,
+    repeat: Math.max(1, Number(values.repeat)),
+    profileName: values.profile,
+    profile,
+    display: values.display ? { width, height, ratio: Number(ratio) } : profile.display,
+    featuresOff: values['features-off'].split(',').filter(Boolean),
+    scale: values.scale,
+    cpuProfile: values['cpu-profile'],
+    warm: scenario.warm ?? Number(values.warm),
+    timeoutS: Number(values.timeout),
+    switches: values.switch,
+    search: values.switch.length ? `?${values.switch.join('&')}` : '',
+    recalibrate: values.recalibrate,
+    noCapture: values['no-capture'],
+    dirtyOk: values.dirty,
+    dissect: values.dissect,
+    ab: values.ab && values['ab-b'] ? ([values.ab, values['ab-b']] as [string, string]) : undefined,
+    rounds,
+    least,
+    scenarioArg: values.scenario,
+    dissectSegment: values['dissect-segment'],
+    childReport: values['child-report'],
+  }
+}
+
+export type BenchOptions = ReturnType<typeof benchOptions>
+
+/** Now, as a file name's part: an ISO time with no colon or dot. */
+export const stamp = () => new Date().toISOString().replace(/[:.]/g, '-')

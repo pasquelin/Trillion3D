@@ -1,8 +1,8 @@
 // A pass's theoretical floor on this machine: its work in each resource over that resource's
-// measured rate (`../machine.ts`), the slowest resource binding — a pass can do no better than the
+// measured rate (`../machine/machine.ts`), the slowest resource binding — a pass can do no better than the
 // resource it uses most of its rate — plus its fixed cost as a pass. A lower bound, never a
 // prediction: what a pass takes above it is waste, overlap aside. Pure.
-import type { Machine } from '../machine.ts'
+import type { Machine } from '../machine/machine.ts'
 
 /** A pass's work by resource, in the machine's work units: bytes moved to or from memory, texels
  *  loaded or filtered, floating-point operations, workgroup-memory bytes, pixels written by the

@@ -7,9 +7,11 @@ import { ASSETS, applySceneFlag, sceneOf } from '../assets/scene.ts'
 import { lightingSettings } from '../lighting/lightingOptions.ts'
 import type { SideBase } from './dists.ts'
 import type { BenchSettings, LivePools } from './benchSettings.ts'
+import type { TemporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import { residentFraction } from './poolFill.ts'
 import { type Flags, parseArgs } from './flags.ts'
 import { ENGINES, equipSide } from './sideOptions.ts'
+import { temporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/materialOptions.ts'
 
 /** An installed package directory, searched like Node searches: root upwards.
  *  A worktree without its own `node_modules` thus finds those of the main worktree. */
@@ -124,8 +126,17 @@ export function readOptions(argv: string[], root: string) {
     // `--texture-budget <ms>`: CPU milliseconds a frame may spend copying texture tiles; without
     // the option, the engine keeps its default (1.0 ms).
     textureUploadMs: flags.has('texture-budget') ? number('texture-budget', 1) : null,
-    // `--antialiasing off`: WebGPU engine renders without jitter or history.
-    temporalAntialiasing: flags.get('antialiasing') !== 'off',
+    // `--antialiasing <level>`: the WebGPU engine's temporal antialiasing level, `off`, `low`,
+    // `medium`, `high` or `max`, `on` the default one; `off` renders without jitter or history.
+    // Without the flag, none is asked: the scene's own level, else the engine's. Another word is
+    // refused by name.
+    temporalAntialiasing: flags.has('antialiasing')
+      ? temporalAntialiasingLevel(
+          flags.get('antialiasing') === 'on'
+            ? true
+            : (flags.get('antialiasing') as TemporalAntialiasingLevel),
+        )
+      : undefined,
     // Headless mode caps display to 60 Hz on this machine: `--visible` opens a real window when frame rate matters.
     visible: flags.get('visible') === 'true',
     ...lightingSettings(flags, number),

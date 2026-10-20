@@ -1,5 +1,5 @@
 // The gestures the camera proofs play on a canvas of the page's document, as the bench's scenario
-// player dispatches them (`bench/dawn/scenario.ts`): the page's own event classes, pointers and
+// player dispatches them (`bench/dawn/runs/scenario.ts`): the page's own event classes, pointers and
 // wheel on the canvas, keys on the document then the window. The player itself presses only the
 // primary button, and its wheel says no delta mode; these press any button and wheel in pixels, as
 // a mouse does. And the camera probe: one manual world whose controller is swapped, the image of

@@ -3,9 +3,9 @@
 // steps the bench reads are in the order the proof built them, the biggest where the biggest loop is.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { setDissect } from '../../../bench/dawn/dissectHooks.ts'
-import { stepsOf, type Variant } from '../../../bench/dawn/dissectReport.ts'
-import { cutsOf, hashOf } from '../../../bench/dawn/shaderCuts.ts'
+import { setDissect } from '../../../bench/dawn/passes/dissectHooks.ts'
+import { stepsOf, type Variant } from '../../../bench/dawn/passes/dissectReport.ts'
+import { cutsOf, hashOf } from '../../../bench/dawn/passes/shaderCuts.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openBenchDevice } from '../kit/benchDevice.ts'
 import { kernelOn } from '../kit/computeReadback.ts'

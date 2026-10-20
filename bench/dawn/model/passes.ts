@@ -131,6 +131,7 @@ export const PASSES: K.PassModel[] = [
     }),
     sources: [
       K.engine('taa/resolve.ts', 'resolveTargetUsage'),
+      K.engine('lighting/deferred/asIsShare.ts', 'GIVEN_UP_FORMAT'),
       { path: 'bench/runner/counts/taaFetchCount.ts', symbol: 'countTaaFetches' },
     ],
   },

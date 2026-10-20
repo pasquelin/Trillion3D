@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { existsSync, readFileSync } from 'node:fs'
-import type { BenchReport } from '../merge.ts'
+import type { BenchReport } from '../report/merge.ts'
 import { floorOf } from './floor.ts'
 import { frameOf, modelRows, modelText } from './modelTable.ts'
 import { PASSES } from './passes.ts'
@@ -13,6 +13,7 @@ import {
   witnessEncoder,
 } from '../../../packages/sdk-browser/src/gpu/dag/encode.fixture.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
+import { countTaaFetches } from '../../runner/counts/taaFetchCount.ts'
 
 // 400 GB/s of memory, 500 Gtexel/s, 400 GB/s of attachment (50 Gpixel/s), 4 Gtriangle/s, 0.01 ms a pass.
 const MACHINE = {
@@ -46,11 +47,11 @@ test('a floor is its slowest resource at its peak, plus a fixed cost a pass', ()
 })
 
 test('the passes count their shipped constants', () => {
-  // TAA at half the display per axis: 30.99 fetches a display pixel (`taaFetchCount.test.ts`), 48 B
-  // of targets a pixel.
+  // TAA at half the display per axis: its analysis' fetches a render texel over the four a display
+  // pixel holds, and its update's 19 (`taaFetchCount.test.ts`), 48 B of targets a pixel.
   const taa = pass('temporal antialiasing').work(frame)
-  assert.equal(taa.texels! / frame.D, 30.98828125)
-  assert.equal(taa.bytes, 48 * frame.D + 17 * frame.P)
+  assert.equal(taa.texels! / frame.D, countTaaFetches(0.5).analysis / 4 + 19)
+  assert.equal(taa.bytes, 48 * frame.D + 18 * frame.P)
   // One sun: one ray of nine samples, two fetches each, plus the screen ray's start and four samples.
   const vsm = pass('vsm.projection').work(frame)
   assert.equal(vsm.texels, frame.P * (5 + 9 * 2))

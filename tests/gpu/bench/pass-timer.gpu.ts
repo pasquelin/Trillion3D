@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { setTimeout as sleep } from 'node:timers/promises'
-import type { FrameGpu } from '../../../bench/dawn/passSpans.ts'
+import type { FrameGpu } from '../../../bench/dawn/passes/passSpans.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openBenchDevice } from '../kit/benchDevice.ts'
 import { kernelOn } from '../kit/computeReadback.ts'

@@ -104,8 +104,8 @@
     "check:tools-types": "tsc -p tsconfig.tools.json --noEmit",
     "proof:package": "node scripts/prove-installed-package.ts",
     "perf:core": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/core/*.perf.ts",
-    "perf:all": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/runner/perf/aggregate.ts",
-    "perf:baseline": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/runner/perf/baseline-save.ts",
+    "perf:all": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/perf/aggregate.ts",
+    "perf:baseline": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/perf/baseline-save.ts",
     "check:local": "node scripts/check-local-files.ts",
     "fixtures:garden": "node scripts/fixtures/garden.ts"
   },

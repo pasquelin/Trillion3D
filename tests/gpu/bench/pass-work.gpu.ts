@@ -3,7 +3,7 @@
 // nothing, a render bundle or an indirect dispatch the bench cannot size.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { FrameGpu } from '../../../bench/dawn/passSpans.ts'
+import type { FrameGpu } from '../../../bench/dawn/passes/passSpans.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openBenchDevice } from '../kit/benchDevice.ts'
 import { autoKernel, groupZero } from '../kit/computeReadback.ts'

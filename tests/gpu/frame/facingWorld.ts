@@ -1,7 +1,7 @@
 // What the frame and coplanar proofs share: a coplanar golden of the formats corpus compiled by
 // this checkout's native compiler (`coplanarCache`), drawn by the WebGPU page raster in a canvas
 // whose image can be read back, from an eye facing the plane its surfaces lie in.
-import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
+import type { FakeCanvas } from '../../../bench/dawn/page/canvas.ts'
 import { measureOutput } from '../../../bench/core/paths.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { coplanarCache, openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'

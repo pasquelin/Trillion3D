@@ -2,7 +2,7 @@
 // leaves looking the same, written into a display image; the engine's presenter
 // (`createGpuPresenter`) puts it on a canvas of its own, and the engine's capture readback
 // (`readGpuImage`) carries it away. Both are read back and compared with the pattern.
-import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
+import type { FakeCanvas } from '../../../bench/dawn/page/canvas.ts'
 import { createGpuPresenter } from '../../../packages/sdk-browser/src/gpu/core/presentation.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { pipelinesSettled } from '../../../packages/sdk-browser/src/lighting/deferred/compileLedger.ts'

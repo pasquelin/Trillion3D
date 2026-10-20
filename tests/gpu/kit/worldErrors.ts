@@ -1,7 +1,7 @@
 // The GPU errors a world's own device raises: a world asks for its device itself (`holdWorldDevice`), which
 // the proof's device errors (`runOnDevice`) do not see. Listened for from the adapter's grant, before the world
 // is made; the proof asserts the list is empty.
-import { hookAfter, type Proto } from '../../../bench/dawn/hook.ts'
+import { hookAfter, type Proto } from '../../../bench/dawn/page/hook.ts'
 import { onGrantedDevices } from './grantedDevices.ts'
 
 /** What the devices granted since a call of `listenToWorldDevices` raise and make. */

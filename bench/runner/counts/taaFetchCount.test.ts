@@ -1,28 +1,72 @@
-// A pixel's resolve issues a bounded number of fetches per display pixel, one program at every
-// render scale, still or moving (`resolveWgsl.ts`): the nearest surface and reprojection edge the
-// analysis pass found for its render texel in one load (`closestRead`) — the 3×3 depths and
-// identifiers are gathered once per render texel by the analysis (`closestAnalysis`), their
-// identifiers counted per display pixel —, the 3×3's 9 colour loads, which the kernel's five reuse,
-// and the spatial anti-aliaser's texel where aliasing shows: 11, all a pixel whose history is
-// refused reads (the closest surfaces scattered where they stood are words of a buffer, no
-// fetch). A kept pixel then reads its share texel, the history's five Catmull-Rom samples, the
-// reactive value, the shading analysis's texel and its flicker word: 9 more. The as-is resolve
-// adds its 3×3 flags.
+// The temporal pass's fetches a display pixel (`taaFetchCount.ts`): each pass's table holds as
+// many fetch calls as its shipped program's text, so a pass that gains or loses a fetch breaks it;
+// the analysis scales with the render texels a display pixel holds, the history update does not;
+// a level without the flicker measure or the anti-aliaser leaves exactly their fetches out.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { countTaaFetches } from './taaFetchCount.ts'
+import { TAA_PASS_FETCHES, countTaaFetches } from './taaFetchCount.ts'
+import { wgslSource } from '../../../packages/math/src/wgsl/source.fixture.ts'
+import { velocityShader } from '../../../packages/sdk-browser/src/taa/velocityWgsl.ts'
+import { reprojectShader } from '../../../packages/sdk-browser/src/taa/reprojectWgsl.ts'
+import { thinGeometryShader } from '../../../packages/sdk-browser/src/taa/thinGeometryWgsl.ts'
+import { flickerShader } from '../../../packages/sdk-browser/src/taa/flickerWgsl.ts'
+import {
+  heldMeasureShader,
+  rejectionShader,
+} from '../../../packages/sdk-browser/src/taa/rejectionWgsl.ts'
+import { spatialAntiAliasingShader } from '../../../packages/sdk-browser/src/taa/spatialAntiAliasingWgsl.ts'
+import { taaResolveShader } from '../../../packages/sdk-browser/src/taa/resolveWgsl.ts'
 
-test('the resolve issues 20 fetches a kept pixel, 11 a refused one, at every scale, still or moving', () => {
-  const fragment = countTaaFetches
-  // The analysis gathers 16 identifiers per render texel: 16 per display pixel at the display's
-  // size, 4 at half of it per axis.
-  const ids = (scale: number) => (scale === 1 ? 16 : 4)
-  for (const scale of [1, 0.5])
-    for (const moving of [true, false]) {
-      assert.deepEqual(fragment(scale, false, false, moving), { fetches: 20, ids: ids(scale) })
-      assert.deepEqual(fragment(scale, true, false, moving), { fetches: 11, ids: ids(scale) })
-    }
-  // The as-is resolve adds its 3×3 flags, still or moving.
-  assert.deepEqual(fragment(1, false, true), { fetches: 29, ids: 16 })
-  assert.deepEqual(fragment(0.5, false, true, false), { fetches: 29, ids: 4 })
+/** The fetch calls a program's text holds: loads, filtered samples, gathers. */
+const fetchCalls = (program: Parameters<typeof wgslSource>[0]) =>
+  wgslSource(program).match(/\btexture(?:Load|Sample\w*|Gather\w*)\(/g)?.length ?? 0
+
+test('each pass holds the fetch calls its table counts', () => {
+  const P = TAA_PASS_FETCHES
+  for (const [name, program, sites] of [
+    ['velocity', velocityShader(), P.velocity.sites],
+    ['reproject', reprojectShader(), P.reproject.sites],
+    ['thin', thinGeometryShader(), P.thin.sites],
+    ['flicker', flickerShader(), P.flicker.sites],
+    ['held', heldMeasureShader(), P.held.sites],
+    ['rejection', rejectionShader(), P.rejection.sites],
+    ['antiAlias', spatialAntiAliasingShader(), P.antiAlias.sites],
+    ['resolve', taaResolveShader(false), P.resolve.sites],
+    ['resolve as-is', taaResolveShader(true), P.resolve.asIsSites],
+  ] as const)
+    assert.equal(fetchCalls(program), sites, name)
+})
+
+test('a tiled pass reads its span at every stage: the tile and its rings, over its texels', () => {
+  const P = TAA_PASS_FETCHES
+  // 16×16 texels: 26² slots of four, 20² of one, 16² of two.
+  assert.equal(P.thin.perTexel, (26 * 26 * 4 + 20 * 20 + 16 * 16 * 2) / 256)
+  // 16×8 texels: 34 × 26 slots of three, 26 × 18 of one, 20 × 12 of two, 16 × 8 of three.
+  assert.equal(P.flicker.perTexel, (34 * 26 * 3 + 26 * 18 + 20 * 12 * 2 + 128 * 3) / 128)
+  assert.equal(P.held.perTexel, (26 * 18 * 2 + 24 * 16) / 128)
+  assert.equal(
+    P.rejection.perTexel,
+    (24 * 24 * 3 + 22 * 22 + 20 * 20 * 4 + 18 * 18 + 256 * 4) / 256,
+  )
+})
+
+test('the analysis scales with the render texels a display pixel holds, the update does not', () => {
+  const full = countTaaFetches(1),
+    half = countTaaFetches(0.5)
+  assert.equal(full.analysis, half.analysis)
+  assert.equal(full.resolve, 19, 'four texels, five kernel colours, ten history taps')
+  assert.equal(half.perDisplayPixel, half.analysis / 4 + 19)
+  assert.equal(countTaaFetches(1, { kept: false }).resolve, 9, 'a refused pixel reads no history')
+  assert.equal(countTaaFetches(1, { asIs: true }).resolve, 24, 'an as-is resolve adds five flags')
+})
+
+test('a level leaves out the flicker measure and the anti-aliaser it does not run', () => {
+  const P = TAA_PASS_FETCHES
+  const max = countTaaFetches(1).analysis
+  assert.equal(countTaaFetches(1, { level: 'high' }).analysis, max)
+  assert.equal(countTaaFetches(1, { level: 'medium' }).analysis, max - P.flicker.perTexel)
+  assert.equal(
+    countTaaFetches(1, { level: 'low' }).analysis,
+    max - P.flicker.perTexel - P.antiAlias.perTexel,
+  )
 })

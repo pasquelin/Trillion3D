@@ -9,7 +9,7 @@ import {
   REFLECTION_SCENE_PASS,
   REFLECTION_DENOISE_PASS,
 } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
-import { passKey } from '../summary.ts'
+import { passKey } from '../report/summary.ts'
 import * as K from './passConstants.ts'
 
 export const REFLECTION_PASSES: K.PassModel[] = [

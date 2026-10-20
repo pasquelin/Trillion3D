@@ -1,15 +1,15 @@
 // A series of bench runs under one lock, one page after the other, and the table of their measured
-// segments, a row each. At most five scenes, ever (`suiteRuns.ts`); the first bad one ends the list.
+// segments, a row each. At most five scenes, ever (`runs/suiteRuns.ts`); the first bad one ends the list.
 //   node bench/dawn/suite.ts [page[:scenario],…] [run options, as run.ts]
 // The default is the bench's one scene, which carries every cost the engine counts.
 import { writeFileSync } from 'node:fs'
 import { measureOutput } from '../core/paths.ts'
-import { runChild } from './child.ts'
-import { LOCK_OWNER, takeBenchLock } from './lock.ts'
-import type { BenchReport } from './merge.ts'
-import { stamp } from './options.ts'
-import { suiteRuns } from './suiteRuns.ts'
-import { ms, percent, sameImages } from './reportText.ts'
+import { runChild } from './runs/child.ts'
+import { LOCK_OWNER, takeBenchLock } from './runs/lock.ts'
+import type { BenchReport } from './report/merge.ts'
+import { stamp } from './runs/options.ts'
+import { suiteRuns } from './runs/suiteRuns.ts'
+import { ms, percent, sameImages } from './report/reportText.ts'
 import { table } from '../core/table.ts'
 import { readJson } from '../../scripts/repository-files.ts'
 

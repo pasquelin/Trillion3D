@@ -33,7 +33,7 @@ export type Frame = {
  *  of its code, a heading of its text. */
 export type Source = { path: string; symbol: string }
 
-/** A pass: its bench label (`../summary.ts`, `passKey`), its formula, its work, its sources. */
+/** A pass: its bench label (`../report/summary.ts`, `passKey`), its formula, its work, its sources. */
 export type PassModel = {
   label: string
   formula: string
@@ -71,12 +71,13 @@ export const SAMPLE_FETCHES = 2
 export const LIGHTS_A_LAYER = 4
 /** TAA: its four targets, rgba16float, rgba8unorm, rg32uint, r32uint (`resolveTargetUsage`),
  *  written and read back as history; its render inputs read once: colour, depth, identifier,
- *  flags. Its fetches a display pixel are counted by running the shipped resolve
- *  (`countTaaFetches`): half the display per axis below it, else the display's. */
+ *  flags, and the history the blends give up (r8, `GIVEN_UP_FORMAT`) — bound only where a blend
+ *  gives some up, counted always: the model's frame does not say. Its fetches a display pixel are its shipped passes' (`countTaaFetches`), at the finest
+ *  level: half the display per axis below it, else the display's. */
 export const TAA_TARGET_BYTES = 8 + 4 + 8 + 4,
-  TAA_INPUT_BYTES = 8 + 4 + 4 + 1
+  TAA_INPUT_BYTES = 8 + 4 + 4 + 1 + 1
 export const taaFetches = (f: Pick<Frame, 'P' | 'D'>) =>
-  countTaaFetches(f.P < 0.9 * f.D ? 0.5 : 1, false).fetches
+  countTaaFetches(f.P < 0.9 * f.D ? 0.5 : 1).perDisplayPixel
 /** The cut's dependent dispatches per frame (`encodeDagKernels`), counted on its encoder by the
  *  model's test: seventeen whatever the levels — the first arming, clear, prepare, the wanted and
  *  the mask each behind its arming, prefix, scatter, commit, sort, the parents' raise, then the

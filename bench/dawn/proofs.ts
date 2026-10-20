@@ -15,7 +15,7 @@ import { spawnSync } from 'node:child_process'
 import { join, relative } from 'node:path'
 import { isUnitTest } from '../../scripts/unit-tests.ts'
 import { entryPath, underNodeTest } from '../core/entryPoint.ts'
-import { LOCK_OWNER, takeBenchLock } from './lock.ts'
+import { LOCK_OWNER, takeBenchLock } from './runs/lock.ts'
 import { REPOSITORY_ROOT, filesUnder, posixPath } from '../../scripts/repository-files.ts'
 
 /** Where the proofs live, one folder per engine area; `kit/` holds what they share. */

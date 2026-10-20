@@ -1,12 +1,12 @@
 // The GPU every proof runs on: Dawn in this Node process, the WebGPU implementation Chrome runs, on
-// the machine's own GPU and with no browser — the bench's globals (`bench/dawn/device.ts`) and its
-// page browser (`bench/dawn/dom.ts`). A proof loads its page module from the sources, as the bench
+// the machine's own GPU and with no browser — the bench's globals (`bench/dawn/machine/device.ts`) and its
+// page browser (`bench/dawn/page/dom.ts`). A proof loads its page module from the sources, as the bench
 // loads the engine, then calls it: what the page answers is the proof's reading.
 import { pathToFileURL } from 'node:url'
-import { installDawn } from '../../../bench/dawn/device.ts'
-import { takeBenchLock } from '../../../bench/dawn/lock.ts'
+import { installDawn } from '../../../bench/dawn/machine/device.ts'
+import { takeBenchLock } from '../../../bench/dawn/runs/lock.ts'
 import { assertProofEntryPoint } from '../../../bench/dawn/proofs.ts'
-import { installBrowser } from '../../../bench/dawn/dom.ts'
+import { installBrowser } from '../../../bench/dawn/page/dom.ts'
 // The engine opens on the SDK module as it opens on its device: its lots and page codec run there.
 // Node cannot fetch the module by its URL, so the kit hands it the bytes the repository ships.
 import '../../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'

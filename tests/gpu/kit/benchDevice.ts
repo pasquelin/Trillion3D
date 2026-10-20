@@ -1,4 +1,4 @@
-import { installGpu } from '../../../bench/dawn/device.ts'
+import { installGpu } from '../../../bench/dawn/machine/device.ts'
 import { openGpuDevice } from './webgpuDevice.ts'
 
 /** The bench's GPU on Dawn, unconstrained, and the engine's device on it with timestamp queries

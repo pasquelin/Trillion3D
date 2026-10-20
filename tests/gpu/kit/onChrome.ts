@@ -7,7 +7,7 @@
 // lock — shared with the run that started them, taken by a proof run on its own.
 import assert from 'node:assert/strict'
 import { relative } from 'node:path'
-import { takeBenchLock } from '../../../bench/dawn/lock.ts'
+import { takeBenchLock } from '../../../bench/dawn/runs/lock.ts'
 import { assertBrowserEntryPoint, launchChrome } from '../../../bench/runner/harness/chrome.ts'
 import { ENGINES } from '../../../bench/runner/harness/sideOptions.ts'
 import { resolveMounts } from '../../../bench/runner/harness/options.ts'

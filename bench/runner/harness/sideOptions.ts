@@ -104,7 +104,7 @@ function scaleOf(flags: Map<string, string>, name: string, engine: EngineDescrip
   if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
     throw new Error(`--scale-${name} must be in [${MIN_RENDER_SCALE}, 1]`)
   if (scale < 1 && (!isEngine(engine) || flags.get('antialiasing') === 'off'))
-    throw new Error(`--scale-${name} below 1 needs the WebGPU engine and --antialiasing on`)
+    throw new Error(`--scale-${name} below 1 needs the WebGPU engine and temporal antialiasing on`)
   return scale
 }
 

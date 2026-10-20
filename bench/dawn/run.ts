@@ -7,20 +7,20 @@
 //     [--ab <checkout A> <checkout B> [--rounds 6] [--least 0.05]]
 // <page>: a bench scene's name (`an-open-world-of-every-cost`), a path, or a validation page's prefix (`v06`) with
 // TRILLION3D_VALIDATION_DIR set; a scenario file may name its page. One bench at a time on the
-// machine (`lock.ts`). The report, JSON and Markdown, lands in `.mesure/out/bench-gpu/`.
+// machine (`runs/lock.ts`). The report, JSON and Markdown, lands in `.mesure/out/bench-gpu/`.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
-import { runChild } from './child.ts'
-import { LOCK_OWNER, takeBenchLock } from './lock.ts'
-import { abTest } from './ab.ts'
-import { dissect } from './dissect.ts'
-import { buildInsights } from './insights.ts'
-import { mergePlays } from './merge.ts'
-import { engineSources, findPassSources } from './passSource.ts'
-import { benchOptions, stamp } from './options.ts'
-import { playScenario, type BenchPlay } from './play.ts'
-import { reportText } from './reportText.ts'
+import { runChild } from './runs/child.ts'
+import { LOCK_OWNER, takeBenchLock } from './runs/lock.ts'
+import { abTest } from './report/ab.ts'
+import { dissect } from './passes/dissect.ts'
+import { buildInsights } from './report/insights.ts'
+import { mergePlays } from './report/merge.ts'
+import { engineSources, findPassSources } from './passes/passSource.ts'
+import { benchOptions, stamp } from './runs/options.ts'
+import { playScenario, type BenchPlay } from './runs/play.ts'
+import { reportText } from './report/reportText.ts'
 import { readJson } from '../../scripts/repository-files.ts'
 
 const options = benchOptions()

@@ -41,8 +41,8 @@ export async function walkTrajectory(
     return frame
   }
   // From a history reset, a whole number of the jitter's phase cycles, `HOLD_FRAME_LIMIT` frames at
-  // least, so every settled image is captured at the same phase of the same history: the temporal
-  // pass runs every frame and never holds (its jitter moves the image each frame). Fewer where the
+  // least, so every settled image is captured at the same phase of the same history: the bench's
+  // sessions draw the temporal pass every frame, converged too (`drawConverged`). Fewer where the
   // engine holds earlier, a view without temporal accumulation.
   const settle = async (pose: CameraPose, index: number) => {
     port.resetHistory()

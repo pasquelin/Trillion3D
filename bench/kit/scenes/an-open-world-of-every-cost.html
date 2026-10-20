@@ -64,9 +64,9 @@
       // Deterministic, the same image every run: every place, size and texel comes from seeded
       // sequences; the physics is paused and the trees held at a seeded pose until the start key
       // (`P`), which the bench's scenario `world` presses on its first measured frame
-      // (`bench/dawn/worldScenario.ts`), so whatever the warm-up took, the motion starts there,
+      // (`bench/dawn/runs/worldScenario.ts`), so whatever the warm-up took, the motion starts there,
       // owing nothing: the physics steps a fixed step on the frames' clock (120 Hz in the bench,
-      // `bench/dawn/frames.ts`) and the clips advance by the same frames. Until the start the
+      // `bench/dawn/capture/frames.ts`) and the clips advance by the same frames. Until the start the
       // world is kept drawing, so its first moving frame spans one display interval, never the
       // longer one the loop gives a frame after it slept.
       const FIELD = { span: 1200, side: 250 }

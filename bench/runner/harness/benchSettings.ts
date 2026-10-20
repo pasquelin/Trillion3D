@@ -1,6 +1,8 @@
 // Validated, resolved campaign settings, split out of `harness/options.ts` to keep it under the file
 // line budget.
 
+import type { TemporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
+
 /** Pools set in session after warmup; a texture pool either in bytes or as a fraction of the
  *  texture bytes the settled pose holds resident (`harness/poolFill.ts`). */
 export type LivePools = {
@@ -25,7 +27,8 @@ export interface BenchSettings {
   port: number
   trace: boolean
   textureUploadMs: number | null
-  temporalAntialiasing: boolean
+  /** The WebGPU engine's temporal antialiasing level (`--antialiasing`); none asked without it. */
+  temporalAntialiasing: TemporalAntialiasingLevel | undefined
   visible: boolean
   bounce: boolean
   lights: number

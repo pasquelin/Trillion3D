@@ -65,7 +65,7 @@ export function frameBudget(
   const surface = Object.values(SURFACE_ACCESSES).reduce((a, b) => a + b, 0)
   const gbuffer = gbufferAccesses(RESOLVE_GBUFFER.after).texels
   const model = lightingModel(grid)
-  const taa = countTaaFetches(1, false).fetches
+  const taa = countTaaFetches(1).perDisplayPixel
   const C = grid.covered
   const hiz = hizAccesses(width, height)
   /** A stage's row: its count, priced as texels unless its own rate is given. */

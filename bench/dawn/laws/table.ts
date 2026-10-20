@@ -1,7 +1,7 @@
 // A law's table again from its points' merged reports, in the law's point order: what `sweep.ts`
 // prints, for reports measured before a column was added or read again later.
 //   node bench/dawn/laws/table.ts <law> <report.json>…
-import type { BenchReport } from '../merge.ts'
+import type { BenchReport } from '../report/merge.ts'
 import { lawTable, pointRow } from './lawTable.ts'
 import { lawOf } from './points.ts'
 import { readJson } from '../../../scripts/repository-files.ts'

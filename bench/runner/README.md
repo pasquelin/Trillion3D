@@ -37,10 +37,10 @@ part a switch, its design note at the top of its script. The scenario presses th
 on its first measured frame: the motion starts there on every play, whatever the warm-up. A page
 reads the bench's kit (`bench/kit/index.ts`) as `../runtime/kit.js`: a seeded sequence and its
 settings at their declared start. `suite.ts` runs that scene by default and a list of at most
-five (`MAX_SCENES`, `bench/dawn/suiteRuns.ts`): a longer list is refused, no option lifts it.
+five (`MAX_SCENES`, `bench/dawn/runs/suiteRuns.ts`): a longer list is refused, no option lifts it.
 Method: one scene first, then the five, never a full sweep; stop at the first bad scene.
 `--profile desktop|mobile` sets what the device grants (display, limits, features,
-`bench/dawn/profiles.ts`), never the GPU's speed.
+`bench/dawn/report/profiles.ts`), never the GPU's speed.
 
 One bench at a time on the machine: `~/.trillion3d/gpu-bench.lock` refuses a second, the proofs
 included. The report, Markdown and JSON, one file of each per run, lands in `.mesure/out/bench-gpu/`.
@@ -67,7 +67,7 @@ per segment:
   upper bound, the GPU's as exact.
 
 `--dissect <pass>` takes a pass's shader apart by itself: a shader holds `// @cut <name> keep:
-<statement>` lines (`bench/dawn/shaderCuts.ts`); the bench makes one variant per cut, in memory,
+<statement>` lines (`bench/dawn/passes/shaderCuts.ts`); the bench makes one variant per cut, in memory,
 stopped there, plays each on the frame, and tells the cost of each step between two plays of the
 shader whole (their drift is the noise floor). `--ab` plays two checkouts' engines on the bench's
 own page, alternating A B / B A for the rounds, and gives the mean difference with its 95 %
@@ -80,8 +80,8 @@ The tools beside it, each a command of its own under the same lock:
     node bench/dawn/laws/cook.ts world <count> | object
     node bench/dawn/laws/table.ts <law> <report.json>…
     node bench/dawn/model/run.ts <report.json> --machine <machine.json> [--segment <name>]
-    node bench/dawn/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
-    node bench/dawn/waterCost.ts [--runs 4] [--frames 120] [--compare-engine-root <checkout>]
+    node bench/dawn/costs/anisotropyCost.ts [--anisotropy 1,16] [--images 240] [--width 1920] [--height 1080]
+    node bench/dawn/costs/waterCost.ts [--runs 4] [--frames 120] [--compare-engine-root <checkout>]
 
 - **The scale laws** (`laws/`): how the frame grows with the world's objects, the runtime, the
   pixels, the lights and the distance. `sweep.ts` runs each point of a law (`laws/points.ts`) as a
@@ -130,7 +130,7 @@ with two engines they are the union of both sides' needs.
 | `--bounce on\|off`                                                     | `off`                                   | bounce lighting                                                                                                                                                                                  |
 | `--texture-budget <ms>`                                                | engine's 1.0 ms                         | CPU ms a frame may copy texture tiles; read on a cold traversal (`--warmup 0 --moving-camera`)                                                                                                   |
 | `--compression[-<side>] auto\|bc7\|astc\|none`                         | `auto`                                  | block family of the WebGPU texture pools²                                                                                                                                                        |
-| `--antialiasing on\|off`                                               | `on`                                    | TAA jitter and accumulation                                                                                                                                                                      |
+| `--antialiasing off\|low\|medium\|high\|max` | the scene's level, else `max` | TAA level: `off` no jitter nor accumulation, `on` = `max` |
 | `--scale[-<side>] <s>`                                                 | display                                 | WebGPU frame drawn at `s` per axis, reconstructed by the temporal resolve; below 1 needs `webgpu` and TAA                                                                                        |
 | `--reference`                                                          | off                                     | class-2 image proof against the [reference image](#reference-images)³                                                                                                                            |
 | `--lights N`                                                           | 0                                       | contract point lights (`lighting/lamps.ts`); without `--lights` or `--sun` the engine renders unlit albedo                                                                                       |
@@ -205,7 +205,7 @@ All read on **one frame**, the measured loop's last (`series[].sides[].recordedF
 | `coverage` (`resume.md`)  | `selectedTriangles − drawnTriangles − uncoveredTriangles`: zero expected                                                                          |
 | `submittedTriangles`      | GPU count of the opaque raster pass; `null` while a GPU cut's readback is pending                                                                 |
 | `totalSubmittedTriangles` | the same with transparent passes; `null` under `--moving-camera`, where the readback never returns                                                |
-| `frameHeld`               | the frame was held (scene unchanged, no temporal pass running): zero clusters drawn is a record, not a missing reading                            |
+| `frameHeld`               | the frame was held (scene unchanged, no temporal pass running; the bench draws a converged temporal view, `drawConverged`): zero clusters drawn is a record, not a missing reading |
 | `uncoveredTriangles`      | cut triangles with no resident page and no covering ancestor, a hole: zero is the only valid value                                                |
 | `hiZ`                     | occlusion input, rejected, downsampled; on the GPU path an earlier frame, `null` before the first count                                           |
 

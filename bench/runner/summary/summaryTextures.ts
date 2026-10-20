@@ -1,6 +1,6 @@
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { Row } from '../report/types.ts'
-import { mib } from '../../dawn/reportText.ts'
+import { mib } from '../../dawn/report/reportText.ts'
 
 export const go = (b: number | null | undefined) =>
   typeof b === 'number' ? `${(b / 1e9).toFixed(3)} GB` : 'unmeasured'

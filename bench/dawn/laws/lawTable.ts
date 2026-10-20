@@ -1,7 +1,7 @@
 // A law's measured curve as a table: per point, the frame's GPU and CPU time, the passes that
 // weigh, the engine's counters that say what was drawn, and per column the exponent it grows with.
-// Pure: reads the bench's merged reports (`../merge.ts`).
-import type { BenchReport } from '../merge.ts'
+// Pure: reads the bench's merged reports (`../report/merge.ts`).
+import type { BenchReport } from '../report/merge.ts'
 import { table } from '../../core/table.ts'
 import { exponentOf, lawName } from './fit.ts'
 import type { Law } from './points.ts'

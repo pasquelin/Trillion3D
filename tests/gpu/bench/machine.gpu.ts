@@ -3,7 +3,7 @@
 // costs no less than independent ones — the order any GPU gives, whatever its numbers.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { measureMachine } from '../../../bench/dawn/machine.ts'
+import { measureMachine } from '../../../bench/dawn/machine/machine.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openBenchDevice } from '../kit/benchDevice.ts'
 

@@ -2,6 +2,7 @@
 // sends back. One shape on each side of the `page.evaluate` boundary, read by both the Node
 // harness and the browser page module — hence type-only imports here, erased at build.
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
+import type { TemporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 import type { TextureCompression } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
@@ -43,7 +44,7 @@ export interface MeasureViewOptions {
   textureCompression: TextureCompression | undefined
   /** Fraction of the display per axis the frame is drawn at; `undefined` leaves the display's. */
   renderScale?: number
-  temporalAntialiasing: boolean
+  temporalAntialiasing: TemporalAntialiasingLevel | undefined
   movingNode: string | null
   movingNodeRadius: number
 }

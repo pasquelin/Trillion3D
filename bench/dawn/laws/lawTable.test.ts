@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import type { BenchReport } from '../merge.ts'
+import type { BenchReport } from '../report/merge.ts'
 import { lawTable, pointRow } from './lawTable.ts'
 import { lawOf } from './points.ts'
 
