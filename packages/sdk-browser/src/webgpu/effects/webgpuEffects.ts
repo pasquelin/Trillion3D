@@ -4,7 +4,7 @@ import {
   EFFECT_KINDS,
   effectPassTargets,
   effectTargetBytes,
-} from '../../effects/targets.ts'
+} from '../../post/effects/targets.ts'
 import {
   type FusedBlend,
   type Kinds,

@@ -120,8 +120,8 @@ export type {
   InspectedLight,
   InspectedReflections,
   InspectedShadowMap,
-} from './webgpu/pages/diagnostic/inspection/types.ts'
-export { CLUSTER_STATE } from './webgpu/pages/diagnostic/inspection/types.ts'
+} from './diagnostic/inspection/types.ts'
+export { CLUSTER_STATE } from './diagnostic/inspection/types.ts'
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts'
 export type { CpuStepSummary } from './stage/profiler.ts'
 export type { ArrivalPlan } from './page/integration/host.ts'

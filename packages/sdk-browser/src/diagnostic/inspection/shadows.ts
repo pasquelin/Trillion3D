@@ -1,6 +1,6 @@
-import { invertMatrix4 } from '../../../../../../math/src/matrix/matrix4Inverse.ts'
-import { transformHomogeneousPoint } from '../../../../../../math/src/vector/vector.ts'
-import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { transformHomogeneousPoint } from '../../../../math/src/vector/vector.ts'
+import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import {
   VSM_ENTRY_COARSER_MASK,
   VSM_ENTRY_COARSER_SHIFT,
@@ -8,14 +8,14 @@ import {
   VSM_ENTRY_MAPPED_BIT,
   VSM_LEVEL0_PAGES,
   VSM_MAP_UNSEEN,
-} from '../../../../vsm/constants.ts'
-import type { VsmLightCache } from '../../../../vsm/cacheManager.ts'
-import type { VsmProjectionDataValues } from '../../../../vsm/projectionData.ts'
+} from '../../vsm/constants.ts'
+import type { VsmLightCache } from '../../vsm/cacheManager.ts'
+import type { VsmProjectionDataValues } from '../../vsm/projectionData.ts'
 import { unprojectInto } from './camera.ts'
 import type { InspectedShadowMap } from './types.ts'
 
 /**
- * One shadow map as its image packed it (`../../../../vsm/frameSetup.ts`): where its table lies in
+ * One shadow map as its image packed it (`../../vsm/frameSetup.ts`): where its table lies in
  * the page table, its finest mip, and — a sun's level — the map's UV back to the world: the inverse
  * of its record's `shiftedToMapUv`, the level's centre and the UV depth of that centre.
  */

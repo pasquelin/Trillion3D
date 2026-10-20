@@ -7,4 +7,4 @@ export {
   setFeedbackTargetAb,
 } from '../webgpu/pages/diagnostic/feedbackAb.ts'
 export { feedbackAbSpatial } from '../webgpu/pages/diagnostic/feedbackSpatial.ts'
-export { inspectFrame } from '../webgpu/pages/diagnostic/inspection/read.ts'
+export { inspectFrame } from './inspection/read.ts'

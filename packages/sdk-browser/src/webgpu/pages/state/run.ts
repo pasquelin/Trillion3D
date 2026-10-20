@@ -59,7 +59,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   cullView?: CullView
   /** A freeze asked before the first image, put on it (`../render/cutFreeze.ts`). */
   cullPending?: boolean
-  /** A frame inspection asked (`../diagnostic/inspection/read.ts`): run once, right after the main
+  /** A frame inspection asked (`../../../diagnostic/inspection/read.ts`): run once, right after the main
    *  view's next image is submitted. */
   inspect?: () => void
   /** A view drawn beside the main one cuts there (`../../../gpu/dag/aside.ts`), from its first

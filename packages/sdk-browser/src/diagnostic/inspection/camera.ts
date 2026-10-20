@@ -1,9 +1,9 @@
-import { invertMatrix4 } from '../../../../../../math/src/matrix/matrix4Inverse.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import {
   transformHomogeneousPoint,
   writeNormalizedVector3,
-} from '../../../../../../math/src/vector/vector.ts'
-import type { EngineCamera } from '../../../../camera/engineCamera.ts'
+} from '../../../../math/src/vector/vector.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { InspectedCamera } from './types.ts'
 
 /** What an inspection reads of a camera: its matrices, eye, depth range and kind. */
@@ -13,7 +13,7 @@ export type InspectedView = Pick<
 >
 
 /** The clip depths of the near plane and of a plane past it: the engine's depth is reversed, its
- *  far plane at infinity (`../../../../camera/depthConvention.ts`), so the near plane is at 1. */
+ *  far plane at infinity (`../../camera/depthConvention.ts`), so the near plane is at 1. */
 const NEAR_DEPTH = 1,
   PAST_DEPTH = 0.5
 /** The near plane's corners in clip x, y: left-bottom, right-bottom, right-top, left-top. */

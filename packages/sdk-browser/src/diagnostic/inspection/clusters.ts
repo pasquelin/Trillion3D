@@ -1,12 +1,12 @@
-import { NO_INDEX } from '../../../../../../math/src/constants.ts'
-import { boxFromPoints } from '../../../../../../math/src/geometry/box.ts'
-import { BOX_CORNER_VALUES } from '../../../../hiz/corners.ts'
-import { VERDICT_REJECTED } from '../../../../gpu/partition/contract.ts'
-import { PAGE_INFO } from '../../../../visibility/pageInfo.ts'
-import { ROW_WORDS } from '../../../../visibility/types.ts'
-import type { PageRec } from '../../../../page/selection/types.ts'
-import { packedPageCornersInto } from '../../../core/partitionAudit.ts'
-import type { WebgpuPagesRuntime } from '../../runtime.ts'
+import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { boxFromPoints } from '../../../../math/src/geometry/box.ts'
+import { BOX_CORNER_VALUES } from '../../hiz/corners.ts'
+import { VERDICT_REJECTED } from '../../gpu/partition/contract.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { ROW_WORDS } from '../../visibility/types.ts'
+import type { PageRec } from '../../page/selection/types.ts'
+import { packedPageCornersInto } from '../../webgpu/core/partitionAudit.ts'
+import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts'
 import { CLUSTER_STATE, INSPECTION_CLUSTER_CAP, type InspectedClusters } from './types.ts'
 
 /**
@@ -28,7 +28,7 @@ export type ClusterSnapshot = {
 }
 
 /** The Hi-Z slot of packed page `packed`'s row, `-1` where none judges it
- *  (`../../../row/pageRowWriter.ts`, `hizSlot`). */
+ *  (`../../webgpu/row/pageRowWriter.ts`, `hizSlot`). */
 function hizSlotOf(rt: WebgpuPagesRuntime, packed: number) {
   const { rows } = rt.layout,
     ints = rows.pageTableInts,

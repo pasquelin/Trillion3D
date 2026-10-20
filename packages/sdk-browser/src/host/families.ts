@@ -12,7 +12,7 @@ const family = <M>(name: string, load: () => Promise<M>) =>
 
 /**
  * The engine's optional families, each the code of one module the CDN bundle makes a chunk
- * of its own (`scripts/bundle-fold.ts`, `FAMILY_MODULES`): a page whose scene uses none of them
+ * of its own (`scripts/build/bundle-fold.ts`, `FAMILY_MODULES`): a page whose scene uses none of them
  * downloads none. A family is started where its use becomes known — the scene's load, which
  * reads its objects and materials, or the public call that enables it — and what uses it waits
  * for it as for any other resource of the scene (`familiesArriving`): the session opens once
@@ -31,7 +31,7 @@ export const families = {
   /** WebGPU skinning, morphing and the waves of `mesh.waves`. */
   deformation: family('deformation', () => import('../deformation/deformationCode.ts')),
   /** The effect chain's passes. */
-  effects: family('effects', () => import('../effects/effectCode.ts')),
+  effects: family('effects', () => import('../post/effects/effectCode.ts')),
   /** The guide passes. */
   guides: family('guides', () => import('../guides/guideCode.ts')),
   /** The WebGPU feedback A/B measurements and the frame inspection. */

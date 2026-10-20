@@ -1,7 +1,7 @@
-import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
-import type { SceneLightStore } from '../../../../../../sdk-core/src/scene/light/store.ts'
-import type { EngineCamera } from '../../../../camera/engineCamera.ts'
-import { vsmLightSeen, vsmSeenPlanes } from '../../../../vsm/seenLights.ts'
+import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
+import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { vsmLightSeen, vsmSeenPlanes } from '../../vsm/seenLights.ts'
 import type { InspectedLight } from './types.ts'
 
 const copy = (v?: readonly number[]): [number, number, number] | undefined =>

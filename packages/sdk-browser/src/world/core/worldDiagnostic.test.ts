@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { worldDiagnostic } from './worldHandles.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
-import type { FrameInspection } from '../../webgpu/pages/diagnostic/inspection/types.ts'
+import type { FrameInspection } from '../../diagnostic/inspection/types.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 
 /** A session that records the modes put on it and refuses the ones in `refused`. */

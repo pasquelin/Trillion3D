@@ -1,4 +1,4 @@
-import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
+import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 
 /**
  * WHAT THE MAIN VIEW COMPUTED, AND WHERE (`world.diagnostic.inspect()`): read once, right after the

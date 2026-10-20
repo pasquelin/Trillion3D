@@ -1,4 +1,4 @@
-import { createEngineCamera, writeEngineCamera } from '../../../../camera/engineCamera.ts'
+import { createEngineCamera, writeEngineCamera } from '../../camera/engineCamera.ts'
 
 /** An engine camera at `eye` looking down −z, 90° wide and square. */
 export function cameraAt(eye: number[]) {

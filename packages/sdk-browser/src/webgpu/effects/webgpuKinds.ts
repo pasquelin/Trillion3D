@@ -1,5 +1,5 @@
 import type { EffectKind } from '../../../../sdk-core/src/world/effect/chain.ts'
-import { type EffectPassOf } from '../../effects/targets.ts'
+import { type EffectPassOf } from '../../post/effects/targets.ts'
 import type { RootsOwner } from '../pages/render/movedNode.ts'
 import type { FrameRevisions } from '../../frame/revisions.ts'
 import { createWebgpuBloom } from './webgpuBloom.ts'

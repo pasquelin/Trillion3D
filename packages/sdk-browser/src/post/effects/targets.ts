@@ -1,8 +1,8 @@
-import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts'
-import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts'
-import type { Outline } from '../../../sdk-core/src/world/effect/outline.ts'
-import { textureBytesOf } from '../gpu/core/textureBytes.ts'
-import { HDR_FORMAT } from '../scene/targetFormats.ts'
+import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts'
+import type { Bloom } from '../../../../sdk-core/src/world/effect/bloom.ts'
+import type { Outline } from '../../../../sdk-core/src/world/effect/outline.ts'
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { EFFECT_KIND_BYTES } from './kindBytes.ts'
 
 /** Every built-in pass; a kind without its class here has no pass to draw (`never`). */
@@ -25,9 +25,9 @@ export const effectPassTargets = (passes: number) => Math.min(passes, PASS_TARGE
 
 /**
  * Bytes of a chain's `targets` pass targets on a `width × height` image, each made in `HDR_FORMAT`
- * (`../webgpu/effects/webgpuEffects.ts`). Every kind holds its own
+ * (`../../webgpu/effects/webgpuEffects.ts`). Every kind holds its own
  * besides (`EFFECT_KIND_BYTES`). The one rule the renderer counts its targets by and the memory
- * budget reserves them by (`../residency/memoryBudget.ts`).
+ * budget reserves them by (`../../residency/memoryBudget.ts`).
  */
 export const effectTargetBytes = (width: number, height: number, targets: number) =>
   (textureBytesOf({ size: [width, height], format: HDR_FORMAT }) ?? 0) * targets

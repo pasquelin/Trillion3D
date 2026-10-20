@@ -6,7 +6,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../sdk-core/src/world/effect/index.ts'
 import { createWebgpuEffects } from '../webgpu/effects/webgpuEffects.ts'
-import { effectChainBytesAt } from '../effects/targets.ts'
+import { effectChainBytesAt } from '../post/effects/targets.ts'
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,

@@ -1,8 +1,8 @@
-import { effectChainBytesAt } from '../effects/targets.ts'
+import { effectChainBytesAt } from '../post/effects/targets.ts'
 import type { BudgetCanvas } from './memoryBudget.ts'
 
 /**
- * GPU bytes of the effect chain's targets on the declared canvas (`../effects/targets.ts`): two
+ * GPU bytes of the effect chain's targets on the declared canvas (`../post/effects/targets.ts`): two
  * pass targets and every kind's own, by the one rule the renderer counts them with. Held only
  * while a chain has a pass, as the targets follow the image's size.
  */
