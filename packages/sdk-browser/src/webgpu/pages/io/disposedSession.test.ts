@@ -3,7 +3,7 @@
 // the maps under a live session still says why, and the frame is lit without them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SUN } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts'
+import { SUN } from '../../../../../sdk-core/src/scene/light/shadow/lightShadow.fixture.ts'
 import { along, camera } from '../testScenes.fixture.ts'
 import { floorCasterBackend } from '../../shadow/floorCaster.fixture.ts'
 

@@ -8,7 +8,7 @@ import {
 import {
   SHADOW_CHANGE_BOXES,
   createShadowChanges,
-} from '../../../../../sdk-core/src/scene/light-shadow/changes.ts'
+} from '../../../../../sdk-core/src/scene/light/shadow/changes.ts'
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts'
 import { createShadowResidence } from '../../shadow/residence.ts'
 import { createShadowMobility, type ShadowMobility } from '../../shadow/mobility.ts'

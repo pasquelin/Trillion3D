@@ -1,10 +1,10 @@
-import { removeTreeNode, reparentTreeNode } from '../../world/transform-tree/structure.ts'
-import { NODE_AUTO_UPDATE } from '../../world/transform-tree/nodeFlags.ts'
+import { removeTreeNode, reparentTreeNode } from '../../world/transform/structure.ts'
+import { NODE_AUTO_UPDATE } from '../../world/transform/nodeFlags.ts'
 import {
   setTreeNodeAutoUpdate,
   setTreeNodeLocalMatrix,
   type TransformTree,
-} from '../../world/transform-tree/transformTree.ts'
+} from '../../world/transform/transformTree.ts'
 
 /** How many times any scene node was renamed or changed parent since the page loaded: an answer
  *  found by walking names — the engine's name index of a prepared scene — holds while it stands. */

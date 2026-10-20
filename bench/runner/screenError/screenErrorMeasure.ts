@@ -17,9 +17,9 @@ import {
   addTransformNode,
   createTransformTree,
   setNodePosition,
-} from '../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
-import { updateNodeMatrixWorld } from '../../../packages/sdk-core/src/world/transform-tree/update.ts'
-import { lookAtNode } from '../../../packages/sdk-core/src/world/transform-tree/lookAt.ts'
+} from '../../../packages/sdk-core/src/world/transform/transformTree.ts'
+import { updateNodeMatrixWorld } from '../../../packages/sdk-core/src/world/transform/update.ts'
+import { lookAtNode } from '../../../packages/sdk-core/src/world/transform/lookAt.ts'
 import { screenErrorBound } from '../../../packages/sdk-core/src/lod/screenErrorBound.ts'
 import {
   closestSegmentTriangle,

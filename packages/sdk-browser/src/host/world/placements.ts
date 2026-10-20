@@ -1,5 +1,5 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform/pass.ts'
 import type { MatrixElements } from '../matrixElements.ts'
 
 /**

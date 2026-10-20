@@ -1,7 +1,7 @@
 /**
  * THE CPU'S CHANGE BOXES, AS SHADOW CHANGES: what no row says — geometry rewritten in place, a
  * light, a sphere buffer made anew, residency, released representation changes
- * (`sdk-core/src/scene/light-shadow/changes.ts`). Each is a record in a buffer of its own, which
+ * (`sdk-core/src/scene/light/shadow/changes.ts`). Each is a record in a buffer of its own, which
  * the stale reads after the rows' list (`castInvalidationWgsl.ts`): one kernel over the same maps
  * (`vsmCastMaps`). No light is filtered here: the kernel's range test and map cull decide
  * (`vsmStaleBoxPages`).
@@ -26,7 +26,7 @@ export interface VsmCastBoxes {
   count: number
 }
 
-/** The engine's change list (`sdk-core/src/scene/light-shadow/changes.ts`,
+/** The engine's change list (`sdk-core/src/scene/light/shadow/changes.ts`,
  *  `createShadowChanges`). */
 interface VsmShadowBoxSource {
   readonly count: number

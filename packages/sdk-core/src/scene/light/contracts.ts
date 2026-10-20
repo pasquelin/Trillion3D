@@ -1,5 +1,5 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { SHADOW_PAGE } from '../light-shadow/sunEntries.ts'
+import { SHADOW_PAGE } from './shadow/sunEntries.ts'
 /**
  * A scene light, version 2. Units are radiometric and linear (P1): `color` is a linear colour and
  * `intensity` a strictly positive radiometric intensity — a radiance for a `rect`. Four kinds,

@@ -17,10 +17,10 @@ import {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../../../../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
-import { lookAtNode } from '../../../../../../../packages/sdk-core/src/world/transform-tree/lookAt.ts'
-import { nodeWorldDirection } from '../../../../../../../packages/sdk-core/src/world/transform-tree/read.ts'
-import { updateNodeMatrixWorld } from '../../../../../../../packages/sdk-core/src/world/transform-tree/update.ts'
+} from '../../../../../../../packages/sdk-core/src/world/transform/transformTree.ts'
+import { lookAtNode } from '../../../../../../../packages/sdk-core/src/world/transform/lookAt.ts'
+import { nodeWorldDirection } from '../../../../../../../packages/sdk-core/src/world/transform/read.ts'
+import { updateNodeMatrixWorld } from '../../../../../../../packages/sdk-core/src/world/transform/update.ts'
 import { frameAcross } from '../../../../../../../packages/math/src/vector/frame.ts'
 import { ulpBetween } from '../../../../../../../packages/math/src/float/ulp.fixture.ts'
 

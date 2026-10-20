@@ -91,7 +91,7 @@ export {
 export { maxStretch, coneRejects } from '../../math/src/projection/projectionOracles.ts'
 export { matrixWindingCw } from '../../math/src/matrix/orientation.ts'
 export * from '../../math/src/index.ts'
-export { NODE_AUTO_UPDATE } from './world/transform-tree/nodeFlags.ts'
+export { NODE_AUTO_UPDATE } from './world/transform/nodeFlags.ts'
 export {
   addTransformNode,
   createTransformTree,
@@ -99,7 +99,7 @@ export {
   setNodeQuaternion,
   setNodeScale,
   type TransformTree,
-} from './world/transform-tree/transformTree.ts'
+} from './world/transform/transformTree.ts'
 export {
   removeTransformNode,
   reparentTransformNode,
@@ -110,13 +110,13 @@ export {
   markNodeWorldNeedsUpdate,
   updateNodeMatrixWorld,
   updateNodeWorldMatrix,
-} from './world/transform-tree/update.ts'
+} from './world/transform/update.ts'
 export {
   nodeWorldDirection,
   nodeWorldPosition,
   nodeWorldQuaternion,
-} from './world/transform-tree/read.ts'
-export { lookAtNode } from './world/transform-tree/lookAt.ts'
+} from './world/transform/read.ts'
+export { lookAtNode } from './world/transform/lookAt.ts'
 export { SceneNode } from './scene/core/node.ts'
 export { type SceneNodeOptions, SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts'
 
@@ -170,7 +170,7 @@ export { validateSceneEnvironment } from './scene/core/environment.ts'
 export { LIGHT_FIELD } from './scene/light/fields.ts'
 export { createSceneLightStore } from './scene/light/store.ts'
 export type { SceneLightStore } from './scene/light/store.ts'
-export { SHADOW_PAGE } from './scene/light-shadow/sunEntries.ts'
+export { SHADOW_PAGE } from './scene/light/shadow/sunEntries.ts'
 export type { Counts } from './manifest/binaryLayout.ts'
 export type {
   GeometryFile,

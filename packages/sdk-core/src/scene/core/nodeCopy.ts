@@ -1,10 +1,10 @@
-import { NODE_AUTO_UPDATE } from '../../world/transform-tree/nodeFlags.ts'
+import { NODE_AUTO_UPDATE } from '../../world/transform/nodeFlags.ts'
 import { setNodeAutoUpdate, setNodeLocalMatrix } from './nodeEdits.ts'
 import {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../world/transform-tree/transformTree.ts'
+} from '../../world/transform/transformTree.ts'
 import type { SceneNode } from './node.ts'
 import type { SceneState } from './nodeContracts.ts'
 import { sceneNodeFail } from './nodeError.ts'

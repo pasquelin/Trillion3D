@@ -8,7 +8,7 @@ import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.
 import { spotLight, lightProbe } from '../graph/graphLights.fixture.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { scan, snapshot, verdictOf, type WatchVerdict } from './scan.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform/pass.ts'
 
 function scene() {
   const parent = new Group()

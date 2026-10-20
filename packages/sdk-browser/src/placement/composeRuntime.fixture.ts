@@ -4,7 +4,7 @@ import { createShadowMobility } from '../webgpu/shadow/mobility.ts'
 import {
   createShadowChanges,
   SHADOW_CHANGE_BOXES,
-} from '../../../sdk-core/src/scene/light-shadow/changes.ts'
+} from '../../../sdk-core/src/scene/light/shadow/changes.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 /** A runtime of `roots` — a root given no pages holds none —, `run` merged over the run state

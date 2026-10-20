@@ -1,7 +1,12 @@
-import { boxEmpty, boxesOverlap, boxIsEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
-import { boxPointDistance } from '../../../../math/src/geometry/boxDistance.ts'
-import { keepNumbers } from '../../../../math/src/vector/vector.ts'
-import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts'
+import {
+  boxEmpty,
+  boxesOverlap,
+  boxIsEmpty,
+  boxUnion,
+} from '../../../../../math/src/geometry/box.ts'
+import { boxPointDistance } from '../../../../../math/src/geometry/boxDistance.ts'
+import { keepNumbers } from '../../../../../math/src/vector/vector.ts'
+import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../contracts.ts'
 
 /** A residency change's box in the six-value layout, allocated once. */
 const incoming = new Float64Array(6)

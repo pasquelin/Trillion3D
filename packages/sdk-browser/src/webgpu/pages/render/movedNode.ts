@@ -2,9 +2,9 @@ import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { rootSource } from '../../../placement/hidden.ts'
 
 import { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
-import { NODE_ALIVE } from '../../../../../sdk-core/src/world/transform-tree/nodeFlags.ts'
-import type { TransformTree } from '../../../../../sdk-core/src/world/transform-tree/transformTree.ts'
-import { nextInSubtree } from '../../../../../sdk-core/src/world/transform-tree/links.ts'
+import { NODE_ALIVE } from '../../../../../sdk-core/src/world/transform/nodeFlags.ts'
+import type { TransformTree } from '../../../../../sdk-core/src/world/transform/transformTree.ts'
+import { nextInSubtree } from '../../../../../sdk-core/src/world/transform/links.ts'
 
 type Roots = readonly ClusterRoot<PageRec>[]
 

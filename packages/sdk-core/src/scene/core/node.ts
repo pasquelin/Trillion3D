@@ -1,9 +1,9 @@
-import { NODE_ALIVE, NODE_WORLD_LAZY } from '../../world/transform-tree/nodeFlags.ts'
+import { NODE_ALIVE, NODE_WORLD_LAZY } from '../../world/transform/nodeFlags.ts'
 import {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../world/transform-tree/transformTree.ts'
+} from '../../world/transform/transformTree.ts'
 import {
   noteNodeWrite,
   removeTransformNode,
@@ -11,8 +11,8 @@ import {
   setNodeAutoUpdate,
   setNodeLocalMatrix,
 } from './nodeEdits.ts'
-import { setNodeWorldLazy } from '../../world/transform-tree/structure.ts'
-import { updateNodeWorldMatrix } from '../../world/transform-tree/update.ts'
+import { setNodeWorldLazy } from '../../world/transform/structure.ts'
+import { updateNodeWorldMatrix } from '../../world/transform/update.ts'
 import { attachSceneNode } from './nodeAttach.ts'
 import { copySceneNodeState } from './nodeCopy.ts'
 import { refuseSceneRoot, sceneNodeFail, sceneNodeVisibility } from './nodeError.ts'

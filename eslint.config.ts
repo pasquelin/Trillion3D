@@ -1,5 +1,5 @@
 import { localFileGlobs } from './scripts/repository-files.ts'
-import { MATHS_FORMS, MATHS_HOME, MATHS_ORACLES } from './scripts/lint-maths.ts'
+import { MATHS_FORMS, MATHS_HOME, MATHS_ORACLES } from './scripts/lint/lint-maths.ts'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import globals from 'globals'
@@ -19,7 +19,7 @@ export default tseslint.config(
   },
   js.configs.recommended,
   {
-    // The inline forms of a formula `packages/math` holds (`scripts/lint-maths.ts`), refused outside
+    // The inline forms of a formula `packages/math` holds (`scripts/lint/lint-maths.ts`), refused outside
     // it and its declared oracles. A later block that sets `no-restricted-syntax` for its own files
     // replaces these entries there, so it lists them too.
     files: ['**/*.{ts,mts}'],
@@ -54,7 +54,7 @@ export default tseslint.config(
     // The shadow scheduler reads these objects page by page: V8 keeps an object literal with an
     // accessor in dictionary mode, a hash lookup per read (#26). The plan and the request reader
     // are read a few times a frame.
-    files: ['packages/sdk-core/src/scene/light-shadow/*.ts'],
+    files: ['packages/sdk-core/src/scene/light/shadow/*.ts'],
     ignores: ['**/plan.ts', '**/requests.ts', ...MATHS_ORACLES],
     rules: {
       'no-restricted-syntax': [

@@ -4,10 +4,10 @@ import {
   NODE_LOCAL_CHANGED,
   NODE_TRS_DIRTY,
   NODE_WORLD_NEEDS_UPDATE,
-} from '../transform-tree/nodeFlags.ts'
-import { markTransformNode } from '../transform-tree/transformTree.ts'
-import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../transform-tree/update.ts'
-import * as read from '../transform-tree/read.ts'
+} from '../transform/nodeFlags.ts'
+import { markTransformNode } from '../transform/transformTree.ts'
+import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../transform/update.ts'
+import * as read from '../transform/read.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { Quaternion } from '../math/quaternion.ts'
 import { Vector3 } from '../math/vector3.ts'

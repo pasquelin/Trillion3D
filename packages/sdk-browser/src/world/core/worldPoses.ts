@@ -1,6 +1,6 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform/pass.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 import type { Batch, Seat } from './worldBatches.ts'
 import type { LoadedModel } from './loadedModel.ts'

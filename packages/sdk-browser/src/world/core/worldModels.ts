@@ -1,7 +1,7 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { rootedUnder } from '../../host/world/rooted.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform/pass.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { HostMesh } from '../../host/resources.ts'
