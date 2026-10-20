@@ -108,6 +108,32 @@ are render bundles, recorded once and replayed while the few identities and revi
 keyed by hold (`gpu/core/renderBundles.ts`); their passes keep the timestamps. Which pages load and leave is
 [RESIDENCY.md](RESIDENCY.md).
 
+A voxel page ([FORMAT.md](FORMAT.md#voxels)) — a voxelized mesh's far levels, a `voxel` HLOD cell —
+is a page like any other: catalogued, streamed and chosen by the one cut at its voxels' error. Each
+brick draws its box, the box of the cells its mask holds, by its back faces alone, so an eye inside
+a box or a box across the near plane still draws; each pixel of the box casts the eye's ray through
+the brick's cells (`visibility/shader/voxelWgsl.ts`, `voxelCellTrace`): it enters at the box, or at
+the eye inside it, steps cell to cell by a 3D DDA, reads each cell's bit of the brick's 64-bit mask,
+and stops at the first solid cell, at most 10 steps — the most cells a line crosses in a 4³ brick.
+The ray and its clip depth are affine in the box point: the vertex stage computes them at the box's
+corners and the pixel gets its own by interpolation, so a voxel fragment runs the DDA and one
+division, reads no buffer, builds no matrix (`visibility/shader/voxelHitWgsl.ts`). Voxel rows have
+slots and a shader module of their own (`visibility/shader/visVoxelWgsl.ts`), drawn after the opaque
+and cutout ones, on layer 0, and only on a frame whose table holds a voxel row: the other slots
+compile the text they compiled before voxels. WebGPU keeps no early depth test for a stage that
+writes its depth, so a voxel fragment always runs its trace. The shadow pages draw voxel rows in
+tiers of their own, sized by the page's bricks as the corner tiers are by its triangles, their
+module apart (`vsm/renderVoxelWgsl.ts`), on the same sequence; the resolve of a voxel class, its
+module apart too, traces the pixel again to read its voxel's colour, roughness, occlusion and
+normal — its rank one read of its brick and a popcount —, its normal carried by the brick's joint,
+and its shadow receiver is the hit and that normal. Every voxel module and pipeline is made the
+first time the table holds a voxel row or a voxel class: a scene without voxels compiles what it
+compiled before them. A skinned mesh's
+bricks follow their joint rigidly and are traced at rest. Ray queries take the finer clusters a
+voxel page stands for, never the page. The `voxels` view paints each voxel in its level's colour;
+the metrics `voxelBricks`, `voxelStepsMean` and `voxelStepsMax` sample the bricks drawn and the DDA
+steps a pixel took.
+
 ## Material surfaces
 
 The visibility buffer is resolved into the material surfaces one pass per material class, over the
@@ -119,8 +145,14 @@ Lighting reads those surfaces and the depth; transparency and transmission are s
 A temporal upscaler (`taa/`): a jittered image, motion derived from the visibility buffer, a
 history update with shading rejection, the spatial anti-aliaser before the resolve, one resolve for
 every render scale. The pass runs on every frame drawn and its history is reset only on a camera
-cut, the one change the reprojection cannot follow: since the jitter moves the image each frame, a
-view whose temporal pass runs is drawn every frame (`taaRuns`, `webgpu/frame/hold.ts`). The render
+cut, the one change the reprojection cannot follow. A still view is drawn while its history fills
+— whole cycles of the jitter's phases until every display pixel holds its most samples, 16 for a
+history at the display's resolution (`taaConverged`, `historySampleLaws`) — then held on its
+converged image like any still view (`taaConverging`, `webgpu/frame/hold.ts`); a change draws again
+on the history it holds, and a session opened with `drawConverged` (the bench's cost series) keeps
+drawing it. Its level (`off`, `low`, `medium`, `high`, `max`, `taa/levels.ts`) sets the
+kernel, the flicker rejection and the spatial anti-aliaser; a level without either skips its
+pass. The render
 scale is a dynamic resolution (`frame/dynamicResolution.ts`): a history of the frame's GPU busy
 times against the frame time budget, both directions, with or without the temporal upscaler
 (spatial upscale in the composition where it is off). The loop draws every refresh, or under the

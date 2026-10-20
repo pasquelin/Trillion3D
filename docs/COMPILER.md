@@ -37,7 +37,8 @@ trillion3d-compiler --build-inputs
 ```
 
 Exactly 5, 7 or 8 positional arguments, plus `--textures-format=`, `--hlod=`,
-`--temporal-antialiasing=`, `--responsive=` and `--materials=` anywhere, the last of each kept
+`--temporal-antialiasing=`, `--responsive=`, `--materials=` and `--voxelize=` anywhere, the last
+of each kept
 (`compiler_args.rs`); a JSON flag that is not JSON is refused (`INVALID_OPTIONS`):
 the fields of one job, named as a batch job names them and in the order `JOB_FIELDS` declares
 (`packages/sdk-core/src/contracts/compilerAbi.ts`, printed into the compiler's `shared_math/abi.rs`).
@@ -63,6 +64,7 @@ scripts and the cargo configuration.
 | `--temporal-antialiasing=` | The scene's temporal anti-aliasing level, `off`, `low`, `medium`, `high` or `max`, or `true` / `false`, written in its manifest ([Temporal anti-aliasing](#temporal-anti-aliasing)) | none |
 | `--responsive=`      | The objects whose materials keep a responsive temporal history (a history share of 0.75), as JSON: a node's exact name, `{ "regex", "flags" }` on it, or a match ([Temporal anti-aliasing](#temporal-anti-aliasing)) | none |
 | `--materials=`       | Settings by exact material name, as JSON, `{ "name": { "temporalAntialiasing": 0.5, "responsive": true } }` ([Temporal anti-aliasing](#temporal-anti-aliasing))                                   | none |
+| `--voxelize=`        | The objects whose meshes are voxelized far away, as JSON: a node's exact name, `{ "regex", "flags" }` on it, or a match ([Voxels far away](#voxels-far-away))                                     | none |
 
 ```sh
 trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
@@ -112,6 +114,7 @@ process, each with its own cache:
 | `jobs[].temporalAntialiasing`                                                | As `--temporal-antialiasing=`, a level or a boolean                        | none                                                          |
 | `jobs[].responsive`                                                          | As `--responsive=`, a string or a JSON object                              | none                                                          |
 | `jobs[].materials`                                                           | As `--materials=`, a JSON object                                           | none                                                          |
+| `jobs[].voxelize`                                                            | As `--voxelize=`, a string or a JSON object                                | none                                                          |
 
 Jobs go in file order to the first free worker. Two jobs writing one cache, under any spelling, or
 a job asking for more than the whole budget, refuse the batch before it starts (`INVALID_BATCH`).
@@ -157,7 +160,7 @@ await prepare(source, cache, 'slice', 150000, {
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
 | `levels`  | The main chain's levels, HLOD 0 included, 2 to 8                                                                                                                                                                    | `4`          |
 | `quality` | `low`: deviation 2 px, 512-texel atlas; `balanced`: 1 px, 1024 texels (the automatic rule); `high`: 0.5 px, 2048 texels — every approximated layer, the pixel taken at the distance its actors are first seen from | `balanced`   |
-| `groups`  | The objects of each group by name, for those no mark names: `buildings`, the main chain; `foliage`, a chain of two levels, voxel half the rule's, to keep the silhouette; `props`, their own instanced cells absorbed by the main chain's first approximated layer. Each the node's exact name (a string), a regular expression on it, or `{ node, mesh, material, extras }`; the first group in key order that matches an object takes it | none         |
+| `groups`  | The objects of each group by name, for those no mark names: `buildings`, the main chain; `foliage`, a chain of two levels — the objects themselves, then one `voxel` actor per HLOD 0 cell, its objects voxelized together, their meshes voxelized far away too ([Voxels far away](#voxels-far-away)); `props`, their own instanced cells absorbed by the main chain's first approximated layer. Each the node's exact name (a string), a regular expression on it, or `{ node, mesh, material, extras }`; the first group in key order that matches an object takes it | none         |
 
 The expert form, every layer setting:
 
@@ -178,8 +181,8 @@ hlod: {
 | Field                                                | Meaning                                                                                                                                                                                           |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `layers[].name`                                      | Unique name                                                                                                                                                                                       |
-| `layers[].builder`                                   | `instanced` (the objects themselves; a layer objects are assigned to), `approximate` (one closed shell per cell, its materials baked), `merge` (the cell's objects merged into one mesh), `proxy` (the cell's objects remeshed) |
-| `layers[].parent`                                    | The layer its cells' actors are built by; none at a chain's top, whose actors are always loaded                                                                                                  |
+| `layers[].builder`                                   | `instanced` (the objects themselves; a layer objects are assigned to), `approximate` (one closed shell per cell, its materials baked), `merge` (the cell's objects merged into one mesh), `proxy` (the cell's objects remeshed), `voxel` (the cell's objects voxelized together, no setting: [Voxels far away](#voxels-far-away)) |
+| `layers[].parent`                                    | The layer its cells' actors are built by; none at a chain's top, whose actors, one per 2 048 m cell, are always loaded                                                                            |
 | `layers[].accuracy`, `accuracyPixels`                | An `approximate` or `proxy` layer's voxel, metres or pixels at the distance the layer is first seen from, one or the other; default 0.65 px, never finer than the grid the solid is sampled on   |
 | `layers[].deviation`, `deviationPixels`              | An `approximate` or `merge` layer's deviation, metres or pixels, one or the other: what an approximated shell is simplified within, the LOD a merged layer takes of each source (never simplified after the merge); default 1 px |
 | `layers[].textureSize`                               | The atlas side of an `approximate` or `proxy` layer, or of a `merge` layer merging its materials, a power of two from 16 to 8192; default 1024                                                    |
@@ -196,6 +199,48 @@ instanced layer, a chain past 8 levels, a rule, mark or default naming a layer t
 instanced, a match naming nothing, a regular expression that does not compile, a setting given
 both in metres and in pixels, `textureSize` on a `merge` layer that keeps its materials, and values
 out of bounds. The HLOD is part of the cache key.
+
+## Voxels far away
+
+Far away a tree's leaves are thinner than a pixel: simplified triangles drop them at random, a
+shell closes them into a blob that loses their cut-outs. A voxelized mesh's DAG goes on in voxels
+where they hold the error better than its triangles: from that level up each group is bricks of
+4³ voxels, a voxel one pixel wide where the cut draws it — no cross-fade, no pop, nothing authored
+(`asset-compiler-rust/src/voxel`). Each voxel is crossed by 64 rays of every direction against the
+mesh's level-0 triangles through their materials — a cut texel lets a ray through, so a leaf
+card's cut-out thins the voxel as it thins the pixel —; the least covered voxels hand their
+coverage to their neighbours until no more are left than the coverage sums to, so a crown stays
+as dense as its leaves. A voxel keeps its prefiltered base colour, occlusion, roughness and
+metalness, its normals' spread and, for a skinned mesh, its brick's joint, so wind bending a tree's
+bones bends its voxels. The engine draws each brick as its box and traces its voxels pixel by
+pixel.
+
+A mesh is voxelized, the first source naming it winning:
+
+1. `voxelize` (`--voxelize=`, `jobs[].voxelize`) — the meshes of every object the match takes, read
+   as `responsive` reads its match;
+2. the HLOD — the meshes of every object whose layer's chain has a `voxel` layer: the simple form's
+   `foliage` group;
+3. the mesh's own glTF `extras`, `"extras": { "shapePreservation": "voxelize" }`.
+
+A `voxel` layer (`builder: 'voxel'`, no setting) builds one actor per cell: the cell's objects
+voxelized together from the pixel where the cell is first seen, every level twice the one below
+until one brick holds the cell, no shell and no atlas; above HLOD 1 it takes its children's levels.
+Its actors are static: only an object's own voxels follow its joints.
+
+```ts
+await prepare(source, cache, 'slice', 150000, {
+  resourceBaseUrl: '/assets/park/',
+  hlod: { levels: 4, groups: { foliage: { mesh: { regex: 'tree|bush', flags: 'i' } } } },
+  voxelize: { mesh: /hedge/i },
+})
+```
+
+The same job from the command line:
+`trillion3d-compile '--hlod={"groups":{"foliage":{"mesh":{"regex":"tree|bush","flags":"i"}}}}' '--voxelize={"mesh":{"regex":"hedge","flags":"i"}}' …`.
+A `voxelize` naming nothing, or a regular expression that does not compile, refuses the job
+(`INVALID_OPTIONS`), as `responsive` does. The runtime's `voxels` view paints each voxel in its
+level's colour, the triangles in grey.
 
 ## Cancellation
 
@@ -292,7 +337,8 @@ first loaded scene naming one decides. The levels are the anti-aliasing scalabil
 from `low` (`packages/sdk-browser/src/taa/levels.ts`): `low` a plus kernel, no spatial
 anti-aliaser, no flicker rejection; `medium` the spatial anti-aliaser at three samples a side;
 `high` the kernel moving its far neighbour and the flicker rejection; `max` eight samples a side,
-the engine's image before the levels existed and its default. The quality presets `smooth`,
+the default. Every level keeps a history at the display's resolution, 16 samples a pixel at most;
+a still view is held once its history is whole. The quality presets `smooth`,
 `balanced`, `fine` write `low`, `medium`, `high`; `max` writes nothing.
 
 **Each material's history share** — the most of its history the temporal anti-aliasing keeps on
@@ -300,8 +346,11 @@ its pixels: a number from 0 to 1, or a name — `'normal'` (1, the default blend
 (0.75: the current image weighs at least a quarter, so a spark's history catches up within a few
 images), `'soft'` (0.5), `'off'` (0: the current filtered image alone, no trail, the camera's jitter
 left visible as a slight shimmer). It is meant for effects whose motion the history cannot follow;
-a surface whose motion vectors are right keeps 1. The compiler gives each material its share once,
-the first source naming it winning:
+a surface whose motion vectors are right keeps 1. It holds for opaque and blended surfaces alike —
+a blended or transmissive layer gives up its share of the history at its coverage, and a pixel
+keeps the least its opaque surface and the layers over it leave; a GPU particle system names none,
+its coverage already shortening the history it crosses. The compiler gives each material its share
+once, the first source naming it winning:
 
 1. `materials` (`--materials=`, `jobs[].materials`) — `temporalAntialiasing` named for the material
    by its exact name;

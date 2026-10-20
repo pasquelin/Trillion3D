@@ -92,6 +92,39 @@ shader reads in place, decoded alike by Rust, JavaScript and WGSL.
 - Reads `browser/cluster/pages.ts:fetchVerified`, `browser/page/codec/geometryPage.ts:decodeGeometryPage`,
   `codec/unpack.rs:decode`, `browser/cluster/decodeWgsl.ts`.
 
+### Voxels
+
+A voxelized mesh's far levels (`rust/voxel`, [COMPILER.md](COMPILER.md#voxels-far-away)) are
+`voxels.bin` (version 4, the manifest's `voxels` section): a head — `T3VX`, the version, the group
+and brick counts —, a 48-byte record per group (its primitive, `u32::MAX` for a mesh's far group;
+its DAG group or compiled mesh; first brick and count; first voxel and count; its error, the error
+it is replaced at and its voxels' side as `f32`; its first brick's corner, `f32` × 3), 16-byte bricks
+(mask `u64`, bit `x + 4y + 16z`; corner in bricks from the group's first, `u16` × 3; joint `u16`,
+`0xFFFF` none), 12-byte voxels in each brick's mask order (sRGB base colour and normals' spread;
+occlusion, roughness, metalness and a zero; mean normal, octahedral; two zeros): what the runtime
+reads of a voxel, no more. Version 4: a voxel's coverage and material stay in the compiler, and a
+page's brick holds the rank of its first voxel. The runtime joins a group's bricks to its DAG as
+pages.
+
+A voxel page (`T3VP`, the pool's words read in place by `browser/visibility/shader/voxelWgsl.ts`):
+six words — magic, voxel count and, in the high half, brick count, the corner (`f32` × 3), the
+voxels' side —, five words per brick (the file's 16-byte brick as it is: mask, corner in bricks
+`u16` × 3, joint `u16`; then the rank in the page of its first voxel, so a voxel's rank is one read
+and a popcount), three words per voxel (its file record), the bricks' voxels in turn. At most 21
+bricks: each draws its box, 8 corners and 12 triangles, so the visibility identifier names the box
+triangle and the resolve traces the voxel from it. A page's geometry descriptor carries
+`GEOMETRY_VOXEL` (`0x100`), 8 vertices and 36 indices a brick.
+
+- Versions: `VOXEL_VERSION` (`rust/voxel.rs`); the page constants `VOXEL_PAGE_MAGIC`,
+  `VOXEL_PAGE_HEAD_WORDS`, `VOXEL_BRICK_WORDS`, `VOXEL_PAGE_BRICKS`, `VOXEL_BRICK_CORNERS`,
+  `VOXEL_BRICK_TRIANGLES`, `GEOMETRY_VOXEL`
+  (`codec/voxel.rs`), printed into `core/contracts/writtenFormats.ts`.
+- Writes `rust/voxel/stage.rs:stage_voxels`, `rust/voxel/page.rs:voxel_dag` through
+  `codec/voxel.rs:encode_voxel_page`;
+  `core/page/voxelPage.ts:encodeVoxelPage` lays a group's bricks out as pages at run time.
+- Reads `core/contracts/voxel.ts:decodeVoxelFile`, `core/page/voxelJoin.ts:joinVoxelLevels`,
+  `core/page/voxelPage.ts:checkVoxelPage`, `browser/visibility/shader/voxelWgsl.ts`.
+
 ## Textures
 
 Every atlas texture's mip chain: the tail in the head's column file, then one block file per level
@@ -168,18 +201,31 @@ wears its flattened material: a material of `source.gltf` — a base colour and 
 images' chains in the texture section, each image the one-pixel stand-in `data:` address of a baked
 image — a PNG product beside it (`hlod-*.png`) only where a chain lacks a level
 (`rust/compiler_world_roots/flatten/publish.rs`). Each level's grid doubles cell and range; a
-chain's top actors are always loaded. `world-roots.table` and `world-roots.dag` (fixed-size records) and
-`world-roots.bin` (the bundles, `rust/compiler_world_roots.rs`). Nothing is pinned: each HLOD cell's
-roots lie in bundles of their own, held while its actor is loaded.
+level from HLOD 2 on (`TOP_LEVEL`) doubles once more — 256, 512, then 2 048 m cells —, and every
+chain's top actors are made by cells of that 2 048 m grid, a shorter chain's top built once more
+there; they are always loaded, held within their own budget
+(`browser/scene/worldBundles.ts`). `world-roots.table` and `world-roots.dag` (fixed-size records) and
+`world-roots.bin` (the bundles, `rust/compiler_world_roots.rs`). Each HLOD cell's roots lie in
+bundles of their own, held — pinned in the page cache — while its actor is loaded.
 
 - A blended primitive is a source as any; the flattened material is opaque: the shell stands in
   far away, where sorting its layers would cost more than the blend shows.
-- Table layout (little-endian, version 14): a 64-byte header (magic, version, bundle, page and
+- A `voxel` layer's actor (`rust/compiler_world_roots/voxels.rs`) is the cell's objects voxelized
+  together: each of its clusters is a voxel page ([Voxels](#voxels)), its page facts' flags
+  `GEOMETRY_VOXEL`, its triangles its bricks' boxes'; its levels double from the pixel where the
+  cell is first seen, each page replaced by the one above it holding its bricks; it wears the
+  material of its first opaque object.
+- Table layout (little-endian, version 16): a 64-byte header (magic, version, bundle, page and
   HLOD cell counts, pool length, the binary's length as two words, its 32-byte digest), 56-byte
   bundles, 24-byte pages, 64-byte HLOD cells of the chain, HLOD 0 cells first (the bundles holding
   its roots, in the pool; the cell its next level's actor lies in, `u32::MAX` for a cell whose
-  actor is its chain's top; its level; the six `f64` bounds it streams by), then a `u32` pool.
-- DAG layout (version 14): a 24-byte header (magic, version, cluster count, group count, pool
+  actor is its chain's top; its level in the low 16 bits and, in the high 16, 1 when its actor's
+  build failed — an actor built is one whose bundles hold roots —; the six `f64` bounds it streams
+  by), then a `u32` pool. Version 15 added the flag: a failed top keeps its content standing, a
+  cell in no layer — neither built nor failed — follows its range alone (`CHAIN_ACTOR`). Version
+  16: a cluster may hold a voxel page. Version 17: that page's head is six words, its bricks five,
+  its voxels twelve bytes ([Voxels](#voxels)).
+- DAG layout (version 17): a 24-byte header (magic, version, cluster count, group count, pool
   length, node count), 184-byte clusters — level, triangles, its actor's rank (`hlodMaterials`),
   bundle, offset, HLOD cell — whose level plus one is its HLOD layer —, two zeros, then the `f64`
   error, parent error (NaN for a root),
