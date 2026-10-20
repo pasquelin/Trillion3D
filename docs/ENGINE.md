@@ -74,12 +74,12 @@ last GPU time, each over the main images between its draws, to the frame the `'a
 ## Scene and camera
 
 Every node is a slot of one transform tree, walked once a frame over what changed
-(`sdk-core/world/transform-tree/pass.ts`). A material is declared once into the one surface record its meshes wear,
+(`packages/sdk-core/src/world/transform/pass.ts`). A material is declared once into the one surface record its meshes wear,
 `pages/surfaceRecord.ts`. The engine composes its own projection, reversed depth with an infinite far
 plane, one convention for every pass (`camera/depthConvention.ts`).
 
 A node whose parent moves and whose pose only follows it is composed once, on the GPU: its link is
-a node flag (`NODE_WORLD_LAZY`, `sdk-core/world/transform-tree/nodeFlags.ts`) that the tree's walk
+a node flag (`NODE_WORLD_LAZY`, `packages/sdk-core/src/world/transform/nodeFlags.ts`) that the tree's walk
 leaves alone, and the placement's compose slot is the parent's. The roots pass writes, in exact
 double arithmetic, the world, the stretch, the world box and the motion of each linked root; the
 rows pass writes the page-table world words, the sphere, the Hi-Z corners and the world-dependent
@@ -94,7 +94,7 @@ composed world of their root; rows no root reads — a blended surface's, or a r
 built yet — are composed for their readers (`compose/composeReaders.ts`) and handed to the roots
 pass once their root exists. Only the pose a session opens on is written by an owner, before any
 engine exists (`partition/follow.ts`, `world/models/models.ts`); every product of a parent's
-world and a local matrix on the CPU is the one function `composeWorld` (`placement/composeWorld.ts`). The refit and the members pass bind the cut's
+world and a local matrix on the CPU is the one product `multiplyMatrix4` (`packages/math/src/matrix/matrix4.ts`), which the GPU composition reproduces word for word (`compose/gpuComposeWgsl.ts`). The refit and the members pass bind the cut's
 tables as the cut does, split tables in their parts (`geometry/dag/shader/bindings.ts`).
 
 ## WebGPU page raster
@@ -183,7 +183,7 @@ shadowed or rectangular light runs a program built without that code
 Dynamic, off by default: irradiance probes in nested cascades trace rays against the resident
 proxy the compiler writes ([FORMAT.md](FORMAT.md)), under a budget in milliseconds (`bounce/`). The
 probes and the environment share one basis
-(`sdk-core/scene/core/irradianceBasis.ts`). Its points are lit by the one light function and loop, in their irradiance
+(`packages/sdk-core/src/scene/core/irradianceBasis.ts`). Its points are lit by the one light function and loop, in their irradiance
 term, shadowed by proxy rays (`lighting/direct/lightLoopWgsl.ts`); each walks the lights of its cell
 of a world light grid that the light grid pass lists over the last cascade level, in the view
 grid's own buffer (`bounce/lightCellWgsl.ts`), again only when a light, that level or the buffer
@@ -192,15 +192,15 @@ changes — the probe rays and the reflections' proxy hits walk the same lists.
 ## Fog
 
 `scene.fog` is a term of the one lighting model, applied by every program that lights a surface:
-the law is `sdk-core/scene/core/fog.ts`, its shader text `lighting/fogShader.ts`, its options
+the law is `packages/sdk-core/src/scene/core/fog.ts`, its shader text `lighting/fogShader.ts`, its options
 [SDK.md](SDK.md#scene-fog).
 
 ## Transparent surfaces
 
-The engine culls transparent meshes through a box tree (`webgpu/blend/hierarchy.ts`), orders them
+The engine culls transparent meshes by a frustum verdict on the GPU (`blend/verdict/verdictWgsl.ts`), orders them
 farthest first on the GPU (`blend/order/order.ts`) and lights them with the opaque resolve's lists
 (`src/blend/lighting.ts`). A transmissive surface is sorted and lit among them, composed as
-a thin translucent layer (`webgpu/water/waterColorWgsl.ts`), and refracts the opaque scene through
+a thin translucent layer (`blend/transmission/transmitWgsl.ts`), and refracts the opaque scene through
 one distortion pass drawn before every translucent layer (`src/blend/distortion.ts`).
 
 ## Presentation
@@ -219,9 +219,9 @@ vertex pool (`pages/pool/geometryPrepare.ts`).
 
 The page's side is [PHYSICS.md](PHYSICS.md). Jolt Physics is built into one standalone module
 behind a flat C API (`packages/physics-jolt-wasm/src/`), loaded by `physics/joltModule.ts` and
-stepped by a worker (`physics/physicsWorker.ts`) on the frames' clock (`physics/stepClock.ts`); the
-buffer layouts are `sdk-core/physics/layout.ts`. Everything the physics draws is drawn between two
-steps by one mechanism (`physics/twoSteps.ts`).
+stepped by a worker (`physics/physicsWorker.ts`) on the frames' clock (`physics/step/stepClock.ts`); the
+buffer layouts are `packages/sdk-core/src/physics/layout.ts`. Everything the physics draws is drawn between two
+steps by one mechanism (`physics/step/twoSteps.ts`).
 
 ## Particles
 

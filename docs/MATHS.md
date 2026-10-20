@@ -63,7 +63,7 @@ within about 1e-146 of vertical follows the direction where the 0 snapped it to 
 The declared exceptions, each held to bits the rule would change:
 
 - `hypot` where a twin fixes other bits or an answer needs its last bit: the kernels of
-  `packages/page-codec-wasm/src/math.rs` (`hypot`); the normal-cone reference
+  `packages/page-codec-wasm/src/wasm/math.rs` (`hypot`); the normal-cone reference
   `tests/kit/reference/cone.ts`, held to `packages/page-codec-wasm/src/normal_cone.rs`; `length`
   of `packages/sdk-core/src/world/animation/ik.ts`, where the bend of a straight chain out of
   reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
@@ -81,7 +81,7 @@ The declared exceptions, each held to bits the rule would change:
   past the band too (`sphereUnion.test.ts`).
 - A division by the length to normalise, which keeps each component correctly rounded:
   `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
-  and division are held to `normalize` of `packages/page-codec-wasm/src/anim.rs`, the animation
+  and division are held to `normalize` of `packages/math/rust/src/quaternion.rs`, the animation
   sampler's twin; the bend axis of
   `ik.ts`, for the reason of its length; `normalized` of
   `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
@@ -240,7 +240,7 @@ transformPointsBatch(viewCentres, frame.view, centres, m) // m === visible
 ```
 
 **One path.** Boxes moved by their matrices and matrix products in batches are WebAssembly kernels
-alone (`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and
+alone (`packages/page-codec-wasm/src/wasm/math.rs` over `packages/math/rust/src/matrix.rs` and
 `box_transform.rs`), bit-identical to the single-element functions (`boxTransform`,
 `multiplyMatrix4`). The engine runs them in its lots
 (`packages/sdk-browser/src/geometry/decode/batchRuntime.ts`): no timing picks a path, so two plays

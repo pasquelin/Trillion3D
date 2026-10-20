@@ -15,7 +15,7 @@ constant each section below names (the per-format one: `WORLD_ROOTS_VERSION` for
 source copy and what no family owns). A change of output with no version change leaves old and new
 caches sharing a version with different bytes, which a reader cannot tell apart: bump the family's
 version in the same change, with its fixtures. The `Compiler` workflow enforces it
-(`scripts/compiler-hashes.ts`): the five platforms agree byte for byte; against `develop` a family
+(`scripts/native/compiler-hashes.ts`): the five platforms agree byte for byte; against `develop` a family
 may differ only when its version differs too, listed `changed on purpose (name vN → vM)`, and a byte
 change with no version change fails, naming the version to bump. `clusters.json`, the head page and
 the content-addressed objects embed several families and are allowed by any version change.
@@ -264,12 +264,12 @@ instances.
 ### `bodies` — declared rigid bodies
 
 Declared motion and shape, or a cooked hull with its mass: `rust/physics_cook/declared.rs`;
-`browser/physics/cookedBodies.ts:createCookedBodies`.
+`browser/physics/cooked/cookedBodies.ts:createCookedBodies`.
 
 ### `softBodies` — cooked soft bodies
 
 Cloth, rope and volume as Jolt settings at the node's scale: `rust/physics_cook/soft_record.rs:soft_record`;
-`browser/physics/cookedSoft.ts:createCookedSoftBodies`.
+`browser/physics/soft/cookedSoft.ts:createCookedSoftBodies`.
 
 ## Source glTF
 

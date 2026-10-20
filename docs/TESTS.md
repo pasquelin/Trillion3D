@@ -152,7 +152,7 @@ ratios.
 ## 3. Baselines and Report
 
 `pnpm run perf:all` writes one fragment per domain into `.mesure/perf/`;
-`bench/runner/perf/aggregate.ts` joins them into `.mesure/out/perf/perf-<date>.md` and `.json`.
+`bench/perf/aggregate.ts` joins them into `.mesure/out/perf/perf-<date>.md` and `.json`.
 `pnpm run perf:baseline` turns fragments into baselines under `.mesure/baselines/`, one per domain,
 keyed by measurement and case — off git and machine-specific. Without one, "vs baseline" shows `—`
 and the report says no baseline exists on this machine. Fragments and baselines carry `version: 3`;
