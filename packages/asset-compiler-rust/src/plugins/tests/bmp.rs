@@ -37,7 +37,7 @@ fn rendered(name: &str) -> image::RgbaImage {
 #[test]
 fn all_writings_of_the_format_yield_the_same_pixels() {
     for name in [
-        "vraies-couleurs-24-bas.bmp",
+        "true-colour-24-bottom-up.bmp",
         "palette-8.bmp",
         "palette-8-rle.bmp",
         "palette-4.bmp",
@@ -53,7 +53,7 @@ fn all_writings_of_the_format_yield_the_same_pixels() {
     // The only fixture to carry an alpha: negative height, so stored top-down, and V3 header
     // masks — including the alpha mask, which shorter headers do not have.
     assert_eq!(
-        rendered("vraies-couleurs-32-haut.bmp").as_raw(),
+        rendered("true-colour-32-top-down.bmp").as_raw(),
         &with_alpha(&REFERENCE, &ALPHA_32),
         "32-bit alpha must be yielded straight, without filling or premultiplication"
     );
@@ -78,11 +78,11 @@ fn a_bmp_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
         &[
             // 10-10-10 masks: the decoder would keep only the eight high bits of each channel.
             // Refused before any decoding, so without ever producing the impoverished pixels.
-            ("masques-10-bits.bmp", "bmp-bitfields-lossy"),
-            ("jpeg-embarque.bmp", "bmp-embedded-codec-unsupported"),
+            ("masks-10-bit.bmp", "bmp-bitfields-lossy"),
+            ("jpeg-embedded.bmp", "bmp-embedded-codec-unsupported"),
             // Truncated: the header remains a BMP header, so the driver is chosen, and it is
             // the pixel read that stops for lack of bytes.
-            ("tronque.bmp", "image-decode-failed"),
+            ("truncated.bmp", "image-decode-failed"),
         ],
     );
     // Two headers rewritten on a readable fixture, for the refusals no file carries: a depth
@@ -94,7 +94,7 @@ fn a_bmp_outside_policy_comes_out_as_a_report_reason_never_as_a_panic() {
         // `BI_ALPHABITFIELDS`, which this driver does not read.
         (compression_at, 6, "bmp-compression-unsupported"),
     ] {
-        let mut altere = fixture("bmp", "vraies-couleurs-24-bas.bmp");
+        let mut altere = fixture("bmp", "true-colour-24-bottom-up.bmp");
         altere[at..at + 4].copy_from_slice(&valeur.to_le_bytes());
         assert_eq!(registry::decode(&altere, MAX_ALLOC).err(), Some(raison));
     }

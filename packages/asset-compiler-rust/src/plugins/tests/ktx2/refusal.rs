@@ -18,7 +18,7 @@ fn a_ktx2_outside_the_list_or_truncated_comes_out_as_a_report_reason_never_as_a_
         assert_eq!(decoder.mime(), "image/ktx2");
     }
     // Forty bytes of eight thousand: the identifier is there, the header is not.
-    let truncated = fixture("ktx2", "tronque.ktx2");
+    let truncated = fixture("ktx2", "truncated.ktx2");
     assert_eq!(
         registry::by_head(&truncated).map(|d| d.name()),
         Some("ktx2")

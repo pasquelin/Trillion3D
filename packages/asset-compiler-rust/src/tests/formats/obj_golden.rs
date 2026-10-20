@@ -1,6 +1,6 @@
 //! Golden of the `obj` driver. A hand-written fixture, and its material library.
 //!
-//! `minuscule/scene.obj` holds two groups — a quad and a pentagon —, two
+//! `tiny/scene.obj` holds two groups — a quad and a pentagon —, two
 //! materials, and a `.mtl` that describes everything a library can declare and
 //! that glTF cannot always carry: ambient colour, specular, IOR, exponent,
 //! opacity and its separate map, emission, distinct normal and bump, and map
@@ -17,7 +17,7 @@ const RULE: &str = "The driver yields what the library declares and counts the r
 #[test]
 fn the_obj_fixture_compiles_to_its_golden_expected_json() {
     let dir = golden_dir("obj");
-    let run = compile_golden_source(&fixture(&dir), "obj-minuscule");
+    let run = compile_golden_source(&fixture(&dir), "obj-tiny");
     assert_eq!(
         digest(&run),
         golden_expected(&dir),
@@ -29,13 +29,13 @@ fn the_obj_fixture_compiles_to_its_golden_expected_json() {
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
 fn regenerate_the_obj_fixture() {
     let dir = golden_dir("obj");
-    let run = compile_golden_source(&fixture(&dir), "obj-minuscule");
+    let run = compile_golden_source(&fixture(&dir), "obj-tiny");
     write_expected(&dir, digest(&run), CASE, RULE);
 }
 
-/// The minuscule fixture file.
+/// The tiny fixture file.
 fn fixture(dir: &Path) -> PathBuf {
-    dir.join("minuscule").join("scene.obj")
+    dir.join("tiny").join("scene.obj")
 }
 
 /// Per-file record, without its timings: a golden fixes a scene, never a clock.

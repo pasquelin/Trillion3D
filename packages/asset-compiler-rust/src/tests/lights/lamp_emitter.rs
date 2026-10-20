@@ -146,7 +146,7 @@ fn a_radius_beyond_the_range_is_counted_and_omitted() {
 // emissive envelope — without any retouch.
 #[test]
 fn the_emitter_sphere_fixture_yields_its_radius() {
-    let run = compile_golden(&golden_dir("material-classes"), "emetteur-sphere");
+    let run = compile_golden(&golden_dir("material-classes"), "emitter-sphere");
     let key = run.result["key"].as_str().expect("key");
     let lights = read_json(&run.cache.join("native/full").join(key).join("lights.json"));
     let radius = lights["lights"][0]["emitterRadius"]

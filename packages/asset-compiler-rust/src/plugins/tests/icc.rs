@@ -30,7 +30,7 @@ fn notes(case: &str, bytes: &[u8]) -> Vec<&'static str> {
 // name of an sRGB profile counts nothing, since there would be nothing to convert.
 #[test]
 fn a_png_icc_profile_is_counted_unless_it_names_srgb() {
-    assert_eq!(declared("png", "icc-autre.png", MAX_ALLOC).1, vec![IGNORED]);
+    assert_eq!(declared("png", "icc-other.png", MAX_ALLOC).1, vec![IGNORED]);
     assert!(declared("png", "icc-srgb.png", MAX_ALLOC).1.is_empty());
     // Both fixtures carry the reference drawing: a profile changes no pixel here.
     assert!(declared("png", "rgb8.png", MAX_ALLOC).1.is_empty());
@@ -50,7 +50,7 @@ fn a_jpeg_icc_profile_is_counted_unless_it_names_srgb() {
 // profile. The resources section was skipped by its length, without anything being read in it.
 #[test]
 fn a_psd_icc_profile_is_counted_unless_it_names_srgb() {
-    let base = fixture("psd", "rgb-brut.psd");
+    let base = fixture("psd", "rgb-raw.psd");
     assert!(notes("psd nu", &base).is_empty(), "no resource");
     assert_eq!(
         notes("psd autre", &with_resource(&base, OTHER)),
@@ -74,8 +74,8 @@ fn icc_profile(description: &str) -> Vec<u8> {
 /// JPEG of the preview golden, which carries no APP2 segment.
 fn jpeg_without_profile() -> Vec<u8> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/formats/previews/atlas-couleur/lueur.jpg");
-    std::fs::read(path).expect("lueur.jpg")
+        .join("../../tests/fixtures/formats/previews/colour-atlas/glow.jpg");
+    std::fs::read(path).expect("glow.jpg")
 }
 
 /// The same JPEG, an APP2 segment carrying a profile inserted behind its start-of-image

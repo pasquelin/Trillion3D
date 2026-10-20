@@ -40,7 +40,7 @@ fn the_alembic_scene_matches_its_golden_expected_json() {
 // is wrong, not only that the source did not compile.
 #[test]
 fn an_hdf5_container_and_a_truncated_archive_are_refused_by_name() {
-    let limits = golden_dir("alembic/limites");
+    let limits = golden_dir("alembic/limits");
     assert_eq!(
         refused_golden_source(&limits.join("hdf5.abc"), "alembic-hdf5"),
         "alembic-hdf5-unsupported"
@@ -73,7 +73,7 @@ fn an_ogawa_file_routes_to_the_alembic_plugin() {
 // a scene root, with its own matrix.
 #[test]
 fn what_the_plugin_leaves_aside_is_counted_and_a_detached_xform_becomes_a_root() {
-    let run = compile_golden_source(&golden_dir("alembic/limites").join("cases.abc"), "alembic");
+    let run = compile_golden_source(&golden_dir("alembic/limits").join("cases.abc"), "alembic");
     let (manifest, gltf) = run.prepared("alembic");
     assert_eq!(
         manifest["unsupported"],

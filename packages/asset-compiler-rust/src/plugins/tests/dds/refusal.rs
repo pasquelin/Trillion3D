@@ -32,7 +32,7 @@ fn a_dds_outside_the_list_or_truncated_comes_out_as_a_report_reason_never_as_a_p
         assert_eq!(decoder.mime(), "image/vnd.ms-dds");
     }
     // Thirty-one bytes of forty-three thousand: the magic number is there, the header is not.
-    let truncated = fixture("dds", "tronque.dds");
+    let truncated = fixture("dds", "truncated.dds");
     assert_eq!(registry::by_head(&truncated).map(|d| d.name()), Some("dds"));
     assert_eq!(
         registry::decode(&truncated, MAX_ALLOC).err(),

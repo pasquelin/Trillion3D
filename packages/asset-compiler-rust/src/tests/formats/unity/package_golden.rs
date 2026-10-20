@@ -13,8 +13,10 @@ use super::*;
 fn a_packaged_unity_project_compiles_to_the_same_scene_as_the_project_on_disk() {
     let dir = golden_dir("unitypackage");
     let inside = compile_golden_source(&dir.join("test.unitypackage"), "unitypackage-paquet");
-    let outside =
-        compile_golden_source(&dir.join("hors-paquet").join("Assets"), "unitypackage-plat");
+    let outside = compile_golden_source(
+        &dir.join("outside-package").join("Assets"),
+        "unitypackage-plat",
+    );
     assert_eq!(
         scene_digest(&inside),
         scene_digest(&outside),
@@ -38,9 +40,9 @@ fn package_digest(dir: &Path, run: &GoldenRun) -> Value {
       "scenePlugin": run.result["scenePlugin"],
       "chain": chain_report(run),
       "refus": {
-        "sortieDeDossier": refused_golden_source(&dir.join("sortie-de-dossier.unitypackage"), "up-slip"),
-        "tronque": refused_golden_source(&dir.join("tronque.unitypackage"), "up-tronque"),
-        "vide": refused_golden_source(&dir.join("vide.unitypackage"), "up-vide"),
+        "sortieDeDossier": refused_golden_source(&dir.join("folder-escape.unitypackage"), "up-slip"),
+        "truncated": refused_golden_source(&dir.join("truncated.unitypackage"), "up-truncated"),
+        "empty": refused_golden_source(&dir.join("empty.unitypackage"), "up-empty"),
       },
       "scene": scene_digest(run),
     })

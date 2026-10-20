@@ -43,9 +43,9 @@ fn the_blend_scene_matches_its_golden_expected_json() {
 // a folder that carries two Blender files, each come out by their code, without panic.
 #[test]
 fn a_truncated_file_and_an_ambiguous_directory_are_refused_by_name() {
-    let truncated = golden_dir("blend/limites").join("truncated.blend");
+    let truncated = golden_dir("blend/limits").join("truncated.blend");
     assert_eq!(
-        refused_golden_source(&truncated, "blend-tronque"),
+        refused_golden_source(&truncated, "blend-truncated"),
         "blend-truncated"
     );
     let dir = scratch("blend", "deux");

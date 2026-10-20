@@ -33,12 +33,12 @@ const MASK_CUTOFF_BYTE: u8 = 64;
 // pixels and coverage.
 #[test]
 fn texture_previews_match_their_golden_expected_json() {
-    let fixture_dir = golden_dir("previews/atlas-couleur");
-    let run = compile_golden(&fixture_dir, "atlas-couleur");
+    let fixture_dir = golden_dir("previews/colour-atlas");
+    let run = compile_golden(&fixture_dir, "colour-atlas");
     assert_eq!(
         previews_digest(&run),
         golden_expected(&fixture_dir),
-        "fixture atlas-couleur: texture previews diverge from expected.json"
+        "fixture colour-atlas: texture previews diverge from expected.json"
     );
 }
 

@@ -69,7 +69,7 @@ fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
     // A file too short to carry its IHDR is not judged on its depth: it stays judged by the
     // decoder.
     assert_eq!(
-        registry::decode(b"\x89PNG\r\n\x1a\ntronque", MAX_ALLOC).err(),
+        registry::decode(b"\x89PNG\r\n\x1a\ntruncated", MAX_ALLOC).err(),
         Some("image-decode-failed")
     );
 }
@@ -81,9 +81,9 @@ fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
 // report.
 #[test]
 fn an_animated_png_yields_its_default_image_and_counts_the_animation() {
-    let bytes = fixture("png", "anime.png");
+    let bytes = fixture("png", "animated.png");
     let rendered = rgba8(
-        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|error| panic!("anime.png: {error}")),
+        registry::decode(&bytes, MAX_ALLOC).unwrap_or_else(|error| panic!("animated.png: {error}")),
     );
     assert_eq!((rendered.width(), rendered.height()), (2, 2));
     // The default image is pure red; the second frame, green, does not enter the output.
@@ -91,7 +91,7 @@ fn an_animated_png_yields_its_default_image_and_counts_the_animation() {
         rendered.pixels().map(|pixel| pixel.0).collect::<Vec<_>>(),
         vec![[255, 0, 0, 255]; 4]
     );
-    let (transfert, raisons) = declared("png", "anime.png", MAX_ALLOC);
+    let (transfert, raisons) = declared("png", "animated.png", MAX_ALLOC);
     assert_eq!(transfert, registry::Transfer::Srgb);
     assert_eq!(raisons, vec!["image-animation-first-frame"]);
     // A one-image PNG does not carry `acTL`: it counts nothing.
@@ -173,7 +173,7 @@ fn the_curve_declared_by_the_chunks_is_carried_by_the_contract() {
         "the sRGB chunk wins over gAMA"
     );
     assert_eq!(
-        declares(&with_chunk("icc-autre.png", b"gAMA", &gamma(100_000))),
+        declares(&with_chunk("icc-other.png", b"gAMA", &gamma(100_000))),
         (registry::Transfer::Srgb, vec!["image-icc-profile-ignored"]),
         "a colour profile wins over gAMA, and stays counted alone"
     );

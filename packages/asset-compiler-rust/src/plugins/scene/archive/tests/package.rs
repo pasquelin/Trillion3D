@@ -45,7 +45,7 @@ fn damaged(kind: &str) -> Vec<u8> {
     let end = bytes.len();
     match kind {
         // The stream stops before its footer: the last bytes were never written.
-        "tronque" => bytes.truncate(end - 8),
+        "truncated" => bytes.truncate(end - 8),
         // The footer's digest no longer matches that of the decompressed bytes.
         "crc" => bytes[end - 8] ^= 0xff,
         // The size announced by the footer no longer matches that of the decompressed bytes.
@@ -70,7 +70,7 @@ fn a_package_whose_gzip_footer_lies_is_refused_as_unreadable() {
         "the healthy package reads whole"
     );
     cleanup(sain.dir);
-    for kind in ["tronque", "crc", "isize"] {
+    for kind in ["truncated", "crc", "isize"] {
         let abime = outcome(kind, &UNITYPACKAGE, "abime.unitypackage", &damaged(kind));
         assert_eq!(abime.code, UNREADABLE, "gzip footer « {kind} »");
         assert!(extracted(&abime.dir).is_empty(), "gzip footer « {kind} »");

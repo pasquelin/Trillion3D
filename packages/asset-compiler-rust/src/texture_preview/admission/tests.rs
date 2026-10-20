@@ -129,16 +129,16 @@ fn every_registered_image_header_agrees_with_its_actual_decoder() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/formats");
     let fixtures = [
         "png/rgb8.png",
-        "tga/vraies-couleurs-32-rle-bas.tga",
-        "tiff/rgb8-brut-ii.tiff",
-        "webp/sans-perte.webp",
-        "bmp/vraies-couleurs-24-bas.bmp",
-        "gif/palette-globale.gif",
+        "tga/true-colour-32-rle-bottom-up.tga",
+        "tiff/rgb8-raw-ii.tiff",
+        "webp/lossless.webp",
+        "bmp/true-colour-24-bottom-up.bmp",
+        "gif/palette-global.gif",
         "dds/bc1-mips.dds",
         "ktx2/base-zstd.ktx2",
         "psd/rgba-rle.psd",
-        "hdr/plat.hdr",
-        "exr/demi.exr",
+        "hdr/flat.hdr",
+        "exr/half.exr",
     ];
     let mut sources: Vec<_> = fixtures
         .iter()

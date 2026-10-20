@@ -49,7 +49,7 @@ fn decode(case: &str, bytes: &[u8]) -> (Vec<[u8; 4]>, Vec<&'static str>) {
 #[test]
 fn an_extra_plane_is_transparency_only_if_the_file_declares_it() {
     // No layers section: both fixtures carry a selection, not a transparency.
-    for (name, base) in [("rgba-rle.psd", RVB), ("gris-alpha-rle.psd", GRIS)] {
+    for (name, base) in [("rgba-rle.psd", RVB), ("grey-alpha-rle.psd", GRIS)] {
         let (rendus, raisons) = decode(name, &fixture("psd", name));
         assert_eq!(rendus, base.to_vec(), "{name}: alpha stays opaque");
         assert_eq!(raisons, vec!["psd-alpha-channel-ignored"], "{name}");

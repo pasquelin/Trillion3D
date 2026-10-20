@@ -1,6 +1,6 @@
 //! Golden of the `usd` driver. Two fixtures, two distinct questions.
 //!
-//! `minuscule/` is a layer written by hand for this test: it holds an `Xform`
+//! `tiny/` is a layer written by hand for this test: it holds an `Xform`
 //! hierarchy, a `Mesh` of two polygons, a `GeomSubset` that gives a second
 //! material to one of the two faces, and a textured material. It fixes what the
 //! driver produces, down to the sidecar bytes.
@@ -19,7 +19,7 @@ const RULE: &str = "The driver yields the composed scene and nothing else: polyg
 #[test]
 fn the_usd_fixture_compiles_to_its_golden_expected_json() {
     let dir = golden_dir("usd");
-    let run = compile_golden_source(&layer(&dir), "usd-minuscule");
+    let run = compile_golden_source(&layer(&dir), "usd-tiny");
     assert_eq!(
         digest(&run),
         golden_expected(&dir),
@@ -31,7 +31,7 @@ fn the_usd_fixture_compiles_to_its_golden_expected_json() {
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
 fn regenerate_the_usd_fixture() {
     let dir = golden_dir("usd");
-    let run = compile_golden_source(&layer(&dir), "usd-minuscule");
+    let run = compile_golden_source(&layer(&dir), "usd-tiny");
     write_expected(&dir, digest(&run), CASE, RULE);
 }
 
@@ -61,9 +61,9 @@ fn the_text_and_binary_serialisations_of_one_scene_give_the_same_intermediate_sc
     );
 }
 
-/// The minuscule fixture layer.
+/// The tiny fixture layer.
 fn layer(dir: &Path) -> PathBuf {
-    dir.join("minuscule").join("scene.usda")
+    dir.join("tiny").join("scene.usda")
 }
 
 /// What the corpus puts under watch: three cubes with the same three materials, six quads

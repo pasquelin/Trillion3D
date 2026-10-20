@@ -41,11 +41,11 @@ fn each_tga_profile_yields_the_reference_pixels() {
     let alpha = REFERENCE.to_vec();
     let opaque = opaque();
     for (name, expected) in [
-        ("vraies-couleurs-32-haut.tga", &alpha),
-        ("vraies-couleurs-32-rle-haut.tga", &alpha),
-        ("vraies-couleurs-32-rle-bas.tga", &alpha),
-        ("vraies-couleurs-24-bas.tga", &opaque),
-        ("palette-8-haut.tga", &opaque),
+        ("true-colour-32-top-down.tga", &alpha),
+        ("true-colour-32-rle-top-down.tga", &alpha),
+        ("true-colour-32-rle-bottom-up.tga", &alpha),
+        ("true-colour-24-bottom-up.tga", &opaque),
+        ("palette-8-top-down.tga", &opaque),
     ] {
         assert_eq!(&pixels(name), expected, "{name}");
     }
@@ -55,7 +55,7 @@ fn each_tga_profile_yields_the_reference_pixels() {
         .iter()
         .map(|v| [*v, *v, *v, 255])
         .collect();
-    assert_eq!(pixels("niveaux-de-gris-8-bas.tga"), gris);
+    assert_eq!(pixels("greyscale-8-bottom-up.tga"), gris);
 }
 
 // Driver contract: what it recognises, what it refuses, and under which name it reports it. An
@@ -64,7 +64,7 @@ fn each_tga_profile_yields_the_reference_pixels() {
 fn an_unreadable_tga_comes_out_as_a_report_reason_never_as_a_panic() {
     super::assert_claims("tga", "image/x-tga", &["tga", "tpic", "TGA"]);
     // Truncated: the header is recognised, so the driver is chosen, and it is decoding that fails.
-    let truncated = fixture("tga", "tronque.tga");
+    let truncated = fixture("tga", "truncated.tga");
     assert_eq!(
         registry::by_head(&truncated).map(|d| d.name()),
         Some("tga"),

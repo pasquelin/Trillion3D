@@ -7,7 +7,7 @@
 //! ```text
 //! cargo test --release --manifest-path packages/asset-compiler-rust/Cargo.toml \
 //!   -- --ignored regenerate_the_previews_fixture --nocapture
-//! npx prettier --write tests/fixtures/formats/previews/atlas-couleur/expected.json
+//! npx prettier --write tests/fixtures/formats/previews/colour-atlas/expected.json
 //! ```
 //!
 //! Ignored by default: it writes into `tests/fixtures/formats/`. The diff it produces is
@@ -25,16 +25,16 @@ const RULE: &str = "Each colour texture carries the lossless tail of its mip cha
 #[test]
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
 fn regenerate_the_previews_fixture() {
-    let dir = golden_dir("previews/atlas-couleur");
+    let dir = golden_dir("previews/colour-atlas");
     fs::create_dir_all(&dir).expect("fixture dir");
     let mask = encode_mask();
     let bin = scene_bytes(&mask);
-    fs::write(dir.join("base-degrade.png"), encode_gradient()).expect("base png");
-    fs::write(dir.join("lueur.jpg"), encode_glow()).expect("shared jpeg");
-    fs::write(dir.join("atlas-couleur.bin"), &bin).expect("binary");
+    fs::write(dir.join("base-gradient.png"), encode_gradient()).expect("base png");
+    fs::write(dir.join("glow.jpg"), encode_glow()).expect("shared jpeg");
+    fs::write(dir.join("colour-atlas.bin"), &bin).expect("binary");
     let gltf = serde_json::to_vec_pretty(&scene(bin.len(), mask.len())).expect("glTF");
-    fs::write(dir.join("atlas-couleur.gltf"), &gltf).expect("scene");
-    let run = compile_golden(&dir, "atlas-couleur");
+    fs::write(dir.join("colour-atlas.gltf"), &gltf).expect("scene");
+    let run = compile_golden(&dir, "colour-atlas");
     write_expected(&dir, previews_digest(&run), CASE, RULE);
 }
 
@@ -152,10 +152,10 @@ fn scene(buffer_bytes: usize, mask_bytes: usize) -> Value {
         "byteLength":mask_bytes}),
     );
     json!({"asset":{"version":"2.0"},
-      "buffers":[{"uri":"atlas-couleur.bin","byteLength":buffer_bytes}],
+      "buffers":[{"uri":"colour-atlas.bin","byteLength":buffer_bytes}],
       "bufferViews":views,"accessors":accessors,
-      "images":[{"uri":"base-degrade.png"},
-        {"bufferView":2 + QUADS as usize,"mimeType":"image/png"},{"uri":"lueur.jpg"}],
+      "images":[{"uri":"base-gradient.png"},
+        {"bufferView":2 + QUADS as usize,"mimeType":"image/png"},{"uri":"glow.jpg"}],
       "textures":[{"source":0},{"source":1},{"source":2}],
       "materials":[
         {"name":"beton","pbrMetallicRoughness":{"baseColorTexture":{"index":0}}},

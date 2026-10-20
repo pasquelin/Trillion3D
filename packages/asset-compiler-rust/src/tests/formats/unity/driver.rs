@@ -29,12 +29,12 @@ fn prepare(source: &Path, cache: &Path) -> std::result::Result<PathBuf, (&'stati
 const HEAD: &[u8] = b"%YAML 1.1\n%TAG !u! tag:unity3d.com,2011:\n";
 
 // Behaviour 26: a truncated `.unity` carries no document. The driver refuses it
-// with a code, without panicking or unbounded allocation — the `limites` fixture
+// with a code, without panicking or unbounded allocation — the `limits` fixture
 // is the 31-byte file.
 #[test]
 fn a_truncated_unity_file_is_refused_with_a_code() {
     let cache = scratch("unity", "truncated");
-    let source = golden_dir("unity/limites").join("truncated.unity");
+    let source = golden_dir("unity/limits").join("truncated.unity");
     let (code, message) = prepare(&source, &cache).expect_err("a truncated scene is refused");
     assert_eq!(code, "IMPORT_ERROR");
     assert!(message.contains("truncated.unity"), "{message}");

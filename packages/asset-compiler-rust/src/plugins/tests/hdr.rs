@@ -39,11 +39,11 @@ fn pixels(name: &str, size: (u32, u32)) -> Vec<[f32; 4]> {
 // value, the same image. Lossless means: not one mantissa bit of difference.
 #[test]
 fn the_three_writings_of_a_line_yield_the_reference_values() {
-    for name in ["plat.hdr", "rle-ancienne.hdr", "signature-rgbe.hdr"] {
+    for name in ["flat.hdr", "rle-old.hdr", "signature-rgbe.hdr"] {
         assert_eq!(pixels(name, (4, 2)), REFERENCE_4X2.to_vec(), "{name}");
     }
     assert_eq!(
-        pixels("rle-nouvelle.hdr", (8, 1)),
+        pixels("rle-new.hdr", (8, 1)),
         REFERENCE_8X1.to_vec(),
         "component compression yields the same image as the others"
     );
@@ -61,8 +61,8 @@ fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
     }
     for (name, reason) in [
         ("xyze.hdr", "hdr-format-unsupported"),
-        ("bas-en-haut.hdr", "hdr-orientation-unsupported"),
-        ("tronque.hdr", "hdr-data-truncated"),
+        ("bottom-up.hdr", "hdr-orientation-unsupported"),
+        ("truncated.hdr", "hdr-data-truncated"),
     ] {
         let bytes = fixture("hdr", name);
         assert_eq!(
@@ -85,7 +85,7 @@ fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
 // variant. An image that does not fit is a named refusal, never an allocation attempted.
 #[test]
 fn the_allocation_ceiling_counts_sixteen_bytes_per_pixel() {
-    let bytes = fixture("hdr", "plat.hdr");
+    let bytes = fixture("hdr", "flat.hdr");
     assert_eq!(
         registry::decode(&bytes, 127).err(),
         Some("hdr-image-too-large"),

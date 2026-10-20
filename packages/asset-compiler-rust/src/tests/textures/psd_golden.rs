@@ -5,7 +5,7 @@
 //! whole compiler.
 //!
 //! The scene is the floating golden's quad, its base colour replaced by
-//! `rgb-brut.psd`: a PSD texture enters progressive previews like any eight-bit
+//! `psd/rgb-raw.psd`: a PSD texture enters progressive previews like any eight-bit
 //! source, without refusal and without added loss. Fixture provenance is in
 //! `tests/fixtures/formats/README.md` § "psd".
 //!
@@ -23,7 +23,7 @@
 use super::previews_golden::previews_digest;
 use super::*;
 
-const CASE: &str = "A quad whose base colour is rgb-brut.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.";
+const CASE: &str = "A quad whose base colour is rgb-raw.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.";
 const RULE: &str = "A flattened composite of eight bits per channel enters progressive previews like any other RGBA8 source: the lossless tail of its mip chain is produced, no reason is carried in the report, and the pixels are those the file already carried — never recomposed layers.";
 
 // Behaviour: the golden PSD-texture fixture goes through the compiler and every

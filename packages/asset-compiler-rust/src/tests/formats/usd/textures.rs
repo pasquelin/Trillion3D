@@ -13,7 +13,7 @@ pub(in crate::tests) fn compile_files(
 ) -> GoldenRun {
     let dir = scratch("usd", tag);
     let checker = golden_dir("usd")
-        .join("minuscule")
+        .join("tiny")
         .join("textures")
         .join("checker.png");
     for (name, body) in layers {

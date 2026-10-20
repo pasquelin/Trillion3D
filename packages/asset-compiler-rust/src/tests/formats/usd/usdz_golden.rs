@@ -19,7 +19,7 @@ fn a_packaged_scene_compiles_to_the_same_thing_as_the_layer_outside_the_package(
             .join("corpus")
             .join("usdc")
             .join("scene.usdc"),
-        "usdz-hors-paquet",
+        "usdz-outside-package",
     );
     assert_eq!(
         inside.prepared("usd").1,
@@ -54,13 +54,13 @@ fn digest(dir: &Path, run: &GoldenRun) -> Value {
           "scenePlugin": run.result["scenePlugin"],
           "chain": chain_report(run),
           "refus": {
-            "compressee": refused_golden_source(&dir.join("compressee.usdz"), "usdz-compressee"),
-            "sansScene": refused_golden_source(&dir.join("sans-scene.usdz"), "usdz-sans-scene"),
+            "compressed": refused_golden_source(&dir.join("compressed.usdz"), "usdz-compressed"),
+            "noScene": refused_golden_source(&dir.join("no-scene.usdz"), "usdz-no-scene"),
           },
     // Two layers at root: first carries triangle, second quad.
     // Triangle count tells which package delivered, without guessing.
-          "deuxCouchesTriangles":
-            compile_golden_source(&dir.join("deux-scenes.usdz"), "usdz-deux-scenes").result["sourceTriangles"],
+          "twoLayersTriangles":
+            compile_golden_source(&dir.join("two-scenes.usdz"), "usdz-two-scenes").result["sourceTriangles"],
           "scene": compiled_identity(run, json!({})),
         })
 }

@@ -1,6 +1,6 @@
 //! Opacity of a classic FBX. `ufbx` only puts it in `pbr.opacity` for shaders that
 //! declare an opacity; a `phong` material carries it in `fbx.transparency_*`. The
-//! fixture `tests/fixtures/formats/import-fbx/riviere.fbx` reproduces that shape.
+//! fixture `tests/fixtures/formats/import-fbx/river.fbx` reproduces that shape.
 use super::*;
 
 /// Copies the FBX fixture into a throwaway folder with its two images.
@@ -10,19 +10,18 @@ pub(in crate::tests) fn fbx_fixture(shared_texture: bool) -> (PathBuf, Options) 
     let (root, mut options) = fixture();
     let source = root.join("fbx");
     fs::create_dir_all(&source).expect("fbx dir");
-    let mut fbx =
-        fs::read_to_string(golden_dir("import-fbx").join("riviere.fbx")).expect("fixture");
+    let mut fbx = fs::read_to_string(golden_dir("import-fbx").join("river.fbx")).expect("fixture");
     if shared_texture {
         fbx = fbx.replace(
             "C: \"OP\",5000,3000, \"TransparentColor\"",
             "C: \"OP\",4000,3000, \"TransparentColor\"",
         );
     }
-    fs::write(source.join("riviere.fbx"), &fbx).expect("fbx");
+    fs::write(source.join("river.fbx"), &fbx).expect("fbx");
     for image in ["albedo.png", "opacite.png"] {
         fs::write(source.join(image), b"\x89PNG\r\n\x1a\nnot-a-real-png").expect("png");
     }
-    options.source = source.join("riviere.fbx");
+    options.source = source.join("river.fbx");
     options.scope = "full".into();
     options.triangle_budget = 150000;
     (root, options)

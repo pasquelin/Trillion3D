@@ -63,11 +63,11 @@ fn pixels(name: &str) -> Vec<[u8; 4]> {
 // pixel, the same image. Flattened means: what the file already carries, and nothing else.
 #[test]
 fn both_writings_of_the_composite_yield_the_reference_pixels() {
-    for name in ["rgb-brut.psd", "rgb-rle.psd", "grand-format.psb"] {
+    for name in ["rgb-raw.psd", "rgb-rle.psd", "large-document.psb"] {
         assert_eq!(pixels(name), RVB.to_vec(), "{name}");
     }
     assert_eq!(
-        pixels("gris-brut.psd"),
+        pixels("grey-raw.psd"),
         GRIS.to_vec(),
         "one colour channel carries the three components"
     );
@@ -83,12 +83,12 @@ fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
         "psd",
         MAX_ALLOC,
         &[
-            ("seize-bits.psd", "psd-depth-unsupported"),
-            ("cmjn.psd", "psd-color-mode-unsupported"),
-            ("canaux-en-trop.psd", "psd-channels-unsupported"),
+            ("sixteen-bit.psd", "psd-depth-unsupported"),
+            ("cmyk.psd", "psd-color-mode-unsupported"),
+            ("extra-channels.psd", "psd-channels-unsupported"),
             ("zip.psd", "psd-compression-unsupported"),
-            ("sans-composite.psd", "psd-composite-missing"),
-            ("tronque.psd", "psd-data-truncated"),
+            ("no-composite.psd", "psd-composite-missing"),
+            ("truncated.psd", "psd-data-truncated"),
         ],
     );
     // Without the signature and its version number, the driver claims nothing: better an
@@ -100,7 +100,7 @@ fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
 // is the case the rest of the driver cannot recover.
 #[test]
 fn a_header_outside_domain_is_refused_by_name() {
-    let mut bytes = fixture("psd", "rgb-brut.psd");
+    let mut bytes = fixture("psd", "rgb-raw.psd");
     bytes[18..22].fill(0);
     assert_eq!(
         registry::decode(&bytes, MAX_ALLOC).err(),
@@ -113,7 +113,7 @@ fn a_header_outside_domain_is_refused_by_name() {
 // contract. An image that does not fit is a named refusal, never an allocation attempted.
 #[test]
 fn the_allocation_ceiling_counts_four_bytes_per_pixel() {
-    let bytes = fixture("psd", "rgb-brut.psd");
+    let bytes = fixture("psd", "rgb-raw.psd");
     assert_eq!(
         registry::decode(&bytes, 31).err(),
         Some("psd-image-too-large"),

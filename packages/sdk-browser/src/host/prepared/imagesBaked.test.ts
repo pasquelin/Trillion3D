@@ -1,6 +1,6 @@
 /**
  * An image the cache baked is not read, wherever the document keeps it: on the committed fixture
- * `atlas-couleur` — one image by address beside it, one embedded in a view of its binary, one JPEG
+ * `colour-atlas` — one image by address beside it, one embedded in a view of its binary, one JPEG
  * by address — and the sidecar entries the compiler wrote for it (`expected.json`), the embedded
  * image's bytes are decoded only when its baked twin is missing.
  */
@@ -17,7 +17,7 @@ import { decodingImages } from './decodedImages.fixture.ts'
 import { preparedImages } from './images.ts'
 
 const folder = new URL(
-  '../../../../../tests/fixtures/formats/previews/atlas-couleur/',
+  '../../../../../tests/fixtures/formats/previews/colour-atlas/',
   import.meta.url,
 )
 const json = async (name: string) => JSON.parse(await readFile(new URL(name, folder), 'utf8'))
@@ -29,7 +29,7 @@ type Gltf = {
 
 /** The fixture's images as the scene tables lay them out, its binary, and the compiler's entries. */
 const fixture = (async () => {
-  const gltf = (await json('atlas-couleur.gltf')) as Gltf
+  const gltf = (await json('colour-atlas.gltf')) as Gltf
   const document = {
     images: gltf.images.map((image) => ({
       uri: image.uri ?? null,
@@ -38,7 +38,7 @@ const fixture = (async () => {
     })),
     views: gltf.bufferViews.map((view) => ({ offset: view.byteOffset, length: view.byteLength })),
   } as unknown as TableDocument
-  const bin = await readFile(new URL('atlas-couleur.bin', folder))
+  const bin = await readFile(new URL('colour-atlas.bin', folder))
   const binary = bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength)
   const { previews } = (await json('expected.json')) as { previews: { image: number }[] }
   return {

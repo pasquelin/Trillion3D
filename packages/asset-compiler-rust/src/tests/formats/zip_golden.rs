@@ -11,7 +11,10 @@ use super::*;
 fn a_zipped_scene_compiles_to_the_same_thing_as_the_scene_outside_the_archive() {
     let dir = golden_dir("zip");
     let inside = compile_golden_source(&dir.join("scene.zip"), "zip-archive");
-    let outside = compile_golden_source(&dir.join("hors-archive").join("scene.gltf"), "zip-direct");
+    let outside = compile_golden_source(
+        &dir.join("outside-archive").join("scene.gltf"),
+        "zip-direct",
+    );
     assert_eq!(
         scene_digest(&inside),
         scene_digest(&outside),
@@ -40,9 +43,9 @@ fn archive_digest(dir: &Path, run: &GoldenRun) -> Value {
       "scenePlugin": run.result["scenePlugin"],
       "chain": chain_report(run),
       "refus": {
-        "sortieDeDossier": refused_golden_source(&dir.join("sortie-de-dossier.zip"), "zip-slip"),
-        "tronquee": refused_golden_source(&dir.join("tronquee.zip"), "zip-tronquee"),
-        "vide": refused_golden_source(&dir.join("vide.zip"), "zip-vide"),
+        "sortieDeDossier": refused_golden_source(&dir.join("folder-escape.zip"), "zip-slip"),
+        "truncated": refused_golden_source(&dir.join("truncated.zip"), "zip-truncated"),
+        "empty": refused_golden_source(&dir.join("empty.zip"), "zip-empty"),
       },
       "scene": scene,
     })

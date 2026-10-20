@@ -1,6 +1,6 @@
 //! `ma` driver golden test. Hand-written fixture and format hard refusals.
 //!
-//! `minuscule/scene.ma` carries `transform` hierarchy, `mesh` with two quads
+//! `tiny/scene.ma` carries `transform` hierarchy, `mesh` with two quads
 //! reusing edge in reverse, two separately shaded face groups, second
 //! pose of same form via `parent -add`, `lambert`, textured `standardSurface`, camera
 //! and `python` command. Fixes driver output down to sidecar bytes, and
@@ -15,7 +15,7 @@ const RULE: &str = "The driver yields the file data and nothing else: no command
 #[test]
 fn the_ma_fixture_compiles_to_its_golden_expected_json() {
     let dir = golden_dir("ma");
-    let run = compile_golden_source(&fixture(&dir), "ma-minuscule");
+    let run = compile_golden_source(&fixture(&dir), "ma-tiny");
     assert_eq!(
         digest(&run),
         golden_expected(&dir),
@@ -27,7 +27,7 @@ fn the_ma_fixture_compiles_to_its_golden_expected_json() {
 #[ignore = "writes into tests/fixtures/formats/; rerun by hand, and its diff is re-read"]
 fn regenerate_the_ma_fixture() {
     let dir = golden_dir("ma");
-    let run = compile_golden_source(&fixture(&dir), "ma-minuscule");
+    let run = compile_golden_source(&fixture(&dir), "ma-tiny");
     write_expected(&dir, digest(&run), CASE, RULE);
 }
 
@@ -35,7 +35,7 @@ fn regenerate_the_ma_fixture() {
 // refusal named without writing anything.
 #[test]
 fn a_ma_file_truncated_before_its_first_command_is_refused_as_empty() {
-    let root = scratch("ma", "vide");
+    let root = scratch("ma", "empty");
     let file = root.join("truncated.ma");
     fs::write(&file, "//Maya ASCII 2024 scene\n// Orig").expect("file");
     assert_eq!(refused_golden_source(&file, "ma-truncated"), "IMPORT_EMPTY");
@@ -59,7 +59,7 @@ fn a_file_without_the_maya_header_is_refused_by_name() {
 
 /// Minuscule fixture file.
 fn fixture(dir: &Path) -> PathBuf {
-    dir.join("minuscule").join("scene.ma")
+    dir.join("tiny").join("scene.ma")
 }
 
 /// Golden comparison: retained driver, written intermediate scene — nodes,

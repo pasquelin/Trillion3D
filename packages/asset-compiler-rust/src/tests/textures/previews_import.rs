@@ -17,12 +17,12 @@ fn fbx_with_external_images() -> (PathBuf, Options) {
     let (root, mut options) = fixture();
     let source = root.join("fbx");
     fs::create_dir_all(&source).expect("fbx dir");
-    let fbx = fs::read(golden_dir("import-fbx").join("riviere.fbx")).expect("fixture");
-    fs::write(source.join("riviere.fbx"), &fbx).expect("fbx");
+    let fbx = fs::read(golden_dir("import-fbx").join("river.fbx")).expect("fixture");
+    fs::write(source.join("river.fbx"), &fbx).expect("fbx");
     for (name, tint) in [("albedo.png", 0u8), ("opacite.png", 128u8)] {
         fs::write(source.join(name), png_bytes(tint)).expect("png");
     }
-    options.source = source.join("riviere.fbx");
+    options.source = source.join("river.fbx");
     options.scope = "full".into();
     options.triangle_budget = 150_000;
     (root, options)

@@ -44,13 +44,13 @@ fn pixels(name: &str) -> Vec<[f32; 4]> {
 // without an alpha channel yields the opaque alpha the specification prescribes — not a zero.
 #[test]
 fn both_precisions_yield_the_reference_values() {
-    assert_eq!(pixels("demi.exr"), DROIT.to_vec());
+    assert_eq!(pixels("half.exr"), DROIT.to_vec());
     // Without channel `A`, alpha is opaque: dividing by one changes nothing, RGB come out as-is.
     let opaque: Vec<[f32; 4]> = STOCKE
         .iter()
         .map(|[r, g, b, _]| [*r, *g, *b, 1.0])
         .collect();
-    assert_eq!(pixels("flottant.exr"), opaque);
+    assert_eq!(pixels("float.exr"), opaque);
 }
 
 // An OpenEXR's alpha is associated — the Academy Software
@@ -61,7 +61,7 @@ fn both_precisions_yield_the_reference_values() {
 // alpha.
 #[test]
 fn an_exr_associated_alpha_comes_out_straight_without_dividing_by_zero() {
-    let rendered = pixels("demi.exr");
+    let rendered = pixels("half.exr");
     for (pixel, (stocke, droit)) in rendered.iter().zip(STOCKE.iter().zip(DROIT)) {
         assert_eq!(*pixel, droit, "stored {stocke:?}");
     }
@@ -82,10 +82,10 @@ fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
     assert_eq!(claimed.name(), "exr");
     assert_eq!(claimed.mime(), "image/x-exr");
     for (name, reason) in [
-        ("profond.exr", "exr-deep-unsupported"),
-        ("multi-parties.exr", "exr-multipart-unsupported"),
-        ("canaux-xyz.exr", "exr-channels-unsupported"),
-        ("tronque.exr", "exr-header-invalid"),
+        ("deep.exr", "exr-deep-unsupported"),
+        ("multi-part.exr", "exr-multipart-unsupported"),
+        ("channels-xyz.exr", "exr-channels-unsupported"),
+        ("truncated.exr", "exr-header-invalid"),
     ] {
         let bytes = fixture("exr", name);
         assert_eq!(
@@ -105,7 +105,7 @@ fn what_leaves_the_subset_comes_out_as_a_report_reason_never_as_a_panic() {
 // variant. An image that does not fit is a named refusal, never an allocation attempted.
 #[test]
 fn the_allocation_ceiling_counts_sixteen_bytes_per_pixel() {
-    let bytes = fixture("exr", "demi.exr");
+    let bytes = fixture("exr", "half.exr");
     assert_eq!(
         registry::decode(&bytes, 63).err(),
         Some("exr-image-too-large"),

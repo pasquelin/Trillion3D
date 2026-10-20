@@ -98,19 +98,19 @@
   "buffers": [
     {
       "byteLength": 632,
-      "uri": "atlas-couleur.bin"
+      "uri": "colour-atlas.bin"
     }
   ],
   "images": [
     {
-      "uri": "base-degrade.png"
+      "uri": "base-gradient.png"
     },
     {
       "bufferView": 6,
       "mimeType": "image/png"
     },
     {
-      "uri": "lueur.jpg"
+      "uri": "glow.jpg"
     }
   ],
   "materials": [

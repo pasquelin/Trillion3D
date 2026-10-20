@@ -70,7 +70,7 @@ fn the_ogawa_header_names_a_frozen_archive_of_a_known_version() {
     // The same byte pair read backwards would be two hundred and fifty-six: it is refused.
     assert_eq!(refused("envers", &head(0xff, [1, 0])), VERSION_UNSUPPORTED);
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/formats/alembic/limites/cases.abc");
+        .join("../../tests/fixtures/formats/alembic/limits/cases.abc");
     let archive = Archive::open(&path).expect("the corpus opens");
     assert_eq!(archive.file.version, 1, "the corpus version is the first");
 }

@@ -30,11 +30,11 @@ use super::*;
 const FIXTURES: [(&str, &str); 2] = [
     (
         "bmp",
-        "A quad whose base colour is vraies-couleurs-24-bas.bmp, a 4 × 2 24-bit true-colour BMP stored bottom-up, compiled by the common harness.",
+        "A quad whose base colour is true-colour-24-bottom-up.bmp, a 4 × 2 24-bit true-colour BMP stored bottom-up, compiled by the common harness.",
     ),
     (
         "gif",
-        "A quad whose base colour is palette-globale.gif, a 4 × 2 GIF indexed on a global colour table of eight entries, compiled by the common harness.",
+        "A quad whose base colour is palette-global.gif, a 4 × 2 GIF indexed on a global colour table of eight entries, compiled by the common harness.",
     ),
 ];
 const RULE: &str = "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Neither BMP nor GIF adds loss: the first is read as-is and put back in image order, the second is indexed, and a colour table already carries 8-8-8.";

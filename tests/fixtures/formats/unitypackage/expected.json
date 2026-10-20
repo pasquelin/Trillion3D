@@ -12,8 +12,8 @@
   ],
   "refus": {
     "sortieDeDossier": "ARCHIVE_PATH_ESCAPE",
-    "tronque": "ARCHIVE_UNREADABLE",
-    "vide": "ARCHIVE_EMPTY"
+    "truncated": "ARCHIVE_UNREADABLE",
+    "empty": "ARCHIVE_EMPTY"
   },
   "rule": "A container changes nothing about the project it wraps. The test first compares the compilation from the package with that of the same project laid out flat - name, size and fingerprint of every data file read included - then pins the three booby-trapped packages, refused by their code without a byte being written.",
   "scene": {

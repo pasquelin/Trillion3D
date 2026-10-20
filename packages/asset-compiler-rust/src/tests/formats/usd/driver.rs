@@ -82,7 +82,7 @@ fn a_polygon_becomes_a_fan_of_triangles() {
 #[test]
 fn a_geom_subset_becomes_its_own_primitive_with_its_own_material() {
     let dir = golden_dir("usd");
-    let run = compile_golden_source(&dir.join("minuscule").join("scene.usda"), "usd-subset");
+    let run = compile_golden_source(&dir.join("tiny").join("scene.usda"), "usd-subset");
     let (_, gltf) = run.prepared("usd");
     let primitives = gltf["meshes"][0]["primitives"]
         .as_array()
