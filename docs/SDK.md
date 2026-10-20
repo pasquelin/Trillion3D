@@ -131,18 +131,51 @@ still fails is `RESOURCE_HTTP_ERROR` (`details.url`, `details.status`, `null`
 for the network). `lights.json` and `physics.json` are absent, not failed, on a 404 or a hiding
 store's 403. An unreadable `kernels.wasm` leaves the batch kernels to their JavaScript twins.
 
-The optional families ([README](../README.md#public-sdk)), the world stream, the impostors and each
+The optional families ([README](../README.md#public-sdk)), the world stream and each
 renderer are chunks imported on first use, a failed import tried once more at once; what still
 fails is `FAMILY_LOAD_FAILED` (`T3D-E090`, `details.family`) on
 `world.diagnostic.error` (and `world.physics.error`), asked again at the next use, ten seconds later
-at the soonest. Frames that need a family wait for it, never draw without it; refused impostors
-leave each object its mesh. A page downloads only the renderer it draws with.
+at the soonest. Frames that need a family wait for it, never draw without it. A page downloads only the renderer it draws with.
 
 **Debug mode** (`createWorld(target, { debug: true })`, `world.diagnostic.debug = true`, a stats
 overlay, `?profile` in the address) files frames into `world.cpuSteps` and the frame report
 (`EngineProfiler`). The pass mapping (`gpuPassStageOf`, `gpuPassBlockOf`, `gpuPassBlockTotals`)
 is the engine's own, there from the first frame; a page reading the frame report from its first
 frame turns debug mode on before it.
+
+**Frame inspection.** `await world.diagnostic.inspect()` reads what the main view's next image
+computed, in world metres, for a map drawn from above (`FrameInspection`, `null` when the session
+closed first):
+
+- `camera`, `cutCamera`: the eye, its forward axis, the near plane's four corners and the edges
+  leaving them (the far plane is at infinity). `cutCamera` is the camera the cut was made from.
+- `clusters`: the cut's clusters, up to 2^18. Each has a world box (`bounds`), a DAG `level`
+  (0 is the finest), its `triangles` and a `state` from `CLUSTER_STATE`: `kept`, `occluded` (the
+  occlusion test rejected it) or `missing` (not resident, its ancestor drew instead).
+  `frustumRejected` counts the clusters cut outside the frustum.
+- `shadows`: one record per shadow map. A sun's clipmap level places its mapped pages as four
+  world corners each, on the plane through the level's centre facing the light. `rendered` marks
+  the pages drawn this image; the others served their cached depth. A local light's map counts
+  its pages (`mappedCount`, `renderedCount`) without placing them.
+- `reflections`: the traced rays, one grid texel in `stride`², up to 2^14. Each has an origin on
+  its surface, a direction and the distance to its hit (`Infinity` when it met nothing near). The
+  counts are `towardCamera` (against the view's axis), `offView` (the hit is outside the view)
+  and `missed`.
+- `lights`: each light's kind, position, direction, reach (`range`), shadow casting, and whether
+  its reach meets the view (`seen`).
+
+`world.diagnostic.freeze = true` freezes the main view's cluster cut and occlusion at the camera
+of that moment, while the camera keeps moving and drawing. Views beside it are not frozen.
+Use it with `world.diagnostic.mode = 'xray'`, which draws the edges of every triangle the cut
+submitted through the surfaces, with no depth test. Then step aside: geometry that the frustum,
+the detail levels, the HLOD or the occlusion test dropped is missing, and geometry that was
+submitted shows even behind a wall.
+
+Cost: none while unused. A frame only tests one absent callback, and the reading code is in the
+diagnostics chunk, which loads on the first call. Each call adds the CPU copy of the cut's
+lists, plus one device copy of the occlusion verdicts, the shadow page table rows and the sampled
+reflection texels. That copy goes through the capture ring and is mapped about one frame later;
+the frame never waits for it.
 
 ## API rule
 
@@ -207,10 +240,9 @@ restore geometry discarded while cooking ([FORMAT.md](FORMAT.md#resident-lightin
 
 ## Loop
 
-The world owns the loop and stops when the image is stable: after 120 frames with nothing changing
-it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a page
-landed does not count, so a streamed view is drawn to its last page. A still scene costs nothing.
-`onFrame` is the per-frame hook.
+The world owns the loop and, as a game loop, draws a frame on every display tick while the page
+shows: it never pauses because the image settled. Only a hidden page (its animation frames
+stop) and `maxFrameRate` space the frames. `onFrame` is the per-frame hook.
 
 ```js
 // 1. The world leads; you give it work per frame.
@@ -281,21 +313,52 @@ a sub-pixel offset and accumulates; `false` draws pixel centres with no history,
 capture needs. A write applies next frame, no session reopened; a read says what the image carries.
 
 `world.renderScale` (option of `createWorld` too, `'auto'` by default) is the per-axis fraction of
-the display drawn before temporal antialiasing rebuilds the image: `'auto'` lets the frame budget
-(the display's refresh interval) choose between 0.5 and 1, from the GPU frame time or, without
-timestamps, the frame interval; `{ min, max }` bounds it, a number fixes it. A read is the last
-image's scale. Where the scale is fixed, or at its floor, and the GPU frame still outlasts the
-refresh, the loop draws on every second refresh (every n-th on a faster display, never under 60
-images a second), so each image is shown for the same time instead of one refresh or two as it
-lands; it draws on every refresh again once the GPU frame falls to 0.81 of the faster budget. A
-scene that holds the refresh is never touched, and the world's time steps by the refreshes shown.
+the display drawn before temporal antialiasing rebuilds the image: `'auto'` is a dynamic
+resolution, choosing between 0.5 and 1 from the GPU frame time against the frame time budget (the
+display's refresh interval, or the frame cap's); without GPU timestamps it stays at 1. `{ min, max }`
+bounds it, a number fixes it. A read is the last image's scale. Without temporal antialiasing the
+scale is chosen the same way and the image upscaled to the display, each display pixel blending its
+four nearest drawn pixels.
+
+`world.maxFrameRate` (option of `createWorld` too, `Infinity` by default) caps the frames a second
+the world draws, even while its scene moves: the loop draws on a whole number of
+refreshes, the fastest rate at or under the cap (12: every 5th refresh at 60 Hz, every 10th at
+120 Hz), so each image is shown for the same time; the refreshes between draw and count nothing, and
+the `'auto'` render scale fits each image to the time the cap gives it. A write applies from
+the next frame; a page of several worlds caps those out of focus.
 
 `world.effects` is the ordered chain of passes after temporal antialiasing, before the canvas.
 `effect.bloom({ intensity, radius })` is an energy-conserving glow on the linear
 image before tone mapping: `intensity` (0 to 1, `0.04` by default) the share of the image it
 replaces, `radius` (`1` by default) the spread per level, in that level's texels.
+`effect.outline({ objects, color, thickness })` lines the visible silhouette of `objects`, each
+with its subtree — a runtime mesh or a loaded model's node, at whatever detail is drawn —, over the
+display image after tone mapping, so `color` (`#ff9f1c` by default) shows as written; `thickness`
+(`2` by default, up to `32`) is in CSS pixels. What hides a selected object hides its line.
+`outline.objects = [...]`, `outline.color.set(...)` and `outline.thickness` show next frame; with no
+object, no pass runs and nothing is allocated.
 `world.effects.add(pass, index?)`, `remove(pass)` and `clear()` change the chain; settings show next
 frame. An empty chain costs nothing; a still image is post-processed once.
+
+`world.addView({ canvas | viewport, camera?, renderScale?, temporalAntialiasing?, maxFrameRate? })`
+draws the same world from another camera — into a canvas of its own (a canvas, an element to draw
+in, or the ID of either), or over a `viewport` rectangle of the world's canvas, CSS pixels —, one
+of the two, else `INVALID_VIEW`. A view shares everything no camera changes: the scene, its
+placements, the pages and their pools, the materials, the shadow pool (each view keeps the clipmap
+of a sun centred on its own eye; the local lights' maps and the pages rendered are shared), the
+physics and the clips, so it costs no second scene, upload or simulation. It owns what a camera
+changes: its cut, visibility and occlusion pyramid, lighting resolve, temporal history and effects.
+Each frame of the world draws its own camera, then every view due, in the order added, in one loop
+and one budget: `'auto'` render scales fit the whole frame, every view's GPU time in it, to the
+refresh. `camera` is a perspective camera of its own by default; `renderScale` (`'auto'`),
+`temporalAntialiasing` (`true`) and `maxFrameRate` (`Infinity`: every frame of the world) read as
+the world's own, and are written on the returned `WorldView` from its next image, as are `camera`
+and `viewport`. `view.onFrame(({ delta, metrics }) => …)` runs after each frame that drew it;
+`metrics` (`ViewFrameMetrics`) carries its GPU time, passes, drawn size and scale, triangles and
+target bytes, and the world's frame lists the views it drew in `metrics.views`. `view.dispose()`
+takes it out, keeping a canvas the page gave it; `world.views` lists them, and `world.dispose()`
+takes them all. Pages showing one scene several times (camera walls, stereo, plan views) add views;
+separate worlds remain for different scenes or looks.
 
 Dispose in the page's teardown, **not right after startup**: `world.dispose()` removes owned
 controls, observers, queued frames and abort listeners and closes the engine, keeping the canvas.
@@ -364,11 +427,16 @@ settled a frame or so later: the GPU traces every ray cast in the same tick toge
 placement tree, each placement's cluster hierarchy, then the triangles the rasters draw — and reads
 the hits back without ever stalling the page. What is hit is the finest detail the pool holds, in
 view or out of it, opaque or blended: a loaded model on its own triangles, a skinned, morphed or
-waved mesh where this frame draws it. Lines, points and sprites are never hit; hidden objects and
-`helper` marks are passed by (`{ helpers: true }` meets them, as `controls.transform` does).
+waved mesh where this frame draws it. A line is hit where the ray passes within `lineThreshold`
+world units of it (1 by default, as three.js's `Raycaster.params.Line.threshold`; 0 never hits a
+line), at the ray's nearest pass, its `normal` facing the ray; a point is hit on its dot, as wide as
+its material's `size`. Sprites, hidden objects and `helper` marks are passed by
+(`{ helpers: true }` meets the marks, as `controls.transform` does).
 `{ objects }` limits the subtrees; a sizeless canvas refuses a point (`RAYCAST_NO_VIEW`); a world
-whose drawing session is not open yet resolves `null`. `camera.rayThrough(x, y, aspect)` is the ray
-through a picture point; the exact raycast, on the physics' collision shapes, is
+whose drawing session is not open yet resolves `null`. `canvasRay(camera, canvas, { x, y })` is the
+world ray through a canvas point in CSS pixels, as `world.raycast` aims it: read on the canvas's CSS
+box, shaped as the drawing buffer is drawn (a sizeless canvas throws `RAYCAST_NO_VIEW`);
+`camera.rayThrough(x, y, aspect)` is the ray through a picture point. The exact raycast, on the physics' collision shapes, is
 [PHYSICS.md](PHYSICS.md#exact-raycast). An orthographic camera made with `fitAspect: true` takes its
 width from the canvas.
 
@@ -394,9 +462,10 @@ in order, each replacing the last. A scene editor needs these three doors and no
 
 ### Live material values
 
-A material written on `color`, `emissive`, `emissiveIntensity`, `metalness` or `roughness` is
-repainted in place, the session kept (a colour picker dragged for ten seconds keeps one session). A
-change it cannot hold in place — a texture, a kind, a side, transparency, values another material
+A material written on `color`, `emissive`, `emissiveIntensity`, `metalness`, `roughness` or
+`opacity` is repainted in place, opaque or blended, the session kept (a colour picker dragged for
+ten seconds keeps one session; a glass fading out keeps its material). A change it cannot hold in
+place — a texture, a kind, a side, transparency, values another material
 object shares — is copied on write: the copy is a new material, and the meshes that wear it join
 the running session as any mesh added to the scene does, the session never opened again for it.
 `world.diagnostic.sessions` counts the sessions a world opened: one, unless the device was lost or
@@ -562,7 +631,13 @@ the session poses under a moving parent is composed on the GPU: its `matrixWorld
 once per frame, and `updateMatrixWorld` has nothing of it to do.
 
 The graph classes are `Object3D`, `Group`, `Mesh`, `Scene`, `Camera` and `Light` (its `kind`; a
-`rectArea` for a rectangle, a `probe` with 27 coefficients in `sh`). A light hears its colours and
+`rectArea` for a rectangle, a `probe` with 27 coefficients in `sh`). A probe's `sh` is nine RGB
+triples of the real orthonormal spherical harmonics of the radiance, in the band order constant,
+`y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`; the irradiance at a normal is each
+coefficient times its band's cosine weight (π, 2π/3, π/4) times its harmonic. `emptyIrradiance()`
+makes the 27 zeros, which `addUniformIrradiance(sh, rgb)` (the same light from every side),
+`addHemisphereIrradiance(sh, sky, ground, up)` and `addIrradianceCoefficients(sh, coefficients,
+scale)` add to. A light hears its colours and
 target only while in a world. A world hands a `hemisphere` light the sky over a ground as the
 environment's irradiance. A `Scene` built with no loader refuses `load`
 (`UNSUPPORTED_SCENE_UPDATE`); its `onBeforeRender` and `onAfterRender` run around each draw. A
@@ -582,7 +657,8 @@ value over its type's largest; `needsUpdate = true` bumps `version`, and `addUpd
 the upload to the numbers written.
 
 A `Geometry` carries `attributes`, `morphAttributes` (`morphTargetsRelative` when targets hold
-displacements), `drawRange`, `name`, `userData`; its bounds span every vertex and morph shape, at
+displacements), `drawRange` (`setDrawRange(start, count)`: the corners of the index drawn, or of
+the vertices in order; any write of it cuts the pages again), `name`, `userData`; its bounds span every vertex and morph shape, at
 the value each stands for (a normalised integer scaled back, a two-number position at z = 0).
 `toNonIndexed()` gives each corner its own vertex. A geometry no mesh wears gives back its pages
 and GPU memory, with no call; replacing a mesh's geometry disposes the one it

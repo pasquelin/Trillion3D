@@ -3,7 +3,14 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import test from 'node:test'
 import { ASSET_SCOPES } from '../../packages/sdk-core/src/contracts/base.ts'
-import { JOB_FIELDS, SIMPLIFICATIONS } from '../../packages/sdk-core/src/contracts/compilerAbi.ts'
+import {
+  HLOD_FIELD,
+  JOB_FIELDS,
+  MATERIALS_FIELD,
+  RESPONSIVE_FIELD,
+  SIMPLIFICATIONS,
+  TEMPORAL_AA_FIELD,
+} from '../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import { COMPILER_OPTIONS_SCHEMA } from '../../packages/sdk-core/src/llm/compilerOptionsSchema.ts'
 import { REPOSITORY_ROOT } from '../repository-files.ts'
 
@@ -22,7 +29,10 @@ test('the compiler reads the job fields, scopes and simplifications the schema n
   // printed `abi.rs`; the options schema reads `compilerAbi.ts`: the two must name the same job.
   const rust = readFileSync(join(REPOSITORY_ROOT, ABI), 'utf8')
   assert.deepEqual(words(rust, 'pub mod job_field'), [...JOB_FIELDS])
-  assert.deepEqual(Object.keys(COMPILER_OPTIONS_SCHEMA.properties).sort(), [...JOB_FIELDS].sort())
+  assert.deepEqual(
+    Object.keys(COMPILER_OPTIONS_SCHEMA.properties).sort(),
+    [...JOB_FIELDS, HLOD_FIELD, TEMPORAL_AA_FIELD, RESPONSIVE_FIELD, MATERIALS_FIELD].sort(),
+  )
   assert.deepEqual(words(rust, 'pub const SCOPES'), [...ASSET_SCOPES])
   assert.deepEqual(COMPILER_OPTIONS_SCHEMA.properties.scope.enum, ASSET_SCOPES)
   assert.deepEqual(words(rust, 'pub const SIMPLIFICATIONS'), [...SIMPLIFICATIONS])

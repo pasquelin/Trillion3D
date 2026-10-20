@@ -29,6 +29,9 @@ const NOT_MESSAGES = new Set([
   // The file name of a two-channel ETC2-family level (`texture_preview/blocks.rs`).
   'eac-rg',
   'hdr-radiance-rgbe-1',
+  // The oracle's discarded decode failure (`oracle/materials.rs`): a texture it leaves out of a
+  // mean.
+  'image-undecodable',
   'image-plugin-3',
   'ma-mel-subset-1-gltf-8',
   'ma-root',
@@ -38,9 +41,11 @@ const NOT_MESSAGES = new Set([
   'usd-double-sided',
   'usd-root',
 ])
-/** The families of the compiler's report codes, by their first word. */
+/** The families of the compiler's report codes, by their first word: a driver's own codes, then the
+ * causes several drivers share (`plugins/scene/codes.rs`). */
 const FAMILIES =
-  'alembic|blend|bmp|dds|eac|exr|hdr|image|ktx2|light|ma|material|node|psd|texture|unity|usd'
+  'alembic|blend|bmp|dds|eac|exr|hdr|image|ktx2|light|ma|material|node|psd|texture|unity|usd|' +
+  'camera|curves|degenerate|emission|file|hierarchy|ior|mesh|ngon|normals|size|transform|uv'
 const CODE_LITERAL = new RegExp(
   `"([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+|CANCELLED|(?:${FAMILIES})-[a-z0-9-]+)(?=[":])`,
   'g',
@@ -82,6 +87,33 @@ test('every code emitted by the Node adapter is in the catalogue', () => {
       if (!messageOf(code)) problems.push(`${code} (${where})`)
   }
   assert.deepEqual(problems, [])
+})
+
+// Behaviour: every catalogue entry is a code some source writes — the compiler, the page codec, the
+// Node adapter or the browser runtime — so no entry outlives the code it describes.
+test('every catalogue code is emitted by a source', () => {
+  const roots = [
+    'packages/asset-compiler-rust/src',
+    'packages/page-codec-wasm',
+    'packages/sdk-node/src',
+  ]
+  const browser = join(REPOSITORY_ROOT, 'packages/sdk-browser/src')
+  const texts = [
+    ...roots.flatMap((root) =>
+      files(join(REPOSITORY_ROOT, root), (path) => isRustSource(path) || isNodeSource(path)).map(
+        (path) => withoutTests(readFileSync(path, 'utf8')),
+      ),
+    ),
+    ...files(browser, (path) => path.endsWith('.ts') && !path.endsWith('.test.ts')).map((path) =>
+      readFileSync(path, 'utf8'),
+    ),
+  ].join('\n')
+  const emitted = (code: string) =>
+    [`"${code}"`, `"${code}:`, `'${code}'`].some((q) => texts.includes(q))
+  assert.deepEqual(
+    catalogueMessages.map((m) => m.code).filter((code) => !emitted(code)),
+    [],
+  )
 })
 
 test("the browser runtime's family refusal carries its catalogue code", () => {

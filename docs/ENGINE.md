@@ -44,15 +44,32 @@ One WebGPU image is one command buffer, encoded in this order:
 | Partition and draw compaction                             | `webgpu/visibility/partition.ts`                                             |
 | Visibility raster, two-phase Hi-Z                         | `webgpu/visibility/passes.ts`                                                |
 | Material surfaces, one pass per class                     | `webgpu/core/materialPasses.ts`                                              |
-| Impostor cards                                            | `webgpu/impostor/`                                                           |
 | Light buffer, bounce, light grid, virtual shadow maps     | `webgpu/pages/render/encodeLights.ts`                                        |
 | Deferred resolve                                          | `lighting/deferred/deferred.ts`                                              |
-| Transparents, water, particles                            | `webgpu/pages/render/encodeBlend.ts`                                         |
+| Transparents, distortion, particles                       | `webgpu/pages/render/encodeBlend.ts`                                         |
 | Temporal resolve                                          | `taa/frame.ts`                                                               |
 | Effect chain                                              | `webgpu/pages/render/encodeEffects.ts`                                       |
 | Composition, presentation, submission                     | `lighting/deferred/deferred.ts`, `webgpu/pages/render/encoder.ts`            |
 
-`webgpu/pages/render/surfaceLighting.ts` encodes the stages from the impostor cards on.
+`webgpu/pages/render/surfaceLighting.ts` encodes the stages from the light buffer on.
+
+## Views
+
+A world draws its own camera as the runtime's main view, then each view `world.addView` made
+(`world/core/worldViews.ts`), in the same frame and loop (`world/render/draw.ts`). A view is a
+record of what a camera owns (`webgpu/pages/state/view.ts`): its cut and what its image made of it,
+motion, occlusion history and Hi-Z pyramid, frame targets, temporal history, effect chain,
+presenter (a canvas of its own, or a rectangle of the main canvas), GPU timer and render scale
+(`frame/viewScale.ts`, following the world's controller within its bounds). Drawing it trades
+those members into the runtime groups and back (`webgpu/pages/state/viewSwitch.ts`); every other
+member is the scene's and is shared: placements and their composition, the pages, their residency
+— the union of every view's cut under the one budget —, the pools, materials, lights, physics and
+pipelines. The virtual shadow maps share their pool, page tables and local lights' maps; a sun's
+clipmap follows the eye, so each view keeps its own cache entry (`VsmCacheManager.view`), carried
+unreferenced while other views draw and aged by its own view's frames; the pool is asked for every
+view's pixels. The projection mask and the light grid keep the largest layout a view asked, so
+views of other sizes drawn in turn lay nothing out again. The main view's GPU sample adds the views'
+last GPU time, each over the main images between its draws, to the frame the `'auto'` scale fits.
 
 ## Scene and camera
 
@@ -68,8 +85,8 @@ double arithmetic, the world, the stretch, the world box and the motion of each 
 rows pass writes the page-table world words, the sphere, the Hi-Z corners and the world-dependent
 levels of detail of its rows (`placement/gpuCompose.ts`); the members pass writes the leaf boxes the
 placement tree is fitted over, and the one tree refit (`gpu/dag/treeRefit.ts`, a pass any caller
-names its dirty groups to) fits them and every node above, bottom up. A CPU reader — an impostor
-card, transparent depth, a winding — reads the composed world once a frame (`composedWorld`, a
+names its dirty groups to) fits them and every node above, bottom up. A CPU reader — transparent
+depth, a winding — reads the composed world once a frame (`composedWorld`, a
 product of the parent's and the local matrix kept by `state.version`), never a second multiply that
 is written back. Models and partition rows link before their rows are written, so no matrix is
 written for them. A link is never refused for what reads its row: waves, soft bodies and skeletons read the
@@ -99,11 +116,15 @@ Lighting reads those surfaces and the depth; transparency and transmission are s
 
 ## Temporal antialiasing
 
-Edges are recovered temporally: a jittered image, motion derived from the visibility buffer, a
-history clamped to its neighbours (`taa/`). A quiet image averages the final state alone, so a still
-image is exact and repeatable. The render scale is fitted to the display's refresh
-(`frame/scaleControl.ts`) and reconstructed by `taa/upscaleWgsl.ts`; where it cannot lower the cost
-any more, the loop holds a steady divisor of the refresh (`frame/cadence.ts`). The page's options are
+A temporal upscaler (`taa/`): a jittered image, motion derived from the visibility buffer, a
+history update with shading rejection, the spatial anti-aliaser before the resolve, one resolve for
+every render scale. The pass runs on every frame drawn and its history is reset only on a camera
+cut, the one change the reprojection cannot follow: since the jitter moves the image each frame, a
+view whose temporal pass runs is drawn every frame (`taaRuns`, `webgpu/frame/hold.ts`). The render
+scale is a dynamic resolution (`frame/dynamicResolution.ts`): a history of the frame's GPU busy
+times against the frame time budget, both directions, with or without the temporal upscaler
+(spatial upscale in the composition where it is off). The loop draws every refresh, or under the
+page's frame cap every few (`frame/cadence.ts`), whose interval is the budget. The page's options are
 [SDK.md](SDK.md#canvas-camera-and-teardown).
 
 ## Effect chain
@@ -111,6 +132,11 @@ any more, the loop holds a steady divisor of the refresh (`frame/cadence.ts`). T
 `world.effects` (`sdk-core/world/effect/`; API in [SDK.md](SDK.md#canvas-camera-and-teardown)) runs
 over linear radiance between the temporal resolve and tone mapping:
 `webgpu/effects/webgpuEffects.ts`, one table of pass kinds. An empty chain adds no pass; bloom is `webgpu/effects/bloomFilter.ts`.
+The passes after tone mapping draw over the composed display image and the canvas
+(`encodeOverlayEffects`); an idle pass (an outline of no object) is passed by. The outline
+(`webgpu/effects/outlineWgsl.ts`) reads the visibility identifiers through the page table to each
+pixel's root (`pages[row].placement`) and one bit per root its objects' subtrees draw, then an
+exact separable distance in two passes scissored to the roots' projected boxes (`rootsRect.ts`).
 
 ## Direct lighting
 
@@ -141,8 +167,9 @@ the law is `sdk-core/scene/core/fog.ts`, its shader text `lighting/fogShader.ts`
 
 The engine culls transparent meshes through a box tree (`webgpu/blend/hierarchy.ts`), orders them
 farthest first on the GPU (`webgpu/blend/order.ts`) and lights them with the opaque resolve's lists
-(`webgpu/blend/lighting.ts`); a transmissive surface is composed after them on a frozen copy
-(`webgpu/water/pass.ts`).
+(`webgpu/blend/lighting.ts`). A transmissive surface is sorted and lit among them, composed as
+a thin translucent layer (`webgpu/water/waterColorWgsl.ts`), and refracts the opaque scene through
+one distortion pass drawn before every translucent layer (`webgpu/blend/distortion.ts`).
 
 ## Presentation
 
@@ -198,7 +225,7 @@ then tone-mapped and encoded to sRGB once, at composition.
 
 | Stage                                     | Where                                           |
 | ----------------------------------------- | ----------------------------------------------- |
-| Temporal antialiasing, exact at rest      | [Temporal antialiasing](#temporal-antialiasing) |
+| Temporal antialiasing                     | [Temporal antialiasing](#temporal-antialiasing) |
 | Stochastic direct light over a light grid | [Direct lighting](#direct-lighting)             |
 | Shadows                                   | [SHADOWS.md](SHADOWS.md)                        |
 | Probes and proxy rays                     | [Light that bounces](#light-that-bounces)       |
@@ -216,6 +243,7 @@ then tone-mapped and encoded to sRGB once, at composition.
   A second one beside it is a defect.
 - **Never per frame**: no pipeline compiled on the frame that first needs it (the frame is held,
   `webgpu/frame/framePipelines.ts`); no wait on a readback; no allocation in a steady frame; no work
-  in a held frame, where nothing moved (`webgpu/frame/hold.ts`); no bounce pass once converged.
-- **Exact at rest**: the jitter never reaches the cut, and every stochastic term is exact in the
-  still image.
+  in a held frame — a view without temporal accumulation where nothing moved
+  (`webgpu/frame/hold.ts`); no bounce pass once converged.
+- **The jitter stays in the image**: it never reaches the cut; the stochastic terms converge in the
+  temporal history, which accumulates them over the jitter's phases.

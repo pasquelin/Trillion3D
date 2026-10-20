@@ -1,8 +1,9 @@
 // The formats the compiler writes and the runtime reads, printed for the runtime
 // (`../generate-shared-rules.ts`): the Rust compiler owns the version, the magic and the layout
-// numbers of the manifest's binary, the resident proxy, the cutout answer sheet and the impostor
-// section, and `packages/sdk-core/src/contracts/writtenFormats.ts` carries them to the readers,
-// which re-export the ones their module is the home of.
+// numbers of the manifest's binary, the resident proxy, the cutout answer sheet, the voxel
+// section and the world roots' products, and
+// `packages/sdk-core/src/contracts/writtenFormats.ts` carries them to the readers, which re-export
+// the ones their module is the home of.
 import { posix } from 'node:path'
 import { REPOSITORY_ROOT } from '../repository-files.ts'
 import { comment, header } from './statements.ts'
@@ -35,7 +36,15 @@ const WRITTEN: readonly (readonly [string, readonly (string | readonly [string, 
   ['../../page-codec-wasm/src/culling.rs', ['CULLING_STRIDE', 'CULLING_RECORD_FLOATS']],
   ['../../page-codec-wasm/src/wasm_clusters.rs', ['CLUSTER_SPATIAL', 'CLUSTER_ORDERED']],
   ['cutout.rs', [['SHEET_VERSION', 'CUTOUT_SHEET_VERSION']]],
-  ['impostor/stage.rs', ['IMPOSTOR_VERSION']],
+  ['voxel.rs', ['VOXEL_VERSION']],
+  [
+    'voxel/bricks.rs',
+    [
+      ['BRICK_BYTES', 'VOXEL_BRICK_BYTES'],
+      ['VOXEL_BYTES', 'VOXEL_RECORD_BYTES'],
+    ],
+  ],
+  ['compiler_world_roots.rs', ['WORLD_ROOTS_VERSION']],
   ['texture_preview.rs', ['TEXTURE_PREVIEW_VERSION', 'PREVIEW_BASE']],
   ['texture_preview/levels.rs', ['TILE_SIZE', 'TILE_BORDER']],
   ['physics_cook.rs', ['PHYSICS_FORMAT_VERSION', 'PIECES_FORMAT_VERSION']],

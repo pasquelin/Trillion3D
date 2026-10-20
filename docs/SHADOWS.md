@@ -24,14 +24,21 @@ The set, the mask, the raster's lists and the blended casters' atlas are granted
 the GPU budget leaves the shadows (`webgpu/pages/render/vsm/vsmGrant.ts:grantEngineVsm`); their
 total is `shadowPoolBytes` (`webgpu/pages/render/vsm/vsmStats.ts`). Rules a contributor keeps:
 
+- **Sized by the view, grown by its fill.** The physical pool asked follows the drawing buffer: the
+  full pool (`VSM_POOL_PAGES`) for 1920 × 1080 pixels or more, its share of the pixels below, a
+  power of two down to an eighth (`vsmViewPoolPages`, `vsm/poolDraw.ts`). A fill past the pressure's
+  load asks the pool that holds it (`vsmDemandPages`), up to the full pool, never lowered for the
+  session (`vsmPoolAsked`, `webgpu/pages/render/vsm/vsmLightMaps.ts`): a small view holds a small
+  pool, a busy one the pages it marks.
+
 - **Never a crash, never an allocation the budget refuses.** Past the room, the pool is made with
   half the pages, down to an eighth: coarser shadows, said once (`gpu-out-of-memory`). When not
   even an eighth fits, the lights read no shadow, by name, until the room holds it or the lights
   change. A set the device refuses is undone whole and asked again only for other lights.
-- **Coarser, then finer again.** A short pool grows back once the room holds a larger one, at most
+- **Coarser, then finer again.** A short pool grows to the one asked once the room holds it, at most
   every `VSM_PRESSURE_CALM_FRAMES` (`shadow-pool-regrown`). A full pool raises a global resolution
   bias (`VsmCacheManager.readPoolFeedback`, `vsm/cacheManager.ts`).
-- **Said, never hidden.** `shadowResolutionBias` is the pool's halvings plus that bias; above `0`
+- **Said, never hidden.** `shadowResolutionBias` is the pool's halvings from the one asked plus that bias; above `0`
   the reference mode refuses its capture (`REFERENCE_SHADOWS_REDUCED`).
 
 ## One frame

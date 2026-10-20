@@ -48,6 +48,7 @@ export function compileFullCache({
   resourceBase = '../../../../source/',
   threads,
   ramMb = 256,
+  // Explicit `none`, not the compiler's default: the reference caches and hashes are pinned on it.
   simplification = 'none',
   stdio = 'inherit',
   executable = nativeCompiler(),

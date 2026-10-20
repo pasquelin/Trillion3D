@@ -37,8 +37,8 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 | The fixed split of the world's GPU and CPU totals       | `residency/memoryBudget.ts`, `residency/pools.ts`                 |
 | The floor: root cover plus the group each root replaces | `residency/minimumCapacity.ts`                                    |
 | WebGPU slots beside the vertex buffers, and a resize    | `webgpu/pages/io/memory.ts`, `webgpu/pages/prepare/growTables.ts` |
-| The pinned world top                                    | `scene/worldRoots.ts`                                             |
-| The world super-roots the cut draws                     | `scene/worldSuperRoots.ts`, `gpu/dag/worldMirror.ts`              |
+| The world HLOD's table, DAG and held bundles            | `scene/worldRoots.ts`, `scene/worldBundles.ts`                    |
+| The world HLOD actors the cut draws                     | `scene/worldHlod.ts`, `gpu/dag/worldFollow.ts`                    |
 | Eviction by last use, parents after children            | `gpu/dag/evict.ts`, `gpu/dag/shader/lastUseWgsl.ts`               |
 
 - Past the pool, the cut keeps the host's screen error: the pool loads what fits, coarsest first,
@@ -86,13 +86,13 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 A partitioned scene ([FORMAT.md](FORMAT.md#world-partition)) is read as the camera reaches it,
 never whole (`partition/`, `world/scene/partitionFrame.ts`).
 
-| Mechanism                                   | Where                                                    |
-| ------------------------------------------- | -------------------------------------------------------- |
-| The reach and its margins (`AHEAD`, `KEEP`) | `partition/plan.ts:cellReach`, `partition/aheadShare.ts` |
-| The cell index walk and the cell decode     | `partition/cellIndex.ts`, `partition/cellDecode.ts`      |
-| Rows sized for the view, grown in place     | `partition/sizing.ts`, `placement/growth.ts`             |
-| The world bundles the placed cells hold     | `partition/cellHolds.ts`                                 |
-| Cells held far, by their super-roots        | `partition/farCells.ts`, `partition/superRoots.ts`       |
+| Mechanism                               | Where                                                           |
+| --------------------------------------- | --------------------------------------------------------------- |
+| The reach and its margin (`KEEP`)       | `partition/plan.ts:placedReach`, `partition/plan.ts:keepRadius` |
+| The cell index walk and the cell decode | `partition/cellIndex.ts`, `partition/cellDecode.ts`             |
+| Rows sized for the view, grown in place | `partition/sizing.ts`, `placement/growth.ts`                    |
+| The world bundles the HLOD cells hold   | `partition/cellHolds.ts`                                        |
+| Each HLOD cell wished, held and told    | `partition/hlodCells.ts`, `gpu/dag/worldFollow.ts`              |
 
 - The error target never shortens the reach: a cell left unread would be missing, not coarser.
 - The first frame reads the view's bytes, not the world's (`primePartitions`); cells, arrivals,
@@ -108,7 +108,7 @@ never whole (`partition/`, `world/scene/partitionFrame.ts`).
   growths bring (`DagCapacity.ahead`). A session whose engine cannot grow them leaves the cells past
   the rows waiting and says it by name (`onPartitionOutgrown`, `content-refused`): it is never opened
   again.
-- A cell's super-roots stay while its objects are not drawable.
+- A cell's HLOD actor stays drawn until what replaces it is ready (`gpu/dag/worldFollow.ts`).
 
 ## Out of memory
 

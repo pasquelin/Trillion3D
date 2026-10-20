@@ -3,7 +3,7 @@
  * SHA-256 of its bytes, so that two compilers that cook the same bytes have the same one — the five
  * platforms of one commit, and a branch against `develop`. What a cook writes beside its bytes is
  * not compared: the run's report (a key ending in `Ms`, `peakRssBytes`, `reusedPages` and the run's
- * settings `threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaves`, as
+ * settings `threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaited`, as
  * `compiler_manifest_pages` names them, and `found`, whether a run found a cutout sheet) and the
  * folder it was written to. A name made of a SHA-256 — the cache key, which hashes the compiler's
  * own sources, and each content-addressed file — reads `<sha>`: such files are still compared by
@@ -53,7 +53,7 @@ const COLLIDER = ' (Jolt collider)'
 /** What a run reports rather than builds: its times, its memory peak, the pages it found built,
  *  its settings, whether it found a cutout sheet. */
 const MEASURE =
-  /Ms$|^(peakRssBytes|reusedPages|threads|ramBudgetMb|admissionEstimatedBytes|compileWaves|found)$/
+  /Ms$|^(peakRssBytes|reusedPages|threads|ramBudgetMb|admissionEstimatedBytes|compileWaited|found)$/
 
 /** A JSON file of `cache` without its run's measures, its folder read `<cache>`; other bytes as is. */
 function comparable(bytes: Buffer, file: string, cache: string): Buffer | string {

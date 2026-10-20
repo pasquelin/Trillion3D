@@ -48,6 +48,7 @@ export const sourceOf = ({ directory }: CookedScene, root = REPOSITORY_ROOT) =>
 const stampPath = (scene: CookedScene, root = REPOSITORY_ROOT) =>
   resolve(root, scene.directory, cacheOf(scene), 'compiled-with.json')
 const stampOf = (scene: CookedScene, root = REPOSITORY_ROOT) => {
+  // `none` as `compileFullCache` defaults it, not the compiler's default: the stamps pin it.
   const { source, simplification = 'none' } = scene
   const files = readdirSync(sourceOf(scene, root), { recursive: true }).map(String).sort()
   return JSON.stringify({ source, simplification, budget: TRIANGLE_BUDGET, files })

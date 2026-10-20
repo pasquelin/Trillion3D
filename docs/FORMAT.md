@@ -24,7 +24,8 @@ the content-addressed objects embed several families and are allowed by any vers
 
 `native/<scope>/manifest.json`, the pointer, names `native/<scope>/<key>/`: `clusters.json`, its
 pages and the products below. Shared objects are `native/objects/<sha256>.bin`, named by content
-(`rust/compiler_storage.rs:object_path`); texture levels live under `native/textures/v<N>/`.
+(`rust/compiler_storage.rs:object_path`); every texture's level chain lives under `native/textures/v<N>/<sha>/`, one folder per chain source and sheet (`texture_preview/gate.rs:GateSheet::key`), written once, pruned by folder
+(`rust/compiler_prune_textures.rs`).
 
 ## Pointer
 
@@ -49,12 +50,17 @@ same bytes.
 
 `manifest-page-<sha256>.bin`: per-cluster numbers as typed-array columns, mapped, not parsed.
 
-- Version: `MANIFEST_BINARY_VERSION` 12, with the `texturePreviewBc7`, `texturePreviewAstc` and
-  `texturePreviewEtc2` block columns (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`);
-  12 cuts the clusters by the one clusterer (`codec/clusters.rs`, the spatial rule) and builds the
-  culling tree, which the page order follows, by the one builder (`codec/culling.rs`, each split on
-  the axis of least cost).
-- Writes `rust/manifest_binary.rs:columns`; reads `core/manifest/binaryRead.ts:readManifestColumns`,
+- Version: `MANIFEST_BINARY_VERSION` 13, 28 columns in `COLUMN_NAMES` order, with the
+  `texturePreviewBc7`, `texturePreviewAstc` and `texturePreviewEtc2` block columns
+  (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 13 lays every geometry page in a
+  streaming bundle of the compile's geometry containers: a bundle names its file by rank in the
+  manifest's `geometryFiles`, its offset and its digest, a page its bundle and its place there; the
+  `pageSha` and `geometrySha` columns are gone; it also rounded the clusters cut free (each pair
+  re-cut where their smallest balls were narrowest, since replaced by the parts of the triangles'
+  graph, `codec/partition.rs`), so the level-0 clusters and every page differ from a 12 cook's. 12 cut the clusters by the one clusterer
+  (`codec/clusters.rs`, the spatial rule) and built the culling tree, which the page order follows,
+  by the one builder (`codec/culling.rs`, each split on the axis of least cost).
+- Writes `rust/manifest_binary.rs:Encoded` (each column encoded once, a page cut from them); reads `core/manifest/binaryRead.ts:readManifestColumns`,
   `core/manifest/binaryDecode.ts:decodeManifestBinary`.
 
 ### Cluster DAG
@@ -64,8 +70,10 @@ bundles whose dependencies close up to the pinned roots.
 
 - Types: `core/contracts/geometry.ts` (`Page`, `ClusterStructure`, `StreamCatalogue`); the cut,
   `browser/page/cut/rule.ts:drawsCluster`.
-- Writes `rust/dag.rs`, `rust/compiler_primitive_bundle/pack.rs:pack_bundles`,
-  `rust/compiler_bundle_dependencies.rs`; normal cones `codec/normal_cone.rs`; the culling tree
+- Writes `rust/dag.rs`, `rust/compiler_page_bundles.rs:pack_bundles`,
+  `rust/compiler_bundle_dependencies.rs`; normal cones `codec/normal_cone.rs`, measured by the
+  encoder on the positions each page decodes to (`codec/encode.rs:decoded_cone`), the faces the GPU
+  draws, so a cone never rejects a face drawn toward the view; the culling tree
   `codec/culling.rs:build_culling_bvh`, the one builder of a primitive's, the world's
   (`world-roots.dag`) and a run-time cut's hierarchy.
 
@@ -78,7 +86,7 @@ shader reads in place, decoded alike by Rust, JavaScript and WGSL.
   and the other constants of `core/page/format.ts` (`pnpm run generate:shared-rules`), declared by the
   manifest's `geometryPages`.
 - Writes `codec/encode.rs:encode_deformed`, the one encoder: the compiler's
-  `rust/compiler_primitive_bundle.rs:bundle_dag_pages`, `rust/compiler_page_object.rs:store_page` and
+  `rust/compiler_page_record.rs:encode_page`, `rust/compiler_world_roots/pages.rs:encode_pages` and
   the run-time cut (`browser/page/codec/encodeGeometryPage.ts`, `codec/wasm_encode.rs`) call it; grid
   `codec/bits/grid.rs:grid_exponent`.
 - Reads `browser/cluster/pages.ts:fetchVerified`, `browser/page/codec/geometryPage.ts:decodeGeometryPage`,
@@ -86,15 +94,23 @@ shader reads in place, decoded alike by Rust, JavaScript and WGSL.
 
 ## Textures
 
-Every atlas texture's mip chain: the tail in the head's column file, one lossless PNG per level
-above it, and block tile-record files where the quality gate passes: BC (`bc7`, `bc5` for two
-channels), ASTC and ETC2/EAC (`etc2`, `eac-rg`). All three families are cooked by default
-(`--textures-format`, default `all`); the runtime takes the first family the device's features
-allow (`browser/texture/blockFormats.ts:chooseBlockFormat`), PNG the last fallback.
+Every atlas texture's mip chain: the tail in the head's column file, then one block file per level
+above it. BC is the stored family: the level files are written in it (`bc7` RGBA, `bc5` for a
+normal map's two channels); ASTC and ETC2/EAC (`etc2`, `eac-rg`) are written beside it on demand
+(`--textures-format`, default `bc7`; a family name cooks BC and it, `all` every family), kept
+only where the quality gate passes. BC is never gated: a BC7 chain whose fast read-back fails is
+encoded again with the encoder's slow search (`blocks.rs:Effort`) and kept, same weight, its
+figures in the report. A block whose read-back flips a texel across an alpha cutoff is encoded
+again (`blocks/quality.rs:keep_sides`). A level file opens on a head of one little-endian `u32` per
+tile record — where its compressed bytes end, counted from the head's end —, then each record (the
+tile's blocks and gutter) raw DEFLATE alone: one Range reads the head, one a tile, and the browser
+inflates it (`DecompressionStream`). The runtime takes the first family the device's features allow
+(`browser/texture/blockFormats.ts:chooseBlockFormat`); a device with none reads the BC files and
+decodes them to RGBA8 (`browser/texture/blockDecode.ts`).
 Coverage-preserving alpha: `rust/texture_preview/coverage.rs`, mirrored by
 `browser/texture/coverageRule.ts`.
 
-- Version: `TEXTURE_PREVIEW_VERSION` 7 (`rust/texture_preview.rs`, `core/texture/previewFormat.ts`).
+- Version: `TEXTURE_PREVIEW_VERSION` 8 (`rust/texture_preview.rs`, `core/texture/previewFormat.ts`).
 - Writes `rust/texture_preview/bake_write.rs:write_levels`, `rust/texture_preview/levels.rs:tile_records`,
   `rust/manifest_binary/preview.rs:encode_previews`; gate `rust/texture_preview/blocks/quality.rs`.
 - Reads `core/manifest/binaryPreview.ts:decodeTexturePreviews`,
@@ -102,55 +118,88 @@ Coverage-preserving alpha: `rust/texture_preview/coverage.rs`, mirrored by
 
 ## Prepared scene tables
 
-`scene-tables.json`: nodes, lights, cameras, skins, clips, materials, textures and geometry layout;
+`scene-tables.json`: nodes, cameras, skins, clips, materials, textures and geometry layout;
 the runtime builds its scene from them, parsing no glTF. One `document` holds the published scene;
-there is no second scene.
+there is no second scene. Lamps are not here: [`lights.json`](#lightsjson) is the one reading of a
+light, and no node names one.
 
-- Versions: `SCENE_TABLES_VERSION` 7, `NODE_TABLE_VERSION`, `MATERIAL_TABLE_VERSION`,
+- `hlodMaterials`: per HLOD actor above HLOD 0, by the rank its world clusters name, the
+  `materials` rank of the flattened material it wears.
+- Versions: `SCENE_TABLES_VERSION` 9, `NODE_TABLE_VERSION` 6, `MATERIAL_TABLE_VERSION`,
   `GEOMETRY_TABLE_VERSION` (`rust/compiler_tables.rs`, `core/scene/core/tableContracts.ts`).
+  Tables 8 / node table 6 dropped `lights` and each node's `light`: they copied the glTF fields raw
+  and failed the compile on a non-punctual type, where `lights.json` counts it in `rejected`.
 - Writes `rust/compiler_tables.rs:stage_scene_tables`; reads
   `core/scene/core/tableContracts.ts:assertSceneTables`, `browser/host/prepared/build.ts:buildPreparedScene`.
 
 ### World partition
 
 Nodes that only place a mesh move into spatial cells (`scene-cell-<n>.json`) under paged slots
-(`scene-page-<sha256>.json`) and the fixed-size root `partition`.
+(`scene-page-<sha256>.json`) and the fixed-size root `partition`. The cells are a loose hierarchical
+grid (`rust/compiler_tables/partition/grid.rs`): every placed node in the cell of the main grid its
+world box goes to — 2D, glTF's `+Y` dropped, cells of 128 m (half the loading range), loaded within
+256 m —, a grid cell's nodes packed in files of one stream unit each. Each cell names its HLOD 0
+cell and the bounds the HLOD grids stream it by (`rust/compiler_tables/partition/hlod.rs`).
 
-- Versions: `PARTITION_VERSION`, `CELL_VERSION` (`rust/compiler_tables/partition.rs`,
-  `core/scene/core/tablePartition.ts`, `core/scene/core/tableCell.ts`).
+- Versions: `PARTITION_VERSION` 6, `CELL_VERSION` (`rust/compiler_tables/partition.rs`,
+  `core/scene/core/tablePartition.ts`, `core/scene/core/tableCell.ts`). Version 6: a cell record
+  adds `grid` (`[level, x, z]`), `bounds` (its grid cell's content, world space) and `hlod`
+  (`[HLOD 0 cell, its streaming bounds on the HLOD 0 grid, its HLOD 1 actor's cell's on the HLOD 1
+  grid]`); the root adds `hlod`: `ranges`, the main grid's and each HLOD grid's loading range as
+  `f64` bits in sixteen hexadecimal digits each (256, 512, 1024, 2048 m: one per level the HLOD
+  chain reaches, the HLOD 0 grid's alone for a world naming no HLOD), and `cells`, the HLOD 0
+  cells' count in eight. The whole root of a world placing one mesh under the scene, naming no
+  HLOD, is 1 816 bytes.
 - Writes `rust/compiler_tables/partition.rs:partition`, `rust/compiler_tables/partition/pages.rs:write_page`.
 - Reads `core/scene/core/tablePartition.ts:readCellPage`, `core/scene/core/tableCell.ts:assertCellNodes`.
 
-### World super-roots
+### World HLOD
 
-The DAG continued above placed objects up to a pinned world top: `world-roots.table` and
-`world-roots.dag` (fixed-size records) and `world-roots.bin` (the bundles).
+HLOD chains of the layers a job names (`rust/compiler_args/hlod.rs`,
+`rust/compiler_tables/partition/hlod.rs`), only over the objects a mark or a rule assigns a layer:
+HLOD 0 is an instanced layer, the placed objects' own pages instanced; each level above is, per
+cell of the level below, the closed shell or the merge of its objects at HLOD 1, of the actors
+below above it, each at its layer's accuracy and simplified within its geometric deviation. Each
+shell is simplified by volume-preserving quadrics, given unique texture coordinates and the
+materials of the objects under it baked onto it: every detail under a pixel lives in the texture.
+Each actor is built into its own DAG, its errors raised by how far it lies from its sources, and
+wears its flattened material: a material of `source.gltf` — a base colour and a normal map, metallic
+0 and roughness 0.5 since no other map is baked, translucent surfaces passed through —, its atlas
+images' chains in the texture section, each image the one-pixel stand-in `data:` address of a baked
+image — a PNG product beside it (`hlod-*.png`) only where a chain lacks a level
+(`rust/compiler_world_roots/flatten/publish.rs`). Each level's grid doubles cell and range; a
+chain's top actors are always loaded. `world-roots.table` and `world-roots.dag` (fixed-size records) and
+`world-roots.bin` (the bundles, `rust/compiler_world_roots.rs`). Nothing is pinned: each HLOD cell's
+roots lie in bundles of their own, held while its actor is loaded.
 
-- Bundle order: the pinned top's bundles first, then each cell's held roots right after them, one
-  run per cell, capped by bytes. A root only one cell needs is held by that cell; only the roots
-  several cells share are pinned, so the pinned top stays within 4 MB (`WORLD_TOP_BUDGET_BYTES`).
-  The schema is unchanged.
-- Table layout (little-endian, version 6): an 80-byte header, 56-byte bundles, 24-byte pages,
-  16-byte cells, 24-byte objects, then a `u32` pool. A cell record is four `u32` words: the rank of
-  its first object, its object count, then the pool offset and length of a list holding each of
-  its nodes' first object among the cell's objects (`u32::MAX` for a node with none).
-- DAG layout (version 6): a 24-byte header (magic, version, cluster count, group count, pool
-  length, node count), 176-byte clusters, 64-byte groups, 120-byte culling nodes, then a `u32`
-  pool. The clusters lie in the order of the world's culling hierarchy, built by the one builder
-  a primitive's goes through (`page-codec-wasm/src/culling.rs`): a cluster's rank is the one every
-  record names it by, and each node — fifteen `f64`, a primitive's node layout — names a contiguous
-  range of those ranks. Version 5 had no nodes and ranked the clusters as the build added them.
+- A blended primitive is a source as any; the flattened material is opaque: the shell stands in
+  far away, where sorting its layers would cost more than the blend shows.
+- Table layout (little-endian, version 14): a 64-byte header (magic, version, bundle, page and
+  HLOD cell counts, pool length, the binary's length as two words, its 32-byte digest), 56-byte
+  bundles, 24-byte pages, 64-byte HLOD cells of the chain, HLOD 0 cells first (the bundles holding
+  its roots, in the pool; the cell its next level's actor lies in, `u32::MAX` for a cell whose
+  actor is its chain's top; its level; the six `f64` bounds it streams by), then a `u32` pool.
+- DAG layout (version 14): a 24-byte header (magic, version, cluster count, group count, pool
+  length, node count), 184-byte clusters — level, triangles, its actor's rank (`hlodMaterials`),
+  bundle, offset, HLOD cell — whose level plus one is its HLOD layer —, two zeros, then the `f64`
+  error, parent error (NaN for a root),
+  sphere, parent sphere, minimum and maximum, then its page's facts —, 64-byte groups, 120-byte
+  culling nodes, then a `u32` pool. The clusters lie in the order of the world's culling hierarchy,
+  built by the one builder a primitive's goes through (`page-codec-wasm/src/culling.rs`): a
+  cluster's rank is the one every record names it by, and each node — fifteen `f64`, a primitive's
+  node layout — names a contiguous range of those ranks.
 
-- Versions: `WORLD_ROOTS_VERSION`, budget `WORLD_TOP_BUDGET_BYTES` (`rust/compiler_world_roots.rs`);
-  `VERSION` (`core/manifest/worldRootsTable.ts`).
+- Versions: `WORLD_ROOTS_VERSION` (`rust/compiler_world_roots.rs`, `core/contracts/writtenFormats.ts`).
 - Writes `rust/compiler_world_roots/pack.rs:pack_world`, `rust/compiler_world_roots/records.rs:encode_table`,
   `rust/compiler_world_roots/dag_records.rs:encode_dag`.
 - Reads `core/manifest/worldRootsTable.ts:readWorldRoots`, `core/manifest/worldRootsTable.ts:readWorldRootsDag`,
-  `core/manifest/worldRoots.ts:worldBundlePages`.
+  `core/manifest/worldRoots.ts:bundlePageRanges`.
 
 ## `lights.json`
 
-The source's punctual lights in the engine's radiometric light contract.
+The source's punctual lights in the engine's radiometric light contract, world space: the one
+product that reads a light (type, colour, intensity, range, cone, transform). A light of another
+type, a bad matrix or a non-positive intensity is counted in `rejected`, never a failed compile.
 
 - Versions: `SCENE_LIGHTS_VERSION`, `SCENE_LIGHT_CONTRACT` (`rust/compiler_lights.rs`);
   `IMPORTED_LIGHTS_VERSION` (`browser/lighting/importedLights.ts`).
@@ -185,7 +234,7 @@ read through the [prepared scene tables](#prepared-scene-tables), which lay out 
 
 The input: a folder with a source manifest, a folder with one glTF or GLB, or the file.
 `SOURCE_FORMAT_VERSION` (`rust/compiler_format.rs`); `rust/compiler_runtime.rs:load_model_file`,
-`rust/compiler_validate.rs:is_safe_source_name`, `rust/accessor_validation.rs`.
+`rust/compiler_safe_path.rs:is_safe_source_name`, `rust/accessor_validation.rs`.
 
 ## Resident lighting proxy
 
@@ -202,14 +251,6 @@ engine's placements are the instances (`browser/gpu/dag/proxyInstances.ts`).
   (twelve words), each column of all the meshes in table order. A mesh's links name its own triangles and nodes,
   from zero.
 - Writes `rust/proxy/encode.rs:SceneProxy::encode`; reads `core/scene/core/proxy.ts:decodeSceneProxy`.
-
-## Impostor atlases
-
-The manifest's `impostors`: a verdict per drawn mesh and, when baked, an octahedral three-map atlas.
-
-- Version: `IMPOSTOR_VERSION` (`rust/impostor/stage.rs`, `core/contracts/impostor.ts`).
-- Writes `rust/impostor/stage.rs:stage_stand_ins`, `rust/impostor/octahedron.rs`.
-- Reads `core/contracts/impostor.ts:assertImpostorSection`, `browser/webgpu/tile/cardMaps.ts` (each map a texture of the tile pool, each level its own file).
 
 ## Deformation in geometry page format 7
 

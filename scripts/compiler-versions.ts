@@ -44,7 +44,6 @@ export function cacheVersions(cache: string): Record<string, string> {
     errorModel: field(head, 'errorModel'),
     clusterStrategy: field(head, 'clusterStrategy'),
     textures: field(head, 'textures', 'version'),
-    impostors: field(head, 'impostors', 'version'),
     scenePlugin: field(head, 'scenePlugin', 'version'),
     worldRoots: field(head, 'worldRoots', 'version'),
     physicsFormat: field(physics, 'formatVersion'),

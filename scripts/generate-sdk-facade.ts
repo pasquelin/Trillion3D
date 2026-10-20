@@ -68,10 +68,15 @@ const browserOnly = rows.filter(
   (row) => row.entries.includes('browser') && !row.entries.includes('core'),
 )
 // The browser facade is split like the common one, by area — the page words of the world families
-// apart from the engine's other browser exports — so no generated file outgrows the line limit. A
-// page word that shadows a common contract of the same name is named explicitly in
-// `browser.ts`: two star exports of one name would cancel each other, an explicit one wins.
-const browserArea = (row: ExportRow) => (/\/world\//.test(row.module) ? 'world' : 'engine')
+// and the diagnostics apart from the engine's other browser exports — so no generated file outgrows
+// the line limit. A page word that shadows a common contract of the same name is named explicitly
+// in `browser.ts`: two star exports of one name would cancel each other, an explicit one wins.
+const browserArea = (row: ExportRow) =>
+  /\/world\//.test(row.module)
+    ? 'world'
+    : /\/diagnostic\//.test(row.module)
+      ? 'diagnostic'
+      : 'engine'
 const commonNames = new Set(common.map((row) => row.name))
 const browserAreas = [...new Set(browserOnly.map(browserArea))].sort()
 for (const name of browserAreas)

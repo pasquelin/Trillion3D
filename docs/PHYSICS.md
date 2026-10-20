@@ -178,7 +178,11 @@ vertex on the module's soft bodies.
   holds within a tenth of its rest volume throws `RangeError`: edges give by their `stretch` and by
   the solver's own compliance (a substep of the page's step squared over a vertex's mass), so a
   light, finely cut skin holds less, and a finer step more. A compiled model's volume is reckoned
-  at the engine's step (`PHYSICS_STEP`): it is cooked before any page steps it.
+  at the engine's step (`PHYSICS_STEP`): it is cooked before any page steps it. A record that
+  reaches the module past that (a cooked or hand-written one) is held there: the module bounds a
+  vertex's speed only at the end of a step, so the gas never pushes a vertex at rest, over one step,
+  past that speed (`soft.cpp`, `heldPressure`: `p ≤ v / (step · max(w · A / 3))`, `w` a vertex's
+  inverse mass, `A` the area of its faces).
 - **Options.** `friction`, `restitution`, `gravityScale` and `damping: { linear }` act per vertex as
   on a rigid body; `shape`, `sensor`, `ccd`, `decorative` and angular damping throw `RangeError`
   (vertices do not turn). No velocity, impulse, joint or vehicle.
@@ -188,6 +192,12 @@ vertex on the module's soft bodies.
   included; a saved scene leaves the default out.
 - **Thickness.** Its vertices keep 1 cm from what they collide with (the module's vertex radius): a
   cloth laid on a surface rests 1 cm above it.
+- **Start.** Made, or brought back to its rest shape, each free vertex starts off that shape along
+  its normal by up to a millionth of the body's size (`SOFT_IMPERFECTION`, 3.6 µm on a 3.6 m flag),
+  by a share a hash of its index gives: a flat sheet whose weight lies in its own plane — a flag on
+  its pole, a curtain — is otherwise in an equilibrium the arithmetic never leaves, held flat and
+  stiff in the air; off it, its own weight folds it, as a real sheet's flaws do. Every make of a
+  body starts alike: its steps stay reproducible.
 - **Bends.** No bend is stiffer than the solver resolves: its compliance is at least a fifth of the
   one its four vertices' masses give over a substep (`h²·Σ wᵢ|∇ᵢθ|²`), so it corrects at most five
   sixths of the angle it is off per substep; a stiffer one would overshoot and fold its triangles

@@ -36,7 +36,9 @@ trillion3d-compiler --version
 trillion3d-compiler --build-inputs
 ```
 
-Exactly 5, 7 or 8 positional arguments, plus `--textures-format=` anywhere (`compiler_args.rs`):
+Exactly 5, 7 or 8 positional arguments, plus `--textures-format=`, `--hlod=`,
+`--temporal-antialiasing=`, `--responsive=` and `--materials=` anywhere, the last of each kept
+(`compiler_args.rs`); a JSON flag that is not JSON is refused (`INVALID_OPTIONS`):
 the fields of one job, named as a batch job names them and in the order `JOB_FIELDS` declares
 (`packages/sdk-core/src/contracts/compilerAbi.ts`, printed into the compiler's `shared_math/abi.rs`).
 Both forms are read by one reader. Another count prints the usage, emits `INVALID_ARGS` and exits 2;
@@ -46,17 +48,21 @@ into the implementation hash, one path per line from the crate (`build_inputs.rs
 sources of the compiler and of the crates it links, their manifests, the lock file, the build
 scripts and the cargo configuration.
 
-| Argument             | Meaning                                                                                                                                                                        | Default  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
-| `source`             | A folder with `manifest.json`, a `.gltf`/`.glb`, a scene or container of [Input formats](#input-formats), or a folder of such files merged into one scene                      | required |
-| `cache`              | Output folder, created if missing; one pointer per scope, pruned after each compile, so one source per cache                                                                   | required |
-| `scope`              | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                          | required |
-| `triangleBudget`     | Positive triangle budget of `slice`; ignored by `full`                                                                                                                         | required |
-| `threads`            | Worker threads of the job, 1–64                                                                                                                                                | `2`      |
-| `ramBudgetMb`        | Admission budget, at least 64: a job estimated above it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not a process limit                                             | `256`    |
-| `resourceBaseUrl`    | URL prefix under which the host serves the source folder; relative image URIs are rewritten against it                                                                         | required |
-| `simplification`     | `none`: exact clusters, every one a root; `qem-endpoints`: the coarser levels above them                                                                                       | `none`   |
-| `--textures-format=` | `all`, `bc7`, `astc`, `etc2` or `none`: the GPU block families cooked beside the lossless levels, kept only where they pass the quality gate ([FORMAT.md](FORMAT.md#textures)) | `all`    |
+| Argument             | Meaning                                                                                                                                                                 | Default                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `source`             | A folder with `manifest.json`, a `.gltf`/`.glb`, a scene or container of [Input formats](#input-formats), or a folder of such files merged into one scene               | required                                      |
+| `cache`              | Output folder, created if missing; one pointer per scope, pruned after each compile, so one source per cache                                                            | required                                      |
+| `scope`              | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                   | required                                      |
+| `triangleBudget`     | Positive triangle budget of `slice`; ignored by `full`                                                                                                                  | required                                      |
+| `threads`            | Worker threads of the job, 1–64                                                                                                                                         | auto (every core; cores / workers in a batch) |
+| `ramBudgetMb`        | Admission budget, at least 64: a job estimated above it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not a process limit                                      | `4096`                                        |
+| `resourceBaseUrl`    | URL prefix under which the host serves the source folder; relative image URIs are rewritten against it                                                                  | required                                      |
+| `simplification`     | `qem-endpoints`: the coarser levels above the exact clusters; `none`: exact clusters alone, every one a root, every triangle drawn at any distance                      | `qem-endpoints`                               |
+| `--textures-format=` | `all`, `bc7`, `astc` or `etc2`: the GPU block families cooked beside the stored BC levels, kept only where they pass the quality gate ([FORMAT.md](FORMAT.md#textures)) | `bc7`                                         |
+| `--hlod=`            | The HLOD layers and the rules assigning objects to them, as JSON in the expert form ([HLOD](#hlod))                                                                     | none                                           |
+| `--temporal-antialiasing=` | The scene's temporal anti-aliasing level, `off`, `low`, `medium`, `high` or `max`, or `true` / `false`, written in its manifest ([Temporal anti-aliasing](#temporal-anti-aliasing)) | none |
+| `--responsive=`      | The objects whose materials keep a responsive temporal history (a history share of 0.75), as JSON: a node's exact name, `{ "regex", "flags" }` on it, or a match ([Temporal anti-aliasing](#temporal-anti-aliasing)) | none |
+| `--materials=`       | Settings by exact material name, as JSON, `{ "name": { "temporalAntialiasing": 0.5, "responsive": true } }` ([Temporal anti-aliasing](#temporal-anti-aliasing))                                   | none |
 
 ```sh
 trillion3d-compiler scenes/city/city.obj cache/city full 150000 8 8192 /assets/city/ qem-endpoints
@@ -93,21 +99,103 @@ process, each with its own cache:
 }
 ```
 
-| Field                                                                        | Meaning                                                                    | Default                                              |
-| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `workers`                                                                    | Concurrent jobs, at most 64, lowered until the budget holds them           | `1`                                                  |
-| `ramBudgetMb`                                                                | Budget of the whole batch, split between workers unless a job sets its own | `256 × workers`                                      |
-| `threads`                                                                    | Default threads per job                                                    | `2`                                                  |
-| `jobs[].id`                                                                  | Unique job id in events and the summary                                    | `job-<index>`                                        |
-| `jobs[].source`, `cache`, `resourceBaseUrl`                                  | As on the command line                                                     | required                                             |
-| `jobs[].scope`, `triangleBudget`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides                                                          | `full`, `150000`, batch default, batch share, `none` |
-| `jobs[].texturesFormat`                                                      | As `--textures-format=`                                                    | `all`                                                |
+| Field                                                                        | Meaning                                                                    | Default                                                       |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `workers`                                                                    | Concurrent jobs, at most 64, lowered until the budget holds them           | `1`                                                           |
+| `ramBudgetMb`                                                                | Budget of the whole batch, split between workers unless a job sets its own | `4096 × workers`                                              |
+| `threads`                                                                    | Default threads per job                                                    | auto (cores / workers)                                        |
+| `jobs[].id`                                                                  | Unique job id in events and the summary                                    | `job-<index>`                                                 |
+| `jobs[].source`, `cache`, `resourceBaseUrl`                                  | As on the command line                                                     | required                                                      |
+| `jobs[].scope`, `triangleBudget`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides                                                          | `full`, `150000`, batch default, batch share, `qem-endpoints` |
+| `jobs[].texturesFormat`                                                      | As `--textures-format=`                                                    | `bc7`                                                         |
+| `jobs[].hlod`                                                                | As `--hlod=`, a JSON object                                                | none                                                          |
+| `jobs[].temporalAntialiasing`                                                | As `--temporal-antialiasing=`, a level or a boolean                        | none                                                          |
+| `jobs[].responsive`                                                          | As `--responsive=`, a string or a JSON object                              | none                                                          |
+| `jobs[].materials`                                                           | As `--materials=`, a JSON object                                           | none                                                          |
 
 Jobs go in file order to the first free worker. Two jobs writing one cache, under any spelling, or
 a job asking for more than the whole budget, refuse the batch before it starts (`INVALID_BATCH`).
 stdout then carries the summary, `{"status": "ready" | "partial" | "failed", "completed", "failed",
 "cancelled", "jobs"}`, each job a pointer or an error, sorted by id; read it rather than the exit
 code.
+
+## HLOD
+
+A job builds an HLOD only when it names one, and only over the objects it assigns a layer. Each
+layer names the layer its cells' actors are built by (`parent`), and an object follows its layer's
+chain of parents, one actor per layer and cell, each level on a grid of `256 × 2 << level` metres.
+Two chains — trees and buildings — build distinct actors over the same ground.
+
+An object is assigned once, before any work, to one layer at most: the mark its glTF node carries
+— `"extras": { "hlod": "buildings" }`, a group of the simple form or a layer of the expert form,
+by name, written where the code that makes the object writes it —, else the first group or rule
+by name that matches it, else the expert form's `default`. An object none names has no HLOD: it is
+streamed and drawn in its cell as any other, and nothing stands for it beyond its cell's range; it
+costs the HLOD nothing. Where a mark and a rule name different layers, the mark wins and the
+compile report tells it (`worldRoots.assignmentWarnings`). A mark naming no group nor layer, a mark
+in a job naming no HLOD, and an HLOD assigning no placed object a layer refuse the job.
+
+From Node, `prepare(..., { hlod })` takes either form; one function, `resolveHlod`
+(`packages/sdk-core/src/contracts/hlodOptions.ts`), turns it into the expert form the compiler
+reads (`--hlod=`, `jobs[].hlod`): a string is an exact name, a regular expression is written
+`{ "regex": source, "flags": "i" }` — the form the Node command line's `--hlod=` takes in either
+form's JSON, for instance
+`trillion3d-compile '--hlod={"levels":4,"groups":{"foliage":{"mesh":{"regex":"tree"}}}}' …`. It
+refuses, in the words written, a field either form does not hold, an unknown quality or group,
+`levels` that is not a whole number from 2 to 8, and the simple form's fields beside `layers`.
+
+The simple form, for most uses; with marks on the objects, `{ levels, quality }` alone:
+
+```ts
+await prepare(source, cache, 'slice', 150000, {
+  resourceBaseUrl: '/assets/city/',
+  hlod: { levels: 3, quality: 'high', groups: { foliage: /^(Tree|Bush)/i, props: { mesh: /^(Lamp|Bench)/ } } },
+})
+```
+
+| Field     | Meaning                                                                                                                                                                                                             | Default      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| `levels`  | The main chain's levels, HLOD 0 included, 2 to 8                                                                                                                                                                    | `4`          |
+| `quality` | `low`: deviation 2 px, 512-texel atlas; `balanced`: 1 px, 1024 texels (the automatic rule); `high`: 0.5 px, 2048 texels — every approximated layer, the pixel taken at the distance its actors are first seen from | `balanced`   |
+| `groups`  | The objects of each group by name, for those no mark names: `buildings`, the main chain; `foliage`, a chain of two levels, voxel half the rule's, to keep the silhouette; `props`, their own instanced cells absorbed by the main chain's first approximated layer. Each the node's exact name (a string), a regular expression on it, or `{ node, mesh, material, extras }`; the first group in key order that matches an object takes it | none         |
+
+The expert form, every layer setting:
+
+```ts
+hlod: {
+  layers: [
+    { name: 'buildings', builder: 'instanced', parent: 'city1' },
+    { name: 'city1', builder: 'approximate', parent: 'city2', deviationPixels: 1 },
+    { name: 'city2', builder: 'approximate', textureSize: 2048 },
+    { name: 'trees', builder: 'instanced', parent: 'canopy' },
+    { name: 'canopy', builder: 'approximate', accuracyPixels: 0.3 },
+  ],
+  assign: [{ match: { node: /^Tree/, extras: { kind: 'tree' } }, layer: 'trees' }],
+  default: 'buildings',
+}
+```
+
+| Field                                                | Meaning                                                                                                                                                                                           |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `layers[].name`                                      | Unique name                                                                                                                                                                                       |
+| `layers[].builder`                                   | `instanced` (the objects themselves; a layer objects are assigned to), `approximate` (one closed shell per cell, its materials baked), `merge` (the cell's objects merged into one mesh), `proxy` (the cell's objects remeshed) |
+| `layers[].parent`                                    | The layer its cells' actors are built by; none at a chain's top, whose actors are always loaded                                                                                                  |
+| `layers[].accuracy`, `accuracyPixels`                | An `approximate` or `proxy` layer's voxel, metres or pixels at the distance the layer is first seen from, one or the other; default 0.65 px, never finer than the grid the solid is sampled on   |
+| `layers[].deviation`, `deviationPixels`              | An `approximate` or `merge` layer's deviation, metres or pixels, one or the other: what an approximated shell is simplified within, the LOD a merged layer takes of each source (never simplified after the merge); default 1 px |
+| `layers[].textureSize`                               | The atlas side of an `approximate` or `proxy` layer, or of a `merge` layer merging its materials, a power of two from 16 to 8192; default 1024                                                    |
+| `layers[].lodSelection`                              | A `merge` layer's LOD of each source: `calculate`, the coarsest its deviation holds, or `lowest`, its coarsest; default `calculate`                                                              |
+| `layers[].mergeMaterials`                            | Whether a `merge` layer merges its sources' materials into one atlas; default `false`, each section wearing its source's material                                                                 |
+| `assign[].match`                                     | `node`, `mesh`, `material` (one of the mesh's), each the exact name or a regular expression, and `extras`, values the node's `extras` holds; every field named must match, at least one          |
+| `assign[].layer`                                     | An `instanced` layer; the first rule that matches wins                                                                                                                                            |
+| `default`                                            | The `instanced` layer of an object no mark nor rule names; none by default: such an object has no HLOD                                                                                           |
+
+The compiler refuses the job (`INVALID_OPTIONS`, never the whole batch) for a field a layer's
+builder does not take, a name given twice, a parent or a rule naming no layer, a cycle, an
+instanced layer as a parent or without a parent, a layer reached at two levels or from no
+instanced layer, a chain past 8 levels, a rule, mark or default naming a layer that is not
+instanced, a match naming nothing, a regular expression that does not compile, a setting given
+both in metres and in pixels, `textureSize` on a `merge` layer that keeps its materials, and values
+out of bounds. The HLOD is part of the cache key.
 
 ## Cancellation
 
@@ -139,7 +227,6 @@ being `"job"` for a single invocation and `"*"` on batch lines. `accepted`, `pro
 | `progress` `cutouts`       | Cutout answer sheet written                                        | `pending`, `sheet`                                                                                   |
 | `progress` `tables`        | Prepared scene tables written                                      | `counts`, `ms`                                                                                       |
 | `progress` `proxy`         | Resident lighting proxy built                                      | `triangles`, `nodes`, `errorMetres`                                                                  |
-| `progress` `impostors`     | Impostor atlases baked                                             | `baked`                                                                                              |
 | `progress` `lights`        | `lights.json` written                                              | `lights`, `rejected`, `counts`                                                                       |
 | `progress` `reuse`         | A folder under the key kept (`completed: 1`) or refused (`reason`) | `completed`, `files`, `objects`, `textureLevels`, `validateMs`, `reason`                             |
 | `progress` `prune`         | Stale keys, imports, objects or texture levels removed             | `removedKeys`, `removedObjects`, `removedBytes`, `removedTextures`                                   |
@@ -189,6 +276,70 @@ own checks — every product, object and baked texture level the manifest names 
 to the pointer (`compiler_reuse.rs`). A failed check names its reason on the `reuse` event and the
 job compiles again. A recompile of an unchanged source costs the hashing, not a build.
 
+## Temporal anti-aliasing
+
+The temporal anti-aliasing blends each image into a history that follows the surfaces as they
+move. A job sets it two ways, both part of its cache key only when named — a job naming none of
+the options compiles as before, its key unchanged (`compiler_args/materials.rs`,
+`materialOptions.ts`).
+
+**The scene's level** — `temporalAntialiasing` (`--temporal-antialiasing=`,
+`jobs[].temporalAntialiasing`): `'off'`, `'low'`, `'medium'`, `'high'` or `'max'`, `true` standing
+for `'max'` and `false` for `'off'`. The compiler writes it at the top of the manifest; the
+runtime takes it as the scene's setting, below the quality preset, the page
+(`createWorld(…, { temporalAntialiasing })`, `world.temporalAntialiasing`) and the editor — the
+first loaded scene naming one decides. The levels are the anti-aliasing scalability levels 0 to 3
+from `low` (`packages/sdk-browser/src/taa/levels.ts`): `low` a plus kernel, no spatial
+anti-aliaser, no flicker rejection; `medium` the spatial anti-aliaser at three samples a side;
+`high` the kernel moving its far neighbour and the flicker rejection; `max` eight samples a side,
+the engine's image before the levels existed and its default. The quality presets `smooth`,
+`balanced`, `fine` write `low`, `medium`, `high`; `max` writes nothing.
+
+**Each material's history share** — the most of its history the temporal anti-aliasing keeps on
+its pixels: a number from 0 to 1, or a name — `'normal'` (1, the default blend), `'responsive'`
+(0.75: the current image weighs at least a quarter, so a spark's history catches up within a few
+images), `'soft'` (0.5), `'off'` (0: the current filtered image alone, no trail, the camera's jitter
+left visible as a slight shimmer). It is meant for effects whose motion the history cannot follow;
+a surface whose motion vectors are right keeps 1. The compiler gives each material its share once,
+the first source naming it winning:
+
+1. `materials` (`--materials=`, `jobs[].materials`) — `temporalAntialiasing` named for the material
+   by its exact name;
+2. `materials` — its `responsive`: `true` the share 0.75; `false` takes the material out of the
+   two responsive shortcuts below;
+3. `responsive` (`--responsive=`, `jobs[].responsive`) — 0.75 for the materials of every object the
+   match takes: a string is the node's exact name, `{ "regex", "flags" }` a regular expression on
+   it, an object `{ node, mesh, material, extras }` as an HLOD rule matches (every field named
+   must match); a match naming `material` keeps only the materials it names;
+4. the material's own glTF `extras`, `"extras": { "temporalAntialiasing": 0.5 }` (a number or a
+   name);
+5. the material's own glTF `extras`, `"extras": { "responsive": true }`: 0.75;
+6. 1.
+
+```ts
+await prepare(source, cache, 'full', 150000, {
+  resourceBaseUrl: '/assets/sparks/',
+  temporalAntialiasing: 'high',
+  responsive: { material: /^spark/ },
+  materials: {
+    'spark trail': { responsive: false },
+    smoke: { temporalAntialiasing: 'soft' },
+    'hud text': { temporalAntialiasing: 0 },
+  },
+})
+```
+
+The same job from the command line:
+`trillion3d-compile --temporal-antialiasing=high '--responsive={"material":{"regex":"^spark"}}' '--materials={"spark trail":{"responsive":false},"smoke":{"temporalAntialiasing":"soft"},"hud text":{"temporalAntialiasing":0}}' …`.
+The material table writes `"temporalAntialiasing": <share>` on each entry below 1, and the
+runtime's `taa-material-history` view shows each pixel's share in grey, white 1 and black 0. A
+level that is none of the five, a share outside [0, 1] or naming none of `normal`, `responsive`,
+`soft`, `off` (in `materials` or in a material's extras), a field `materials` does not hold, a
+`responsive` that is not a boolean, a match naming nothing, or a regular expression that does not
+compile — or that the compiler would read otherwise than the host: a flag other than `i`, `m`,
+`s`, `g`, `u`, `y`, or `i` on a source holding a letter past ASCII — refuses the job
+(`INVALID_OPTIONS`); in a batch, that job alone.
+
 ## Using it from Node
 
 `trillion3d` on Node relays to the executable
@@ -216,7 +367,7 @@ and every occurrence); `createBatchProgress` does it per job of `prepareMany`. T
 `trillion3d-compile` command wraps `prepare`:
 
 ```
-trillion3d-compile [--strict] [--verbose] SOURCE CACHE [slice|full] [TRIANGLES] RESOURCE_BASE_URL [THREADS] [RAM_MB] [SIMPLIFICATION]
+trillion3d-compile [--strict] [--verbose] [--hlod=JSON] [--temporal-antialiasing=LEVEL] [--responsive=JSON] [--materials=JSON] SOURCE CACHE [slice|full] [TRIANGLES] RESOURCE_BASE_URL [THREADS] [RAM_MB] [SIMPLIFICATION]
 ```
 
 It prints the raw JSON events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces them), then the warning
@@ -296,7 +447,7 @@ Not read: `.uasset` / `.umap`, `.max`, `.mb`, native SpeedTree, Substance `.sbsa
 The USD, Blender, Alembic and Maya readers share one cut for faces of more than three corners: a
 strictly convex ring becomes a fan, any other is ear-clipped in its own plane so a concave face
 keeps its outline, and a ring the ears cannot finish falls back on the fan, counted under
-`<driver>-ngon-untriangulable` (`plugins/scene/ngon.rs`).
+`ngon-untriangulable` (`plugins/scene/ngon.rs`).
 
 ### Content Licenses — Independent of Format
 
@@ -341,13 +492,13 @@ The code is the contract: each module's head states its rules and their reasons.
 | Pages                  | Quantized cluster pages, streaming bundles with closed dependency lists, the paged manifest              | `page-codec-wasm/src/encode.rs`, `compiler_bundle_dependencies.rs`, `compiler_manifest_pages.rs` |
 | Deformation            | Joints, weights, morph targets and soft-body ids carried into the pages with their bounds                | `page-codec-wasm/src/encode/deformation.rs`, `geometry_page_deform.rs`                           |
 | Coplanar cuts          | One order for surfaces sharing a plane                                                                   | `coplanar.rs`                                                                                    |
-| Textures               | Every mip level, lossless and the gated block family, keyed by the image's SHA-256                       | `compiler_textures.rs`, `texture_preview.rs`                                                     |
+| Textures               | Every mip level, in the stored BC family and the gated ones, keyed by the image's SHA-256                | `compiler_textures.rs`, `texture_preview.rs`                                                     |
 | Cutouts                | Alpha measured during the texture decode; only answered entries applied                                  | `cutout.rs`                                                                                      |
-| Scene tables           | The node graph, lights and surfaces the runtime builds its scene from                                    | `compiler_tables.rs`                                                                             |
-| Proxy and impostors    | The resident lighting proxy; octahedral impostor atlases                                                 | `proxy.rs`, `impostor.rs`                                                                        |
+| Scene tables           | The node graph, cameras and surfaces the runtime builds its scene from                                   | `compiler_tables.rs`                                                                             |
+| Proxy                  | The resident lighting proxy                                                                              | `proxy.rs`                                                                                       |
 | Physics cook           | Colliders, rigid and soft bodies cooked by native Jolt                                                   | `physics_cook.rs`                                                                                |
 | Lights                 | The source's lamps in the engine's contract                                                              | `compiler_lights.rs`                                                                             |
-| World roots            | Objects' roots grouped per partition cell into world super-roots                                         | `compiler_world_roots.rs`                                                                        |
+| World HLOD             | HLOD 1 to 3: per HLOD cell, the layer below approximated as a textured shell in its own DAG              | `compiler_world_roots.rs`                                                                        |
 | Identity and reuse     | The cache key; the proof of an existing folder                                                           | `compiler_identity.rs`, `compiler_reuse.rs`                                                      |
 | Publication            | Atomic writes, pointer, prune, cache lock                                                                | `compiler_storage.rs`, `compiler_publish.rs`, `compiler_prune.rs`, `compiler_lock.rs`            |
 

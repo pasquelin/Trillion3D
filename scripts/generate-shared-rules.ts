@@ -9,7 +9,7 @@
 // page format's constants, the DAG's cluster size and the page encoder's ABI words are written once
 // in Rust (`packages/page-codec-wasm`, `dag.rs`) and printed into the TypeScript readers
 // (`shared-rules/pageFormat.ts`), from which the WGSL routines are built; so are the versions, magics and
-// layout numbers of the manifest's binary, the proxy, the cutout sheet and the impostor section, which the
+// layout numbers of the manifest's binary, the proxy and the cutout sheet, which the
 // compiler writes (`shared-rules/formats.ts`). The printer reads the source's own syntax tree and keeps every operation in its
 // order, so each language computes what the source writes, operand for operand. `--check` (a gate
 // of `pnpm run validate`) fails when a printed file is not what its source prints today.

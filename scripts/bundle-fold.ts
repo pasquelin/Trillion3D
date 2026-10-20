@@ -13,14 +13,13 @@ export const FAMILY_MODULES = {
   webgpu: ['sdk-browser/src/webgpu/pages/webgpuCode.js'],
   physics: ['sdk-browser/src/physics/session/session.js'],
   particles: ['sdk-browser/src/particles/particleCode.js'],
-  transmission: ['sdk-browser/src/webgpu/water/transmissionCode.js'],
+  transmission: ['sdk-browser/src/webgpu/blend/transmission/family.js'],
   deformation: ['sdk-browser/src/deformation/deformationCode.js'],
   effects: ['sdk-browser/src/effects/effectCode.js'],
   guides: ['sdk-browser/src/guides/guideCode.js'],
   diagnostics: ['sdk-browser/src/diagnostic/viewCode.js'],
   measurement: ['sdk-browser/src/measurement/measurementCode.js'],
-  worldStream: ['sdk-browser/src/scene/worldPageServe.js'],
-  impostors: ['sdk-browser/src/impostor/impostorCode.js'],
+  worldStream: ['sdk-browser/src/scene/worldRootPages.js'],
   pageCodec: ['sdk-browser/src/page/codec/geometryPage.js'],
 }
 export type Family = keyof typeof FAMILY_MODULES
