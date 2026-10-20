@@ -2,7 +2,10 @@
 // cull, held to goldens of their every bit: the flag mask test, the overlap of a rect with valid
 // pages, the allocated page rect, the clip-space radius of a sphere and the detail geometry, over
 // seeded inputs with their edges and stand-in page tables. The goldens were taken when the shared
-// tests were proved, case for case, the ones each module had of its own.
+// tests were proved, case for case, the ones each module had of its own. Retaken when the maps
+// became one kind: the handle draws no single-page flag, and names one of the maps the tables hold
+// rects for (`boxCullTables.fixture.ts`); with the flag's draw kept, the kernels gave the goldens
+// of before, bit for bit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { builtins } from '../texture/shaderRunBuiltins.fixture.ts'
@@ -21,9 +24,9 @@ import { bitsDigest, inputs } from './bitsDigest.fixture.ts'
 const CASES = 12000
 /** The digests of the runs below (`bitsDigest`). */
 const GOLDEN = {
-  marks: 'f904325da7ce4a671c6dde23e0fd7b982f7a8ee8190182137177d38da304c276',
-  pixels: '316247eedf7bcd5a73613fd345dccdd0e5fbd6f3aa295eac3c6423f4c057029e',
-  pages: '4efaf63b91619b884a0643970a0902a16e05a35e1e6bdd1e34b729e8226b8d53',
+  marks: '7a77eb3f68cce9cb45b614140b906713cfb76cde99035c481c3ac5a28c27ec25',
+  pixels: '48b7e5f09efca28ba8792580bc6133ef5fd8b1b4e82bd67754c27e4d276818b4',
+  pages: '1a94b6815b02e239a6b73f5f2833df5e9b88931ad86bfbedb87b4b6e6eddae47',
 }
 /** Case `k`'s draw, its tables in use. */
 const at = (k: number) => {

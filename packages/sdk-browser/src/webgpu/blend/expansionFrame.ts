@@ -1,32 +1,33 @@
 import { writeKeyRecords, writeMovedKeyRecords } from './keyRecords.ts'
-import { writeWaterItems } from '../water/waterItems.ts'
 import { BLEND_ORDER_PASS } from '../../stage/passLabels.ts'
 import type { BlendExpand } from './expand.ts'
 import type { WebgpuBlendState } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { GpuSelection } from '../../gpu/core/selection.ts'
+import { FRAME_HEAD } from './frameHead.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
- * What the GPU verdict reads, sent where it moved: the plan with every key and water item record,
- * or the key records noted stale since (`noteKeyRecord`); and the frustum planes, compared with
- * those the last verdict judged. Each move counts in `verdictEpoch`, under which the verdict's
- * counts come back (`verdictRead.ts`).
+ * What the GPU verdict reads, sent where it moved: the plan with every key record, or the key
+ * records noted stale since (`noteKeyRecord`); the frustum planes, compared with those the last
+ * verdict judged; and where the cut's cold words hold the world's cell states, which the verdict
+ * reads itself (`cellDraws`): a cell switch rewrites no record. Each move counts in
+ * `verdictEpoch`, under which the verdict's counts come back (`verdictRead.ts`) — a cell switch
+ * only while a transmissive item lies in a cell, the in-view count then following it.
  */
-function sendVerdictInputs(blendState: WebgpuBlendState, expand: BlendExpand) {
+function sendVerdictInputs(
+  blendState: WebgpuBlendState,
+  expand: BlendExpand,
+  cut: GpuSelection | undefined,
+) {
   if (blendState.planMoved) {
     expand.uploadPlan({
-      passes: blendState.seeds.map((passSeeds, pass) => ({
-        seeds: passSeeds,
-        counts: {
-          entries: passSeeds.length,
-          runs: blendState.slotCounts[pass],
-          instanceBase: blendState.instanceBase[pass],
-        },
-        region: blendState.planRegions[pass],
-      })),
+      seeds: blendState.seeds,
+      counts: { entries: blendState.seeds.length, runs: blendState.slotCount, instanceBase: 0 },
+      region: blendState.planRegion,
       scene: blendState,
       stepWords: blendState.orderStepWords,
       keyWords: writeKeyRecords(blendState),
-      waterWords: writeWaterItems(blendState),
     })
     blendState.planMoved = false
     blendState.verdictEpoch++
@@ -36,84 +37,54 @@ function sendVerdictInputs(blendState: WebgpuBlendState, expand: BlendExpand) {
       expand.uploadKeys(moved.first, moved.words)
       blendState.verdictEpoch++
     }
-    // A deformed water item's grown box: the water records again, a few words each.
-    if (blendState.waterItemsMoved) expand.uploadWaterItems(writeWaterItems(blendState))
   }
-  const planes = blendState.blendPlanes,
-    judged = blendState.judgedPlanes
-  for (let k = 0; k < planes.length; k++)
-    if (planes[k] !== judged[k]) {
-      judged.set(planes)
-      blendState.verdictEpoch++
-      break
-    }
+  if (!sameValues(blendState.blendPlanes, blendState.judgedPlanes)) {
+    blendState.judgedPlanes.set(blendState.blendPlanes)
+    blendState.verdictEpoch++
+  }
+  const states = cut?.cellStates,
+    revision = cut?.world?.revision ?? -1
+  if (revision !== blendState.cellRevision) {
+    blendState.cellRevision = revision
+    if (blendState.cellTransmits) blendState.verdictEpoch++
+  }
+  blendState.frameWords[FRAME_HEAD.cellStates] = states?.base ?? 0
+  blendState.frameWords[FRAME_HEAD.cellCount] = states?.cells ?? 0
 }
 
 /**
- * Whether no water can draw this image: the counts an image judged under the same inputs came back
- * with no transmissive item in view (`VERDICT_IN_VIEW`). The pass is then not encoded, not even
- * empty, nor the slice as a blend (`waterQuiet`): every transmissive item is out of view, and
- * draws no pixel. An image with any input moved since encodes the pass, and the GPU gates what it
- * draws. The CPU never waits for the answer: until one comes back for the current inputs, the pass
- * is encoded.
- *
- * What an encoded empty pass costs, for the recette (DC-1), on a tile-based GPU where a pass loads
- * and stores its attachments whether it draws or not: with `b(t)` a texel's bytes of attachment
- * `t` (`waterSurfaceTargets`, the water depth, the composite's HDR target and its display layers
- * and share when present), `W × H` the target,
- *   `t_empty = W·H·(Σ_loaded b + Σ_stored b) / bandwidth + 2·t_pass + t_dispatch`,
- * where a `load` attachment is read and every attachment is stored, a `clear` one read for nothing;
- * the copy's zero workgroups and the quads' zero instances add a dispatch and two draws each of no
- * work (`t_dispatch`, microseconds). The recette measures it against no pass at all (an xctrace of
- * the two passes with water out of view, 1080p and 4K): this skip leaves it only to the images
- * where the view or a transmissive item moves while no water is in view.
+ * Whether no distortion can be drawn this image: the counts an image judged under the same inputs
+ * came back with no transmissive item in view (`VERDICT_IN_VIEW`): without a refracting surface in view
+ * the distortion would only copy the scene onto itself.
+ * An image with any input moved since draws it, and the GPU's depth test decides what it covers.
+ * The CPU never waits for the answer: until one comes back for the current inputs, it is drawn.
  */
-const noWaterInView = (blendState: WebgpuBlendState, expand: BlendExpand) =>
-  expand.counts.epoch === blendState.verdictEpoch && expand.counts.inView === 0
+export const noTransmissiveInView = ({ expand, verdictEpoch }: WebgpuBlendState) =>
+  !!expand && expand.counts.epoch === verdictEpoch && expand.counts.inView === 0
 
 /**
  * What the image asks of the kernels: the verdict's inputs where they moved and the frame data,
- * then in ONE compute pass the frustum verdict of every item (`verdictWgsl.ts`), the water
- * rectangle when the image wants water (`../water/rect.ts`), and for each pass its order and its
- * expansion; then the verdict's counts to the readback.
+ * then in ONE compute pass the frustum verdict of every item (`verdictWgsl.ts`) and the pass's
+ * order and expansion; then the verdict's counts to the readback.
  *
  * Dispatches of the same compute pass are ordered and see the previous writes: the expansion reads
- * the keep words the verdict wrote, blend hands its work memory back to transmission, whose
- * instances and arguments live in their own regions.
+ * the keep words the verdict wrote.
  */
 export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { blendState } = rt,
     expand = blendState.expand,
     { runCount, seeds } = blendState
-  const wanted = blendState.waterWanted
-  blendState.waterWanted = blendState.waterBound = blendState.waterQuiet = false
   if (!expand) return
   // No slot to draw: a frame without an eye paints nothing (`order.ts`).
-  if (!runCount[0] && !runCount[1]) return
-  sendVerdictInputs(blendState, expand)
+  if (!runCount) return
+  // An item drawn only while its row's HLOD 0 cell draws its placements (`cellDraws`).
+  const cut = rt.run.gpuSelection
+  sendVerdictInputs(blendState, expand, cut)
   expand.uploadFrame(blendState.frameWords, blendState.frameLayout.words)
-  const water = blendState.water,
-    { itemBuffer } = blendState,
-    volumes = rt.gpu.volumeBuffer
-  const quiet = wanted && noWaterInView(blendState, expand)
-  const rect = wanted && !quiet ? water?.rect : undefined
   expand.clearVerdict(encoder)
   const pass = encoder.beginComputePass({ label: BLEND_ORDER_PASS })
-  expand.judge(pass)
-  // The water's rectangle where it is wanted and its inputs stand: then the frame's water is bound.
-  let bound = false
-  if (rect && itemBuffer && volumes) {
-    rect.encode(pass, expand.buffers, itemBuffer, volumes, blendState.transmissive)
-    bound = true
-  }
-  for (let slice = 0; slice < seeds.length; slice++)
-    if (runCount[slice])
-      expand.encode(pass, slice, blendState.orderSteps[slice], {
-        entries: seeds[slice].length,
-        runs: runCount[slice],
-      })
+  expand.judge(pass, cut?.cellStates?.view)
+  expand.encode(pass, blendState.orderSteps, { entries: seeds.length, runs: runCount })
   pass.end()
   expand.readCounts(encoder, blendState.verdictEpoch)
-  blendState.waterBound = bound
-  blendState.waterQuiet = quiet
 }

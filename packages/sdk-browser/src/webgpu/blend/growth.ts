@@ -1,15 +1,15 @@
 /**
  * THE TRANSPARENT PASS TAKES THE BLENDED AND TRANSMISSIVE COPIES OF A SOURCE ADDED TO THE SESSION
- * (`addPlacements`). What the open built once for the copies it held — the items, the volumes, the
+ * (`addPlacements`). What the open built once for the copies it held — the items, the
  * table of transparent clusters and the compaction that filters it, the occlusion test, the
  * kernels' buffers — is made for the copies a session gains by the open's own functions, run on
  * them: their items follow the held ones (`prepareWebgpuBlend`), their entries follow the table's
  * (`TransparentTable.append`), the buffers a full table outgrew are made once as long
- * (`TransparentCompaction.grow`, `growVolumes`, the occlusion's `grow`), and the kernels, compiled
+ * (`TransparentCompaction.grow`, the occlusion's `grow`), and the kernels, compiled
  * once, are mounted again over the items (`mountBlendResources`).
  *
- * A session opened without a transmissive surface is granted the water pass by the open's own
- * function when the first copies that bring one arrive (`grantWater`).
+ * A session opened without a transmissive surface is granted the transmissive stages by the open's
+ * own function when the first copies that bring one arrive (`grantTransmission`).
  *
  * Two steps, as the roots of the same source join the cut: the kernels the session never needed
  * are compiled before (`prepareBlendGrowth`, which waits for the device), and the items and tables
@@ -30,7 +30,6 @@ import {
 } from '../transparent/occlusionHost.ts'
 import { createTransparentCompaction } from '../transparent/compact.ts'
 import { updateTransparentSpan } from '../transparent/spans.ts'
-import { growVolumes } from '../transparent/transmission.ts'
 import { buildBlendPipelines } from '../pages/prepare/visibilitySteps.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
 import { composeItems } from '../../placement/gpuCompose.ts'
@@ -45,36 +44,46 @@ export function blendRefusal(rt: WebgpuPagesRuntime) {
 const transmits = (copy: BlendCopy) => copy.surface.transmission > 0
 
 /**
- * The water pass of a session opened without a transmissive surface, made for the first copies
- * that bring one by the open's own function (`buildBlendPipelines`): the blend programs are built
- * again with the water stage in their module, and the pass is made on them. Its targets — the
- * backdrop, the display colour, the emission layer — are asked of the frame as any target is
- * (`holdsWater`, `targetsFit`), and the copies join once these are in place (`waterHeld`). False
- * when the device refuses the pass.
+ * The transmissive stages of a session opened without a transmissive surface, made for the first
+ * copies that bring one by the open's own function (`buildBlendPipelines`): the blend programs are
+ * built again with the transmissive stages in their module. A refracting copy's distortion targets
+ * are asked of the frame as any target is (`holdsRefraction`, `targetsFit`), and it joins once they
+ * are in place (`waitsForRefraction`). False when the device refuses the programs.
  */
-async function grantWater(rt: WebgpuPagesRuntime, device: GPUDevice, copies: readonly BlendCopy[]) {
+async function grantTransmission(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  copies: readonly BlendCopy[],
+) {
   const { vis, blendState } = rt,
     items = [
       ...blendState.blendGpu,
       ...copies.map((copy) => ({ surface: copy.surface, transmissive: transmits(copy) })),
     ]
-  const built = await buildBlendPipelines(rt, device, items, vis.blendBindGroupLayout)
-  if (!built?.water) return false
-  // Granted meanwhile by another source: that pass stays.
-  if (blendState.water) {
-    built.water.frame.dispose()
-    return true
-  }
+  // Built in the feedback variant in place when it lands: one swapped meanwhile — a texture came
+  // or went (`followFeedback`) — builds it again, or its pipelines would not match the pass.
+  let built: Awaited<ReturnType<typeof buildBlendPipelines>>, feedback: boolean
+  do {
+    feedback = vis.writesFeedback
+    built = await buildBlendPipelines(rt, device, items, vis.blendBindGroupLayout)
+  } while (built && feedback !== vis.writesFeedback)
+  if (!built?.blendPipelines.transmission) return false
+  // Granted meanwhile by another source: those stages stay.
+  if (vis.blendPipelines?.transmission) return true
   vis.blendPipelines = built.blendPipelines
-  blendState.water = built.water
-  blendState.waterGranted = true
   return true
 }
 
-/** Whether the copies wait for the water pass's targets and the classes that write the emission
- *  layer, which it draws over: the frame asks them as it asks any (`askFramePipelines`). */
-export const waitsForWater = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) =>
-  copies.some(transmits) && !(rt.gpu.backdrop?.active && rt.vis.writesEmissiveAo)
+/** A copy that refracts: a transmissive surface that declares its ior (`refracts`). */
+const refracts = (copy: BlendCopy) => transmits(copy) && copy.surface.refracts
+
+/** Whether the copies wait for the distortion's targets, which only a refracting surface needs:
+ *  the frame is asked for them (`refractGranted`, `holdsRefraction`) as it asks any target. */
+export function waitsForRefraction(rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) {
+  if (rt.gpu.backdrop?.active || !copies.some(refracts)) return false
+  rt.blendState.refractGranted = true
+  return true
+}
 
 /** Whether the copies wait for the transparents' front layer: a texel in a session opened without a
  *  blend (`createFrontLayer`), remade full size by the frame's targets (`targetsFit`). */
@@ -94,9 +103,10 @@ function mountTransparent(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
- * What the copies need compiled before they join: their vertices (`loadUnpaged`), the kernels of
- * the transparent pass, and for blended pages the compaction and the occlusion test. False when the
- * device refuses a kernel, the source then being refused (the next opening is told by name).
+ * What the copies need compiled before they join: the vertices of their pages no quantized page
+ * covers (`loadUnpaged`), the kernels of the transparent pass, the compaction and the occlusion
+ * test. False when the device refuses a kernel, the source then being refused (the next opening is
+ * told by name).
  */
 export async function prepareBlendGrowth(
   rt: WebgpuPagesRuntime,
@@ -104,20 +114,23 @@ export async function prepareBlendGrowth(
   copies: readonly BlendCopy[],
   pages: readonly PageRec[],
 ) {
-  await loadUnpaged(pages, copies)
+  await loadUnpaged(pages)
   await prepareBlendKernels(rt, device)
   // The blend pass writes a front depth a pixel: the reflection's front depth target is made for it before the
   // copies join (`sceneBlends`, `waitsForFrontDepth`).
   if (copies.length) rt.blendState.frontGranted = true
-  if (copies.some(transmits) && !rt.blendState.water && !(await grantWater(rt, device, copies)))
+  if (
+    copies.some(transmits) &&
+    !rt.vis.blendPipelines?.transmission &&
+    !(await grantTransmission(rt, device, copies))
+  )
     return false
-  if (!copies.some((copy) => copy.userData.pagedBlend) || rt.blendState.compaction?.encode)
-    return true
+  if (!copies.length || rt.blendState.compaction?.encode) return true
   return mountTransparent(rt, device)
 }
 
 /**
- * The copies join the pass: items, volumes, the table's entries for the pages of `roots` — ranked
+ * The copies join the pass: items, the table's entries for the pages of `roots` — ranked
  * from packed rank `base` on —, the compaction and the occlusion test made to hold them, and the
  * scene buffers over all of the items. One step, between two images.
  */
@@ -128,13 +141,12 @@ export function growBlend(
   roots: readonly ClusterRoot<PageRec>[],
   base: number,
 ) {
-  const { blendState, gpu, setup } = rt,
+  const { blendState, setup } = rt,
     held = blendState.blendGpu.length
-  blendState.transmissive = prepareWebgpuBlend(device, copies, gpu, blendState, setup.scene)
+  blendState.transmissive = prepareWebgpuBlend(copies, blendState, setup.scene)
   const added = blendState.blendGpu.slice(held)
   // An item made on a row a parent composes reads it composed from its first image.
   composeItems(rt, added)
-  growVolumes(rt, device)
   const { table } = blendState
   if (table) {
     const first = table.length

@@ -3,21 +3,36 @@
  * specialised by the kinds of light a pass holds (`VSM_TRACE_KINDS`, `traceWgsl.ts`). A pass of suns
  * alone or of local lights alone runs a pipeline whose trace holds that kind's map, ray and reach
  * alone — no register of the other kind's peak (the crossing ray's second line, the clipmap's
- * fallback) —; a mixed pass the one holding both. One source, one module: the same light either way.
+ * fallback) —; a mixed pass the one holding both. And by whether the pass binds translucent
+ * casters (`VSM_TRANSMISSION`): without, the panes' gate and walk fold away; with, the pipeline is
+ * made the first time a frame asks it. One source, one module: the same light either way.
  */
-import { COMPUTE, computeTextureEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import {
+  COMPUTE,
+  computeStorageTextureEntry,
+  computeTextureEntry,
+  computeUniformEntry,
+} from '../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { hasSubgroupsOf } from '../gpu/core/subgroups.ts'
 import { hizDepthEntries } from '../gpu/hiz/pyramidTexture.ts'
 import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import {
   VSM_PROJECTION_BINDING,
   VSM_PROJECTION_MASK_FORMAT,
+  VSM_PROJECTION_THROUGH_FORMAT,
   VSM_PROJECTION_TILE_FORMAT,
   VSM_PROJECTION_VSM_SPECS,
   vsmProjectionWgsl,
 } from './projectionWgsl.ts'
-import { VSM_TRACE_KINDS_BOTH, VSM_TRACE_KINDS_LOCAL, VSM_TRACE_KINDS_SUN } from './traceWgsl.ts'
+import { VSM_PROJECTION_HALF_LANES } from './projectionPixelWgsl.ts'
+import {
+  VSM_TRACE_KINDS_BOTH,
+  VSM_TRACE_KINDS_LOCAL,
+  VSM_TRACE_KINDS_SUN,
+  vsmTraceKindsOf,
+} from './traceWgsl.ts'
 import { vsmBindGroupEntries, vsmBindGroupLayoutEntries, type VsmResources } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import { poolWindowSizes } from './layoutBytes.ts'
@@ -25,23 +40,29 @@ import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 
 /** The kind sets a projection is specialised to. */
 const KINDS = [VSM_TRACE_KINDS_SUN, VSM_TRACE_KINDS_LOCAL, VSM_TRACE_KINDS_BOTH]
+/** A specialisation's key: its kind set, and whether it binds translucent casters. */
+const specialisation = (kinds: number, transmission: boolean) => 2 * kinds + (transmission ? 1 : 0)
 
 /** The projection's pass, and its pipelines. */
 export const VSM_PROJECTION_PASS = `${VSM_PASS_PREFIX}projection`
-/** The projection's layouts for one pool layout and its pipelines, one a kind set
- *  (`VSM_TRACE_KINDS`: suns, local lights, both) of the one module, each compiled off the frame by
- *  the prepare step (at once where a frame asks it first); the groups are each set's
- *  (`VsmProjectionState`). */
+
+/** The projection's layouts for one pool layout — the tables', the pass group's, the receiver
+ *  target's —, its module and its pipelines by specialisation (`specialisation`), each made the
+ *  first time it is asked (`pipelineOf`): the prepare step asks those without translucent casters,
+ *  compiled off the frame; the groups are each set's (`VsmProjectionState`). */
 export interface Pipelines {
+  device: GPUDevice
   vsmLayout: GPUBindGroupLayout
   passLayout: GPUBindGroupLayout
   receiverLayout: GPUBindGroupLayout
-  device: GPUDevice
-  byKinds: Record<number, PreparedPipeline<GPUComputePipeline>>
+  pipelineLayout: GPUPipelineLayout
+  module: GPUShaderModule
+  bySpecialisation: Map<number, PreparedPipeline<GPUComputePipeline>>
 }
 
-/** The layout of the pass group: the view uniform, the scene's depth, normals and flags, the blue
- *  noise, and the mask and its tiles the pass writes. */
+/** The layout of the pass group: the view uniform, the scene's depth, normals and surface flags,
+ *  the blue noise, the translucent casters' memory, and the mask, its tiles and its transmission
+ *  the pass writes. */
 function projectionPassLayout(device: GPUDevice) {
   return device.createBindGroupLayout({
     label: 'vsm.projection.pass',
@@ -52,58 +73,73 @@ function projectionPassLayout(device: GPUDevice) {
       computeTextureEntry(VSM_PROJECTION_BINDING.flags, 'uint'),
       computeTextureEntry(VSM_PROJECTION_BINDING.blueNoise, 'unfilterable-float'),
       ...hizDepthEntries(VSM_PROJECTION_BINDING.hizDepth, COMPUTE),
-      {
-        binding: VSM_PROJECTION_BINDING.shadowMask,
-        visibility: COMPUTE,
-        storageTexture: {
-          access: 'write-only',
-          format: VSM_PROJECTION_MASK_FORMAT,
-          viewDimension: '2d-array',
-        },
-      },
-      {
-        binding: VSM_PROJECTION_BINDING.shadowMaskTiles,
-        visibility: COMPUTE,
-        storageTexture: { access: 'write-only', format: VSM_PROJECTION_TILE_FORMAT },
-      },
+      computeStorageTextureEntry(
+        VSM_PROJECTION_BINDING.shadowMask,
+        VSM_PROJECTION_MASK_FORMAT,
+        'write-only',
+        '2d-array',
+      ),
+      computeStorageTextureEntry(
+        VSM_PROJECTION_BINDING.shadowMaskTiles,
+        VSM_PROJECTION_TILE_FORMAT,
+      ),
+      computeTextureEntry(VSM_PROJECTION_BINDING.transmission, 'uint', '2d-array'),
+      computeStorageTextureEntry(
+        VSM_PROJECTION_BINDING.shadowThrough,
+        VSM_PROJECTION_THROUGH_FORMAT,
+        'write-only',
+        '2d-array',
+      ),
     ],
   })
 }
 
-/** The projection's layouts and pipelines for the pool `layout`. */
+/** The projection's layouts and module for the pool `layout`; its pipelines made when asked. */
 function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
   const vsmLayout = device.createBindGroupLayout({
     label: 'vsm.projection.vsm',
     entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, layout, COMPUTE),
   })
   const passLayout = projectionPassLayout(device)
-  const module = device.createShaderModule({
-    label: 'vsm.projection',
-    code: vsmProjectionWgsl(layout),
-  })
+  // The opaque surfaces read the receiver target in a third group.
   const receiverLayout = device.createBindGroupLayout({
     label: 'vsm.projection.receiver',
     entries: [computeTextureEntry(0, 'uint', '2d', COMPUTE)],
-  })
-  const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [vsmLayout, passLayout, receiverLayout],
   })
   return {
     device,
     vsmLayout,
     passLayout,
     receiverLayout,
-    byKinds: Object.fromEntries(
-      KINDS.map((kinds) => [
-        kinds,
-        preparedComputePipeline(device, {
-          label: VSM_PROJECTION_PASS,
-          layout: pipelineLayout,
-          compute: { module, entryPoint: 'vsmProjection', constants: { VSM_TRACE_KINDS: kinds } },
-        }),
-      ]),
-    ),
+    pipelineLayout: device.createPipelineLayout({
+      bindGroupLayouts: [vsmLayout, passLayout, receiverLayout],
+    }),
+    module: device.createShaderModule({
+      label: 'vsm.projection',
+      code: vsmProjectionWgsl(layout, hasSubgroupsOf(device, VSM_PROJECTION_HALF_LANES)),
+    }),
+    bySpecialisation: new Map(),
   }
+}
+
+/** The pipeline of `p` for the kind set `kinds` and translucent casters bound or not, made at its
+ *  first ask. */
+function pipelineOf(p: Pipelines, kinds: number, transmission: boolean) {
+  const key = specialisation(kinds, transmission)
+  let pipeline = p.bySpecialisation.get(key)
+  if (!pipeline) {
+    pipeline = preparedComputePipeline(p.device, {
+      label: VSM_PROJECTION_PASS,
+      layout: p.pipelineLayout,
+      compute: {
+        module: p.module,
+        entryPoint: 'vsmProjection',
+        constants: { VSM_TRACE_KINDS: kinds, VSM_TRANSMISSION: transmission ? 1 : 0 },
+      },
+    })
+    p.bySpecialisation.set(key, pipeline)
+  }
+  return pipeline
 }
 
 /** The device's projections, by the pool layout they were compiled for, made once a device. */
@@ -125,21 +161,24 @@ export const tablesGroup = (res: VsmResources, p: Pipelines) =>
     entries: vsmBindGroupEntries(res, VSM_PROJECTION_VSM_SPECS),
   })
 
-/** The projection's pipelines for `layout`, every kind set: prepared by the prepare step
- *  (`prepareVsmPipelines`). */
+/** The projection's pipelines for `layout` without translucent casters, every kind set: prepared
+ *  by the prepare step (`prepareVsmPipelines`). */
 export const vsmProjectionPipeline = (device: GPUDevice, layout: VsmLayout) => {
-  const { byKinds } = pipelinesFor(device, layout)
-  return { prepare: () => Promise.all(KINDS.map((kinds) => byKinds[kinds].prepare())) }
+  const p = pipelinesFor(device, layout)
+  return { prepare: () => Promise.all(KINDS.map((kinds) => pipelineOf(p, kinds, false).prepare())) }
 }
 
-/** The pipeline of `p` a pass of `lights` runs: the one specialised to their kinds. */
-export function pipelineOfLights(p: Pipelines, lights: readonly { type: string }[]) {
-  let sun = false,
-    local = false
+/** The pipeline of `p` a pass of `lights` runs: the one specialised to their kinds
+ *  (`vsmTraceKindsOf`) and to whether it binds translucent casters (`transmission`). */
+export function pipelineOfLights(
+  p: Pipelines,
+  lights: readonly { type: string }[],
+  transmission: boolean,
+) {
+  let sunless = true,
+    localless = true
   for (const light of lights)
-    if (light.type === 'directional') sun = true
-    else local = true
-  const kinds =
-    sun && local ? VSM_TRACE_KINDS_BOTH : sun ? VSM_TRACE_KINDS_SUN : VSM_TRACE_KINDS_LOCAL
-  return p.byKinds[kinds].get()
+    if (light.type === 'directional') sunless = false
+    else localless = false
+  return pipelineOf(p, vsmTraceKindsOf({ sunless, localless }), transmission).get()
 }

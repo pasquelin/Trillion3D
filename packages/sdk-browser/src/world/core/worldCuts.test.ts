@@ -1,18 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { createWorldCuts } from './worldCuts.ts'
 import { WaterSurface } from '../../../../sdk-core/src/fluids/waterSurface.ts'
-import { prepareSdkWasm } from '../../wasm/sdkWasm.ts'
+import '../../wasm/sdkWasm.fixture.ts'
 
-// An opaque cut takes its clusters' normal cones from the SDK module (`cutCones.ts`): Node cannot
-// fetch the module by its URL, so the test hands it the bytes.
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../wasm/kernels.wasm')))
+// A cut encodes its pages, and measures their cones, in the SDK module (`runtimeCut.ts`), which
+// the fixture instantiates from the bytes the repository ships.
 
 // A line worn by a dashed material is read with its distance along the line; the same line
 // worn solid is read without it, into a resource of its own.
@@ -54,10 +51,11 @@ test('a blended wearer is cut on the finest page grid, an opaque one keeps its g
   cuts.dispose()
 })
 
-// A sheet the waves carry moves after its cut, as a rewritten one does: blended, it is
-// cut in compact runs, which a shadow raster draws into the pages they reach, not a whole row of the
-// grid into every page the row's sphere covers; the same sheet at rest keeps the format's clusters.
-test('a sheet the waves carry is cut held, in compact pages; at rest, in the format clusters', async () => {
+// A sheet the waves carry moves after its cut, as a rewritten one does: blended, it is cut held to
+// its paint order in as few runs as the caps allow, each cut where the order jumps
+// (`page-codec-wasm/src/clusters.rs`), and keeps no cone — a shadow raster draws each into the
+// pages it reaches; the same sheet at rest keeps the format's clusters and their cones.
+test('a sheet the waves carry is cut held, in runs without cones; at rest, in the format clusters', async () => {
   const cuts = createWorldCuts()
   const sheet = geometry.plane(28, 20, 112, 80)
   const water = () => material.meshStandard({ transparent: true, opacity: 0.8 })
@@ -71,7 +69,11 @@ test('a sheet the waves carry is cut held, in compact pages; at rest, in the for
   assert.notEqual(carried!.key, resting!.key)
   const pages = (cut: typeof resting) => cut!.runtime.primitive.pages
   assert.equal(pages(resting).length, 140, '17 920 triangles, 128 a cluster')
-  assert.ok(pages(carried).length > 140, `${pages(carried).length} compact pages`)
+  assert.equal(pages(carried).length, 140, 'as few runs as the caps allow')
+  assert.ok(
+    pages(resting).some((page) => page.cone),
+    'a resting face keeps its cone',
+  )
   assert.ok(
     pages(carried).every((page) => !page.cone),
     'a moving face keeps no cone',

@@ -9,7 +9,7 @@
  * or go on to the next. The text is a function body's: it declares `s`, `k` and `at`; past its
  * steps the function goes on after it.
  */
-export const openProbeWgsl = (p: {
+export const openProbeStatement = (p: {
   home: string
   mask: string
   steps?: string

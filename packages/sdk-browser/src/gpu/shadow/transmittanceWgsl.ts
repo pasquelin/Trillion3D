@@ -11,7 +11,7 @@ import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
  * https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_volume
  * Thin materials keep both independent sheets. A mirrored world reverses raster winding.
  * This uses the declared thickness, not a second geometry/intersection representation, in the
- * mesh's units, taken to the world by the one rule the water's path follows (`volumeWorldPath`).
+ * mesh's units, taken to the world by the volume law's one rule (`volumeWorldPath`).
  * A mapped page reads its cutout through `maskAlpha` and its tint through `colorSample`, the
  * host's material reads (`maskAlphaWgsl`, `colorSampleWgsl`, on the host's pool); its factors are
  * its surface's record's (`materialAt`), the host binding the material table at the visibility

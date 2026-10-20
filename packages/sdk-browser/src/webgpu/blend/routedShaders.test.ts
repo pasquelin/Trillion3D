@@ -1,4 +1,4 @@
-// The transparent layers' routed fragments — particles, water and the blend pass — run from
+// The transparent layers' routed fragments — particles and the blend pass — run from
 // their shipped text (`shaderRun`): where the display mask is set a layer leaves the lit target
 // and maps the tint and the added value by its display colour, elsewhere it draws unchanged.
 import test from 'node:test'
@@ -8,7 +8,6 @@ import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { close, display, srgb } from './blendModel.fixture.ts'
 import { ACES, ROUTE_FUNCTIONS, routeScope } from './displayRun.fixture.ts'
 import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts'
-import { waterRoutedShader } from '../water/routedWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../../scene/surfaceModel.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
@@ -73,27 +72,6 @@ test('a particle routes its straight colour, where the mask is set', () => {
   }
 })
 
-test('water routes the colour it composed, lit or unlit', () => {
-  const water = [0.05, 0.2, 0.3, 0.8]
-  type Water = { composeWaterRouted: (pixel: number[]) => Layers }
-  const uni = { viewFlags: 0, exposure: 1, toneCurve: ACES }
-  const { composeWaterRouted } = shaderRun<Water>(
-    waterRoutedShader(),
-    ['composeWaterRouted', 'waterRoute', ...ROUTE_FUNCTIONS],
-    { ...routeScope(1, leftHalf), waterColor: () => water, uni, Routed: layers },
-  )
-  for (const viewFlags of [0, FLAG_UNLIT_VIEW]) {
-    uni.viewFlags = viewFlags
-    const rgb = water.slice(0, 3)
-    for (const pixel of PIXELS)
-      assertLayers(
-        composeWaterRouted(pixel),
-        owed(rgb, 0.8, leftHalf(pixel), viewFlags ? srgb(rgb) : display(rgb)),
-        `water at ${pixel}, flags ${viewFlags}`,
-      )
-  }
-})
-
 test('a blended surface routes through its pipeline, and the unfiltered one never', () => {
   const surface = { rgb: [0.4, 0.5, 0.9], emissive: [0, 0, 0], alpha: 0.7, rough: 0.5, request: 9 }
   const fogFree = FOG_FREE_MODEL_BIT << MODEL_SHIFT
@@ -114,6 +92,9 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
         // The lobed program's: an item that names no physical record sets nothing.
         blendPhysicalBegin: () => undefined,
         blendSurface: () => surface,
+        // The diagnostic palettes' lookups, never reached by a beauty item.
+        diagnosticLevel: () => [0, 0, 0],
+        diagnosticHlod: () => [0, 0, 0],
         uni: { camPos: [0, 0, 5, 1], exposure: 1, toneCurve: ACES },
         BlendOut: (
           color: number[],

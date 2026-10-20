@@ -1,6 +1,7 @@
 import type { PageRec } from '../../page/selection/types.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { sameRange } from '../../../../math/src/matrix/matrixElements.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import type { HeldList } from './heldList.ts'
 import { applyHashed } from './hashedDifference.ts'
@@ -136,18 +137,6 @@ function heldBytes(delta: HeldDelta) {
   )
 }
 
-/**
- * True when `ids` is exactly the sequence the last applied shown list published. One integer
- * pass, without a single write: it is what allows doing nothing at all — neither the marks, nor
- * the held list, nor the records — when a new shown list republishes the same cut.
- */
-function samePublished(delta: HeldDelta, ids: ArrayLike<number>, count: number) {
-  if (count !== delta.publishedCount) return false
-  const published = delta.published
-  for (let i = 0; i < count; i++) if (published[i] !== ids[i]) return false
-  return true
-}
-
 /** Every list long enough for a cut of `count` after the one held: either difference grows them
  *  alike, so the bytes they weigh do not depend on which one ran. */
 function growFor(delta: HeldDelta, count: number) {
@@ -171,8 +160,9 @@ function applyDelta(
   claims: Uint32Array | undefined,
 ) {
   // A new shown list that republishes the same sequence describes the cut already held: it is
-  // held, and not one of the fifteen thousand records is rewritten.
-  if (samePublished(delta, ids, count)) return holdDelta(delta)
+  // held, and not one of the fifteen thousand records is rewritten: one integer pass, no write.
+  if (count === delta.publishedCount && sameRange(delta.published, ids, count))
+    return holdDelta(delta)
   growFor(delta, count)
   const next = claims ? applyClaimed(delta, ids, count, claims) : applyHashed(delta, ids, count)
   delta.publishedCount = count

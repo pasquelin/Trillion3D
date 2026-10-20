@@ -75,11 +75,11 @@ export function worldOpening(parts: WorldRuntimeParts) {
       state.closed = 'nothing to draw: the scene holds no mesh and no loaded model'
       return track.none()
     }
-    let explorer: MeasuredWorld
+    let explorer: MeasuredWorld, options: MeasuredWorldOptions
     try {
       const scope = built.source.metadata.scope // its first model's scope, or the default
       await inputs.ready() // a lost device is asked again: it opens on what is granted, or fails
-      const options: MeasuredWorldOptions = {
+      options = {
         ...inputs.options(),
         scope,
         onContentRefused: (what, reason) => noticeRefused(inputs.diagnostic.notices, what, reason),
@@ -108,7 +108,7 @@ export function worldOpening(parts: WorldRuntimeParts) {
     // What the scene gained while it opened — a mesh, a model — joins at the next frame.
     state.seatWanted = true
     parts.invalidate()
-    inputs.opened(explorer)
+    inputs.opened(explorer, options)
   }
 }
 

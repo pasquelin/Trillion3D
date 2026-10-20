@@ -17,6 +17,7 @@ import {
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER } from '../partition/contract.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
+import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 
 /** The twelve entry points: four size classes, each in the frame's three modes. */
 const entryPoints = () =>
@@ -67,9 +68,9 @@ fn modeKeeps(mode:u32,page:PageInfo)->bool{
 /** A list entry becomes the triangle it names again, if the current mode draws it. */
 fn triOf(entry:u32,mode:u32)->Tri{
  var t:Tri;t.ok=0u;
- let row=entry>>8u;let page=pages[row];
+ let row=entry>>${VIS_TRIANGLE_BITS}u;let page=pages[row];
  if(!modeKeeps(mode,page)){return t;}
- return setupTriangle(row,entry&0xffu,pageTransform(page),pageWinding(page));
+ return setupTriangle(row,visTriangle(entry),pageTransform(page),pageWinding(page));
 }
 // The threads of a binning group share the same page: thread zero computes for them the two
 // quantities that belong only to the page, and the others reread them instead of remaking them.
@@ -87,21 +88,26 @@ var<workgroup> rowDet:f32;
  let triangle=group.z*WORKGROUP_THREADS+lane.x;
  let t=setupTriangle(row,triangle,rowVp,rowDet);
  if(t.ok==0u){return;}
- let entry=(row<<8u)|(triangle&0xffu);
+ let entry=(row<<${VIS_TRIANGLE_BITS}u)|visTriangle(triangle);
  let klass=triClass(t);
- // Two classes per list, filled from both ends: neither overflows while the other has room, and
- // the bound held is the sum — every triangle of every row.
- if(klass==0u){atomicStore(&work[LIST_S+atomicAdd(&work[LIST+${CNT_FINE}u],1u)],entry);}
- else if(klass==1u){atomicStore(&work[LIST_S+${capacity}u-1u-atomicAdd(&work[LIST+${CNT_COARSE}u],1u)],entry);}
- else if(klass==2u){atomicStore(&work[LIST_L+atomicAdd(&work[LIST+${CNT_LARGE}u],1u)],entry);}
- else{
-  atomicStore(&work[LIST_L+${capacity}u-1u-atomicAdd(&work[LIST+${CNT_HUGE}u],1u)],entry);
+ atomicStore(&work[classPlace(klass,atomicAdd(&work[LIST+klass],1u))],entry);
+ if(klass==${CNT_HUGE}u){
   // The frame's tallest box gives the z dimension of the huge-class dispatch, its triangles in
   // rows along x and y: one group per eight-row tile, and those that overshoot their triangle's
   // box leave at once.
   atomicMax(&work[LIST+${TILE_ROWS}u],tileRows(t));
  }
 }
+/** Class \`k\`'s list place of its \`at\`-th entry, \`k\` its count's rank (\`CNT_*\`). Two classes per
+ *  list, filled from both ends: neither overflows while the other has room, and the bound held is
+ *  the sum — every triangle of every row. Fine and coarse in \`LIST_S\`, large and huge in
+ *  \`LIST_L\`, the even class from the front, the odd one from the back. */
+fn classPlace(k:u32,at:u32)->u32{
+ let list=select(LIST_S,LIST_L,k>=${CNT_LARGE}u);
+ return select(list+at,list+${capacity}u-1u-at,(k&1u)!=0u);
+}
+/** Class \`k\`'s count (\`CNT_*\`). */
+fn classCount(k:u32)->u32{return atomicLoad(&work[LIST+k]);}
 /** A list dispatch of \`groups\` in rows, and \`z\` up z. */
 fn spread(slot:u32,groups:u32,z:u32){
  let base=LIST+${DISPATCH_BASE}u+slot*3u;let grid=groupGrid(groups);
@@ -109,11 +115,11 @@ fn spread(slot:u32,groups:u32,z:u32){
 }
 /** Each count becomes its dispatch, without any going through the CPU. */
 @compute @workgroup_size(1) fn plan(){
- let fine=ceilDiv(atomicLoad(&work[LIST+${CNT_FINE}u]),${FINE_PER_GROUP}u);
+ let fine=ceilDiv(classCount(${CNT_FINE}u),${FINE_PER_GROUP}u);
  spread(0u,fine,1u);
- spread(1u,atomicLoad(&work[LIST+${CNT_COARSE}u]),1u);
- spread(2u,atomicLoad(&work[LIST+${CNT_LARGE}u]),1u);
- spread(3u,atomicLoad(&work[LIST+${CNT_HUGE}u]),max(1u,atomicLoad(&work[LIST+${TILE_ROWS}u])));
+ spread(1u,classCount(${CNT_COARSE}u),1u);
+ spread(2u,classCount(${CNT_LARGE}u),1u);
+ spread(3u,classCount(${CNT_HUGE}u),max(1u,atomicLoad(&work[LIST+${TILE_ROWS}u])));
 }
 // A group past its class count reads nothing useful, but it does read: its rank is clamped on
 // the list so that read stays in the buffer. Its triangle is dropped just after.
@@ -129,7 +135,7 @@ fn fineGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let i=flatIndex(group,n,1u)*${FINE_PER_GROUP}u+slot;
  if(index%${FINE_SIDE * FINE_SIDE}u==0u){
   var t:Tri;t.ok=0u;
-  if(i<atomicLoad(&work[LIST+${CNT_FINE}u])){t=triOf(atomicLoad(&work[LIST_S+i]),mode);}
+  if(i<classCount(${CNT_FINE}u)){t=triOf(atomicLoad(&work[classPlace(${CNT_FINE}u,i)]),mode);}
   shared_tri[slot]=t;
  }
  workgroupBarrier();
@@ -150,8 +156,8 @@ fn oneTri(entry:u32,valid:bool,lane:vec3u,mode:u32)->Tri{
 }
 fn coarseGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let i=flatIndex(group,n,1u);
- let live=i<atomicLoad(&work[LIST+${CNT_COARSE}u]);
- let t=oneTri(select(0u,atomicLoad(&work[LIST_S+${capacity}u-1u-held(i)]),live),live,lane,mode);
+ let live=i<classCount(${CNT_COARSE}u);
+ let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_COARSE}u,held(i))]),live),live,lane,mode);
  if(t.ok==0u){return;}
  rasterPixel(t,vec2i(t.lo)+vec2i(lane.xy),mode==2u);
 }
@@ -161,8 +167,8 @@ fn tilePixel(t:Tri,lane:vec3u,tx:u32,ty:u32)->vec2i{
 }
 fn largeGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let i=flatIndex(group,n,1u);
- let live=i<atomicLoad(&work[LIST+${CNT_LARGE}u]);
- let t=oneTri(select(0u,atomicLoad(&work[LIST_L+held(i)]),live),live,lane,mode);
+ let live=i<classCount(${CNT_LARGE}u);
+ let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_LARGE}u,held(i))]),live),live,lane,mode);
  if(t.ok==0u){return;}
  let cols=tileCols(t);let rows=tileRows(t);
  for(var ty=0u;ty<rows;ty=ty+1u){
@@ -175,8 +181,8 @@ fn largeGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
 // dispatch z dimension. A group whose row overshoots its triangle's box leaves.
 fn hugeGroup(group:vec3u,lane:vec3u,n:vec3u,mode:u32){
  let i=flatIndex(group,n,1u);
- let live=i<atomicLoad(&work[LIST+${CNT_HUGE}u]);
- let t=oneTri(select(0u,atomicLoad(&work[LIST_L+${capacity}u-1u-held(i)]),live),live,lane,mode);
+ let live=i<classCount(${CNT_HUGE}u);
+ let t=oneTri(select(0u,atomicLoad(&work[classPlace(${CNT_HUGE}u,held(i))]),live),live,lane,mode);
  if(t.ok==0u||group.z>=tileRows(t)){return;}
  let cols=tileCols(t);
  for(var tx=0u;tx<cols;tx=tx+1u){

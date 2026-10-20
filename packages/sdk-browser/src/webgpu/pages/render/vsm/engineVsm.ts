@@ -7,7 +7,7 @@
  *   local lights, ids, projection data) → instance page invalidation → physical page address
  *   update → page marking → page allocation build → non-cluster shadow map render → post render →
  *   projection (traced rays, ≤ 4 lights a pass, one layer of the mask array each) → lighting →
- *   feedback copy, mark rendered, frame data extraction.
+ *   translucent layers (their own traces) → feedback copy, mark rendered, frame data extraction.
  *
  * A shadowed light's `params.y` is `firstVsmId · 64 + k` (`store.assignSlice`): mask channel k
  * = layer k / 4, component k % 4, and the map a non-mask read samples; −1 for a light with no

@@ -5,8 +5,12 @@ import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { createWebgpuPageTracking, type WebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuResidencySets } from './sets.ts'
-import { admissionLevel } from '../../residency/minimumCapacity.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
+
+/** The level a page is ranked at when levels are counted (`admitByLevel`): its own, raised past
+ *  `top`, the catalogue's highest level, when the minimum capacity holds it (`rootChild`). */
+export const admissionLevel = (rec: PageRec, top: number) =>
+  (rec.level ?? 0) + (rec.rootChild ? top + 1 : 0)
 
 export const rec = (url: string, level: number) => ({ url, level }) as unknown as PageRec
 

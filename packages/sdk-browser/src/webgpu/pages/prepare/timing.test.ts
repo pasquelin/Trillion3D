@@ -1,5 +1,5 @@
-// What the timer's sample hands the render-scale controller (`timing.ts`): the image's span, whole
-// when every pass that ran was read, a lower bound when a pass's pair could not be read.
+// What the timer's sample hands the render-scale controller (`timing.ts`): the image's GPU busy
+// time when every pass that ran was read, none when a pass's pair could not be read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MS, timedDevice } from '../../../gpu/timing/imageTimer.fixture.ts'
@@ -9,15 +9,18 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 async function observed(pairs: [bigint, bigint][]) {
   const f = timedDevice(),
-    seen: [number | null, boolean][] = []
-  const rt = {
-    timing: createWebgpuTimingState(),
-    diag: { traceEnabled: false, engineDiagnostic() {} },
+    seen: (number | null)[] = []
+  // The main view drawn, alone: its scale the world's controller.
+  const main = {
     scale: {
       bounds: { auto: false },
-      observe: (gpuMs: number | null, _scale: number, _steered: boolean, whole: boolean) =>
-        void seen.push([gpuMs, whole]),
+      observe: (gpuMs: number | null) => void seen.push(gpuMs),
     },
+  }
+  const rt = {
+    timing: createWebgpuTimingState(),
+    views: { main, active: main, persistent: [] },
+    diag: { traceEnabled: false, engineDiagnostic() {} },
     bounce: {},
   } as unknown as WebgpuPagesRuntime
   prepareGpuTiming(rt, f.device)
@@ -33,22 +36,22 @@ async function observed(pairs: [bigint, bigint][]) {
   return seen
 }
 
-test('the controller reads the span of an image whose every pass was read', async () => {
+test('the controller reads the busy time of an image whose every pass was read', async () => {
   assert.deepEqual(
     await observed([
       [1n, 3n],
       [4n, 7n],
     ]),
-    [[6, true]],
+    [6],
   )
 })
 
-test('an image with a pass whose timestamps cannot be read hands its span as a lower bound', async () => {
+test('an image with a pass whose timestamps cannot be read hands no time', async () => {
   assert.deepEqual(
     await observed([
       [1n, 3n],
       [4n, 0n],
     ]),
-    [[2, false]],
+    [null],
   )
 })

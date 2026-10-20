@@ -1,7 +1,8 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { sampleWebgpuFrame } from './signature.ts'
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts'
-import { beginTaaFrame, taaSettled } from '../../taa/frame.ts'
+import { beginTaaFrame } from '../../taa/frame.ts'
+import { taaRuns } from '../pages/state/renderScale.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { effectsMoved } from '../pages/render/encodeEffects.ts'
 import { guidesMoved } from '../pages/render/encodeGuides.ts'
@@ -70,18 +71,21 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // Targets the device granted aside enter here, before anything is drawn: this frame is drawn
     // into them, never held on a display colour they never had. Its stillness is the scene's.
     const swapped = !awaited && answered && swapAsideTargets(rt, device)
-    // Guides and effects may still require drawing this quiet source.
+    // Guides and effects may still require drawing this quiet source; a temporal pass runs on every
+    // image, so a still view keeps converging (`taaRuns`); the frame-difference view compares each
+    // image with the one before, so it draws every one.
     if (
       swapped ||
       !quiet ||
-      !taaSettled(rt) ||
+      taaRuns(rt) ||
+      run.diagnostic === 'frame-difference' ||
       guidesMoved(rt) ||
       effectsMoved(rt) ||
       particlesMoved(rt)
     ) {
       if (rt.diag.traceEnabled) traceDrawnFrame(rt, unsettled, swapped)
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
-      beginTaaFrame(rt, run.gate.cam, quiet)
+      beginTaaFrame(rt, run.gate.cam)
       run.frameHeld = false
       return false
     }
@@ -105,18 +109,17 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     (at || !presenter.holds(displayTexture, width, height))
   ) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' })
-    presenter.present(encoder, displayTexture, width, height, at)
+    presented = presenter.present(encoder, displayTexture, width, height, at)
     device.queue.submit([encoder.finish()])
     run.imageRevision++
-    presented = true
   }
   recordHeldFrameWork(rt, presented, msSince(start))
   return true
 }
 
-/** Stores the frame that has just been fully encoded and submitted: it alone allows a hold. A
- *  settle frame replays the last ordinary frame: the witness does not see it, and two identical
- *  ordinary frames remain two consecutive frames in its eyes. */
+/** Stores the frame that has just been fully encoded and submitted: it alone allows a hold. The
+ *  witness does not see a settle frame: two identical ordinary frames remain two consecutive frames
+ *  in its eyes. */
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run
   if (textureConverging || rt.feedbackAB?.force) return

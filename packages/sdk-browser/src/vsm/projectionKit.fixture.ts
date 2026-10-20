@@ -3,11 +3,16 @@
 // uniform the pass uploads.
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
-import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts'
+import {
+  encodeVirtualShadowProjection,
+  writeVsmProjectionFrame,
+  type VsmProjectionFrame,
+  type VsmProjectionLight,
+} from './projectionPass.ts'
 import { fakeHizDepth } from './hizDepth.fixture.ts'
 import { camera } from './projectionScene.fixture.ts'
 
-type Frame = Parameters<typeof encodeVirtualShadowProjection>[2]
+type Frame = VsmProjectionFrame
 
 /** The camera the proofs look through: at the origin, a perspective of near 0.1. */
 const PROOF_CAMERA: Frame['camera'] = camera
@@ -19,28 +24,25 @@ export function projectionKit() {
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
   const res = createVsmResources(fake.device, { fullMapCapacity: 63, poolPages: 256 })
   const view = {} as GPUTextureView
-  const inputs = {
-    device: fake.device,
+  const source = {
     depth: view,
-    hizDepth: fakeHizDepth,
     normalRough: view,
     flags: view,
-    mask: view,
-    maskTiles: view,
     receiver: view,
   }
+  const target = { view, tilesView: view }
   const encoder = fake.device.createCommandEncoder()
-  const project = (lights: VsmProjectionLight[], frame: Partial<Frame> = {}) =>
-    encodeVirtualShadowProjection(
-      encoder,
-      res,
-      {
-        ...inputs,
-        ...{ width: 64, height: 32, camera: PROOF_CAMERA, frameIndex: 1 },
-        ...frame,
-      },
+  const project = (lights: VsmProjectionLight[], frame: Partial<Frame> = {}) => {
+    const context: Frame = {
+      device: fake.device,
+      hizDepth: fakeHizDepth,
+      ...{ width: 64, height: 32, camera: PROOF_CAMERA, frameIndex: 1 },
+      ...frame,
       lights,
-    )
+    }
+    writeVsmProjectionFrame(res, context)
+    encodeVirtualShadowProjection(encoder, res, context, source, target)
+  }
   const upload = () => fake.writes.findLast((w) => w.buffer.label === 'vsm.projection.view')
-  return { ...fake, res, inputs, encoder, project, upload }
+  return { ...fake, res, encoder, project, upload }
 }

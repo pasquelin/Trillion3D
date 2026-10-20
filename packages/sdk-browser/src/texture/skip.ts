@@ -2,15 +2,6 @@ import { previewIsWhole } from '../../../sdk-core/src/texture/previewLevels.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 
 /**
- * A 1×1 opaque white PNG: what the prepared scene decodes in place of an image whose mip
- * chain is baked in the cache. The host texture still exists — it is what the texture ranks
- * name, and what the atlas stores — but its image weighs nothing, and the source megabytes
- * cross neither the network nor the browser decoder.
- */
-export const PLACEHOLDER_IMAGE =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP4DwQACfsD/Wj6HMwAAAAASUVORK5CYII='
-
-/**
  * Ranks of the images the loader can skip reading: those whose every sidecar entry carries a
  * whole chain — everything past the tail is baked — and that have at least one. Where the image
  * lives does not matter: an address beside the document, a `data:` address or a view of its

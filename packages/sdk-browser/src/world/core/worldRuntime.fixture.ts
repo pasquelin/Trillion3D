@@ -82,6 +82,8 @@ export function sessionStandIn() {
     setLight() {},
     removeLight: (id: string) =>
       void (written.lights = written.lights.filter((record) => record.id !== id)),
+    /** The background, written before the first frame (`./worldBackground.ts`). */
+    setClearColor() {},
     render: () => ({}),
     /** No optional family on its way: every frame draws (`../session/familyUse.ts`). */
     familiesPending: (): Promise<void> | undefined => undefined,

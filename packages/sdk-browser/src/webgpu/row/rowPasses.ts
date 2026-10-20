@@ -1,6 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { closeHoles } from './writers.ts'
-import { serveClaims } from './claims.ts'
+import { leadFirst, serveClaims } from './claims.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { RowSlots } from './slotOps.ts'
 
@@ -30,11 +30,17 @@ export function rebuildRows(s: RowSlots) {
   s.order.reset()
   s.writers.state.changed = true
   s.claims.clear()
-  // Every resident instance while the table has room, in catalogue order: `place` cannot refuse
-  // below its end. An instance neither in the pool nor flagged has nothing to release: two
-  // words read, not its record.
-  for (let page = 0; page < s.packedPages.length && s.count < rows.blendFirst; page++)
-    if ((rows.offsetOf(page) >= 0 || rows.residentFlag(page)) && s.release(page)) s.place(page)
+  // Every resident instance while the table has room, the world DAG's first (`leadsRows`), then
+  // the others, each in catalogue order: `place` cannot refuse below its end. An instance neither
+  // in the pool nor flagged has nothing to release.
+  for (const lead of [true, false])
+    for (let page = 0; page < s.packedPages.length && s.count < rows.blendFirst; page++)
+      if (
+        s.leads(page) === lead &&
+        (rows.offsetOf(page) >= 0 || rows.residentFlag(page)) &&
+        s.release(page)
+      )
+        s.place(page)
   let dropped = 0
   for (const page of held) if (rows.rowOf(page) < 0) held[dropped++] = page
   s.demand.touched(held, dropped)
@@ -62,11 +68,13 @@ export function rewriteRows(s: RowSlots) {
   }
 }
 
-/** Arrivals, in catalogue order: while the table has room, or the cut asked for them. A page that
- *  holds its row takes no other: its record is owed at its own rank, whatever room is left. */
+/** Arrivals, the world DAG's first (`leadsRows`), each side in catalogue order: while the table has
+ *  room, or the cut asked for them, or they hold their row. A page that holds its row takes no
+ *  other: its record is owed at its own rank, whatever room is left. */
 export function followArrivals(s: RowSlots, budget?: FrameClock) {
   const { rows, claims, demand, free } = s
   sortPages(rows.touched.pages, rows.touched.count)
+  leadFirst(rows.touched.pages, rows.touched.count, s.leads)
   for (let i = 0; i < rows.touched.count; i++) {
     const page = rows.touched.pages[i]
     if (!s.release(page)) continue
@@ -77,5 +85,5 @@ export function followArrivals(s: RowSlots, budget?: FrameClock) {
   // the GPU's queue has nothing more to give (`rowOrder.ts`), else it waits for the next.
   const refused = (page: number) =>
     void (demand.wanted(page) && s.order.denies(s.frame()) && s.denied++)
-  serveClaims(claims, s.release, s.place, budget, refused)
+  serveClaims(claims, s.release, s.place, budget, refused, s.leads)
 }

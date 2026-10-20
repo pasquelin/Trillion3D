@@ -24,6 +24,8 @@ import { engineCamera } from '../../camera/camera.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
   installGpuGlobals()
@@ -50,6 +52,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   const { device } = fakeDevice({ ...BACKEND, packed })
   const viewport: [number, number] = [32, 32]
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,
@@ -82,6 +85,7 @@ test('a failed GPU selection readback keeps the device: the cut is read again', 
   const packed = packDagSelection(collected.roots)
   const { device } = fakeDevice({ ...BACKEND, packed, failMap: true })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,
@@ -104,6 +108,7 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   const { device, textures } = fakeDevice(BACKEND)
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,

@@ -1,5 +1,6 @@
 // The texel rule the CPU oracles of texture sampling read by: the GPU samples, the engine has no twin.
-import { clamp, floorMod, saturate } from '../../../math/src/scalar/reals.ts'
+import { clamp, saturate } from '../../../math/src/scalar/reals.ts'
+import { floorMod } from '../../../math/src/scalar/reals.fixture.ts'
 import type { Texture, WrapMode } from '../../../sdk-core/src/texture/contract.ts'
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts'
 

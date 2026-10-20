@@ -1,5 +1,6 @@
 import { entriesIdentity } from './entriesIdentity.ts'
-import { adoptEntries, sameEntries } from '../../gpu/core/sameEntries.ts'
+import { adoptEntries } from '../../gpu/core/adoptEntries.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** Resource snapshots for a family. Entry descriptors and snapshot arrays grow only at setup;
  *  stable images read the same descriptors without rebuilding entry arrays or bindings. */
@@ -49,7 +50,7 @@ export function createWebgpuBindIdentity(depth = 1): WebgpuBindIdentity {
     moved() {
       clock++
       for (let at = 0; at < held.length; at++)
-        if (sameEntries(held[at], next)) {
+        if (sameValues(held[at], next)) {
           identity.slot = at
           named[at] = clock
           return false

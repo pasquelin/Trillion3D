@@ -10,8 +10,7 @@ import { camera, flushedImage } from './testScenes.fixture.ts'
 type Settling = Pick<Engine, 'render' | 'flush' | 'metrics' | 'pendingUrls' | 'retainedRanks'>
 
 /** What an image leaves the host: the pages it pins — the cut it asks and what it draws — and
- *  the pages resident. Not `landings`: it also counts the still average's quiet images, which a
- *  still pose keeps drawing long after its pages have landed (`taaArrivals`). */
+ *  the pages resident. Not `landings`, which counts the tiles served too. */
 const hostState = (backend: Settling) => {
   const { urls, held, heldCount } = backend.retainedRanks()
   const pinned = Array.from(held.subarray(0, heldCount), (rank) => urls[rank])

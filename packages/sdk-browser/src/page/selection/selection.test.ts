@@ -14,13 +14,12 @@ import { graphDraws } from './drawSource.ts'
 
 test('clustered blend pages retain their source and only select the intersecting part of a mesh', () => {
   const fixture = blendFixture()
-  const { roots, allPages, blendCopies } = collectClusterPages(
+  const { roots, allPages } = collectClusterPages(
     fixture.source,
     graphDraws(fixture.source, fixture.associations),
     fixture.metadata,
     fixture.indices,
   )
-  assert.equal(blendCopies.length, 0)
   assert.equal(allPages.length, 2)
   for (const page of allPages) {
     assert.equal(page.transparent, true)
@@ -118,27 +117,4 @@ test('a transparent material on `exact-clusters` pages is collected as transpare
   assert.equal(collected.allPages[0].transparent, true)
   fixture.geometry.dispose()
   fixture.material.dispose()
-})
-
-test('shared blend and runtime transmission keep their full source fallback', () => {
-  for (const pass of ['shared-blend', 'clustered-blend']) {
-    const material =
-      pass === 'clustered-blend'
-        ? G.physicalSurface({ transmission: 1 })
-        : G.basicSurface({ transparent: true })
-    const fixture = blendFixture(material)
-    fixture.metadata.primitives[0].pass = pass
-    const collected = collectClusterPages(
-      fixture.source,
-      graphDraws(fixture.source, fixture.associations),
-      fixture.metadata,
-      fixture.indices,
-    )
-    assert.equal(collected.allPages.length, 0)
-    assert.equal(collected.roots.length, 0)
-    assert.equal(collected.blendCopies.length, 1)
-    assert.equal(collected.blendCopies[0].geometry, fixture.geometry)
-    fixture.geometry.dispose()
-    fixture.material.dispose()
-  }
 })

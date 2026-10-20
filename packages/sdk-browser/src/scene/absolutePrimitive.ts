@@ -9,12 +9,24 @@ export function absolutePrimitive(primitive: Primitive, base: string): Primitive
     pages: primitive.pages.map((page) => ({
       ...page,
       url: at(page.url),
-      ...(page.geometry ? { geometry: { ...page.geometry, url: at(page.geometry.url) } } : {}),
+      ...(page.geometry && {
+        geometry: {
+          ...page.geometry,
+          url: at(page.geometry.url),
+          ...(page.geometry.bundle && {
+            bundle: { ...page.geometry.bundle, url: at(page.geometry.bundle.url) },
+          }),
+        },
+      }),
     })),
     streams: primitive.streams
       ? {
           ...primitive.streams,
-          pages: primitive.streams.pages.map((b) => ({ ...b, url: at(b.url) })),
+          pages: primitive.streams.pages.map((b) => ({
+            ...b,
+            url: at(b.url),
+            ...(b.range && { range: { ...b.range, file: at(b.range.file) } }),
+          })),
         }
       : primitive.streams,
   }

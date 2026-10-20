@@ -8,20 +8,18 @@ import { blendSceneOf } from './plan.fixture.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendGpuItem } from './state.ts'
 import { surfaceOf, type PageSurface } from '../../page/surface.ts'
-import { planCull } from './planCull.ts'
+import { TRANSMIT_BASE, planCull } from './planCull.ts'
 
 /** The blend plan of a lone item, everything but its material left at its simplest. */
-function plan(material: PageSurface | PageSurface[], { transmissive = false, paged = false } = {}) {
+function plan(material: PageSurface | PageSurface[], { transmissive = false } = {}) {
   const blendState = blendSceneOf([
     {
       transmissive,
       surface: surfaceOf(material),
       matrix: new Matrix4(),
-      count: 3,
-      paged,
     } as unknown as BlendGpuItem,
   ])
-  return [...blendState.seeds[transmissive ? 1 : 0]]
+  return [...blendState.seeds]
 }
 
 test('an item that declares no material plans the host default side: one front entry, not a crash', () => {
@@ -49,29 +47,32 @@ test('an item plans on the pipelines of its blend mode; a mode no path draws is 
     pipelineOf('none'),
     normal.map((p) => p + 12),
   )
-  assert.deepEqual(pipelineOf('normal', true), normal)
+  assert.deepEqual(
+    pipelineOf('normal', true),
+    normal.map((p) => p + TRANSMIT_BASE),
+  )
   assert.throws(() => pipelineOf(undefined), /blending no path draws/)
   assert.throws(() => pipelineOf('additive', true), /cannot use additive/)
 })
 
-test('a double-sided paged item plans back then face on the pipeline that culls nothing', () => {
-  const entries = plan(G.basicSurface({ side: G.DOUBLE_SIDE }), { paged: true })
+test('a double-sided item plans back then face on the pipeline that culls nothing', () => {
+  const entries = plan(G.basicSurface({ side: G.DOUBLE_SIDE }))
   // Back first: the pass culls the face (1), then the back (2); the vertex stage applies both.
   assert.deepEqual(entries.map(planCull), [1, 2])
   assert.deepEqual(entries.map(planPipeline), [0, 0])
   assert.deepEqual(entries.map(planVertexCull), [1, 2])
 })
 
-test('a double-sided unpaged item keeps the hardware cull of its two pipelines', () => {
-  const entries = plan(G.basicSurface({ side: G.DOUBLE_SIDE }))
-  assert.deepEqual(entries.map(planPipeline), [1, 2])
-  assert.deepEqual(entries.map(planVertexCull), [0, 0])
+test('a double-sided transmissive item plans back then face as a blend does, on its own pipelines', () => {
+  const entries = plan(G.basicSurface({ side: G.DOUBLE_SIDE }), { transmissive: true })
+  assert.deepEqual(entries.map(planCull), [1, 2])
+  assert.deepEqual(entries.map(planPipeline), [TRANSMIT_BASE, TRANSMIT_BASE])
+  assert.deepEqual(entries.map(planVertexCull), [1, 2])
 })
 
-test("a double-sided paged item of another mode sets that mode's pipeline that culls nothing", () => {
+test("a double-sided item of another mode sets that mode's pipeline that culls nothing", () => {
   const entries = plan(
     G.basicSurface({ side: G.DOUBLE_SIDE, transparent: true, blending: 'additive' }),
-    { paged: true },
   )
   assert.deepEqual(entries.map(planCull), [1, 2])
   assert.deepEqual(entries.map(planPipeline), [3, 3])

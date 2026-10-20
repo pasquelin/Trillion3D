@@ -18,7 +18,7 @@ const turn = () => new Promise(setImmediate)
 
 /** A frame of `world` from the corner, after every read it queued is answered or waits. */
 async function frame(world: Awaited<ReturnType<typeof gridWorld>>) {
-  world.cells.frame([0, 0, 0], 1e6, world.port, noBudget)
+  world.cells.frame([0, 0, 0], world.port, noBudget)
   await turn()
   const busy = () => world.streamer.stats().loading + world.streamer.stats().queued > 0
   while (busy()) await turn()
@@ -48,12 +48,14 @@ test('a world of 100 × 100 cells in reach reads K at a time, nearest first, eac
     undefined,
     64 * 2 * PAGE,
   ) // a transfer of 64 cells at most
-  await opened(world.cells, world.bytes, 1e6, false)
+  await opened(world.cells, world.bytes, false)
   await frame(world)
-  assert.equal(most, K, "never more reads in flight than the queue's transfers")
+  // Every HLOD 0 cell a top cell here, its actor always loaded (`flatChain`): all are held at the
+  // open, their runs merged up to the transfer budget.
+  assert.ok(most >= 1 && most <= K, "never more reads in flight than the queue's transfers")
   assert.equal(heldBy(world.roots).length, 2 * CELLS, 'every cell held')
   assert.equal(bytes, 2 * CELLS * PAGE, 'each bundle read once')
-  const runs = started.slice(1) // the pinned top first, read as the world opened
+  const runs = started
   assert.equal(runs[0], 0, 'the nearest cell first')
   assert.ok(runs.length < CELLS / 10, `the bundles end to end merged: ${runs.length} requests`)
 })
@@ -73,7 +75,6 @@ test('a reader refusing past N pending is asked again after 0.5 s · 2^k up to 8
     SIDE,
     K,
     async (from, to, respond) => {
-      if (cellAt(from, PAGE) < 0) return respond() // the pinned top, read as the world opens
       for (const cell of cellsIn(from, to)) asked.set(cell, [...(asked.get(cell) ?? []), clock])
       if (flying >= pending) {
         refused++
@@ -95,7 +96,7 @@ test('a reader refusing past N pending is asked again after 0.5 s · 2^k up to 8
   }
   /** The waits between a cell's reads, one request a wait. */
   const gaps = (times: number[]) => times.slice(1).map((at, i) => at - times[i])
-  await opened(world.cells, world.bytes, 1e6, false)
+  await opened(world.cells, world.bytes, false)
   await frames(16_000)
   const waits = [...asked.values()].map((times) => gaps(times).join())
   assert.deepEqual(new Set(waits), new Set(['500,1000,2000,4000,8000']), 'each cell, doubling')

@@ -24,15 +24,16 @@ export const unmirroredDrawn = (): DrawnMirrorFlag => ({ drawnMirrorsShown: fals
 export function markDrawnMirrored(run: DrawnMirrorFlag) {
   run.drawnMirrorsShown = true
 }
-/** Remakes `drawn` from `shown`, whether the flag is raised or not. */
-function copyDrawnFromShown(run: DrawnMirror) {
+/** Remakes `drawn` and its packed ranks from `shown`'s: the one copy every adoption and the
+ *  image make. The caller raises the flag (`markDrawnMirrored`). */
+export function copyDrawnFromShown(run: Omit<DrawnMirror, 'drawnMirrorsShown'>) {
   copyRanks(run.drawn, run.shown)
   copyRanks(run.drawnPacked, run.shownPacked)
-  markDrawnMirrored(run)
 }
 /** Remakes `drawn` from `shown` if it is no longer the copy of it; returns true if it did. */
 export function mirrorDrawnFromShown(run: DrawnMirror) {
   if (run.drawnMirrorsShown) return false
   copyDrawnFromShown(run)
+  markDrawnMirrored(run)
   return true
 }

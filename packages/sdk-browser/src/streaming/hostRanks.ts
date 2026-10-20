@@ -1,10 +1,10 @@
 import type { HostRetentionDelta } from './types.ts'
 import { createCutDelta } from '../webgpu/cut/delta.ts'
+import { resized } from '../../../math/src/sequence/resized.ts'
 
-/** What the delta reads from a record: its request rank, and nothing else. */
-type Ranked = { requestIndex?: number }
-/** No record of any list: the one a list's first record is compared with. */
-const UNMARKED: Ranked = {}
+/** What the delta reads from a record: its request rank, and the records of the bundles it is
+ *  installed after (`PageRec.dependencies`). */
+export type Ranked = { requestIndex?: number; dependencies?: readonly Ranked[] }
 
 /**
  * The set of request ranks an image keeps, held from one image to the next and published as a delta.
@@ -18,8 +18,12 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
   /** Ranks past the table name no address: they are never marked. */
   let capacity = requestCount
   const difference = createCutDelta()
-  /** The ranks of the pass being marked, in marking order. */
+  /** The ranks of the pass being marked, each once, in marking order; the pass each rank was last
+   *  marked in — the placements of a page share its rank, so the lists name it once a placement. */
   const marked: number[] = []
+  let passes = new Uint32Array(capacity),
+    closed = new Uint32Array(capacity),
+    pass = 1
   const delta = {
     urls,
     get entered() {
@@ -42,27 +46,55 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
     },
   } satisfies HostRetentionDelta
   const markRank = (rank: number) => {
-    if (rank >= 0 && rank < capacity) marked.push(rank)
+    if (rank < 0 || rank >= capacity || passes[rank] === pass) return
+    passes[rank] = pass
+    marked.push(rank)
+  }
+  const markList = (list: readonly Ranked[]) => {
+    for (let i = 0; i < list.length; i++) {
+      const rank = list[i].requestIndex
+      if (rank !== undefined) markRank(rank)
+    }
   }
   return {
     /** Extends a mounted catalogue without changing ranks or the address table's identity. */
     grow(count: number) {
-      capacity = Math.max(capacity, count)
+      if (count <= capacity) return
+      capacity = count
+      passes = resized(passes, capacity)
+      closed = resized(closed, capacity)
     },
     /** Opens a pass: what is not re-marked before `finish()` will leave the set. */
     begin() {
       marked.length = 0
+      // A pass names each rank once; wrapped, every rank is unmarked again.
+      if (++pass > 0xfffffffe) {
+        passes.fill(0)
+        closed.fill(0)
+        pass = 1
+      }
     },
-    /** Marks the ranks of a list. A record repeated next to itself — the placements of one
-     *  primitive, rank after rank — is marked once: marking its rank again would change nothing. */
-    mark(list: readonly Ranked[]) {
-      let last: Ranked = UNMARKED
-      for (let i = 0; i < list.length; i++) {
-        const rec = list[i]
-        if (rec === last) continue
-        last = rec
-        const rank = rec.requestIndex
-        if (rank !== undefined) markRank(rank)
+    /** Marks the ranks of a list, each once a pass (`markRank`): the placements of one primitive
+     *  share its rank. */
+    mark: markList,
+    /**
+     * Marks a cut, then the bundles each record is installed after (`PageRec.dependencies`): what
+     * the host keeps retained with the cut, so a parent fetched for a cut page is not evicted
+     * before that page can follow it. A rank whose bundles the pass marked already — another
+     * placement of its page — marks none again: the walk costs the cut's records, its bundles once.
+     */
+    markClosed(cut: readonly Ranked[]) {
+      markList(cut)
+      for (let i = 0; i < cut.length; i++) {
+        const rec = cut[i],
+          rank = rec.requestIndex,
+          dependencies = rec.dependencies
+        if (!dependencies?.length) continue
+        if (rank !== undefined && rank >= 0 && rank < capacity) {
+          if (closed[rank] === pass) continue
+          closed[rank] = pass
+        }
+        markList(dependencies)
       }
     },
     markRank,

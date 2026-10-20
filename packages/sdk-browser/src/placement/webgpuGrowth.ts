@@ -28,13 +28,12 @@
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
-import type { MatrixElements } from '../host/matrixElements.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { rebindComposedWorlds } from './gpuCompose.ts'
 import { rebindReaders } from './composeReaders.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { growRowCopies, growRowItems, growRowRoots, type Rebound } from './growth.ts'
+import { growRowItems, growRowRoots, rekeyRebound, type Rebound } from './growth.ts'
 import { pagedBlendCopiesOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
 import { rebindDeformedWorlds } from '../deformation/growth.ts'
 import { type PlacementRows } from './rows.ts'
@@ -79,32 +78,23 @@ function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: P
     { blendState, setup } = rt
   const rebound: Rebound = new Map(),
     rooted = growth.roots.length
-  for (const { item } of growRowRoots([...selectionRoots, ...growth.roots], from, to, rebound))
-    growth.roots.push(item)
+  for (const root of growRowRoots([...selectionRoots, ...growth.roots], from, to, rebound))
+    growth.roots.push(root)
   // The session's roots read `to` now: their row views are taken again.
   forgetRowRoots(selectionRoots)
   if (rt.compose) rebindReaders(rt.compose.readers, from, to)
   // The blended copies and the items of `from` read `to` too; a copy per new row joins the pass
-  // with the paged copies of the roots just added, the tables keyed by a view following it.
-  const copies = growRowCopies(setup.blendCopies, from, to, rebound)
+  // with the root of its row, the tables keyed by a view following it.
+  growRowItems(setup.blendCopies, from, to, rebound)
   growRowItems(blendState.blendGpu, from, to, rebound)
   rebindComposedWorlds(rt)
-  copies.push(...pagedBlendCopiesOf(growth.roots.slice(rooted), setup.pagedBlendCopies))
-  rekeyPagedCopies(setup.pagedBlendCopies, rebound)
+  const copies = pagedBlendCopiesOf(growth.roots.slice(rooted), setup.pagedBlendCopies)
+  // The paged copies held by the view of their root's row stand on the row's new view.
+  rekeyRebound(setup.pagedBlendCopies, rebound)
   rebindDeformedWorlds(rt, rebound)
   setup.blendCopies.push(...copies)
   growth.copies.push(...copies)
   if (growth.roots.length || copies.length) growth.asked = true
-}
-
-/** The paged copies held by the view of their root's row stand on the row's new view. */
-function rekeyPagedCopies(held: Map<MatrixElements, BlendCopy>, rebound: Rebound) {
-  for (const [old, view] of rebound) {
-    const copy = held.get(old)
-    if (!copy) continue
-    held.delete(old)
-    held.set(view, copy)
-  }
 }
 
 /** Roots of a source added to the session in place wait beside those a growth brought, to be

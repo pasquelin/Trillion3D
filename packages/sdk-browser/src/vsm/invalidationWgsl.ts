@@ -119,16 +119,20 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
   let pixels=vsmRectPixels(vec4i(0,0,mapTexels,mapTexels),cull);
   // All allocated pages, cached or not, referenced this frame or not.
   let pagesRect=vsmMappedRectPages(pixels,pd.handle,mip);
-  let fineCaster=vsmIsFineCaster(staleStatic,pixelRadius);
+  // A fine caster drew into fine pages alone; a mover's box skips the coarse pages of a map whose
+  // coarse pages keep their dynamic layer.
+  let fineOnly=vsmIsFineCaster(staleStatic,pixelRadius)||(pd.coarseDynamicCached&&!staleStatic);
   pixelRadius*=0.5;
   // Hierarchical test: skip areas without any allocated page.
-  if(vsmTouchesMappedPage(pd.handle,mip,pagesRect,VSM_PAGE_WANTED,fineCaster)){
+  if(vsmTouchesMappedPage(pd.handle,mip,pagesRect,VSM_PAGE_WANTED,fineOnly)){
    let levelOffset=vsmTableLevelOrigin(pd.handle,mip);
-   let wantedBits=VSM_PAGE_WANTED|select(0u,VSM_PAGE_FINE,pd.coarseDynamicCached&&!staleStatic);
+   let wantedBits=VSM_PAGE_WANTED|select(0u,VSM_PAGE_FINE,fineOnly);
    for(var y=pagesRect.y;y<=pagesRect.w;y++){
     for(var x=pagesRect.x;x<=pagesRect.z;x++){
      let markCell=vsmTableEntryAt(levelOffset,mip,vec2u(x,y));
      let pageMarks=vsmPageMarkWord(markCell);
+     // Every page the map holds, requested last frame or not, with the same bits as the
+     // hierarchical test.
      if((pageMarks&wantedBits)==wantedBits){
       // Not through the page table: pages not requested last frame are not in it, but still
       // hold cached data. The next page address remap picks the bits up.

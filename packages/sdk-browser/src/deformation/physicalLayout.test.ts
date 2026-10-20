@@ -67,12 +67,8 @@ test("a transparent item's deformation words are its own, its neighbour's untouc
       surface: surfaceOf(material()),
       matrix: new Matrix4(),
       flags: 1,
-      count: 3,
       sourceGeometry: new Geometry(),
       geometry: emptyGeometryBlock(),
-      paged: true,
-      deformInput: 456,
-      deformOutput: 789,
     },
     {
       mapLayer: new Map(),
@@ -84,8 +80,5 @@ test("a transparent item's deformation words are its own, its neighbour's untouc
   const base = BLEND_ITEM_WORDS
   assert.ok(floats.subarray(0, base).every((value) => value === 0))
   const { at } = BLEND_ITEM_SHIPPED
-  assert.deepEqual(
-    [base + at.deform, base + at.deformInput, base + at.deformOutput].map((i) => words[i]),
-    [123, 456, 789],
-  )
+  assert.equal(words[base + at.deform], 123)
 })

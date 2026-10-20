@@ -36,7 +36,7 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
   await expandable(device, blendState)
   assert.ok(blendState.expand, 'the kernels are made')
   const encoder = device.createCommandEncoder()
-  const rt = { blendState, gpu: {} } as unknown as WebgpuPagesRuntime
+  const rt = { blendState, gpu: {}, run: {} } as unknown as WebgpuPagesRuntime
   orderBlendPasses(blendState, [0, 5, 0])
   encodeBlendExpansion(rt, encoder)
   for (const eye of [
@@ -51,11 +51,11 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
     assert.equal(
       bytes,
       FRAME_HEAD.words * 4,
-      `eye ${eye}: the frame's head — the eye, the planes, the water's view — and nothing else`,
+      `eye ${eye}: the frame's head — the eye, the planes — and nothing else`,
     )
     // The verdict, the order's dispatches fixed by the plan, then the expansion's four: the CPU
     // asks no count and judges no item.
-    assert.equal(dispatches.length, 1 + blendState.orderSteps[0].length + 4)
+    assert.equal(dispatches.length, 1 + blendState.orderSteps.length + 4)
   }
 })
 
@@ -71,19 +71,18 @@ test('a plan sends its order steps in one write at 256 bytes, as the whole steps
   const ofSteps = () => writes.filter((w) => w.buffer === (steps as unknown as GPUBuffer))
   writes.length = 0
   orderBlendPasses(blendState, [0, 5, 0])
-  encodeBlendExpansion({ blendState, gpu: {} } as unknown as WebgpuPagesRuntime, encoder)
+  encodeBlendExpansion({ blendState, gpu: {}, run: {} } as unknown as WebgpuPagesRuntime, encoder)
   const sent = ofSteps()
   assert.equal(sent.length, 1, 'one write, the one the whole steps made')
   assert.ok(written(sent[0]).byteLength <= steps.size, 'never past the whole steps')
   // The buffer holds each step's words where its slot lies.
   const held = new Uint32Array(steps.size / 4)
   replayWrites(held.buffer, sent)
-  for (const passSteps of blendState.orderSteps)
-    for (const { uniform } of passSteps) {
-      const at = uniform * 64
-      assert.deepEqual(
-        [...held.subarray(at, at + ORDER_UNI_WORDS)],
-        [...blendState.orderStepWords.subarray(at, at + ORDER_UNI_WORDS)],
-      )
-    }
+  for (const { uniform } of blendState.orderSteps) {
+    const at = uniform * 64
+    assert.deepEqual(
+      [...held.subarray(at, at + ORDER_UNI_WORDS)],
+      [...blendState.orderStepWords.subarray(at, at + ORDER_UNI_WORDS)],
+    )
+  }
 })

@@ -3,7 +3,7 @@
 // one-pass packing: a dither of one fifteenth, then a rounding to k/15 that four lights share a
 // 16-bit word with — here a lane
 // holds the count, not a rounding, and the dither only hid that rounding's bands.
-// Against the exact fraction, over every fraction the traces reach (n ≤ 7 rays) and every
+// Against the exact fraction, over every fraction the traces reach (n ≤ `VSM_TRACE_RAYS`) and every
 // blue-noise texel (j / 255), develop's value in f32 then f16 against the shipped one: the shipped
 // value is the half float nearest the fraction, a frame's error is never larger and mostly far
 // smaller, and the mean over the noise — what the temporal accumulation converges to — is never
@@ -11,6 +11,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { vsmProjectionWgsl } from './projectionWgsl.ts'
+import { VSM_TRACE_RAYS } from './constants.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
@@ -38,7 +39,7 @@ test('the mask stores the ray fraction as traced: no dither, no fifteenths', () 
 test('every reachable ray fraction is stored as close or closer, each frame and on average', () => {
   let worstDevelop = 0,
     worstShipped = 0
-  for (let n = 1; n <= 7; n++)
+  for (let n = 1; n <= VSM_TRACE_RAYS; n++)
     for (let k = 0; k <= n; k++) {
       const x = k / n,
         shipped = half(Math.fround(k) / Math.fround(n))

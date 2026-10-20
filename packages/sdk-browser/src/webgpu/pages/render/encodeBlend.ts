@@ -1,15 +1,14 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
-import { drawBlendPass } from '../../blend/draw.ts'
+import { countBlendDraws, drawBlendPass } from '../../blend/draw.ts'
 import { writeBlendView } from '../../blend/uniforms.ts'
 import { encodeBlendExpansion } from '../../blend/expansionFrame.ts'
 import { orderBlendPasses } from '../../blend/order.ts'
 import { encodeTransparentInstances } from '../../transparent/draw.ts'
-import { boundWaterPass, encodeWaterPass } from '../../water/pass.ts'
+import { encodeDistortion } from '../../blend/distortion.ts'
 import { encodeParticles } from '../../particles/webgpuParticleFrame.ts'
 import { blendLightResources } from '../../blend/lighting.ts'
 import { directLightResources } from '../prepare/contractLight.ts'
 import { voidStaleBlendGroups } from '../../blend/identity.ts'
-import { viewProj } from '../helpers.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { ContractKey } from '../../../lighting/deferred/contractCuts.ts'
 import { transparentCounts } from '../state/transparentCounts.ts'
@@ -22,11 +21,7 @@ const blendEye = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.ca
  * `false` without the pass's resources. The compaction reads the mask this very frame's cluster cut
  * wrote, a few commands earlier in the same buffer, and writes the instance list the runs draw from.
  */
-export function prepareBlend(
-  rt: WebgpuPagesRuntime,
-  encoder: GPUCommandEncoder,
-  composes: boolean,
-): boolean {
+export function prepareBlend(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder): boolean {
   const { gpu, vis, run, timing, blendState } = rt
   const ready = !!(
     blendState.blendGpu.length &&
@@ -50,9 +45,7 @@ export function prepareBlend(
   const cpuStart = cpuNow()
   encodeTransparentInstances(rt, encoder)
   // The few own entries' order on the CPU, the frame's head for the GPU — the eye, the frustum
-  // planes, the water's view —; the GPU judges every item, bounds the water and sorts the rest far
-  // to near (a blend writes no depth).
-  boundWaterPass(rt, composes, viewProj)
+  // planes —; the GPU judges every item and sorts them far to near (a blend writes no depth).
   orderBlendPasses(blendState, blendEye(rt))
   // The GPU judges, orders and expands the plan: instances, one indirect argument per slot.
   encodeBlendExpansion(rt, encoder)
@@ -67,7 +60,7 @@ export function prepareBlend(
  * What the transparents of an image draw with, once `prepareBlend` prepared them, before any pass of
  * theirs — the front pass the reflection trace reads (`encodeFrontPass`) and the blend pass —: the blend
  * view, the material records the item records name, and the groups, a real resource voiding a
- * placeholder's group. Returns the frame's lights' key, which picks the blend and water programs
+ * placeholder's group. Returns the frame's lights' key, which picks the blend programs
  * (`createForwardVariants`).
  */
 export function bindBlend(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -84,25 +77,23 @@ export function bindBlend(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /** Draws the transparents of an image, bound by `bindBlend`, lit with the lights' key `contract` it
- *  returned; none where they were not prepared (`contract` absent). */
+ *  returned; none where they were not prepared (`contract` absent): the distortion of the
+ *  opaque scene first, so refraction bends only what lies behind, then every translucent layer
+ *  over it (`encodeDistortion`,
+ *  `drawBlendPass`). */
 export function encodeBlend(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  composes: boolean,
   contract: Partial<ContractKey> | undefined,
 ) {
-  const { run, timing, blendState, diag } = rt
-  // Every image reaches this stage: the particles step here, beside the water.
+  const { run, timing, blendState, diag, vis } = rt
+  // Every image reaches this stage: the particles step here.
   encodeParticles(rt, device, encoder)
   if (!contract) return
   const prepared = cpuNow()
-  drawBlendPass(rt, device, encoder, false, contract)
-  // Water after blends, on a frozen backdrop: no transmissive surface reads a half-composed image.
-  // Without the pass — a diagnostic view or variant, a second-camera capture, an image no
-  // composition follows — the slice draws as one more blend.
-  if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes, contract))
-    drawBlendPass(rt, device, encoder, true, contract)
+  countBlendDraws(rt, encodeDistortion(rt, device, encoder, vis.blendPipelines?.transmission))
+  drawBlendPass(rt, device, encoder, contract)
   timing.transparentDrawMs += cpuNow() - prepared
   if (diag.traceEnabled)
     diag.traceDiagnostic(
@@ -114,7 +105,6 @@ export function encodeBlend(
         ...transparentCounts(rt),
         transmissiveMeshes: blendState.transmissive,
         encodeMs: timing.transparentPrepareMs + timing.transparentDrawMs,
-        passes: blendState.seeds[1].length ? 2 : 1,
       }),
     )
 }

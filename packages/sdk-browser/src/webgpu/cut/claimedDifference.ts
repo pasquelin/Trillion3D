@@ -1,7 +1,7 @@
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
-import { mapRawRanks, type HeldList } from './heldList.ts'
+import { mapRawRanks, markListed, type HeldList } from './heldList.ts'
 import { copyRanks } from './copyRanks.ts'
 import { hasBit, lowestBit, setBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
@@ -68,7 +68,7 @@ export function applyClaimed(
     const id = ids[w],
       rec = recordOf?.(id)
     // No record: the list never holds it. Marked by this list already: a repeat.
-    const seen = rec || !recordOf ? mark.set(id, PENDING) : PENDING
+    const seen = markListed(held, id, rec, PENDING)
     if (seen === PENDING) {
       next[w] = SKIPPED
       skipped++

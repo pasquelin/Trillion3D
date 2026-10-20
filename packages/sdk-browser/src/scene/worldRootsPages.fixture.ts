@@ -5,66 +5,89 @@ import {
   type WorldRootsSpec,
 } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
+import { WORLD_ROOTS_VERSION } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { encodePage } from '../page/codec/encodePage.fixture.ts'
 import { inCullingOrder } from './worldCulling.fixture.ts'
 
-/** One super-root page as the cook writes it, a geometry page: a triangle of three vertices, `x`
+/** One world page as the cook writes it, a geometry page: a triangle of three vertices, `x`
  *  its offset, with its facts (`WorldRootsPageFacts`). */
 export function worldPage(x: number) {
   const array = Float32Array.of(x, 0, 0, x + 1, 0, 0, x, 1, 0)
-  const { data, ...facts } = encodePage([0, 1, 2], { POSITION: { itemSize: 3, array } })
+  // The world DAG records no cone of its pages: the page carries it (`WorldRootsPageFacts`).
+  const { data, cone: _, ...facts } = encodePage([0, 1, 2], { POSITION: { itemSize: 3, array } })
   return { bytes: data as Uint8Array, facts: { bytes: data.byteLength, ...facts } }
 }
 
-/** `pages` laid end to end in one binary, a bundle each, every one but the first needing the
- *  first, the top: the binary and its bundles, each digest named by `sha256`. */
-export function packBundles(pages: readonly Uint8Array[], sha256: (bytes: Uint8Array) => string) {
-  const bin = new Uint8Array(pages.reduce((sum, page) => sum + page.byteLength, 0))
+/** `bundles`, each a list of pages, laid end to end in one binary, bundle after bundle, each
+ *  needing `dependencies(at)`: the binary and its bundles, each digest named by `sha256`. */
+export function packBundles(
+  bundles: readonly (readonly Uint8Array[])[],
+  sha256: (bytes: Uint8Array) => string,
+  dependencies: (at: number) => number[] = () => [],
+) {
+  const all = bundles.flat()
+  const bin = new Uint8Array(all.reduce((sum, page) => sum + page.byteLength, 0))
   let offset = 0
-  const bundles = pages.map((page, at) => {
-    bin.set(page, offset)
-    offset += page.byteLength
-    const bytes = page.byteLength
+  const records = bundles.map((pages, at) => {
+    const from = offset
+    for (const page of pages) bin.set(page, (offset += page.byteLength) - page.byteLength)
+    const bytes = bin.subarray(from, offset)
     return {
-      offset: offset - bytes,
-      bytes,
-      sha256: sha256(page),
-      count: 1,
-      dependencies: at ? [0] : [],
+      offset: from,
+      bytes: bytes.byteLength,
+      sha256: sha256(bytes),
+      count: pages.length,
+      dependencies: dependencies(at),
     }
   })
-  return { bin, bundles }
+  return { bin, bundles: records }
 }
 
+/** The world's HLOD 0 cells. */
+const CELLS = 3
+
+/** A chain of `count` HLOD 0 cells along x, one unit each, every one a top cell: its actor always
+ *  loaded (`WorldRoots.chain`). */
+export function flatChain(count: number): WorldRoots['chain'] {
+  return {
+    parent: new Int32Array(count).fill(-1),
+    level: new Uint8Array(count),
+    bounds: Float64Array.from({ length: 6 * count }, (_, at) => {
+      const [cell, k] = [Math.floor(at / 6), at % 6]
+      return k === 0 ? cell : k === 3 ? cell + 1 : k < 3 ? -1 : 1
+    }),
+  }
+}
+/** The bundle holding HLOD 0 cell `cell`'s HLOD 1 root: cell 2's lies first in the binary. */
+const rootBundle = (cell: number) => (cell + 1) % CELLS
+/** The bundle holding every cell's level 0 pages, last in the binary. */
+const CHILDREN = CELLS
+
 /**
- * A world of three cells over four bundles of one page each: the top, bundle 0, pinned; bundles 1
- * and 2 the super-roots of cells 0 and 1; bundle 3, which cells 0 and 1 both need. Cell 2's
- * objects reach the top alone. `sha256` names each bundle's digest, `table.payload` the binary.
- * `spec` states it plainly, `bytes` are its records (`world-roots.table`) and `table` reads them.
+ * The world HLOD of three HLOD 0 cells over four bundles: bundles 1, 2 and 0 hold the HLOD 1 roots
+ * of cells 0, 1 and 2, one page each; bundle 3 the three cells' level 0 pages, needing every root.
+ * Cells 0 and 1 hold bundle 3 besides their root's, cell 2 its root's alone. `sha256` names each
+ * bundle's digest, `table.payload` the binary. `spec` states it plainly, `bytes` are its records
+ * (`world-roots.table`) and `table` reads them.
  */
 export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => '0') {
-  const pages = [0, 1, 2, 3].map((x) => worldPage(x).bytes)
-  const { bin, bundles } = packBundles(pages, sha256)
-  const object = (dependencies: number[]) => ({ node: 0, primitive: 0, roots: [0], dependencies })
+  const pages = [[0], [1], [2], [3, 4, 5]].map((xs) => xs.map((x) => worldPage(x).bytes))
+  const { bin, bundles } = packBundles(pages, sha256, (at) => (at === CHILDREN ? [0, 1, 2] : []))
   const spec: WorldRootsSpec = {
-    version: 6,
-    budgetBytes: 4 << 20,
-    pinned: 1,
-    pinnedTopBytes: bundles[0].bytes,
+    version: WORLD_ROOTS_VERSION,
     payload: { url: 'world-roots.bin', sha256: sha256(bin), bytes: bin.byteLength },
     bundles,
-    pages: bundles.map(({ bytes }, bundle) => ({
-      bundle,
-      offset: 0,
-      bytes,
-      level: 3 - bundle,
-      lodError: 1,
-    })),
-    cells: [
-      { objects: [object([0, 1, 3])] },
-      { objects: [object([0, 2, 3]), object([0])] },
-      { objects: [object([0])] },
-    ],
+    pages: pages.flatMap((list, bundle) =>
+      list.map((page, k) => ({
+        bundle,
+        offset: k * page.byteLength,
+        bytes: page.byteLength,
+        level: bundle === CHILDREN ? 0 : 1,
+        lodError: bundle === CHILDREN ? 0 : 1,
+      })),
+    ),
+    hlod: [[1, 3], [2, 3], [0]],
+    chain: flatChain(CELLS),
   }
   const bytes = encodeWorldRoots(spec)
   return { spec, bytes, table: readWorldRoots(bytes), bin }
@@ -75,104 +98,63 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
 type WorldRootsCookedCluster = WorldRootsCluster & { units: [number, number] }
 
 /**
- * A world of three cells along x, each four object roots (level 0, kept in the objects' own
- * streams), continued into one cell super-root (level 1) and one world top (level 2): the shape
- * the cook publishes, its `clusters` and `groups` as it adds them (`world-roots.dag`). Cell
- * 2 far, its object roots unread, its super-root must stand in. `units` spans the leaf unit each
- * cluster covers, so a coverage check can read it.
+ * The world HLOD of three HLOD 0 cells along x, one unit each, as the cook publishes it
+ * (`world-roots.dag`): per cell, its HLOD 1 merged from the cell's level 0 geometry
+ * (`compiler_world_roots/world.rs`) — a level 0 cluster at error 0, its page in bundle 3, and the
+ * root replacing it at level 1, its page alone in its cell's bundle (`worldRootsFixture`) —, every
+ * error the build's own. `units` spans the leaf unit each cluster covers, so a coverage check can
+ * read it.
  */
 export function worldRootsDag() {
-  const cells = 3,
-    per = 4,
-    leaves = cells * per,
-    e1 = 0.05,
-    e2 = 0.5
+  const leaves = CELLS,
+    e1 = 0.05
   const clusters: WorldRootsCookedCluster[] = []
   const groups: ClusterGroup[] = []
-  for (let cell = 0; cell < cells; cell++)
-    for (let i = 0; i < per; i++) {
-      const u = cell * per + i
-      clusters.push({
-        cluster: u,
-        level: 0,
-        lodError: 0,
-        sphere: [u + 0.5, 0, 0, 0.5],
-        parentError: e1,
-        parentSphere: [cell * per + 2, 0, 0, 2],
-        min: [u, -0.25, -0.25],
-        max: [u + 1, 0.25, 0.25],
-        triangles: 2,
-        primitive: 0,
-        bundle: null,
-        offset: null,
-        origin: u,
-        page: null,
-        units: [u, u + 1],
-      })
-    }
-  for (let cell = 0; cell < cells; cell++) {
+  const box = (u: number) => ({ min: [u, -0.25, -0.25], max: [u + 1, 0.25, 0.25] })
+  const sphere = (u: number) => [u + 0.5, 0, 0, 0.5]
+  const layer = { material: 0, triangles: 1 }
+  for (let u = 0; u < leaves; u++)
+    clusters.push({
+      cluster: u,
+      level: 0,
+      lodError: 0,
+      sphere: sphere(u),
+      parentError: e1,
+      parentSphere: sphere(u),
+      ...box(u),
+      ...layer,
+      bundle: CHILDREN,
+      offset: u * worldPage(0).facts.bytes,
+      hlod: u,
+      page: worldPage(CELLS + u).facts,
+      units: [u, u + 1],
+    })
+  for (let u = 0; u < leaves; u++) {
     const cluster = clusters.length
     clusters.push({
       cluster,
       level: 1,
       lodError: e1,
-      sphere: [cell * per + 2, 0, 0, 2],
-      parentError: e2,
-      parentSphere: [leaves / 2, 0, 0, leaves / 2],
-      min: [cell * per, -0.25, -0.25],
-      max: [(cell + 1) * per, 0.25, 0.25],
-      triangles: 2 * per,
-      primitive: 0,
-      bundle: cell + 1,
+      sphere: sphere(u),
+      parentError: null,
+      parentSphere: null,
+      ...box(u),
+      ...layer,
+      bundle: rootBundle(u),
       offset: 0,
-      origin: null,
-      page: worldPage(cell + 1).facts,
-      units: [cell * per, (cell + 1) * per],
+      hlod: u,
+      page: worldPage(rootBundle(u)).facts,
+      units: [u, u + 1],
     })
-    groups.push({
-      level: 1,
-      error: e1,
-      sphere: [cell * per + 2, 0, 0, 2],
-      children: [cell * per, cell * per + 1, cell * per + 2, cell * per + 3],
-      outputs: [cluster],
-    })
+    groups.push({ level: 1, error: e1, sphere: sphere(u), children: [u], outputs: [cluster] })
   }
-  const top = clusters.length
-  clusters.push({
-    cluster: top,
-    level: 2,
-    lodError: e2,
-    sphere: [leaves / 2, 0, 0, leaves / 2],
-    parentError: null,
-    parentSphere: null,
-    min: [0, -0.25, -0.25],
-    max: [leaves, 0.25, 0.25],
-    triangles: 2 * leaves,
-    primitive: 0,
-    bundle: 0,
-    offset: 0,
-    origin: null,
-    page: worldPage(0).facts,
-    units: [0, leaves],
-  })
-  groups.push({
-    level: 2,
-    error: e2,
-    sphere: [leaves / 2, 0, 0, leaves / 2],
-    children: [leaves, leaves + 1, leaves + 2],
-    outputs: [top],
-  })
   return { ...inCullingOrder({ clusters, groups }), leaves }
 }
 
-/** The objects of `cell` as a load reads them, word by word (`first`, `size`, `objectNode`,
- *  `objectPrimitive`, `objectDependencies`): the roots list is no reader's. */
-export function cellObjects(table: WorldRoots, cell: number) {
-  const { cells } = table,
-    first = cells.first(cell)
-  return Array.from({ length: cells.size(cell) }, (_, k) => ({
-    node: cells.objectNode(first + k),
-    primitive: cells.objectPrimitive(first + k),
-    dependencies: Array.from(cells.objectDependencies(first + k)),
-  }))
-}
+/** The fixture's binary as the world DAG names its pages: `world-roots.bin`, each bundle at its
+ *  offset, over its HLOD 0 cells. */
+export const worldBinary = () => ({
+  url: 'world-roots.bin',
+  chain: flatChain(CELLS),
+  bundles: worldRootsFixture().table.bundles,
+})

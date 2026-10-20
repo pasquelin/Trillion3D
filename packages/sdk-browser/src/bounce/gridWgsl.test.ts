@@ -46,8 +46,8 @@ const channel = (body: string, coefficient: RegExp, vector: string) =>
     body
       .replace(coefficient, (_, k: string | undefined) => `c[${k ?? 0}]`)
       .replace(/\b(var|let) (\w+)=/g, 'let $2=')
-      .replace(/max\(vec3f?\(0\.0\),/g, 'Math.max(0,') +
-      (/\breturn\b/.test(body) ? '' : 'return E;'),
+      .replace(/\bmax\(/g, 'Math.max(')
+      .replace(/vec3f?\(0\.0\)/g, '0') + (/\breturn\b/.test(body) ? '' : 'return E;'),
   ) as (c: number[], v: Vector) => number
 
 test('a bounce probe is read in the band order the environment uses', () => {
@@ -66,11 +66,12 @@ test('a bounce probe is read in the band order the environment uses', () => {
     /probeAt\(probe,(\d)u\)\.xyz/g,
     'n',
   )
-  // The environment's reading: from its coefficients to the return.
-  const coefficients = 'let e=directLights.environment;',
-    read = DIRECT_LIGHTING_WGSL.indexOf(coefficients) + coefficients.length
+  // The environment's reading: its irradiance past the line naming its coefficients.
   const environment = channel(
-    DIRECT_LIGHTING_WGSL.slice(read, DIRECT_LIGHTING_WGSL.indexOf('return', read)),
+    functionBody(DIRECT_LIGHTING_WGSL, 'environmentIrradiance').replace(
+      'let e=directLights.environment;',
+      '',
+    ),
     /e\[(\d)\]\.rgb/g,
     'N',
   )
@@ -92,7 +93,7 @@ test('a bounce probe is read in the band order the environment uses', () => {
     for (const n of [...directions, e]) {
       const expected = bounce(sh, n),
         read = environment(sh, n)
-      assert.ok(Math.abs(Math.max(0, read) - expected) < 1e-5, `${expected} vs ${read}`)
+      assert.ok(Math.abs(read - expected) < 1e-5, `${expected} vs ${read}`)
     }
   }
 })

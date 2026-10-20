@@ -5,6 +5,28 @@ import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contra
 import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
 
 /**
+ * A shadow catcher's term (`catcherAlpha`, `../../scene/surfaceModel.ts`): of a light that holds a
+ * shadow slot, the light's energy at the point that its shadow lets through — its translucent
+ * casters' colour averaged in — in `x`, and all of it in `y`; of any other light, nothing. A
+ * program with no shadow code has no shadowed light, and a rectangle casts no shadow: their terms
+ * are zero (`CATCHER_NONE`).
+ */
+const CATCHER_SHADOWED = (out: Out) => `
+ if(surfaceModel==${MODEL_FLAG.shadow}u){
+  let weight=select(0.0,light.colorIntensity.w*incidence.w,i32(light.params.y)>=0);
+  return ${out('vec3f(weight*shade*dot(shadowTransmission,vec3f(1.0/3.0)),weight,0.0)')};
+ }`
+const CATCHER_NONE = (out: Out) => `
+ if(surfaceModel==${MODEL_FLAG.shadow}u){return ${out('vec3f(0.0)')};}`
+
+/** A term's return of \`v\`, a light's whole term; a split term's (\`LightSplit\`), its specular
+ *  share, a catcher's term and a thin back's transmission riding there as the subtraction of the two
+ *  sums left them (\`declaredLightSplit\`). */
+type Out = (v: string) => string
+const WHOLE: Out = (v) => v
+const SPECULAR: Out = (v) => `LightSplit(vec3f(0.0),${v})`
+
+/**
  * The contribution of one declared light at the point, its shadow included — the engine's only
  * lighting formula. A light out of range, or fully in shadow, yields exactly zero.
  *
@@ -38,99 +60,126 @@ import { INCIDENCE, REACH, irradianceTerm } from './lightTermsWgsl.ts'
  * terms on a pixel without lobes.
  *
  * `shading` is what the pixel's lights share of its surface (`lobeSurface`), taken once before the
- * loop (`sliceLighting`); with `pair`, `dielectric` the null albedo's.
+ * loop (`sliceLighting`).
  */
 export const declaredLightWgsl = (
   key: Partial<ContractKey> = LOBELESS_KEY,
-  { pair = false, term = 'surface' }: { pair?: boolean; term?: LightTerm } = {},
+  { term = 'surface' }: { term?: LightTerm } = {},
 ) => {
-  const shadowed = !key.unshadowed,
-    surface = term === 'surface'
+  const shadowed = !key.unshadowed
+  if (term === 'irradiance')
+    return wgslBlock(
+      `declaredLightWgsl(${variantLabel(key)}, ${term})`,
+      [],
+      `fn declaredIrradiance(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
+}`,
+    )
+  const split = term === 'split'
+  const out = split ? SPECULAR : WHOLE
+  const zero = out(ZERO)
   return wgslBlock(
-    `declaredLightWgsl(${variantLabel(key)}, ${pair}, ${term})`,
-    [...(pair ? [LIGHT_PAIR_WGSL] : []), ...(surface ? [lambertDiffuse] : [])],
-    surface
-      ? `fn declaredLight${pair ? 'Pair' : ''}(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${REACH(zero(pair))}${key.rectless ? '' : rectBranch(pair)}${INCIDENCE(zero(pair))}${shadowed ? shadeStatement(pair) : ''}
+    `declaredLightWgsl(${variantLabel(key)}, ${term})`,
+    [lambertDiffuse],
+    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.rectless ? '' : rectBranch(split)}${INCIDENCE(zero)}${shadowed ? shadeStatement(out) : CATCHER_NONE(out)}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
  let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
  // the light's sum as it is (\`exactZeros.test.ts\`). Its back takes the light's cosine from behind.
  var transmitted=vec3f(0.0);
  if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(max(-dot(N,incidence.xyz),0.0)*energy),1.0);}
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${terms(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
- return ${terms(pair, (_rgb, _metal, shading) => `(surfaceLight(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
-}`
-      : `fn declaredIrradiance(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless)}
+${split ? SPLIT_TAIL : WHOLE_TAIL}
 }`,
   )
 }
 
-/** What a light gives (`declaredLightWgsl`): a pixel's radiance through the maps, or a point's
- *  irradiance through the proxy. */
-export type LightTerm = 'surface' | 'irradiance'
+const WHOLE_HEAD =
+  'fn declaredLight(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface)->vec3f{'
+const WHOLE_TAIL = ` if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,incidence.xyz,energy,ao)+transmitted)*color;}
+ return (surfaceLight(shading,N,V,vec4f(incidence.xyz,energy))+transmitted)*color;`
+/** The split term (\`declaredLightSplit\`, a translucent layer's forward lighting): the whole
+ *  term's two shares, from one shadow read — its diffuse layer, and the rest: the lobe's specular
+ *  (\`specularShading\`, the pixel's surface with no diffuse albedo), the thin back's
+ *  transmission, a catcher's term. */
+const SPLIT_HEAD = `struct LightSplit{diffuse:vec3f,specular:vec3f,}
+fn declaredLightSplit(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface,specularShading:LobeSurface)->LightSplit{`
+const SPLIT_TAIL = ` if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return LightSplit(modelLight(rgb,metal,N,incidence.xyz,energy,ao)*color,transmitted*color);}
+ // The base lobe's diffuse share (\`lobeSum\`) under what the coat lets through, as \`surfaceLight\`
+ // weighs it.
+ let diffuse=shading.diffuse*(energy*max(dot(N,incidence.xyz),0.0))*lobeThrough();
+ return LightSplit(diffuse*color,(surfaceLight(specularShading,N,V,vec4f(incidence.xyz,energy))+transmitted)*color);`
 
-/**
- * With `pair`, the light's two terms from one walk (`declaredLightPair`): on the surface, and on a
- * null albedo — the water's lit colour and its specular (`../../webgpu/water/compositeWgsl.ts`).
- * Each is the expression `declaredLight` returns, with `rgb`, `metal`, `shading` or `vec3f(0.0)`,
- * `0.0`, `dielectric` — a dielectric's reflectance and no diffuse — where it passes its arguments;
- * what they share — the incidence, the shadow read, the transmission —
- * reads no albedo, so it is read once and both terms are those of two walks, bit for bit.
- */
-const LIGHT_PAIR_WGSL = wgslBlock(
-  'LIGHT_PAIR_WGSL',
-  [],
-  'struct LightPair{lit:vec3f,specular:vec3f,}',
-)
-const zero = (pair: boolean) => (pair ? 'LightPair(vec3f(0.0),vec3f(0.0))' : 'vec3f(0.0)')
-const terms = (pair: boolean, of: (rgb: string, metal: string, shading: string) => string) =>
-  pair
-    ? `LightPair(${of('rgb', 'metal', 'shading')},${of('vec3f(0.0)', '0.0', 'dielectric')})`
-    : of('rgb', 'metal', 'shading')
+/** What a light gives (`declaredLightWgsl`): a pixel's radiance through the maps, the same split
+ *  into its diffuse and specular shares, or a point's irradiance through the proxy. */
+type LightTerm = 'surface' | 'split' | 'irradiance'
+
+const ZERO = 'vec3f(0.0)'
 
 /** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. Its
  *  view from the point serves its front and, on a thin surface, its back (the Lambert diffuse of the
- *  back's irradiance, as a punctual light's). */
-const rectBranch = (pair: boolean) => `
- if(isRect(light)){
+ *  back's irradiance, as a punctual light's). It casts no shadow: nothing of it for a catcher. Split,
+ *  its two shares from one evaluation (\`rectLightSplit\`). */
+const rectBranch = (split: boolean) => `
+ if(isRect(light)){${CATCHER_NONE(split ? SPECULAR : WHOLE)}
   let r=rectView(light,P);
   var transmitted=vec3f(0.0);
-  if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(rectIrradianceOf(r,-N).w*light.colorIntensity.w),1.0)*light.colorIntensity.rgb;}
-  return ${terms(pair, (rgb, metal, shading) => `rectLight(light,r,${shading},${rgb},${metal},rough,N,V,ao)+transmitted`)};
+  if(thinSurface()){transmitted=lambertDiffuse(thinSubsurface,0.0,vec3f(rectIrradianceOf(r,-N).w*light.colorIntensity.w),1.0)*light.colorIntensity.rgb;}${
+    split
+      ? `
+  let t=rectLightSplit(light,r,shading,rgb,metal,rough,N,V,ao);
+  return LightSplit(t[0],t[1]+transmitted);`
+      : `
+  return rectLight(light,r,shading,rgb,metal,rough,N,V,ao)+transmitted;`
+  }
  }`
 
-const shadeStatement = (pair: boolean) => `
+const shadeStatement = (out: Out) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the shadow's
- // trace is skipped (\`shadowFactor\`). Toon bands light it. The direction is unit as it comes.
+ // trace is skipped (\`shadowFactor\`). Toon bands light it, a shadow catcher reads the shadow
+ // whatever its side. The direction is unit as it comes.
  let cosine=dot(N,incidence.xyz);
  let back=thinSurface()&&cosine<0.0;
- let facing=back||surfaceModel==${MODEL_FLAG.toon}u||cosine>0.0;
- let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,vsmBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
- if(shade<=0.0){return ${zero(pair)};}`
+ let facing=back||surfaceModel==${MODEL_FLAG.toon}u||surfaceModel==${MODEL_FLAG.shadow}u||cosine>0.0;
+ let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,vsmBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);${CATCHER_SHADOWED(out)}
+ if(shade<=0.0){return ${out(ZERO)};}`
 
 /**
- * The one loop that walks a point's lights: a pixel's in full (\`sliceLighting\`), the lights of a
+ * The one loop that walks a point's lights: a pixel's in full (\`sliceLighting\`; split into its
+ * diffuse and specular shares, \`sliceLightingSplit\`), the lights of a
  * cell's list (\`cellSlice\`, \`listedLight\`) in increasing rank; a bounce point's irradiance
  * (\`lightsIrradiance\`, \`term\` \`irradiance\`), the lights of its cell of the world grid
  * (\`bounceLightSlice\`). Every walk hands the light's RANK to its term, whose first statement is the
  * one reach test (\`REACH\`, \`lightReaches\`) on the light's kind and sphere: a light out of reach
  * costs those words and a compare, in every program, before the rest of its record is read.
  */
-export const sliceLightingWgsl = (pair = false, term: LightTerm = 'surface') =>
+export const sliceLightingWgsl = (term: LightTerm = 'surface') =>
   wgslBlock(
-    `sliceLightingWgsl(${pair}, ${term})`,
+    `sliceLightingWgsl(${term})`,
     [],
-    term === 'surface'
+    term === 'split'
       ? `
-fn sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}{
- var result=${zero(pair)};
- let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}
+fn sliceLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->LightSplit{
+ var result=LightSplit(vec3f(0.0),vec3f(0.0));
+ let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);
+ var specularShading=shading;
+ specularShading.diffuse=vec3f(0.0);
  for(var index=0u;index<slice.y;index++){
-  ${pair ? PAIR_SUM : 'result+=declaredLight(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);'}
+  let l=declaredLightSplit(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading,specularShading);
+  result.diffuse+=l.diffuse;
+  result.specular+=l.specular;
  }
  return result;
 }`
-      : `
+      : term === 'surface'
+        ? `
+fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
+ var result=vec3f(0.0);
+ let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);
+ for(var index=0u;index<slice.y;index++){
+  result+=declaredLight(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);
+ }
+ return result;
+}`
+        : `
 fn lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
  let slice=bounceLightSlice(P);
  var result=vec3f(0.0);
@@ -141,16 +190,12 @@ fn lightsIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
 }`,
   )
 
-/** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
-const PAIR_SUM = `let term=declaredLightPair(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading,dielectric);
-  result.lit+=term.lit;result.specular+=term.specular;`
-
 /**
  * A bounce point's irradiance (\`lightsIrradiance\`): the light term and its loop, over the lights of the point's cell of the world light grid (\`bounceLightSlice\`,
  * \`../../bounce/lightCellWgsl.ts\`, which its module lists with the light grid's buffer).
  */
 export const LIGHTS_IRRADIANCE_WGSL = wgslBlock(
   'LIGHTS_IRRADIANCE_WGSL',
-  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl(false, 'irradiance')],
+  [declaredLightWgsl({}, { term: 'irradiance' }), sliceLightingWgsl('irradiance')],
   '',
 )

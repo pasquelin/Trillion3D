@@ -43,10 +43,10 @@ test('every raster turns a sprite page off its record, the shadow vertex stage i
     assert.ok(shader.includes(PAGE_SCREEN_WGSL.text) && shader.includes(PAGE_SHAPE_WGSL.text))
   assert.ok(rasterSource(4, 16).includes('let shape=pageShape(page);'))
   assert.ok(rasterSource(4, 16).includes('let ca=pageClip(vp,page,h,ia,shape);'))
-  // Both hardware vertex stages, after the untouched triangle and line expressions.
+  // The one hardware vertex stage, both halves', after the untouched triangle and line expressions.
   const hardware =
     ' out.position=uni.viewProj*world;\n if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}\n if(shape.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p,shape.sprite);}'
-  assert.equal(VIS_SHADER.split(hardware).length - 1, 2)
+  assert.equal(VIS_SHADER.split(hardware).length - 1, 1)
   // The resolve rebuilds the turned triangle, and shades its turned world positions.
   assert.ok(
     SHADE_SHADER.includes(

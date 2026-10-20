@@ -129,7 +129,7 @@ fn physicalLobeless(v:PhysicalLobes)->bool{return !(v.strength>0.0)&&!(v.coat>0.
   )
 
 /** A pixel's lobes as one texel of the lobes target (`../../scene/physicalLobes.ts`): what the
- *  opaque resolve stores and the water's surface stage writes (`../../webgpu/water/surfaceWgsl.ts`).
+ *  opaque resolve stores.
  *  The host lists \`physicalCoreWgsl\`. */
 export const PHYSICAL_TEXEL_WGSL = wgslBlock(
   'PHYSICAL_TEXEL_WGSL',
@@ -154,6 +154,12 @@ export const PHYSICAL_RESOLVE_WGSL = wgslBlock(
     materialTableWgsl(SHADE_BINDINGS.material),
   ],
   `@group(0) @binding(${SHADE_BINDINGS.lobes}) var lobesOutput:texture_storage_2d<${PHYSICAL_LOBES_FORMAT},write>;
+/** The UV set map \`i\` of the surface record \`m\` reads (\`SURFACE_MAP_FIELDS\` order, its
+ *  \`channels\` word): the pixel's second where its bit is set, set by the resolve. */
+fn mapCoord(m:Material,i:u32)->PhysicalCoord{
+ if(bitIsSet(m.channels,i)){return physicalCoord1;}
+ return physicalCoord0;
+}
 /** The second UV set of triangle \`tri\` at the pixel, where its page has one; \`first\` otherwise. */
 fn physicalSecondUv(page:PageInfo,tri:u32,s0:vec2f,s1:vec2f,s2:vec2f,p:vec2f,bary:vec3f,iw:vec3f,first:PhysicalCoord)->PhysicalCoord{
  let h=pageHeader(page);
@@ -173,16 +179,18 @@ fn physicalLobes(pixel:vec2f,N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace
 )
 
 /** What the resolve reads of a row's record before its tile request, spliced into
- *  \`shadeSurface\` where the triangle and the first UV set are known. */
-export const PHYSICAL_UV_READ = `var lobes=0u;
+ *  \`shadeSurface\` where the triangle and the first UV set are known: the pixel's two UV sets —
+ *  the second decoded, in the \`HAS_PHYSICAL\` classes alone, where a map of the surface
+ *  (\`m.channels\`, \`mapCoord\`) or of its lobes reads it — and the lobe record. */
+export const PHYSICAL_UV_READ = `physicalCoord0=PhysicalCoord(uv,ddx,ddy,t.uvb-t.uva,t.uvc-t.uva);
+ physicalCoord1=physicalCoord0;
+ var lobes=0u;
  if(HAS_PHYSICAL){lobes=materialLobesOf(page.material);}
  if(lobes!=0u){
   physicalOn=true;
   physicalRecord=physicalAt(lobes);
-  physicalCoord0=PhysicalCoord(uv,ddx,ddy,t.uvb-t.uva,t.uvc-t.uva);
-  physicalCoord1=physicalCoord0;
-  if(physicalRecord.channels!=0u){physicalCoord1=physicalSecondUv(page,tri,s0.xy,s1.xy,s2.xy,p,bary,t.iw,physicalCoord0);}
- }`
+ }
+ if(HAS_PHYSICAL&&(m.channels!=0u||(lobes!=0u&&physicalRecord.channels!=0u))){physicalCoord1=physicalSecondUv(page,tri,s0.xy,s1.xy,s2.xy,p,bary,t.iw,physicalCoord0);}`
 
 /** The lobes of a lit pixel, once its normal and its flag are final. */
 export const PHYSICAL_LOBES_CALL = `if(HAS_PHYSICAL&&physicalOn&&(page.flags&${FLAG_LIT}u)!=0u){

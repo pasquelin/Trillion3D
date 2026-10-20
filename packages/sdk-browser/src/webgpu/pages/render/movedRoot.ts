@@ -1,3 +1,4 @@
+import { rootBlends } from '../../../page/selection/collectBlend.ts'
 import { matrixWindingCw } from '../../../../../math/src/matrix/orientation.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 
@@ -7,6 +8,7 @@ import { extendSpan } from '../../../../../math/src/sequence/span.ts'
 import { noteRootWorld } from '../../../placement/rootWorlds.ts'
 import { worldMoved, worldVersion } from '../../../page/selection/rootWorld.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { ownPageRow } from '../../row/state.ts'
 
 /** What a moved root rewrites: its rows and the memos its world feeds, and the runtime's list of
  *  moved placements, which names it (`movedWorlds.ts`). */
@@ -55,40 +57,46 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>, ra
  *  again from its world (`../../transparent/entryCorners.ts`), every entry's without a table; an
  *  opaque root holds no entry. */
 export function poseEntries(rt: Pick<MovedRootTarget, 'blendState'>, root: ClusterRoot<PageRec>) {
-  if (!root.pages[0]?.transparent) return
-  const { blendState } = rt,
-    { table, occlusionPosed: posed } = blendState,
-    base = root.packedBase ?? -1
-  if (!table || !posed || base < 0) {
-    blendState.occlusionEpoch = -1
-    return
-  }
-  for (let page = 0; page < root.pages.length; page++) {
-    const entry = table.entryOf(base + page)
-    if (entry >= 0) posed.mark(entry)
-  }
+  if (!rootBlends(root)) return
+  const { blendState } = rt
+  eachEntry(
+    blendState,
+    blendState.occlusionPosed,
+    root.packedBase ?? -1,
+    0,
+    root.pages.length - 1,
+    markPosed,
+  )
 }
 
-/** A blended root's pages `from` to `to`, from packed rank `base`, bounded elsewhere: their own
- *  entries' transparent corners are sent again (`occlusionMoved`), every entry's without a table. */
-function reboundCorners(rt: MovedRootTarget, base: number, from: number, to: number) {
-  const { blendState } = rt,
-    { table, occlusionMoved: moved } = blendState
-  if (!table || !moved || base < 0) {
+const markPosed = (posed: { mark(entry: number): void }, entry: number) => posed.mark(entry)
+
+/** Each transparent entry of a blended root's pages `from` to `to`, from packed rank `base`, handed
+ *  to `visit` with `target`; without a table, a target or a base, every entry's corners are derived
+ *  again instead (`occlusionEpoch`). */
+function eachEntry<Target>(
+  blendState: MovedRootTarget['blendState'],
+  target: Target | undefined,
+  base: number,
+  from: number,
+  to: number,
+  visit: (target: Target, entry: number) => void,
+) {
+  const { table } = blendState
+  if (!table || !target || base < 0) {
     blendState.occlusionEpoch = -1
     return
   }
   for (let page = from; page <= to; page++) {
     const entry = table.entryOf(base + page)
-    if (entry < 0) continue
-    extendSpan(moved, entry)
+    if (entry >= 0) visit(target, entry)
   }
 }
 
 /**
  * Declares the rows of `root`'s pages `from` to `to` dirty: their inputs, table words, draw bins and
  * every word the rows pass derives travel again for them alone, and a blended root's transparent
- * corners are sent again (`reboundCorners`). No pose moved here: a dynamic page's vertices lie in
+ * corners are sent again (`eachEntry`). No pose moved here: a dynamic page's vertices lie in
  * another box (`PageRec.moved`), its root holds another reach, or its world turned its winding.
  * Returns the rows marked.
  */
@@ -100,16 +108,14 @@ export function markRootRows(
 ) {
   const { rows } = rt.layout,
     base = root.packedBase ?? -1
-  if (to >= from && root.pages[0]?.transparent) reboundCorners(rt, base, from, to)
+  // A blended root's own entries' transparent corners are sent again (`occlusionMoved`).
+  if (to >= from && rootBlends(root))
+    eachEntry(rt.blendState, rt.blendState.occlusionMoved, base, from, to, extendSpan)
   let rewritten = 0
   for (let page = from; page <= to; page++) {
-    const index = base + page,
-      transparent = !!root.pages[page].transparent
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
-    const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
+    const row = ownPageRow(rows, base + page, !!root.pages[page].transparent)
     if (!rows.pageTableFloats || row < 0) continue
-    // A row the cache gave back may name another page since: only a row that is this page's.
-    if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
     rows.markRowWords(row)
     rewritten++
   }

@@ -27,6 +27,8 @@ import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
+import { createTextureCaches } from '../texture/textureCaches.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
  *  each a triangle of one root cluster, on the rows of `links`. */
@@ -80,9 +82,10 @@ const SCENE_PAGES = 9
  */
 export async function placedSession(bindingRows: number, light?: SceneLight) {
   installGpuGlobals()
-  const partition = world(0, 0)
+  // Grids of 100 m: rows for the near cell's two nodes alone.
+  const partition = world(0, 0, [], [100, 100, 100])
   const { cells, links, bytes } = partition
-  await opened(cells, bytes, 100, true, [1e9, 0, 0]) // rows for the view, nothing read
+  await opened(cells, bytes, true, [1e9, 0, 0]) // rows for the ranges, nothing read
   const scene = placedScene(links)
   const collected = collectClusterPages(
     scene.source,
@@ -104,6 +107,7 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   const sceneLights = createSceneLightStore()
   if (light) sceneLights.add(light)
   const rt = createWebgpuPagesRuntime({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     ...(light ? { sceneLights } : {}),
     gpuDevice: gpu.device,
@@ -129,7 +133,7 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   }
   try {
     await prepareWebgpuBackend(rt, gpu.device)
-    await settled(cells, [0, 0, 0], 100, port, noBudget)
+    await settled(cells, [0, 0, 0], port, noBudget)
     await draw()
   } catch (error) {
     dispose()
@@ -148,14 +152,14 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   }
 }
 
-/** Shrinks the core node a thousand times: the far cell comes within reach, one more node than
+/** Shrinks the core node a thousand times: the far cell comes within range, one more node than
  *  the rows hold. The frames a world runs until the page and the cell it brings are decoded; the
  *  image whose entry asks the cut over the grown rows (`startGrownCut`) — taken in place by the
  *  running cut, or made beside it —, that cut made, and the image whose entry adopts it. */
 export async function scaleDown(session: Awaited<ReturnType<typeof placedSession>>) {
   const { cells, core, io, rt, draw } = session
   core.scale.set(1e-3, 1e-3, 1e-3)
-  await settled(cells, [0, 0, 0], 100, io, noBudget)
+  await settled(cells, [0, 0, 0], io, noBudget)
   await draw()
   await rt.growth?.making
   await draw()

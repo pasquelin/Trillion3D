@@ -126,7 +126,7 @@ function cutAdopterOf(p: Publication, ahead: { offerIds(ids: ArrayLike<number>):
     onDrawnMirrored: () => markDrawnMirrored(run),
     onAhead: ahead.offerIds,
     onCutDelta: () => {
-      publishCut(p, cutDelta)
+      if (cutDelta.changed) publishCut(p, cutDelta)
       run.pagesEntered = cutDelta.enteredCount
       run.pagesExited = cutDelta.exitedCount
     },

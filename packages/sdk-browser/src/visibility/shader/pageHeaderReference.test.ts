@@ -15,7 +15,7 @@ import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodePage } from '../../page/codec/encodePage.fixture.ts'
 import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
-import { DEFORM_SOURCE_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
+import { FLAG_CLUSTER_PAGE } from '../types.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgFloatRandom } from '../../../../math/src/sequence/seeded.fixture.ts'
 
@@ -75,7 +75,7 @@ function pool() {
 }
 
 const NAMES = [
-  ...'pageHeader pageHeaderFor deformWholeCopy pageCorner pageRestPosition vertPos'.split(' '),
+  ...'pageHeader pageHeaderFor pageCorner pageRestPosition vertPos'.split(' '),
   ...'clusterPointHeader clusterSurfaceHeader clusterStream clusterWidths clusterStep'.split(' '),
   ...'pow2FromExponent bitLength ceilDiv clusterIndex clusterBlock clusterWindow clusterField'.split(
     ' ',
@@ -122,25 +122,7 @@ function firstDifference(code: string): string | null {
         )
           return `${name}: position ${v}`
   }
-  // A float page deformed whole in the pool: its skin and morph counts come from its tail.
-  const tail = { flags: 16, morphCount: 2, influences: 5 }
-  const float = shaderRun<Record<string, Fn>>(code, NAMES, {
-    ...STRUCTS,
-    $b: integer$b,
-    indices: [],
-    uvs: [],
-    positions: [tail.flags, tail.morphCount, 0, 2 * 6 + tail.influences * 2],
-  })
-  const row = {
-    pageOffset: 0,
-    flags: 0,
-    packedBase: 1,
-    deformOutput: (DEFORM_SOURCE_IN_POOL | 1) >>> 0,
-  }
-  const h = float.pageHeaderFor(row, false) as Header
-  return Object.keys(tail).every((k) => h[k] === tail[k as keyof typeof tail])
-    ? null
-    : 'float page tail'
+  return null
 }
 
 test('the part and the whole of a page header are the reference of the format', () => {
@@ -156,7 +138,6 @@ const BREAKS: [string, string][] = [
   ['h.influences=indices[base+24u]', 'h.influences=indices[base+23u]'],
   ['h.flags=indices[base+4u]', 'h.flags=indices[base+5u]'],
   ['(h.flags&2u)!=0u', '(h.flags&4u)!=0u'],
-  ['positions[at+1u]', 'positions[at+2u]'],
 ]
 for (const [from, to] of BREAKS)
   test(`the reference catches ${from} read as ${to}`, () => {

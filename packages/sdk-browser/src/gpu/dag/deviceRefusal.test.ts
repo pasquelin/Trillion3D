@@ -65,10 +65,11 @@ test('`work` holds no word per page: a binding past one list section holds the c
     limits = { maxStorageBufferBindingSize: 12000 }
   assert.equal(dagDeviceRefusal(limits, pages), undefined, 'each list its own ranks')
   const rows = cameraCutBuffers(pages).rows
-  // Past the eviction sort's words, a constant whatever the pages (`POOL_SORT_WORDS`): 504 bytes,
-  // sixteen blocks of six words and thirty counters and rows.
+  // Past the eviction sort's words, a constant whatever the pages (`POOL_SORT_WORDS`): 496 bytes,
+  // sixteen blocks of six words, thirteen frame counters, fourteen group counts and the raised
+  // groups' count.
   const perPages = rows.work.size - 4 * POOL_SORT_WORDS
-  assert.equal(perPages, 504, `\`work\` is ${perPages} bytes for a thousand pages`)
+  assert.equal(perPages, 496, `\`work\` is ${perPages} bytes for a thousand pages`)
   assert.deepEqual(
     Object.keys(rows).filter((name) => name.startsWith('ranks')),
     [],

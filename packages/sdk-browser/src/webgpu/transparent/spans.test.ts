@@ -10,6 +10,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mixedBinScene } from '../pages/testScenes.fixture.ts'
 import { prepareWebgpuPages } from '../pages/prepare/preparePages.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('transparent spans follow only changed resident pages through arrival, eviction and slot reuse', async () => {
   installGpuGlobals()
@@ -18,6 +20,7 @@ test('transparent spans follow only changed resident pages through arrival, evic
   scene.metadata.primitives[1].pass = 'clustered-blend'
   scene.both.transparent = true
   const rt = createWebgpuPagesRuntime({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     metadata: { ...scene.metadata, ...MANIFEST_IDENTITY },
     gpuDevice: mock.device,

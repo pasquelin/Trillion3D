@@ -5,14 +5,12 @@ import { uploadWorlds } from './worldUpload.ts'
 import { holdWebgpuFrame } from '../../frame/hold.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
 import { deviceAnswering } from '../../frame/deviceAnswer.ts'
-import { pumpResidentTiles } from '../prepare/lightResources.ts'
 import { refreshBlendWorlds } from '../../blend/worlds.ts'
 import { refreshBlendScene } from '../../blend/sceneRefresh.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { followLiveTextures } from '../io/memory.ts'
 import { followFeedback } from '../prepare/feedbackVariant.ts'
 import { beginTaaFrame } from '../../../taa/frame.ts'
-import { restartTaaOnLanding } from '../../../taa/landing.ts'
 import { frameStart } from '../../../frame/scheduling.ts'
 import { askFramePipelines } from '../../frame/framePipelines.ts'
 import { adoptGrownCut } from '../../../placement/webgpuGrownCut.ts'
@@ -33,14 +31,12 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   // A frame the device still answers for (targets, shadow pool) is held even when forced.
   if (rt.feedbackAB?.force && !frameTargetsAwaited(rt) && !deviceAnswering(rt)) {
     // Replay the settled TAA sample and history while forcing the real GPU passes.
-    beginTaaFrame(rt, run.gate.cam, true)
+    beginTaaFrame(rt, run.gate.cam)
     run.frameHeld = false
   } else if (holdWebgpuFrame(rt, gpuDevice)) return
   drawFrameInputs(rt, gpuDevice, pixelError, cam)
   const cpuStart = cpuNow()
   resetFrameCounters(run)
-  // The impostor plan: the cards, and the card bit of the roots they replace, read by the cut.
-  rt.gpu.impostorCode?.planWebgpuImpostors(rt, cam)
   renderGpuCut(rt, cam, pixelError, cpuStart)
 }
 
@@ -61,8 +57,10 @@ function enterImage(rt: WebgpuPagesRuntime, camera: HostCamera, aspect: number |
   startGrownCut(rt)
   // The display's cadence, read on the main view's frames at the frame's rAF timestamp: the
   // render-scale budget, and its cost where the device cannot timestamp.
-  if (rt.views.active === rt.views.main && !capture.capturing)
-    rt.scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true)
+  if (rt.views.active === rt.views.main && !capture.capturing) {
+    rt.views.main.scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true)
+    rt.views.mainImages++
+  }
   run.lastCamera = camera
   // Image entry: order and its guarantees live in `../../../frame/gateCore.ts`, which also copies the host
   // camera into the engine's — everything that follows only reads the latter. The list of nodes
@@ -113,7 +111,7 @@ function drawFrameInputs(
   pixelError: number,
   cam: WebgpuPagesRuntime['run']['gate']['cam'],
 ) {
-  const { run, vis, gpu, blendState } = rt,
+  const { run, gpu, blendState } = rt,
     marks = rt.timing.marks
   // This frame is drawn: the canvas holds its display colour only once the frame presents it.
   gpu.presenter?.forget()
@@ -121,24 +119,17 @@ function drawFrameInputs(
   // Nothing is held by default: only adoption of an already-read readback declares it, and every
   // path that does not go through it — a pending image, a view's first cut — remakes everything.
   run.cutHeld = false
-  // What the previous image's feedback requested becomes resident, under the budgets. The pass
-  // times itself on its budget clock — the one bound the textures stage reads —; the marks only
-  // keep `worldMs` below to the world step alone.
   marks.gateEnd = cpuNow()
-  restartTaaOnLanding(rt, pumpResidentTiles(vis.textures, run.frame, run.textureConverging))
-  marks.tilesEnd = cpuNow()
   const worldsMoved = uploadWorlds(rt)
   // The GPU deformation of this image, on the poses just uploaded (#357).
-  rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
-  // A moved view lets every row the GPU partition kept leave the occluders again; while it stands
-  // still, the halves converge under the antialiasing jitter and an image can be held. The motion
-  // is the view fingerprint's, the unjittered view and projection, since the last drawn image.
-  run.occluderViewMoved = run.gate.takeViewMoved()
+  rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam)
   marks.blendStart = cpuNow()
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.
-  if (worldsMoved && gpuDevice) {
-    refreshBlendWorlds(blendState.blendGpu)
+  if ((worldsMoved || blendState.proxiesMoved) && gpuDevice) {
+    // A blended row turned to draw as its HLOD 0 actor or back writes its items' flags too.
+    blendState.proxiesMoved = false
+    if (worldsMoved) refreshBlendWorlds(blendState.blendGpu)
     // Records, boxes and the plan follow the scene, not the camera: it is here, and nowhere in
     // the image, that the transparent list is walked again — its poses alone while no material
     // moved (`refreshBlendScene`).
@@ -151,7 +142,6 @@ function resetFrameCounters(run: WebgpuPagesRuntime['run']) {
   run.overBudget = false
   run.submittedTriangles = 0
   run.blendPagedTriangles = 0
-  run.blendUnpagedTriangles = 0
   run.blendSubmittedTriangles = 0
   run.blendDrawCalls = 0
   run.frame++

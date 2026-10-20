@@ -13,14 +13,13 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
-import type { PoseHost, ProxyCopy } from '../dag/proxyInstances.ts'
+import type { PoseHost } from '../dag/proxyInstances.ts'
 import type { ProxyBoxes } from '../../bounce/probeSync.ts'
 import type { CutTables, ProxyResources } from '../dag/cutReaders.ts'
 
-/** The step a cut takes on the tables before it encodes, under its uniforms, for its view — an
- *  object the main view holds for the selection's life, or each view aside its own, never another
- *  view's — (`../dag/runtime.ts`, `syncTables`). */
-export type TableSync = (uniforms: SelectionUniforms, view: object) => void
+/** The step a cut takes on the tables before it encodes, the main view's or a view aside's
+ *  (`../dag/runtime.ts`, `syncTables`). */
+export type TableSync = () => void
 
 /**
  * `cameraStretch` is the camera half of the cut's object-to-view stretch, `perspective` the
@@ -69,10 +68,10 @@ export type SelectionResult = {
   /** How many of its first pages are OLD: older than any page the view ahead asks for, the only
    *  ones a page of the view ahead may take the place of. */
   evictOld?: number
-  /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut rule draws — one
-   *  counter, read as `selected` and `drawn` — and its blend share. The CPU sums none. */
+  /** Triangle totals HELD BY THE GPU, where the verdict is given: what the cut selects — past its
+   *  frustum and its levels, before the occlusion test (`drawnTrianglesOf`) — and its blend share.
+   *  The CPU sums none. */
   selectedTriangles: number
-  drawnTriangles: number
   transparentTriangles: number
   /** True when the cut exceeded the sample cap the device can hold: each list is its head, the
    *  frame's mask is whole, and nothing exits on it (`../../webgpu/cut/adoption.ts`). */
@@ -93,6 +92,19 @@ export type GpuCut = {
  *  every page. */
 export type ResidencyChanges = { pages: Int32Array; count: number }
 type Visit = (page: number) => void
+/** The world's chain of HLOD cells as the cut follows it (`../dag/worldFollow.ts`). */
+export type WorldCells = {
+  /** HLOD cell `cell` of instance `instance` is told `word` (`CELL_TOLD`): wished, every cell file
+   *  of an HLOD 0 cell placed, its actor's hold failed for good; whether it moved. */
+  show(instance: number, cell: number, word: number): boolean
+  /** Whether the cell was visible at the last cut (`../dag/worldFollow.ts`). */
+  visible(instance: number, cell: number): boolean
+  /** Whether the cell stood, at the last cut, for an actor it cannot draw, wished by its parent:
+   *  its content is wished for it. */
+  stands(instance: number, cell: number): boolean
+  /** Advanced whenever a cell's visibility moved. */
+  readonly revision: number
+}
 /** Told `true` when the shared command buffer reached the queue, `false` when the image dropped it. */
 export type SelectionSubmission = (submitted: boolean) => void
 export type GpuSelection = {
@@ -102,8 +114,17 @@ export type GpuSelection = {
   readonly pageCount: number
   /** The placements its tables are laid out for: `updateWorlds` takes sixteen floats each. */
   readonly worldCapacity: number
-  /** It packs the world DAG (#1333), whose residency it mirrors (`../dag/worldMirror.ts`, #1332). */
-  readonly packsWorld?: boolean
+  /** The world's chain of HLOD cells, when it packs the world DAG (`../dag/worldFollow.ts`): which
+   *  the partition shows, and what draws each now. */
+  readonly world?: WorldCells
+  /** Where the cut's cold words hold the world's HLOD cell states (`CELL_DRAW`), `cells` per
+   *  instance from word `base` (`../dag/worldLinks.ts`): what a pass beside the descent binds to
+   *  gate a placement by its cell as the descent does (`../../webgpu/blend/verdictWgsl.ts`). */
+  readonly cellStates?: {
+    readonly view: GPUTextureView
+    readonly base: number
+    readonly cells: number
+  }
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number
   /** Bytes of its GPU tables, within the cut's share (`../../residency/cutTableBytes.ts`). */
@@ -119,8 +140,8 @@ export type GpuSelection = {
   /** The poses the host holds: every placement's, as a walk wrote them — any may have moved —,
    *  or, `named` given, those it lists, increasing, the placements a call moved: those alone are
    *  compared and sent. The placements whose pose moved — the words a cut reads, or the exact
-   *  translation —, increasing, a view the next call overwrites: what the placement tree and the
-   *  impostor cards follow (`../dag/treeFollow.ts`). Advances `worldRevision` when one moved. */
+   *  translation —, increasing, a view the next call overwrites: what the placement tree follows
+   *  (`../dag/treeFollow.ts`). Advances `worldRevision` when one moved. */
   updateWorlds(worlds: Float32Array, named?: Int32Array): Int32Array
   /** Placement `world` is posed on the GPU by its parent from now on, or no longer
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; unlinked, the pose the
@@ -135,9 +156,6 @@ export type GpuSelection = {
   /** The groups `groups` name are fitted again before the next cut: the roots a parent
    *  composes moved with it (`../dag/treeFollow.ts`). */
   groupsMoved(groups: ArrayLike<number>): void
-  /** Writes the host made into the cut's frames and worlds since they were made: a GPU writer of
-   *  the same words (`../../placement/gpuCompose.ts`) writes them again once it moved. */
-  readonly frameWrites: number
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. `rows` are the
@@ -175,21 +193,18 @@ export type GpuSelection = {
   /** The world boxes of the placements that wear a proxy, the runs of those new or moved since the last
    *  call, and their extent (`../../bounce/probeSync.ts`). */
   proxyBoxes(): ProxyBoxes
-  /** The blended copies the forward family draws, members of the same proxy after the placements
-   *  (`../dag/proxyInstances.ts`): their poses are read again at each cut. */
-  proxyCopies(copies: readonly ProxyCopy[]): void
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `rootMark`). */
   markWorld(world: number, mark: number): void
-  /** Placement `world` places `object` of the world DAG now, or none (`-1`): the world stands in
-   *  for it where its object's group suffices (`../dag/worldFollow.ts`); nothing without a world. */
-  placeObject(world: number, object: number): void
-  /** Whether placement `world` is linked to an object of the world DAG, whose super-roots stand in
-   *  for it far away (`../dag/worldFollow.ts`); never without a world. */
-  worldStandsIn(world: number): boolean
-  /** Told of each placement whose link to the world DAG moved (`placeObject`). */
-  linkMoved?: (world: number) => void
+  /** Placement `world` lies in HLOD 0 cell `cell` of the world DAG's instance `instance` — the
+   *  placement of its model it is placed in, 0 the first — now, or in none (`-1`): it draws only
+   *  while its cell draws its placements (`../dag/worldFollow.ts`); nothing without a world. */
+  placeInCell(world: number, cell: number, instance?: number): void
+  /** Row `index` of the row list `key`, whose root the cut does not hold yet, lies in HLOD 0 cell
+   *  `cell` of instance `instance`, or in none (`-1`): its cell counts it as a placement not
+   *  resident meanwhile (`../dag/worldFollow.ts`); nothing without a world. */
+  waitRow(key: object, index: number, cell: number, instance: number): void
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: PageResidency, changes?: ResidencyChanges, moved?: Visit): boolean
   /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */

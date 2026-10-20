@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { createDeformationFrame } from './frame.ts'
 import { recordLayout, KIND_SOFT } from './layout.ts'
 import { receiveSoftSource, type SoftSource } from './softSource.ts'
+import { placementDeformation } from './placementSource.ts'
+import type { PlacementRows } from '../placement/rows.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 
 const sourceOf = (): SoftSource => ({
@@ -51,4 +53,14 @@ test('cooked simulation uses the same frame record, preserves the previous image
     false,
   )
   assert.equal(receiveSoftSource(source, new Float32Array(3)), false)
+})
+
+test("a compiled model's cooked soft body drawn at rows deforms by its row's own source", () => {
+  // A model's meshes are drawn through instance rows: each row reads its original mesh's
+  // simulation, as it reads its skeleton, morph weights and waves.
+  const source = sourceOf()
+  const rows = { sources: [{}, { softSource: source }] } as unknown as PlacementRows
+  const { mesh } = placementDeformation({ rows, index: 1 }, {}, new Map())
+  assert.equal(mesh.softSource, source)
+  assert.equal(placementDeformation({ rows, index: 0 }, {}, new Map()).mesh.softSource, undefined)
 })

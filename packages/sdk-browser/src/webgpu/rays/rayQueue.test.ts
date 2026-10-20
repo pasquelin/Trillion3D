@@ -51,7 +51,6 @@ function rig(
     },
     treeRoot: NO_INDEX,
     placements,
-    worldPlacement: NO_INDEX,
     cutLinks: [],
     recordShift: new Uint32Array(placements),
     recordCount: 1,

@@ -110,7 +110,7 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
   const deposits = collect(
     sample([
       { name: 'Trillion3D transparents', gpuMs: 2 },
-      { name: 'Trillion3D transmission', gpuMs: 3 },
+      { name: 'Trillion3D blend companion', gpuMs: 3 },
       { name: 'Trillion3D transparent compaction', gpuMs: 1 },
     ]),
   )

@@ -3,7 +3,7 @@ import type { Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
 import { createReadbackRing, type ReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { rootSource } from '../../placement/hidden.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
-import type { Intersection, RayFilter } from '../../world/query/types.ts'
+import type { Intersection, RayFilter, RayReach } from '../../world/query/types.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { rayFilterRanks } from './rayFilter.ts'
 import { createRayQuery, type RayQuery } from './rayQuery.ts'
@@ -13,12 +13,16 @@ import { validationScope } from '../../gpu/core/errorScope.ts'
 import { log } from '../../diagnostic/log.ts'
 import { RAY_HIT, RAY_RECORD, RAY_REACH_MAX, readHit, writeRay } from './rayRecord.ts'
 import { createRayRecords } from './rayRecords.ts'
+import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'
+import { microtaskOnce } from '../../../../sdk-core/src/runtime/microtaskOnce.ts'
 
-/** One ray cast and not answered yet: its doubles, its filter and its promise's settlement. */
+/** One ray cast and not answered yet: its doubles, its bounds, its filter and its promise's
+ *  settlement. */
 type Ask = {
   origin: [number, number, number]
   direction: [number, number, number]
   reach: number
+  lineReach: number
   ranks: number[]
   include: boolean
   settle: (hit: Intersection | null) => void
@@ -79,7 +83,6 @@ function intersectionOf(rt: WebgpuPagesRuntime, ask: Ask, hit: ReturnType<typeof
 export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const asks: Ask[] = [],
     flying = new Set<Batch>()
-  let scheduled = false
   const query: RayQuery = createRayQuery(device),
     records = createRayRecords(rt)
   const settleAll = (batch: readonly Ask[], hits?: ArrayBuffer) => {
@@ -91,10 +94,9 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
       ),
     )
   }
+  const turn = microtaskOnce(flush)
   const schedule = () => {
-    if (scheduled || !asks.length) return
-    scheduled = true
-    queueMicrotask(flush)
+    if (asks.length) turn.schedule()
   }
   const ring: ReadbackRing<Batch> = createReadbackRing<Batch>(
     device,
@@ -113,15 +115,14 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
     (mapped, _staging, batch) => settleAll(batch.asks, batch.refused ? undefined : mapped),
   )
   function flush() {
-    scheduled = false
     if (!asks.length) return
     const sources = raySourcesOf(rt, records)
     if (!sources) return settleAll(asks.splice(0))
     if (!query.compiled(schedule, refused)) return
-    let judge!: () => void
+    const { promise: judged, resolve: judge } = createDeferred<void>()
     const batch: Batch = {
       asks: asks.splice(0, BATCH_RAYS),
-      judged: new Promise<void>((resolve) => (judge = resolve)),
+      judged,
       refused: false,
     }
     const staging = ring.take(batch, batch.asks.length * RAY_HIT.words * 4)
@@ -157,9 +158,14 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
     settleAll(asks.splice(0))
   }
   return {
-    /** The nearest drawn triangle `ray` meets within `reach`, of the objects `filter` lets it meet:
-     *  a promise its batch's landing settles. */
-    cast(ray: Ray, filter?: RayFilter, reach = RAY_REACH_MAX): Promise<Intersection | null> {
+    /** The nearest drawn triangle `ray` meets within `reach` — or line it passes within
+     *  `lineReach` of, none unset —, of the objects `filter` lets it meet: a promise its batch's
+     *  landing settles. */
+    cast(
+      ray: Ray,
+      filter?: RayFilter,
+      { reach = RAY_REACH_MAX, lineReach = 0 }: RayReach = {},
+    ): Promise<Intersection | null> {
       const { ranks, include } = rayFilterRanks(rt.layout, filter)
       if (include && !ranks.length) return Promise.resolve(null)
       const { origin: o, direction: d } = ray
@@ -168,6 +174,7 @@ export function createRayQueue(rt: WebgpuPagesRuntime, device: GPUDevice) {
           origin: [o.x, o.y, o.z],
           direction: [d.x, d.y, d.z],
           reach: Math.min(reach, RAY_REACH_MAX),
+          lineReach: Math.max(0, lineReach),
           ranks,
           include,
           settle,

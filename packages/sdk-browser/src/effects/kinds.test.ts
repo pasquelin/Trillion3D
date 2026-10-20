@@ -35,9 +35,9 @@ test('the renderer has one implementation per kind, the kinds the budget reserve
 
 test('the renderer hands each pass to its kind, with its rank among that kind', async (t) => {
   const kind = spy(),
-    made = WEBGPU_KINDS.bloom
-  t.after(() => void (WEBGPU_KINDS.bloom = made))
-  WEBGPU_KINDS.bloom = async () => kind.webgpu
+    made = WEBGPU_KINDS.bloom.create
+  t.after(() => void (WEBGPU_KINDS.bloom.create = made))
+  WEBGPU_KINDS.bloom.create = async () => kind.webgpu
   const { device } = fakeDevice()
   const effects = createWebgpuEffects(device, (error) => assert.fail(String(error)))
   const encoder = device.createCommandEncoder(),

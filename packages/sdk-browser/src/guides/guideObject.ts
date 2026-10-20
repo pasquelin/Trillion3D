@@ -1,4 +1,5 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import { firstMaterial } from '../../../sdk-core/src/contracts/material.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { multiplyMatrix4, copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import { pointAt } from '../../../sdk-core/src/world/geometry/bounds.ts'
@@ -49,7 +50,7 @@ export function objectPieces(object: Object3D, width: number, size: number): Gui
       const [x, y, z] = pointAt(position, v, point)
       transformAffinePoint(ends, local, x, y, z, k * 3)
     })
-    const material = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as Material
+    const material = firstMaterial(mesh.material) as Material
     pieces.push({
       ends,
       color: material.color.getHex(),

@@ -6,7 +6,7 @@ import {
   CLUSTER_ORDERED,
   CLUSTER_SPATIAL,
 } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
-import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
+import { takeHeld, withArena } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 
 /** The rules of `cluster_build` (`page-codec-wasm/src/wasm_clusters.rs`): `spatial`, compact
@@ -30,33 +30,39 @@ export function clusterTriangles(
   positions: Float32Array,
   rule: ClusterRule,
 ): { indices: Uint32Array; ranges: [number, number][] } {
-  const input = reserveArena(module, [
-    { type: 'u32', length: Math.max(1, indices.length) },
-    { type: 'f32', length: Math.max(1, positions.length) },
-    { type: 'u32', length: 2 },
-    { type: 'u32', length: 1 },
-  ])
-  if (!input) throw new Error('CLUSTER_BUILDER_MEMORY')
-  let count: number
-  try {
-    const [index, position, caps, meta] = input.blocks()
-    index.view.set(indices)
-    position.view.set(positions)
-    caps.view.set([DAG_CLUSTER_TRIANGLES, DAG_CLUSTER_VERTICES])
-    const status = module.cluster_build(
-      ...[index.offset, indices.length, position.offset, positions.length / 3],
-      ...[CLUSTER_RULES[rule], caps.offset, meta.offset],
-    )
-    if (status !== 0) throw new Error('CLUSTER_BUILDER_REFUSED')
-    count = input.blocks()[3].view[0]
-  } finally {
-    input.freed()
-  }
+  const count = withArena(
+    module,
+    [
+      { type: 'u32', length: Math.max(1, indices.length) },
+      { type: 'f32', length: Math.max(1, positions.length) },
+      { type: 'u32', length: 2 },
+      { type: 'u32', length: 1 },
+    ],
+    'CLUSTER_BUILDER_MEMORY',
+    (input) => {
+      const [index, position, caps, meta] = input.blocks()
+      index.view.set(indices)
+      position.view.set(positions)
+      caps.view.set([DAG_CLUSTER_TRIANGLES, DAG_CLUSTER_VERTICES])
+      const status = module.cluster_build(
+        ...[index.offset, indices.length, position.offset, positions.length / 3],
+        ...[CLUSTER_RULES[rule], caps.offset, meta.offset],
+      )
+      if (status !== 0) throw new Error('CLUSTER_BUILDER_REFUSED')
+      return input.blocks()[3].view[0]
+    },
+  )
   // The held answer: the indices in cluster order, then where each of the `count` clusters ends.
   const [ordered, built] = takeHeld(module, [module.held_length() - count * 4, count * 4])
   const ends = new Uint32Array(built)
   return {
     indices: new Uint32Array(ordered),
-    ranges: Array.from(ends, (end, k): [number, number] => [k ? ends[k - 1] : 0, end]),
+    ranges: givenClusters(ends),
   }
 }
+
+/** The index ranges clusters take, `ends[k]` the end of cluster `k`: the clusterer's answer, and a
+ *  compiled primitive's own clusters, which the run-time cutter keeps
+ *  (`../../world/page/runtimeCut.ts`). */
+export const givenClusters = (ends: Uint32Array): [number, number][] =>
+  Array.from(ends, (end, k) => [k ? ends[k - 1] : 0, end])

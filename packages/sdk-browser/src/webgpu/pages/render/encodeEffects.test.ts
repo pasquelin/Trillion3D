@@ -1,39 +1,18 @@
 // The effect chain on the WebGPU path: a held frame redisplays the image the chain drew and
-// does no work of its own; a change of the chain breaks the hold; a diagnostic view and a capture
-// show the engine's image without it.
+// does no work of its own; a change of the chain breaks the hold, and so do programs compiling.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts'
 import { effect } from '../../../../../sdk-core/src/world/effect/index.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../../frame/hold.ts'
 import { unsettledMask } from '../../frame/unsettled.ts'
-import { settledRt } from '../../frame/hold.fixture.ts'
 import { encodeEffects } from './encodeEffects.ts'
 import { pendingWebgpuFrame } from '../../frame/interactiveFrame.ts'
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts'
 import { frameQueue } from '../../../world/render/frameQueue.fixture.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
-import type { AccumulatedImage } from '../../../lighting/deferred/program.ts'
 import { WEBGPU_KINDS } from '../../effects/webgpuKinds.ts'
-import { families } from '../../../host/families.ts'
-
-// The effects' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
-await families.effects.load()
-
-const input = { color: {}, share: {} } as AccumulatedImage
-/** The kit's encoder the chains draw into, and the passes they begin there. */
-const { device: encoding, passes } = fakeDevice()
-const encoder = encoding.createCommandEncoder()
-
-/** A settled runtime drawing `chain`, in the beauty view, with no pass drawn yet. */
-function drawing(chain: EffectChain) {
-  const rt = settledRt()
-  rt.context.effects = chain
-  Object.assign(rt.run, { diagnostic: 'beauty' })
-  // Targets allocated at the size drawn: a frame that draws again keeps it, and its occluders.
-  Object.assign(rt.gpu, { targetSize: [8, 4], displaySize: [8, 4], allocatedSize: [8, 4] })
-  return rt
-}
+import { drawing, encoder, input, passes } from './encodeEffects.fixture.ts'
 
 /** Two identical complete frames, each encoding the chain: what arms the hold. */
 function drawTwice(rt: ReturnType<typeof drawing>, device: GPUDevice) {
@@ -54,13 +33,15 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   encodeEffects(rt, device, encoder, input)
   await rt.gpu.effects!.settled()
   drawTwice(rt, device)
+  // The last bloom's blend is the composition's: it reads the image the levels read.
   const composed = encodeEffects(rt, device, encoder, input)
-  assert.notEqual(composed?.color, input.color, "composition reads the chain's output")
+  assert.equal(composed?.color, input.color, 'composition reads the image the chain read')
+  assert.ok(composed?.bloom, "with the chain's blend")
   assert.equal(composed?.share, input.share, 'with the as-is share of the image it read')
   const lit = {} as GPUTextureView
   rt.gpu.hdrView = lit
   const still = encodeEffects(rt, device, encoder, undefined)
-  assert.ok(still?.color && still.color !== lit && still.share === undefined, 'a still image too')
+  assert.ok(still?.color === lit && still.bloom && still.share === undefined, 'a still image too')
   drawTwice(rt, device)
   const drawn = passes.length
   assert.ok(drawn > 0, 'the full frames drew the bloom')
@@ -92,10 +73,10 @@ test('compiling programs keep the frame from being held, the accumulation still'
 
 test('an idle loop waits for the programs, then draws the image with the chain once', async (t) => {
   const { device } = fakeDevice()
-  const made = WEBGPU_KINDS.bloom
-  t.after(() => void (WEBGPU_KINDS.bloom = made))
+  const made = WEBGPU_KINDS.bloom.create
+  t.after(() => void (WEBGPU_KINDS.bloom.create = made))
   let arrive = () => {}
-  WEBGPU_KINDS.bloom = (gpu) => new Promise((done) => (arrive = () => done(made(gpu))))
+  WEBGPU_KINDS.bloom.create = (gpu) => new Promise((done) => (arrive = () => done(made(gpu))))
   const chain = new EffectChain().add(effect.bloom())
   const rt = drawing(chain)
   const turn = () => new Promise((resolve) => setImmediate(resolve))
@@ -113,7 +94,6 @@ test('an idle loop waits for the programs, then draws the image with the chain o
     },
     pending: () => pendingWebgpuFrame(rt),
     error: (error) => assert.fail(String(error)),
-    limited: () => assert.fail('the loop hit its frame limit'),
   })
   scheduler.invalidate()
   requested.run()
@@ -132,37 +112,4 @@ test('an idle loop waits for the programs, then draws the image with the chain o
   assert.equal(requested.size, 1, 'their arrival asks the image with the chain')
   requested.run()
   assert.equal(rt.gpu.effectsRevision, chain.revision, 'the image carries the chain')
-})
-
-test('a diagnostic view, a capture and an empty chain make nothing and hand the input on', () => {
-  const { device, textures } = fakeDevice()
-  const chain = new EffectChain()
-  const rt = drawing(chain)
-  assert.equal(encodeEffects(rt, device, encoder, input), input)
-  assert.equal(rt.gpu.effects, undefined, 'an empty chain has no targets and no programs')
-  chain.add(effect.bloom())
-  Object.assign(rt.run, { diagnostic: 'normals' })
-  assert.equal(encodeEffects(rt, device, encoder, input), input)
-  Object.assign(rt.run, { diagnostic: 'beauty' })
-  rt.capture.capturing = true
-  assert.equal(encodeEffects(rt, device, encoder, input), input)
-  assert.deepEqual([rt.gpu.effects, textures.length], [undefined, 0])
-  assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same')
-})
-
-test('a composition that blends the last bloom in gets its blend, and reads the image it read', async () => {
-  const { device } = fakeDevice()
-  const rt = drawing(new EffectChain().add(effect.bloom()))
-  let composes = false
-  const asked: unknown[] = []
-  const deferred = { composesBloom: (fail: unknown) => (asked.push(fail), composes) }
-  Object.assign(rt.gpu, { deferred })
-  encodeEffects(rt, device, encoder, input)
-  await rt.gpu.effects!.settled()
-  assert.equal(encodeEffects(rt, device, encoder, input)?.bloom, undefined, 'still compiling')
-  composes = true
-  const composed = encodeEffects(rt, device, encoder, input)
-  assert.deepEqual([composed?.color, composed?.share], [input.color, input.share])
-  assert.ok(composed?.bloom?.group, 'the level group and slot the composition binds')
-  assert.ok(asked.length > 0)
 })

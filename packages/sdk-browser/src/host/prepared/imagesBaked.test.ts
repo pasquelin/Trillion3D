@@ -11,7 +11,8 @@ import { readFile } from 'node:fs/promises'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { unmetered } from '../../cluster/byteMeter.ts'
-import { bakedImages, PLACEHOLDER_IMAGE } from '../../texture/skip.ts'
+import { BAKED_IMAGE } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
+import { bakedImages } from '../../texture/skip.ts'
 import { decodingImages } from './decodedImages.fixture.ts'
 import { preparedImages } from './images.ts'
 
@@ -66,7 +67,7 @@ async function decoded(t: test.TestContext, previews: { image: number }[]) {
   return images.map((image) => (image as { bytes: number }).bytes)
 }
 
-const placeholder = (async () => (await (await fetch(PLACEHOLDER_IMAGE)).blob()).size)()
+const placeholder = (async () => (await (await fetch(BAKED_IMAGE)).blob()).size)()
 
 test('an embedded image with a baked twin decodes no byte of the binary (its fetch goes lazy)', async (t) => {
   const { previews, document } = await fixture

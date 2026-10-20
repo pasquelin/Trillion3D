@@ -4,7 +4,6 @@
  */
 import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 import { NO_CONE } from '../../../sdk-core/src/scene/light/fields.ts'
-import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import {
@@ -22,7 +21,7 @@ import {
   VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_VIEW_WORD,
 } from './projectionView.ts'
-import type { VsmProjectionInputs, VsmProjectionLight } from './projectionPass.ts'
+import type { VsmProjectionFrame, VsmProjectionLight } from './projectionPass.ts'
 
 type VsmProjectionLightType = VsmProjectionLight['type']
 
@@ -55,8 +54,8 @@ export interface ViewWords {
 /** A light's position where it has none (a sun). */
 const ORIGIN = [0, 0, 0] as const
 
-/** What the view's header is written from (`VsmProjectionInputs`). */
-type ViewInputs = Pick<VsmProjectionInputs, 'width' | 'height' | 'camera' | 'frameIndex'>
+/** What the view's header is written from (`VsmProjectionFrame`). */
+type ViewInputs = Pick<VsmProjectionFrame, 'width' | 'height' | 'camera' | 'frameIndex'>
 
 /** The view's matrices into `scratch`: its inverse — the eye its translation (words 12-14) —, the
  *  origin shift, and the shifted-to-view, view-to-clip, shifted-to-clip matrices and its inverse. */
@@ -139,9 +138,6 @@ function writeScreenWords(
   f[pixels + 1] = height
   f[pixels + 2] = 1 / width
   f[pixels + 3] = 1 / height
-  // The geometry of the thickness the screen march gives a surface (`screenSlab`), from the view's
-  // own matrix: a translation changes neither gradient it reads.
-  f.set(screenSlab(scratch.shiftedToClip, height), VSM_PROJECTION_VIEW_WORD.screenSlab)
   // The projection rect: from (0, 0) (zero), its size.
   i[VSM_PROJECTION_VIEW_WORD.projectionRect + 2] = width
   i[VSM_PROJECTION_VIEW_WORD.projectionRect + 3] = height

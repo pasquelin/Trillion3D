@@ -7,7 +7,6 @@ import { drawShader } from '../draw/shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
 import { RADIANCE_SHADER } from '../../reflections/radianceWgsl.ts'
 import { REFLECTION_TRACE_SHADER } from '../../reflections/trace.ts'
-import { REFLECTION_CLASSIFY_SHADER } from '../../reflections/tiles.ts'
 import { blendFrontShader } from '../../webgpu/blend/frontStageWgsl.ts'
 import { RUNTIME_POSE_SHADER } from '../../bounce/runtimePoseWgsl.ts'
 import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts'
@@ -20,32 +19,35 @@ import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
 import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
+import { OUTLINE_WGSL } from '../../webgpu/effects/outlineWgsl.ts'
+import { FRAME_DIFFERENCE_WGSL } from '../../webgpu/pages/render/frameDifference.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts'
 import { lightTilesShader } from '../../lighting/tiles/shader.ts'
 import { taaResolveShader } from '../../taa/resolveWgsl.ts'
+import { spatialAntiAliasingShader } from '../../taa/spatialAntiAliasingWgsl.ts'
+import { velocityShader } from '../../taa/velocityWgsl.ts'
+import { reprojectShader } from '../../taa/reprojectWgsl.ts'
+import { flickerShader } from '../../taa/flickerWgsl.ts'
+import { thinGeometryShader } from '../../taa/thinGeometryWgsl.ts'
+import { heldMeasureShader, rejectionShader } from '../../taa/rejectionWgsl.ts'
 import {
   COVERAGE_CHOOSE_WGSL,
   COVERAGE_COUNT_WGSL,
   MATERIAL_MIP_WGSL,
 } from '../../texture/mipsWgsl.ts'
 import { SHADE_SHADER, shadeShader } from '../../visibility/shader/shadeWgsl.ts'
-import { VIS_SHADER, visShader } from '../../visibility/shader/visWgsl.ts'
+import { VIS_SHADER, visShader, visXrayShader } from '../../visibility/shader/visWgsl.ts'
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
 import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
 import { BLEND_VERDICT_SHADER } from '../../webgpu/blend/verdictWgsl.ts'
-import { WATER_RECT_SHADER } from '../../webgpu/water/rectWgsl.ts'
-import { WATER_COPY_SHADER } from '../../webgpu/water/copyWgsl.ts'
 import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
 import { GATHER_WGSL, REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts'
 import { TILE_SORT_WGSL } from '../../webgpu/tile/evictSortWgsl.ts'
 import { ROW_SORT_WGSL } from '../../webgpu/row/rowEvictSortWgsl.ts'
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts'
-import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts'
-import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts'
-import { waterSurfaceWgsl } from '../../webgpu/water/surfaceWgsl.ts'
+import { transmitWgsl } from '../../webgpu/blend/transmission/transmitWgsl.ts'
 import { particlesWgsl, PARTICLE_DRAW_WGSL } from '../../webgpu/particles/particlesWgsl.ts'
-import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts'
 import { blendShader } from '../../webgpu/blend/shader.ts'
 import {
   BLEND_SHADER,
@@ -55,14 +57,11 @@ import {
   TAA_SHADER,
   UNLIT_LIGHTING_SHADER,
 } from './shaderTexts.fixture.ts'
-import '../../impostor/lent.fixture.ts'
-import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts'
-import { cardTileWgsl } from '../../webgpu/tile/cardReads.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
- * pass can compile under its own name: the diagnostic and water additions, the DAG's external-
+ * pass can compile under its own name: the diagnostic and transmissive additions, the DAG's external-
  * reference screen error, each composition input. A pass that sizes its text (`rasterSource`,
  * `drawShader`, `transparentOcclusionShader`, the virtual shadow maps by their layout) is taken
  * at one size: its size is no name.
@@ -81,7 +80,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DRAW_TESTED_SHADER: drawShader(2, true),
   HIZ_SHADER,
   REFLECTION_TRACE_SHADER,
-  REFLECTION_CLASSIFY_SHADER,
   // The transparents' front stage, each of what its pass writes (`webgpu/blend/frontStage.ts`).
   FRONT_STAGE_DEPTH: blendFrontShader(0),
   FRONT_STAGE_REFLECTING: blendFrontShader(1),
@@ -99,6 +97,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BOUNCE_SNAPSHOT_SHADER,
   AS_IS_SHARE_SHADER,
   BLOOM_WGSL,
+  OUTLINE_WGSL,
+  FRAME_DIFFERENCE_WGSL,
   GUIDE_WGSL,
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
@@ -130,16 +130,31 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TAA_RESOLVE_FILTERED: taaResolveShader(true, false, true),
   TAA_RESOLVE_FILTERED_FLAGLESS: taaResolveShader(false, false, true),
   TAA_RESOLVE_FILTERED_BLENDED: taaResolveShader(true, true, true),
+  TAA_VELOCITY: velocityShader(),
+  TAA_REPROJECT: reprojectShader(),
+  TAA_THIN_GEOMETRY: thinGeometryShader(),
+  TAA_FLICKER: flickerShader(),
+  TAA_HELD_MEASURE: heldMeasureShader(),
+  TAA_REJECTION: rejectionShader(),
+  TAA_SPATIAL_AA: spatialAntiAliasingShader(),
   MATERIAL_MIP_WGSL,
   COVERAGE_WGSL: wgslModule(COVERAGE_COUNT_WGSL),
   COVERAGE_CHOOSE_WGSL,
   VIS_SHADER,
   VIS_DIAGNOSTIC: visShader({ diagnostic: DIAGNOSTIC_VIS_WGSL }),
+  VIS_XRAY_SHADER: visXrayShader(),
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: shadeShader({ diagnostic: DIAGNOSTIC_SHADE_WGSL }),
   BLEND_SHADER,
   DISPLAY_FILTER_SHADER,
-  BLEND_WATER: blendShader({}, { stage: waterSurfaceWgsl(true) }),
+  // The transmissive stages (`../../webgpu/blend/transmission/transmitWgsl.ts`), the dual blend where
+  // the device grants it.
+  BLEND_TRANSMIT: blendShader({}, { stage: transmitWgsl({}, false) }),
+  BLEND_TRANSMIT_DUAL: blendShader({}, { stage: transmitWgsl({}, true), dual: true }),
+  BLEND_TRANSMIT_LOBELESS: blendShader(
+    { lobeless: true },
+    { stage: transmitWgsl({ lobeless: true }, false) },
+  ),
   BLEND_DIAGNOSTIC: blendShader({}, { diagnostic: DIAGNOSTIC_BLEND_WGSL }),
   // The forward passes' light loops without shadow or rectangle code (`createForwardVariants`).
   BLEND_UNSHADOWED_RECTLESS: blendShader({ unshadowed: true, rectless: true }),
@@ -156,23 +171,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TILE_SORT_WGSL,
   ROW_SORT_WGSL,
   TRANSPARENT_COMPACT_SHADER,
-  WATER_COMPOSITE_SHADER: waterCompositeShader(),
-  WATER_ROUTED: waterRoutedShader(),
-  WATER_COMPOSITE_UNSHADOWED_RECTLESS: waterCompositeShader({
-    unshadowed: true,
-    rectless: true,
-  }),
-  WATER_COMPOSITE_SUNLESS: waterCompositeShader({ sunless: true }),
-  WATER_COMPOSITE_LOCALLESS: waterCompositeShader({ localless: true }),
-  // Transmissive surfaces without an anisotropic or clear-coat lobe (`waterLobesWgsl.ts`).
-  WATER_COMPOSITE_LOBELESS: waterCompositeShader({ lobeless: true }),
-  WATER_ROUTED_UNSHADOWED: waterRoutedShader({ unshadowed: true }),
-  WATER_DEPTH_RESTORE_SHADER,
-  WATER_RECT_SHADER,
-  WATER_COPY_SHADER,
   PARTICLES_WGSL: particlesWgsl(false),
   PARTICLES_SUBGROUPS: particlesWgsl(true),
   PARTICLE_DRAW_WGSL,
-  CARD_PASS_WGSL: cardPassWgsl(cardTileWgsl()),
   ...vsmVariants(),
 }

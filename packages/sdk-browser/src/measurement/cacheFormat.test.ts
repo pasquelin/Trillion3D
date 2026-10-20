@@ -25,7 +25,7 @@ function stubLocation(t: TestContext) {
 
 /** The file at `url` of a cache of no primitive at `version`: its pointer, root or one of its pages. */
 function cacheResponse(url: string, version: number) {
-  const empty = { ...manifest(), schema: version, formatVersion: version, primitives: [] }
+  const empty = { ...manifest(), formatVersion: version, primitives: [] }
   const { root, files } = pagedManifest(empty)
   const page = files.get(url.split('/').pop()!)
   if (page) return new Response(page)

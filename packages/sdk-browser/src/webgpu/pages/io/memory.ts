@@ -8,7 +8,6 @@ import {
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { behind } from '../../../gpu/core/behind.ts'
 import {
-  budgetBeside,
   geometryProbe,
   grantedGeometryPool,
   grantedTexturePool,
@@ -17,7 +16,7 @@ import {
   textureProbe,
 } from '../../residency/poolGrants.ts'
 import type { TexturePool } from '../../residency/memoryBudgets.ts'
-import { geometryBudgetBeside, textureBytesBeside } from './besidePools.ts'
+import { geometryBudgetBeside, textureBudgetBeside, textureBytesBeside } from './besidePools.ts'
 import { ledgerReplacing } from '../../../gpu/core/deviceLedger.ts'
 import { growWebgpuTables } from '../prepare/growTables.ts'
 import type { GrownPages } from '../../../gpu/page/resize.ts'
@@ -95,8 +94,7 @@ async function setTextureBudget(rt: WebgpuPagesRuntime, device: Device, budget: 
   }
   // A live texture's working texture (#362) is texture memory too: the pool is drawn from what
   // the budget leaves it, the budget recorded staying the one declared.
-  const live = textureBytesBeside(rt),
-    { bytes, deducted } = budgetBeside(budget, live)
+  const { live, bytes, deducted } = textureBudgetBeside(rt, budget)
   pools.liveBytes = live
   let pool: TexturePool | undefined = pools.poolFor(bytes)
   if (!sameLayers(pool, pools.pool) && vis.textures && device && !run.lost) {

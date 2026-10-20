@@ -1,8 +1,7 @@
 /**
  * THE ROOT BOXES PASS ON THE GPU (`rootBoxesWgsl.ts`): each root whose world moved has its world box
  * and its stretch derived from the world the GPU holds — the roots a send moved (`takeMoved`),
- * every root after a whole send, and the roots a parent composes once the compose worlds pass wrote
- * their worlds anew. It runs in the roots' one compute pass before every cut (`rootPasses.ts`),
+ * every root after a whole send, and the roots the compose worlds pass composed anew this frame. It runs in the roots' one compute pass before every cut (`rootPasses.ts`),
  * after the composition's dispatches: the cut reads the stretches, the rows pass the boxes. A move costs the
  * CPU no box and no stretch, and the list of the roots it moved alone.
  */
@@ -30,11 +29,16 @@ function createRootBoxesGpu(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const frame = { frames: undefined as GPUTextureView | undefined }
   // Each dispatch's entries (`ROOT_BOXES_WGSL`), read live.
   const pass = createRootList(device, ROOT_BOXES_PASS, (list, g) => [
-    ...rootListEntries(rt, list, g, [
-      liveBuffer(() => rt.rootWorlds?.worlds),
-      liveBuffer(() => rt.rootWorlds?.locals),
-      liveBuffer(() => rt.rootWorlds?.boxes),
-    ]),
+    ...rootListEntries(
+      list,
+      g,
+      [
+        liveBuffer(() => rt.rootWorlds?.worlds),
+        liveBuffer(() => rt.rootWorlds?.locals),
+        liveBuffer(() => rt.rootWorlds?.boxes),
+      ],
+      () => rt.compose?.gpu?.frameList,
+    ),
     resourceEntry(ROOT_BOXES_FRAMES_BINDING, () => frame.frames),
   ])
   return { pass, frame }
@@ -51,8 +55,8 @@ export function disposeRootBoxes(rt: Pick<WebgpuPagesRuntime, 'rootBoxes'>) {
  * The world boxes and stretches of the roots whose world moved, into the roots' one compute pass
  * `open` (`rootPasses.ts`), their stretches into `frames`, the cut's frame words: the roots a send
  * moved or made — those a cut took in place before they join included (`rootWorlds.ts`) —, or
- * every root, then the composed roots when the compose worlds pass `composed` them anew (a
- * dispatch over every root holds them already). Nothing while the cut or the worlds are not made —
+ * every root, then the frame's composed roots when the compose worlds pass `composed` them anew
+ * (a dispatch over every root holds them already). Nothing while the cut or the worlds are not made —
  * the roots wait for the pass, kept in their list.
  */
 export function encodeRootBoxes(
@@ -64,7 +68,7 @@ export function encodeRootBoxes(
 ) {
   const held = rt.rootWorlds
   if (!held?.worlds || !frames) return
-  const listedComposed = composed ? (rt.compose?.rankList.set.count ?? 0) : 0
+  const listedComposed = composed ? (rt.compose?.frameCount ?? 0) : 0
   if (!held.roots.whole && !held.roots.ranks.count && !listedComposed) return
   const named = takeMoved(held.roots),
     listed = named ? named.length : held.held

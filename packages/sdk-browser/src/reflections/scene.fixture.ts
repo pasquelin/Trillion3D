@@ -41,6 +41,7 @@ export function viewOf(
       traced: [1, 0, 0, 0],
       front: [0, 0, 0, 0],
       temporal: [0, 0, 0, 0],
+      grid: [2, Math.ceil(size[0] / 2), Math.ceil(size[1] / 2), 2],
       surroundings: [0, 0, 0, 0],
     },
     view: {

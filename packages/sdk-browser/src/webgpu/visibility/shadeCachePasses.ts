@@ -1,6 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { DEFAULT_GROUP_WIDTH, groupWidth } from '../../gpu/dispatch/grid.ts'
+import { groupWidth, groupWidthConstants } from '../../gpu/dispatch/grid.ts'
 import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
 import { computeBufferEntry, computeTextureEntry, COMPUTE } from '../../gpu/core/computeBindings.ts'
 import { SHADE_BINDINGS } from '../core/bindLayout.ts'
@@ -41,7 +41,7 @@ export async function cachePasses(device: GPUDevice) {
         [rowsLayout],
         rowsModule,
         ['shade_clear', 'shade_marks', 'shade_rows'],
-        span !== DEFAULT_GROUP_WIDTH ? { GROUP_WIDTH: span } : undefined,
+        groupWidthConstants(span),
       ),
       buildComputeStages(device, [trisLayout], trisModule, ['shade_tris']),
     ])

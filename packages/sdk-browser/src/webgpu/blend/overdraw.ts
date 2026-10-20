@@ -1,8 +1,8 @@
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 
-/** Two queries: the blend pass, then the transmission pass. A pass that is not encoded leaves
- *  its query at zero, which the resolve writes itself. */
-const QUERIES = 2,
+/** One query, the transparents' pass: one not encoded leaves it at zero, which the resolve writes
+ *  itself. */
+const QUERIES = 1,
   BYTES = QUERIES * 8
 
 export type BlendOverdraw = ReturnType<typeof createBlendOverdraw>
@@ -16,10 +16,9 @@ type OverdrawCounts = {
   readings: number
 }
 
-/** Reads the mapped resolve of an image of `pixels` into `counts`: the two passes' fragments. */
+/** Reads the mapped resolve of an image of `pixels` into `counts`: the pass's fragments. */
 function readCounts(mapped: ArrayBuffer, counts: OverdrawCounts, pixels: number) {
-  const values = new BigUint64Array(mapped)
-  const fragments = Number(values[0]) + Number(values[1])
+  const fragments = Number(new BigUint64Array(mapped)[0])
   counts.blendedFragments = fragments
   counts.imagePixels = pixels
   counts.meanOverdrawThousandths = pixels ? Math.round((fragments / pixels) * 1000) : 0
@@ -57,9 +56,9 @@ export function createBlendOverdraw(device: GPUDevice) {
   )
   return {
     set,
-    /** Opens the pass query: zero for blend, one for transmission. */
-    begin(pass: GPURenderPassEncoder, transmissive: boolean) {
-      pass.beginOcclusionQuery(transmissive ? 1 : 0)
+    /** Opens the pass query. */
+    begin(pass: GPURenderPassEncoder) {
+      pass.beginOcclusionQuery(0)
     },
     end(pass: GPURenderPassEncoder) {
       pass.endOcclusionQuery()

@@ -43,7 +43,6 @@ export async function expandable(device: GPUDevice, blendState: WebgpuBlendState
     await compileBlendExpand(device),
     {
       items: ITEMS,
-      waters: 0,
       entries,
       planWords: planWords(entries),
       scratchWords: scratchWords(entries),

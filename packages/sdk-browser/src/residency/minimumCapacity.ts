@@ -35,11 +35,6 @@ export function rootChildren(roots: readonly ClusterRoot<PageRec>[]): PageRec[] 
   return found
 }
 
-/** The level a page is ranked at when levels are counted (`requestAdmission.ts`): its own, raised
- *  past `top`, the catalogue's highest level, when the minimum capacity holds it. */
-export const admissionLevel = (rec: PageRec, top: number) =>
-  (rec.level ?? 0) + (rec.rootChild ? top + 1 : 0)
-
 /** What the minimum capacity costs, published once its pool is drawn (`minimum-capacity`): the
  *  root cover's pages and the floor's, which adds the pages the roots' groups replace. */
 export const floorDiagnostic = (rootPages: number, floorPages: number) =>

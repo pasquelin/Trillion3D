@@ -6,10 +6,9 @@ import {
   createPoolBuffers,
   createPoolStores,
   poolResources,
-  storesBytes,
   type PoolStores,
 } from './geometryPoolStores.ts'
-import { pendingMade } from '../../gpu/core/tableGrowth.ts'
+import { grownByCopy } from '../../gpu/core/tableGrowth.ts'
 import { releaseScratch } from './geometryPoolScratch.ts'
 import { holds, put, type Pool } from './geometryPoolWrite.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
@@ -45,19 +44,16 @@ function remake(p: Pool, size: number, tail: number, carried: Carried = p) {
       ? createPoolStores(device, wider)
       : { ...createPoolBuffers(device, wider), concatNrm: p.stores.concatNrm }
   // A pool whose atlas stays frees the buffers alone.
-  pendingMade(device, poolResources(made, resized), storesBytes(made), () => {
-    const encoder = device.createCommandEncoder(),
-      held = p.stores
-    copyPoolStores(encoder, held, made, [p.size, size, p.tailFloats], p.coloured)
-    device.queue.submit([encoder.finish()])
-    p.stores = made
-    p.size = size
-    p.tailFloats = tail
-    p.floats = wider
-    p.coloured = carried.coloured
-    p.secondUv = carried.secondUv
-    return poolResources(held, resized)
-  }).commit()
+  const held = p.stores
+  grownByCopy(device, poolResources(held, resized), (encoder) =>
+    copyPoolStores(encoder, held, made, [p.size, size, p.tailFloats], p.coloured),
+  )
+  p.stores = made
+  p.size = size
+  p.tailFloats = tail
+  p.floats = wider
+  p.coloured = carried.coloured
+  p.secondUv = carried.secondUv
   if (!resized) return true
   // The atlas's rows follow its size: every block's normals and second UV set are written
   // again, as placed.

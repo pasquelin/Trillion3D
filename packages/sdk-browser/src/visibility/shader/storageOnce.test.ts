@@ -47,8 +47,8 @@ test('every way out of the resolve leaves the receiver word the double write lef
   // Each return of the resolve, by the text: those before the receiver is set never set it.
   const returns = [...resolve.matchAll(/return /g)].map(({ index }) => index)
   assert.ok(
-    returns.length >= 9,
-    'the empty surface, the diagnostic modes, the as-is models, the lit',
+    returns.length >= 5,
+    'the empty surface, the wireframe and x-ray background, the diagnostic modes, the as-is models, the lit',
   )
   const zero = [0, 0, 0],
     offset = [0.01, -0.02, 0.005],

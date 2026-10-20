@@ -1,127 +1,155 @@
 /**
- * A PLACEMENT AND THE WORLD CLUSTER THAT STANDS IN FOR IT.
+ * THE WORLD'S HLOD IN THE ONE CUT, AND EACH CELL'S ONE REPRESENTATION.
  *
- * The cook continues every placed object into its cell's super-roots, then into the regions above
- * them, up to the world top (`world-roots.dag`): one DAG of the world, whose level 0 is the placed
- * objects, each one cluster (`compiler_world_roots/place.rs`), each with a world parent. Packed in
- * the one cut as its last root (`scene/worldSuperRoots.ts`), it is the far field: a cell's
- * super-roots are the middle ring, the levels that group several cells the far ring, all chosen by
- * the one rule at the one threshold, cluster by cluster, never by a distance. A terrain cooked tile
- * by tile is placed objects like any other: each tile its own DAG near, its cell's super-roots
- * past, the regions far — continuous, and no second mechanism beside the cut.
+ * The cook builds the world's HLOD chain (`world-roots.dag`, `compiler_world_roots.rs`): per HLOD
+ * cell of each layer, the actor of the next — HLOD 1 per HLOD 0 cell, HLOD 2 per HLOD 1 cell, HLOD 3
+ * per HLOD 2 cell —, each its own DAG with its true errors. Packed in the one cut as its last root
+ * (`scene/worldHlod.ts`) — one per placement of its model, each at its pose, all sharing the
+ * records and the culling hierarchy, each with its own pages —, it is cut by the one rule at the one
+ * threshold, as any primitive.
  *
- * A placement whose object the world DAG holds (an `origin`, `GpuSelection.placeObject`) is linked
- * here to that object's world cluster, one word per placement behind the cold records. Before the descent
- * prepares a placement it asks whether the world draws it instead (`worldCovers`,
- * `shader/placementTreeWgsl.ts`): its object's world group is not ready — an object of the group
- * is not placed or its cover not resident, so the group's super-roots stand in — while every root
- * of the world above the object is, or the group's error projects within the threshold — the very
- * comparison the group's super-roots draw on, the same operands in the same frame
- * (`drawsCluster`). The placement draws only where the super-roots do not: never both, never
- * neither. A covered placement is neither prepared nor descended.
+ * What draws a cell is the HLOD switch: an HLOD actor is
+ * visible while it is loaded and the cell its sources stream in is not visible. Per HLOD cell and
+ * instance, one word says what draws there (`CELL_DRAW`): a visible HLOD 0 cell's placements — the
+ * source meshes, and HLOD 0, the same meshes instanced —, or
+ * the cell's own actor of the next layer while the cell holding it is visible and the cell itself
+ * is not, or nothing of its own. The host keeps each cell's visibility (`worldFollow.ts`), switched
+ * only once what replaces it is ready, so a switch never opens a hole; the placements of a cell wished but not yet
+ * visible ask for their pages meanwhile and draw none (`CELL_DRAW.asking`).
  *
- * The roots above an object are the pinned top, or roots its cell's hold asks for
- * (`../../webgpu/residency/sets.ts`, `holdCover`) — a lone object's copies, a cell's super-root no
- * top continued — which arrive after the placement may: until every one is ready, the world's
- * stand-in has a hole, and the placement draws itself. A group's root outputs are ready together
- * (`../../page/cut/readiness.ts`): the world never draws a part of them beside the placement.
- * Each object cluster leads to one flag its roots raise together (`worldStandIns.ts`), read only
- * for an object whose group is not ready.
+ * Behind the cold records: three header words — the first of the per-rank cell words, the first of
+ * the state words, the cell count —, then per placement slot its link — its HLOD 0 cell and the
+ * instance of the world DAG it lies in, `NO_INDEX` for none; a placement of the world DAG itself
+ * names its instance alone —, then per world rank its HLOD cell, read by its rank in any instance,
+ * then the states, cell after cell for each instance. The descent reads them
+ * (`shader/worldGateWgsl.ts`): a placement whose cell neither draws nor asks for its placements
+ * opens nothing, and a world cluster whose cell does not draw its actor is neither drawn nor asked
+ * for.
  *
- * Its transitions are dithered in time: each cut holds the world DAG to a threshold scaled within
- * one octave below the frame's (`worldFade.ts`), its links with it, and the temporal antialiasing
- * averages the cuts into a cross-fade, never coarser than the frame's threshold.
- *
- * What each ring costs a frame, in visible quantities (`t` a node test, `p` a placement's prepare,
- * `g` the link's one record read and projection, `q` a page test):
- *  - near ring, objects at their own detail: `S·t + V_open·(g + p + D·t) + R_near·q`, `S` the
- *    cells and groups of the placement tree the frustum keeps, `V_open` the placements in kept
- *    groups whose world group projects past the threshold, `D` their hierarchy depth, `R_near`
- *    the pages of their kept leaves;
- *  - middle and far rings, super-roots: `V_covered·g + K_w·t + R_w·q`, `V_covered` the placed
- *    objects the world stands in for, `K_w` the world DAG's nodes the frustum and the error keep,
- *    `R_w` the super-roots of its kept leaves — at one pixel of error each, bounded by the screen,
- *    not by the world; a far cell places no object (`partition/farCells.ts`), so `V_covered` is
- *    bounded by the placed cells.
- * No term follows the placements rather than the view: a moving eye costs the CPU nothing, and each
- * thread that reads a placement takes the eye off its exact translation once — one double
- * subtraction an axis, 24 B read (`shader/worldPoseWgsl.ts`, `shader/primitiveWgsl.ts`) —, never a
- * pass over the `N` placements.
+ * Cost a frame: one word read per placement prepared and per world page tested, and the state words
+ * that moved written; nothing scans the world.
  */
 import type { DagCutLinks, DagRoot } from './types.ts'
-import type { StandInSets, standInWords } from './worldStandIns.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
-/** The world DAG's placement, its `origins`, and per placement the world cluster that stands in for
- *  it (`NO_INDEX` without), held at `linkBase` in the cold table behind the world DAG's record shift
- *  and its stand-ins' (`worldStandIns`); the placements whose link moved are handed to the residency
- *  mirror (`linksMoved`). */
+/** The root mark's bit on each placement of the world DAG (`ClusterRoot.mark`): a ray meets none
+ *  of it, and the placement tree opens it from queue 0 (`placementTreePack.ts`), never through a
+ *  group. */
+export const WORLD_ROOT_MARK = 16
+
+/** What an HLOD cell's word draws, bit by bit (`worldFollow.ts`): a visible HLOD 0 cell's
+ *  placements, the cell's own actor of the next layer, and the placements of an HLOD 0 cell wished
+ *  but not yet visible asking for their pages and drawing none. Zero: nothing of its own. */
+export const CELL_DRAW = { placements: 1, hlod: 2, asking: 4 } as const
+/** The bits of a word that keep an HLOD 0 cell's placements: drawn, or asking. */
+export const PLACEMENT_BITS = CELL_DRAW.placements | CELL_DRAW.asking
+
+/** Words before the links: the first per-rank cell word, the first state word, the cell count. */
+export const LINK_HEADER = 3
+/** Words a placement's link takes: its HLOD 0 cell and its instance of the world DAG. */
+export const LINK_WORDS = 2
+
+/** The world DAG's placements — one per placement of its model, instance `k` the `k`-th —, each
+ *  world rank's HLOD cell, the chain of cells, the links of every placement slot at `linkBase`, and
+ *  the state words at `stateBase`, `cells` per instance, their host copy `states`. */
 export type PackedWorld = {
-  root: number
-  origins: Int32Array
-  /** The world cluster of each object, by its `origin`, -1 for none: one cluster per object. */
-  clusterOf: Int32Array
-  /** The link a placement of `object` takes: its world cluster's packed page, `NO_INDEX` for none. */
-  linkOf: (object: number) => number
+  /** The placements of the world DAG, instance by instance: every one shares its records, each its
+   *  own pages, pose and residency. */
+  roots: readonly number[]
+  /** Each world rank's HLOD cell. */
+  hlod: Int32Array
+  /** How many HLOD cells the chain holds, the HLOD 0 cells first, each layer after the one below. */
+  cells: number
+  /** Each cell's parent in the chain, -1 for a top cell, and its layer. */
+  parent: Int32Array
+  layer: Uint8Array
+  /** Per HLOD cell, the world ranks nothing replaces that wear a page: what must be resident
+   *  before its actor is ready. */
+  rootsOf: readonly number[][]
+  /** `LINK_WORDS` per placement slot (`setLink`). */
   links: Uint32Array
   linkBase: number
-  /** The sets of roots above the objects, and the cold word of their first flag
-   *  (`worldStandIns.ts`). */
-  standIns: StandInSets
-  flagBase: number
-  /** Told the placements whose link moved, increasing — the one list the cut's upload writes them
-   *  from (`worldFollow.ts`) —: the residency mirror reads them at its next update. */
-  linksMoved?: (placements: Int32Array, count: number) => void
-  /** The scale of the world DAG's threshold this cut, its transitions dithered in time
-   *  (`worldFade.ts`); 1, none. */
-  scale: number
+  /** The state of cell `h` of instance `k` at `k · cells + h`, and where they lie in the cold
+   *  table. */
+  states: Uint32Array
+  stateBase: number
 }
 
-/** The world cluster of each object, by its `origin`: one cluster per placed object. */
-function objectClusters(origins: Int32Array) {
-  let objects = 0
-  for (const origin of origins) objects = Math.max(objects, origin + 1)
-  const rank = new Int32Array(objects).fill(-1)
-  origins.forEach((origin, at) => origin >= 0 && (rank[origin] = at))
-  return rank
+/** The words the world takes behind the cold records for `worldCount` placement slots, its
+ *  `pageCount` ranks, `cells` HLOD cells and `instances` placements of its model. */
+export const worldLinkWords = (
+  worldCount: number,
+  pageCount: number,
+  cells: number,
+  instances: number,
+) => LINK_HEADER + LINK_WORDS * worldCount + pageCount + cells * instances
+
+/** Per HLOD cell of `root`'s `cells`, the ranks of its structure nothing replaces that wear a
+ *  page: a root no surface wears is no page (`../../scene/worldRecords.ts`), never resident, and
+ *  nothing to wait for. */
+function cellRoots(root: DagRoot, cells: number) {
+  const rootsOf: number[][] = Array.from({ length: cells }, () => [])
+  for (const rank of root.structure?.roots ?? [])
+    if (root.pages[rank].url) rootsOf[root.hlod!.cells[rank]].push(rank)
+  return rootsOf
 }
-
-/** Words before the links: the stand-ins' shift, then the world DAG's record shift. */
-const LINK_HEADER = 2
-
-/** The words the links take behind the cold records: the header, one per placement, then the
- *  stand-ins' (`worldStandIns.ts`). */
-export const worldLinkWords = (worldCount: number, standIns: Uint32Array) =>
-  LINK_HEADER + worldCount + standIns.length
 
 /**
- * The world DAG of `roots`, packed at `world` with `cutLinks` and its record `shift`, written into
- * the cold table `cold` from `at`: the header, one link per placement slot of the packing —
- * `slots`, those a growth appends included (`linkBase`) —, none until a placement says which
- * object it places (`GpuSelection.placeObject`, `worldFollow.ts`), then the stand-ins' words
- * (`worldStandIns.ts`, `standInWords`), whose shift from a world cluster's packed page the header
- * leads with.
+ * The world DAG of `roots`, packed at its placements `worlds` with `cutLinks`, its words written
+ * into the cold table `cold` from `at` for `slots` placement slots — those a growth appends
+ * included —: the header, no link until a placement says which cell it lies in
+ * (`GpuSelection.placeInCell`, `worldFollow.ts`) — a placement of the world DAG naming its
+ * instance —, each rank's cell, then every state drawing nothing until the host walks it.
  */
 export function packWorldLinks(
   roots: readonly DagRoot[],
-  [world, shift]: [number, number],
-  [slots, { words, standIns }]: [number, ReturnType<typeof standInWords>],
+  worlds: readonly number[],
+  slots: number,
   { cutLinks, cold, at }: { cutLinks: readonly DagCutLinks[]; cold: Uint32Array; at: number },
 ): PackedWorld {
+  const root = roots[worlds[0]],
+    { cells: hlod, parent, layer } = root.hlod!,
+    cells = parent.length
   const linkBase = at + LINK_HEADER
-  const origins = roots[world].origins!,
-    clusterOf = objectClusters(origins),
-    base = cutLinks[world].pageBase
-  const links = new Uint32Array(Math.max(slots, roots.length)).fill(NO_INDEX)
-  const standInBase = linkBase + links.length
-  cold[at] = (standInBase - base) >>> 0
-  cold[at + 1] = shift
+  const links = new Uint32Array(LINK_WORDS * Math.max(slots, roots.length)).fill(NO_INDEX)
+  worlds.forEach((w, k) => (links[w * LINK_WORDS + 1] = k))
+  const hlodBase = linkBase + links.length,
+    stateBase = hlodBase + cutLinks[worlds[0]].pageCount
+  // Every word is resolved before the first cut (`worldFollow.ts`, `sync`).
+  const states = new Uint32Array(cells * worlds.length)
+  cold[at] = hlodBase
+  cold[at + 1] = stateBase
+  cold[at + 2] = cells
   cold.set(links, linkBase)
-  cold.set(words, standInBase)
-  const linkOf = (object: number) => {
-    const rank = object >= 0 ? (clusterOf[object] ?? -1) : -1
-    return rank >= 0 ? base + rank : NO_INDEX
+  cold.set(hlod, hlodBase)
+  cold.set(states, stateBase)
+  return {
+    roots: worlds,
+    hlod,
+    cells,
+    parent,
+    layer,
+    rootsOf: cellRoots(root, cells),
+    links,
+    linkBase,
+    states,
+    stateBase,
   }
-  const flagBase = standInBase + cutLinks[world].pageCount
-  return { root: world, origins, clusterOf, linkOf, links, linkBase, standIns, flagBase, scale: 1 }
+}
+
+/** Placement `w` of `world` lies in HLOD 0 cell `cell` of instance `instance` now, or none (`-1`):
+ *  its words written in `world.links`; whether they moved. A cell no HLOD 0 cell of the chain is
+ *  refused, `WORLD_CELL_RANGE`: no state follows it. An instance the cut does not pack yet links
+ *  none: no actor of it is drawn, its placements alone stand for it until a growth packs it. */
+export function setLink(world: PackedWorld, w: number, cell: number, instance: number) {
+  if (cell >= world.cells || (cell >= 0 && world.layer[cell] !== 0))
+    throw new Error(`WORLD_CELL_RANGE: placement ${w} in cell ${cell}, no HLOD 0 cell of the chain`)
+  const at = w * LINK_WORDS,
+    { links } = world,
+    linked = cell >= 0 && instance < world.roots.length
+  const next = linked ? cell : NO_INDEX
+  if (links[at] === next && (!linked || links[at + 1] === instance)) return false
+  links[at] = next
+  links[at + 1] = linked ? instance : NO_INDEX
+  return true
 }

@@ -1,27 +1,8 @@
 /**
- * THE STAGE PROFILE'S TABLES (`profiler.ts`): rings of recent values, read by quantiles, and the
- * slowest images of a window, each kept whole. Typed arrays made once: nothing allocated an image.
+ * THE STAGE PROFILE'S SLOWEST IMAGES (`profiler.ts`) of a window, each kept whole, beside its rings
+ * of recent values (`math/src/sequence/rings.ts`). Typed arrays made once: nothing allocated an
+ * image.
  */
-
-/** `count` rings of `capacity` recent values each. Order does not matter: only quantiles are read. */
-export function createRings(count: number, capacity: number) {
-  const data = new Float64Array(count * capacity),
-    cursor = new Uint32Array(count),
-    filled = new Uint32Array(count)
-  return {
-    push(ring: number, value: number) {
-      data[ring * capacity + (cursor[ring] % capacity)] = value
-      cursor[ring]++
-      if (filled[ring] < capacity) filled[ring]++
-    },
-    /** The values ring `ring` holds, in no order. */
-    values: (ring: number) => data.subarray(ring * capacity, ring * capacity + filled[ring]),
-    clear() {
-      cursor.fill(0)
-      filled.fill(0)
-    },
-  }
-}
 
 /** The slowest images of a window by total, sorted descending, each with its whole row. A sorted
  *  insertion rather than a heap: a few slots (ten by default) shift in place and read in order. */

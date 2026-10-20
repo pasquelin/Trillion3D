@@ -15,7 +15,6 @@ import {
 import { KEY_PAGE_MAX, createContentKeys } from './evict.ts'
 import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
-import { standInWords } from './worldStandIns.ts'
 import { packPlacementTree } from './placementTreePack.ts'
 import { allocatePacking, emptyShared, placeRoot, type Packing } from './packRoots.ts'
 import { packPlan, roomFor, type DagCapacity } from './packCapacity.ts'
@@ -35,7 +34,7 @@ import { packPlan, roomFor, type DagCapacity } from './packCapacity.ts'
 export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapacity): PackedDag {
   const shared = emptyShared()
   const plan = packPlan(roots, shared, capacity),
-    { world, tree, room } = plan
+    { worldRoots, tree, room } = plan
   const size: DagCapacity = {
     pages: Math.max(plan.pages, room?.pages ?? 0),
     nodes: plan.nodes,
@@ -92,8 +91,8 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     live: p.live,
     ...(room && { shared }),
     ...(tree && { placementTree: tree }),
-    ...(world >= 0 && {
-      world: packWorldLinks(roots, [world, p.recordShift[world]], [plan.worlds, tables.standIns!], {
+    ...(worldRoots.length && {
+      world: packWorldLinks(roots, worldRoots, plan.worlds, {
         ...{ cutLinks: p.cutLinks, cold, at: linkBase },
       }),
     }),
@@ -113,7 +112,7 @@ function recordTables(
   p: Packing,
   records: ReturnType<typeof createRecordTable>,
   pages: number,
-  { world, worlds, room }: ReturnType<typeof packPlan>,
+  { worldRoots, worlds, room }: ReturnType<typeof packPlan>,
 ) {
   // Placed in order behind one another: the keys and groups are made as an appended root's are.
   const content = createContentKeys()
@@ -133,11 +132,19 @@ function recordTables(
     },
     coldAt = coldBase(shape)
   const linkBase = coldAt + Math.max(1, recordSlots) * COLD_WORDS
-  const standIns = world >= 0 ? standInWords(p.cutLinks[world], roots[world].origins!) : undefined
+  // Every instance of the world DAG shares its records and its cells, each its own states.
+  const world = worldRoots[0],
+    worldWords =
+      world === undefined
+        ? 0
+        : worldLinkWords(
+            worlds,
+            p.cutLinks[world].pageCount,
+            roots[world].hlod!.parent.length,
+            worldRoots.length,
+          )
   const clusters = new Float32Array(Math.max(1, recordSlots) * CLUSTER_WORDS),
-    pageCones = new Float32Array(
-      linkBase + (standIns ? worldLinkWords(worlds, standIns.words) : 0),
-    ),
+    pageCones = new Float32Array(linkBase + worldWords),
     cold = new Uint32Array(pageCones.buffer)
   const at = {
     recordKey: recordKeyBase(pages),
@@ -149,7 +156,7 @@ function recordTables(
   content.flush(cold, at)
   records.finish(clusters, pageCones, coldAt)
   return {
-    ...{ clusters, pageCones, cold, linkBase, standIns },
+    ...{ clusters, pageCones, cold, linkBase },
     ...{ ...shape, recordSlots, keys: content, coldAt },
   }
 }

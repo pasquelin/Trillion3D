@@ -1,7 +1,7 @@
 // A dynamic sea of 80 000 triangles beside thirty small bodies opened the WebGPU session on a
 // geometry pool of 3 811 root pages of 1.78 MB each, 6.8 GB, past any device's buffer: each page of
 // the sheet, drawn from the float pool, reserved results for every vertex of the whole sheet. Its
-// results now lie once per placement in the float pool (`wholePool.ts`); a page's slot holds its
+// results now lie once per placement in the float pool (`pooledRows.ts`); a page's slot holds its
 // own bytes. Built through the engine's own path: the world cuts the scene, the session collects it.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -49,7 +49,7 @@ async function scene(scale: number) {
 }
 
 /** The pool the session draws, as `webgpu/pages/prepare/setup.ts` draws it; and on a device whose
- *  buffer holds every page at its own size twice, not the root cover in slots of the widest. */
+ *  buffer holds every page at its own size twice: the pool there is the pages' own homes. */
 function poolOf({ roots, records }: Awaited<ReturnType<typeof scene>>) {
   const slots = describePageSlots(records)
   const pageBytes = slots.pageBytes
@@ -60,16 +60,16 @@ function poolOf({ roots, records }: Awaited<ReturnType<typeof scene>>) {
   const uniquePages = Math.max(1, new Set(records.map(pageAddress)).size)
   const poolOn = (limits: typeof DEVICE) =>
     sessionGeometryPool({ pageBytes, uniquePages, homeBytes, rootPages, limits }, undefined).pool
-  assert.ok(rootPages * pageBytes > small.maxBufferSize, 'the root cover in slots passes it')
   const held = poolOn(small)
   assert.ok(held.slots >= rootPages && held.allocatedBytes === homeBytes, `${held.allocatedBytes}`)
   return { pool: poolOn(DEVICE), pageBytes, sourceBytes: slots.pageBytes, rootPages }
 }
 
-// The report's sheet (3 800 root pages), then one four times larger (14 800).
+// The report's sheet, then one four times larger: cut in runs of its source order a cluster wide
+// (`../page/codec/clusterTriangles.ts`), 630 root pages, then 2 500.
 for (const [scale, least] of [
-  [1, 3000],
-  [2, 12000],
+  [1, 600],
+  [2, 2400],
 ]) {
   test(`a sheet ${scale}× the report's opens on any device that holds its pages, its results once`, async () => {
     const built = await scene(scale)

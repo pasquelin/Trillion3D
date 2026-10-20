@@ -1,6 +1,6 @@
 /**
  * THE COMPOSITION'S FRAME (`gpuCompose.ts`): its kernels, asked off the thread, and the links, the
- * parents' worlds and the composed roots' list sent once a frame, each only when it moved.
+ * parents' worlds sent once a frame, each only when it moved.
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
@@ -9,10 +9,9 @@ import { autoKernel } from '../gpu/core/computeStages.ts'
 import { sizedBuffer } from '../gpu/core/sizedBuffer.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_ENTRY, COMPOSE_WORLDS_WGSL } from './gpuComposeWgsl.ts'
-import { sendList } from './composedRows.ts'
 import type { ComposeState } from './gpuComposeState.ts'
 import { createComposeGpu, type ComposeGpu } from './gpuComposeGpu.ts'
-import { writeBufferRuns } from './rootListPass.ts'
+import { writeBufferRuns } from '../gpu/dag/runWrites.ts'
 import { COMPOSE_MOTION_ENTRY, COMPOSE_MOTION_WGSL } from './composedMotionWgsl.ts'
 
 /** The worlds', the roots' and the motion's kernels, once a device, compiled off the thread: asked at a frame's
@@ -74,9 +73,8 @@ function writeLinks(device: GPUDevice, gpu: ComposeGpu, state: ComposeState, fre
   return true
 }
 
-/** The links, this frame's parents and the list of composed roots on the GPU, each sent once per
- *  frame and only what moved; undefined without links. What the passes compose moved, its version
- *  moves (`composedAt`). */
+/** The links and this frame's parents on the GPU, each sent once per frame and only what moved;
+ *  undefined without links. What the passes compose moved, its version moves (`composedAt`). */
 export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const state = rt.compose
   if (!state || !state.parentIds.size) return undefined
@@ -91,14 +89,6 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   for (const [rank, pose] of state.seeds)
     device.queue.writeBuffer(gpu.previous, rank * MATRIX_VALUES * 4, pose)
   state.seeds.clear()
-  // The list of composed roots: on a fresh table whole, else its places moved since.
-  if (fresh) state.rankList.moves.clear()
-  gpu.rankList = sendList(
-    device,
-    fresh ? undefined : gpu.rankList,
-    'Trillion3D composed roots',
-    state.rankList,
-  )
   // Room for the parents to come before it is made again (`sizedBuffer`): what it held is sent
   // again whole.
   const held = gpu.parents
@@ -111,9 +101,13 @@ export function frameParents(rt: WebgpuPagesRuntime, device: GPUDevice) {
   )
   const made = gpu.parents !== held
   writeParents(device, gpu, state, made)
-  // Whether a parent moved, as its settle found it (`settleSlot`): the frame takes it.
-  state.moving = state.movedSince
+  // Tables made anew hold no composed world: every composed root is composed again.
+  if (fresh || made) state.composed.whole = true
+  // Whether a parent moved, as its settle found it (`settleSlot`), or a link went up — a local
+  // moved its root with no parent's move —: the frame takes it, and the cut cuts again under it.
+  state.moving = state.movedSince || linked
   state.movedSince = false
-  if (state.moving || linked || seeded || made) state.composedAt++
+  const composing = state.composed.whole || state.composed.ranks.count > 0
+  if (state.moving || linked || seeded || composing) state.composedAt++
   return gpu
 }

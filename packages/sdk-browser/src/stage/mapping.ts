@@ -33,9 +33,19 @@ export function gpuTotalsBy<Group extends string | number>(
   sample: GpuPassTimings | null | undefined,
   classify: (name: string) => Group | undefined,
 ) {
+  return !sample || sample.truncated
+    ? new Map<Group, number | null>()
+    : passTotals(sample.passes, classify)
+}
+
+/** `gpuTotalsBy` over `passes` whatever the sample's truncation: what the GPU log prints beside
+ *  its "(truncated)". */
+export function passTotals<Group extends string | number>(
+  passes: readonly GpuPassTiming[],
+  classify: (name: string) => Group | undefined,
+) {
   const totals = new Map<Group, number | null>()
-  if (!sample || sample.truncated) return totals
-  for (const pass of sample.passes) {
+  for (const pass of passes) {
     const group = classify(pass.name)
     if (group === undefined) continue
     const total = totals.get(group)

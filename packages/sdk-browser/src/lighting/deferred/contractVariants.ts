@@ -48,7 +48,7 @@ type LitVariantsOptions<P> = {
  * for by the program with every code path, compiled then.
  *
  * `build` compiles one: the opaque resolve's (`createContractVariants`), and the transparent
- * passes' (`../../webgpu/blend/pipelines.ts`, `../../webgpu/water/pipelines.ts`), which light with
+ * pass's (`../../webgpu/blend/pipelines.ts`), which light with
  * the same light loop (`declaredLightWgsl`) and are keyed on the same lights (`contractKey`).
  */
 export function createLitVariants<P>(

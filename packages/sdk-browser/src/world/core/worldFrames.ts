@@ -22,7 +22,7 @@ export type WorldFrameMetrics = FrameMetrics & {
  *  world's one object, rewritten each frame: a hook that keeps a value copies it. */
 export interface FrameInfo {
   /** Seconds the world advanced since the previous frame — what its clips and controllers
-   *  integrated —, at most two frame intervals after a pause; 0 on the first. */
+   *  integrated —, one running interval after a pause; 0 on the first. */
   delta: number
   /** Seconds since the world began, at the frame's time (`worldFrameGrid.ts`). */
   time: number

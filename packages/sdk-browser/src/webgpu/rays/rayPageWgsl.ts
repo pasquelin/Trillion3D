@@ -1,13 +1,18 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { faceNormal, rayTriangleDistance } from '../../../../math/src/wgsl/geometry.ts'
+import {
+  faceNormal,
+  raySegmentDistance,
+  rayTriangleDistance,
+} from '../../../../math/src/wgsl/geometry.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { DEFORMED_OF_PAGE_WGSL } from './deformIndexWgsl.ts'
-import { RECORD_DRAWABLE, RECORD_NO_AREA, RECORD_WORDS } from './rayRecords.ts'
+import { RECORD_DRAWABLE, RECORD_LINE, RECORD_NO_AREA, RECORD_WORDS } from './rayRecords.ts'
 
 /**
- * WHAT A RAY MEETS OF ONE PAGE: the triangles the rasters draw of it, or nothing.
+ * WHAT A RAY MEETS OF ONE PAGE: the triangles the rasters draw of it, the line segments its quads
+ * stand for, or nothing.
  *
  * The page's record (`rayRecords.ts`, `recordOf`: the page plus its placement's record shift) says
  * whether a ray tests it — the finest representation the pool holds, each surface once, drawn by a
@@ -15,19 +20,31 @@ import { RECORD_DRAWABLE, RECORD_NO_AREA, RECORD_WORDS } from './rayRecords.ts'
  * raster decodes them (`PAGE_POINTS_WGSL`), from a page-table row the record and the deformation
  * index make (`deformedOf`): a quantized page in place, a float one from the pool, and a page this
  * frame deformed at the positions its row or its span named — a skinned, morphed or waved copy is
- * met where it is drawn. A line, a point or a sprite has no area: it is never met.
+ * met where it is drawn. A point is met on its dot, the octahedron the page draws; a sprite has no
+ * area, never met. A line has no width in the world — the rasters widen it on screen —: each of its
+ * quads, whose corners all sit on its segment, is met where the ray passes within `lineReach` of
+ * that segment (`raySegmentDistance`), as three.js's `Raycaster.params.Line.threshold` meets it,
+ * its normal facing the ray.
  *
  * The test is the engine's (`rayTriangleDistance`), two-sided, in the placement's own space: the
  * ray's origin and direction are taken there by the inverse of its world, so a parameter along it
- * is the world distance. The hit keeps the placement, the page, the triangle's rank in it and its
- * face normal in that space, as its winding turns it.
+ * is the world distance; `lineReach` is in that space too. The hit keeps the placement, the page,
+ * the triangle's rank in it and its face normal in that space, as its winding turns it.
  */
 export const RAY_PAGE_WGSL = wgslBlock(
   'RAY_PAGE_WGSL',
-  [PAGE_INFO_STRUCT_WGSL, PAGE_POINTS_WGSL, DEFORMED_OF_PAGE_WGSL, rayTriangleDistance, faceNormal],
+  [
+    PAGE_INFO_STRUCT_WGSL,
+    PAGE_POINTS_WGSL,
+    DEFORMED_OF_PAGE_WGSL,
+    rayTriangleDistance,
+    raySegmentDistance,
+    faceNormal,
+  ],
   `struct RqHit{distance:f32,placement:u32,page:u32,triangle:u32,normal:vec3f,found:bool,}
-/** The nearest of \`best\` and the triangles of \`page\`, placement \`w\`'s, whose record is \`record\`. */
-fn rqPage(origin:vec3f,direction:vec3f,page:u32,record:u32,w:u32,best:RqHit)->RqHit{
+/** The nearest of \`best\` and the triangles of \`page\`, placement \`w\`'s, whose record is
+ *  \`record\`: its segments within \`lineReach\` where it draws a line. */
+fn rqPage(origin:vec3f,direction:vec3f,lineReach:f32,page:u32,record:u32,w:u32,best:RqHit)->RqHit{
  let at=params.recordWord+record*${RECORD_WORDS}u;
  let flags=query[at+1u];
  if((flags&${RECORD_DRAWABLE}u)==0u||(flags&${RECORD_NO_AREA}u)!=0u){return best;}
@@ -40,12 +57,21 @@ fn rqPage(origin:vec3f,direction:vec3f,page:u32,record:u32,w:u32,best:RqHit)->Rq
  info.packedBase=deformed.y;
  let h=pageHeaderFor(info,false);
  var out=best;
+ let line=(flags&${RECORD_LINE}u)!=0u;
  let triangles=query[at+3u]/3u;
  for(var tri=0u;tri<triangles;tri++){
   let c=pageTriangle(info,h,tri);
-  let a=pagePosition(info,h,c.x);
-  let b=pagePosition(info,h,c.y);
-  let e=pagePosition(info,h,c.z);
+  let p=pageTrianglePositions(info,h,c);
+  let a=p[0];
+  let b=p[1];
+  let e=p[2];
+  if(line){
+   // The quad's segment: from one corner to the farther of the two others.
+   let end=select(e,b,dot(b-a,b-a)>dot(e-a,e-a));
+   let distance=raySegmentDistance(origin,direction,a,end,lineReach,out.distance);
+   if(distance<out.distance){out=RqHit(distance,w,page,tri,-direction,true);}
+   continue;
+  }
   let distance=rayTriangleDistance(origin,direction,a,b,e,out.distance);
   if(distance<out.distance){out=RqHit(distance,w,page,tri,faceNormal(a,b,e),true);}
  }

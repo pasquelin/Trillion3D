@@ -8,13 +8,14 @@ import {
   FLAG_LIT,
   FLAG_MASK,
   FLAG_SAMPLED,
+  FLAG_VOXEL,
 } from '../types.ts'
 import { CLASS_FEATURE } from './classWords.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { visPageIndex, visRowIn } from '../visWords.ts'
 export type MaterialClassFeature = keyof typeof CLASS_FEATURE
 /** Keys addressable: one more bit than the highest feature. */
-export const MATERIAL_CLASS_KEYS = 16384
+export const MATERIAL_CLASS_KEYS = 32768
 
 /** Map slots of a row, as `../../webgpu/row/pageRowWriter.ts` resolves them: zero is the absence of a texture. */
 type MaterialClassMaps = {
@@ -27,8 +28,9 @@ type MaterialClassMaps = {
   physical?: boolean
 }
 
-/** Class key of a row: its resolve-relevant flags, and which maps it reads. */
-export function materialClassKey(flags: number, maps: MaterialClassMaps) {
+/** Class key of a row: its resolve-relevant flags, which maps it reads, and whether one of them
+ *  reads a second UV set its geometry has (`secondUv`). */
+export function materialClassKey(flags: number, maps: MaterialClassMaps, secondUv = false) {
   const f = CLASS_FEATURE
   let key = 0
   if (flags & FLAG_HAS_UV) key |= f.HAS_UV
@@ -44,7 +46,10 @@ export function materialClassKey(flags: number, maps: MaterialClassMaps) {
   if (flags & FLAG_HAS_TANGENT) key |= f.HAS_TANGENT
   if (flags & FLAG_SAMPLED) key |= f.HAS_SAMPLING
   if (flags & FLAG_HAS_COLOR) key |= f.HAS_VERTEX_COLOR
-  if (maps.physical && flags & FLAG_LIT) key |= f.HAS_PHYSICAL
+  // The physical path holds the second UV set's decode too: a class that reads neither a lobe
+  // nor that set compiles none of it.
+  if ((maps.physical && flags & FLAG_LIT) || secondUv) key |= f.HAS_PHYSICAL
+  if (flags & FLAG_VOXEL) key |= f.VOXEL
   return key
 }
 

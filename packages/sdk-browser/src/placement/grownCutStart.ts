@@ -6,6 +6,7 @@ import { dagRootCounts, type DagCapacity } from '../gpu/dag/packCapacity.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { GrowthInFlight } from './webgpuGrowth.ts'
+import { stopped } from '../webgpu/pages/io/lost.ts'
 
 /** THE GROWN CUT STARTED (`webgpuGrowth.ts`), at frame entry: the roots appended in place, or a
  *  cut over every root made beside the running one, which the swap adopts (`webgpuGrownCut.ts`). */
@@ -91,10 +92,9 @@ async function makeCut(rt: WebgpuPagesRuntime, growth: GrowthInFlight): Promise<
   // The room kept for the primitives and sources to come is an advance, not a need: a device that
   // cannot hold the cut with it is asked for the cut over the roots at the grown pages and
   // placements alone.
-  if (!attempt.cut && !rt.signal.aborted && !rt.run.lost)
-    attempt = await make({ ...capacity, ahead: false })
+  if (!attempt.cut && !stopped(rt)) attempt = await make({ ...capacity, ahead: false })
   const { cut, refused, error } = attempt
-  if (rt.signal.aborted || rt.run.lost) return cut?.dispose()
+  if (stopped(rt)) return cut?.dispose()
   rows.logTouched(undefined)
   // The scene's roots no longer fit a cut this device holds: as an open would be, it is refused.
   // The running cut goes on and the roots wait parked, as for any content the session cannot take:

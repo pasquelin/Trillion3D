@@ -15,7 +15,7 @@ import { VSM_LOG2_PAGE, VSM_MIPS, VSM_LEVEL0_TEXELS } from './constants.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightInput } from './localLight.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { createVsmResources } from './resources.ts'
-import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
+import type { VsmBoundLight, VsmRowBound, VsmRowSpheres, VsmWorst } from './rowPageBound.ts'
 import { createRowMotion } from '../gpu/shadow/rowMotion.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
@@ -28,6 +28,9 @@ export const worstOf = (cap = 1 << 21): VsmWorst => ({
   cap,
 })
 
+/** Whether `bound`'s last chunk is a histogram's answer (`answer` holds it), not every row at the
+ *  worst case where none can speak (`answerUnbound`). */
+export const speaks = (bound: VsmRowBound) => bound.held !== undefined
 /** Spheres no histogram was made of: the bound cannot speak. */
 export const emptyRowSpheres = (): VsmRowSpheres => ({ motion: createRowMotion() })
 

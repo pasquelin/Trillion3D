@@ -17,7 +17,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   const tiles = rt.vis.textures?.counters
   const pumped = tiles?.worked && !run.textureConverging ? tiles.lastMs : null
   steps[CPU_STEP.tilesPumpMs] = pumped ?? NaN
-  steps[CPU_STEP.worldMs] = m.blendStart - m.tilesEnd
+  steps[CPU_STEP.worldMs] = m.blendStart - m.gateEnd
   steps[CPU_STEP.blendWorldMs] = m.cpuStart - m.blendStart
   steps[CPU_STEP.adoptCutMs] = m.adoptEnd - m.cpuStart
   steps[CPU_STEP.transparentPrepareMs] = timing.transparentPrepareMs
@@ -29,7 +29,7 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
   steps[CPU_STEP.residencyQueueMs] = m.queueEnd - m.admissionEnd
   steps[CPU_STEP.syncRowsMs] = m.rowsEnd - m.queueEnd
   steps[CPU_STEP.residencyUploadMs] = m.residencyUploadEnd - m.rowsEnd
-  steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.residencyUploadEnd
+  steps[CPU_STEP.selectionDispatchMs] = m.selectionEnd - m.tilesEnd
   steps[CPU_STEP.partitionMs] = timing.lastPartitionMs
   // Remaining encode excludes submit itself: the two steps never overlap.
   steps[CPU_STEP.encodeRestMs] = Math.max(
@@ -48,7 +48,8 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
     submission: run.imageRevision,
     scope: 'backend-render-call',
     totalMs: m.cpuEnd - m.preStart,
-    selectionMs: m.selectionEnd - m.cpuStart,
+    // The cut's own steps, the texture tile pump between them left out (`tilesPumpMs`).
+    selectionMs: m.residencyUploadEnd - m.cpuStart + (m.selectionEnd - m.tilesEnd),
     residencyScheduleAndTargetsMs: m.encodeStart - m.selectionEnd,
     encodeSubmitMs: submitMs,
     transparentEncodeMs: transparentMs,

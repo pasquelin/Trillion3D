@@ -40,4 +40,5 @@ export const META = {
   QUANTIZATION_ERROR: 4,
   MORPH_TARGETS: 5,
   SKIN_INFLUENCES: 6,
+  CONE: 7,
 } as const

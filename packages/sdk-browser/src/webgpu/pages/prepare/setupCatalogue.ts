@@ -8,19 +8,19 @@ import { indexPagesByUrl } from '../../../page/selection/requests.ts'
 import type { WebgpuDiagnostics } from './setup.ts'
 import { withWorldRoot } from './worldRoot.ts'
 import { rootCoverOf } from './rootCover.ts'
+import { rootBlends } from '../../../page/selection/collectBlend.ts'
 
-/** The catalogue's pages, its blended copies, its request index and its root cover. */
+/** The catalogue's pages, its blended copies — one per blended root —, its request index and its
+ *  root cover. */
 export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   const { source, draws, metadata, indices } = context
   // The world DAG beside the scene's pages as the cut's last root, when the scene streams one
   // (`../../../scene/worldRecords.ts`).
   const scene = collectClusterPages(source, draws, metadata, indices, { allowMissing: true })
-  const collected = withWorldRoot(scene, context, scene.collector.sources)
-  const { roots, allPages, blendCopies, requests } = collected
-  const sharedBlendMeshes = blendCopies.length
-  const pagedBlendCopies = new Map<MatrixElements, BlendCopy>()
-  blendCopies.push(...pagedBlendCopiesOf(roots, pagedBlendCopies))
-  blendCopies.sort(byRenderOrder)
+  const collected = withWorldRoot(scene, context)
+  const { roots, allPages, requests } = collected
+  const pagedBlendCopies = new Map<MatrixElements, BlendCopy[]>()
+  const blendCopies = pagedBlendCopiesOf(roots, pagedBlendCopies).sort(byRenderOrder)
   // Request rank → address, posted once for the scene's life: the delta the host receives after the
   // render carries only integers, and it is this table that translates them.
   const requestUrls = [...requests.keys()]
@@ -31,7 +31,7 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   })
   return {
     ...collected,
-    sharedBlendMeshes,
+    blendCopies,
     pagedBlendCopies,
     requestUrls,
     tracking,
@@ -44,28 +44,39 @@ export const byRenderOrder = (a: BlendCopy, b: BlendCopy) => a.renderOrder - b.r
 
 /** Transparent pages share selection/residency with opaque pages, but retain one forward draw
  *  per placement (all back faces, then all front faces), keyed by the world of the root that
- *  places its pages: the source mesh's own, or one row of its instance buffer. The copies of
- *  `roots` not made yet — `held` names those that are, by world — are returned and held. */
+ *  places its pages: the source mesh's own, or one row of its instance buffer — one per blended
+ *  surface of a root mixing them (`rootBlends`, the world DAG's sections). The copies of `roots`
+ *  not made yet — `held` names those that are, by world — are returned and held. */
 export function pagedBlendCopiesOf(
   roots: SetupPages['roots'],
-  held: Map<MatrixElements, BlendCopy>,
+  held: Map<MatrixElements, BlendCopy[]>,
 ) {
   const made: BlendCopy[] = []
-  for (const { world, placement, pages } of roots) {
-    const rec = pages[0]
-    if (!rec?.transparent || !rec.drawSource || held.has(world)) continue
-    const copy = createBlendCopyRecord(
-      rec.drawSource,
-      rec.renderOrder,
-      world,
-      rec.material,
-      placement,
-    )
-    copy.userData.pagedBlend = true
-    // The compiler writes a geometry page for every cluster of a primitive, or for none.
-    copy.userData.pageGeometry = !!rec.geometryPage
-    held.set(world, copy)
-    made.push(copy)
+  for (const root of roots) {
+    const { world, placement, pages } = root
+    if (!rootBlends(root) || held.has(world)) continue
+    const copies: BlendCopy[] = []
+    // Each blended surface's first page stands for its copy: a blended root has one.
+    for (const rec of pages) {
+      if (!rec.transparent || copies.some((copy) => copy.surface === rec.material)) continue
+      const copy = createBlendCopyRecord(
+        rec.drawSource,
+        rec.renderOrder,
+        world,
+        rec.material,
+        placement,
+      )
+      // The compiler writes a geometry page for every cluster of a primitive, or for none.
+      copy.userData.pageFlags = rec.geometryPage?.flags
+      // The box its pages lie in at rest: the frustum and the water rectangle read it in place of
+      // the source geometry's, which no coarse or quantized page keeps to. A deforming root's pages
+      // leave it.
+      if (!root.deformation) copy.userData.localBox = root.localBox
+      copies.push(copy)
+      if (!root.mixed) break
+    }
+    held.set(world, copies)
+    made.push(...copies)
   }
   return made
 }

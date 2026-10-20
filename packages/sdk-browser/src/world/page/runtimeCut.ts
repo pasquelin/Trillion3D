@@ -2,28 +2,25 @@
  * THE RUNTIME CUTTER: drawn triangles cut into engine pages, off the main thread.
  *
  * What runs here touches no platform object — no URL, no DOM, no rendering library — but the
- * SDK module, which builds each cluster's normal cone (`cutCones.ts`); so the page worker runs
+ * SDK module, which encodes each page and measures its normal cone; so the page worker runs
  * it (`page/work/task.ts`, op `cut`) and the main thread runs the same function when no worker
  * lives. The triangles travel as one buffer (`packDrawn`), and the pages come back as
  * bytes with their descriptors and digests: serving them at an address is the caller's.
  */
 import { encodeGeometryPage } from '../../page/codec/encodeGeometryPage.ts'
 import type { PageAttributes } from '../../../../sdk-core/src/page/pageInput.ts'
-import { boxEmpty, boxExpandByPoint, boxFromPoints } from '../../../../math/src/geometry/box.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import { sphereFromBoundsBatch } from '../../../../math/src/batch/culling.ts'
 import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import type { CutWay } from './runtimePack.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
-import { clusterCones } from './cutCones.ts'
-import { givenClusters, primitiveUvSpan, widestUvSpan } from './cutClusters.ts'
-import { clusterTriangles, type ClusterRule } from '../../page/codec/clusterTriangles.ts'
 import {
-  drawnUvGridExponent,
-  positionGridExponent,
-  type GridInputs,
-  uvGridExponent,
-} from './cutGrid.ts'
+  clusterTriangles,
+  givenClusters,
+  type ClusterRule,
+} from '../../page/codec/clusterTriangles.ts'
+import { primitiveGrids, type GridInputs } from './cutGrid.ts'
 import { requireSdkWasm } from '../../wasm/sdkWasm.ts'
 import { buildCutProxy } from './runtimeProxy.ts'
 import { buildCullingHierarchy } from '../../page/codec/cullingHierarchy.ts'
@@ -36,24 +33,24 @@ import { buildCullingHierarchy } from '../../page/codec/cullingHierarchy.ts'
 export type Recut = GridInputs & { ends: Uint32Array }
 
 /**
- * Cuts drawn triangles into single-level clusters of the format's size by the compiler's
- * clusterer (`clusterTriangles`), each written as its index page and its quantized geometry page
+ * Cuts drawn triangles into single-level clusters of the format's size by the compiler's clusterer
+ * (`clusterTriangles`), each written as its index page and its quantized geometry page
  * (`encodeGeometryPage`), with no simplification — every cluster is a root, drawn as it is — and,
- * when `cones` holds, with the cone of its triangles' normals (`cutCones.ts`). Opaque faces take
- * its spatial rule, the compiler's: compact patches whatever the index order, a grid listed by
+ * when `cones` holds, with the cone the encoder measures of the faces it decodes to. Opaque faces
+ * take its spatial rule, the compiler's: compact patches whatever the index order, a grid listed by
  * columns or a soup cut as a cooked mesh is. A `blended` surface keeps its source order, its paint
  * order, in consecutive runs; its `held` faces — faces that move after the cut: a dynamic
- * geometry's, a mesh the waves carry — keep no cone, each page drawn by the shadow rasters into
- * the pages it reaches.
- * Lines and sprites (no `cones`) keep their order too: their quads have no area, their layer is
- * coplanar. Positions sit on the compiler's tiled grid (`cutGrid.ts`). Texture coordinates sit on
- * the format's 2^-14, or on the finest grid the widest cluster's range fits when it does not — a
- * dashed line's distance along it (`drawn.ts`) spans past 1024 units on a long line: every page is
- * cut, none refused, and each coordinate stays within a 32-bit float's own step of that range. A
- * `blended` primitive takes the finest grids a page holds for both (2^23 steps), the compiler's
- * rule too: a coarser one shows through a transparent surface. A `recut` keeps the compiled
- * primitive's own clusters and takes the grids the compiler gives its class — texture coordinates
- * by their span over every vertex —, so each page is the one the compiler writes for that class.
+ * geometry's, a mesh the waves carry — keep no cone, each page drawn by the shadow rasters into the
+ * pages it reaches. Lines and sprites (no `cones`) keep their order too: their quads have no area,
+ * their layer is coplanar. Positions sit on the compiler's tiled grid (`cutGrid.ts`). Texture
+ * coordinates sit on the format's 2^-14; a page whose own range does not fit it takes the coarser
+ * grid that holds it, alone — a dashed line's distance along it (`drawn.ts`) spans past 1024 units
+ * on a long line: every page is cut, none refused, and each coordinate stays within a 32-bit
+ * float's own step of that range. A `blended` primitive takes the finest grids a page holds for
+ * both (2^23 steps), the compiler's rule too: a coarser one shows through a transparent surface. A
+ * `recut` keeps the compiled primitive's own clusters and takes the grids the compiler gives its
+ * class — texture coordinates by their span over every vertex —, so each page is the one the
+ * compiler writes for that class.
  *
  * The pages come out in the order of their culling hierarchy, built by the compiler's builder over
  * their boxes (`buildCullingHierarchy`), and the hierarchy with them: the GPU descent tests the
@@ -68,10 +65,6 @@ export async function cutDrawnTriangles(
 ): Promise<PageCutPayload> {
   const module = await requireSdkWasm()
   const { positions, normals, uvs, colors } = drawn
-  const bounds = new Float64Array(6)
-  boxFromPoints(bounds, 0, positions, 0, Math.floor(positions.length / 3))
-  const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
-  const positionExponent = positionGridExponent(module, extent, blended, recut)
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: positions },
     ...(drawn.deformation?.joints && drawn.deformation.weights
@@ -94,11 +87,16 @@ export async function cutDrawnTriangles(
   const { indices, ranges } = recut
     ? { indices: drawn.indices, ranges: givenClusters(recut.ends) }
     : clusterTriangles(module, drawn.indices, positions, rule)
-  const uvExponent =
-    recut && uvs
-      ? uvGridExponent(module, primitiveUvSpan(uvs), blended)
-      : drawnUvGridExponent(module, uvs ? widestUvSpan(uvs, indices, ranges) : 0, blended)
-  const built = cones && !held ? await clusterCones(positions, indices, ranges) : null
+  // A recut measures its texture span over every vertex, as the compiler does: no ranges.
+  const { positionExponent, uvExponent } = primitiveGrids(
+    module,
+    positions,
+    uvs,
+    indices,
+    recut ? [] : ranges,
+    blended,
+    recut,
+  )
   const cut = ranges.map(([start, end]) => {
     const corners = indices.slice(start, end)
     const page = encodeGeometryPage(
@@ -131,8 +129,8 @@ export async function cutDrawnTriangles(
     })),
   )
   const pages: PageCutPage[] = await Promise.all(
-    Array.from(order, (k) => ({ ...cut[k], k })).map(
-      async ({ start, corners, page, box, sphere, geometry, k }) => ({
+    Array.from(order, (k) => cut[k]).map(
+      async ({ start, corners, page, box, sphere, geometry }) => ({
         index: corners.buffer,
         geometry,
         indexSha256: await sha256Hex(corners.buffer),
@@ -146,7 +144,8 @@ export async function cutDrawnTriangles(
         indexCount: page.indexCount,
         flags: page.flags,
         uncompressedBytes: page.uncompressedBytes,
-        ...(built ? { cone: built[k] } : {}),
+        // The cone of the faces the page draws, measured by the encoder on its decoded positions.
+        ...(cones && !held ? { cone: page.cone } : {}),
       }),
     ),
   )

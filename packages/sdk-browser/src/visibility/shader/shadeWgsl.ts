@@ -2,19 +2,16 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
-import {
-  edgeFunction,
-  perspectiveBarycentric,
-  wireframeEdge,
-} from '../../../../math/src/wgsl/barycentric.ts'
+import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
 import { SHADOW_RECEIVER_OF_TRIANGLE_WGSL } from './receiverOffsetWgsl.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
-import { SHADE_MODE } from './shadeMode.ts'
+import { DIAGNOSTIC_VIEWS as V } from './shadeMode.ts'
 import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
 import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
-import { lecture, lectureDonnee, siCarte } from './maps.ts'
+import { coordonnee, lecture, lectureDonnee, siCarte } from './maps.ts'
+import { SUBSURFACE_MAP_BIT } from '../materialType.ts'
 import {
   AS_IS_FLAG,
   FOG_FREE_SURFACE_FLAG,
@@ -57,8 +54,6 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  var rgb=m.baseColor;
  let bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
  var uv=vec2f(0.0);
- let absArea=abs(area);
- let width=select(vec3f(0.005),vec3f(abs(s1.y-s2.y)+abs(s2.x-s1.x),abs(s2.y-s0.y)+abs(s0.x-s2.x),abs(s0.y-s1.y)+abs(s1.x-s0.x))/absArea,absArea>0.0);
  var ddx=vec2f(0.0);var ddy=vec2f(0.0);
  if(HAS_UV){
   uv=t.uva*bary.x+t.uvb*bary.y+t.uvc*bary.z;
@@ -72,9 +67,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   uv=matcapUv(unitOrZero(t.n0*bary.x+t.n1*bary.y+t.n2*bary.z));
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
- // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
+ // The pixel's UV sets and its anisotropic and clear-coat record, which the tile request reads too.
  ${PHYSICAL_UV_READ}
- let request=shadeRequest(m,pos.xy,uv,ddx,ddy);
+ let request=shadeRequest(m,pos.xy);
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
  var metalSample=vec4f(1.0);
@@ -84,7 +79,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    ['roughSample', 'rough'],
    ['metalSample', 'metal'],
  ])}
- let ao=ormOcclusion(m.aoIntensity,aoSample.r);
+ var ao=ormOcclusion(m.aoIntensity,aoSample.r);
  var emissive=m.emissive;
  ${siCarte('emissive', `emissive*=${lecture('colorSample', 'emissive')}.rgb;`)}
  var nrmSample=vec4f(0.5,0.5,1.0,1.0);
@@ -98,17 +93,33 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  )}
  // The vertex colour, perspective-correct like the texture coordinate, as the forward path reads it.
  if(HAS_VERTEX_COLOR){let h=pageHeader(page);let k=pageTriangle(page,h,tri);rgb*=(pageColor(page,h,k.x)*bary.x+pageColor(page,h,k.y)*bary.y+pageColor(page,h,k.z)*bary.z).xyz;}
- if(uni.mode==${SHADE_MODE.wireframe}u){
-  let edgeW=wireframeEdge(bary,width);
-  return diagnosticSurface(diagnosticWire(hashColor(stableTriangleId(page.clusterHash,tri)),edgeW),request);
+ // The wireframe's and the x-ray view's surfaces are their background: the edges of every
+ // triangle submitted, the hidden ones too, are drawn over the lit image by a pass of their own
+ // (\`../../webgpu/visibility/xray.ts\`).
+ if(uni.mode==${V.wireframe.code}u||uni.mode==${V.xray.code}u){return diagnosticEmpty(request);}
+ // Every other view's colour (\`diagnosticColor\`), the blended resolve's too, shaded by the
+ // face's orientation so walls stand out from the ground; the LOD and HLOD colorations by the
+ // luminance of the base colour and emission instead (\`diagnosticDebugColor\`) — a voxel's its own.
+ // A voxel is a level of its own DAG: its level's colour, the LOD drawn painted whatever its
+ // geometry, a brick or a mesh. The screen error is measured
+ // here, at the pixel's clip w (\`diagnosticScreenError\`).
+ if(uni.mode!=0u){
+  var base=rgb+emissive;
+  if(VOXEL&&(uni.mode==${V.lod.code}u||uni.mode==${V.hlod.code}u)){base=voxelSurface(page.pageOffset,tri).rgb;}
+  let depth=dot(bary,vec3f(c0.w,c1.w,c2.w));
+  var screenError=0.0;
+  if(uni.mode==${V['screen-error'].code}u){screenError=diagnosticScreenError(diagnosticWorldError(page.diagnosticWord,page.world),depth,uni.viewProj,uni.viewport,uni.pixelRatio,uni.pixelError);}
+  return diagnosticSurface(diagnosticColor(uni.mode,DiagnosticPixel(page.clusterHash,tri,page.diagnosticWord,CLASS_KEY,base,faceNormal(w0.xyz,w1.xyz,w2.xyz),screenError)),request);
  }
- if(uni.mode==${SHADE_MODE.clusters}u){return diagnosticSurface(hashColor(page.clusterHash),request);}
- if(uni.mode==${SHADE_MODE.pages}u){return diagnosticSurface(diagnosticFlat(),request);}
- if(uni.mode==${SHADE_MODE.lod}u){return diagnosticSurface(diagnosticLevel(page.diagnosticWord>0.5),request);}
- if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(diagnosticFlat(),request);}
- if(uni.mode==${SHADE_MODE['screen-error']}u){return diagnosticSurface(diagnosticError(clamp(page.diagnosticWord,0.0,1.0)),request);}
- if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
  var metal=ormMetalness(m.metalness,metalSample.z);var rough=ormRoughness(m.roughness,roughSample.y);
+ // The spread of the normals under the pixel the roughness is widened by (\`roughnessWidened\`).
+ var spread=0.0;
+ // A voxel wears its own prefiltered surface, the spread of the normals it averages added.
+ if(VOXEL){
+  let v=voxelSurface(page.pageOffset,tri);
+  rgb=v.rgb;metal=v.metal;ao=v.ao;emissive=vec3f(0.0);
+  rough=v.rough;spread=toksvigVariance(v.spread);
+ }
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=worldMatrix3(page.world);
@@ -129,15 +140,26 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    rcvPlane=receiver.plane;
   }
   var N=unitOrZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
+  // The shading normal one pixel right (\`Nx\`) and one down (\`Ny\`), the same plane's: its change
+  // across the pixel, which widens the roughness (\`normalFootprintVariance\`); a flat face's none.
+  var Nx=N;var Ny=N;
   if(HAS_VERTEX_NORMAL){
    N=unitOrZero(n0*bary.x+n1*bary.y+n2*bary.z);
-   if(DOUBLE_SIDED){N*=face;}
+   let bx=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(1.0,0.0),area);
+   let by=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(0.0,1.0),area);
+   Nx=unitOrZero(n0*bx.x+n1*bx.y+n2*bx.z);
+   Ny=unitOrZero(n0*by.x+n1*by.y+n2*by.z);
+   if(DOUBLE_SIDED){N*=face;Nx*=face;Ny*=face;}
   }
   // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
   let coatBase=N;
   if(HAS_NORMAL_MAP){
-   let nrm=unitToSigned3(nrmSample.xyz);
-   let mapN=vec3f(nrm.x*m.normalScale,nrm.y*select(m.normalScaleY,m.tangentNormalScaleY,HAS_TANGENT),nrm.z);
+   let scale=vec3f(m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,HAS_TANGENT),1.0);
+   let mapN=unitToSigned3(nrmSample.xyz)*scale;
+   // The map one pixel right and one down, at the same level: its own change across the pixel.
+   let nc=${coordonnee('normal')};
+   let mapNx=unitToSigned3(dataSample(m.normalIndex,nc.uv+nc.ddx,nc.ddx,nc.ddy,HAS_SAMPLING).xyz)*scale;
+   let mapNy=unitToSigned3(dataSample(m.normalIndex,nc.uv+nc.ddy,nc.ddx,nc.ddy,HAS_SAMPLING).xyz)*scale;
    var T=vec3f(0.0);var B=vec3f(0.0);
    if(HAS_TANGENT){
     let k=pageTriangle(page,pageHeaderFor(page,false),tri);
@@ -146,10 +168,14 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
     T=normalize(t0*bary.x+t1*bary.y+t2*bary.z);
     B=normalize(normalize(cross(n0,t0)*ta.w)*bary.x+normalize(cross(n1,t1)*tb.w)*bary.y+normalize(cross(n2,t2)*tc.w)*bary.z);
    }else{
-    let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,t.uvb-t.uva,t.uvc-t.uva);
+    let c=${coordonnee('normal')};
+    let frame=cotangentFrame(N,(w1-w0).xyz,(w2-w0).xyz,c.d1,c.d2);
     T=frame.T*screenFace;B=frame.B*screenFace;
    }
-   N=bendNormal(N,T,B,select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL),mapN);
+   let flip=select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL);
+   N=bendNormal(N,T,B,flip,mapN);
+   Nx=bendNormal(Nx,T,B,flip,mapNx);
+   Ny=bendNormal(Ny,T,B,flip,mapNy);
   }
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
@@ -161,9 +187,10 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
  if(DOUBLE_SIDED&&(page.flags&${FLAG_LIT}u)!=0u){
   var thin=clamp(m.subsurface,vec3f(0.0),vec3f(1.0));
-  if(HAS_UV&&m.subsurfaceMap!=0u){thin*=colorSample(m.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
+  if(HAS_UV&&m.subsurfaceMap!=0u){let c=mapCoord(m,${SUBSURFACE_MAP_BIT}u);thin*=colorSample(m.subsurfaceMap,c.uv,c.ddx,c.ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
  }
+ rough=ormRoughness(1.0,roughnessWidened(rough,spread+normalFootprintVariance(Nx-N,Ny-N)));
  ${PHYSICAL_LOBES_CALL}
  // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
@@ -181,7 +208,6 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       unitOrZero,
       edgeFunction,
       perspectiveBarycentric,
-      wireframeEdge,
       faceNormal,
       SHADOW_RECEIVER_OF_TRIANGLE_WGSL,
       unitToSigned3,

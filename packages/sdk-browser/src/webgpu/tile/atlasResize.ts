@@ -3,11 +3,11 @@ import { createWebgpuTilePool, type TilePoolOptions, type WebgpuTilePool } from 
 import type { WebgpuTilePageTable } from './pageTable.ts'
 import { cellOrigin } from './write.ts'
 import { tailSlotOf, tileKeyOf } from './ids.ts'
-import { pendingMade } from '../../gpu/core/tableGrowth.ts'
+import { grownByCopy } from '../../gpu/core/tableGrowth.ts'
 
 /**
  * An atlas pool changes layers WITHOUT losing what it holds. The new pool keeps the pinned places
- * first — every tail, wherever a late pin put it —, then the most looked-at by the GPU's queue, as
+ * first — every tail, wherever it was pinned —, then the most looked-at by the GPU's queue, as
  * many as it holds; the others are evicted wherever they sat, the table says so, `onEvicted` hears
  * their texture and the coarse level takes over. Surviving layers are copied in one command, slot
  * for slot: the page table does not move for them; a kept tile of a vanishing layer is moved into a
@@ -30,25 +30,25 @@ export function resizeTileAtlas(
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options)
   let evicted = 0
-  pendingMade(device, [next], next.bytes, () => {
-    evicted = moveTiles(device, options, tap, { pool, next, pages, resident }, onEvicted)
-    return [pool]
-  }).commit()
+  grownByCopy(
+    device,
+    [pool],
+    (encoder) => {
+      evicted = moveTiles(encoder, tap, { pool, next, pages, resident }, onEvicted)
+    },
+    `Trillion3D texture pool ${options.kind} ${options.lane} resize`,
+  )
   return { pool: next, evicted }
 }
 
-/** Copies what `pool` holds into `next` and moves its table to it (`resizeTileAtlas`); the tiles
- *  evicted. */
+/** Encodes the copy of what `pool` holds into `next` and moves its table to it
+ *  (`resizeTileAtlas`); the tiles evicted. */
 function moveTiles(
-  device: Pick<GPUDevice, 'createCommandEncoder' | 'queue'>,
-  options: TilePoolOptions,
+  encoder: GPUCommandEncoder,
   tap: number,
   { pool, next, pages, resident }: Moved,
   onEvicted?: (slot: number) => void,
 ) {
-  const encoder = device.createCommandEncoder({
-    label: `Trillion3D texture pool ${options.kind} ${options.lane} resize`,
-  })
   const kept = Math.min(pool.layers, next.layers)
   encoder.copyTextureToTexture({ texture: pool.texture }, { texture: next.texture }, [
     POOL_LAYER_SIDE,
@@ -73,13 +73,13 @@ function moveTiles(
   }
   // Kept in place where its layer survives; moved into a free place of the new pool otherwise.
   for (const index of keep) {
-    if (index < next.tiles) next.adopt(index, pool.keyOf(index), pool.pinnedOf(index))
+    if (index < next.tiles) next.adopt(index, pool.keyOf(index))
     else displaced.push(index)
   }
   for (const index of displaced) {
     const id = pool.keyOf(index),
       tail = tailSlotOf(id),
-      target = next.acquire(id, pool.pinnedOf(index))!
+      target = next.acquire(id)!
     const from = pool.placeOf(index),
       place = next.placeOf(target)
     encoder.copyTextureToTexture(
@@ -91,7 +91,6 @@ function moveTiles(
     if (tail !== undefined) pages.setTail(tail, place, tap)
     else pages.setTile(tileKeyOf(id), place)
   }
-  device.queue.submit([encoder.finish()])
   return evicted
 }
 

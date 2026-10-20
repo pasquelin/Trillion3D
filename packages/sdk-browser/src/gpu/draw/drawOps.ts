@@ -8,6 +8,7 @@ import { writeChanged } from '../core/writeChanged.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import { bufferEntries } from '../core/computeBindings.ts'
+import type { HeldGroup } from '../../webgpu/core/bindIdentity.ts'
 
 type Held = ReturnType<typeof createGpuDrawBuffers>
 
@@ -33,8 +34,7 @@ export type Draw = {
   boundMask: GPUBuffer
   bindGroup: GPUBindGroup
   /** The tested half's group, over `boundMask`, the page table and the Hi-Z verdicts it names. */
-  testedGroup: GPUBindGroup | undefined
-  testedBound: readonly GPUBuffer[]
+  testedHeld: HeldGroup
   uniData: Uint32Array<ArrayBuffer>
   disposed: boolean
 }
@@ -48,10 +48,17 @@ export function drawBindGroup(
   maskBuffer: GPUBuffer,
   verdicts: readonly GPUBuffer[] = [],
 ) {
-  const { itemsBuf, uniforms, instanceBuffer, indirectBuffer, groupCounts } = held
-  const { groupOffsets, restBuf, slotTotals } = held
-  const bound = [itemsBuf, uniforms, instanceBuffer, indirectBuffer, groupCounts]
-  bound.push(groupOffsets, maskBuffer, restBuf, slotTotals, ...verdicts)
+  const { itemsBuf, uniforms, instanceBuffer, indirectBuffer, groups, restBuf } = held
+  const bound = [
+    itemsBuf,
+    uniforms,
+    instanceBuffer,
+    indirectBuffer,
+    groups,
+    maskBuffer,
+    restBuf,
+    ...verdicts,
+  ]
   return device.createBindGroup({
     layout,
     entries: bufferEntries(bound),
@@ -89,6 +96,8 @@ export function encodeDraw(
   uniData[4] = selection ? 1 : 0
   uniData[5] = selection?.maskOffset ?? 0
   uniData[6] = d.perRow
+  // The `groups` regions' size, from the allocation's own formula (`drawGroupWords`).
+  uniData[7] = held.groupEntries
   const mask = selection?.maskBuffer ?? held.itemsBuf
   if (mask !== d.boundMask) {
     d.boundMask = mask
@@ -105,12 +114,17 @@ export function encodeDraw(
  *  items it counted. */
 export function encodeDrawTested(d: Draw, open: OpenPass, pages: GPUBuffer, flags: GPUBuffer) {
   if (d.disposed) return
-  const bound = d.testedBound
-  if (!d.testedGroup || bound[0] !== d.boundMask || bound[1] !== pages || bound[2] !== flags) {
-    d.testedBound = [d.boundMask, pages, flags]
-    d.testedGroup = drawBindGroup(d.device, d.tested.layout, d.held, d.boundMask, [pages, flags])
-  }
-  dispatchHalf(open.pass, d.tested, d.testedGroup, d.uniData[3])
+  const { identity } = d.testedHeld,
+    { next } = identity
+  next[0] = d.boundMask
+  next[1] = pages
+  next[2] = flags
+  if (identity.moved())
+    d.testedHeld.group = drawBindGroup(d.device, d.tested.layout, d.held, d.boundMask, [
+      pages,
+      flags,
+    ])
+  dispatchHalf(open.pass, d.tested, d.testedHeld.group!, d.uniData[3])
 }
 
 /** One workgroup per group of items for the count and the scatter — each lane reads its own item
@@ -142,7 +156,7 @@ export function growDraw(d: Draw, rows: number) {
     d.slotCap = rows
     if (d.boundMask === old.itemsBuf) d.boundMask = next.itemsBuf
     d.bindGroup = drawBindGroup(device, d.occluders.layout, next, d.boundMask)
-    d.testedGroup = undefined
+    d.testedHeld.identity.clear()
     return old.all
   })
 }

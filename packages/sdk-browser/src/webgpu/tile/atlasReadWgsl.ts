@@ -1,7 +1,7 @@
 import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
 import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
 import { SAMPLING_WGSL } from './samplingWgsl.ts'
-import { tileKindWgsl } from './kindWgsl.ts'
+import { levelMix, tileKindWgsl } from './kindWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /** The footprint read of atlas `k` through the texture's filter rule, and through its UV
@@ -79,12 +79,7 @@ export const atlasReadWgsl = (
 ) => {
   const at = `${name}At`
   const taps = anisotropic
-    ? `fn ${name}Taps(s:TileSlot,r:TileRead)->vec4f{
- let l0=floor(r.lod);let t=r.lod-l0;
- let a=${k}Line(s,r,u32(l0));
- if(t<=0.0||l0>=f32(s.last)){return a;}
- return mix(a,${k}Line(s,r,u32(l0)+1u),t);
-}
+    ? `${levelMix(`fn ${name}Taps(s:TileSlot,r:TileRead)->vec4f`, 'r.lod', (level) => `${k}Line(s,r,${level})`)}
 `
     : ''
   return wgslBlock(

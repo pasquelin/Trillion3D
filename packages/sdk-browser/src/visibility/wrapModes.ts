@@ -10,7 +10,7 @@ import { floorMod2 } from '../../../math/src/wgsl/reals.ts'
  * two bits of an axis exclude each other, so `wrapAxis` never has to arbitrate between them, and
  * no bit says "clamp": that is the zero nibble.
  */
-export const WRAP_S_REPEAT = 1,
+const WRAP_S_REPEAT = 1,
   WRAP_S_MIRROR = 2,
   WRAP_T_REPEAT = 4,
   WRAP_T_MIRROR = 8

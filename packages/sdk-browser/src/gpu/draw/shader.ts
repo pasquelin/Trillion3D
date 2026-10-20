@@ -24,13 +24,17 @@ import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
  *
  * Counting and scattering run one workgroup per group of 64 items: each lane reads its own item
  * once, tallies its slot in workgroup memory, and ranks itself among the earlier lanes of the same
- * slot. Each group adds its non-zero tallies to `slotTotals`: one atomic per group and slot it
+ * slot. Each group adds its non-zero tallies to its slot's total: one atomic per group and slot it
  * fills, and a slot that no item of the half reaches costs the prefix nothing. The prefix, one
  * workgroup, takes each slot's total (and leaves zero for the next run), skips an empty slot, and
  * spreads the groups of a filled one over its lanes, a scan of their run totals giving each group
  * its offset — the serial walk's result term for term. The occluder run leaves where its
- * instances end in `slotTotals[slots]`, where the tested run starts, and writes the tested slots
- * empty: an image that tests nothing draws no tested instance.
+ * instances end in total `slots`, where the tested run starts, and writes the tested slots
+ * empty: an image that tests nothing draws no tested instance. The groups' offsets and their counts
+ * are the two regions of one storage buffer, `groups` (`drawGroupWords`), read and written plainly;
+ * the slots' totals, the one word the groups sum at once, follow the commands in `indirect`
+ * (`drawIndirectBytes`), its one atomic binding. The tested half binds 8 storage buffers, WebGPU's
+ * default a stage, the occluder half 6.
  * `../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts` carries the kernels and
  * `prefixEquivalence.test.ts` the proof.
  */
@@ -38,7 +42,7 @@ import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
  *  tested half's also reads the page table and the Hi-Z verdicts. */
 export function drawBindEntries(tested = false): GPUBindGroupLayoutEntry[] {
   const types: GPUBufferBindingType[] = ['read-only-storage', 'uniform', 'storage', 'storage']
-  types.push('storage', 'storage', 'read-only-storage', 'read-only-storage', 'storage')
+  types.push('storage', 'read-only-storage', 'read-only-storage')
   if (tested) types.push('read-only-storage', 'read-only-storage')
   return computeBufferEntries(types)
 }
@@ -48,23 +52,28 @@ export const drawShader = (layerSlots: number, tested = false) => {
   const top = Math.max(0, Math.max(1, layerSlots) - 1)
   const half = tested ? 1 : 0
   return wgslProgram(
-    `struct Uniforms{count:u32,corners:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,perRow:u32,pad1:u32,}
+    `struct Uniforms{count:u32,corners:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,perRow:u32,groupEntries:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @group(0) @binding(2) var<storage, read_write> instances:array<u32>;
-@group(0) @binding(3) var<storage, read_write> indirect:array<u32>;
-@group(0) @binding(4) var<storage, read_write> groupCounts:array<u32>;
-@group(0) @binding(5) var<storage, read_write> groupOffsets:array<u32>;
-@group(0) @binding(6) var<storage, read> selectionMask:array<u32>;
-@group(0) @binding(7) var<storage, read> restBits:array<u32>;
-@group(0) @binding(8) var<storage, read_write> slotTotals:array<atomic<u32>>;
+@group(0) @binding(3) var<storage, read_write> indirect:array<atomic<u32>>;
+@group(0) @binding(4) var<storage, read_write> groups:array<u32>;
+@group(0) @binding(5) var<storage, read> selectionMask:array<u32>;
+@group(0) @binding(6) var<storage, read> restBits:array<u32>;
 ${
   tested
-    ? `@group(0) @binding(9) var<storage, read> pages:array<PageInfo>;
-@group(0) @binding(10) var<storage, read> hizFlags:array<u32>;
+    ? `@group(0) @binding(7) var<storage, read> pages:array<PageInfo>;
+@group(0) @binding(8) var<storage, read> hizFlags:array<u32>;
 fn drawn(item:DrawItem)->bool{return !hizRejected(pages[item.pageIndex].hizSlot);}`
     : 'fn drawn(item:DrawItem)->bool{return true;}'
 }
+/** The \`groups\` regions (\`drawGroupWords\`), \`uni.groupEntries\` words each: group \`group\`'s
+ *  offset in \`slot\`, then its count. */
+fn groupOffsetAt(group:u32,slot:u32)->u32{return group*${slots}u+slot;}
+fn groupCountAt(group:u32,slot:u32)->u32{return uni.groupEntries+groupOffsetAt(group,slot);}
+/** \`slot\`'s total behind the commands of \`indirect\` (\`drawIndirectBytes\`), total \`${slots}\`
+ *  where the occluder half's instances end: atomic, the groups sum them at once. */
+fn slotTotalAt(slot:u32)->u32{return ${4 * slots}u+slot;}
 // The occluder/rest partition is the only per-frame word of an item, so it travels as one bit each.
 fn restAt(i:u32)->u32{return bitAt(restBits[bitWord(i)],i);}
 fn selected(item:DrawItem)->bool{return uni.selectionEnabled==0u||maskSelects(item.selectionIndex);}
@@ -74,7 +83,8 @@ fn slotOf(rest:u32,item:DrawItem)->u32{return rest*${HALF_SLOTS}u+item.bin+${BAS
 fn halfOf(slot:u32)->u32{return (slot%${BASE_SLOTS}u)/${HALF_SLOTS}u;}
 fn writeCmd(slot:u32,count:u32){
  let o=slot*4u;
- indirect[o]=uni.corners;indirect[o+1u]=count;indirect[o+2u]=0u;indirect[o+3u]=0u;
+ atomicStore(&indirect[o],uni.corners);atomicStore(&indirect[o+1u],count);
+ atomicStore(&indirect[o+2u],0u);atomicStore(&indirect[o+3u],0u);
 }
 /** Instances \`item\` draws as: its corners by batches of \`corners\`, at least one, at most the
  *  \`perRow\` the instance list holds a row. */
@@ -112,15 +122,15 @@ fn countGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
  for(var slot=lane;slot<${slots}u;slot+=WORKGROUP_THREADS){
   if(halfOf(slot)!=${half}u){continue;}
   let tally=atomicLoad(&slotTally[slot]);
-  groupCounts[group*${slots}u+slot]=tally;
-  if(tally!=0u){atomicAdd(&slotTotals[slot],tally);}
+  groups[groupCountAt(group,slot)]=tally;
+  if(tally!=0u){atomicAdd(&indirect[slotTotalAt(slot)],tally);}
  }
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn prefixGroups(@builtin(local_invocation_index) lane:u32){
  let overflow=uni.count>uni.slotCap;
  let span=laneRun(lane,uni.groupCount);
- var start=${tested ? `broadcast(lane,atomicLoad(&slotTotals[${slots}u]))` : '0u'};
+ var start=${tested ? `broadcast(lane,atomicLoad(&indirect[slotTotalAt(${slots}u)]))` : '0u'};
  for(var slot=0u;slot<${slots}u;slot++){
   if(halfOf(slot)!=${half}u){
    ${tested ? '' : 'if(lane==0u){writeCmd(slot,0u);}'}
@@ -128,18 +138,18 @@ fn prefixGroups(@builtin(local_invocation_index) lane:u32){
   }
   // The slot's total, left at zero for the next run; an empty slot skips the scan.
   var held=0u;
-  if(lane==0u){held=atomicExchange(&slotTotals[slot],0u);}
+  if(lane==0u){held=atomicExchange(&indirect[slotTotalAt(slot)],0u);}
   let total=broadcast(lane,held);
   if(total==0u||overflow){
    if(lane==0u){writeCmd(slot,0u);}
    continue;
   }
-  ${laneRunOffsets('group', 'span', 'lane', 'start+', `groupCounts[group*${slots}u+slot]`, `groupOffsets[group*${slots}u+slot]=cursor`)}
+  ${laneRunOffsets('group', 'span', 'lane', 'start+', 'groups[groupCountAt(group,slot)]', 'groups[groupOffsetAt(group,slot)]=cursor')}
   if(lane==0u){writeCmd(slot,total);}
   start=start+total;
   workgroupBarrier();
  }
- ${tested ? '' : `if(lane==0u){atomicStore(&slotTotals[${slots}u],start);}`}
+ ${tested ? '' : `if(lane==0u){atomicStore(&indirect[slotTotalAt(${slots}u)],start);}`}
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
@@ -157,7 +167,7 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  var rank=0u;
  for(var j=0u;j<lane;j++){if(laneSlots[j]==s){rank=rank+laneBatches[j];}}
  // A row's batches follow one another, so its triangles reach the raster in their page order.
- let at=groupOffsets[group*${slots}u+s]+rank;let page=items[i].pageIndex;
+ let at=groups[groupOffsetAt(group,s)]+rank;let page=items[i].pageIndex;
  let stride=uni.corners/3u;
  for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }

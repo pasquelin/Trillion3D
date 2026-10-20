@@ -160,11 +160,11 @@ export function createCookedBodies(parts: CookedParts) {
         ...{ made: opening.made, refused: opening.refused },
         entry: (one) => one.body,
         madeAt: (one) => one.scale,
-        // Made again before it leaves; refused at a scale, tried again at any other.
+        // It carries nothing: it leaves before it is made again, so a rescale needs no slot past
+        // the budget; refused at a scale, tried again at any other.
         remake(one, scale) {
-          const again = remake(model, opening, one, scale, false)
           bodies.release(one.id & BODY_INDEX)
-          return again
+          return remake(model, opening, one, scale, false)
         },
         tries: (one, scale) => !fits(scale, one.scale),
         retry: (one, scale) => remake(model, opening, one, scale, true),

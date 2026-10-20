@@ -56,8 +56,9 @@ test('the pages of a dashed line carry its distance along the line', async () =>
 })
 
 // A line longer than the format's texture grid holds on one page (2^24 steps of 2^-14, 1024
-// units) still draws, its dashes at their distances: the cut takes the finest grid its widest
-// cluster fits, never dropping the page. Every dash text reads the decoded distance.
+// units) still draws, its dashes at their distances: the primitive keeps the format's grid and the
+// page alone takes the coarser one its own range fits (`page_uv_exponent`), never dropped. Every
+// dash text reads the decoded distance.
 test('a dashed line past 1024 units keeps its dashes at their distances', async () => {
   const path = geometry.createBuffer({
     position: new BufferAttribute(new Float32Array([0, 0, 0, 1500, 0, 0, 3000, 0, 0]), 3),
@@ -68,8 +69,8 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
     false,
   )
   assert.equal(cut.pages.length, 1)
-  // 3000 units on the finest grid that holds them, 2^-11; a textured box keeps the format's 2^-14.
-  assert.equal(cut.uvExponent, -11)
+  // The primitive on the format's 2^-14, as a textured box; its one page holds 3000 units on 2^-11.
+  assert.equal(cut.uvExponent, -14)
   const box = await cutDrawnTriangles(
     drawnTriangles(geometry.box(1, 1, 1), 'triangles')!,
     false,

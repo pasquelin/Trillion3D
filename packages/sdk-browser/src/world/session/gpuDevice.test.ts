@@ -1,10 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
-import { featuresOffIn, grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts'
-import { waterSurfaceTargets } from '../../webgpu/water/surfaceTargets.ts'
+import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts'
 import type { ExplorerSession } from './session.ts'
-import { colorBytesPerSample } from '../../gpu/core/colorBytes.fixture.ts'
 import { WEBGPU_REQUIRED_LIMITS } from '../../engine/common.ts'
 
 /** An adapter offering `offered`; its device grants exactly what was asked. */
@@ -33,10 +31,7 @@ const OFFERED = [
 
 test('the device asks exactly the optional features the adapter offers, and publishes them', async () => {
   const { adapter, asked } = adapterOffering(OFFERED)
-  const device = await requestExplorerDevice(
-    adapter,
-    featuresOffIn(new URLSearchParams('?other=1')),
-  )
+  const device = await requestExplorerDevice(adapter, [])
   // `float32-filterable` is offered but used by no kernel: it is not asked for.
   assert.deepEqual(asked, [
     ['subgroups', 'shader-f16', 'depth-clip-control', 'texture-compression-bc'],
@@ -46,17 +41,15 @@ test('the device asks exactly the optional features the adapter offers, and publ
 
 test('a feature the URL forces off is neither asked for nor published', async () => {
   const { adapter, asked } = adapterOffering(OFFERED)
-  const off = '?trillion3dGpuFeaturesOff=subgroups,%20shader-f16'
-  const device = await requestExplorerDevice(adapter, featuresOffIn(new URLSearchParams(off)))
+  // `?trillion3dGpuFeaturesOff=subgroups,%20shader-f16`, as written: a name keeps its spaces.
+  const device = await requestExplorerDevice(adapter, ['subgroups', ' shader-f16'])
   assert.deepEqual(asked, [['depth-clip-control', 'texture-compression-bc']])
   assert.deepEqual(grantedGpuFeatures(device), ['depth-clip-control', 'texture-compression-bc'])
 })
 
 // The device carries the adapter's own colour bytes, whatever the engine's widest pass.
-test("the device asks the adapter's own colour bytes per sample, above or below the water pass", async () => {
-  const water = colorBytesPerSample(waterSurfaceTargets(true).map((target) => target.format))
-  assert.ok(water > 32, "the water surface stage writes above WebGPU's default")
-  for (const offered of [128, water, 32]) {
+test("the device asks the adapter's own colour bytes per sample, above or at WebGPU's default", async () => {
+  for (const offered of [128, 64, 32]) {
     const { adapter, limitsAsked } = adapterOffering([], {
       maxColorAttachmentBytesPerSample: offered,
     })

@@ -15,14 +15,11 @@ export const noModels = () => createWorldModels(createWorldRanks())
 export const meshLinks = (count: number) => Array.from({ length: count }, (_, i) => ({ meshes: i }))
 
 /** A model whose graph holds a mesh for each of `links` — its association —, the one shape of a
- *  loaded one a world reads: its manifest's primitives, its graph, its `partitions` and where its
- *  images were read, nothing of its pages. */
+ *  loaded one a world reads: its manifest's primitives, its graph, its `partitions` and its texture
+ *  caches (none: it draws no texture), nothing of its pages. */
 export function loadedModel(
   links: readonly { meshes: number; placements?: ReturnType<typeof createPlacementRows> }[],
-  {
-    textureSource = 'host',
-    partitions = [],
-  }: { textureSource?: 'cache' | 'host'; partitions?: object[] } = {},
+  { partitions = [] }: { partitions?: object[] } = {},
 ) {
   const source = new Group(),
     drawn = links.map(() => new Mesh(new Geometry(), new Material('meshStandard')))
@@ -33,9 +30,8 @@ export function loadedModel(
     base: 'file:///cache/',
     manifestUrl: 'file:///cache/manifest.json',
     metadataUrl: 'file:///cache/clusters.json',
-    textureSource,
     metadata: { primitives } as never,
-    scene: { source, associations, partitions } as never,
+    scene: { source, associations, partitions, textureCaches: [] } as never,
   })
   return { loaded, drawn, source }
 }

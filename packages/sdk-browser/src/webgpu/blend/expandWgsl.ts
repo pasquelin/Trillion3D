@@ -69,13 +69,13 @@ export const BLEND_EXPAND_SHADER = wgslProgram(
 @group(0) @binding(${EXPAND_BINDING.args}) var<storage,read_write> args:array<u32>;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return bitIsSet(keep[bitWord(item)],item);}
-/** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged
- *  primitive carries, nothing at all if the frustum rejected its item. */
+/** What a plan entry expands: the clusters compaction kept for it, nothing at all if the frustum
+ *  rejected its item or the table holds none of it yet. */
 fn instancesOf(i:u32)->u32{
  let item=itemOf(i);
  if(!kept(item)){return 0u;}
  let d=draws[item];
- if(d.x==${NO_INDEX}u){return d.y;}
+ if(d.x==${NO_INDEX}u){return 0u;}
  return counts[d.x*4u+1u];
 }
 /** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
@@ -114,10 +114,6 @@ fn placeBlendEntries(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
  // The cull mode the vertex stage applies, above the item rank, as instanceWord packs it.
  let word=item|select(0u,planCull(entry)<<${INSTANCE_CULL_SHIFT}u,(entry&${PLAN_VERTEX_CULL_BIT}u)!=0u);
  let d=draws[item];
- if(d.x==${NO_INDEX}u){
-  for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,j*d.w);}
-  return;
- }
  for(var j=0u;j<held;j++){expanded[at+j]=vec2u(word,clusters[d.z+j]);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
@@ -138,12 +134,8 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  }
  let last=first+entries-1u;
  let base=scratch[first];
- // A run of several entries draws shared clusters, at the table stride; a run of one unpaged item
- // draws what ITS item carries — one read of its sixteen-byte draw description.
- let described=draws[plan[uni.orderBase+first]>>${PLAN_SHIFT}u];
- var vertexCount=uni.maxVertexWords;
- if(entries==1u&&described.x==${NO_INDEX}u){vertexCount=described.w;}
- args[o]=vertexCount;
+ // Every run draws clusters, at the table stride.
+ args[o]=uni.maxVertexWords;
  args[o+1u]=scratch[last]+instancesOf(last)-base;
  args[o+2u]=base<<uni.vertexShift;
  args[o+3u]=0u;

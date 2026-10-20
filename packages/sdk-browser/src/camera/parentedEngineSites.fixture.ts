@@ -14,12 +14,14 @@ import type { HostCamera } from './world.ts'
 import type { EngineContext, Engine } from '../engine/types.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
+import { createTextureCaches } from '../texture/textureCaches.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`
  *  (`packages/sdk-browser/src/engine/pagesEngineScenes.fixture.ts`), the fields the mock backend never reads left at neutral values. */
 const FAN_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
   ...DAG,
-  schema: 1,
+  formatVersion: 1,
   status: 'ready',
   key: 'fan',
   scope: 'slice',
@@ -41,8 +43,11 @@ const COUNTS = ['clusters', 'selectedTriangles', 'frustumRejected', 'lodLevel', 
 const counts = (metrics: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(COUNTS.map((key) => [key, metrics[key] ?? null]))
 
+/** A scene's engine context, but for its texture caches: the engine is given none. */
+type SceneContext = Omit<EngineContext, 'textureCaches'>
+
 /** The transparent fan reduced by a coarse level: cut, LOD and blend pass exercise there. */
-function transparentFan(): EngineContext & { dispose: () => void } {
+function transparentFan(): SceneContext & { dispose: () => void } {
   const { geometry, material, mesh, source, indices } = fanScene()
   const primitive = dagLevel([quadCluster(0, 0), quadCluster(1, 3)], [quadCluster(3, 0)], 0.02, [
     quadCluster(2, 6),
@@ -69,12 +74,13 @@ type EngineState = { gpu: ReturnType<typeof fakeDevice>; backend: Engine; dispos
  *  poses alone, never of how long a run took: the two runs compared write the same uniforms. */
 const clock = { ms: 0 }
 
-async function webgpuEngine(scene: EngineContext): Promise<EngineState> {
+async function webgpuEngine(scene: SceneContext): Promise<EngineState> {
   installGpuGlobals()
   clock.ms = 0
   const held = mock.method(performance, 'now', () => clock.ms)
   const gpu = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 8,

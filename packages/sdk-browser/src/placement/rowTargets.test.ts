@@ -12,7 +12,7 @@ import {
   target,
   targetsTaken,
 } from './rowTargets.ts'
-import { ROW_EMITS, ROW_NAMED, ROW_STALES } from './rowWordsWgsl.ts'
+import { ROW_NAMED, ROW_STALES } from './rowWordsWgsl.ts'
 
 /** A runtime whose rows pass derives the rows named alone. */
 function session() {
@@ -26,7 +26,6 @@ function session() {
 const listed = (state: ReturnType<typeof session>) =>
   [...state.targets.subarray(0, state.count)].map((word) => [
     word & ROW_NAMED,
-    (word & ROW_EMITS) !== 0,
     (word & ROW_STALES) !== 0,
   ])
 
@@ -35,28 +34,28 @@ test('a row named twice is listed once, its bits joined and counted once', () =>
     rt = { rowWords: state }
   nameCastRow(rt, 4)
   nameCastRow(rt, 4)
-  target(state, 4, ROW_EMITS)
+  target(state, 4)
   target(state, 7)
   assert.deepEqual(listed(state), [
-    [4, true, true],
-    [7, false, false],
+    [4, true],
+    [7, false],
   ])
-  assert.deepEqual([state.emits, state.stales], [1, 1])
+  assert.equal(state.stales, 1)
 })
 
 test('every row derived keeps the staled rows alone, and still lists a row staled then', () => {
   const state = session()
-  target(state, 1, ROW_EMITS)
+  target(state, 1)
   nameCastRow({ rowWords: state }, 2)
   deriveEveryRow(state)
-  assert.deepEqual(listed(state), [[2, false, true]])
-  target(state, 3, ROW_EMITS)
+  assert.deepEqual(listed(state), [[2, true]])
+  target(state, 3)
   nameCastRow({ rowWords: state }, 5)
   assert.deepEqual(listed(state), [
-    [2, false, true],
-    [5, false, true],
+    [2, true],
+    [5, true],
   ])
-  assert.deepEqual([state.emits, state.stales], [0, 2])
+  assert.equal(state.stales, 2)
 })
 
 test('a dropped command buffer that held the pass names its staled rows again, every row derived', () => {
@@ -70,23 +69,23 @@ test('a dropped command buffer that held the pass names its staled rows again, e
   assert.deepEqual([state.count, state.all], [0, false], 'another buffer dropped: nothing')
   rowWordsDropped(state, held)
   assert.equal(state.all, true)
-  assert.deepEqual(listed(state), [[6, false, true]], 'staled again from the spheres it held')
+  assert.deepEqual(listed(state), [[6, true]], 'staled again from the spheres it held')
   rowWordsDropped(state, held)
   assert.equal(state.count, 1, 'once')
 })
 
 test('a buffer the pass binds made anew keeps the staled rows alone; new spheres keep none', () => {
   const state = session()
-  target(state, 1, ROW_EMITS)
+  target(state, 1)
   nameCastRow({ rowWords: state }, 2)
   partsMadeAnew(state, false)
   assert.equal(state.all, true)
-  assert.deepEqual(listed(state), [[2, false, true]], 'the emitting row derived once, with all')
-  assert.deepEqual([state.emits, state.stales], [0, 1], 'no change reserved for it twice')
-  target(state, 3, ROW_EMITS)
+  assert.deepEqual(listed(state), [[2, true]], 'the other row derived once, with all')
+  assert.equal(state.stales, 1)
+  target(state, 3)
   nameCastRow({ rowWords: state }, 4)
   partsMadeAnew(state, true)
-  assert.deepEqual([state.all, state.count, state.emits, state.stales], [true, 0, 0, 0])
+  assert.deepEqual([state.all, state.count, state.stales], [true, 0, 0])
 })
 
 test('a root named twice before a follow is listed once: its pages are walked once', () => {
@@ -95,5 +94,6 @@ test('a root named twice before a follow is listed once: its pages are walked on
   deriveRootRows(rt, 3)
   deriveRootRows(rt, 1)
   deriveRootRows(rt, 3)
-  assert.deepEqual(state.roots, [3, 1])
+  // One changed list (`createChangedRuns`): each root marked once, taken in increasing order.
+  assert.deepEqual([...state.roots.take()], [1, 3])
 })

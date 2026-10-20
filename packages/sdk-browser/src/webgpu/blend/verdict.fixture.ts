@@ -6,41 +6,35 @@ import { setBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
 import { notDrawn } from '../../placement/hidden.ts'
-import { waterRankOf } from '../transparent/transmission.ts'
 import type { WebgpuBlendState } from './state.ts'
 
 /**
- * What the verdict leaves for the image: the keep words, the drawn items drawing nothing, the
- * drawn transmissive items in view, and whether each water rank draws. A paged item is kept when
- * drawn, and draws what the compaction counted for it (`counts`, by paged rank); an unpaged one is
- * kept unless its box lies outside the frustum (`frustumExcludesBox`).
+ * What the verdict leaves for the image: the keep words, the drawn items drawing nothing and the
+ * drawn transmissive items in view. An item the table lists is
+ * kept when drawn, and draws what the compaction counted for it (`counts`, by table rank); one it
+ * does not list yet draws nothing. A transmissive item is in view unless its box lies outside the
+ * frustum (`frustumExcludesBox`).
  */
 export function blendVerdictCpu(blendState: WebgpuBlendState, counts: ArrayLike<number> = []) {
   const items = blendState.blendGpu,
     planes = blendState.blendPlanes,
     draws = blendState.drawsPacked
-  const keep = new Uint32Array(bitWords(items.length)),
-    waterDraws = new Uint32Array(blendState.transmissive)
+  const keep = new Uint32Array(bitWords(items.length))
   let rejected = 0,
     inView = 0
   items.forEach((item, i) => {
-    const water = waterRankOf(item.flags)
-    if (notDrawn(item)) {
-      if (water) waterDraws[water - 1] = 0
-      return
-    }
-    const paged = draws[i * 4] !== NO_INDEX,
-      box = item.bounds
+    if (notDrawn(item)) return
+    const listed = draws[i * 4] !== NO_INDEX,
+      box = item.bounds,
+      transmits = !!item.transmissive
     const excluded =
       !!box &&
-      (!paged || !!water) &&
+      transmits &&
       frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])
-    const held = paged ? counts[draws[i * 4]] !== 0 : !excluded
-    if (paged || !excluded) setBit(keep, i)
+    const held = listed && counts[draws[i * 4]] !== 0
+    if (listed) setBit(keep, i)
     if (!held) rejected++
-    if (!water) return
-    if (!excluded) inView++
-    waterDraws[water - 1] = held ? 1 : 0
+    if (transmits && !excluded) inView++
   })
-  return { keep, rejected, inView, waterDraws }
+  return { keep, rejected, inView }
 }

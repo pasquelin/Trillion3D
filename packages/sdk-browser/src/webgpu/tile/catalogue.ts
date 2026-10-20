@@ -1,35 +1,21 @@
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { previewIsWhole } from '../../../../sdk-core/src/texture/previewLevels.ts'
-import type { TexturePreview } from '../../../../sdk-core/src/texture/previewContracts.ts'
-import { previewAtlasOf } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { WHITE_TAIL, type PoolEncoding } from '../../texture/blockFormats.ts'
-import type { TextureLevelReader } from '../../texture/levelReader.ts'
+import type { BakedChain } from '../../texture/textureCaches.ts'
 import type { CoverageReaders } from '../../texture/coverage.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import { sourceSize } from '../../texture/pictureSize.ts'
 import type { TileTexture } from './tileTexture.ts'
 
 /**
- * Sidecar entries filed by the scene texture they cover and the atlas that samples them: the same
- * texture can have an entry for each, reduced by that atlas's curve. A coverage chain is its
- * texture's colour-atlas entry — that texture then has no plain one — and keeps its own word,
- * which names its files.
- */
-export function previewsByAtlas(previews: readonly TexturePreview[]) {
-  const filed = new Map<string, TexturePreview>()
-  for (const preview of previews)
-    filed.set(`${preview.texture}/${previewAtlasOf(preview.atlas)}`, preview)
-  return (texture: number, atlas: number) => filed.get(`${texture}/${atlas}`)
-}
-
-/**
  * Catalogue of an atlas: one entry per source texture, at its slot, with its dimensions, the
  * lane its pool is, and the source of its texels. A whole cooked chain is enough — its
  * dimensions are the manifest's, its queue is in the sidecar in every encoding the gate kept,
- * its streamed levels are read in the cache — and the source image is not read; it takes the
- * lane of its layout in the session's family, the lossless one where the gate refused it. The
- * reader comes with the cache and not with an option, so a whole chain wins whatever the host
- * asked of the loader and no level the compiler baked is regenerated. The host texture is the
+ * its streamed levels are read in the cache whose scene built the texture, by that cache's reader
+ * (`chainFor`, `texture/textureCaches.ts`) — and the source image is not read; it takes the lane
+ * of its layout in the session's family, the lossless one where the gate refused it. The reader
+ * comes with the cache and not with an option, so a whole chain wins whatever the host asked of
+ * the loader and no level the compiler baked is regenerated. The host texture is the
  * source only where the cache carries no whole chain — an image the cook skipped, texels the
  * page itself built —; then in the lossless lane, the only one a host image can fill. Slot 0 is a
  * white texel, what a material without a map reads. A hosted texture every reader of which takes
@@ -38,16 +24,16 @@ export function previewsByAtlas(previews: readonly TexturePreview[]) {
  */
 export function tileCatalogue(
   maps: readonly Texture[],
-  previewFor: (index: number) => TexturePreview | undefined,
-  readLevel: TextureLevelReader | undefined,
+  chainFor: (index: number) => BakedChain | undefined,
   encoding: PoolEncoding,
   coverage?: CoverageReaders,
 ): TileTexture[] {
   const textures = maps.map((map, index): TileTexture => {
-    const preview = previewFor(index)
+    const found = chainFor(index)
+    const read = found?.read
     const chain =
-      preview && previewIsWhole(preview) && (preview.bakedLevels === 0 || readLevel)
-        ? preview
+      found && previewIsWhole(found.preview) && (found.preview.bakedLevels === 0 || read)
+        ? found.preview
         : undefined
     if (chain) {
       const layout = tileLayout(chain.width, chain.height)
@@ -57,10 +43,11 @@ export function tileCatalogue(
         layout,
         texture: map,
         lane: encoding.laneOf(chain),
+        // Levels past the tail of a whole chain are filed: its cache's reader is there.
         source:
-          layout.tail === 0
+          layout.tail === 0 || !read
             ? { kind: 'bytes', tail: chain }
-            : { kind: 'baked', sha256: chain.sha256, atlas: chain.atlas, tail: chain },
+            : { kind: 'baked', sha256: chain.sha256, atlas: chain.atlas, tail: chain, read },
       }
     }
     const [width, height] = sourceSize(map)

@@ -5,7 +5,7 @@ import { buildBlendStatics } from './statics.ts'
 import { mountBlendExpand } from './expand.ts'
 import { compileBlendExpand, EXPANSION_REFUSED } from './expandKernels.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
-import { EXPAND_PASSES, planWords, scratchWords, slotCapacity } from './planLayout.ts'
+import { planWords, scratchWords, slotCapacity } from './planLayout.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { uniformStride } from '../../residency/pools.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
@@ -46,14 +46,10 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
     items = blendState.blendGpu
   blendState.expand?.dispose()
   blendState.expand = undefined
-  // A paged item without quantized pages reads the concatenated geometry, the very same as the
-  // opaque pass: its first vertex there is the block of its source geometry.
+  // An item without quantized pages reads the float pool, the very same as the opaque pass: its
+  // first vertex there is the block of its source geometry.
   for (const item of items)
-    item.vertexBase = item.paged
-      ? (vis.geometryBlocks.get(item.sourceGeometry.attributes)?.vertexBase ?? 0)
-      : item.deformOutput
-        ? item.vertexBase
-        : 0
+    item.vertexBase = vis.geometryBlocks.get(item.sourceGeometry.attributes)?.vertexBase ?? 0
   // The order's step words are laid at the device's alignment, as the kernels' buffers.
   buildBlendStatics(blendState, uniformStride(device.limits))
   // The scene's transparent list IS the draw list: what an image takes out of it, it takes out
@@ -62,7 +58,7 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   for (const item of items) blendState.visibleBlend.push(item)
   allocateBlendRecords(blendState, device)
   // The two outputs of expansion: the instance list the shader reads at the rank the vertex index
-  // gives it, and one indirect argument per slice. They belong to the scene.
+  // gives it, and one indirect argument per slot. They belong to the scene.
   const entries = blendState.maxPlanEntries
   // The verdict's buffers are new: no count read back before holds for them.
   blendState.verdictEpoch++
@@ -77,7 +73,7 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
   blendState.argsBuffer = sizedBuffer(
     device,
     blendState.argsBuffer,
-    slotCapacity(entries) * 16 * EXPAND_PASSES,
+    slotCapacity(entries) * 16,
     GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     'Trillion3D blend indirect arguments',
   )
@@ -86,7 +82,6 @@ export function mountBlendResources(rt: WebgpuPagesRuntime, device: GPUDevice) {
     blendState.kernels!,
     {
       items: items.length,
-      waters: blendState.transmissive,
       entries,
       planWords: planWords(entries),
       scratchWords: scratchWords(entries),

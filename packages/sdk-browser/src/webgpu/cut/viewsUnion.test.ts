@@ -12,6 +12,7 @@ import { useWebgpuView } from '../pages/state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
 import { copySelectionUniforms } from '../../gpu/core/selectionCopy.ts'
+import { createScaleControl } from '../../frame/scaleControl.ts'
 
 /** Eight pages, levels 0 to 3 twice over. */
 const eightPages = () => world(Array.from({ length: 8 }, (_, i) => rec(`p${i}`, i % 4)))
@@ -30,14 +31,19 @@ function bench() {
     hostBytes: 0,
     offerIds: (ids: ArrayLike<number>) => aheadOffers.push(Array.from(ids)),
   }
-  const capture = { capturing: false }
+  const capture = { capturing: false },
+    timing = {}
   const rt = {
     capture,
     run,
     gpu,
     vis,
     setup,
-    views: createWebgpuViews({ run, gpu, vis, setup } as unknown as WebgpuPagesRuntime),
+    timing,
+    views: createWebgpuViews(
+      { run, gpu, vis, setup, timing } as unknown as WebgpuPagesRuntime,
+      createScaleControl(1),
+    ),
     layout: {
       packedPages: scene.packed,
       recordOf: (packed: number) => scene.packed[packed],
@@ -99,8 +105,9 @@ test('a second view keeps its pages while the main view draws, all under the one
   assert.equal(budget(3), true, 'the union overruns the budget')
   assert.equal(tracking.wanted.count, 3, 'the budget is the one budget, never one per view')
   // Levels 3 and 2 whole; of level 1, the page the queue in place held first (the union's own
-  // order, followed whole before the pool turned short): no slot traded at the turn.
-  assert.deepEqual(keysOf(tracking.wanted), keys([7, 6, 5]), 'the coarsest pages of the union')
+  // order, followed whole before the pool turned short: the main view's 1 before the side's 5),
+  // the floor's last comer let go (`rankedQueue.ts`): no slot traded at the turn.
+  assert.deepEqual(keysOf(tracking.wanted), keys([7, 6, 1]), 'the coarsest pages of the union')
   publication.releaseView(side)
   budget(3)
   assert.deepEqual(keysOf(tracking.keep), keys([0, 1]), 'a view released lets its pages go')

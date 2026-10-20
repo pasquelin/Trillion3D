@@ -7,7 +7,13 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
 import type { WebgpuPagesCore } from '../pages/runtime.ts'
 import type { CutTables } from '../../gpu/dag/cutReaders.ts'
-import { createRayRecords, RECORD_DRAWABLE, RECORD_NO_AREA, RECORD_WORDS } from './rayRecords.ts'
+import {
+  createRayRecords,
+  RECORD_DRAWABLE,
+  RECORD_LINE,
+  RECORD_NO_AREA,
+  RECORD_WORDS,
+} from './rayRecords.ts'
 
 /** Two placements of one cluster each, the second a line's: their records 3 and 5, no row held. */
 function rig() {
@@ -32,7 +38,6 @@ function rig() {
     views: undefined,
     treeRoot: NO_INDEX,
     placements: 2,
-    worldPlacement: NO_INDEX,
     recordCount: 8,
     cutLinks: [
       { pageBase: 0, pageCount: 1 },
@@ -53,7 +58,8 @@ test('a cluster the pool holds is tested out of every view; one it gives back is
   assert.equal(words[3 * RECORD_WORDS], 41, 'its slot, plus one')
   assert.equal(flags(words, 3), FLAG_CLUSTER_PAGE | RECORD_DRAWABLE, 'tested with no row held')
   assert.equal(flags(words, 5) & RECORD_DRAWABLE, 0, 'out of the pool, not tested')
-  assert.ok(flags(words, 5) & RECORD_NO_AREA, 'a line has no area')
+  assert.ok(flags(words, 5) & RECORD_LINE, 'a line is met as its segments')
+  assert.equal(flags(words, 5) & RECORD_NO_AREA, 0, 'a line is not passed by')
   records.takeDirty()
   slots.delete('a')
   records.moved(0)

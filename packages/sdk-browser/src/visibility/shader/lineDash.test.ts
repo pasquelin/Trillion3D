@@ -81,5 +81,7 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   // Its dash is its surface's record's too, read by its vertex stage.
   assert.doesNotMatch(wgslSource(BLEND_ITEM_WGSL), /dash/)
   assert.ok(BLEND_SHADER.includes('out.alphaAo=vec4f(m.alphaTest,m.aoIntensity,m.dash);'))
-  assert.ok(BLEND_SHADER.includes('||!lineDash(in.uv.x,in.alphaAo.zw)){discard;return '))
+  // The layer's prologue rejects the gap (`blendLayer`), which its stage discards first.
+  assert.ok(BLEND_SHADER.includes('||!lineDash(in.uv.x,in.alphaAo.zw)){return l;}'))
+  assert.ok(BLEND_SHADER.includes('if(!layer.kept){discard;return '))
 })

@@ -2,7 +2,7 @@
 // the frame targets, the set the first lit frame draws, reserved before the pools grant themselves.
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { castingCount, directionalCount, fullMapsFor } from './vsmLightMaps.ts'
-import { ensureMask, maskBytes, maskGrowth, maskLayersFor } from './vsmMask.ts'
+import { ensureMasks, masksGrowth, sharedMaskSize } from './vsmMask.ts'
 import { ledgerTentative } from '../../../../gpu/core/deviceLedger.ts'
 import { deviceWaiting } from '../../../../gpu/core/refusal.ts'
 import { vsmSetBytes } from './vsmBeside.ts'
@@ -28,7 +28,7 @@ export function vsmAskedBytes(rt: WebgpuPagesRuntime, width: number, height: num
   const { vsm } = rt.lights,
     casting = shadowedLights(rt)
   if (!casting) return 0
-  return vsm ? maskGrowth(vsm, width, height, casting) : maskBytes(width, height, casting)
+  return masksGrowth(vsm, ...sharedMaskSize(rt, width, height), casting)
 }
 
 /** While a light casts and no set holds its maps yet — none made, or one the next lit frame
@@ -55,7 +55,7 @@ export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
   return Math.max(0, vsmSetBytes(rt, device, list) - shadowHeldBytes(rt)) + rows
 }
 
-/** The mask a frame of the targets in place projects into, made once they are (`grantTargets`): at
+/** The masks a frame of the targets in place projects into (`ensureMasks`), made once they are (`grantTargets`): at
  *  their size, a layer per four casting lights, in the room their funding kept for it
  *  (`vsmAskedBytes`) — never left to a later allocation of the frame that could take it. Funded and
  *  made by the same lights. Tentative: refused, the plan asks it again (`reserveProjection`). */
@@ -63,11 +63,9 @@ export function makeVsmMask(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vsm } = rt.lights,
     casting = shadowedLights(rt)
   if (!vsm || !casting) return
-  const [width, height] = rt.gpu.allocatedSize
+  const [width, height] = sharedMaskSize(rt, ...rt.gpu.allocatedSize)
   try {
-    ledgerTentative(device, () =>
-      ensureMask(device, vsm, width, height, maskLayersFor(casting), true),
-    )
+    ledgerTentative(device, () => ensureMasks(device, vsm, width, height, casting))
   } catch {
     // The room went elsewhere since the funding: the plan's own check says so, once.
   }

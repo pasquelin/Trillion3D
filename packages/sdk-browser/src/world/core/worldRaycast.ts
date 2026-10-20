@@ -23,6 +23,9 @@ export interface RaycastOptions {
   objects?: readonly Object3D[]
   /** The `helper` marks are met too — a transform control's handles —; passed by otherwise. */
   helpers?: boolean
+  /** How near a line the ray must pass to hit it, in world units, as three.js's
+   *  `Raycaster.params.Line.threshold`: 1 by default, 0 never hits a line. */
+  lineThreshold?: number
 }
 
 /** The world ray through a canvas point, as the world's camera draws it: the point is read on
@@ -51,13 +54,13 @@ function worldRay(camera: Camera, canvas: HTMLCanvasElement, at: CanvasPoint | R
  * on —, always a promise. By default the engine's ray query answers (`Engine.castRay`): the nearest
  * triangle the world draws, at the finest detail it holds — a loaded model on its own triangles, a
  * deformed mesh where it is drawn —, traced on the GPU with every ray cast in the same tick and
- * answered a frame or so later, the main thread never waiting. The `helper` marks are passed by
- * unless asked (`helpers`), lines, points and sprites always; a world whose session is not open
- * answers `null`, a sizeless canvas rejects (`RAYCAST_NO_VIEW`). Asked `{ exact: true }` or
- * `{ shape }` (a sphere, box or capsule swept along the ray; `maxDistance` defaults to the camera's
- * `far`), the physics answers instead, on its collision shapes and cooked triangles, the hit then
- * naming the glTF `material` of a cooked triangle. The type is spelled out: the physics' option
- * types stay inside the engine.
+ * answered a frame or so later, the main thread never waiting. A line is hit where the ray passes
+ * within `lineThreshold` of it, a point on its dot; sprites are passed by, and so are the `helper`
+ * marks unless asked (`helpers`); a world whose session is not open answers `null`, a sizeless
+ * canvas rejects (`RAYCAST_NO_VIEW`). Asked `{ exact: true }` or `{ shape }` (a sphere, box or
+ * capsule swept along the ray; `maxDistance` defaults to the camera's `far`), the physics answers
+ * instead, on its collision shapes and cooked triangles, the hit then naming the glTF `material` of
+ * a cooked triangle. The type is spelled out: the physics' option types stay inside the engine.
  */
 export const createWorldRaycast = (
   camera: () => Camera,
@@ -68,9 +71,9 @@ export const createWorldRaycast = (
   (async (at: CanvasPoint | Ray, options: RaycastOptions | PhysicsRaycastOptions = {}) => {
     const ray = worldRay(camera(), canvas, at)
     if (asksPhysics(options)) return physicsRaycast(physics(), ray, options, camera().far)
-    const { objects, helpers } = options as RaycastOptions
+    const { objects, helpers, lineThreshold = 1 } = options as RaycastOptions
     const skip = helpers ? [] : helperRoots()
-    return (await engine()?.castRay(ray, { objects, skip })) ?? null
+    return (await engine()?.castRay(ray, { objects, skip }, { lineReach: lineThreshold })) ?? null
   }) as {
     (at: CanvasPoint | Ray, options?: RaycastOptions): Promise<Intersection | null>
     (

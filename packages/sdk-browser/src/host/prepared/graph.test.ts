@@ -20,7 +20,6 @@ function oneNode(name: string, weights: number[] | null, visible = true) {
     name,
     children: [],
     mesh: 0,
-    light: null,
     camera: null,
     skin: null,
     weights,
@@ -116,6 +115,7 @@ test('a mesh a hidden core node names is placed visible by the cells', async () 
     cube: 1,
     parents: [],
     pages: [],
+    hlod: { ranges: [256, 512, 1024], cells: 0 },
   }
   const geometryOf = () => {
     const geometry = new Geometry()

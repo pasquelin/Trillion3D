@@ -6,12 +6,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import {
-  frameAround,
-  intoFrame,
-  outOfFrame,
-  tangentAcross,
-} from '../../../../math/src/wgsl/basis.ts'
+import { frameAround, intoFrame, outOfFrame } from '../../../../math/src/wgsl/basis.ts'
 import { cofactor3 } from '../../../../math/src/wgsl/matrix.ts'
 import {
   clipToFramebuffer,
@@ -26,7 +21,6 @@ type V = number[]
 type F = (...args: never[]) => never
 const run = shaderRun<Record<string, F>>(
   wgslModule(
-    tangentAcross,
     frameAround,
     intoFrame,
     outOfFrame,
@@ -37,7 +31,6 @@ const run = shaderRun<Record<string, F>>(
     transformHomogeneousPoint,
   ),
   [
-    'tangentAcross',
     'frameAround',
     'intoFrame',
     'outOfFrame',
@@ -62,16 +55,6 @@ const UNITS = [
   [1, 0, 0],
   [0, 1, 0],
 ]
-
-test('the tangent across is across the direction and x, null along ±x', () => {
-  for (const N of UNITS) {
-    const t: V = run.tangentAcross(N)
-    nearRelative(dotVector3(t, N), 0, 'across')
-    const axis = Math.abs(N[0]) > 1e-6 ? 0 : 1
-    nearRelative(dotVector3(t, t), 1 - N[axis] ** 2, `length at ${N}`)
-  }
-  assert.deepEqual(run.tangentAcross([1, 0, 0]), [0, 0, 0])
-})
 
 test('the frame around an axis is orthonormal, right-handed, its z the axis', () => {
   for (const N of UNITS) {

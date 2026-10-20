@@ -1,77 +1,15 @@
-// The occluder history follows the drawn view's fingerprint (`../../../frame/viewRevision.ts`): a
-// still view keeps it, a moved view, projection or viewport lets every row leave the occluders
-// again, and a motion a held image read stays owed to the next drawn one.
 import { runsOf } from '../../row/dirty.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import * as G from '../../../host/graph/graph.fixture.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
-import { createFrameGateCore } from '../../../frame/gateCore.ts'
-import { engineCamera } from '../../../camera/camera.fixture.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { ROW_WORDS } from '../../../visibility/types.ts'
 import type { RootWorlds } from '../../../placement/rootWorlds.ts'
 
-const VIEWPORT: [number, number] = [800, 600]
-
-/** A gate and a camera five units back; `read` is frame entry's view read, `draw` a drawn image's
- *  read then take, as `renderWebgpuPages` does. */
-function occluderViews() {
-  const gate = createFrameGateCore(1),
-    camera = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
-  camera.position.z = 5
-  camera.updateMatrixWorld()
-  const read = (cam = camera, error = 1) => gate.viewChanged(engineCamera(cam), VIEWPORT, error)
-  const draw = (cam = camera) => (read(cam), gate.takeViewMoved())
-  return { gate, camera, read, draw }
-}
-
-test('a still view keeps the occluder history; a moved view or projection leaves it', () => {
-  const { camera, draw } = occluderViews()
-  assert.equal(draw(), true, 'the first image has no history')
-  assert.equal(draw(), false, 'a still view keeps it')
-  camera.position.x = 1
-  camera.updateMatrixWorld()
-  assert.equal(draw(), true, 'a moved view leaves it')
-  assert.equal(draw(), false, 'still again: kept')
-  camera.fov = 75
-  camera.updateProjectionMatrix()
-  assert.equal(draw(), true, 'a projection cut leaves it')
-})
-
-test('the far plane and the quality threshold move the frame hold, not the occluders', () => {
-  const { camera, read, draw } = occluderViews()
-  draw()
-  assert.equal(read(camera, 2), true, 'the hold sees the threshold')
-  camera.far = 400
-  assert.equal(read(), true, 'the hold sees the far plane')
-  assert.equal(draw(), false, 'the occluders see neither: view and projection stood still')
-})
-
-test('a motion a held image read stays owed to the next drawn image', () => {
-  const { camera, read, draw } = occluderViews()
-  draw()
-  camera.position.x = 2
-  camera.updateMatrixWorld()
-  read()
-  assert.equal(draw(), true, 'the drawn image after the held one still sees the motion')
-  assert.equal(draw(), false)
-})
-
-test('NaN in the world matrix never reports a still view', () => {
-  const { camera, draw } = occluderViews()
-  draw()
-  // A NaN enters through the local pose: the engine camera inverts the world matrix.
-  camera.position.x = NaN
-  camera.updateMatrixWorld()
-  assert.equal(draw(), true)
-  assert.equal(draw(), true, 'NaN never compares equal to itself')
-})
-
 // "Occluder history" lever: the history names pages only, so only what changes the pages drawn
-// drops it; a moving camera lets its rows leave the occluders instead (`occluderViewMoved`).
+// drops it.
 test('invalidateOccluderHistory drops the occluder history', () => {
   const run = { noOccluderHistory: false } as unknown as Parameters<
     typeof invalidateOccluderHistory
@@ -141,7 +79,8 @@ test('a mirrored model writes its own rows again, its winding computed again', (
   const terrain = 900,
     model = 12
   const { rt, rows, moving } = scene(terrain, model)
-  ;(moving.world.elements as Float64Array)[0] = -1
+  const movingWorld = moving.world.elements as Float64Array
+  movingWorld[0] = -1
   assert.equal(moveRootRows(rt, moving, 0), model)
   assert.deepEqual(runsOf(rows.forEachDirtyRun), [[terrain, terrain + model - 1]])
   assert.equal(moving.windingCw, true, 'its winding taken again')
@@ -160,7 +99,8 @@ test('a mirrored blended model writes its shadow caster rows again, and those al
   // The glass casts from the rows behind the visibility rows, in reverse order.
   rows.setBlendRowOf(6, 7)
   rows.setBlendRowOf(7, 6)
-  ;(glass.world.elements as Float64Array)[0] = -1
+  const glassWorld = glass.world.elements as Float64Array
+  glassWorld[0] = -1
   assert.equal(moveRootRows(rt, glass, 0), 2)
   assert.deepEqual(runsOf(rows.forEachDirtyRun), [[6, 7]], 'the caster rows travel, no other')
 })

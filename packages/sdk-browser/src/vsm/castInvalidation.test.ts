@@ -1,7 +1,6 @@
 // The maps the shadow changes stale on the GPU (`castInvalidation.ts`) — an entry that may hold
-// cached pages, every map of it —, each map's word saying whether it draws its moving casters over
-// a receiver cover, which a moving box skips: read by the one filter of the one stale
-// (`vsmStaleMap`, `staleMapWgsl.ts`). None when the cache holds nothing to stale or nothing
+// cached pages, every map of it, by id —: a moving box stales each of them, a map drawing its
+// moving casters over a receiver cover too. None when the cache holds nothing to stale or nothing
 // changed. And the CPU's boxes as the records that stale reads after the list (`castBoxes.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -13,16 +12,6 @@ import { createCastChanges, type CastChanges } from '../webgpu/shadow/castChange
 import { createVsmResources } from './resources.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { dispatchedEntries } from '../../../../tests/kit/gpu/fakeRecords.ts'
-import { VSM_STALE_MAP_WGSL } from './staleMapWgsl.ts'
-import { shaderRun } from '../texture/shaderRun.fixture.ts'
-
-const { vsmStaleMap } = shaderRun<{ vsmStaleMap: (word: number, moving: boolean) => number }>(
-  VSM_STALE_MAP_WGSL,
-  ['vsmStaleMap'],
-  {},
-)
-/** What `vsmStaleMap` answers for a map a box skips: an id past every map. */
-const SKIPPED = 0xffffffff
 
 /** A sun of one map holding cached pages, a point light of six over a receiver cover, a spot never
  *  rendered; the cache accepting invalidations when `accepts`. */
@@ -49,17 +38,11 @@ const list = (appended: boolean) => ({ appended }) as CastChanges
 const boxes = (box: { min: number[]; max: number[]; moving: boolean }) =>
   vsmCastBoxes(cache(true), { count: 1, read: () => box })
 
-test('the maps that may hold cached pages, each with its cover bit; none without cache data', () => {
-  const words = vsmCastMaps(cache(true), null, list(true))!
+test('the maps that may hold cached pages, by id, a cover or not; none without cache data', () => {
   assert.deepEqual(
-    [...words].map((word) => vsmStaleMap(word, false)),
+    [...vsmCastMaps(cache(true), null, list(true))!],
     [0, 1, 2, 3, 4, 5, 6],
-    'the sun, then the point light: the spot never rendered holds nothing',
-  )
-  assert.deepEqual(
-    [...words].map((word) => vsmStaleMap(word, true)),
-    [0, SKIPPED, SKIPPED, SKIPPED, SKIPPED, SKIPPED, SKIPPED],
-    'a moving box skips the point light, whose maps draw their moving casters over a cover',
+    'the sun, then the point light over its cover: the spot never rendered holds nothing',
   )
   assert.equal(vsmCastMaps(cache(false), null, list(true)), null)
 })

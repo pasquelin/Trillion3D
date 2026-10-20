@@ -22,6 +22,13 @@ const FIELDS = MATERIAL_RECORD.wgsl
     const [name, type] = field.split(':')
     return FIELD_READS[type](MATERIAL_RECORD.at[name as keyof typeof MATERIAL_RECORD.at])
   })
+/** WGSL of `name`, which reads the one word of field `field` of a row's or item's record. */
+const wordOf = (name: string, field: 'lobes' | 'channels') => {
+  const at = MATERIAL_RECORD.at[field]
+  return `fn ${name}(word:u32)->u32{
+ return materialTableRecord(word&${MATERIAL_RANK_MASK}u,${at >> 2}u).${LANES[at & 3]};
+}`
+}
 const TEXELS = Array.from(
   { length: MATERIAL_RECORD_TEXELS },
   (_, i) => `let t${i}=materialTableRecord(r,${i}u);`,
@@ -32,7 +39,8 @@ const TEXELS = Array.from(
  * every record table (`recordTextureWgsl`, a `2d-array` view), a surface's record
  * read whole by its row's or item's word (`materialAt`, `MATERIAL_RANK_MASK` below the second UV
  * set's bit) — each of its ten texels a `textureLoad`, those a pass never reads left to the
- * compiler —, its lobe word alone (`materialLobesOf`), and the lobe extension that word names
+ * compiler —, its lobe word and its maps' UV channels word alone (`materialLobesOf`,
+ * `materialChannelsOf`), and the lobe extension that word names
  * (`physicalAt`): the very words the table holds.
  */
 export const materialTableWgsl = (binding: number) =>
@@ -53,9 +61,8 @@ fn materialAt(word:u32)->Material{
  ${TEXELS}
  return Material(${FIELDS.join(',')});
 }
-fn materialLobesOf(word:u32)->u32{
- return materialTableRecord(word&${MATERIAL_RANK_MASK}u,${MATERIAL_RECORD.at.lobes >> 2}u).${LANES[MATERIAL_RECORD.at.lobes & 3]};
-}
+${wordOf('materialLobesOf', 'lobes')}
+${wordOf('materialChannelsOf', 'channels')}
 fn physicalAt(lobes:u32)->PhysicalInfo{
  let t=lobes-1u;
  let r=t/${MATERIAL_RECORD_TEXELS}u;let k=t%${MATERIAL_RECORD_TEXELS}u;

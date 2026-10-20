@@ -1,138 +1,46 @@
-import { judgeCadence, resetCadence, type Cadence } from './cadence.ts'
-import { samePeriod, SUPPORT, type createRefreshClock } from './refreshClock.ts'
-import { displayMoved, HISTORY, PERIOD, SECOND_MS } from './scaleTargets.ts'
-import type { createLoopPace } from './loopPace.ts'
+import { resetFrameCap, type FrameCap } from './cadence.ts'
+import { samePeriod, type createRefreshClock } from './refreshClock.ts'
+import { displayMoved, HISTORY } from './scaleTargets.ts'
 import type { createScaleMemory } from './scaleMemory.ts'
-import {
-  clearCosts,
-  fitScale,
-  fittedCost,
-  forgetThreshold,
-  restartWindow,
-  sampleCost,
-  swapUnit,
-  type ScaleWindow,
-} from './scaleWindow.ts'
+import { forgetHistory, type ScaleWindow } from './scaleWindow.ts'
 
 /** What a tick reads and moves: the controller's state, the display's clock and size, the
- *  render targets' memory cap, the steady cadence (`cadence.ts`) and the loop's pause rule
- *  (`loopPace.ts`). */
+ *  render targets' memory cap and the frame cap (`cadence.ts`). */
 export interface ScaleParts {
   w: ScaleWindow
   refresh: ReturnType<typeof createRefreshClock>
   display: { width: number; height: number; ratio: number }
   memory: ReturnType<typeof createScaleMemory>
-  cadence: Cadence
-  pace: ReturnType<typeof createLoopPace>
-}
-
-/** The last image drawn, as the controller was told (`drew`). */
-export interface DrawnImage {
-  steered: boolean
-  still: boolean
-}
-
-/** An interval after a held frame, nothing drawn in it, is no work's: `SUPPORT` of them in a row
- *  that agree are a group the clock reads the display's period from. The interval is read from
- *  the clock, never passed: a fractional number an optimised call passes is a new object each
- *  frame. */
-function readHeldInterval(w: ScaleWindow, refresh: ScaleParts['refresh']) {
-  const gap = refresh.gap,
-    free = w.holding && !w.fresh,
-    agrees = samePeriod(gap, w.heldGap)
-  w.agreeing = !free ? 0 : agrees ? w.agreeing + 1 : 1
-  w.heldGap = free ? gap : Number.NaN
-  if (w.agreeing >= SUPPORT) w.measured = true
-  w.holding = false
-}
-
-/** The window's verdict, `PERIOD` frames after the last move: two misses lower `hi`, a second with
- *  one at most raises `lo`, either chooses the next trial; else the scale follows the scene's cost. */
-function settleWindow(w: ScaleWindow, refresh: ScaleParts['refresh'], still: boolean) {
-  const period = refresh.display,
-    cost = fittedCost(w)
-  if (w.misses > 1) {
-    if (w.count < 2) return
-    if (cost > w.lo) w.hi = Math.min(w.hi, cost)
-  } else if (w.moving >= SECOND_MS / period) {
-    w.lo = Math.max(w.lo, cost)
-    // A second met above a cost that missed: that miss was not the GPU's.
-    if (w.lo >= w.hi) w.hi = w.timed ? Math.max(period, w.lo) : Infinity
-  } else {
-    fitScale(w, false, still)
-    return
-  }
-  if (!fitScale(w, true, still)) restartWindow(w)
+  cap: FrameCap
 }
 
 /**
- * A display frame began, `gap` ms after the last: the window counts it. The image drawn before it
- * (`fresh`) is measured where the controller drew it (`steered`) — a fixed scale's, every one —,
- * and, moving, `PERIOD` frames past the window's start, its interval is a miss where it shows the
- * image later than the cadence's divisor of refreshes. The refresh moved: what was learnt on the
- * last one goes, the cadence's divisor with it.
+ * A frame of the display the loop draws began at `now`, ms, its rAF timestamp; `timed`: the device
+ * has a GPU timer. The refresh is measured; another display or refresh reads the frame cap again
+ * and forgets the dynamic resolution's history. A timer silent for `HISTORY` images is none: the
+ * dynamic resolution has nothing to record, its history forgotten and its fraction back to 1 —
+ * the frame drawn at the bounds' maximum, since without a cost to fit there is no reason to draw
+ * below it.
  */
-function countFrame(p: ScaleParts, image: DrawnImage, fresh: boolean) {
-  const { w, refresh, cadence } = p,
-    gap = refresh.gap,
-    period = refresh.display,
-    auto = w.bounds.auto
-  if (refresh.settled && !samePeriod(period, w.at)) {
-    w.at = period
-    forgetThreshold(w, period)
-    resetCadence(cadence)
-  }
-  const measured = fresh && (image.steered || !auto) && refresh.settled && !p.pace.paused
-  if (measured && auto && !w.timed) sampleCost(w, w.s * w.s)
-  // A still image's interval is no verdict: the loop draws it when its feedback lands
-  // (`frameScheduler.ts`), not at the GPU's pace.
-  if (measured && !image.still && w.frames >= PERIOD) {
-    w.moving++
-    // The costs a miss is judged on arrive after it: its image's GPU time comes late.
-    if (Math.round(gap / period) > cadence.divisor && w.misses++ === 0) clearCosts(w)
-  }
-  w.frames++
-}
-
-/**
- * A frame of the display began at `now`, ms, its rAF timestamp; `timed`: the device has a GPU
- * timer. The refresh is measured; the window counts the frame (`countFrame`); the cadence gives
- * its verdict on the window (`judgeCadence`), then, past `PERIOD` frames since the last move, the
- * scale its own (`settleWindow`).
- */
-export function tickScale(p: ScaleParts, image: DrawnImage, now: number, timed: boolean) {
-  const { w, refresh } = p,
-    gpu = timed && w.images - w.timedAt < HISTORY,
+export function tickScale(p: ScaleParts, now: number, timed: boolean) {
+  const { w, refresh, cap } = p,
     moved = displayMoved(p.display)
   if (moved) {
     p.memory.uncap()
     refresh.reset()
-    resetCadence(p.cadence)
   }
   refresh.tick(now)
-  const gap = refresh.gap
-  // A pause is no frame (`loopPace.ts`): neither a miss nor an interval the loop ran.
-  p.pace.ran(p.pace.read(gap))
-  if (gap > 0) readHeldInterval(w, refresh)
-  if (moved) {
-    w.timed = gpu
-    forgetThreshold(w, refresh.display)
-  } else if (gpu !== w.timed) {
-    w.timed = gpu
-    swapUnit(w, refresh.display)
+  const period = refresh.display
+  if (moved || (refresh.settled && !samePeriod(period, w.at))) {
+    w.at = refresh.settled ? period : Number.NaN
+    resetFrameCap(cap, period)
+    forgetHistory(w)
   }
-  if (!(gap > 0)) return
-  // The image drawn before this display frame, read once whatever the bounds.
-  const fresh = w.fresh
-  w.fresh = false
-  p.cadence.drawnAt = now
-  // A display frame began: another call in the same frame (gap 0) counts none.
-  countFrame(p, image, fresh)
-  // The cadence slows only where the scale cannot lower the cost any more: fixed, or at its floor.
-  judgeCadence(p.cadence, w, refresh, !w.bounds.auto || w.s <= w.bounds.min)
-  // The scale is judged while the loop draws on every refresh: under a slower cadence, which it
-  // took at the floor, the scale holds there, its threshold learnt on one refresh unmoved by
-  // images the cadence spaces.
-  if (w.bounds.auto && p.cadence.divisor === 1 && w.frames > PERIOD && w.count > 0)
-    settleWindow(w, refresh, image.still)
+  const gpu = timed && w.images - w.timedAt < HISTORY
+  if (w.timed && !gpu) forgetHistory(w)
+  w.timed = gpu
+  // A display frame began: another call in the same frame (gap 0) moves nothing.
+  if (!(refresh.gap > 0)) return
+  w.holding = false
+  cap.drawnAt = now
 }

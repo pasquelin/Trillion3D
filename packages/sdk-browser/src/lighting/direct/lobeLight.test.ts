@@ -26,7 +26,7 @@ const NAMES = ['lobeSurface', 'surfaceLight']
 const shipped = wgslModule(STANDARD_LIGHTING_WGSL, LOBES_LIGHTING_WGSL)
 /** The order it replaced: the half-vector and the coat's facing first, whatever faces. */
 const before = shipped.replace(
-  /(light:vec4f\)->vec3f\{\n let L=normalize\(light\.xyz\);)[\s\S]*?(var base=vec3f\(0\.0\);)/,
+  /(light:vec4f\)->vec3f\{\n let L=light\.xyz;)[\s\S]*?(var base=vec3f\(0\.0\);)/,
   `$1
  let H=normalize(L+V);
  let NdotL=max(dot(N,L),0.0);
@@ -70,7 +70,8 @@ test('a lobed light pays the half-vector only where the base or the coat faces i
       coatSurface: lobeSurface([0, 0, 0], 0, coatRough, coatN, V),
     }
     const surface = lobeSurface([u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, V)
-    const args = [surface, N, V, [u(-1, 1), u(-1, 1), u(-1, 1), u(0, 20)]]
+    // The light's direction unit, as every caller hands it (`directIncidence`).
+    const args = [surface, N, V, [...unitF32([u(-1, 1), u(-1, 1), u(-1, 1)]), u(0, 20)]]
     const run = (text: string) =>
       shaderRun<Record<string, Light>>(text, NAMES, { ...F32_SCOPE, lobes }).surfaceLight(...args)
     const ours = run(shipped),

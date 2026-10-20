@@ -11,18 +11,17 @@ export type ContractKey = {
   sunless: boolean
   localless: boolean
   /** No surface the pass lights carries an anisotropic or clear-coat lobe: no lobe code
-   *  (`../direct/lobesWgsl.ts`) — the opaque resolve's surfaces, the blends' items, the water's
-   *  transmissive items. */
+   *  (`../direct/lobesWgsl.ts`) — the opaque resolve's surfaces, the translucent items. */
   lobeless: boolean
 }
 
-/** The passes whose programs are keyed on a `ContractKey`: the opaque resolve's, and the two
- *  forward ones (`contractVariants.ts`). */
-export type LitPass = 'opaque' | 'blend' | 'water'
+/** The passes whose programs are keyed on a `ContractKey`: the opaque resolve's, and the forward
+ *  one (`contractVariants.ts`). */
+export type LitPass = 'opaque' | 'blend'
 type Cut = Exclude<keyof ContractKey, 'narrow'>
 
 /** What a program can leave out besides its lists' width — bit `k` of a set is `CUTS[k]` —: every
- *  pass, opaque, blend or water, makes every cut, each read off what that pass lights
+ *  pass, opaque or blend, makes every cut, each read off what that pass lights
  *  (`../../webgpu/pages/prepare/contractLight.ts`). */
 const CUTS: readonly Cut[] = ['unshadowed', 'rectless', 'sunless', 'localless', 'lobeless']
 export const CUT_COUNT = CUTS.length

@@ -1,5 +1,5 @@
-// A held frame leaves temporal accumulation where the last encoded frame left it, so the
-// convergence image a barrier replays is the image the hold shows, however many frames were held.
+// A view whose temporal pass runs draws every frame: it is never held; a view
+// that does not accumulate holds as before.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
@@ -7,61 +7,39 @@ import { createTaaFrameState } from '../../taa/frameState.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { settledRt } from './hold.fixture.ts'
-import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 
 installGpuGlobals()
 
 /** A settled runtime with temporal accumulation on, the hold armed by two identical frames. */
-function heldRuntime(stillFrames: number) {
+function heldRuntime() {
   const rt = settledRt()
-  let checkpoints = 0
   const frame = createTaaFrameState()
-  frame.stillFrames = stillFrames
   frame.viewSeen = rt.run.gate.temporalRevision
   Object.assign(rt.gpu, {
     temporalWanted: true,
     targetSize: [64, 32],
     allocatedSize: [64, 32],
     displaySize: [64, 32],
-    temporal: { frame, checkpoint: () => checkpoints++, replay: () => true },
+    temporal: { frame },
   })
   Object.assign(rt.run, { diagnostic: 'beauty', textureConverging: false })
   for (let i = 0; i < 2; i++) {
     rt.run.frame++
     keepWebgpuFrame(rt)
   }
-  return { rt, frame, checkpoints: () => checkpoints }
+  return { rt, frame }
 }
 
-test('a held frame takes no checkpoint and counts no still frame', () => {
-  const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES)
+test('a quiet view whose temporal pass runs is drawn every frame, its jitter running on', () => {
+  const { rt, frame } = heldRuntime()
   const { device } = fakeDevice()
-  const sample = frame.sample
-  for (let i = 0; i < 5; i++) assert.equal(holdWebgpuFrame(rt, device), true)
-  assert.equal(rt.run.frameHeld, true)
-  assert.equal(checkpoints(), 0, 'the checkpoint a barrier replays stays the last encoded one')
-  assert.equal(frame.stillFrames, TAA_STILL_FRAMES, 'the replay weighs its image as before')
-  assert.equal(frame.sample, sample)
+  for (let i = 0; i < 3; i++) assert.equal(holdWebgpuFrame(rt, device), false)
+  assert.equal(rt.run.frameHeld, false)
 })
 
-test('the quiet frame that still accumulates enters, then the next one is held', () => {
-  const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES - 1)
-  const { device } = fakeDevice()
-  assert.equal(holdWebgpuFrame(rt, device), false, 'one image short of whole cycles: drawn')
-  assert.equal(checkpoints(), 1)
-  assert.equal(frame.stillFrames, TAA_STILL_FRAMES)
-  assert.equal(holdWebgpuFrame(rt, device), true, 'the cycles are closed: held')
-  assert.equal(checkpoints(), 1)
-})
-
-test('a view that does not accumulate holds on the count a settled beauty image left', () => {
-  const { rt, frame } = heldRuntime(TAA_STILL_FRAMES)
+test('a view that does not accumulate holds its quiet frame', () => {
+  const { rt } = heldRuntime()
   const { device } = fakeDevice()
   rt.run.diagnostic = 'wireframe'
-  assert.equal(
-    holdWebgpuFrame(rt, device),
-    true,
-    'the count it never moves already closes the cycle',
-  )
-  assert.equal(frame.stillFrames, TAA_STILL_FRAMES)
+  assert.equal(holdWebgpuFrame(rt, device), true)
 })

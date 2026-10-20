@@ -114,19 +114,32 @@ export function bindKernels(
     }),
     pipelines: BLEND_ORDER_ENTRIES.map((entry) => kernels.orderStages[entry]),
   }
-  const verdict: Kernel = {
-    group: device.createBindGroup({
-      layout: kernels.verdictLayout,
-      entries: namedEntries(VERDICT_BINDING, {
-        keyed: { buffer: buffers.keyed },
-        draws: { buffer: buffers.draws },
-        counts: { buffer: counts },
-        frame: { buffer: buffers.frame },
-        keep: { buffer: buffers.keep },
-        verdict: { buffer: buffers.verdict },
-      }),
-    }),
+  const verdictEntries = (cells: GPUTextureView) =>
+    namedEntries(VERDICT_BINDING, {
+      keyed: { buffer: buffers.keyed },
+      draws: { buffer: buffers.draws },
+      counts: { buffer: counts },
+      frame: { buffer: buffers.frame },
+      keep: { buffer: buffers.keep },
+      verdict: { buffer: buffers.verdict },
+      cells,
+    })
+  let held: { cells: GPUTextureView; group: GPUBindGroup } | undefined
+  const verdict = {
     pipelines: VERDICT_ENTRIES.map((entry) => kernels.verdictStages[entry]),
+    /** Its group on the cut's cold words `cells` (`GpuSelection.cellStates`), made again only
+     *  when another cut holds them. */
+    groupOn(cells: GPUTextureView) {
+      if (held?.cells !== cells)
+        held = {
+          cells,
+          group: device.createBindGroup({
+            layout: kernels.verdictLayout,
+            entries: verdictEntries(cells),
+          }),
+        }
+      return held.group
+    },
   }
   return { order, expansion, verdict }
 }

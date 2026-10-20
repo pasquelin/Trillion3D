@@ -16,7 +16,8 @@ import { pageAddress, readGeometryAhead } from '../row/pageSlots.ts'
 import { markWebgpuLost } from './io/lost.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../shadow/bounds.ts'
-import { rootOfPacked } from '../../page/selection/placements.ts'
+import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
+import { rowWrittenAsProxy } from './prepare/worldRoot.ts'
 
 /** The row table's sync: the residency follower, the page-row writer, the row cache. */
 export function createRowSyncFor(rt: WebgpuPagesCore) {
@@ -44,6 +45,7 @@ export function createRowSyncFor(rt: WebgpuPagesCore) {
     rows.markRowDirty,
     (packed) => rootOfPacked(rt.layout.placement, packed),
     rt.layout.deformationOutputOf,
+    (rank) => rowWrittenAsProxy(rt.layout.selectionRoots, rank),
   )
   // The residency log names the instances whose slot moved; the slot is read on the cache itself
   // (`../row/pageState.ts`). The row table is a cache of what the GPU cut draws and asks for
@@ -148,7 +150,14 @@ export function createResidencyFor(
     traceDiagnostic: diag.traceDiagnostic,
     lowerTier: () => lowerTier,
     bytesRevision: rows.touchRevision,
-    coverMissing: residencySets.coverMissing,
+    // The cover's missing pages in the order their cells' holds are read: the top layer and the
+    // nearest first (`../../partition/hlodCells.ts`).
+    coverMissing: (holds, limit) =>
+      residencySets.coverMissing(holds, limit, (page) =>
+        page.holder === undefined
+          ? 0
+          : Math.min(context.worldRoots?.priorityOf(page.holder) ?? 0, Number.MAX_VALUE),
+      ),
     coverLacking: residencySets.coverLacking,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
     clock: rt.clock,

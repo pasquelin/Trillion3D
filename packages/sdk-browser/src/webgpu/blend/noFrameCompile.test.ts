@@ -5,9 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuBlendPipelines } from './pipelines.ts'
 import { createDisplayFilter } from './displayFilter.ts'
-import { createWaterCompositeLayout, createWaterComposites } from '../water/pipelines.ts'
-import { createReach } from './reach.ts'
-import { mountDevice } from '../water/pass.fixture.ts'
+import { mountDevice } from './translucentScene.fixture.ts'
 import type { BlendGpuItem } from './state.ts'
 
 /** Counts the pipelines made by the synchronous calls a frame could reach, from now on. */
@@ -71,23 +69,4 @@ test('a frame that gets there before the compile makes the one pipeline, never a
   assert.equal(blendPipelines.at(9 + 2, false, false), blendPipelines.at(9 + 2, false, false))
   assert.equal(calls.render, 1, 'once')
   assert.equal(mount.renderPipelines.length, before + 3, 'nothing compiled twice')
-})
-
-test('the water composites follow what is reached: the plain one, then each later share or layers', async () => {
-  const mount = mountDevice()
-  const layout = createWaterCompositeLayout(mount.device)
-  const reach = createReach({ modes: [], share: false, filtered: false })
-  const composites = await createWaterComposites(mount.device, layout, {}, reach)
-  assert.equal(mount.renderPipelines.length, 1, 'the plain composite alone')
-  const calls = watch(mount.device)
-  assert.ok(composites.at(false, false))
-  assert.equal(calls.render, 0)
-  reach.reach({ share: true, filtered: true })
-  await settled()
-  const made = mount.renderPipelines.length
-  assert.equal(made, 4, 'the other three, off the frame')
-  for (const layers of [false, true])
-    for (const share of [false, true]) assert.ok(composites.at(layers, share))
-  assert.equal(calls.render, 0)
-  assert.equal(mount.renderPipelines.length, made)
 })

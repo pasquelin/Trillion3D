@@ -19,13 +19,14 @@ export interface VsmComputePipe {
   prepared: PreparedPipeline<GPUComputePipeline>
 }
 
-/** What a pipe is made of: its WGSL source, the entry point it runs, its groups' layout entries
- *  and its label. */
+/** What a pipe is made of: its WGSL source, the entry point it runs, its groups' layout entries,
+ *  its label and its overrides. */
 interface VsmPipeSource {
   label: string
   code: string
   entryPoint: string
   groups: GPUBindGroupLayoutEntry[][]
+  constants?: Record<string, number>
 }
 
 /** The device's modules, one a source whatever its entries, and its pipes, one an entry point of
@@ -46,7 +47,7 @@ const vsmKit = oncePerDevice((device: GPUDevice) => {
         device.createPipelineLayout({ label, bindGroupLayouts: layouts }),
         modules.of(source),
         entryPoint,
-        undefined,
+        source.constants,
         label,
       )
       return {
@@ -57,21 +58,24 @@ const vsmKit = oncePerDevice((device: GPUDevice) => {
         },
       }
     },
-    ({ code, entryPoint }) => `${entryPoint}\n${code}`,
+    ({ code, entryPoint, constants }) =>
+      `${entryPoint}\n${constants ? JSON.stringify(constants) : ''}\n${code}`,
   )
   return pipes
 })
 
 /** The compute pipeline of `code`'s `entryPoint` over groups of `groups` layout entries, labelled
- *  `label`: its layouts and prepared pipeline made the first time `device` asks for that entry of
- *  that source, every later asker sharing them; one module a source, whatever its entries. */
+ *  `label`, its overrides `constants`: its layouts and prepared pipeline made the first time
+ *  `device` asks for that entry and overrides of that source, every later asker sharing them; one
+ *  module a source, whatever its entries. */
 export const vsmComputePipe = (
   device: GPUDevice,
   label: string,
   code: string,
   entryPoint: string,
   groups: GPUBindGroupLayoutEntry[][],
-): VsmComputePipe => vsmKit(device).of({ label, code, entryPoint, groups })
+  constants?: Record<string, number>,
+): VsmComputePipe => vsmKit(device).of({ label, code, entryPoint, groups, constants })
 
 /** A bind group of whole buffers in binding order, but for the entries that name their own window
  *  (a `GPUBufferBinding`, the raster's parameters). No `instanceof GPUBuffer`: the interface is no

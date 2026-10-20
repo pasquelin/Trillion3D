@@ -18,9 +18,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The declared lights, grown with the scene: the one buffer a contract program reads them from. */
   lights?: GPUBuffer
   tiles?: GPUBuffer
-  /** The virtual shadow maps a non-mask read samples (`CONTRACT_VSM_BINDINGS`): this frame's
-   *  page table, projection data and uniforms, the pool's first slice, and the projection's view
-   *  and blue noise a forward pass traces with (`vsmTraceFactor`). */
+  /** The virtual shadow maps a blend pass's fragments trace (`vsmTraceFactor`): this frame's page
+   *  table, projection data and uniforms, the pool's first slice, and the projection's view and
+   *  blue noise. */
   vsm?: {
     pageTable: GPUBuffer
     projectionData: GPUBuffer
@@ -34,8 +34,12 @@ export interface DirectLightResources extends Partial<ContractKey> {
   vsmMask?: GPUTextureView
   /** The mask's tile words (`vsmMaskFactor`): the layers its projection stored in each 8×8 tile. */
   vsmMaskTiles?: GPUTextureView
-  /** The translucent casters' transmission atlas (`../../vsm/transmissionPass.ts`), or none. */
+  /** The translucent casters' transmission atlas (`../../vsm/transmissionPass.ts`), or none: what a
+   *  blend pass's rays read. */
   vsmTransmission?: GPUTextureView
+  /** The mask's transmission (`VsmMask.through`): what the panes let through along each light's
+   *  missed rays, the opaque resolve's; none without translucent casters. */
+  vsmThrough?: GPUTextureView
   /** Probe grid and coefficients — an atlas of `atlas.ts`: one lifetime, the probes'
    *  identity. */
   bounceGrid?: GPUBuffer
@@ -86,16 +90,7 @@ export async function createDeferredProgram(
     makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', HDR),
     createCompositions(device, sources.compose, sources.label),
   ])
-  const { placeholders } = bindings
-  const vsmPlaceholders = {
-    pageTable: placeholders.vsmPageTable,
-    projectionData: placeholders.vsmProjectionData,
-    uniforms: placeholders.vsmUniforms,
-    pool: placeholders.vsmPool,
-    view: placeholders.vsmProjectionView,
-    noise: placeholders.vsmBlueNoise,
-  }
-  const parts = { device, sources, bindings, lightingLayout, compositions, vsmPlaceholders }
+  const parts = { device, sources, bindings, lightingLayout, compositions }
   const state: ProgramState = {
     identity: createWebgpuBindIdentity(2),
     held: [],

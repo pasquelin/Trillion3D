@@ -7,7 +7,7 @@ import { mixWord } from '../../../../../math/src/wgsl/sampling.ts'
 import { halfLoadSlots } from '../../../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../dispatch/grid.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
-import { openProbeWgsl } from './probeWgsl.ts'
+import { openProbeStatement } from './probeWgsl.ts'
 
 /**
  * THE CUT AS A DIFFERENCE, taken where the cut is: for each rank of a copied snapshot's two lists,
@@ -40,9 +40,10 @@ export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as c
   KEEP_STAGES = ['dagCutKeep0', 'dagCutKeep1'] as const,
   REKEEP_STAGES = ['dagCutRekeep0', 'dagCutRekeep1'] as const
 
-/** A step over a kept list's table from page `i`'s home (`openProbeWgsl`), `mask` its slots less one. */
+/** A step over a kept list's table from page `i`'s home (`openProbeStatement`), `mask` its slots
+ *  less one. */
 const keptProbe = (step: string) =>
-  openProbeWgsl({
+  openProbeStatement({
     home: 'keptHome(i)',
     mask: 'mask',
     slotWord: (s) => `KEPT_HEAD+${OPEN_SLOT_WORDS}u*${s}`,

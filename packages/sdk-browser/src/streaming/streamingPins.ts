@@ -1,4 +1,5 @@
 import type { HostRetentionDelta, StreamContext } from './types.ts'
+import { countBy } from '../../../math/src/sequence/counts.ts'
 
 /** URLs designated by ranks in `urls`; a rank off the table designates nothing. */
 function* rankUrls(urls: readonly string[], ranks: ArrayLike<number>, count: number) {
@@ -15,14 +16,12 @@ function* rankUrls(urls: readonly string[], ranks: ArrayLike<number>, count: num
 export function createStreamingPins(context: StreamContext, evict: () => void) {
   const { pinned, emit, store } = context
   const add = (url: string) => {
-    pinned.set(url, (pinned.get(url) ?? 0) + 1)
+    countBy(pinned, url, 1)
     store.acquire(url)
   }
   const release = (url: string) => {
-    const owners = pinned.get(url)
-    if (!owners) return
-    if (owners > 1) pinned.set(url, owners - 1)
-    else pinned.delete(url)
+    if (!pinned.get(url)) return
+    countBy(pinned, url, -1)
     store.release(url)
   }
   /** One more owner of `url`'s page: its hold lasts till `unpin`. */

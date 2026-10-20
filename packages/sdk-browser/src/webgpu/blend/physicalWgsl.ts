@@ -41,16 +41,14 @@ fn blendPhysicalBegin(in:VSOut,g:BlendGrads){
  physicalCoord1=PhysicalCoord(in.uv.zw,g.uv1X,g.uv1Y,g.uv1X,g.uv1Y);
 }
 /** The lobes of a fragment of surface \`s\` (\`blendSurface\`: its shading and geometric normals)
- *  whose record is read (\`physicalOn\`): the blend's and the water surface stage's
- *  (\`../water/surfaceWgsl.ts\`). */
+ *  whose record is read (\`physicalOn\`): the blend's. */
 fn blendPhysicalValues(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->PhysicalLobes{
  let flags=in.ids.y;
  let coatFace=select(1.0,select(-1.0,1.0,front),(flags&${FLAG_DOUBLE}u)!=0u&&(flags&${FLAG_HAS_NORMAL}u)!=0u);
  return physicalValues(s.N,s.geometric,g.q0,g.q1,-1.0,coatFace);
 }
 /** The lobes of a fragment of surface \`s\` as the lobes target holds them, and whether it carries one:
- *  the water surface stage's and the front stage's texel (\`../water/surfaceWgsl.ts\`,
- *  \`frontStageWgsl.ts\`), zero and false where it carries neither lobe. */
+ *  the front stage's texel (\`frontStageWgsl.ts\`), zero and false where it carries neither lobe. */
 struct BlendLobed{texel:vec4u,on:bool,}
 fn blendLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->BlendLobed{
  if(!physicalOn){return BlendLobed(vec4u(0u),false);}

@@ -3,7 +3,8 @@ import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
 
 /**
  * THE MATERIAL RECORD: what every pass reads of a surface, once per surface — the page rows, the
- * blend items, the water's volumes and the shadow's transmittance name it by rank
+ * blend items — transmissive ones read their volume there — and the shadow's transmittance name
+ * it by rank
  * (`materialTable.ts`) and copy none of it. Its fields in one table: the WGSL struct the passes
  * build from its texels (`materialWgsl.ts`), each field's first word, which the writer below fills,
  * and its words, ten `rgba32uint` texels.
@@ -14,9 +15,10 @@ import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
  * - Both second normal factors: a pass picks the vertex tangents' one where it reads them
  *   (`frameNormalScaleY`).
  * - `model`: the surface model, the fog opt-out above it (`FOG_FREE_MODEL_BIT`).
- * - The maps' atlas slots, zero for none; `lobes`, the first texel of the surface's lobe extension
- *   plus one (`writeLobeRecord`), zero without a lobe.
- * - The volume: `invIor` the refraction ratio, `f0` Fresnel's at normal incidence, `attenuation`
+ * - The maps' atlas slots, zero for none; `channels`, bit `i` set where map `i` of
+ *   `SURFACE_MAP_FIELDS` reads the second UV set (glTF's `texCoord`, `channelsOf`); `lobes`, the
+ *   first texel of the surface's lobe extension plus one (`writeLobeRecord`), zero without a lobe.
+ * - The volume: `invIor` the refraction ratio, `attenuation`
  *   the law's constant `k` (`volumeAttenuation`), each computed here once in f64.
  */
 export const MATERIAL_RECORD = fieldLayout('Material', [
@@ -47,9 +49,8 @@ export const MATERIAL_RECORD = fieldLayout('Material', [
   ['transmission', 'f32'],
   ['invIor', 'f32'],
   ['thickness', 'f32'],
-  ['f0', 'f32'],
   ['attenuation', 'vec3f'],
-  ['pad', 'u32'],
+  ['channels', 'u32'],
 ] as const)
 /** Words and `rgba32uint` texels of one record. */
 export const MATERIAL_RECORD_WORDS = MATERIAL_RECORD.words,

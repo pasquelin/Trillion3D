@@ -1,6 +1,6 @@
 import { alignUp, halfLoadSlots } from '../../../../math/src/scalar/integers.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
-import { writeRanges } from '../../gpu/dag/runWrites.ts'
+import { writeBufferRuns } from '../../gpu/dag/runWrites.ts'
 import { RAY_HIT } from './rayRecord.ts'
 import { RECORD_WORDS, type RayRecords } from './rayRecords.ts'
 import { DEFORM_SLOT_WORDS, RAY_PARAMS } from './deformIndexWgsl.ts'
@@ -96,13 +96,7 @@ function writeRecords(device: GPUDevice, records: RayRecords, buffer: GPUBuffer,
   const changed = records.takeDirty(),
     { words } = records
   if (whole) return device.queue.writeBuffer(buffer, 0, words)
-  writeRanges(
-    (offset, data, dataOffset, size) =>
-      device.queue.writeBuffer(buffer, offset, data, dataOffset, size),
-    changed,
-    changed.length,
-    { data: words, sourceBase: 0, targetBase: 0, stride: RECORD_WORDS },
-  )
+  writeBufferRuns(device, buffer, changed, changed.length, words, RECORD_WORDS)
 }
 
 /** The uniform of a batch (`RAY_PARAMS`). */
@@ -124,5 +118,4 @@ function writeParams(
   words[P.entries] = entryCount
   words[P.treeRoot] = tables.treeRoot
   words[P.placements] = tables.placements
-  words[P.worldPlacement] = tables.worldPlacement
 }

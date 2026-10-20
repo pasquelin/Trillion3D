@@ -27,7 +27,8 @@ type Free = { pmPop: () => number; pmFreeCount: () => number }
 /** The pages `pmPop` hands out after one sort of `pages` at `frame`, in order, and the free count
  *  the feedback reads before them. */
 function popAll(pages: Page[], frame: number, mapLevels: number[], seed = 1) {
-  const words = POOL_SORT_WORDS + 1 + pages.length + poolScratchWords(pages.length, pages.length)
+  // The sort's words, the free count and the requests it fell short of, the pages, the scratch.
+  const words = POOL_SORT_WORDS + 2 + pages.length + poolScratchWords(pages.length, pages.length)
   const freePages = new Array<number>(words).fill(0)
   const scope = {
     vsm: { poolPages: pages.length, frameStamp: frame },

@@ -1,7 +1,6 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
-import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Box3, boxFromFlat } from '../../../../sdk-core/src/world/math/box3.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import type { Clip } from '../../../../sdk-core/src/world/animation/clip.ts'
 import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts'
@@ -17,6 +16,7 @@ import type { PageCache } from '../../streaming/pageCache.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
+import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { graphSubtree, modelNode } from './modelNodes.ts'
 import { findNode } from '../../host/world/nameIndex.ts'
@@ -37,9 +37,6 @@ export type ModelRecord = {
   metadata: ClusterManifest
   /** The scene graph built from the cache's scene tables. */
   scene: ModelScene
-  /** Where its images were read: `cache` left the baked ones to the levels the session reads,
-   *  `host` read them all (`loadModel`). */
-  textureSource: 'host' | 'cache'
 }
 
 /** The world roots `model`'s scene opened — its world's sessions draw from them and bind them to
@@ -47,6 +44,24 @@ export type ModelRecord = {
  *  (`static`), so they stay out of its public members. */
 export let modelWorldRoots: (model: LoadedModel) => readonly WorldRootsHold[]
 let keepWorldRoots: (model: LoadedModel, roots: readonly WorldRootsHold[]) => void
+/** The partitions `model` places its cells by: its record's for the model its manifest was read
+ *  for, a placement of each for a model placed again (`placeModel`). */
+export let modelPartitions: (model: LoadedModel) => ExplorerScene['partitions']
+/** `model`'s rank among the placements of its record: 0 for the model its manifest was read for,
+ *  `k` for its `k`-th placement since (`placeModel`) — its row in the record's sources and the
+ *  instance of the world DAG it is drawn by (`worldModels.ts`). */
+export let placementIndex: (model: LoadedModel) => number
+let keepLights: (model: LoadedModel, lights: readonly SceneLight[]) => void
+/**
+ * Another placement of the model `model`'s manifest was read for: a new model over the same record
+ * — its manifest, graph, images and world roots, read once —, with its own world and visibility,
+ * the lights its source file carried and a placement of each partition
+ * (`PartitionCells.placement`), which places the cells its own view reaches. What `scene.load`
+ * returns for a manifest the world already read (`worldLoader.ts`); the world draws every placement
+ * of a record from the one set of pages, each placement a row of the same sources, cut at its own
+ * distance (`worldModels.ts`).
+ */
+export let placeModel: (model: LoadedModel) => LoadedModel
 
 /**
  * A compiled model added to a scene like any other object: its pages stream by what the frame
@@ -75,10 +90,39 @@ export class LoadedModel extends Object3D {
   private readonly carried = new WeakSet<Object3D>()
   /** The world roots its scene opened (`modelWorldRoots`), kept by its load. */
   #worldRoots: readonly WorldRootsHold[] = []
+  /** Its partitions' placements, for a model placed again (`modelPartitions`). */
+  #partitions: ExplorerScene['partitions'] | undefined
+  /** The model its record was read for, if it was placed from it (`placeModel`). */
+  #first: LoadedModel | undefined
+  /** The lights its source file carried, as read: each placement makes its own nodes of them. */
+  #lights: readonly SceneLight[] = []
+  /** How many times it was placed again (`placeModel`), and its own rank among those placements
+   *  (`placementIndex`). */
+  #placements = 0
+  #index = 0
   static {
     modelWorldRoots = (model) => model.#worldRoots
     keepWorldRoots = (model, roots) => {
       model.#worldRoots = roots
+    }
+    modelPartitions = (model) => model.#partitions ?? model.record.scene.partitions
+    placementIndex = (model) => model.#index
+    keepLights = (model, lights) => {
+      model.#lights = lights
+      for (const record of lights) {
+        const lamp = lightFromRecord(record)
+        model._addFromFile(lamp, lamp.target)
+      }
+    }
+    placeModel = (model) => {
+      const first = model.#first ?? model,
+        placed = new LoadedModel(first.record)
+      placed.#first = first
+      placed.#index = ++first.#placements
+      placed.#worldRoots = first.#worldRoots
+      placed.#partitions = first.record.scene.partitions.map((cells) => cells.placement())
+      keepLights(placed, first.#lights)
+      return placed
     }
   }
   /** Whether `node` came with the source file: a saved scene leaves it to the file. */
@@ -122,10 +166,7 @@ export class LoadedModel extends Object3D {
     this.record = record
     this.type = 'LoadedModel'
     const flat = hostWorldBounds(record.scene.source, emptyWorldBox())
-    this.bounds = new Box3(
-      new Vector3(flat[0], flat[1], flat[2]),
-      new Vector3(flat[3], flat[4], flat[5]),
-    )
+    this.bounds = boxFromFlat(new Box3(), flat)
   }
   /** Refused: a model is loaded again with `scene.load`, never cloned. */
   protected override blank(): this {
@@ -144,26 +185,24 @@ export class LoadedModel extends Object3D {
 }
 
 /**
- * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
- * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
- * world's first model does; a later one reads them all, its baked levels not served by the
- * session's base (`worldLoader.ts`). `onProgress` hears `bytes` against the files it reads
- * (`plannedFiles`) as each chunk lands (`byteMeter`), the manifest read, the scene tables read,
- * then each resource the scene reads (`loadPreparedScene`).
+ * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a world.
+ * The images whose levels its cache baked whole are left unread: every session that draws the model
+ * reads those levels from its cache (`texture/textureCaches.ts`). `onProgress` hears `bytes`
+ * against the files it reads (`plannedFiles`) as each chunk lands (`byteMeter`), the manifest read,
+ * the scene tables read, then each resource the scene reads (`loadPreparedScene`).
  */
 export async function loadModel(
   manifestUrl: string,
   options: {
     scope?: AssetScope
     signal?: AbortSignal
-    textureSource: 'host' | 'cache'
     onProgress?: (event: JobProgress) => void
     /** The world's page cache: the model's world roots are read through it, as every session's
      *  pages are. */
     pageCache: PageCache
   },
 ): Promise<LoadedModel> {
-  const { signal, textureSource, onProgress } = options
+  const { signal, onProgress } = options
   const meter = onProgress
     ? byteMeter((completed, total) =>
         onProgress({ phase: 'bytes', completed, total, message: `${completed} of ${total} bytes` }),
@@ -182,7 +221,6 @@ export async function loadModel(
     loadPreparedScene(
       {
         manifestUrl,
-        textureSource,
         meter,
         queue,
         onTables: () => meter.plan(plannedFiles(declared, base)),
@@ -209,12 +247,8 @@ export async function loadModel(
     base,
     metadata,
     scene: { ...shown, framingLot: null },
-    textureSource,
   })
   keepWorldRoots(model, worldRoots)
-  for (const record of imported.lights) {
-    const lamp = lightFromRecord(record)
-    model._addFromFile(lamp, lamp.target)
-  }
+  keepLights(model, imported.lights)
   return model
 }

@@ -27,8 +27,6 @@ type Inputs = {
   tables: PreparedSceneTables
   metadata: ClusterManifest
   base: string
-  /** Whether the images whose chain the cache baked are skipped (`textureSource` not `'host'`). */
-  skipBaked: boolean
   signal: AbortSignal | undefined
   /** Wraps each resource read, for the session's progress. */
   track: <T>(resource: string, read: Promise<T>) => Promise<T>
@@ -41,7 +39,7 @@ type Inputs = {
 /** The scene, the mesh and primitive ranks each drawn host mesh answers to, the rank each host
  *  texture answers to, and how many images the cache spared. */
 export async function buildPreparedScene(inputs: Inputs) {
-  const { tables, metadata, base, skipBaked, signal, track } = inputs
+  const { tables, metadata, base, signal, track } = inputs
   const meter = inputs.meter ?? unmetered
   const { document, documentUrl, bufferUrl } = sceneDocument(tables, base)
   // Each view of the binary is read by its own range on the first need of a host vertex or an
@@ -60,10 +58,11 @@ export async function buildPreparedScene(inputs: Inputs) {
       return track(bufferUrl, inputs.readRange(bufferUrl, offset, length, { meter, signal }))
     },
   }
-  const skipped = skipBaked ? bakedImages(metadata, document.images.length) : new Set<number>()
+  const skipped = bakedImages(metadata, document.images.length)
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter })
   const ranks = new Map<Texture, number>()
   const slot = preparedTextures(tables, document, images, ranks)
+  const materialOf = preparedMaterials(tables.materials, slot)
   const {
     scene,
     ranks: meshes,
@@ -74,7 +73,7 @@ export async function buildPreparedScene(inputs: Inputs) {
     tables,
     meshes: document.meshes,
     geometryOf: preparedGeometries(document, binary),
-    materialOf: preparedMaterials(tables.materials, slot),
+    materialOf,
     clothOf: clothPrimitives(metadata),
   }).finally(() => {
     building = false
@@ -85,10 +84,19 @@ export async function buildPreparedScene(inputs: Inputs) {
   return {
     source,
     associations,
-    textureIndices: ranks,
+    ranks,
     bakedImages: skipped.size,
     nodes,
     placed,
     clips,
+    /** The surface of each flattened material the world's HLOD actors wear, by actor rank
+     *  (`tables.hlodMaterials`): built as every surface of the scene, on a geometry with normals,
+     *  texture coordinates and no colour. */
+    hlodSurfaces: () =>
+      Promise.all(tables.hlodMaterials.map((rank) => materialOf(rank, HLOD_VARIANT))),
   }
 }
+
+/** What an HLOD actor's mesh asks of its surface: normals and atlas coordinates, no vertex colour,
+ *  its faces as its material declares them. */
+const HLOD_VARIANT = { vertexColors: false, flatShading: false, twoSided: false }

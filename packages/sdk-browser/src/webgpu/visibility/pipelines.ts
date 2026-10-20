@@ -24,8 +24,7 @@ export async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promi
   return value
 }
 /** The visibility raster's targets: the identifiers, and the pyramid's level 0 (#1483: Hi-Z is the
- *  one occlusion path). Every raster drawing into the visibility pass — clusters and impostor
- *  cards — uses these. */
+ *  one occlusion path). Every raster drawing into the visibility pass uses these. */
 export const VIS_TARGETS: GPUColorTargetState[] = [{ format: 'r32uint' }, { format: 'r32float' }]
 /** The visibility raster's depth: written, tested as every opaque raster. */
 export const VIS_DEPTH: GPUDepthStencilState = {

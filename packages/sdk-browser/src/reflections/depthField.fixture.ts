@@ -5,7 +5,7 @@ import { f32Bits } from '../../../math/src/float/bits.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { HIZ_SHADER, HIZ_NEAREST_BUILD } from '../gpu/hiz/shader.ts'
 import { pyramidBytes } from '../gpu/hiz/oracle.ts'
-import { HIZ_MAX_LEVELS } from '../gpu/hiz/uniforms.ts'
+import { HIZ_BUILD_SIDE, HIZ_MAX_LEVELS } from '../gpu/hiz/uniforms.ts'
 import {
   HIZ_DEPTH_LAYERS,
   HIZ_FRONT_LAYER,
@@ -19,6 +19,7 @@ import { hizReduceCeil, hizReduceNearestCeil } from '../../../sdk-core/src/hiz/o
 /** The depth readers of `hizDepthWgsl` a march runs (`shaderRun`), the shipped functions by name. */
 export const HIZ_DEPTH_READERS = [
   'hizPlane',
+  'hizOpaqueDepth',
   'hizPixel',
   'hizPixelIn',
   'hizFold',
@@ -86,10 +87,12 @@ export function depthField(
   const level0 = { layers: HIZ_DEPTH_LAYERS }
   const build = shaderRun<{
     hizSource: (at: number, x: number, y: number) => number[]
+    hizLoadDepthTile: (wg: number[], thread: number) => void
   }>(
     HIZ_SHADER,
     [
       'hizSource',
+      'hizLoadDepthTile',
       'hizLoadBound',
       'hizPlaneCorners',
       'hizDepthAt',
@@ -114,14 +117,29 @@ export function depthField(
         ),
       ],
       hizPut: (i: number, _: number, word: number) => void (slopes[i] = word),
+      // The workgroup's depth tile and its first pixel, which `hizLoadDepthTile` writes.
+      hizDepthTile: new Float64Array((2 * HIZ_BUILD_SIDE + 4) ** 2),
+      hizDepthOrigin: [0, 0],
     },
   )
+  /** The workgroup whose depth tile the build holds. */
+  let tiled = ''
+  /** The shipped first pass at the pixel `(x, y)`: its workgroup's depth tile loaded first, by
+   *  every thread of it, as the build does before its barrier. */
+  function source(x: number, y: number) {
+    const wg = [Math.floor(x / (2 * HIZ_BUILD_SIDE)), Math.floor(y / (2 * HIZ_BUILD_SIDE))]
+    if (`${wg}` !== tiled) {
+      for (let thread = 0; thread < HIZ_BUILD_SIDE ** 2; thread++)
+        build.hizLoadDepthTile(wg, thread)
+      tiled = `${wg}`
+    }
+    return build.hizSource(0, x, y)
+  }
   /** The texel at `x, y` of `level` of `layer`, as a depth. */
   function cell(layer: number, level: number, x: number, y: number): number {
     const at = offsets[level] + y * sizes[level][0] + x
     if (Number.isNaN(made[layer][at])) {
-      if (level === 0)
-        made[layer][at] = Math.fround(build.hizSource(0, x, y)[layer === HIZ_NEAREST ? 0 : 1])
+      if (level === 0) made[layer][at] = Math.fround(source(x, y)[layer === HIZ_NEAREST ? 0 : 1])
       else {
         const [w, h] = sizes[level - 1],
           square: number[][] = []

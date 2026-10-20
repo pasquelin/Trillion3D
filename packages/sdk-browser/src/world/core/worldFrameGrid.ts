@@ -17,7 +17,7 @@ import {
  * the same number bit for bit from frame to frame.
  *
  * The grid is trusted only where the display keeps it. `period` is the display's refresh the scale
- * control measured (`ScaleControl.refreshMs`, `refreshed`), never the budget's slower cadence: a
+ * control measured (`ScaleControl.refreshMs`, `refreshed`), never the frame cap's slower one: a
  * frame the GPU held two refreshes is two periods. A frame's time is put on the grid only while
  * that refresh is known, the last `SUPPORT` intervals were each a whole number of periods — one
  * interval landing there by chance, a variable-refresh display presenting whenever a frame is

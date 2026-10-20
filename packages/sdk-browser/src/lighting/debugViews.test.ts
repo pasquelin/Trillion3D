@@ -73,7 +73,9 @@ test('A normal or depth surface resolves to the as-is flag, passed through unlit
     capture(SHADE_SHADER, /vec4f\(0\.0,0\.0,0\.0,1\.0\),(select\(.*?\)),request\);\}/)[0],
     {},
   )
-  for (const model of Object.values(SURFACE_MODEL).filter((model) => model >= 3))
+  // A shadow catcher is always blended: the opaque shade never draws it.
+  const opaque = Object.values(SURFACE_MODEL).filter((model) => model !== SURFACE_MODEL.shadow)
+  for (const model of opaque.filter((model) => model >= 3))
     for (const flags of [0, 1 << 20])
       assert.equal(flagOf(model, { flags }) === AS_IS_FLAG, shownAsIs(model), `model ${model}`)
   assert.ok(shownAsIs(SURFACE_MODEL.normal) && shownAsIs(SURFACE_MODEL.depth))
@@ -98,30 +100,34 @@ test('A still image: a debug view reaches sRGB untouched, a lit surface keeps ex
 test('A jittered edge: the accumulated share follows the colour, no flip between curve and none', () => {
   // Each sample and its flag enter the filter with one weight; history is clamped and mixed with
   // the colour's weights too.
-  assert.match(
-    TAA_SHADER,
-    /let weight=view\.weights\[k>>2u\]\[k&3u\];k\+\+;\n {2}filtered\+=sample\*weight;/,
-  )
+  assert.match(TAA_SHADER, /let weight=taaWindow\([^;]*\);\n {2}sum\+=sample\*weight;/)
   assert.match(
     TAA_SHADER,
     new RegExp(`let asIs=f32\\(textureLoad\\(flags,at,0\\)\\.r==${AS_IS_FLAG}u\\);`),
   )
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/)
-  // The share's channel is followed by the flicker gradient, the still weight (none at native
-  // size) and the history count (`../taa/layers.ts`). In motion the weights' `tone` is the exposure.
-  const [weights, colorOf, shareOf] = capture(
+  // The share and the colour leave the history update by the same weights: the image's `wc`, the
+  // history's `wh`, one reciprocal (`../taa/layers.ts`); the validity beside it in green (rg8unorm).
+  assert.match(TAA_SHADER, /var color=blended\*\(wh\*blendScale\)\+filtered\*\(wc\*blendScale\);/)
+  assert.match(
     TAA_SHADER,
-    /(let wc=.*?;\n let wh=.*?;)\n return TaaOut\((.*?),vec4f\((\(share\*wc.*?\)),gradient[^,]*,0\.0,[^;]*\);/,
+    /return TaaOut\(color,vec4f\(\(share\*wc\+keptShare\*wh\)\*blendScale,validity,0\.0,0\.0\)\);/,
   )
-  const run = runLines<(...args: unknown[]) => [number, number]>(
-    weights,
-    'alpha:f32,filtered:f32,kept:f32,share:f32,keptShare:f32,lumaNow:f32,clamped:vec4f,tone:f32',
-    `vec2f(${colorOf},${shareOf})`,
-    {},
-  )
-  // In motion: the weights' `tone` is the exposure, here 1; the luma of a grey is its value.
-  const blend = (alpha: number, filtered: number, kept: number, share: number, keptShare: number) =>
-    run(alpha, filtered, kept, share, keptShare, filtered, [kept, 0, 0, 0], 1)
+  // Each weight is a share times the tone weight of its grey, `1 / (R + 2G + B + 4)` at an
+  // exposure of 1 (`toneWeight`).
+  const tone = (grey: number) => 1 / (4 * grey + 4)
+  const blend = (
+    alpha: number,
+    filtered: number,
+    kept: number,
+    share: number,
+    keptShare: number,
+  ) => {
+    const wc = alpha * tone(filtered),
+      wh = (1 - alpha) * tone(kept),
+      scale = 1 / (wc + wh)
+    return [(filtered * wc + kept * wh) * scale, (share * wc + keptShare * wh) * scale]
+  }
   // One pixel on the edge of a depth view (0.5) and a lit surface (3, HDR): the jitter lands its
   // sample on one then the other, in motion (an eighth of the current frame).
   let color = 0.5,
@@ -157,10 +163,10 @@ test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 shar
   // What the lit transparent's fragment writes to the share target, at its opacity.
   const [shareWgsl] = capture(
     BLEND_SHADER,
-    /return BlendOut\(vec4f\(rgb,s\.alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
+    /return BlendOut\(vec4f\(rgb,alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
   )
-  const shareOf = runLines<(s: object, r: object) => Rgba>('', 's:S,r:R', shareWgsl, {})
-  const src = shareOf({ alpha: 0.4 }, { keep: 1 })
+  const shareOf = runLines<(alpha: number, r: object) => Rgba>('', 'alpha:f32,r:R', shareWgsl, {})
+  const src = shareOf(0.4, { keep: 1 })
   // The pass's own share target blends it over the seed, in every mode.
   let left = 1
   for (const mode of BLEND_MODES) {

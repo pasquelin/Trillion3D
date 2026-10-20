@@ -8,7 +8,7 @@ import { createPageSource } from './readPage.ts'
 import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { createBootstrapFor, createResidencyFor, createRowSyncFor } from './serviceParts.ts'
-import { coverHeldRoots, takeLandedPages } from './prepare/worldRoot.ts'
+import { coverHeldRoots } from './prepare/worldRoot.ts'
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>
 
@@ -45,9 +45,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     pinned: (key) => !!rt.gpu.cache?.isPinned(tracking.pageCatalog[key]),
   })
   // The roots the world's held cells add to the cover, followed for the backend's life.
-  coverHeldRoots(rt, residencySets, room)
-  // The pages a world bundle read lands beside the one asked go to the pool's free slots.
-  takeLandedPages(rt)
+  coverHeldRoots(rt, residencySets)
   const parts = { residencySets, closure, hasBytes, lowerTier: aheadTier, room }
   const { ensureResident, residency } = createResidencyFor(rt, parts)
   const publication = createWebgpuCutPublication(rt, residencySets, closure, aheadTier)

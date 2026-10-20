@@ -18,6 +18,7 @@ import {
   localAt,
   PAGES,
   scene,
+  speaks,
   sunAt,
   worstOf,
   type SceneRows,
@@ -114,7 +115,10 @@ test('a light that moves keeps its worst case until a histogram of where it hold
       cache,
     ).light
   // Moving: each histogram binned where it no longer is; no sun, no bound.
-  for (let f = 0; f < 3; f++) assert.equal(ask(rows, [lamp(f * 0.5)], bound), undefined)
+  for (let f = 0; f < 3; f++) {
+    ask(rows, [lamp(f * 0.5)], bound)
+    assert.ok(!speaks(bound))
+  }
   // Held still: the next frame reads the histogram made where it holds.
   holds(rows, [lamp(1)], bound)
 })
@@ -143,7 +147,8 @@ test('lamps whose rows cannot beat the worst case are binned no more until they 
     landBins(bound, rows, range, lamps)
     return chunk
   }
-  assert.equal(frame(), undefined)
+  frame()
+  assert.ok(!speaks(bound))
   frame()
   assert.ok(bound.bins.hopeless, 'found unable to beat the worst case')
   // While they hold, no histogram is asked: nothing else to bin.

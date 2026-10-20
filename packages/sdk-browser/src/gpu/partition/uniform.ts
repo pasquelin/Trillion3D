@@ -1,8 +1,10 @@
 import { PARTITION_UNI } from './contract.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
+import type { CullStep } from '../core/heldCopy.ts'
 
-/** What a frame tells the partition, and nothing more: two matrices, an anchor, seven integers. */
+/** What a frame tells the partition, and nothing more: two matrices, an anchor, its integers and
+ *  the cut's mask. */
 export type PartitionFrame = {
   /** View and view-projection elements in double precision, in WORLD coordinates. */
   view: ArrayLike<number>
@@ -23,11 +25,14 @@ export type PartitionFrame = {
   /** False when no pipeline can draw the tested half: the frame stays a single pass, and no
    *  row leaves the occluders. */
   hasRest: boolean
-  /** True when the view differs from the previous image's: rows the test kept while it stood
-   *  still may be withdrawn from the occluders again. */
-  viewMoved: boolean
   /** True on the frame whose counters are sampled (`countsDue`): the kernels count only then. */
   counting: boolean
+  /** What the image does with its occlusion (`CullStep`): a frozen cut's image tests nothing once
+   *  it kept its verdicts (`../../webgpu/pages/render/cutFreeze.ts`). */
+  cull: CullStep
+  /** The cut's draw mask, the draw compaction's (`GpuDraw.encode`): only the rows it draws are
+   *  tested and counted (`classifyRows`). Without one, every row is drawn. */
+  selection?: { readonly maskBuffer: GPUBuffer; readonly maskOffset: number }
 }
 
 /**
@@ -55,8 +60,9 @@ export function packPartitionUniform(
   words[at.height] = frame.height
   words[at.layerTop] = frame.layerTop
   words[at.hasRest] = frame.hasRest ? 1 : 0
-  words[at.viewMoved] = frame.viewMoved ? 1 : 0
   words[at.counting] = frame.counting ? 1 : 0
+  words[at.selectionEnabled] = frame.selection ? 1 : 0
+  words[at.selectionOffset] = frame.selection?.maskOffset ?? 0
 }
 
 /** Uniform buffer reused from frame to frame: one writer, no allocation. */

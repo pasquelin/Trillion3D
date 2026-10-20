@@ -6,7 +6,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { prepareSdkWasm, type SdkWasm } from './sdkWasm.ts'
+import { requireSdkWasm, type SdkWasm } from './sdkWasm.ts'
 import { reserveArena, type ArenaRequest } from './wasmArena.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
@@ -14,11 +14,9 @@ const MODULE = readFileSync(join(import.meta.dirname, 'kernels.wasm'))
 
 async function freshWasm(): Promise<SdkWasm> {
   const module = (await import(`./sdkWasm.ts?fresh=${freshWasm.counter++}`)) as {
-    prepareSdkWasm: typeof prepareSdkWasm
+    requireSdkWasm: typeof requireSdkWasm
   }
-  const wasm = await module.prepareSdkWasm(MODULE)
-  if (!wasm) throw new Error('the real module must instantiate')
-  return wasm
+  return await module.requireSdkWasm(MODULE)
 }
 freshWasm.counter = 0
 

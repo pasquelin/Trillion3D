@@ -1,5 +1,6 @@
 import { createChangeGate, createControlBase, surfaceHeight, type ControlBase } from './base.ts'
-import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts'
+import { controlPose, writeVector, type ControlPose } from './pose.ts'
+import { loadXyz } from '../../../../sdk-core/src/world/math/likes.ts'
 import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
 import { dollyDistance, panOffset, WHEEL_STEP } from './math.ts'
 import { RADIUS_EPSILON } from '../../../../math/src/vector/spherical.ts'
@@ -49,13 +50,14 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   const sample = () => {
     pose.readPosition(position)
     pose.readOrientation(orientation)
-    readVector(center, api.target)
+    loadXyz(center, api.target)
     for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i]
   }
   const apply = () => {
     let radius = length3(offset[0], offset[1], offset[2])
-    // A pivot reached exactly is no direction at all: back off along what the camera faces.
-    if (radius <= RADIUS_EPSILON) {
+    // A pivot reached exactly is no direction at all: back off along what the camera faces. An
+    // eye at the least distance kept (`keptDistance`, never under `RADIUS_EPSILON`) stays there.
+    if (radius < RADIUS_EPSILON) {
       rotateByQuaternion(offset, orientation, 0, 0, 1)
       radius = 1
     }
@@ -142,7 +144,7 @@ export const PIVOT_DEFAULTS = {
 }
 
 /** The pivot contract at its defaults: unbounded distance, both gestures on, unit speeds. */
-export function pivotControlsApi(
+function pivotControlsApi(
   base: ControlBase,
   pose: ControlPose,
   update: () => boolean,

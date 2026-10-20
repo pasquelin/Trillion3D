@@ -5,7 +5,7 @@ import { pyramidHeldBytes } from '../gpu/hiz/pyramid.ts'
 import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { RECEIVER_TARGET_BYTES } from '../visibility/shader/receiverTargetWgsl.ts'
-import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { texelBytesOf, wantedTargetBytes } from '../gpu/core/textureBytes.ts'
 import { DEPTH_FORMAT, DISPLAY_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from './targetFormats.ts'
 import { SURFACE_OUTPUTS } from './surfaceOutputs.ts'
 
@@ -102,7 +102,7 @@ export function checkSurfaceSize(
 }
 /** What the frame takes of the emission-and-occlusion layer: its pixels, or its 1×1 stand-in. */
 export const emissiveAoBytes = (width: number, height: number, layer: boolean) =>
-  layer ? width * height * EMISSIVE_AO_BYTES : EMISSIVE_AO_BYTES
+  wantedTargetBytes(width, height, layer, EMISSIVE_AO_BYTES)
 
 /** Whether `texture`, an optional target of `surfaces`, is the size `wanted` asks: the frame's,
  *  or 1×1. Wanted, it holds every pixel. */

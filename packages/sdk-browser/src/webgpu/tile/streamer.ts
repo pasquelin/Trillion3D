@@ -1,4 +1,3 @@
-import type { TextureLevelReader } from '../../texture/levelReader.ts'
 import type { AtlasLanes, PoolEncoding } from '../../texture/blockFormats.ts'
 import { createWebgpuTileAtlas } from './atlas.ts'
 import type { TileTexture } from './tileTexture.ts'
@@ -10,7 +9,6 @@ import { createTileCounters } from './counters.ts'
 import { createTileRequests } from './requests.ts'
 import { createTileGrowth } from './growth.ts'
 import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHeaders.ts'
-import { createCardTiles, type CardOptions } from './cardTiles.ts'
 import { textureJournals } from '../../../../sdk-core/src/texture/writes.ts'
 import { surfaceJournals } from '../../page/surfaceWrites.ts'
 import { createTilePump } from './pump.ts'
@@ -47,14 +45,10 @@ export function createWebgpuTileStreamer(options: {
   /** The session's one main-thread clock (`WebgpuPagesRuntime.clock`): a pass is a stage of it,
    *  after the arrivals, and stops where the frame's share or its own ceiling is spent. */
   clock: FrameClock
-  readLevel?: TextureLevelReader
   onFailure: (phase: string, error: unknown) => void
   /** Colour textures a tile of which arrived or was evicted in this pump, or whose sampling moved
    *  — what a cutout-foliage shadow follows —, or `-1` when the pool was resized. */
   onColorChanged: (slots: ReadonlySet<number> | -1) => void
-  /** The impostor maps' slots, and who hears a waiting card brought something (`cardTiles.ts`). */
-  cards?: CardOptions['cards']
-  onCardsLanded?: CardOptions['onCardsLanded']
 }) {
   const { device, encoding } = options
   /** Colour textures a pump served or evicted a tile of, named once each. */
@@ -80,13 +74,12 @@ export function createWebgpuTileStreamer(options: {
   const counters = createTileCounters()
   const sources = createTileSources({
     device,
-    readLevel: options.readLevel,
     encoding,
     counters,
     onFailure: options.onFailure,
   })
+  for (const texture of [...options.color, ...options.data]) sources.hold(texture)
   const requests = createTileRequests({ feedback, color, data, counters })
-  const cards = createCardTiles({ device, encoding, sources, color, data, requests }, options)
   const atlases = [color, data]
   const published = createTilePublish(device, feedback, atlases)
   const flushAll = () => atlases.forEach((atlas) => atlas.flush(device))
@@ -100,7 +93,6 @@ export function createWebgpuTileStreamer(options: {
     feedback,
     counters,
     sources,
-    cards,
     /** Pins every queue: what the image shows before any tile is requested. */
     prepare() {
       for (const atlas of atlases)
@@ -114,7 +106,6 @@ export function createWebgpuTileStreamer(options: {
       colorChanged,
       sources,
       requests,
-      cards,
       counters,
       flushAll,
     }),
@@ -148,7 +139,6 @@ export function createWebgpuTileStreamer(options: {
     /** Held when feedback, level reads and the working textures asked have all landed. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
-      cards.dispose()
       textureJournals.close(journal)
       surfaceJournals.close(surfaces)
       sources.destroy()

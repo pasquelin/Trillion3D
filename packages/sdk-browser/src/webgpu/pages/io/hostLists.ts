@@ -1,13 +1,31 @@
 import { collectPendingUrls } from '../../../page/selection/requests.ts'
 import type { PageRec } from '../../../page/selection/types.ts'
 import { awaitedPages } from '../../row/pageSlots.ts'
-import { withClosure } from '../../../page/selection/bundleDependencies.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The cut the host keeps: the requested one, or past the page budget the part the pool accepted —
  *  the rest is drawn by its nearest resident ancestor and never fetched. */
 const retainedCut = (rt: WebgpuPagesRuntime): readonly PageRec[] =>
   rt.run.coverageBudgetLimited ? rt.services.residencySets.wantedPages : rt.run.desired
+
+/** Whether `held`, the key of a list derived from the cut, still names the cut `run` holds;
+ *  when not, it is keyed by that cut now. */
+function heldMatches(
+  run: WebgpuPagesRuntime['run'],
+  held: Pick<WebgpuPagesRuntime['run']['ranksHeld'], 'cut' | 'epoch' | 'limited'>,
+) {
+  if (
+    run.cutHeld &&
+    held.cut === run.cutEpoch &&
+    held.epoch === run.pageArrayEpoch &&
+    held.limited === run.coverageBudgetLimited
+  )
+    return true
+  held.cut = run.cutEpoch
+  held.epoch = run.pageArrayEpoch
+  held.limited = run.coverageBudgetLimited
+  return false
+}
 
 /**
  * Addresses the image still waits for. They are a function of the requested cut, the budget flag,
@@ -19,17 +37,7 @@ export function pendingUrls(rt: WebgpuPagesRuntime) {
   const { run } = rt,
     ready = rt.services.bootstrapState.ready,
     held = run.pendingHeld
-  if (
-    run.cutHeld &&
-    held.cut === run.cutEpoch &&
-    held.epoch === run.pageArrayEpoch &&
-    held.limited === run.coverageBudgetLimited &&
-    held.ready === ready
-  )
-    return run.hostPendingScratch
-  held.cut = run.cutEpoch
-  held.epoch = run.pageArrayEpoch
-  held.limited = run.coverageBudgetLimited
+  if (heldMatches(run, held) && held.ready === ready) return run.hostPendingScratch
   held.ready = ready
   // Until pinned coverage is there, that is what we wait for. Then the cut itself holds the list of
   // its rows without bytes that the pool accepted: those are the only ones to walk, and a fully
@@ -52,19 +60,10 @@ export function retainedRanks(rt: WebgpuPagesRuntime) {
   const { run } = rt,
     ranks = rt.setup.hostRanks,
     held = run.ranksHeld
-  if (
-    run.cutHeld &&
-    held.cut === run.cutEpoch &&
-    held.epoch === run.pageArrayEpoch &&
-    held.limited === run.coverageBudgetLimited
-  )
-    return ranks.hold()
-  held.cut = run.cutEpoch
-  held.epoch = run.pageArrayEpoch
-  held.limited = run.coverageBudgetLimited
+  if (heldMatches(run, held)) return ranks.hold()
   ranks.begin()
   ranks.mark(rt.setup.bootstrap)
   ranks.mark(run.shown)
-  withClosure(retainedCut(rt), ranks.mark)
+  ranks.markClosed(retainedCut(rt))
   return ranks.finish()
 }

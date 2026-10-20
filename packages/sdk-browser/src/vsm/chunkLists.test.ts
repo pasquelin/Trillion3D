@@ -14,6 +14,7 @@ test("the lists returned are the context's own buffers, the same record every fr
     candidates: 64,
     counts: 64,
     cmds: 64,
+    order: 64,
     pairs: 64,
     args: 64,
   }

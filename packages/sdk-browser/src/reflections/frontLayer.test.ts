@@ -68,7 +68,7 @@ test('one chain: only the trace walks the proxy and samples a lobe; a forward pr
   for (const name of ['rtRadiance', 'rtProxy', 'reflectionProxied', 'reflectionSampleDirection'])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
   assert.match(wgslModule(reflectionStagesWgsl(1)), /\breflectionProxied\b/)
-  // The front surface is traced, reused and accumulated as the opaque one by the same kernels on its own
+  // The front surface is traced, resolved and accumulated as the opaque one by the same kernels on its own
   // layer (the pipeline's, `createTraceStages`) — a pixel a thread of a listed tile, the scene stage a
   // thread a ray the screen left —, and its last pass writes its radiance where the forward fragments
   // read it.
@@ -76,9 +76,9 @@ test('one chain: only the trace walks the proxy and samples a lobe; a forward pr
     'override REFLECTION_LAYER:u32;',
     'left=traceScreenTexel(id,REFLECTION_LAYER);',
     'let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));',
-    'textureStore(spatialOut,id,spatialTexel(vec2i(id),REFLECTION_LAYER));',
-    'textureStore(historyOut,id,temporalTexel(vec2i(id),REFLECTION_LAYER));',
-    'let r=bilateralTexel(coord,reflectingPixelAt(1u,coord,flags));',
+    'textureStore(resolvedOut,id,resolvePixel(vec2i(id),REFLECTION_LAYER));',
+    'textureStore(historyOut,id,temporalPixel(vec2i(id),local.xy,REFLECTION_LAYER));',
+    'let own=reflectingPixelAt(1u,coord,flags);',
   ])
     assert.ok(REFLECTION_TRACE_SHADER.includes(kernel), kernel)
   assert.ok(REFLECTION_TRACE_SHADER.includes('textureStore(frontOut,coord,'))

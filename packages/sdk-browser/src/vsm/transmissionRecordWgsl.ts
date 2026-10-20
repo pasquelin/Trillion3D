@@ -5,6 +5,8 @@ import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { bitIsSet } from '../../../math/src/wgsl/integer.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
+import { maskUvWgsl } from '../visibility/shader/pageUv1Wgsl.ts'
+import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import { PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK } from '../visibility/types.ts'
 import { colorSampleWgsl, maskAlphaWgsl, SHADOW_TILE_POOL_WGSL } from '../webgpu/tile/wgsl.ts'
@@ -34,6 +36,7 @@ export const vsmTransmissionRecordWgsl = (layout: VsmLayout) => {
       frameWgsl(layout),
       VSM_TRANSMISSION_COVER_WGSL,
       PAGE_GEOMETRY_WGSL,
+      maskUvWgsl(VIS_BINDINGS.normals),
       blendTransmittanceWgsl(maskAlpha, colorSampleWgsl(SHADOW_TILE_POOL_WGSL)),
       FLOAT32_MAX,
       edgeFunction,
@@ -147,7 +150,9 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
   shifted[i]=vsmRenderShifted(raw,world[i]);
   // A sun level's corner in front of its near plane is flattened onto it, as the opaque raster
   // flattens it; an orthographic corner's depth is read no further.
-  corners[i]=VsmTCorner(vsmRenderClip(raw,shifted[i],flatten),select(vec2f(0.0),pageUv(page,h,tri[i]),mapped));
+  var uv=vec2f(0.0);
+  if(mapped){uv=pageMaskUv(page,h,tri[i]);}
+  corners[i]=VsmTCorner(vsmRenderClip(raw,shifted[i],flatten),uv);
  }
  // Both faces; the volume rule needs the side facing the light.
  let axis=vec3f(M[0].z,M[1].z,M[2].z);

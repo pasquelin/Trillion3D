@@ -17,11 +17,17 @@ test('marks need no size: each index once, taken increasing, the list then empty
 })
 
 test('runs join neighbours within the gap, every mark cleared after', () => {
-  const changed = createChangedRuns(2)
+  // Records of 64 words: the write rule spans one unchanged record (256 bytes), a gap of 2.
+  const changed = createChangedRuns(64)
   for (const index of [9, 1, 2, 4, 20, 21]) changed.mark(index)
   const { count, pairs } = changed.runs()
   assert.deepEqual([...pairs.subarray(0, count * 2)], [1, 4, 9, 9, 20, 21])
   changed.clear()
+  // No stride: a walk of the indices themselves, every run of neighbours apart.
+  const walk = createChangedRuns()
+  for (const index of [9, 1, 2, 4, 20, 21]) walk.mark(index)
+  const apart = walk.runs()
+  assert.deepEqual([...apart.pairs.subarray(0, apart.count * 2)], [1, 2, 4, 4, 9, 9, 20, 21])
   changed.mark(4)
   assert.deepEqual([...changed.take()], [4])
 })

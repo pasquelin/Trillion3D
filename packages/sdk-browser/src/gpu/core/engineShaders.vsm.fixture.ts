@@ -10,6 +10,7 @@ import { vsmPageManagementKernels } from '../../vsm/pageManagementWgsl.ts'
 import { vsmPhysicalPageKernels } from '../../vsm/physicalPagesWgsl.ts'
 import { vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
 import { vsmRenderCullWgsl } from '../../vsm/renderCullWgsl.ts'
+import { vsmRenderViewsWgsl } from '../../vsm/renderViewsWgsl.ts'
 import { VSM_RENDER_ARGS_WGSL } from '../../vsm/renderParamsWgsl.ts'
 import { vsmRenderCandidatesWgsl } from '../../vsm/renderCandidatesWgsl.ts'
 import { vsmRenderExpandWgsl } from '../../vsm/renderExpandWgsl.ts'
@@ -43,6 +44,7 @@ export function vsmVariants() {
     VSM_INVALIDATION: castInvalidationWgsl(layout),
     CAST_ARGS_WGSL,
     VSM_RENDER_CANDIDATES: vsmRenderCandidatesWgsl(),
+    VSM_RENDER_VIEWS: vsmRenderViewsWgsl(layout),
     VSM_RENDER_CULL: vsmRenderCullWgsl(layout),
     VSM_RENDER_EXPAND: vsmRenderExpandWgsl(layout),
     VSM_RENDER_ARGS_WGSL,

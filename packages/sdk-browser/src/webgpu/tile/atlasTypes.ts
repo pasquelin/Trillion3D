@@ -43,10 +43,8 @@ export type WebgpuTileAtlas = {
   resides(key: TileKey): boolean
   /** Whether `slot`'s tail holds its place. */
   tailPinned(slot: number): boolean
-  /** Whether the tile of id `id` resides; one that does is pinned or unpinned
-   *  (`WebgpuTilePool.pin`): an asker that needs it and may read none of it — a card's maps — keeps
-   *  it from the queue while it holds it. */
-  pin(id: number, pinned: boolean): boolean
+  /** Whether the tile of id `id` resides where its lane's queue lists it: a victim it may give. */
+  queued(id: number): boolean
   /** A place for an arriving tile: free, or the next victim of its lane's queue
    *  (`../../gpu/pool/slotOrder.ts`);
    *  `undefined` when the queue has none — every place read of late — refusal counted. */

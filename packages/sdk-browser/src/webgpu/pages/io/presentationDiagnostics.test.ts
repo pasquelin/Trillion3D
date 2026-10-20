@@ -13,6 +13,8 @@ import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 test('the GPU readback diagnostic distinguishes the requested clear color from the rendered pixels', () => {
   const pixels = new Uint8Array([42, 48, 60, 255, 1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255])
@@ -76,6 +78,7 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
   )
   const { device } = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,

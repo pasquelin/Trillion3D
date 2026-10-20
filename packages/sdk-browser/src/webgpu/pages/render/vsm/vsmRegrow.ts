@@ -2,14 +2,10 @@
 // budget's room holds a larger pool than pressure left it (`vsmGrant.ts`).
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
-import {
-  VSM_POOL_PAGES,
-  VSM_PRESSURE_CALM_FRAMES,
-  VSM_PROJECTION_RECORD_BYTES,
-} from '../../../../vsm/constants.ts'
+import { VSM_PRESSURE_CALM_FRAMES, VSM_PROJECTION_RECORD_BYTES } from '../../../../vsm/constants.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { destroyEngineVsm, engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
-import { directionalCount, engineVsmOptions, sunsOf } from './vsmLightMaps.ts'
+import { directionalCount, engineVsmOptions, sunsOf, vsmPoolAsked } from './vsmLightMaps.ts'
 import { engineVsmBytes } from './vsmStats.ts'
 import { growVsmTables } from '../../../../vsm/resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
@@ -50,14 +46,16 @@ export function growEngineVsm(
 }
 
 /**
- * A pool drawn short of the full one grows back once the budget's room holds a larger one, at
- * most every `VSM_PRESSURE_CALM_FRAMES` frames — the wait before it raises a
- * resolution the budget lowered —, and only by the pages the room holds beside what the frame
- * keeps (`bytesBeside`, the held atlas and lists as large as they are): no frame flips between
- * two pools, as a live set never shrinks. The new set is made while the held one lives when both
- * fit, and replaces it; otherwise the held one is freed first (`grantEngineVsm`), and if the device
- * refuses the larger set, the held size is made again. The cache restarts — every page drawn
- * again —, in the same frame: no frame goes without shadows.
+ * A pool drawn short of the one asked (`vsmPoolAsked`) grows once the budget's room holds a larger
+ * one: the pool the budget drew short, or one the view outgrew — a larger view, or a fill past the
+ * pressure's load (`VsmCacheManager.demandPages`), which asks the pool that holds it rather than a
+ * resolution bias that would stay. At most every `VSM_PRESSURE_CALM_FRAMES` frames — the wait
+ * before it raises a resolution the budget lowered —, and only by the pages the room holds beside
+ * what the frame keeps (`bytesBeside`, the held atlas and lists as large as they are): no frame
+ * flips between two pools, as a live set never shrinks. The new set is made while the held one
+ * lives when both fit, and replaces it; otherwise the held one is freed first (`grantEngineVsm`),
+ * and if the device refuses the larger set, the held size is made again. The cache restarts — every
+ * page drawn again —, in the same frame: no frame goes without shadows.
  */
 export function regrowEngineVsm(
   rt: WebgpuPagesRuntime,
@@ -65,31 +63,33 @@ export function regrowEngineVsm(
   list: readonly VsmFrameLight[],
   vsm: EngineVsm,
 ): EngineVsm | undefined {
-  const { layout } = vsm.res
+  const { layout } = vsm.res,
+    { lights } = rt
   const pages = layout.poolPages
-  if (pages >= VSM_POOL_PAGES || rt.run.frame < vsm.regrowFrame) return vsm
+  lights.vsmPoolDemand = Math.max(lights.vsmPoolDemand, vsm.state.cache.demandPages)
+  const asked = vsmPoolAsked(rt)
+  if (pages >= asked || rt.run.frame < vsm.regrowFrame) return vsm
   vsm.regrowFrame = rt.run.frame + VSM_PRESSURE_CALM_FRAMES
   const { fullMapCapacity } = layout
-  const options = engineVsmOptions(fullMapCapacity, directionalCount(list))
+  const options = engineVsmOptions(fullMapCapacity, directionalCount(list), asked)
   const room = ledgerRoom(device)
   const beside = bytesBeside(rt, device, list, layout, heldBeside(vsm))
   const pool = vsmPoolWithin(room + engineVsmBytes(vsm) - beside, options)
   const grown = pool?.layout.poolPages ?? 0
   if (grown <= pages) return vsm
-  const { lights } = rt
   if (pool!.allocatedBytes + engineVsmSideBytes(device.limits) <= room)
     try {
-      const made = madeSet(rt, device, list, { ...options, poolPages: grown })
+      const made = madeSet(rt, device, list, { ...options, poolPages: grown }, asked)
       made.regrowFrame = vsm.regrowFrame
       destroyEngineVsm(vsm)
-      sayPoolGrown(rt, grown, pages)
+      sayPoolGrown(rt, grown, pages, asked)
       return (lights.vsm = made)
     } catch {
       return vsm
     }
   // Freed first: the larger set, else the held size again, neither held back by a refusal.
   lights.vsmRefusal = undefined
-  let made = grantEngineVsm(rt, device, list, fullMapCapacity, VSM_POOL_PAGES, pages)
+  let made = grantEngineVsm(rt, device, list, fullMapCapacity, asked, pages)
   if (!made) {
     lights.vsmRefusal = undefined
     made = grantEngineVsm(rt, device, list, fullMapCapacity, pages, pages)

@@ -17,7 +17,7 @@ test('the receiver texel is loaded with the surface reads and decoded for a lit 
         'p.info=vsmSurfaceOf(coord,p.inRect,textureLoad(vsmNormalRough,coord,0).xyz);',
       ),
       unlit = code.indexOf('if(!p.info.valid){return p;}'),
-      decode = code.indexOf('let receiver=shadowReceiverOf(receiverTexel);')
+      decode = code.indexOf('vsmOnReceiver(&p,receiverTexel);')
     assert.ok(
       load > 0 && load < shading && shading < unlit && unlit < decode,
       'load, surface, the unlit pixel out, then its decode',

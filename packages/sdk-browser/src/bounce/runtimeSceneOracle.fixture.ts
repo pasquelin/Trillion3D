@@ -4,7 +4,6 @@
 import { PROXY_NODE_FLOATS } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import type { PackedDag } from '../gpu/dag/types.ts'
 import { walkTree } from './runtimeTreeOracle.fixture.ts'
-import { RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
 import { dotVector3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { cross, subtract, type Vec3 } from '../../../math/src/vector/vectorTuple.ts'
 import {
@@ -26,19 +25,10 @@ export type OracleScene = {
   packed: PackedDag
   columns: ArenaColumns
   instances: ReadonlyMap<number, Instance>
-  /** The first blended copy's rank and the copies' worlds, sixteen floats each, after the placements. */
-  copyBase?: number
-  copyWorlds?: Float32Array
 }
 
-/** Member `w`'s world: the culling's, or a copy's. */
-const worldOf = (scene: OracleScene, w: number) =>
-  scene.copyBase !== undefined && w >= scene.copyBase
-    ? scene.copyWorlds!.subarray(
-        (w - scene.copyBase) * RUNTIME_WORLD_WORDS,
-        (w - scene.copyBase + 1) * RUNTIME_WORLD_WORDS,
-      )
-    : scene.packed.worlds.subarray(w * 16, w * 16 + 16)
+/** Member `w`'s world: the culling's. */
+const worldOf = (scene: OracleScene, w: number) => scene.packed.worlds.subarray(w * 16, w * 16 + 16)
 
 /** Member `w`'s world as its three linear columns and its translation. */
 function columnsOf(scene: OracleScene, w: number): [Vec3, Vec3, Vec3, Vec3] {
@@ -103,9 +93,9 @@ export function traceScene(scene: OracleScene, o: Vec3, d: Vec3, limit: number, 
       s.work += 1
       best = enter(scene, w, o, d, best, s)
     }
-    return copiesOf(scene, o, d, best, s)
+    return best
   }
-  best = walkTree(
+  return walkTree(
     tree,
     o,
     d,
@@ -114,19 +104,6 @@ export function traceScene(scene: OracleScene, o: Vec3, d: Vec3, limit: number, 
     (w, hit) => enter(scene, w, o, d, hit, s),
     (w, limit) => entryOf(scene, w, o, d, limit),
   )
-  return copiesOf(scene, o, d, best, s)
-}
-
-/** The blended copies, members after the placements: each tried in turn, a unit apiece. */
-function copiesOf(scene: OracleScene, o: Vec3, d: Vec3, hit: Hit, s: Spent) {
-  let best = hit
-  const count = scene.copyWorlds ? scene.copyWorlds.length / RUNTIME_WORLD_WORDS : 0
-  for (let k = 0; k < count; k++) {
-    if (spent(s)) break
-    s.work += 1
-    best = enter(scene, scene.copyBase! + k, o, d, best, s)
-  }
-  return best
 }
 
 /** Every triangle of every placement tested in turn, through the placement's world. */

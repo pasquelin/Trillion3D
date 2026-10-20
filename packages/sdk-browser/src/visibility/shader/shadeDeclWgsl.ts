@@ -102,6 +102,8 @@ struct SurfaceOut{${fragmentMembers([...SURFACE_OUTPUTS, REQUEST_OUTPUT])}}
 fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,0u);}
 /** A diagnostic keeps the request: its textures converge like those of the image. */
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
+/** A diagnostic pixel that draws nothing — the view's background shows —, its request kept. */
+fn diagnosticEmpty(request:u32)->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,request);}
 /** Full-screen triangle: the fragment stage keeps the class's pixels only (\`classAdmits\`). */
 fn classTriangle(i:u32)->vec4f{
  let x=${FULLSCREEN_X};let y=${FULLSCREEN_Y};return vec4f(x,y,0.0,1.0);

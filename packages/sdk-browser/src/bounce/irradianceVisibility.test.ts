@@ -1,12 +1,15 @@
 // A bounce point's direct term once traced a shadow ray for the first four shadow-casting
 // lights only; from the fifth on, a light behind a wall lit the cell through it, and the bounce
 // carried that light into the room. The engine's one light loop, in its irradiance term
-// (`lightsIrradiance`, `../lighting/direct/lightLoopWgsl.ts`), runs here against a flat wall.
+// (`lightsIrradiance`, `../lighting/direct/lightLoopWgsl.ts`) and its reach test (`lightReaches`),
+// runs here against a flat wall.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import type { Vec } from '../texture/shaderRunBuiltins.fixture.ts'
 import { LIGHTS_IRRADIANCE_WGSL } from '../lighting/direct/lightLoopWgsl.ts'
+import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { TILE_NO_SLICE } from '../lighting/tiles/noSlice.ts'
 
 type Light = { height: number; energy: number; casts?: boolean; range?: number }
@@ -21,25 +24,28 @@ function lightLoop(rect: boolean) {
   const directLights = { count: 0, items: [] as Items }
   const { lightsIrradiance } = shaderRun<{
     lightsIrradiance: (P: Vec, N: Vec, reach: number) => Vec
-  }>(LIGHTS_IRRADIANCE_WGSL, ['lightsIrradiance', 'declaredIrradiance'], {
-    directLights,
-    isRect: () => rect,
-    lightReaches: () => true,
-    isSun: () => false,
-    isSunKind: () => false,
-    // No world lists: every light, the loop's fallback (`bounceLightSlice`).
-    TILE_NO_SLICE,
-    bounceLightSlice: () => [0xffffffff, directLights.count],
-    listedLight: (_slice: number[], index: number) => index,
-    tileLights: [],
-    rectIrradiance: () => [0, 0, 0, 1],
-    directIncidence: () => [0, 1, 0, 1],
-    rtBlocked: (origin: Vec, direction: Vec, span: number) => {
-      scene.rays++
-      const hit = (scene.wall - Number(origin[1])) / Number(direction[1])
-      return hit > 0 && hit < span
+  }>(
+    wgslModule(DIRECT_LIGHT_WGSL, LIGHTS_IRRADIANCE_WGSL),
+    ['lightsIrradiance', 'declaredIrradiance'],
+    {
+      directLights,
+      isRect: () => rect,
+      isSun: () => false,
+      isSunKind: () => false,
+      // No world lists: every light, the loop's fallback (`bounceLightSlice`).
+      TILE_NO_SLICE,
+      bounceLightSlice: () => [0xffffffff, directLights.count],
+      listedLight: (_slice: number[], index: number) => index,
+      tileLights: [],
+      rectIrradiance: () => [0, 0, 0, 1],
+      directIncidence: () => [0, 1, 0, 1],
+      rtBlocked: (origin: Vec, direction: Vec, span: number) => {
+        scene.rays++
+        const hit = (scene.wall - Number(origin[1])) / Number(direction[1])
+        return hit > 0 && hit < span
+      },
     },
-  })
+  )
   const irradiance = (lights: Light[], wall: number) => {
     directLights.items = lights.map(({ height, energy, casts = true, range = 100 }) => ({
       params: [0, 0, casts ? 1 : 0, 0],

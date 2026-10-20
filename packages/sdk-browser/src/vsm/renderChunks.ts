@@ -6,10 +6,12 @@
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
 import {
+  VSM_RENDER_ARGS_BIN,
   VSM_RENDER_ARGS_DRAW,
-  VSM_RENDER_ARGS_EXPAND,
   VSM_RENDER_ARGS_STRIDE_WORDS,
+  VSM_RENDER_ARGS_TIER_EXPAND,
 } from './renderParamsWgsl.ts'
+import type { PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { VSM_RENDER_EXPAND_SPECS } from './renderExpandWgsl.ts'
 import { VSM_RENDER_VIEWS_SPECS } from './renderViewsWgsl.ts'
 import {
@@ -18,6 +20,7 @@ import {
 } from './renderRasterWgsl.ts'
 import { vsmBindGroupEntries, vsmPerFrameSet, type VsmResources } from './resources.ts'
 import type { VsmChunkKernels } from './chunkKernels.ts'
+import { vsmBufferGroup } from './passKit.ts'
 import {
   encodeVsmCandidates,
   encodeVsmChunkCommands,
@@ -27,36 +30,39 @@ import {
 } from './chunkGroups.ts'
 import type { VsmRenderContext, VsmRenderScene } from './renderPass.ts'
 
-/** Chunk `c`'s commands (`encodeVsmChunkCommands`), then its expand (marking jobs and the raster's
- *  pages) and the draw's arguments, in `pass`. */
+/** Chunk `c`'s commands (`encodeVsmChunkCommands`), their bin by corner tier, then the expand of
+ *  each tier over its commands, lowest first (marking jobs and the raster's pages), and the draws'
+ *  arguments, in `pass`. */
 function encodeVsmChunkCull(
   pass: GPUComputePassEncoder,
-  kernels: VsmChunkKernels,
-  groups: VsmChunkGroups,
+  kernels: VsmChunkKernels & Pick<VsmRenderContext, 'bin' | 'expands'>,
+  groups: RasterChunkGroups,
   args: GPUBuffer,
   c: number,
   offset: readonly number[],
 ) {
   encodeVsmChunkCommands(pass, kernels, groups, args, c, offset)
-  pass.setPipeline(kernels.expand.pipeline)
+  const at = (word: number) => (c * VSM_RENDER_ARGS_STRIDE_WORDS + word) * 4
+  pass.setPipeline(kernels.bin.pipeline)
   pass.setBindGroup(0, groups.expand0)
   pass.setBindGroup(1, groups.expand1, offset)
-  pass.dispatchWorkgroupsIndirect(
-    args,
-    c * VSM_RENDER_ARGS_STRIDE_WORDS * 4 + VSM_RENDER_ARGS_EXPAND * 4,
-  )
+  pass.dispatchWorkgroupsIndirect(args, at(VSM_RENDER_ARGS_BIN))
+  for (let t = 0; t < kernels.expands.length; t++) {
+    pass.setPipeline(kernels.expands[t].pipeline)
+    pass.dispatchWorkgroupsIndirect(args, at(VSM_RENDER_ARGS_TIER_EXPAND + 3 * t))
+  }
   pass.setPipeline(kernels.args.draw.pipeline)
   pass.setBindGroup(0, groups.args, offset)
   pass.dispatchWorkgroups(1)
 }
 
-/** Chunk `c`'s raster: one drawIndirect of its pairs into the page-sized dummy `target`. Encoded
- *  directly: each chunk is its own pass between its compute passes, and a bundle of its four
- *  commands would cost a key and `executeBundles` for the same four backend commands. */
+/** Chunk `c`'s raster: one drawIndirect a corner tier of its pairs into the page-sized dummy
+ *  `target`. Encoded directly: each chunk is its own pass between its compute passes, and a bundle
+ *  of its commands would cost a key and `executeBundles` for the same backend commands. */
 function encodeVsmChunkRaster(
   encoder: GPUCommandEncoder,
   label: string,
-  pipeline: GPURenderPipeline,
+  tiers: readonly PreparedPipeline<GPURenderPipeline>[],
   target: GPUTextureView,
   pageGroup: GPUBindGroup,
   raster1: GPUBindGroup,
@@ -73,10 +79,12 @@ function encodeVsmChunkRaster(
       depthStoreOp: 'discard',
     },
   })
-  raster.setPipeline(pipeline)
   raster.setBindGroup(0, pageGroup)
   raster.setBindGroup(1, raster1)
-  raster.drawIndirect(args, c * VSM_RENDER_ARGS_STRIDE_WORDS * 4 + VSM_RENDER_ARGS_DRAW * 4)
+  for (let t = 0; t < tiers.length; t++) {
+    raster.setPipeline(tiers[t].get())
+    raster.drawIndirect(args, (c * VSM_RENDER_ARGS_STRIDE_WORDS + VSM_RENDER_ARGS_DRAW + 4 * t) * 4)
+  }
   raster.end()
 }
 
@@ -89,7 +97,7 @@ function encodeVsmChunkRaster(
 export function vsmEncodeChunks(
   encoder: GPUCommandEncoder,
   ctx: VsmRenderContext,
-  groups: { cand: GPUBindGroup; chunk: VsmChunkGroups; raster1: GPUBindGroup },
+  groups: RasterTables,
   pageGroup: GPUBindGroup,
   args: GPUBuffer,
   rowCount: number,
@@ -116,7 +124,7 @@ export function vsmEncodeChunks(
     encodeVsmChunkRaster(
       encoder,
       each.raster,
-      ctx.raster.pipeline,
+      ctx.raster.tiers,
       ctx.target,
       pageGroup,
       groups.raster1,
@@ -126,11 +134,18 @@ export function vsmEncodeChunks(
   }
 }
 
+/** The chunk groups and the expand's: `expand0` the VSM tables', `expand1` the lists' at the
+ *  chunk's dynamic offset. */
+export interface RasterChunkGroups extends VsmChunkGroups {
+  expand0: GPUBindGroup
+  expand1: GPUBindGroup
+}
+
 /** The raster's groups of a frame set (`renderGroups`): the candidates', the chunk groups and the
  *  raster's. */
 export interface RasterTables {
   cand: GPUBindGroup
-  chunk: VsmChunkGroups
+  chunk: RasterChunkGroups
   raster1: GPUBindGroup
 }
 
@@ -152,7 +167,7 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
       }),
       cull1: groups.cull1,
       expand0: device.createBindGroup({
-        layout: ctx.expand.groups[0],
+        layout: ctx.expands[0].groups[0],
         entries: vsmBindGroupEntries(res, VSM_RENDER_EXPAND_SPECS),
       }),
       expand1: groups.expand1,
@@ -176,6 +191,18 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
 export function renderGroups(ctx: VsmRenderContext, res: VsmResources, scene: VsmRenderScene) {
   const lists = ctx.buffers as Required<VsmRenderContext['buffers']>
   if (vsmSceneRowsMoved(ctx.bound, scene, lists)) ctx.groups = undefined
-  ctx.groups ??= vsmChunkListGroups(ctx.device, ctx, ctx.candidates.groups[0], scene, lists)
+  if (!ctx.groups) {
+    const chunk = vsmChunkListGroups(ctx.device, ctx, ctx.candidates.groups[0], scene, lists)
+    ctx.groups = {
+      ...chunk,
+      expand1: vsmBufferGroup(ctx.device, ctx.expands[0].groups[1], [
+        chunk.params,
+        lists.cmds,
+        lists.counts,
+        lists.pairs,
+        lists.order,
+      ]),
+    }
+  }
   return vsmPerFrameSet(ctx.tables, res, rasterTables, ctx, ctx.groups)
 }

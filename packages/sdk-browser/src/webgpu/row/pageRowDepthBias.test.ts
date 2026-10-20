@@ -8,6 +8,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 // Behaviour 22: writePageRow writes the bias in positive units at the table row's depthBias
 // slot; a layer-0 row keeps that field at zero.
@@ -19,6 +21,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
   ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 5
   const { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,

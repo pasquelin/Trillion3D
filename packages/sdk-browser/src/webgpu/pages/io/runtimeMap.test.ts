@@ -10,6 +10,8 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { camera, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
 import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 /** Record the source and flags of the real scratch upload, without pretending to rasterize pixels. */
 function open(map?: ImageBitmap) {
@@ -28,6 +30,7 @@ function open(map?: ImageBitmap) {
     fixture.material.map = texture
   }
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: gpu.device,
     viewport: [32, 32],

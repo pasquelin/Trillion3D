@@ -1,9 +1,11 @@
+import { releaseAll } from '../../../../sdk-core/src/runtime/releasable.ts'
+
 /** `GPUMapMode.READ`, or its value where a test device leaves the enum empty. */
 const mapRead = () => (globalThis as { GPUMapMode?: { READ: number } }).GPUMapMode?.READ ?? 1
 
 /** Maps `buffer`, or its range `offset` and `size`, for reading: held when the GPU has run the
  *  copies into it. The one mapping of a staging buffer that a caller awaits. */
-export const mapStaging = (buffer: GPUBuffer, offset?: number, size?: number) =>
+const mapStaging = (buffer: GPUBuffer, offset?: number, size?: number) =>
   Promise.resolve(buffer.mapAsync(mapRead(), offset, size))
 
 /** A staging buffer of `bytes` bytes under `label`: a copy lands in it, and it maps for reading. */
@@ -90,12 +92,10 @@ export function createReadbackRing<T = number>(
   const { chain } = options
   let destroyed = false,
     flying = 0
-  let waiting: Array<() => void> = []
+  const waiting: Array<() => void> = []
   const landed = () => {
     if (--flying > 0) return
-    const done = waiting
-    waiting = []
-    for (const resolve of done) resolve()
+    releaseAll(waiting)
   }
   const make = (bytes: number) => {
     let buffer: GPUBuffer

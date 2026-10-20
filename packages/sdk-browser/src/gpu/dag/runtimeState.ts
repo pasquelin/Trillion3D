@@ -14,7 +14,13 @@ export type DagRuntimeState = {
   disposed: boolean
   dead: boolean
   worldRevision: number
+  /** Advanced by every residency the cut is told (`voidCuts`): a cut made under an older one is
+   *  not the cut made now. */
   residencyRevision: number
+  /** Advanced only when a page a cut may name left, or the roots changed (`voidCuts`): a readback
+   *  copied under an older one may name what the kernel can no longer draw, and is never adopted.
+   *  Pages that only arrived leave a readback adoptable: everything it draws is still resident. */
+  withdrawnRevision: number
   /** Serial of the main cut whose lists `out` holds and no readback copied yet; -1 none
    *  (`dispatch.ts`, `copyOwed`). */
   owed: number
@@ -50,6 +56,7 @@ export const createDagRuntimeState = (): DagRuntimeState => ({
   dead: false,
   worldRevision: 0,
   residencyRevision: 0,
+  withdrawnRevision: 0,
   owed: -1,
   grow: 0,
   growing: false,

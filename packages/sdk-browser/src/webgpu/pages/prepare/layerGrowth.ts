@@ -16,10 +16,11 @@
  */
 import { createGpuDraw } from '../../../gpu/draw/factory.ts'
 import { deviceMade } from '../../../gpu/core/errorScope.ts'
-import { pendingBuffers } from '../../../gpu/core/tableGrowth.ts'
-import { visUniformLayout } from '../../core/bindLayout.ts'
+import { visUniformBuffer } from '../../core/bindLayout.ts'
 import { visUniformSlots } from '../../visibility/uniforms.ts'
-import { invalidateOccluderHistory } from '../io/drops.ts'
+import { pendingBuffers } from '../../../gpu/core/tableGrowth.ts'
+import { stopped } from '../io/lost.ts'
+import { dropRaster } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { partitionSourcesOf } from './drawSources.ts'
 import { queueTableGrowth } from './growthQueue.ts'
@@ -39,7 +40,7 @@ export async function grantDepthLayers(
 }
 
 async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
-  const { vis, layout, setup, run, signal } = rt
+  const { vis, layout, setup, run } = rt
   // Granted meanwhile, by another source's growth ahead of this one in the queue.
   if (slots <= vis.drawLayerSlots) return true
   const { gpuHiz: hiz, gpuPartition: partition, gpuDraw: held } = vis
@@ -57,11 +58,7 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
     ),
   ])
   const uniform = await deviceMade(device, () => {
-    const next = device.createBuffer({
-      label: 'Trillion3D visibility uniforms',
-      size: visUniformLayout(device.limits, visUniformSlots({ drawLayerSlots: slots })).bytes,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    })
+    const next = visUniformBuffer(device, visUniformSlots({ drawLayerSlots: slots }))
     return pendingBuffers(device, [next], () => {
       const old = vis.visUniform
       vis.visUniform = next
@@ -69,7 +66,7 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
     })
   })
   // The draw path moved while these were made (a lost device, a disposal): nothing is changed.
-  const stale = vis.gpuDraw !== held || run.lost || signal.aborted
+  const stale = vis.gpuDraw !== held || stopped(rt)
   if (!draw || !pipelines || !uniform || stale) {
     draw?.dispose()
     uniform?.destroy()
@@ -81,11 +78,7 @@ async function grant(rt: WebgpuPagesRuntime, device: GPUDevice, slots: number) {
   uniform.commit()
   partition.rebind(() => partitionSourcesOf(draw, hiz))
   held.dispose()
-  // The compute raster reads the compaction: made again at the next image; no occluder history
-  // describes the new one.
-  vis.gpuRaster?.dispose()
-  vis.gpuRaster = undefined
-  invalidateOccluderHistory(run)
+  dropRaster(rt)
   // Origin of the resource change: the slots, the compaction and the uniforms were replaced.
   run.gate.resourcesChanged()
   rt.diag.engineDiagnostic('coplanar-layers-grown', 'Coplanar layers granted in place', {

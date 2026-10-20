@@ -11,6 +11,8 @@ import type { Engine } from '../../../engine/types.ts'
 import { DEFAULT_SCOPE } from '../../../../../sdk-core/src/contracts/base.ts'
 import type { ClusterManifest } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
   installGpuGlobals()
@@ -20,7 +22,7 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
   // `occluderScene` builds `metadata` with only `errorModel`/`clusterStrategy`/`primitives`: the
   // rest of `ClusterManifest` is never read past `primitives`, so it is filled with placeholders.
   const metadata: ClusterManifest = {
-    schema: 0,
+    formatVersion: 0,
     status: 'ready',
     key: 'test-occluder',
     scope: DEFAULT_SCOPE,
@@ -57,6 +59,7 @@ test("a visibility pass the device fails is the image's failure, said once: no o
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const events: Array<{ phase: string; context: Record<string, unknown> }> = []
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,

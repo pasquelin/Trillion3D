@@ -2,7 +2,7 @@ import type { PageRec } from '../../page/selection/types.ts'
 import type { IdDelta } from './delta.ts'
 import { createDenseKeySet } from './denseKeys.ts'
 import { createSparseInts } from '../../page/cut/sparseInts.ts'
-import { awaitsClosure, awaitsPageBytes } from '../row/pageSlots.ts'
+import { awaitsClosure, awaitsPageBytes, hasPage } from '../row/pageSlots.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 
 /**
@@ -60,6 +60,11 @@ export function createCutPending(
   }
 }
 
+/** Whether the image waits for `rec`: a page whose bytes, or its closure's, are still on their way.
+ *  A record without a page — a world root no surface wears — is fetched never: nothing draws it
+ *  (`../../scene/worldRecords.ts`). */
+const awaited = (rec: PageRec) => hasPage(rec) && awaitsClosure(rec)
+
 type PendingState = {
   delta: IdDelta
   accepted: (rec: PageRec) => boolean
@@ -103,11 +108,11 @@ function reconcile(s: PendingState) {
     for (let i = 0; i < dependents.count; i++) {
       const id = dependents.list[i],
         rec = s.recordOf(id)
-      if (rec && awaitsClosure(rec) && missing.add(id, rec)) s.stale = true
+      if (rec && awaited(rec) && missing.add(id, rec)) s.stale = true
     }
   if (s.settle || s.rescan)
     for (let i = missing.count - 1; i >= 0; i--)
-      if (!awaitsClosure(records[i]) && missing.remove(missing.list[i])) s.stale = true
+      if (!awaited(records[i]) && missing.remove(missing.list[i])) s.stale = true
   s.settle = s.rescan = false
   const now = s.acceptedRevision()
   if (!s.stale && now === s.revision) return
@@ -130,7 +135,7 @@ function applyDelta(s: PendingState) {
     const id = entries[i]
     const rec = s.recordOf(id)
     name(s, id, 1)
-    if (rec && awaitsClosure(rec) && missing.add(id, rec)) s.stale = true
+    if (rec && awaited(rec) && missing.add(id, rec)) s.stale = true
   }
 }
 
@@ -143,5 +148,5 @@ function touchPage(s: PendingState, id: number) {
     else s.settle = true
   }
   if (!s.delta.has(id)) return
-  if (awaitsClosure(rec) ? s.missing.add(id, rec) : s.missing.remove(id)) s.stale = true
+  if (awaited(rec) ? s.missing.add(id, rec) : s.missing.remove(id)) s.stale = true
 }

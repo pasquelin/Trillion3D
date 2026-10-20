@@ -37,7 +37,6 @@ export function dynamicWorld() {
       boxes.push(pages && Float64Array.from(pages)),
       rewrites.push(ranges.map((r) => ({ ...r }))) > 0
     ),
-    setClearColor: () => true,
   })
   const open = (async (_: unknown, options: MeasuredWorldOptions, source: ExplorerSource) => (
     opened.push(options),

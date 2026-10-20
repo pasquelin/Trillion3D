@@ -1,5 +1,6 @@
 import { rowCell } from '../../partition/rowCells.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import type { DagRoot } from './types.ts'
 
 /** THE PLACEMENT TREE'S ORDER (`placementTree.ts`): a partition's cells together, then the Morton
@@ -36,21 +37,19 @@ export function placementOrder(roots: readonly Ordered[], members: number[]) {
 
 /** `members` sorted on the Morton curve of their translations over the box that holds them. */
 function mortonOrder(roots: readonly Ordered[], members: number[], rankBits: number) {
-  const low = [Infinity, Infinity, Infinity],
-    high = [-Infinity, -Infinity, -Infinity]
-  for (const w of members)
-    for (let a = 0; a < 3; a++) {
-      const t = roots[w].world.elements[12 + a]
-      low[a] = Math.min(low[a], t)
-      high[a] = Math.max(high[a], t)
-    }
+  const box = new Float64Array(6)
+  boxEmpty(box, 0)
+  for (const w of members) {
+    const e = roots[w].world.elements
+    boxExpandByPoint(box, 0, e[12], e[13], e[14])
+  }
   const cells = 2 ** MORTON_BITS - 1,
     keys = new Float64Array(members.length)
   members.forEach((w, k) => {
     let code = 0
     for (let a = 0; a < 3; a++) {
-      const span = high[a] - low[a],
-        q = span > 0 ? Math.floor(((roots[w].world.elements[12 + a] - low[a]) / span) * cells) : 0
+      const span = box[3 + a] - box[a],
+        q = span > 0 ? Math.floor(((roots[w].world.elements[12 + a] - box[a]) / span) * cells) : 0
       code += spread(clamp(q || 0, 0, cells)) * 2 ** a
     }
     keys[k] = code * 2 ** rankBits + w

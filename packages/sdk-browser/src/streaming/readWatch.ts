@@ -1,4 +1,6 @@
 import { PRIORITY_VISIBLE } from './priority.ts'
+import { microtaskOnce } from '../../../sdk-core/src/runtime/microtaskOnce.ts'
+import { countBy } from '../../../math/src/sequence/counts.ts'
 
 type Watch = { reading: Map<string, number>; landed: Set<string>; heard: () => void }
 
@@ -14,16 +16,8 @@ export function createReadWatch(
   subscribe: (url: string, signal: AbortSignal, priority?: number) => Promise<Uint8Array>,
 ) {
   const watches = new Set<Watch>()
-  let owed = false
   /** Every watch hears once what changed within the task. */
-  const hear = () => {
-    if (owed) return
-    owed = true
-    queueMicrotask(() => {
-      owed = false
-      watches.forEach((watch) => watch.heard())
-    })
-  }
+  const { schedule: hear } = microtaskOnce(() => watches.forEach((watch) => watch.heard()))
   const read = (url: string, signal: AbortSignal, priority?: number) => {
     const reading = subscribe(url, signal, priority)
     if (!watches.size || (priority ?? PRIORITY_VISIBLE) > PRIORITY_VISIBLE) return reading
@@ -31,17 +25,18 @@ export function createReadWatch(
     for (const watch of watches)
       if (!watch.landed.has(url)) {
         ;(askedBy ??= []).push(watch)
-        watch.reading.set(url, (watch.reading.get(url) ?? 0) + 1)
+        countBy(watch.reading, url, 1)
       }
     // A page every watch counts as landed already changes no count: nothing to hear of it.
     if (!askedBy) return reading
     hear()
     const settle = (landed: boolean) => {
       for (const watch of askedBy!) {
-        const left = (watch.reading.get(url) ?? 1) - 1
-        if (landed) watch.landed.add(url)
-        if (landed || !left) watch.reading.delete(url)
-        else watch.reading.set(url, left)
+        if (!landed) countBy(watch.reading, url, -1)
+        else {
+          watch.landed.add(url)
+          watch.reading.delete(url)
+        }
       }
       hear()
     }

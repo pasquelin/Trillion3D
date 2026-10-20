@@ -138,3 +138,22 @@ export function reserveArena(wasm: SdkWasm, requests: readonly ArenaRequest[]): 
     },
   }
 }
+
+/**
+ * Runs `use` on a buffer of the requested blocks, released whatever `use` does. A size the module
+ * refuses throws `memoryCode`.
+ */
+export function withArena<T>(
+  wasm: SdkWasm,
+  requests: readonly ArenaRequest[],
+  memoryCode: string,
+  use: (arena: Arena) => T,
+): T {
+  const arena = reserveArena(wasm, requests)
+  if (!arena) throw new Error(memoryCode)
+  try {
+    return use(arena)
+  } finally {
+    arena.freed()
+  }
+}

@@ -21,7 +21,7 @@ import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.
  *  the shadow share sums (`shadowBudgetBytes.ts`): the set's buffers, the raster's pair and command
  *  lists at their ceiling, the coloured transmission's first atlas. A change to any of them moves
  *  this number, and the share must be retaken with it. */
-const ONE_SUN_SHADOW_MAP_BYTES = 422_727_824
+const ONE_SUN_SHADOW_MAP_BYTES = 432_644_260
 
 const budget = (
   frame: Partial<FrameMetrics> | null,
@@ -61,6 +61,9 @@ test("the default totals split into each pool's own default", () => {
     // No session holds a cut yet: its tables are funded as they are made.
     cutTables: 0,
     effectTargets: EFFECT_TARGET_BYTES,
+    // Nothing live beside the pools without a session; the shares' one sum, funded first.
+    frameTargets: 0,
+    fixed: SHADOW_POOL_BYTES + BOUNCE_PROBE_BYTES + EFFECT_TARGET_BYTES,
     geometryPool: DEFAULT_GEOMETRY_POOL_BUDGET,
     texturePool: DEFAULT_TEXTURE_POOL_BUDGET,
     pageCache: DEFAULT_CACHED_BYTES,

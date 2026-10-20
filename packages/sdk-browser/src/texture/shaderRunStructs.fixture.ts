@@ -2,12 +2,15 @@
 // its type, a structure's built from the text's own declaration; and what a structure's
 // constructor (`S(a,b)`) builds, by the same declaration.
 import { $cp } from './shaderRunBuiltins.fixture.ts'
+import { Mat, Mat3 } from './shaderRunMatrix.fixture.ts'
 
 /** WGSL's zero of a type declared with no value (`var c:array<vec3f,3>;`): `[]`, `[0,0]`,
- *  `false`, `0`, a structure's — a capitalised name — from `$zero`. */
+ *  `false`, `0`, a matrix of zeros, a structure's — a capitalised name — from `$zero`. */
 export function zeroOf(type: string[]) {
   if (type[0] === 'array') return '[]'
   if (type[0] === 'bool') return 'false'
+  if (type[0] === 'mat4x4f') return `mat4x4f(${Array(16).fill(0)})`
+  if (type[0] === 'mat3x3f') return 'mat3x3f([0,0,0],[0,0,0],[0,0,0])'
   if (/^[A-Z]/.test(type[0] ?? '')) return `$zero("${type[0]}")`
   const size = /^vec([234])/.exec(type[0] ?? '')?.[1]
   return size ? `[${Array(Number(size)).fill(0)}]` : '0'
@@ -29,6 +32,8 @@ export function structZero(source: string) {
     const size = /^vec([234])/.exec(type)?.[1]
     if (size) return new Array<number>(Number(size)).fill(0)
     if (type === 'bool') return false
+    if (type === 'mat4x4f') return new Mat(new Array<number>(16).fill(0))
+    if (type === 'mat3x3f') return new Mat3([0, 1, 2].map(() => [0, 0, 0]))
     const own = members.get(type)
     return own ? Object.fromEntries(own.map(([, key, member]) => [key, zero(member)])) : 0
   }

@@ -1,97 +1,72 @@
-import { createCadence, resetCadence, skipsDisplayFrame } from './cadence.ts'
+import { createFrameCap, frameTimeBudget, resetFrameCap, skipsDisplayFrame } from './cadence.ts'
 import { createRefreshClock } from './refreshClock.ts'
-import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts'
+import { renderScaleBounds, type RenderScale, type RenderScaleBounds } from './renderScaleOption.ts'
 import { createTargetCap, displayMoved, FALLBACK_REFRESH_MS, PERIOD } from './scaleTargets.ts'
-import { createLoopPace } from './loopPace.ts'
 import { createScaleMemory } from './scaleMemory.ts'
 import { tickScale } from './scaleTick.ts'
-import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './scaleWindow.ts'
+import { createScaleWindow, forgetHistory, holdFrame } from './scaleWindow.ts'
+import { recordFrame, refreshFraction } from './dynamicResolution.ts'
 
 /**
- * THE FRAME LOOP'S RENDER SCALE: one controller, from what the display and the GPU say.
+ * THE FRAME LOOP'S RENDER SCALE: the dynamic resolution (`dynamicResolution.ts`), one controller
+ * per session.
  *
- * - The display's refresh `R`, measured on the rAF timestamps (`refreshClock.ts`, `display`): the
- *   shortest period they were seen to hold. Work only stretches an interval, so that period is the
- *   display's once intervals no work stretched were seen: the interactive loop's first frames are
- *   held, drawing nothing, until `SUPPORT` held intervals in a row agree, the group the clock reads
- *   a period from (`measuring`, `hold`; `PERIOD` at most) — whatever explicit renders came before
- *   them, which always draw. A page heavy from its first frame, whose
- *   every other refresh reads half the display's rate, is measured on frames it did not draw.
- * - Each drawn image's GPU span, as the timer gives it, brought to the current scale by the area
- *   it covers — `t · (s / sᵢ)²`, the cost model of a render that scales with its pixel count. Without GPU times
- *   (no timer, or none of late: `HISTORY` images), an image's cost is its area `s²`, the same model.
- * - Each presented interval: a moving image shown two refreshes or more missed the refresh.
- *
- * A frame meets the refresh while its GPU cost is at most `τ = R − N`, `N` the share of the frame
- * the GPU timer does not see (compositing, the CPU, presentation): `τ` is measured, never assumed.
- * The controller knows it between two costs — `lo`, the largest the frames met the refresh at over
- * a second, at most one of them missing; `hi`, the smallest they missed it at, two or more of them
- * (at most `R` with GPU times: a frame costing a whole refresh on the GPU alone cannot meet it) —
- * and tries a tenth below `hi`, a headroom that keeps the target off the edge of misses, while `lo` is further, then their
- * midpoint until the move it asks is within the noise, and holds `lo`. A miss is judged on the GPU
- * times that arrive after it, its image's among them. A miss at a cost already met is not the GPU's
- * (the CPU, a hitch): it moves nothing, so a page that turns CPU-bound keeps its scale. Not
- * covered: a page CPU-bound from its first frame (nothing met, the misses lower `hi` to the
- * floor).
- *
- * The scale fits the second costliest image since its last move to the target — one image a
- * second may miss, a lone spike moves nothing — by the exact area ratio, `s · √(τ / c₂)`, clamped
- * to the bounds and the memory cap; a move waits `PERIOD` frames after the last, so one move's effect is seen before the next, and
- * is taken past the controller's threshold, a rise only past the noise too: half the measured
- * relative spread of the costs (a scale moves as the root of a cost). At the floor, a frame that
- * cannot meet the refresh keeps the floor: no slower budget raises the scale.
- *
- * At rest: after a still image the scale only lowers, so a still average closes at one
- * size and the frame is held, encoding nothing (`hold.ts`).
- *
- * Where the scale cannot help — fixed, or at its floor, and the GPU still misses the refresh —
- * the loop draws at a steady divisor of the refresh instead (`cadence.ts`, `skips`), so each image
- * is shown for the same time; the scale's misses are its own as before.
- *
- * One per session.
+ * - The display's refresh, the vsync rate, measured on the rAF timestamps (`refreshClock.ts`,
+ *   `display`): the interactive loop's first `PERIOD` display frames are held, drawing nothing,
+ *   so a page heavy from its first frame is measured on intervals no work stretched
+ *   (`measuring`, `hold`).
+ * - The frame cap on vsync (`cadence.ts`, `skips`), whose frame interval is the frame time
+ *   budget.
+ * - Each drawn image's GPU busy time, as the timer gives it, with the scale it was drawn at: one
+ *   frame of the history, then the fraction refreshed (`observe`).
+ *   Without GPU times the dynamic resolution records nothing and the image is drawn at the bounds'
+ *   maximum (`scaleTick.ts`).
  *
  * Its members: `drawn`, the scale of the last image drawn (1 before any); `steered`, whether that
- * image was drawn at the controller's scale, which its cost then measures; `still`, whether it was
- * a still one; `refreshMs`, the refresh interval the clock measured (null until it found one);
- * `measuring`, whether the interactive loop holds the display frame that began, drawing nothing, to
- * measure the refresh on it (`hold`): its first frames, until `SUPPORT` held intervals in a row
- * agree — four frames at the least —, `PERIOD` at most; `held`, whether the display frame that
- * began was held, the loop then asks the next at once; `hold`, the loop held it; `frameIntervalMs`,
- * the interval from the previous display frame `tick` read to the last (null before two or after a
- * pause, `loopPace.ts`); `set`, another scale: the controller restarts at the bounds' maximum, knowing nothing,
- * and the cadence at every refresh;
- * `wanted`, the scale an image is drawn at, the controller's or the fixed one; `allocated`,
+ * image was drawn at the controller's scale, which its cost then measures; `refreshMs`, the
+ * refresh interval the clock measured (null until it found one); `measuring`, whether the
+ * interactive loop holds the display frame that began, drawing nothing (`hold`); `held`, whether
+ * the display frame that began was held, the loop then asks the next at once; `frameIntervalMs`, the interval
+ * from the previous display frame `tick` read to the last (null before two); `set`, another scale:
+ * the history forgotten; `fit(width, height)`, the view's drawing-buffer size, which the bounds
+ * follow (`renderScaleBounds`); `maxFrameRate`, the page's frame cap (`cadence.ts`); `wanted`, the scale an
+ * image is drawn at, the fraction under the targets' upper bound, or the fixed one; `allocated`,
  * `capMemory`, `uncapMemory`, `memoryCapped`, `memoryRefused` and `liftMemoryCap`, the render
  * targets' scale, their memory cap and the clock its refusals are asked again by
- * (`scaleMemory.ts`);`drew(scale, steered, still)`, an image was drawn; `tick(now, timed)`, a
- * frame of the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
- * (`tickScale`); `observe(gpuMs, scale, steered, whole)`, the GPU time of an image drawn at `scale`, a few
- * frames late: a cost of the window, brought to the current scale by its area, where the image was
- * drawn at the controller's scale — under a fixed scale, every GPU time as it came. The window is
- * the cadence's too (`scaleWindow.ts`).
+ * (`scaleMemory.ts`); `drew(scale, steered)`, an image was drawn; `tick(now, timed)`, a frame of
+ * the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
+ * (`tickScale`); `observe(gpuMs, scale, steered)`, the GPU busy time of an image drawn at `scale`,
+ * a few frames late, null where the timer read none.
  */
-export function createScaleControl(option: RenderScale | undefined) {
+export function createScaleControl(option: RenderScale | undefined, maxFrameRate?: number) {
   const display = { width: 0, height: 0, ratio: 0 }
   displayMoved(display)
   const refresh = createRefreshClock(FALLBACK_REFRESH_MS),
-    w = createScaleWindow(renderScaleBounds(option)),
+    w = createScaleWindow(renderScaleBounds(option, 0)),
     targets = createTargetCap(w.bounds.max),
     memory = createScaleMemory(w, targets),
-    cadence = createCadence(),
-    pace = createLoopPace(),
-    parts = { w, refresh, display, memory, cadence, pace }
+    cap = createFrameCap(maxFrameRate),
+    parts = { w, refresh, display, memory, cap }
+  let asked = option,
+    pixels = 0
+  /** Other bounds: the targets at their maximum, uncapped, the history forgotten. */
+  const rebound = (next: RenderScaleBounds) => {
+    w.bounds = next
+    targets.reset(next.max)
+    w.max = next.max
+    forgetHistory(w)
+  }
   const control = {
     get bounds() {
       return w.bounds
     },
     drawn: 1,
     steered: false,
-    still: false,
     get refreshMs() {
       return refresh.settled ? refresh.display : null
     },
     get measuring() {
-      return w.bounds.auto && !w.measured && w.held < PERIOD
+      return w.bounds.auto && w.held < PERIOD
     },
     get held() {
       return w.holding
@@ -99,16 +74,33 @@ export function createScaleControl(option: RenderScale | undefined) {
     hold: () => holdFrame(w),
     get frameIntervalMs() {
       const gap = refresh.gap
-      return gap > 0 && !pace.paused ? gap : null
+      return gap > 0 ? gap : null
     },
     set(next: RenderScale | undefined) {
-      w.bounds = renderScaleBounds(next)
-      targets.reset(w.bounds.max)
-      w.s = w.max = w.bounds.max
-      forgetThreshold(w, refresh.display)
-      resetCadence(cadence)
+      asked = next
+      rebound(renderScaleBounds(asked, pixels))
     },
-    wanted: () => (w.bounds.auto ? w.s : w.bounds.max),
+    /** The view is `width` × `height` drawing-buffer pixels: the default fraction of it
+     *  bounds the scale (`displayResolutionFraction`), read before the frame's targets are sized. */
+    fit(width: number, height: number) {
+      if (width * height === pixels) return
+      pixels = width * height
+      const next = renderScaleBounds(asked, pixels),
+        { bounds } = w
+      if (next.auto !== bounds.auto || next.min !== bounds.min || next.max !== bounds.max)
+        rebound(next)
+    },
+    /** The page's frame cap, frames a second, infinite for none (`WorldOptions.maxFrameRate`). */
+    get maxFrameRate() {
+      return cap.maxFrameRate
+    },
+    /** Another frame cap: another frame time budget, the history forgotten. */
+    set maxFrameRate(rate: number) {
+      cap.maxFrameRate = rate
+      resetFrameCap(cap, refresh.display)
+      forgetHistory(w)
+    },
+    wanted: () => (w.bounds.auto ? Math.min(w.s, w.max) : w.bounds.max),
     allocated: memory.allocated,
     capMemory: memory.cap,
     uncapMemory: memory.uncap,
@@ -117,34 +109,22 @@ export function createScaleControl(option: RenderScale | undefined) {
     get memoryCapped() {
       return targets.capped
     },
-    drew(scale: number, steered: boolean, still = false) {
+    drew(scale: number, steered: boolean) {
       control.drawn = scale
       control.steered = steered
-      control.still = still
-      w.fresh = true
       w.images++
     },
-    tick: (now: number, timed = false) => tickScale(parts, control, now, timed),
-    /** The display refreshes a drawn frame spans under the steady cadence (`cadence.ts`): 1 while
-     *  the GPU holds the refresh. */
-    get cadence() {
-      return cadence.divisor
-    },
+    tick: (now: number, timed = false) => tickScale(parts, now, timed),
     /** Whether the interactive loop leaves out the display frame that begins at `now`, ms, its rAF
-     *  timestamp, to hold its steady cadence: it draws nothing and counts no frame. */
-    skips: (now: number) => skipsDisplayFrame(cadence, refresh, now, control.still),
-    observe(gpuMs: number | null, scale: unknown, steered = true, whole = true) {
+     *  timestamp, under the frame cap: it draws nothing and counts no frame. */
+    skips: (now: number) => skipsDisplayFrame(cap, refresh, now),
+    observe(gpuMs: number | null, scale: number, steered = true) {
       if (gpuMs === null) return
-      // A lower bound marks the window: it proves a cost at least, never room (`cadence.ts`).
-      if (!whole) w.partial = true
-      // A fixed scale fits nothing: its window holds every GPU time as the timer gave it, for the
-      // cadence.
-      if (!w.bounds.auto) sampleCost(w, gpuMs)
-      // The scale steps on an image timed whole: a lower bound is a span its cost model cannot read.
-      if (!whole) return
       w.timedAt = w.images
-      if (steered && w.timed && w.bounds.auto && typeof scale === 'number' && scale > 0)
-        sampleCost(w, gpuMs * (w.s / scale) ** 2)
+      if (!steered || !w.bounds.auto || !w.timed || !(scale > 0)) return
+      recordFrame(w.dynamic, gpuMs, scale)
+      w.dynamic.budgetMs = frameTimeBudget(cap, refresh.display)
+      refreshFraction(w.dynamic, w)
     },
   }
   return control

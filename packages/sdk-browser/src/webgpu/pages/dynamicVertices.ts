@@ -4,15 +4,14 @@ import { noteRewritten } from './render/movedGeometry.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 
 /**
- * A dynamic geometry's rewrites on WebGPU. `updateVertices` writes its rewritten lists in
- * place — its block of the float vertex pool (`../core/geometryPool.ts`), placed in the pool's
- * room when a record took it since the open, a transparent item's own positions —, then stales its
- * shadow pages: no buffer allocated, no table rebuilt; false when the device bounds the pool, and
- * the owner opens the session again. A mount past the room the open left grows the pool in place,
- * so it never opens the session for it. Its roots hold `reach`, how far a vertex moved from where
- * its pages are bounded, and its pages' rows the box `boxes` gives each (`noteRewritten`).
- * `vertexBytes` weighs what that sends: each list in the pool, a normal with its tangent, and the
- * positions again for a transparent item that owns them.
+ * A dynamic geometry's rewrites on WebGPU. `updateVertices` writes its rewritten lists in place —
+ * its block of the float vertex pool (`../core/geometryPool.ts`), placed in the pool's room when a
+ * record took it since the open —, then stales its shadow pages: no buffer allocated, no table
+ * rebuilt; false when the device bounds the pool, and the owner opens the session again. A mount
+ * past the room the open left grows the pool in place, so it never opens the session for it. Its
+ * roots hold `reach`, how far a vertex moved from where its pages are bounded, and its pages' rows
+ * the box `boxes` gives each (`noteRewritten`). `vertexBytes` weighs what that sends: each list in
+ * the pool, a normal with its tangent.
  */
 export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
   updateVertices(
@@ -26,13 +25,7 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
     if (!gpu.device || run.lost) return false
     const pool = vis.vertexPool
     if (pool && !pool.place(attributes, true)) return false
-    const positions = gpu.positionBuffers.get(attributes),
-      xyz = attributes.position?.array as Float32Array<ArrayBuffer> | undefined
-    for (const { name, from, count } of ranges) {
-      pool?.write(attributes, name, from, count)
-      if (name === 'position' && positions && xyz instanceof Float32Array)
-        gpu.device.queue.writeBuffer(positions, from * 12, xyz, from * 3, count * 3)
-    }
+    for (const { name, from, count } of ranges) pool?.write(attributes, name, from, count)
     noteRewritten(rt, attributes, box, reach, boxes)
     // A rewrite moves vertices, never a pose: the hierarchy keeps its matrices, so the next image
     // walks no world — the row table, its occluder history and its corners are kept. A host pose
@@ -40,13 +33,6 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
     run.gate.engineMovedInPlace()
     return true
   },
-  vertexBytes(attributes: HostAttributes, ranges: readonly VertexRange[]) {
-    let bytes = rt.vis.vertexPool?.bytesOf(attributes, ranges) ?? 0
-    if (
-      rt.gpu.positionBuffers.has(attributes) &&
-      attributes.position?.array instanceof Float32Array
-    )
-      for (const { name, count } of ranges) if (name === 'position') bytes += count * 12
-    return bytes
-  },
+  vertexBytes: (attributes: HostAttributes, ranges: readonly VertexRange[]) =>
+    rt.vis.vertexPool?.bytesOf(attributes, ranges) ?? 0,
 })

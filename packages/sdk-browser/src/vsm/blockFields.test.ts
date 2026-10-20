@@ -21,7 +21,9 @@ import { functionsOf } from '../texture/shaderRule.fixture.ts'
 const COMPOSED: Record<string, string> = {
   ...ENGINE_SHADERS,
   'direct read, blended': wgslModule(directShadowWgsl(18)),
-  'direct read, opaque resolve': wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
+  'direct read, opaque resolve': wgslModule(
+    directShadowWgsl(25, { pass: 'mask', resolveTransmission: 14 }),
+  ),
 }
 
 /** The body of struct `name` in `text`. */

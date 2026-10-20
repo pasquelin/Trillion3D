@@ -10,12 +10,10 @@
  * the engine's world storage, and the source mesh it stands for.
  */
 
-import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { HostAttribute } from '../host/resources.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
-import type { RootProxy } from '../page/selection/types.ts'
 import type { PlacementOf } from '../placement/rows.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
@@ -23,8 +21,6 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
  *  it draws and its local box on demand; its `matrix` is the engine's world storage for the
  *  source mesh, shared and never written through the copy (`blendCopyRecord.ts`). */
 export type BlendCopy = {
-  /** Source deformation metadata; whole transmission retains its no-pages representation. */
-  deformation?: Primitive['deformation']
   readonly geometry: Geometry & {
     getIndex(): HostAttribute | null
     computeBoundingBox(): void
@@ -34,9 +30,6 @@ export type BlendCopy = {
    *  contract does not hand it out — `blendCopyMesh.ts` is where it is set, and `PageRec.declaration`
    *  is the one field the closed list of `tests/integration/engine-without-three.test.ts` governs. */
   readonly surface: PageSurface
-  /** What a ray can meet of it beyond the drawn copy: the proxy of its primitive's cut, built where the
-   *  world cut it (`world/page/runtimeProxy.ts`); a run-time cut's alone. */
-  proxy?: RootProxy
   /** Rebound onto the same row of a larger buffer when its owner's rows grow (`placement/growth.ts`). */
   matrix: MatrixElements
   /** The row of an instance buffer the copy is posed by, when its mesh is placed by rows: one
@@ -46,7 +39,14 @@ export type BlendCopy = {
   hidden?: boolean
   readonly frustumCulled: boolean
   renderOrder: number
-  /** Set by the engine itself: the source mesh the copy stands for, whether it is paged, and
-   *  whether its pages carry quantized geometry it reads in place. */
-  readonly userData: { pagedBlend?: boolean; pageGeometry?: boolean; drawSource?: DrawSource }
+  /** Set by the engine itself: the source mesh the copy stands for — none for the world DAG's
+   *  blended sections (`ClusterRoot.mixed`) —, the attribute flags of the quantized geometry its
+   *  pages carry and it reads in place (`FLAG_UV`…, `page/format.ts`), and a paged copy's local box — its
+   *  root's (`ClusterRoot.localBox`), what every page it may draw lies in, grown by their grid's
+   *  error —, absent on one whose pages deform. */
+  readonly userData: {
+    pageFlags?: number
+    drawSource?: DrawSource
+    localBox?: Float64Array
+  }
 }

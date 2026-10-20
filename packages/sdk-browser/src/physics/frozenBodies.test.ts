@@ -6,9 +6,13 @@ import { startModule, type Module } from './module.fixture.ts'
 import { body } from './records.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 
-/** Half size of the test boxes, and the radius of their bounds (`report.cpp` place). */
+/** Half size of the test boxes. */
 const HALF = 0.5
-const RADIUS = HALF * Math.sqrt(3)
+
+/** How far the eye is from the box about `centre`: the range's metric (`report.cpp` place, the
+ *  rule the page's tiles are wanted by), 0 inside it; non-finite for a non-finite eye. */
+const boxDistance = (centre: number[], eye: number[]) =>
+  Math.hypot(...centre.map((c, k) => Math.max(Math.abs(c - eye[k]) - HALF, 0)))
 
 /** A weightless world of boxes at `centres`, each moving at 1 m/s along x, on the decorative layer
  *  when `decorative`: added in a first step of no time, after the commands `view` writes. */
@@ -57,7 +61,7 @@ test('a body frozen beyond the range is not measured again before the eye could 
   const thawed = new Map<number, number>()
   for (let x = 1; x <= 90; x++) {
     const { found, placed } = step(jolt, writer, () => look(writer, x))
-    // The nearest body cannot be in range before the eye travelled its margin (49.6 m).
+    // The nearest body cannot be in range before the eye travelled its margin (50 m).
     if (x <= 49) assert.equal(placed, 0, `no body measured at x = ${x}`)
     for (const [id, pose] of found) {
       if (thawed.has(id)) continue
@@ -65,9 +69,10 @@ test('a body frozen beyond the range is not measured again before the eye could 
       assert.deepEqual(pose, [centres[id][0], 0, 0, 1, 0, 0], 'resumes where and as it froze')
     }
   }
-  // Thawed at the first step where the eye is within the range of its bounds: 100.5 + 3i - x - r <= 50.
+  // Thawed at the first step where the eye is within the range of its box:
+  // 100.5 + 3i - x - h <= 50.
   for (let id = 0; id < centres.length; id++)
-    assert.equal(thawed.get(id), Math.ceil(centres[id][0] - RADIUS - 50), `body ${id}`)
+    assert.equal(thawed.get(id), Math.ceil(centres[id][0] - HALF - 50), `body ${id}`)
 })
 
 test('frozen bodies thaw on the step the eye comes in range, on a random walk, range changes and non-finite eyes', async () => {
@@ -85,8 +90,7 @@ test('frozen bodies thaw on the step the eye comes in range, on a random walk, r
   const frozen = new Set(centres.keys())
   const settle = (found: Map<number, number[]>, label: string) => {
     for (const id of frozen) {
-      const [x, y, z] = centres[id]
-      const gap = Math.hypot(x - eye[0], y - eye[1], z - eye[2]) - RADIUS - range
+      const gap = boxDistance(centres[id], eye) - range
       // Within float rounding of the range's edge, either answer holds.
       if (Math.abs(gap) < 1e-3) {
         if (found.has(id)) frozen.delete(id)
@@ -120,8 +124,8 @@ test('frozen bodies thaw on the step the eye comes in range, on a random walk, r
     assert.equal(frozen.size, 0, `${label} thaws every body`)
     eye = [0, 0, 0]
     step(jolt, writer, () => look(writer))
-    for (const [id, [x, y, z]] of centres.entries())
-      if (Math.hypot(x, y, z) - RADIUS - range > 1e-3) frozen.add(id)
+    for (const [id, centre] of centres.entries())
+      if (boxDistance(centre, eye) - range > 1e-3) frozen.add(id)
     // The eye still: the far bodies, frozen again, are not measured again (the travel stayed finite).
     const { placed } = step(jolt, writer, () => look(writer))
     assert.ok(placed < centres.length - frozen.size / 2, `${label}: margins hold again (${placed})`)

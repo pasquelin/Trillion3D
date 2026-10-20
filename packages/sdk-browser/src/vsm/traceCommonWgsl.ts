@@ -1,8 +1,9 @@
 /**
- * THE SHADOW RAYS' COMMON PIECES (`traceWgsl.ts`), every light's: what a march returns, its sample
- * times, the square-to-disk map and the cone a ray is drawn in, each ray's step jitter and blue-noise
- * values, and a trace's result. No binding but the noise pair the host gives (`vsmRayNoiseWgsl`).
+ * THE SHADOW RAYS' COMMON PIECES (`traceWgsl.ts`), every light's: the march's sample times, the
+ * square-to-disk map and the cone a ray is drawn in, each ray's step jitter and blue-noise values,
+ * and a trace's result. No binding but the noise pair the host gives (`vsmRayNoiseWgsl`).
  */
+import { SUBGROUP_ALL_WGSL } from '../gpu/core/subgroups.ts'
 import { VSM_NOISE_TILE } from './blueNoise.ts'
 import { VSM_F32_BELOW_ONE } from './constants.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -14,9 +15,6 @@ export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
   [QUARTER_PI, FLOAT32_MIN_NORMAL, Frame3, outOfFrame, additive2d],
   `
-/** A march's result: whether it hit and the ray time of the sample that hit (0 at the ray's start,
- *  1 at its far end). */
-struct VsmMarchHit{hitFound:bool,hitTime:f32,}
 /** The march's sample times: t² with t = a·i + b (the two words returned, a = −1/stepCount), from
  *  the far end (i = 0) to the ray's start (i = stepCount, time 0), each step jittered by \`stepJitter\`. */
 fn vsmMarchTimeLine(stepCount:i32,stepJitter:f32)->vec2f{
@@ -78,41 +76,53 @@ fn vsmRayNoise4(pixelPos:vec2u,timeIndex:u32,rayIndex:u32,rayTotal:u32)->vec4f{
 `,
   )
 
-/** What a trace returns: the share of its rays that missed, and how many it traced — none, its
- *  factor 1, where it traced no ray (`vsmEmptyTrace`). */
+/** A fragment's vote (`rayCountStatement`): over the subgroup's active lanes with \`subgroups\`
+ *  (\`SUBGROUP_ALL_WGSL\`: the lights a fragment loops over are its own), else the lane's own
+ *  value. */
+export const vsmLoneVoteWgsl = (subgroups: boolean) =>
+  wgslBlock(
+    `vsmLoneVoteWgsl(${subgroups})`,
+    subgroups ? [SUBGROUP_ALL_WGSL] : [],
+    `fn vsmLoneAllTrue(c:bool)->bool{return ${subgroups ? 'subgroupAllTrue(c)' : 'c'};}`,
+  )
+
+/** What a trace returns: the share of its rays that missed, how many it traced — none, its factor
+ *  1, where it traced no ray (`vsmEmptyTrace`) —, and what the translucent casters let through
+ *  along its missed rays, averaged over them (1 where none missed or no pane lies on them). */
 export const VSM_TRACE_RESULT_WGSL = wgslBlock(
   'VSM_TRACE_RESULT_WGSL',
   [],
   `
-struct VsmTraceResult{shadowFactor:f32,rayCount:u32,}
-fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u);}
+struct VsmTraceResult{shadowFactor:f32,rayCount:u32,through:vec3f,}
+fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u,vec3f(1.0));}
 `,
 )
 
 /**
- * A light's ray count (the adaptive ray count), decided after the first ray.
- * - A lane whose first ray hit an occluder whose rays fall within one pixel (`narrow`) stops there,
- *   alone: its other rays would sample the occluder's shadow inside its own pixel, so they would
- *   change it only below the pixel.
- * - A lane whose first ray missed has no occluder of its own to measure: it stops where no lane of
- *   its 32-pixel half hit a wide one (`vsmVoteAllTrue`), and goes on, as a lane that hit a wide
- *   one does, where one did — it may lie in that penumbra.
- * - At the adaptive count, a half all of whose lanes' rays hit so far (an umbra) stops. It is
- *   asked there alone: a half it does not stop holds a lane that missed, which votes no at every
- *   later ray (`missCount` never falls) and so is never stopped; a later vote could stop no lane
- *   (the umbra vote).
+ * A light's ray count (the adaptive ray count), decided over a 32-pixel half:
+ * - after the first ray, a half all of whose lanes missed stops (`vsmVoteAllTrue`);
+ * - at the adaptive count, a half all of whose lanes' rays hit so far (an umbra) stops. Asking at
+ *   every ray from there on would change nothing; it is asked there alone: a half it does not stop holds a lane that
+ *   missed, which votes no at every later ray (`missed` never loses a ray) and is never stopped, so a
+ *   later vote could stop no lane.
  * The group leaves the loop where both halves stopped (`vsmGroupVoted`): every lane idle, the
  * rays left trace nothing. A half stops at the first vote or the umbra one only, so the group
  * asks there, unless the loop ends anyway (`projectionGroupExit.test.ts`).
+ *
+ * A fragment's trace (`lone`): a sun's traces every ray, its vote kept to the compute projection's
+ * groups; a local light's votes in every shader, over its subgroup's active lanes where the device
+ * grants subgroups (`subgroupAll`), else on the lane's own value (`vsmLoneAllTrue`). Every lane voting gets one
+ * answer, so the lanes a stop holds leave the loop together.
  */
 export const rayCountStatement = (lone: boolean) =>
   lone
-    ? `  if(i==0u&&running&&hit&&narrow){stopped=true;}
+    ? /* wgsl */ `  if(!directional&&(i==0u||i==u32(VSM_TRACE_VOTE_AFTER))){
+   if(vsmLoneAllTrue(!running||select(missed==0u,!hit,i==0u))){if(running){stopped=true;stopIndex=i;}break;}
+  }
 `
-    : /* wgsl */ `  if(i==0u&&running&&hit&&narrow){stopped=true;}
-  var halfStops=false;
-  if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit||narrow);}
-  else if(i==u32(VSM_TRACE_VOTE_AFTER)){halfStops=vsmVoteAllTrue(!running||missCount==0u);}
+    : /* wgsl */ `  var halfStops=false;
+  if(i==0u){halfStops=vsmVoteAllTrue(!running||!hit);}
+  else if(i==u32(VSM_TRACE_VOTE_AFTER)){halfStops=vsmVoteAllTrue(!running||missed==0u);}
   if(halfStops&&running){stopped=true;stopIndex=i;}
   if((i==0u||i==u32(VSM_TRACE_VOTE_AFTER))&&i+1u<rayCap&&vsmGroupVoted(halfStops)){break;}
 `

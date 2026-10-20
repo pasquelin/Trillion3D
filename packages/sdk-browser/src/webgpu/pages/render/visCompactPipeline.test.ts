@@ -11,6 +11,8 @@ import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { RasterView } from '../runtime.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the disoccluded vis pass', async () => {
   installGpuGlobals()
@@ -18,7 +20,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   const { source, metadata: occluderMetadata, indices, associations, geometry, material } = scene
   const metadata: ClusterManifest = {
     ...occluderMetadata,
-    schema: 1,
+    formatVersion: 1,
     status: 'ready',
     key: 'occluder',
     scope: 'full',
@@ -78,6 +80,7 @@ test('a device that refuses the draw compaction refuses the scene by name', asyn
     failCompact: true,
   })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,

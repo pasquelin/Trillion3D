@@ -85,6 +85,21 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
     copyPose(from, index * 7, to, index * 7)
     slerpArc(arcs, index * 3, from, index * 7 + 3, to, index * 7 + 3)
   }
+  /** The slots on their way drawn at `t` in one pass: between the two states; else on the newest,
+   *  or moved on from it by its velocities while it is late. */
+  const drawAll = (moving: Readonly<Int32Array>, count: number, t: number) => {
+    placer.begin()
+    if (t < 1) interpolateAll(moving, count, from, to, arcs, t, position, quaternion)
+    else if (t > 1)
+      extrapolateAll(moving, count, to, velocity, (t - 1) * step, position, quaternion)
+    else landAll(moving, count, to, position, quaternion)
+    placer.commit(moving, count)
+    placer.end()
+  }
+  /** The generations of the frame being drawn (`apply`): a slot whose body left, or went to
+   *  another mesh, is no longer alive. One closure for every frame. */
+  let generationNow: Uint8Array = new Uint8Array(0)
+  const alive = (index: number) => bound[index] === generationNow[index]
   return {
     state,
     /** Every mesh keeps its own pose numbers again (the physics stops). */
@@ -165,21 +180,10 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D, step = PHY
     /** Draws every moving body at `t` of its step (`along`), `waiting` while the page waits for
      *  the worker's next state; whether any is still on its way (and asks for the next frame). */
     apply({ generation }: PosedBodies, t: number, waiting: boolean) {
-      if (!steps2.count) return false
       // A slot whose body left, or went to another mesh, leaves the list: it waits for that
       // mesh's own record, which lists it again. The rest is drawn in one pass.
-      steps2.keep((index) => bound[index] === generation[index])
-      const { moving, count } = steps2
-      placer.begin()
-      // Between the two states; else on the newest, or moved on from it by its velocities while
-      // it is late.
-      if (t < 1) interpolateAll(moving, count, from, to, arcs, t, position, quaternion)
-      else if (t > 1)
-        extrapolateAll(moving, count, to, velocity, (t - 1) * step, position, quaternion)
-      else landAll(moving, count, to, position, quaternion)
-      placer.commit(moving, count)
-      placer.end()
-      return steps2.settle(t, waiting)
+      generationNow = generation
+      return steps2.apply(t, waiting, alive, drawAll)
     },
   }
 }

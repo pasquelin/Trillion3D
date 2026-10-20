@@ -1,7 +1,7 @@
 import { MIB } from '../../../math/src/constants.ts'
 import { createRangedReads } from '../cluster/ranged.ts'
 import { createCacheEntries } from './cacheEntries.ts'
-import { closeTextureLevel, textureLevelBytes, type TextureLevel } from '../texture/levelReader.ts'
+import type { TextureLevel } from '../texture/levelReader.ts'
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
  *  cache bounded only by entry count would hold hundreds of megabytes. */
@@ -38,7 +38,7 @@ const checkBytes = (bytes: number) => {
 
 /**
  * THE ONE HOST CACHE: the bytes of every page and bundle read, of every file a server answered
- * whole in place of a range (`readRange`), of every decoded texture level and block tile record
+ * whole in place of a range (`readRange`), of every texture tile record, as blocks or decoded
  * (`level`), and of the scene's resident proxy (`keep`), as one set of entries, ONE budget and ONE
  * eviction (`cacheEntries.ts`), against the CPU total (`cpuBytes`, `world.budget.cpu`). Its owner
  * keeps it across sessions: a world hands the same one to every session it opens, so a session
@@ -66,8 +66,7 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   const entries = createCacheEntries<Held>((held, key) => {
     if (held.kind === 'page') pages--
     else if (held.kind === 'level') {
-      levelBytes -= textureLevelBytes(held.level)
-      closeTextureLevel(held.level)
+      levelBytes -= held.level.byteLength
     } else if (held.kind === 'proxy') {
       held.abort.abort(new DOMException('Kept file released', 'AbortError'))
       if (proxy === key) proxy = undefined
@@ -177,12 +176,12 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       const held = entries.touch(id)
       return held?.kind === 'level' ? held.level : undefined
     },
-    /** Holds `level` under `id`, the cache owning it from here: it closes it as it leaves. A level
-     *  already held — read meanwhile by the session a device loss replaced — stays, marked used
-     *  last, and the copy closes: its bytes are counted once. */
+    /** Holds `level` under `id`, the cache owning it from here. A level already held — read
+     *  meanwhile by the session a device loss replaced — stays, marked used last, and the copy is
+     *  dropped: its bytes are counted once. */
     keepLevel(id: string, level: TextureLevel) {
-      if (cache.level(id)) return closeTextureLevel(level)
-      const bytes = textureLevelBytes(level)
+      if (cache.level(id)) return
+      const bytes = level.byteLength
       entries.set(id, { kind: 'level', level }, bytes)
       levelBytes += bytes
       fit()

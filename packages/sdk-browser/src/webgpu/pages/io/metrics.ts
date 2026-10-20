@@ -5,25 +5,25 @@ import { disposeRootBoxes } from '../../../placement/rootBoxes.ts'
 import { disposeTreeLeaves } from '../../../placement/treeLeaves.ts'
 import { disposeVis, dropGpuSelection } from './drops.ts'
 import { releaseTargets } from '../prepare/targets.ts'
-import { dropBlendBuffers } from '../../blend/buffers.ts'
 import { disposeBlendResources } from '../../blend/resources.ts'
 import { directLightTimings, passOwnMs } from '../../../stage/mapping.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
 import { markWebgpuLost } from './lost.ts'
+import { drawnTrianglesOf } from '../state/drawnTriangles.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { vsmFrameMetrics } from '../render/vsm/vsmStats.ts'
 import { destroyEngineVsm } from '../render/vsm/engineVsm.ts'
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts'
 import { transparentCounts } from '../state/transparentCounts.ts'
 import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
+import { viewTargetBytes } from '../state/gpu.ts'
 
-/** Geometry bytes: the cached allocation total plus the three concatenated visibility buffers. */
+/** Geometry bytes beside the page pool: the float pool's three lists. */
 export function vertexBytesOf(
-  gpu: Pick<WebgpuPagesRuntime['gpu'], 'vertexBytes'>,
   vis: Pick<WebgpuPagesRuntime['vis'], 'concatPos' | 'concatUv' | 'vertexPool'>,
 ) {
   const normals = vis.vertexPool?.normalBytes ?? 0 // the pool's normal atlas
-  return gpu.vertexBytes + (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + normals
+  return (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + normals
 }
 
 export function metricsOf(rt: WebgpuPagesRuntime) {
@@ -34,7 +34,7 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis, timing, services, lights } = rt,
     { geometryPool } = rt.setup
   const stats = gpu.cache?.stats()
-  const vertexBytes = vertexBytesOf(gpu, vis)
+  const vertexBytes = vertexBytesOf(vis)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   const pending = !run.gpuMetricsReady
   const blend = transparentCounts(rt)
@@ -48,15 +48,15 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     coverageBudgetLimited: run.coverageBudgetLimited,
     frameHeld: run.frameHeld,
     // The display's cadence, from the clock the render-scale budget reads (`frame/scaleControl.ts`).
-    rafIntervalMs: rt.scale.frameIntervalMs,
-    displayRefreshMs: rt.scale.refreshMs,
+    rafIntervalMs: rt.views.main.scale.frameIntervalMs,
+    displayRefreshMs: rt.views.main.scale.refreshMs,
     // The size every pass up to the temporal resolve drew this image at (`drawFrameAt`).
     renderWidth: gpu.targetSize[0],
     renderHeight: gpu.targetSize[1],
     clusters: pending ? null : run.visible,
     selectedTriangles: run.selectedTriangles,
     uncoveredTriangles: null,
-    drawnTriangles: run.drawnTriangles,
+    drawnTriangles: drawnTrianglesOf(run, hiz),
     residentPages: stats?.residentPages ?? 0,
     cacheEvictions: stats?.evictions ?? 0,
     geometryAllocationBytes: (stats?.allocatedBytes ?? 0) + vertexBytes,
@@ -81,7 +81,7 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     gpuAllocatedBytes: ledger?.bytes ?? null,
     gpuAllocatedByLabel: ledger?.byLabel ?? null,
     gpuAllocationsUnknownFormat: ledger?.unknownFormats ?? null,
-    gpuFrameTargetBytes: gpu.targetBytes + (gpu.effects?.bytes ?? 0) || null,
+    gpuFrameTargetBytes: viewTargetBytes(gpu) || null,
     geometryPoolBytes: geometryPool.budgetBytes,
     geometryPoolSlots: geometryPool.slots,
     geometryPoolAllocatedBytes: geometryPool.allocatedBytes,
@@ -117,8 +117,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.rays?.dispose()
   rt.rays = undefined
   timing.gpuTiming?.dispose()
-  rt.vis.wholeDeformation?.table.destroy()
-  rt.vis.wholeDeformation = undefined
+  rt.vis.pooledDeformation?.table.destroy()
+  rt.vis.pooledDeformation = undefined
   rt.vis.deformationCompute?.dispose()
   rt.vis.deformationCompute = undefined
   dropGpuSelection(rt)
@@ -127,20 +127,17 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.growth = undefined
   disposeVis(rt)
   releaseTargets(rt)
-  for (const buffer of gpu.positionBuffers.values()) buffer.destroy()
-  dropBlendBuffers(gpu)
-  gpu.vertexBytes = 0
   blendState.compaction?.dispose()
   blendState.compaction = undefined
   blendState.table = undefined
+  // Its rows no longer read by a blend item (`PlacementRows.blended`).
+  for (const { placement } of blendState.blendGpu) if (placement) delete placement.rows.blended
   blendState.blendGpu.length = 0
   blendState.dirtySpans.clear()
   pagedBlendCopies.clear()
   blendState.visibleBlend.length = 0
   disposeBlendResources(blendState)
   blendState.kernels = undefined
-  gpu.volumeBuffer?.destroy()
-  gpu.volumeBuffer = undefined
   gpu.zeroUv = undefined
   capture.surfaceCapture?.dispose()
   gpu.deferred?.dispose()
@@ -152,8 +149,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   gpu.guides = undefined
   gpu.particles?.dispose()
   gpu.particles = undefined
-  gpu.impostors?.pass.dispose()
-  gpu.impostors = undefined
+  gpu.frameDifference?.dispose()
+  gpu.frameDifference = undefined
   rt.lights.tiles?.dispose()
   if (rt.lights.vsm) destroyEngineVsm(rt.lights.vsm)
   rt.lights.vsm = undefined

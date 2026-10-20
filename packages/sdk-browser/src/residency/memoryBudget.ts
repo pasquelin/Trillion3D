@@ -124,7 +124,7 @@ export function splitMemoryBudget(
  * the bounce probes, the effect chain's targets, no frame target, no pool floor. One reading for
  * a session and for none: the pools are then the rest, by the one admission rule (`admittedPools`).
  */
-export function fixedShares(canvas: BudgetCanvas, active?: ActiveGpuMemory) {
+function fixedShares(canvas: BudgetCanvas, active?: ActiveGpuMemory) {
   const held = active ?? {
     ...NOTHING_HELD,
     shadowPool: SHADOW_POOL_BYTES,

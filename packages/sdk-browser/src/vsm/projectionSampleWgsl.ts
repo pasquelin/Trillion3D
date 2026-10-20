@@ -99,21 +99,25 @@ fn vsmCoarserLevelPage(levelZeroPage:vec2u,h:VsmHandle,levelOffset:u32)->vec2u{
 /** The level-0 page of a UV of the level. */
 fn vsmClipmapBasePage(mapUvAt:vec2f)->vec2u{return vec2u(mapUvAt*f32(VSM_LEVEL0_PAGES));}
 /** The page-table reads for the level-0 page \`levelZeroPage\` of level h: its entry's word, and
- *  that of the page its coarser-level count falls back to (the same word without one). */
-struct VsmClipmapPage{levelZeroPage:vec2u,entry:u32,levelEntry:u32,}
+ *  that of the page its coarser-level count falls back to (the same word without one); and, read
+ *  once for every texel of the page, where that count falls back: the coarser level, the first
+ *  texel of its page and the UV/depth transform to it (\`vsmLevelToLevelOf\`). */
+struct VsmClipmapPage{entry:u32,levelEntry:u32,levelHandle:VsmHandle,levelTexelMin:vec2u,toLevel:VsmLevelToLevel,}
 fn vsmClipmapPage(h:VsmHandle,levelZeroPage:vec2u)->VsmClipmapPage{
- let entry=vsmTableWord(vsmTableEntryOf(h,0u,levelZeroPage));
- var levelEntry=entry;
- let e=vsmUnpackTableEntry(entry);
+ var p:VsmClipmapPage;
+ p.entry=vsmTableWord(vsmTableEntryOf(h,0u,levelZeroPage));
+ p.levelEntry=p.entry;
+ p.levelHandle=h;
+ let e=vsmUnpackTableEntry(p.entry);
  if(e.anyLevelMapped&&e.coarserLevels>0u){
-  let vPage=vsmCoarserLevelPage(levelZeroPage,h,e.coarserLevels);
-  levelEntry=vsmTableWord(vsmTableEntryOf(vsmHandleOffset(h,i32(e.coarserLevels)),0u,vPage));
+  let levelGap=e.coarserLevels;
+  p.levelHandle=vsmHandleOffset(h,i32(levelGap));
+  let vPage=vsmCoarserLevelPage(levelZeroPage,h,levelGap);
+  p.levelTexelMin=vPage*VSM_PAGE_TEXELS;
+  p.toLevel=vsmLevelToLevelOf(h,i32(levelGap));
+  p.levelEntry=vsmTableWord(vsmTableEntryOf(p.levelHandle,0u,vPage));
  }
- return VsmClipmapPage(levelZeroPage,entry,levelEntry);
-}
-/** Samples the clipmap: level 0 entry, then its coarser-level count to a coarser level. */
-fn vsmReadClipmap(h:VsmHandle,mapUvAt:vec2f)->VsmMapRead{
- return vsmReadClipmapPage(h,vsmClipmapPage(h,vsmClipmapBasePage(mapUvAt)),mapUvAt);
+ return p;
 }
 /** The texel \`vsmReadClipmapPage\` reads at a UV of the page \`page\` of level h (\`vsmClipmapPage\`):
  *  where its coarser-level count falls back to a coarser level, that level's texel, clamped to its page, and
@@ -135,19 +139,16 @@ fn vsmClipmapTexel(h:VsmHandle,page:VsmClipmapPage,mapUvAt:vec2f)->VsmClipmapTex
  var e=vsmUnpackTableEntry(page.entry);
  if(e.anyLevelMapped){
   let levelGap=e.coarserLevels;
-  r.levelHandle=vsmHandleOffset(h,i32(levelGap));
+  r.levelHandle=page.levelHandle;
   r.mapTexelPos=mapUvAt*f32(vsmTexelsAtLevel(0u));
   r.mapTexelXY=vec2u(r.mapTexelPos);
   if(levelGap>0u){
-   let vPage=vsmCoarserLevelPage(page.levelZeroPage,h,levelGap);
-   let vMin=vPage*VSM_PAGE_TEXELS;
-   let vMax=vMin+vec2u(VSM_PAGE_TEXELS-1u);
-   let t=vsmLevelToLevelOf(h,i32(levelGap));
+   let t=page.toLevel;
    let levelUv=mapUvAt*t.scale+t.bias.xy;
    r.depthLevelInverse=t.depthInverse;
    r.depthLevelBias=t.bias.z;
    r.mapTexelPos=levelUv*f32(vsmTexelsAtLevel(0u));
-   r.mapTexelXY=clamp(vec2u(r.mapTexelPos),vMin,vMax);
+   r.mapTexelXY=clamp(vec2u(r.mapTexelPos),page.levelTexelMin,page.levelTexelMin+vec2u(VSM_PAGE_TEXELS-1u));
    e=vsmUnpackTableEntry(page.levelEntry);
   }
   if(e.thisLevelMapped){
@@ -160,7 +161,8 @@ fn vsmClipmapTexel(h:VsmHandle,page:VsmClipmapPage,mapUvAt:vec2f)->VsmClipmapTex
 /** A raw pool depth of \`t\`'s level as the sampled level reads it: (raw − bias)·inverse, which no
  *  greater raw depth makes smaller (rounding is monotonic, the inverse positive). */
 fn vsmClipmapTexelDepth(t:VsmClipmapTexel,raw:f32)->f32{return (raw-t.depthLevelBias)*t.depthLevelInverse;}
-/** \`vsmReadClipmap\` at a UV of the page \`page\` read (\`vsmClipmapPage\`). */
+/** The clipmap's sample at a UV of level h's page \`page\` read (\`vsmClipmapPage\`): its level-0
+ *  entry, then its coarser-level count to a coarser level, the depth taken back to h's. */
 fn vsmReadClipmapPage(h:VsmHandle,page:VsmClipmapPage,mapUvAt:vec2f)->VsmMapRead{
  let t=vsmClipmapTexel(h,page,mapUvAt);
  var r=vsmEmptyRead();

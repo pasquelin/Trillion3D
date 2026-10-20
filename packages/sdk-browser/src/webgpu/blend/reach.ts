@@ -30,7 +30,7 @@ export function createReach(first: {
     /** Widens the set by what a frame or a change of the plan now asks for. */
     reach(next: { modes?: readonly Blending[]; share?: boolean; filtered?: boolean }) {
       const before = state.modes.size + state.shares.size + +state.filtered
-      for (const mode of next.modes ?? []) state.modes.add(mode)
+      if (next.modes) for (const mode of next.modes) state.modes.add(mode)
       if (next.share !== undefined) state.shares.add(next.share)
       if (next.filtered) state.filtered = true
       if (state.modes.size + state.shares.size + +state.filtered === before) return

@@ -1,5 +1,5 @@
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
-import { HIZ_BUILD_FRONT_WORD, HIZ_SLOT_WORDS, hizTestSlot } from './uniforms.ts'
+import { HIZ_SLOT_WORDS, HIZ_UNI, hizTestSlot } from './uniforms.ts'
 import { HIZ_LEVELS_FRONT_WORD } from './levelsUniform.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../core/writeChanged.ts'
@@ -44,11 +44,11 @@ export type HizState = HizPipelines & {
   cap: number
 }
 
-/** Verdict flags for `rows` rows. */
+/** Verdict flags for `rows` rows: copied aside and back while the cut is frozen (`heldCopy.ts`). */
 export const hizFlags = (device: GPUDevice, rows: number) =>
   device.createBuffer({
     size: Math.max(4, rows * 4),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   })
 
 /** The drawn pyramid's bind group, made again when a buffer it names moved
@@ -95,7 +95,7 @@ export function installHiz(h: HizState, gpu: GpuHiz, next: Pyramid | undefined) 
 function sendHizBuild(h: HizState, { drawn, frontWritten }: Pyramid) {
   const front = frontWritten ? 1 : 0
   h.image.set(drawn.words, 0)
-  h.image[HIZ_BUILD_FRONT_WORD] = front
+  h.image[HIZ_UNI.at.front] = front
   writeChangedSlots(h.device, h.uniforms, h.image, h.slots, 0, drawn.passes.length)
   drawn.levelWords[HIZ_LEVELS_FRONT_WORD] = front
   h.device.queue.writeBuffer(h.levelTable, 0, drawn.levelWords)

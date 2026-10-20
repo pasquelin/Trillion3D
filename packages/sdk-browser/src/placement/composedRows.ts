@@ -1,86 +1,31 @@
 /**
- * THE ROWS OF THE ROOTS A PARENT COMPOSES, listed densely for the rows pass (`rowWords.ts`): a
+ * THE ROWS OF THE COMPOSED ROOTS WHOSE WORLD MOVED, listed for the rows pass (`rowWords.ts`): a
  * parent that moves moves every row of its roots, and the pass derives them again from the worlds
- * the compose worlds pass wrote, a thread a row of a composed root, never a thread a row of the
- * table. The list is followed where the table changes — the rows each frame's dirty marks name,
- * the rows of a root linked or unlinked — and listed again whole only when it starts following a
- * table (`MirroredKeys`). A parent's move costs the CPU nothing a row.
+ * the compose worlds pass wrote, a thread a row of a root it composed anew (`ComposeState.owed`),
+ * never a thread a row of every composed root nor of the table: a parent's move costs the rows of
+ * the roots it moves alone. A row written since is the table's dirty row, derived by the CPU's list.
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import {
-  mirroredWords,
-  mirrorKey,
-  takeMirrored,
-  type MirroredKeys,
-} from '../webgpu/cut/denseKeys.ts'
-import { sendWords, writeBufferRuns } from './rootListPass.ts'
-import { ROW_WORDS } from '../visibility/types.ts'
-import { NO_INDEX } from '../../../math/src/constants.ts'
-import type { ComposeState } from './gpuComposeState.ts'
-import { PAGE_INFO } from '../visibility/pageInfo.ts'
-
-/**
- * `list` in `held` on the GPU, the buffer returned: one made again — the list sent whole — when the
- * list outgrows it, by the one sized send (`sendWords`); else the places written
- * since sent in the cut's one run writer's runs. Nothing when none was.
- */
-export function sendList(
-  device: GPUDevice,
-  held: GPUBuffer | undefined,
-  label: string,
-  list: MirroredKeys,
-) {
-  const { set, moves } = list
-  if (!held || held.size < set.count * 4) {
-    moves.clear()
-    return sendWords(device, held, set.list, set.count, label)
-  }
-  if (!moves.count) return held
-  const moved = takeMirrored(list)
-  if (moved.length) writeBufferRuns(device, held, moved, moved.length, mirroredWords(list), 1)
-  return held
-}
+import { resized } from '../../../math/src/sequence/resized.ts'
+import { ownPageRow } from '../webgpu/row/state.ts'
 
 /** Whether `row` is a caster row the table holds: a drawn row, or a blended caster's — the one
- *  guard of a row the rows list and a root's walk (`rootRows`) name. */
+ *  guard of a row a root's walk (`rootRows`) names. */
 const casterRow = (rows: WebgpuPagesRuntime['layout']['rows'], row: number) =>
   row < rows.rowCount || (row >= rows.blendFirst && row < rows.casterSlots)
 
-/** Row `row` in the rows list or out of it: in while the root the table names it by is composed. */
-function followRow(state: ComposeState, rows: WebgpuPagesRuntime['layout']['rows'], row: number) {
-  const ints = rows.pageTableInts!,
-    rank = casterRow(rows, row) ? ints[row * ROW_WORDS + PAGE_INFO.at.placement] : NO_INDEX
-  mirrorKey(state.rowList, row, rank < state.roots && state.parentOf[rank] !== NO_INDEX)
-}
+/** The rows a call lists, held from call to call. */
+let listed = new Uint32Array(64)
 
-/** Rows `[from, to]` of the table followed into the rows list, while it follows the table. */
-export function followComposedRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const state = rt.compose,
-    { rows } = rt.layout
-  if (!state?.parentIds.size || !rows.pageTableInts || !state.rowsFollowed) return
-  for (let row = from; row <= to; row++) followRow(state, rows, row)
-}
-
-/**
- * The rows list, as the rows pass reads it: every caster row of the table listed again from the
- * words it holds once the list starts following it (`rowsFollowed`) — at the first link, after a
- * frame no parent composed —, then the rows of each root linked or unlinked since, found by its
- * pages (`rootRows`), O(its pages).
- */
-export function followComposedRows(rt: WebgpuPagesRuntime, state: ComposeState) {
-  const { rows } = rt.layout
-  if (!rows.pageTableInts) return
-  if (!state.rowsFollowed) {
-    state.rowList.set.clear()
-    state.rowList.moves.clear()
-    state.relinked.length = 0
-    state.rowsFollowed = true
-    for (let row = 0; row < rows.rowCount; row++) followRow(state, rows, row)
-    for (let row = rows.blendFirst; row < rows.casterSlots; row++) followRow(state, rows, row)
-    return
+/** The rows of the roots `ranks` (`rootRows`): a view the next call overwrites. */
+export function rowsOfRoots(rt: WebgpuPagesRuntime, ranks: ArrayLike<number>) {
+  let count = 0
+  const push = (row: number) => {
+    if (count === listed.length) listed = resized(listed, count + 1)
+    listed[count++] = row
   }
-  for (const rank of state.relinked) rootRows(rt, rank, (row) => followRow(state, rows, row))
-  state.relinked.length = 0
+  for (let k = 0; k < ranks.length; k++) rootRows(rt, ranks[k], push)
+  return listed.subarray(0, count)
 }
 
 /**
@@ -94,11 +39,7 @@ export function rootRows(rt: WebgpuPagesRuntime, rank: number, visit: (row: numb
     base = root?.packedBase ?? -1
   if (!root || base < 0) return
   for (let page = 0; page < root.pages.length; page++) {
-    const index = base + page,
-      transparent = !!root.pages[page].transparent
-    const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
-    if (row < 0 || !casterRow(rows, row)) continue
-    if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
-    visit(row)
+    const row = ownPageRow(rows, base + page, !!root.pages[page].transparent)
+    if (row >= 0 && casterRow(rows, row)) visit(row)
   }
 }

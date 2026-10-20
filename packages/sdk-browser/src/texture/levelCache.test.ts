@@ -3,10 +3,15 @@
 // keeps, the proxy after them, and following `world.budget.cpu` live.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createTextureLevelReader, type TextureLevelAddress } from './levelReader.ts'
+import {
+  createTextureLevelReader,
+  tileLevelBytes,
+  type TextureLevelAddress,
+} from './levelReader.ts'
 import { heldLevelsOf, type HeldLevels } from './heldLevels.ts'
 import { tileRecord } from './tileRecords.ts'
-import { tiledLevelBytes } from './tileRecords.fixture.ts'
+import { tiledLevelFile } from './tileRecords.fixture.ts'
+import { tilesAt } from './tiles.ts'
 import { createPageCache, type PageCache } from '../streaming/pageCache.ts'
 import { manifestTableBytes } from '../streaming/manifestTables.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
@@ -14,32 +19,32 @@ import { servedPages } from '../streaming/servedPages.fixture.ts'
 import { retained } from '../streaming/retained.fixture.ts'
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/options.ts'
-import { MIB } from '../../../math/src/constants.ts'
 
 const BASE = 'https://host/cache/full/clusters.json'
 const textures = { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 }
 /** Bytes of tile (0, 0)'s record in a `side`² block level file: what a session holds of it. */
 const recordBytes = (side: number) => tileRecord(side, side, 0, 0).bytes
-/** The level `level` of one texture, block-compressed or lossless. */
-const address = (level: number, format: 'bc7' | 'png' = 'bc7'): TextureLevelAddress => ({
+/** The level `level` of one texture, as blocks or decoded to RGBA8. */
+const address = (level: number, rgba = false): TextureLevelAddress => ({
   sha256: 'b'.repeat(64),
   atlas: 1,
   level,
-  format,
+  format: 'bc7',
+  rgba,
 })
 /** Asks tile (0, 0) of `key` of `side`² texels from `levels`. */
 const askTile = (levels: HeldLevels, key: TextureLevelAddress, side: number) =>
   levels.read(key, [side, side], assert.fail)
 
-/** A session's levels of `format`, read by the explorer's reader through `cache` under the cook
- *  `key`, from a server that honours Range; `fetched` lists every level address it was asked. */
-function session(cache: PageCache, key = 'k1', side = 1024, format: 'bc7' | 'png' = 'bc7') {
+/** A session's levels, as blocks or decoded (`rgba`), read by the explorer's reader through
+ *  `cache` under the cook `key`, from a server that honours Range; `fetched` lists every level
+ *  address it was asked. */
+function session(cache: PageCache, key = 'k1', side = 1024, rgba = false) {
   const fetched: string[] = []
-  globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
+  const { file } = tiledLevelFile(side, side)
   globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
     fetched.push(String(url))
-    const file = new Uint8Array(tiledLevelBytes(side, side)),
-      range = new Headers(init?.headers).get('range')
+    const range = new Headers(init?.headers).get('range')
     if (!range) return new Response(file)
     const [from, to] = range.slice(6).split('-').map(Number)
     return new Response(file.slice(from, to + 1), { status: 206 })
@@ -47,10 +52,18 @@ function session(cache: PageCache, key = 'k1', side = 1024, format: 'bc7' | 'png
   const levels = heldLevelsOf(createTextureLevelReader({ textures, key }, BASE, cache)!)
   /** Asks tile (0, 0) of `level`, and waits for what it read. */
   const ask = async (level: number) => {
-    askTile(levels, address(level, format), side)
+    askTile(levels, address(level, rgba), side)
     await levels.settled()
   }
-  return { levels, fetched, ask }
+  /** Asks every tile of `level`, one after the other. */
+  const askEvery = async (level: number) => {
+    const [across, down] = tilesAt(side, side, 0)
+    for (let t = 0; t < across * down; t++) {
+      levels.read(address(level, rgba), [side, side], assert.fail, t % across, (t / across) | 0)
+      await levels.settled()
+    }
+  }
+  return { levels, fetched, ask, askEvery }
 }
 
 test('after a device loss the texture levels are rebuilt with no level read again', async () => {
@@ -62,7 +75,7 @@ test('after a device loss the texture levels are rebuilt with no level read agai
   // Another cook's level of the same address is another file: read, never served from this one.
   const other = session(cache, 'k2')
   await other.ask(0)
-  assert.equal(other.fetched.length, 1)
+  assert.equal(other.fetched.length, 2, 'its head, then its record')
   assert.equal(cache.levelBytes, 2 * recordBytes(1024))
 })
 
@@ -103,21 +116,28 @@ test('the texture levels follow world.budget.cpu live, the least recently read l
   const pools = worldPools()
   const physics = { ...DEFAULT_PHYSICS_BUDGET }
   const handle = worldBudget(pools, { explorer: null }, { last: null }, physics)
-  // Two decoded 512² levels, 1 MiB each: both fit the default total, one alone fits the one below.
+  // Two 512² levels decoded to RGBA8, every tile: both fit the default total, one alone fits the
+  // one below.
   const side = 512,
-    bytes = side * side * 4
-  const scope = globalThis as { createImageBitmap?: unknown },
-    decoder = scope.createImageBitmap
-  scope.createImageBitmap = async () => ({ width: side, height: side, close() {} })
-  try {
-    const { levels, ask } = session(pools.pageCache, 'k1', side, 'png')
-    await ask(0)
-    await ask(1)
-    assert.equal(levels.bytes, 2 * bytes)
-    handle.cpu = (3 * MIB) / 2
-    assert.equal(levels.bytes, bytes, 'the level read first left')
-    assert.ok(askTile(levels, address(1, 'png'), side) !== 'waiting', 'the one read last stays')
-  } finally {
-    scope.createImageBitmap = decoder
+    [across, down] = tilesAt(side, side, 0)
+  let bytes = 0
+  for (let t = 0; t < across * down; t++)
+    bytes += tileLevelBytes(tileRecord(side, side, t % across, (t / across) | 0).bytes, true)
+  const { levels, askEvery } = session(pools.pageCache, 'k1', side, true)
+  await askEvery(0)
+  await askEvery(1)
+  assert.equal(levels.bytes, 2 * bytes)
+  handle.cpu = bytes
+  assert.ok(levels.bytes <= bytes)
+  for (let t = 0; t < across * down; t++) {
+    const tile = [
+      address(1, true),
+      [side, side],
+      assert.fail,
+      t % across,
+      (t / across) | 0,
+    ] as const
+    assert.ok(levels.read(...tile) instanceof Uint8Array, `the level read last stays: tile ${t}`)
   }
+  assert.equal(askTile(levels, address(0, true), side), 'waiting', 'the level read first left')
 })

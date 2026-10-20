@@ -1,3 +1,4 @@
+import { uniqueSortedInPlace } from '../../../../math/src/scalar/integers.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { appendRootsUnder, type RootsOwner } from '../pages/render/movedNode.ts'
 import type { RayFilter } from '../../world/query/types.ts'
@@ -10,10 +11,7 @@ function ranksUnder(layout: RootsOwner, nodes: readonly Object3D[]) {
   let at = 0
   for (const node of nodes) at = appendRootsUnder(layout, node, out, at)
   out.length = at
-  out.sort((a, b) => a - b)
-  let kept = 0
-  for (let k = 0; k < out.length; k++) if (k === 0 || out[k] !== out[k - 1]) out[kept++] = out[k]
-  out.length = kept
+  uniqueSortedInPlace(out)
   return out
 }
 

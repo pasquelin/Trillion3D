@@ -1,4 +1,4 @@
-// A growth of the float pool places the whole-copy table again after the wider vertices
+// A growth of the float pool places the pooled blocks' table again after the wider vertices
 // (`prepareWebgpuGeometry`): the table it replaces is freed, never left on the device.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -7,11 +7,10 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { prepareWebgpuGeometry } from './geometryPrepare.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 
-test('a growth frees the whole-copy table it replaces and hands the new one', () => {
+test('a growth frees the pooled table it replaces and hands the new one', () => {
   const { device } = fakeDevice()
   const made: { freed: boolean }[] = []
-  const wholePool = () => ({
-    placed: [],
+  const pooledRows = () => ({
     floats: 0,
     rows: 1,
     upload: () => {
@@ -21,16 +20,15 @@ test('a growth frees the whole-copy table it replaces and hands the new one', ()
     },
   })
   const handed: unknown[] = []
-  const { vertexPool, wholeDeformation } = prepareWebgpuGeometry(
+  const { vertexPool, pooledDeformation } = prepareWebgpuGeometry(
     device,
     [{ attributes: G.triangleAttributes() }] as PageRec[],
     new Map(),
     undefined,
-    [],
-    (growth) => handed.push(growth.wholeDeformation),
-    wholePool,
+    (growth) => handed.push(growth.pooledDeformation),
+    pooledRows,
   )
-  assert.ok(wholeDeformation)
+  assert.ok(pooledDeformation)
   vertexPool.place(G.triangleAttributes(), true) // past the room: the pool doubles
   assert.deepEqual(
     made.map((table) => table.freed),

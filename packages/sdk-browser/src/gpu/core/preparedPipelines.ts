@@ -1,8 +1,6 @@
 // The pipelines of one program, keyed by what decides each, on the engine's one way to a pipeline
 // (`../../lighting/deferred/fullscreen.ts`): render or compute, each made once and prepared.
 
-import type { PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
-
 /** The pipelines of one program, keyed by what decides each: `of(key)` is the one `make(key)`
  *  describes, made once and prepared like any other (`PreparedPipeline`) — or a pipeline with the
  *  layouts and module it is made of, or that module alone, which several of a program's pipelines
@@ -24,4 +22,3 @@ export function preparedPipelines<K, T>(
     },
   }
 }
-export type PreparedPipelines<K, P> = ReturnType<typeof preparedPipelines<K, PreparedPipeline<P>>>

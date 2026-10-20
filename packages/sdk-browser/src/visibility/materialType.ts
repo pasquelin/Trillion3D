@@ -10,6 +10,22 @@ export const PHYSICAL_MAP_FIELDS = [
   'clearcoatNormalMap',
 ] as const
 
+/** The surface's own maps, in the order their UV channels word names them
+ *  (`../webgpu/material/materialRecord.ts`): `WRAP_MAP`'s ranks (`wrapModes.ts`), the subsurface
+ *  map after them. */
+export const SURFACE_MAP_FIELDS = [
+  'map',
+  'roughnessMap',
+  'metalnessMap',
+  'normalMap',
+  'aoMap',
+  'emissiveMap',
+  'subsurfaceMap',
+] as const
+/** The subsurface map's bit in a record's UV channels word (`SURFACE_MAP_FIELDS` order): what both
+ *  resolves read its coordinate by. */
+export const SUBSURFACE_MAP_BIT = SURFACE_MAP_FIELDS.indexOf('subsurfaceMap')
+
 export type VisMaterial = {
   baseColor: [number, number, number]
   metalness: number
@@ -17,6 +33,9 @@ export type VisMaterial = {
   lit: boolean
   /** False keeps this material's colour outside the scene's fog. */
   fog?: boolean
+  /** The most of its history the temporal anti-aliasing keeps on its pixels, in [0, 1]
+   *  (`HISTORY_SHARE_SHIFT`); 1, or none, the engine's own blend. */
+  historyShare?: number
   /** Which faces it draws: the pipelines' culling, the row's face flags, the cut's cones. */
   side: Side
   alphaTest: number
@@ -48,6 +67,9 @@ export type VisMaterial = {
   /** `KHR_materials_ior.ior`, and the volume of `KHR_materials_volume`. `attenuationDistance` is 0
    *  when the glTF does not declare one: the volume then attenuates nothing. */
   ior: number
+  /** Whether the surface declares its ior (`KHR_materials_ior`, or the host's own field): only
+   *  then does it refract: the default ior serves Fresnel, never a bend nobody asked for. */
+  refracts?: boolean
   thickness: number
   attenuationDistance: number
   attenuationColor: [number, number, number]

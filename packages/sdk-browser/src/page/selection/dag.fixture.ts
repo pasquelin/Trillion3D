@@ -111,7 +111,7 @@ export function dagFixture() {
     ],
   }
   const metadata = {
-    errorModel: 'dag-group-qem-v3',
+    errorModel: 'dag-group-qem-v4',
     clusterStrategy: 'dag-groups',
     primitives: [
       {
@@ -120,7 +120,6 @@ export function dagFixture() {
         pass: 'exact-clusters',
         clusterStrategy: 'dag-groups' as const,
         pages,
-        hierarchy: null,
         structure,
         culling: manifestCulling(pages),
       },
@@ -135,6 +134,19 @@ export function dagFixture() {
     draws: graphDraws(source, associations),
   }
 }
+
+/** The pages the collector reads of `fixture`'s scene under `options`: its roots, its pages. */
+export const collectFixture = (
+  fixture: ReturnType<typeof dagFixture>,
+  options?: Parameters<typeof collectClusterPages>[4],
+) =>
+  collectClusterPages(
+    fixture.source,
+    graphDraws(fixture.source, fixture.associations),
+    fixture.metadata,
+    fixture.indices,
+    options,
+  )
 
 /** A view of the origin down -z from (0, 0, `z`). */
 export function frontCamera(z: number, far = 1000) {
@@ -163,12 +175,7 @@ export function urls(
   pixelError: number,
   cam = wideCamera(),
 ) {
-  const { roots } = collectClusterPages(
-    fixture.source,
-    graphDraws(fixture.source, fixture.associations),
-    fixture.metadata,
-    fixture.indices,
-  )
+  const { roots } = collectFixture(fixture)
   return selectVisiblePages(roots, readCameraWorld(fixtureCam, cam), {
     pixelError,
     viewport: [1280, 720],

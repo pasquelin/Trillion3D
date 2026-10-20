@@ -19,6 +19,8 @@ import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { materialRecordsSent } from '../../material/materialRecordsSent.fixture.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../material/materialLayout.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 /** The quad opened on WebGPU, its material API, and what its drawn rows say: the colour of the
  *  record each names, as the material table last sent it up, and their flags. */
@@ -28,6 +30,7 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
     { device, buffers, textureWrites } = fakeDevice(BACKEND)
   edit(fixture)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
@@ -110,9 +113,8 @@ test('a vertex-coloured drawable keeps its colours on WebGPU with a created mate
   }
 })
 
-test('a drawable the open laid out as a forward copy is refused another surface by name', async () => {
-  const { api, backend, close } = openQuad(({ metadata, material }) => {
-    metadata.primitives[0].pass = 'shared-blend'
+test('a drawable of blended clusters is refused another surface by name', async () => {
+  const { api, backend, close } = openQuad(({ material }) => {
     material.transparent = true
   })
   try {
@@ -121,7 +123,7 @@ test('a drawable the open laid out as a forward copy is refused another surface 
     assert.throws(
       () => api.assignMaterial('0/0', made),
       (error: { code?: string; message: string }) =>
-        refused(error) && /forward copy/.test(error.message),
+        refused(error) && /forward pass/.test(error.message),
     )
   } finally {
     close()

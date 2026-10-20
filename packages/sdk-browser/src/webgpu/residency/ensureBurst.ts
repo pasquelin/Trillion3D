@@ -29,7 +29,7 @@ export type EnsureOptions = {
   bytesRevision: () => number
   /** The pages a holder brought into the root cover that the pool lacks (`coverHolders.ts`):
    *  loaded before the queue's. */
-  coverMissing?: (holds: (page: PageRec) => boolean, limit?: number) => readonly PageRec[]
+  coverMissing?: (holds: (page: PageRec) => boolean, limit: number) => readonly PageRec[]
   /** How many pages the cover's later holders brought that the pool may lack still. */
   coverLacking?: () => number
   /** The session's one main-thread clock (`WebgpuPagesRuntime.clock`): the queue spends what the

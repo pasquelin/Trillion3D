@@ -1,13 +1,12 @@
 import { viewProj } from '../pages/helpers.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts'
 import {
-  FLAG_DIAGNOSTIC_CLUSTERS,
-  FLAG_DIAGNOSTIC_LOD,
-  FLAG_DIAGNOSTIC_SCREEN_ERROR,
+  DIAGNOSTIC_CODE_SHIFT,
   FLAG_DIAGNOSTIC_VIEW,
-  FLAG_DIAGNOSTIC_WIREFRAME,
   FLAG_UNLIT_VIEW,
 } from '../../visibility/types.ts'
+import { diagnosticCode, drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { writeBlendDiagnostic } from './diagnostic.ts'
 import { directTiles } from '../pages/render/encodeLights.ts'
 import { wantsContractLighting } from '../pages/prepare/contractLight.ts'
@@ -15,30 +14,21 @@ import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostic
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { BLEND_VIEW_SIZE, VIEW } from './viewLayout.ts'
 
-/** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
-function diagnosticBits(diagnostic: DiagnosticMode) {
-  if (diagnostic === 'beauty') return 0
-  const mode =
-    diagnostic === 'wireframe'
-      ? FLAG_DIAGNOSTIC_WIREFRAME
-      : diagnostic === 'clusters'
-        ? FLAG_DIAGNOSTIC_CLUSTERS
-        : diagnostic === 'lod'
-          ? FLAG_DIAGNOSTIC_LOD
-          : diagnostic === 'screen-error'
-            ? FLAG_DIAGNOSTIC_SCREEN_ERROR
-            : 0
-  return (FLAG_DIAGNOSTIC_VIEW | mode) >>> 0
-}
+/** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. None for beauty
+ *  and a view of the lit image, which the transparents light as beauty (`drawsLit`). */
+const diagnosticBits = (diagnostic: DiagnosticMode) =>
+  drawsLit(diagnostic)
+    ? 0
+    : (FLAG_DIAGNOSTIC_VIEW | (diagnosticCode(diagnostic) << DIAGNOSTIC_CODE_SHIFT)) >>> 0
 
 /**
- * VIEW uniform of the transparent pass (`viewLayout.ts`): one hundred and forty-four bytes, once
+ * VIEW uniform of the transparent pass (`viewLayout.ts`): one hundred and ninety-two bytes, once
  * per image.
  *
  * Everything that belonged to an item — its matrix, its colour, its six maps — now lives in the
  * record the shader reads at the rank the vertex index carries (`items.ts`). What
  * remains here is only what changes from one image to the next and holds for every item at once:
- * the projection, the eye, this image's lamp tiles and the diagnostic flags. No loop over items,
+ * the projection, the eye, this image's lamp tiles and the diagnostic view. No loop over items,
  * no allocation, a single buffer write.
  */
 export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -46,21 +36,12 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
     buffer = blendState.viewBuffer
   if (!buffer) return
   const packed = blendState.viewPacked
-  const { diagnostic, lastCamera, diagnosticPixelError } = run
+  const { diagnostic, lastCamera } = run
   // The eye in world space, taken from the engine camera: the local position of a parented
   // camera is not where it looks.
   const eye = lastCamera ? run.gate.cam.eye : undefined
   const tiles = directTiles()
-  writeBlendDiagnostic(
-    blendState,
-    rt.layout.packedPages,
-    rt.layout.selectionRoots,
-    rt.layout.placement,
-    diagnostic,
-    eye && run.gate.cam,
-    rt.setup.viewport,
-    diagnosticPixelError,
-  )
+  writeBlendDiagnostic(blendState, rt.layout.packedPages, diagnostic)
   packed.set(viewProj, VIEW.viewProj)
   // The camera as one homogeneous point (`EngineCamera.viewPoint`): the shading's view vector
   // is `camPos.xyz − P·camPos.w` whatever the projection.
@@ -69,6 +50,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   packed[VIEW.camPos + 1] = viewPoint?.[1] ?? 0
   packed[VIEW.camPos + 2] = viewPoint?.[2] ?? 0
   packed[VIEW.camPos + 3] = viewPoint?.[3] ?? 1
+  writeDistortionView(rt)
   // Lamp tiles of this image: without them the pixel loop falls back on the declared lamps.
   // Zero when no list has been encoded, never those of another image.
   packed[VIEW.lightTiles] = tiles[1]
@@ -81,6 +63,36 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed.byteOffset,
     BLEND_VIEW_SIZE,
   )
+}
+
+/** The unit axis of column `column` of the camera's world matrix `world`, at word `at`. */
+function writeAxis(packed: Float32Array, at: number, world: Float64Array, column: number) {
+  const x = world[column],
+    y = world[column + 1],
+    z = world[column + 2],
+    length = length3(x, y, z) || 1
+  packed[at] = x / length
+  packed[at + 1] = y / length
+  packed[at + 2] = z / length
+}
+
+/** The camera's axes, the distortion parameters and the render matrix's clip-w row
+ *  (`viewLayout.ts`), once an image on the CPU: what every refracting fragment reads alike. */
+function writeDistortionView(rt: WebgpuPagesRuntime) {
+  const packed = rt.blendState.viewPacked,
+    cam = rt.run.gate.cam,
+    world = cam.world,
+    [width, height] = rt.gpu.targetSize,
+    [displayWidth, displayHeight] = rt.gpu.displaySize
+  writeAxis(packed, VIEW.viewRight, world, 0)
+  writeAxis(packed, VIEW.viewUp, world, 4)
+  // The distortion parameters, the offsets' scale from view normal to screen fraction: M[0][0]
+  // by the UNSCALED view's width, M[0][0] by the aspect by its height — a lower render scale bends
+  // the scene as far as the display's.
+  const m00 = cam.projection[0]
+  packed[VIEW.viewRight + 3] = m00 * displayWidth
+  packed[VIEW.viewUp + 3] = (height > 0 ? width / height : 1) * m00 * displayHeight
+  for (let i = 0; i < 4; i++) packed[VIEW.clipW + i] = viewProj[i * 4 + 3]
 }
 
 /** The view's words this image sets past its camera and its lamp tiles: the flags, the
@@ -113,4 +125,6 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   // The composition's exposure and display curve: the display filter's colour (`displayFilter.ts`).
   packed[VIEW.exposure] = tiles[3]
   ints[VIEW.toneCurve] = tiles[4]
+  // The cut's threshold the screen-error view measures against (`diagnosticScreenError`).
+  packed[VIEW.pixelError] = run.diagnosticPixelError
 }

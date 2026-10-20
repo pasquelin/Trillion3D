@@ -13,8 +13,9 @@
  *   surface buffer holds the opaque one's: its flags, its normal and roughness, its lobes.
  *
  * The nearest of the fragments that do either is kept (its depth, `depth`). The trace answers the
- * front surface as the opaque one (`trace.ts`), on its own grids (`grids`) and history; its
- * last pass (`bilateralWgsl.ts`) writes its radiance here (`traced`), both lobes' on a shared exponent. A forward fragment whose depth
+ * front surface as the opaque one (`trace.ts`), on its own grids (`grids`) and history, through the
+ * view's resolved pixels after the opaque one; its last pass (`bilateralWgsl.ts`) writes its radiance
+ * here (`traced`), both lobes' on a shared exponent. A forward fragment whose depth
  * is the front depth, in an image whose trace answered the front (`reflectionView.front.x`), reads its
  * reflection there, one load; any other — a surface behind the front one — reads the chain without
  * the proxy: the screen, the probes and the environment, never a ray.
@@ -31,8 +32,9 @@
  * a fragment: a deeper one, the screen march (`REFLECTION_MARCH_STEPS` iterations) and the probes, no proxy
  * ray. Floor: the opaque trace's own cost, on the T pixels the reflecting transparents cover.
  *
- * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 52 more (normals, radiance, the grids and a
- * word a tile, `gridBytes`) once a transparent reflects, the lobes target's once one carries a lobe.
+ * Bytes: 4 + 1 a pixel (depth, flags) with blends; 8 + 8 + 23 more (normals, radiance, the grid's 28
+ * a texel and the history's 16 a pixel, a word a tile, `gridBytes`) once a transparent reflects, the
+ * lobes target's once one carries a lobe.
  */
 import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
 import { SURFACE_FORMATS, holds } from '../scene/surfaceBuffer.ts'
@@ -41,11 +43,11 @@ import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { HIZ_LEVEL0_FORMAT } from '../gpu/hiz/level0.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../stage/passLabels.ts'
-import { createKernelTexture, createReflectionGrids, gridBytes, gridExtent } from './grids.ts'
+import { createKernelTexture, createReflectionGrids, gridBytes } from './grids.ts'
 
 /** The format of the front's traced radiance: the base's and the coat's words. */
 export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'
-/** How a fragment binds it: words, read by load (the blend's and the water composite's groups). */
+/** How a fragment binds it: words, read by load (the blend's group). */
 export const FRONT_TRACED_LAYOUT: { texture: GPUTextureBindingLayout } = {
   texture: { sampleType: 'uint' },
 }
@@ -84,7 +86,8 @@ export const frontLayerBytes = (width: number, height: number, blends: boolean) 
 /** The stamp of the image `frame` (`run.frame`): what tells the front pass of this image. */
 export const frontStamp = (frame: number) => frame >>> 0 || 1
 
-/** A view's front layer at `width × height`, `blends` sizing it (`frontLayer.ts`). */
+/** A view's front layer at `width × height`, `blends` sizing it (`frontLayer.ts`), its grids the
+ *  opaque surface's. */
 export function createFrontLayer(
   device: GPUDevice,
   width: number,
@@ -168,8 +171,7 @@ export function createFrontLayer(
         if (n.texture !== normals) views.normals = (normals = n.texture).createView()
         if (t.texture !== traced) views.traced = (traced = t.texture).createView()
         bytes.targetBytes += n.bytes + t.bytes
-        const [gw, gh] = gridExtent(width, height)
-        if (!holds({ width: gw, height: gh }, grids.textures[0])) {
+        if (grids.pixels[0] < width || grids.pixels[1] < height) {
           retire(device, grids)
           grids = createReflectionGrids(device, LABEL, full)
           bytes.targetBytes += gridBytes(width, height) - gridBytes(1, 1)

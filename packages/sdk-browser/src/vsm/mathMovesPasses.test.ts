@@ -13,7 +13,7 @@
 // sweep holds the room's float32 equal.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeVirtualShadowProjection } from './projectionPass.ts'
+import { writeVsmProjectionFrame } from './projectionPass.ts'
 import { createVsmResources } from './resources.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
@@ -68,32 +68,20 @@ function rigidView(yaw: number, pitch: number, eye: number[]) {
 test('the projection view header: every word as the old composition wrote it', () => {
   const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
   const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
-  const texture = {} as GPUTextureView
-  const encoder = device.createCommandEncoder()
   const perspective = perspectiveProjection(new Float64Array(16), 60, 16 / 9, 0.1, 1)
   const ortho = orthographicProjection(new Float64Array(16), -40, 40, -30, 30, 0.5, 900)
   const check = (view: Float64Array, shift: number[] | undefined, isPerspective: boolean) => {
     const projection = isPerspective ? perspective : ortho
     writes.length = 0
-    encodeVirtualShadowProjection(
-      encoder,
-      res,
-      {
-        device,
-        depth: texture,
-        hizDepth: fakeHizDepth,
-        normalRough: texture,
-        flags: texture,
-        mask: texture,
-        maskTiles: texture,
-        receiver: texture,
-        width: 64,
-        height: 64,
-        frameIndex: 0,
-        camera: { view, projection, perspective: isPerspective, originShift: shift },
-      },
-      [],
-    )
+    writeVsmProjectionFrame(res, {
+      device,
+      hizDepth: fakeHizDepth,
+      width: 64,
+      height: 64,
+      frameIndex: 0,
+      camera: { view, projection, perspective: isPerspective, originShift: shift },
+      lights: [],
+    })
     const bytes = writes.find(
       (w) => (w.buffer as { label?: string }).label === 'vsm.projection.view',
     )!.data as Uint8Array

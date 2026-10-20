@@ -12,6 +12,7 @@ import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
 import { hierarchyLevelSizes } from './hierarchy.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import type { DagCapacity } from './packCapacity.ts'
+import { WORLD_ROOT_MARK } from './worldLinks.ts'
 
 /** A ROOT PLACED IN A PACKING (`pack.ts`): its primitive's nodes, shared by its placements, its
  *  world, mark and links, and the shift that leads its pages to their records. */
@@ -101,7 +102,8 @@ export function placeRoot(
   p.worlds.set(root.world.elements, w * 16)
   p.rootBases[w] = nodeBase
   p.rootNodes[w] = root.parked ? NO_INDEX : nodeBase
-  p.mark[w] = root.mark ?? 0
+  // A placement of the world DAG is marked so, whatever its root's own bits (`WORLD_ROOT_MARK`).
+  p.mark[w] = (root.mark ?? 0) | (root.hlod ? WORLD_ROOT_MARK : 0)
   const links = linksFor(culling, count)
   const { structure } = root
   p.cutLinks.push({ structure, links, pageBase, pageCount: count, nodeBase, nodeCount })

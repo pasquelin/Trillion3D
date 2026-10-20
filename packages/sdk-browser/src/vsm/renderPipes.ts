@@ -6,7 +6,7 @@
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
-import { computeBufferEntry } from '../gpu/core/computeBindings.ts'
+import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
 import { VSM_PAGE_TEXELS } from './constants.ts'
 import { vsmComputePipe } from './passKit.ts'
 import { vsmBindGroupLayoutEntries, type VsmResources } from './resources.ts'
@@ -20,7 +20,9 @@ import {
   vsmRenderRasterWgsl,
 } from './renderRasterWgsl.ts'
 import { vsmChunkContext, vsmChunkKernels } from './chunkKernels.ts'
-import { vsmCandidatesEntries } from './chunkParams.ts'
+import { vsmCandidatesEntries, vsmRenderParamsEntry } from './chunkParams.ts'
+import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
+import { VSM_RENDER_TIER_CORNERS, VSM_RENDER_TIERS } from './renderParamsWgsl.ts'
 import type { RasterTables } from './renderChunks.ts'
 import type { VsmRenderContext } from './renderPass.ts'
 import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
@@ -28,7 +30,11 @@ import { VSM_PASS_PREFIX } from '../stage/passLabels.ts'
 /** What the raster's passes, pipes and lists are labelled under. */
 export const RENDER_LABEL = `${VSM_PASS_PREFIX}render`
 
-/** The raster's compute pipes of `layout` (`vsmComputePipe`): its candidates and chunk kernels. */
+/** The tiers, lowest first: each one's expand and raster pipeline (`VSM_RENDER_TIERS`). */
+const TIERS = Array.from({ length: VSM_RENDER_TIERS }, (_, t) => t)
+
+/** The raster's compute pipes of `layout` (`vsmComputePipe`): its candidates, chunk kernels, the
+ *  bin and the expand of each tier — one module, the tier an override (`vsmRenderExpandWgsl`). */
 export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   const candidates = vsmComputePipe(
     device,
@@ -37,9 +43,31 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
     'vsmRenderCandidates',
     [vsmCandidatesEntries()],
   )
+  const expandCode = vsmRenderExpandWgsl(layout)
+  const expandGroups = [
+    vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, COMPUTE),
+    [
+      vsmRenderParamsEntry(0),
+      computeBufferEntry(1, 'read-only-storage', COMPUTE),
+      computeBufferEntry(2, 'storage', COMPUTE),
+      computeBufferEntry(3, 'storage', COMPUTE),
+      computeBufferEntry(4, 'storage', COMPUTE),
+    ],
+  ]
   return {
     candidates,
     ...vsmChunkKernels(device, layout, RENDER_LABEL, vsmRenderCullWgsl(layout)),
+    bin: vsmComputePipe(device, `${RENDER_LABEL}.bin`, expandCode, 'vsmRenderBin', expandGroups),
+    expands: TIERS.map((t) =>
+      vsmComputePipe(
+        device,
+        `${RENDER_LABEL}.expand${t}`,
+        expandCode,
+        'vsmRenderExpand',
+        expandGroups,
+        { VSM_RENDER_TIER: t },
+      ),
+    ),
   }
 }
 
@@ -50,7 +78,8 @@ interface RasterSource {
   pageLayout: GPUBindGroupLayout
 }
 
-/** The raster's render pipeline of `code` and its group 1's layout (`vsmRasterPipe`). */
+/** The raster's render pipelines of `code`, one a tier (its corners an override), and their group
+ *  1's layout (`vsmRasterPipe`). */
 function makeRaster(
   device: GPUDevice,
   { code, layout, pageLayout }: RasterSource,
@@ -68,26 +97,27 @@ function makeRaster(
     ],
   })
   const module = device.createShaderModule({ label: `${RENDER_LABEL}.raster`, code })
-  const prepared = preparedPipeline(device, {
-    label: `${RENDER_LABEL}.raster`,
-    layout: device.createPipelineLayout({ bindGroupLayouts: [pageLayout, layout1] }),
-    vertex: { module, entryPoint: 'vsmRenderVs' },
-    fragment: { module, entryPoint: 'vsmRenderFs', targets: [] },
-    // Each vertex emits its triangle light-facing counter-clockwise (`vsmRenderEmitsSwapped`).
-    primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'back' },
-    depthStencil: {
-      format: VSM_RENDER_TARGET_FORMAT,
-      depthWriteEnabled: false,
-      depthCompare: 'always',
-    },
-  })
-  return {
-    layout1,
-    prepared,
-    get pipeline() {
-      return prepared.get()
-    },
-  }
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, layout1] })
+  const tiers = TIERS.map((t) =>
+    preparedPipeline(device, {
+      label: `${RENDER_LABEL}.raster${t}`,
+      layout: pipelineLayout,
+      vertex: {
+        module,
+        entryPoint: 'vsmRenderVs',
+        constants: { VSM_RENDER_CORNERS: VSM_RENDER_TIER_CORNERS << t },
+      },
+      fragment: { module, entryPoint: 'vsmRenderFs', targets: [] },
+      // Each vertex emits its triangle light-facing counter-clockwise (`vsmRenderSwapped`).
+      primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'back' },
+      depthStencil: {
+        format: VSM_RENDER_TARGET_FORMAT,
+        depthWriteEnabled: false,
+        depthCompare: 'always',
+      },
+    }),
+  )
+  return { layout1, tiers }
 }
 
 /** Each device's raster pipelines, by the raster's text, made once a device. */

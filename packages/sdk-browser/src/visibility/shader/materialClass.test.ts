@@ -1,7 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MATERIAL_CLASS_WGSL, materialClassKey } from './materialClass.ts'
-import { FLAG_HAS_COLOR, FLAG_HAS_MAP, FLAG_HAS_NORMAL, FLAG_HAS_UV, FLAG_MASK } from '../types.ts'
+import {
+  FLAG_HAS_COLOR,
+  FLAG_HAS_MAP,
+  FLAG_HAS_NORMAL,
+  FLAG_HAS_UV,
+  FLAG_MASK,
+  FLAG_VOXEL,
+} from '../types.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DIAGNOSTICS } from '../../../../sdk-core/src/runtime/diagnostics.ts'
@@ -24,7 +31,9 @@ test('a class key carries the resolve features of a row, and nothing a class doe
     HAS_VERTEX_NORMAL | HAS_ROUGH | HAS_NORMAL_MAP,
   )
   // Lit, back-side and the row's other bits select a value in the shader; they do not branch.
-  assert.equal(materialClassKey(1 | 256 | 512 | 4096, noMaps), 0)
+  assert.equal(materialClassKey(1 | 256 | 512 | 8192, noMaps), 0)
+  // A voxel row resolves its voxels' own surface: a class of its own.
+  assert.equal(materialClassKey(FLAG_VOXEL, noMaps), CLASS_FEATURE.VOXEL)
 })
 
 test('the resolve shader tests class overrides, never the page flags, for what a class fixes', () => {
@@ -53,7 +62,8 @@ test('a class with vertex colours multiplies its base colour by them, and no oth
   assert.equal(fragment.split(multiply).length - 1, 1)
   // After the base map, before any view or light reads `rgb`.
   assert.ok(fragment.indexOf(multiply) > fragment.indexOf('rgb=rgb*colorSample(m.mapIndex'))
-  assert.ok(fragment.indexOf(multiply) < fragment.indexOf('if(uni.mode==1u)'))
+  // The first view to read it, the diagnostic colour (`uni.mode!=0u`).
+  assert.ok(fragment.indexOf(multiply) < fragment.indexOf('if(uni.mode!=0u){'))
   assert.match(
     SHADE_SHADER,
     /fn pageColor\(page:PageInfo,h:ClusterHeader,vertex:u32\)->vec4f\{\n if\(\(page\.flags&32u\)!=0u\)\{return clusterColor\(h,page\.pageOffset,vertex\);\}\n return vertColor\(page\.vertexBase\+vertex\);/,
@@ -64,7 +74,13 @@ test('the resolve trusts the raster that kept the pixel: no second cutout', () =
   const fragment = SHADE_SHADER.slice(SHADE_SHADER.indexOf('fn shadeSurface'))
   // The raster's test (`maskKeep`) is the only cutout; the resolve reads the colour, anisotropic.
   assert.doesNotMatch(SHADE_SHADER, /fn maskAlpha\(/)
-  assert.ok(fragment.includes('rgb=rgb*colorSample(m.mapIndex,uv,ddx,ddy,HAS_SAMPLING).xyz;'))
+  // Each map at the UV set its record names (`mapCoord`, glTF's `texCoord`).
+  const base = 'mapCoord(m,0u)'
+  assert.ok(
+    fragment.includes(
+      `rgb=rgb*colorSample(m.mapIndex,${base}.uv,${base}.ddx,${base}.ddy,HAS_SAMPLING).xyz;`,
+    ),
+  )
   assert.doesNotMatch(fragment, /baseColor\.w/)
   assert.ok(SHADE_SHADER.includes('if(!classAdmits(id)){discard;}'))
   // The entry (`shadeEntryWgsl.ts`) is a declaration of the program: the one reject is the whole
@@ -92,7 +108,8 @@ test('the resolve compiles one pipeline per class, none with a depth test', asyn
   ] as const) {
     assert.equal(pipeline.fragment.entryPoint, 'shade_fs')
     assert.deepEqual(pipeline.vertex.constants, { CLASS_KEY: key })
-    assert.deepEqual(pipeline.fragment.constants, { CLASS_KEY: key })
+    // The fragment's tile request folded in by its feedback target (`feedbackConstants`).
+    assert.deepEqual(pipeline.fragment.constants, { CLASS_KEY: key, FEEDBACK: 1 })
     assert.equal(pipeline.depthStencil, undefined)
     const compiled = made.shadeClasses.of(key)
     assert.equal(compiled.ready, true, 'compiled at preparation, off the thread')
@@ -111,7 +128,7 @@ test('one production class also compiles a direct surface pipeline', async () =>
   assert.ok(renderPipelines.includes(direct as unknown as GPURenderPipelineDescriptor))
   assert.equal(direct.fragment.entryPoint, 'shade_fs')
   assert.deepEqual(direct.vertex.constants, { CLASS_KEY: 5, SINGLE_CLASS: 1 })
-  assert.deepEqual(direct.fragment.constants, { CLASS_KEY: 5, SINGLE_CLASS: 1 })
+  assert.deepEqual(direct.fragment.constants, { CLASS_KEY: 5, SINGLE_CLASS: 1, FEEDBACK: 1 })
   assert.equal(direct.fragment.targets.length, 5)
   assert.equal(direct.depthStencil, undefined)
 
@@ -128,7 +145,11 @@ test('the materials view colours a pixel by the class that resolved it', () => {
   assert.equal(DIAGNOSTICS.materials.available, true)
   assert.match(
     SHADE_SHADER,
-    /if\(uni\.mode==7u\)\{return diagnosticSurface\(hashColor\(CLASS_KEY\),request\);\}/,
+    /DiagnosticPixel\(page\.clusterHash,tri,page\.diagnosticWord,CLASS_KEY,/,
+  )
+  assert.match(
+    SHADE_SHADER,
+    /case 7u:\{return diagnosticShade\(hashColor\(p\.material\),p\.normal\);\}/,
   )
   const modes: string[] = []
   const engine = {

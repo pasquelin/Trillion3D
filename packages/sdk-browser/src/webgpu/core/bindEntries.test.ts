@@ -59,7 +59,7 @@ function stubVis(layouts: Record<string, unknown>) {
     textures: stubTextures(),
     mapsSampler: {} as GPUSampler,
     gpuHiz: undefined,
-    gpuDraw: { indirectBuffer: token(), instanceBuffer: token(), slotOffsetsBuffer: token() },
+    gpuDraw: { indirectBuffer: token(), instanceBuffer: token(), groupsBuffer: token() },
   }
 }
 
@@ -80,18 +80,8 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
 
   const layouts = { visBindGroupLayout, shadeBindGroupLayout, blendBindGroupLayout }
   const vis = stubVis({ ...layouts, blendPipelines })
-  const item = {
-    index: {} as GPUBuffer,
-    position: {} as GPUBuffer,
-    uv: {} as GPUBuffer,
-    normal: {} as GPUBuffer,
-    diagnosticBuffer: {} as GPUBuffer,
-    surface: surfaceOf(G.basicSurface()),
-    matrix: new Matrix4(),
-    count: 3,
-    group: undefined,
-  }
-  // The transparent pass encodes one RUN at a time, and the unpaged item is a run on its own.
+  const item = { surface: surfaceOf(G.basicSurface()), matrix: new Matrix4() }
+  // The transparent pass encodes one RUN at a time, every item on the one shared group.
   const blendState = createWebgpuBlendState()
   blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number])
   buildBlendStatics(blendState, uniformStride())
@@ -114,7 +104,6 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       colorView: {},
       depthView: {},
       asIsShare: { view: {} },
-      volumeBuffer: {},
       backdrop: { colorView: {}, depthView: {}, active: false },
       deferred: {
         placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
@@ -151,13 +140,12 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       false,
     )
   }
-  // Both constructors of `blendBindGroupLayout`: the group ALL paged items share, then that of
-  // an unpaged item, on its own buffers.
+  // The constructor of `blendBindGroupLayout`: the group ALL items share.
   const encoder = device.createCommandEncoder()
   blendState.lighting = blendLightResources(rt)
   drawBlendPass(rt, device, encoder)
 
-  // The unique constructor of the small-triangle software raster, fifth pair of the path: it
+  // The unique constructor of the small-triangle software raster, fourth pair of the path: it
   // reads the same colour pool and the same page table as the other passes.
   const raster = createGpuRaster(device, 4, 4, 8)
   const buffer = {} as GPUBuffer,
@@ -172,6 +160,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     textures: vis.textures,
     sampler: vis.mapsSampler,
     material: view,
+    normals: view,
     pageRows: 1,
     maxTriangles: 3,
     idsView: view,
@@ -183,17 +172,16 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   raster.encodeOccluders(encoder, rasterInput)
   raster.encodeIds(encoder, rasterInput)
   const counted = groups.map((group) => [group.entries.length, group.layout.entries.length])
-  assert.equal(counted.length, 6, 'the five constructors ran, the resolver included')
+  assert.equal(counted.length, 5, 'the four constructors ran, the resolver included')
   for (const [built, expected] of counted)
     assert.equal(built, expected, `a group binds ${built} entries for a layout of ${expected}`)
   assert.deepEqual(
-    counted.slice(0, 4),
+    counted.slice(0, 3),
     [
       [visCount, visCount],
       [shadeCount, shadeCount],
       [blendCount, blendCount],
-      [blendCount, blendCount],
     ],
-    'in order: slot group, hardware resolve, paged then unpaged transparents',
+    'in order: slot group, hardware resolve, transparents',
   )
 })

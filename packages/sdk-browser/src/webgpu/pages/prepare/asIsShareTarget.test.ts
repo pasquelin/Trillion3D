@@ -8,7 +8,13 @@ import { seedAsIsShare } from './asIsShareTarget.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { drawBlendPass } from '../../blend/draw.ts'
 import type { BlendGpuItem } from '../../blend/state.ts'
-import { mountDevice, prepared, replay, targets, writesOf } from '../../water/pass.fixture.ts'
+import {
+  mountDevice,
+  prepared,
+  replay,
+  targets,
+  writesOf,
+} from '../../blend/translucentScene.fixture.ts'
 import type { FakePass } from '../../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { reflectionFront } from '../../../reflections/frontDepth.fixture.ts'

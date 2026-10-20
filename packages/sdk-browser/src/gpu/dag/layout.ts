@@ -30,13 +30,22 @@ import {
 } from './clusterFlags.ts'
 import { REQUEST_STAGED_WORDS } from './request.ts'
 import { stagedRequestsWord } from './readoutWords.ts'
+import { fieldLayout } from '../core/fieldLayout.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { lastTrue } from '../../../../math/src/scalar/search.ts'
 
-/** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
- *  stride to sixteen bytes — the twelfth word is that padding. */
-export const CLUSTER_WORDS = 12
+/** The hot record, `struct Cluster` of the shader: its fields' ranks and its declaration. */
+export const CLUSTER_LAYOUT = fieldLayout('Cluster', [
+  ['sphere', 'vec4f'],
+  ['parentSphere', 'vec4f'],
+  ['lodError', 'f32'],
+  ['parentError', 'f32'],
+  ['flags', 'u32'],
+])
+/** Words of the hot record: eleven, and WGSL rounds its stride to sixteen bytes — the twelfth
+ *  word is that padding. */
+export const CLUSTER_WORDS = CLUSTER_LAYOUT.words
 /** Words of the cold record. */
 export const COLD_WORDS = 13
 const CLUSTER_LEVEL_MAX = 0xffffff
@@ -167,12 +176,14 @@ export const groupParentBase = (shape: Pick<ColdShape, 'pageCount' | 'recordCoun
 export const coldBase = (shape: ColdShape) =>
   groupParentBase(shape) + shape.groupCount + 1 + shape.groupEdges
 
-/** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
-export const HOT_SPHERE = 0,
-  HOT_PARENT_SPHERE = 4,
-  HOT_LOD_ERROR = 8,
-  HOT_PARENT_ERROR = 9,
-  HOT_FLAGS = 10
+/** Hot field ranks, as `struct Cluster` of the shader lays them out. */
+export const {
+  sphere: HOT_SPHERE,
+  parentSphere: HOT_PARENT_SPHERE,
+  lodError: HOT_LOD_ERROR,
+  parentError: HOT_PARENT_ERROR,
+  flags: HOT_FLAGS,
+} = CLUSTER_LAYOUT.at
 /** Cold field ranks, in the order `shader/recordWgsl.ts` reads them by word. */
 export const COLD_CONE = 0,
   COLD_MIN = 4,

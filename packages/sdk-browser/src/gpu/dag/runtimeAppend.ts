@@ -28,7 +28,7 @@ export function appendRoots(run: DagRun, roots: readonly DagRoot[]) {
   const [first, end] = added.worlds
   for (let w = first; w < end; w++) tree?.touch(w)
   run.proxies.appended(first, end)
-  voidCuts(state)
+  voidCuts(state, true)
   return true
 }
 

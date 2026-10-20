@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createCellHolds } from './cellHolds.ts'
+import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
 /** A world whose holds land when the test says (`land`), those of the cells in `fail` refused
  *  once; it counts each cell's holds landed and released. */
@@ -19,6 +20,7 @@ function world(fail: Set<number>) {
       landed.push(cell)
     },
     release: (cell: number) => void released.push(cell),
+    lift() {},
   }
 }
 
@@ -32,37 +34,41 @@ async function settled(held: ReturnType<typeof createCellHolds>) {
 test('a cell that leaves mid-read releases its hold once it settles, its read failing or not', async () => {
   const bundles = world(new Set([0])),
     held = createCellHolds(bundles)
-  held.hold(0)
-  held.hold(1)
+  held.hold(0, PRIORITY_VISIBLE)
+  held.hold(1, PRIORITY_VISIBLE)
   held.release(0)
   bundles.land()
   await settled(held)
-  assert.deepEqual([bundles.landed, bundles.released, held.held()], [[1], [0], 1])
+  assert.deepEqual([bundles.landed, bundles.released, [...held.cells()].length], [[1], [0], 1])
 })
 
 test('a cell that leaves and comes back mid-read releases each hold once', async () => {
   const bundles = world(new Set()),
     held = createCellHolds(bundles)
-  held.hold(0)
+  held.hold(0, PRIORITY_VISIBLE)
   held.release(0)
-  held.hold(0)
+  held.hold(0, PRIORITY_VISIBLE)
   bundles.land()
   await settled(held)
-  assert.deepEqual([bundles.landed, bundles.released, held.held()], [[0, 0], [0], 1])
+  assert.deepEqual([bundles.landed, bundles.released, [...held.cells()].length], [[0, 0], [0], 1])
   held.release(0)
-  assert.deepEqual([bundles.released, held.held()], [[0, 0], 0])
+  assert.deepEqual([bundles.released, [...held.cells()].length], [[0, 0], 0])
 })
 
 test('a hold that failed for good stays failed while its cell is placed: never asked again', async () => {
   const bundles = world(new Set([0]))
   let asked = 0
   const held = createCellHolds({ ...bundles, hold: (cell) => (asked++, bundles.hold(cell)) })
-  held.hold(0)
+  held.hold(0, PRIORITY_VISIBLE)
   bundles.land()
   await settled(held)
-  held.hold(0) // a later frame places it again
+  held.hold(0, PRIORITY_VISIBLE) // a later frame places it again
   await settled(held)
-  assert.deepEqual([asked, bundles.landed, held.held()], [1, [], 1], 'held, asked once')
+  assert.deepEqual(
+    [asked, bundles.landed, [...held.cells()].length],
+    [1, [], 1],
+    'held, asked once',
+  )
   held.release(0)
   assert.deepEqual(bundles.released, [0], 'released once')
 })
@@ -72,6 +78,7 @@ test('a cell that leaves while its hold reads lets its world reads go at once, a
   const held = createCellHolds({
     hold: (_, options) => (asked.push(options!), new Promise<void>(() => {})),
     release() {},
+    lift() {},
   })
   held.hold(3, 1.25)
   held.release(3)
@@ -80,6 +87,6 @@ test('a cell that leaves while its hold reads lets its world reads go at once, a
 
 test('without a world, a placed cell holds nothing and asks nothing', () => {
   const held = createCellHolds()
-  held.hold(0)
-  assert.deepEqual([held.held(), held.reads()], [0, []])
+  held.hold(0, PRIORITY_VISIBLE)
+  assert.deepEqual([[...held.cells()].length, held.reads()], [0, []])
 })

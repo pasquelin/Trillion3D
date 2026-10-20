@@ -108,9 +108,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   await renderer // the engine is built once its renderer has arrived
   const { viewport, context, engine, hostBytes } = await prepareExplorerEngine(session, {
     ...{ source, pageSources, gpuDevice, factory, base, frameBudget },
-    sceneLightingSource: loadedScene.sceneLightingSource,
     draws: loadedScene.draws,
-    textureIndices: loadedScene.textureIndices,
+    textureCaches: loadedScene.textureCaches,
     worldRoots: loadedScene.worldRoots,
   })
   resources.engine = engine

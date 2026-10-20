@@ -1,4 +1,3 @@
-import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 
 import type { DrawSource } from '../page/selection/drawSource.ts'
@@ -6,9 +5,10 @@ import { createDeformationFrame, type DeformedMesh } from './frame.ts'
 import { placementDeformation } from './placementSource.ts'
 import { deformedOf } from './source.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
+import { rekeyRebound } from '../placement/growth.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { createDeformationSkip } from './screen.ts'
-import { rootHasOutputs } from './outputs.ts'
+import { createRowsAnimate, rootHasOutputs } from './outputs.ts'
 
 type Capacities = Parameters<typeof placementDeformation>[2]
 
@@ -16,7 +16,7 @@ type Capacities = Parameters<typeof placementDeformation>[2]
  *  rows is moved by the owners of its rows, none by a node of its own. */
 function recordOf(
   draw: DrawSource | undefined,
-  owner: ClusterRoot<PageRec> | BlendCopy,
+  owner: ClusterRoot<PageRec>,
   world: MatrixElements,
   capacities: Capacities,
 ) {
@@ -27,70 +27,54 @@ function recordOf(
 }
 
 /**
- * Whether `roots` and the blended `copies` give the deformation work: a record (`recordOf`) or a
- * page's results (`rootHasOutputs`). The one rule that loads the stage's code, at the open as at a
- * growth (`loadDeformationCode`); its compute is made wherever the code is.
+ * Whether `roots` give the deformation work: a record (`recordOf`) or a page's results
+ * (`rootHasOutputs`). The one rule that loads the stage's code, at the open as at a growth
+ * (`loadDeformationCode`); its compute is made wherever the code is.
  */
-export function deformsAny(roots: readonly ClusterRoot<PageRec>[], copies: readonly BlendCopy[]) {
+export function deformsAny(roots: readonly ClusterRoot<PageRec>[]) {
   const capacities: Capacities = new Map()
-  return (
-    roots.some(
-      (root) =>
-        rootHasOutputs(root) || !!recordOf(root.pages[0]?.drawSource, root, root.world, capacities),
-    ) || copies.some((copy) => !!recordOf(copy.userData.drawSource, copy, copy.matrix, capacities))
+  const rowsAnimate = createRowsAnimate()
+  return roots.some(
+    (root) =>
+      rootHasOutputs(root, rowsAnimate) ||
+      !!recordOf(root.pages[0]?.drawSource, root, root.world, capacities),
   )
 }
 
 /**
  * A session's GPU deformation: one record per deformed root of its cut (`frame.ts`), the
  * block of records placed in the float pool the page passes bind (`place`), and the word a row
- * carries to name its root's record (`PageInfo.deform`). Roots and blended copies joining the
- * session later take records behind the others' (`append`), at the rank the cut gives them: a
- * root's rank names its record through `entryOf`, a copy's world through `wordOfWorld`.
+ * carries to name its root's record (`PageInfo.deform`). Roots joining the session later take
+ * records behind the others' (`append`), at the rank the cut gives them: a
+ * root's rank names its record through `entryOf`, a transparent item's world through
+ * `wordOfWorld`.
  */
-export function createSessionDeformation(
-  roots: readonly ClusterRoot<PageRec>[],
-  copies: readonly BlendCopy[] = [],
-) {
+export function createSessionDeformation(roots: readonly ClusterRoot<PageRec>[]) {
   const capacities: Capacities = new Map()
   let base = 0
   const frame = createDeformationFrame()
-  /** The record of each root by its rank, and the root each record belongs to (a copy's has none). */
+  /** The record of each root by its rank, and the root each record belongs to. */
   const rankEntry: number[] = []
   const entryRoot: (ClusterRoot<PageRec> | undefined)[] = []
-  /** Each root's, and each copy's, record by the world it reads: what a transparent item knows it by. */
+  /** Each root's record by the world it reads: what a transparent item knows it by. */
   const byWorld = new Map<object, number>()
-  /** The placements `added` join the records: roots first, then copies. */
-  const append = (
-    added: readonly ClusterRoot<PageRec>[],
-    addedCopies: readonly BlendCopy[] = [],
-  ) => {
-    const first = frame.append([
-      ...added.map((root) => recordOf(root.pages[0]?.drawSource, root, root.world, capacities)),
-      ...addedCopies.map((copy) =>
-        recordOf(copy.userData.drawSource, copy, copy.matrix, capacities),
-      ),
-    ])
+  /** The placements `added` join the records. */
+  const append = (added: readonly ClusterRoot<PageRec>[]) => {
+    const first = frame.append(
+      added.map((root) => recordOf(root.pages[0]?.drawSource, root, root.world, capacities)),
+    )
     added.forEach((root, k) => {
       rankEntry.push(first + k)
       entryRoot[first + k] = root
       byWorld.set(root.world, first + k)
     })
-    addedCopies.forEach((copy, k) => byWorld.set(copy.matrix, first + added.length + k))
   }
-  append(roots, copies)
+  append(roots)
   const rankOf = (world: object) => byWorld.get(world) ?? -1
   /** The placements whose world was `old` stand on `world` now (a growth of their rows): their
    *  records follow, found by the new view as the old. */
-  const rebind = (rebound: ReadonlyMap<MatrixElements, MatrixElements>) => {
-    for (const [old, world] of rebound) {
-      const entry = byWorld.get(old)
-      if (entry === undefined) continue
-      byWorld.delete(old)
-      byWorld.set(world, entry)
-      frame.rebind(entry, world)
-    }
-  }
+  const rebind = (rebound: ReadonlyMap<MatrixElements, MatrixElements>) =>
+    rekeyRebound(byWorld, rebound, frame.rebind)
   const skip = createDeformationSkip()
   return {
     frame,

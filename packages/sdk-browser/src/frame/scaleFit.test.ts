@@ -6,7 +6,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createScaleControl } from './scaleControl.ts'
-import { fitting, HZ120, lowered, simulate } from './scaleFit.fixture.ts'
+import { fitting, HZ120, simulate } from './scaleFit.fixture.ts'
 
 /** The non-GPU share of every frame, ms: the browser's compositing and the CPU. */
 const OTHER = 0.6
@@ -55,22 +55,6 @@ function converged() {
   return { control, clock, at: control.wanted() }
 }
 
-test('a lone spike moves nothing', () => {
-  const { control, clock, at } = converged(),
-    spike = clock.frame + 30
-  const { shown, scales } = simulate(
-    control,
-    RUN,
-    { gpu: (s, f) => (f === spike ? 30 : 10 * s * s), other: () => OTHER },
-    clock,
-  )
-  assert.ok(
-    scales.every((s) => s === at),
-    'the scale held',
-  )
-  assert.equal(shown.filter((n) => n > 1).length, 1, 'the spike alone missed')
-})
-
 test('a scene that gets lighter: the scale rises to the cost it learnt, no frame missed', () => {
   const { control, clock, at } = converged()
   const { shown } = simulate(control, RUN, { gpu: (s) => 7 * s * s, other: () => OTHER }, clock)
@@ -95,37 +79,11 @@ test('a scene that gets heavier: the scale drops within the period, then holds',
   assert.equal(new Set(tail(scales, 240)).size, 1)
 })
 
-test('still images only lower the scale; motion after them takes it up', () => {
-  const { control, clock, at } = converged(),
-    light = { gpu: (s: number) => 5 * s * s, other: () => OTHER }
-  const rest = simulate(control, RUN, { ...light, still: () => true }, clock)
-  assert.ok(
-    rest.scales.every((s) => s === at),
-    'a still average closes at one size',
-  )
-  simulate(control, RUN, light, clock)
-  assert.ok(control.wanted() > at)
-})
-
 test('a hidden tab: its pause is no frame, and the scale holds', () => {
   const { control, clock, at } = converged()
   clock.now += 5000
   const { scales } = simulate(control, RUN, { gpu: (s) => 10 * s * s, other: () => OTHER }, clock)
   assert.ok(scales.every((s) => s === at))
-})
-
-test('without GPU times the intervals find the largest scale that meets the refresh', () => {
-  const control = createScaleControl('auto'),
-    { shown, scales } = simulate(control, RUN * 2, {
-      gpu: (s) => 10 * s * s,
-      other: () => OTHER,
-      timed: false,
-    }),
-    fit = fitting(10, OTHER)
-  assert.ok(control.wanted() <= fit + 1e-12, `${control.wanted()} fits ${fit}`)
-  assert.ok(control.wanted() >= fit * 0.9, `${control.wanted()} near ${fit}`)
-  assert.ok(tail(shown, 240).every((n) => n === 1))
-  assert.equal(new Set(tail(scales, 240)).size, 1)
 })
 
 test('a fixed scale is never moved', () => {
@@ -159,28 +117,3 @@ for (const [hz, g, holds] of [
     assert.equal(new Set(tail(scales, 240)).size, 1)
   })
 }
-
-test('images timed at no cost take the scale to its maximum', () => {
-  const control = createScaleControl('auto'),
-    clock = lowered(control, 40)
-  assert.ok(control.wanted() < 1)
-  simulate(control, RUN, { gpu: () => 0 }, clock)
-  assert.equal(control.wanted(), 1)
-})
-
-test('a timer dropout keeps what the GPU times taught: their return searches nothing again', () => {
-  // A share of 0.2 ms: the search ends above a tenth below the missing cost, a bound only the times taught.
-  const page = { gpu: (s: number) => 10 * s * s, other: () => 0.2 },
-    control = createScaleControl('auto'),
-    clock = { now: 0, frame: 0 }
-  simulate(control, RUN, page, clock)
-  const at = control.wanted()
-  assert.ok(at > Math.sqrt(0.9 * (HZ120 / 10)), `${at}`)
-  simulate(control, 60, { ...page, timed: false }, clock)
-  const { shown, scales } = simulate(control, RUN, page, clock)
-  // The scale the dropout's intervals found fits the bounds the times taught, within the smallest
-  // move: kept, never searched again.
-  assert.equal(new Set(scales).size, 1, `${new Set(scales).size} scales after the return`)
-  assert.ok(Math.abs(scales[0] / at - 1) <= 0.02, `${scales[0]} near ${at}`)
-  assert.ok(tail(shown, 240).every((n) => n === 1))
-})

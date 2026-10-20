@@ -6,6 +6,7 @@ import { SHAPE } from '../../../sdk-core/src/physics/layout.ts'
 import type { BodyRecord } from '../../../sdk-core/src/physics/bodyRecord.ts'
 import { startModule } from './module.fixture.ts'
 import { floater, runWater } from './water.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 
 const G = 9.81,
   DT = 1 / 60,
@@ -37,9 +38,6 @@ async function measured(
   return { volume: ((pose[9] / (G * DT) + 1) * MASS) / WATER, spin: pose.slice(11, 14) }
 }
 
-const near = (actual: number, expected: number, tolerance: number, what: string) =>
-  assert.ok(Math.abs(actual - expected) <= tolerance, `${what}: ${actual} m³, not ${expected}`)
-
 /** The volume of a ball of radius `r` under water `depth` below its top (a spherical cap). */
 const cap = (r: number, depth: number) => (Math.PI * depth * depth * (3 * r - depth)) / 3
 
@@ -51,7 +49,7 @@ test('a ball wider than the slices floats on its exact cap, never on whole balls
     [0.5, 0.5],
     [-0.5, 1.5],
   ])
-    near((await measured(ball, [0, y, 0])).volume, cap(1, depth), 2e-4, `centre at ${y}`)
+    near((await measured(ball, [0, y, 0])).volume, cap(1, depth), `centre at ${y}`, 2e-4)
 })
 
 test('a log floats on its exact segment, and the water never rolls it about its own axis', async () => {
@@ -64,7 +62,7 @@ test('a log floats on its exact segment, and the water never rolls it about its 
     const [s, c, h] = [Math.sin(roll / 2), Math.cos(roll / 2), Math.SQRT1_2]
     const quaternion = [s * h, -s * h, c * h, c * h]
     const { volume, spin } = await measured(log, [0, 0.2, 0], quaternion)
-    near(volume, 4 * segment, 2e-4, `rolled ${roll}`)
+    near(volume, 4 * segment, `rolled ${roll}`, 2e-4)
     assert.ok(Math.abs(spin[0]) < 1e-5, `rolled ${roll}, it turns at ${spin[0]} rad/s`)
   }
 })
@@ -74,10 +72,10 @@ test('a cone and a capsule float on their exact volumes, not on their boxes', as
   // below it, π (r² d + r s d² + s² d³ / 3) with s = −0.475 per metre and d = 1.
   const cone = { shape: SHAPE.cylinder, size: [1, 0.05, 1] as const }
   const frustum = Math.PI * (1 - 0.475 + 0.475 ** 2 / 3)
-  near((await measured(cone, [0, 0, 0])).volume, frustum, 2e-4, 'the cone')
+  near((await measured(cone, [0, 0, 0])).volume, frustum, 'the cone', 2e-4)
   // Half height 1, radius 0.3, upright, the water 0.5 below its middle: a hemisphere and half a
   // metre of its side.
   const capsule = { shape: SHAPE.capsule, size: [1, 0.3, 0] as const }
   const wet = (2 / 3) * Math.PI * 0.3 ** 3 + Math.PI * 0.09 * 0.5
-  near((await measured(capsule, [0, 0.5, 0])).volume, wet, 2e-4, 'the capsule')
+  near((await measured(capsule, [0, 0.5, 0])).volume, wet, 'the capsule', 2e-4)
 })

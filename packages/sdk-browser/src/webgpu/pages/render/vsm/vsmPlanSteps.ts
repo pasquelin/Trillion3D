@@ -3,6 +3,7 @@
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { noteResidenceChange } from '../../../shadow/bounds.ts'
+import { castsBound } from '../../../../placement/rowWordsGpu.ts'
 import { directionalCount, fullMapsFor } from './vsmLightMaps.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm, regrowEngineVsm } from './vsmRegrow.ts'
@@ -28,15 +29,18 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
 }
 
 /** The casters' residency changes since the last frame; the placements come to rest are their rows'
- *  (`../encodeDraws.ts`, `followShadowRows`). */
+ *  (`../encodeDraws.ts`, `followShadowRows`). While the rows pass derives the shadow changes
+ *  (`castsBound`), it alone appends a caster row's arrival and departure (`castRow`): the flags are
+ *  followed, no box declared twice. Before — no change list made yet — a cluster that entered or
+ *  left is declared here, its box joining the change list at once. */
 export function followCasters(rt: WebgpuPagesRuntime) {
   const { lights } = rt
-  // Residency changed since the last frame: a cluster that entered or left is another caster;
-  // its box joins the change list at once, as the old scheduler's did (#831).
   const { rows, recordOf, selectionRoots, placement } = rt.layout
-  lights.residence.flush(rows.residency, (page) =>
-    noteResidenceChange(lights, selectionRoots, placement, page, recordOf(page)!, undefined, true),
-  )
+  const rowsCast = castsBound(rt)
+  lights.residence.flush(rows.residency, (page) => {
+    if (!rowsCast)
+      noteResidenceChange(lights, selectionRoots, placement, page, recordOf(page)!, undefined, true)
+  })
 }
 
 /** Mask channels, in the plan's light order; every other light reads no shadow. */

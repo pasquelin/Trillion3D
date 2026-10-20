@@ -7,7 +7,10 @@
  * - `toon`: that diffuse lobe quantised into two bands at `N·L = 0.4`, the cel look;
  * - `normal`, `matcap`, `depth`: materials that show something other than light — the view-space
  *   normal as a colour, a matcap sampled by that normal, the depth — computed in the surface
- *   pass and drawn unlit.
+ *   pass and drawn unlit;
+ * - `shadow`, the shadow catcher: always blended, its colour at its opacity times the share of its
+ *   shadowed lights' light the shadows take away (`catcherAlpha`), so it is seen only where a
+ *   shadow falls.
  * A Phong material is the physical model itself, its shininess read as a roughness.
  *
  * The rank travels in three bits of the page row (`MODEL_SHIFT`); the surface pass writes the
@@ -26,27 +29,43 @@ export const SURFACE_MODEL = {
   normal: 3,
   matcap: 4,
   depth: 5,
+  shadow: 6,
 } as const
 /** Bits of the page row's flags word that carry the model; below them, the material flags. */
 export const MODEL_SHIFT = 17
 /** Surface-buffer flags of the lit models: the physical one, the only one with a specular lobe (a
- *  reflection is traced for it alone), and the two the resolve shades apart. */
-export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5 } as const
+ *  reflection is traced for it alone), the two the resolve shades apart, and the shadow catcher,
+ *  which only a blend fragment reads: it is always blended (`../page/surfaceRecord.ts`). */
+export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5, shadow: 6 } as const
 /** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
  *  and composed with neither exposure nor the display curve (`shownAsIs`). */
 export const AS_IS_FLAG = 3
 /** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
 export const SURFACE_MODEL_MASK = 7
 /** The surface-buffer flag of a lit surface whose row or item flags `flags` carry its model lane
- *  (`MODEL_SHIFT`): the physical one, the diffuse or the toon one, as the lane says. The one mapping
- *  of the opaque shade, the blend fragment and the front stage. */
+ *  (`MODEL_SHIFT`): the physical one, the diffuse, the toon or the shadow catcher's, as the lane
+ *  says. The one mapping of the opaque shade, the blend fragment and the front stage. */
 export const modelFlag = wgslFn(
   'modelFlag',
   [],
   `fn modelFlag(flags:u32)->u32{
  let model=(flags>>${MODEL_SHIFT}u)&7u;
- return select(select(${MODEL_FLAG.physical}u,${MODEL_FLAG.diffuse}u,model==${SURFACE_MODEL.diffuse}u),${MODEL_FLAG.toon}u,model==${SURFACE_MODEL.toon}u);
+ if(model==${SURFACE_MODEL.diffuse}u){return ${MODEL_FLAG.diffuse}u;}
+ if(model==${SURFACE_MODEL.toon}u){return ${MODEL_FLAG.toon}u;}
+ if(model==${SURFACE_MODEL.shadow}u){return ${MODEL_FLAG.shadow}u;}
+ return ${MODEL_FLAG.physical}u;
 }`,
+)
+/**
+ * A shadow catcher's alpha (three.js's `ShadowMaterial`): its `opacity` times the share of its
+ * shadowed lights' light the shadows take away at the point — `lights`, the catcher's sum of the
+ * light loop, holds what reaches it in `x` and what would reach it unshadowed in `y`
+ * (`declaredLight`). Zero where no shadowed light reaches it: the catcher is unseen.
+ */
+export const catcherAlpha = wgslFn(
+  'catcherAlpha',
+  [],
+  `fn catcherAlpha(opacity:f32,lights:vec3f)->f32{return select(0.0,opacity*saturate(1.0-lights.x/lights.y),lights.y>0.0);}`,
 )
 /** Whether a surface of surface-buffer flags `flags` reflects: the physical model alone has a
  *  specular lobe, the one rule of the opaque trace (the flags it reads) and the forward programs
@@ -76,6 +95,7 @@ export function familyModel(family: SurfaceFamily): number {
   if (family === 'normal') return SURFACE_MODEL.normal
   if (family === 'matcap') return SURFACE_MODEL.matcap
   if (family === 'depth') return SURFACE_MODEL.depth
+  if (family === 'shadow') return SURFACE_MODEL.shadow
   return SURFACE_MODEL.standard
 }
 
@@ -84,9 +104,13 @@ export const metalRoughFamily = (family: SurfaceFamily) =>
   family === 'standard' || family === 'physical'
 
 /** True when the family's model is lit by the scene's lights: a Phong surface is the standard
- *  model. */
+ *  model; a shadow catcher reads their shadows. */
 export const litFamily = (family: SurfaceFamily) =>
-  family === 'lambert' || family === 'toon' || metalRoughFamily(family) || family === 'phong'
+  family === 'lambert' ||
+  family === 'toon' ||
+  metalRoughFamily(family) ||
+  family === 'phong' ||
+  family === 'shadow'
 
 /**
  * Why a declaration names a map that its model never reads, or `undefined`: a tone ramp, which no

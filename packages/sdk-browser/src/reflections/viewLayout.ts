@@ -19,10 +19,9 @@ import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/worldAtWgsl.ts'
  *    depth and the radiance pyramid an earlier image of this view);
  *  - `front`, whether this image's trace answers the transparents' front surface (`x`, one or zero,
  *    `frontLayer.ts`);
- *  - `temporal`, the reflections' turn (`x`: the image's rank in the
- *    samples' sequence — a still view's quiet count, held once frozen, `stageReflectionImage`) and the
- *    images drawn since the last change (`y`, `RadianceSettle.quiet`, capped): what the accumulation
- *    restarts and freezes by (`temporalWgsl.ts`);
+ *  - `temporal`, the reflections' turn (`x`: the image's rank in the samples' sequence, advanced
+ *    every image, `stageReflectionImage`; `yzw` unused);
+ *  - `grid`, the grid's extent over the drawn size (`xy`, `gridExtent`, `grids.ts`; `zw` unused);
  *  - `surroundings`, the radiance a ray that leaves the scene reaches (`reflectionEnvironment`):
  *    the background the screen draws, through the exposure and the display curve
  *    (`createSurroundings`, `../lighting/toneUnmap.ts`).
@@ -35,6 +34,7 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['traced', 'vec4u'],
   ['front', 'vec4u'],
   ['temporal', 'vec4u'],
+  ['grid', 'vec4u'],
   ['surroundings', 'vec4f'],
 ] as const)
 

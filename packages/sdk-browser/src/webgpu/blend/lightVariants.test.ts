@@ -1,4 +1,5 @@
-// The blend and water programs are keyed as the opaque resolve's (`createForwardVariants`): every
+// The blend programs — every translucent layer's — are keyed as the opaque resolve's
+// (`createForwardVariants`): every
 // frame is lit by a program that holds each code path its lights need — the shadow read where a
 // light holds a shadow slot, the rectangle's term where one is a rectangle —, the one its key names
 // once compiled, never compiled during a frame; prepare compiles the first frame's and its twin with
@@ -8,9 +9,11 @@ import assert from 'node:assert/strict'
 import { createForwardVariants } from '../../lighting/deferred/forwardVariants.ts'
 import { FULL_CONTRACT, isTwin, type ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { createWebgpuBlendPipelines } from './pipelines.ts'
-import { mountDevice } from '../water/pass.fixture.ts'
+import { mountDevice } from './translucentScene.fixture.ts'
 import type { BlendGpuItem } from './state.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { VSM_TRACE_KINDS_BOTH, VSM_TRACE_KINDS_SUN, vsmTraceKindsOf } from '../../vsm/traceWgsl.ts'
 
 /** Every key a scene can ask (`contractKey`): `unshadowed` leaves out both kinds' reads, so no
  *  kind is cut beside it, and a shadowed scene casts from at least one kind. */
@@ -100,7 +103,7 @@ const code = (pipeline: unknown) =>
 const loopOf = (pipeline: GPURenderPipelineDescriptor) =>
   functionsOf(code(pipeline), ['declaredLight'])
 
-test('the blends draw with the program of the frame’s key, its water composite too', async () => {
+test('the translucent layers draw with the program of the frame’s key', async () => {
   const mount = mountDevice()
   const create = mount.device.createShaderModule.bind(mount.device)
   mount.device.createShaderModule = (descriptor) =>
@@ -109,31 +112,15 @@ test('the blends draw with the program of the frame’s key, its water composite
     (transmissive) => ({ transmissive, surface: { blending: 'normal' } }) as BlendGpuItem,
   )
   const first = { ...FULL_CONTRACT, narrow: true, unshadowed: true, rectless: true }
-  const { blendPipelines, water } = await createWebgpuBlendPipelines(
+  const { blendPipelines } = await createWebgpuBlendPipelines(
     mount.device,
     items,
     undefined,
     true,
     undefined,
     false,
-    {
-      lit: { precompile: true, key: first },
-      waterLit: { precompile: true, key: { ...first, lobeless: true } },
-    },
+    { lit: { precompile: true, key: first } },
   )
-  const composites = mount.renderPipelines
-    .filter((pipeline) => pipeline.fragment!.entryPoint === 'composeWater')
-    .map((pipeline) => (pipeline.fragment!.module as GPUShaderModule).label)
-  // No transmissive surface carries a lobe: the composite's first program has no lobe code.
-  assert.deepEqual(composites, [
-    'WATER_COMPOSITE_UNSHADOWED_RECTLESS_LOBELESS',
-    'WATER_COMPOSITE_LOBELESS',
-  ])
-  // The surface stage lights nothing: the twin's module alone carries it.
-  const surfaces = mount.renderPipelines.filter(
-    ({ fragment }) => fragment!.entryPoint === 'fsWater',
-  )
-  assert.ok(surfaces.every(({ fragment }) => fragment!.module.label === 'BLEND'))
   for (const key of [first, ...KEYS]) {
     blendPipelines.lit(key, true)
     await settled()
@@ -142,10 +129,15 @@ test('the blends draw with the program of the frame’s key, its water composite
     )
     assert.equal(loop.includes('isRect(light)'), !key.rectless, JSON.stringify(key))
     assert.equal(loop.includes('shadowFactor('), !key.unshadowed, JSON.stringify(key))
-    // The shadow reads hold the branch of each kind the key keeps (`ShadowKinds`).
-    const read = functionsOf(code(blendPipelines.lit(key, true).at(0)), ['vsmLocate'])
-    assert.equal(read.includes('vsmHandleFromId('), !key.sunless, JSON.stringify(key))
-    assert.equal(read.includes('vsmCubeFace('), !key.localless, JSON.stringify(key))
+    // The read keeps the light kinds the key keeps (`vsmTraceKindsOf`), the local lights only under
+    // `translucentLocalShadows`; a program left no kind reads no map (`directShadowWgsl`).
+    if (key.unshadowed) continue
+    const text = code(blendPipelines.lit(key, true).at(0))
+    const kinds =
+      vsmTraceKindsOf(key) &
+      (LIGHT_SETTINGS.translucentLocalShadows ? VSM_TRACE_KINDS_BOTH : VSM_TRACE_KINDS_SUN)
+    if (kinds)
+      assert.ok(text.includes(`override VSM_TRACE_KINDS:u32=${kinds}u`), JSON.stringify(key))
+    else assert.ok(!text.includes('override VSM_TRACE_KINDS'), JSON.stringify(key))
   }
-  assert.ok(water, 'the surface stage on the module with every code path')
 })

@@ -31,10 +31,12 @@ const runtime = (
   ({
     layout: {
       packedPages: new Array(packedPages),
-      opaquePageCount,
+      blendedPageCount: packedPages - opaquePageCount,
       viewRows,
-      copies: { max: copies },
+      rows: { instances: { copiesMax: copies } },
     },
+    // A catalogue of no known widths: the pool holds a page a slot (`pagesHeld`).
+    setup: { pageBytes: 64, homes: undefined },
     context: { gpuDevice: limits ? { limits } : undefined },
   }) as unknown as WebgpuPagesRuntime
 
@@ -59,7 +61,7 @@ test('a cut past the rows the view holds is held to them, not to the catalogue',
 })
 
 test('a cut past what the slots carry is held to it: a slot may repeat, a table may not', () => {
-  // `copies.max` placements share one slot, so the rows a pool can hold are `slots × copies`. A
+  // `copiesMax` placements share one slot, so the rows a pool can hold are `slots × copies`. A
   // catalogue of a million pages on one slot is a cut of one page drawn many times, not a table of a
   // million rows: that is what the residency mirror counts.
   const rows = asked(runtime(1_000_000, 900_000, 1_000_000, DEVICE), 64)

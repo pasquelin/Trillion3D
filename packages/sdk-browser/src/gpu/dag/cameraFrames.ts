@@ -29,8 +29,7 @@ export function createCameraFrames(
   make?: TextureMaker,
 ) {
   // Worlds: written by the host and by the composition of the poses
-  // (`../../placement/gpuComposeWgsl.ts`), copied once when the proxy's copies outgrow them
-  // (`RecordTexture.hold`). Frame words: their rows written by the host, their stretch by the root
+  // (`../../placement/gpuComposeWgsl.ts`). Frame words: their rows written by the host, their stretch by the root
   // boxes pass alone (`../../placement/rootBoxesWgsl.ts`).
   const read = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     written = read | GPUTextureUsage.STORAGE_BINDING
@@ -47,7 +46,6 @@ export function createCameraFrames(
     ),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: createChangedRuns(),
-    writes: 0,
   }
   const origins = createWorldOrigins(worldCount, f.worlds.target('Origin'), sources)
   const table = {
@@ -60,11 +58,7 @@ export function createCameraFrames(
     /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
      *  its record, where each cut reads it at its own eye (`shader/worldPoseWgsl.ts`); those that
      *  moved (`createWorldOrigins`). */
-    writeWorldOrigins: (named?: Int32Array) => {
-      const sent = origins.write(named)
-      if (sent.length) f.writes++
-      return sent
-    },
+    writeWorldOrigins: (named?: Int32Array) => origins.write(named),
     /** Placement `row`'s translation as the GPU no longer holds it: its next write sends it. */
     forgetOrigin: (row: number) => origins.forget(row),
     originBytes: origins.hostBytes,
@@ -84,7 +78,7 @@ export function createCameraFrames(
     /** The world matrices in `next` of the `count` increasing placements of `named`: the ones a
      *  call moved, each run to its records (`writeRanges`). */
     writeNamedWorlds: (next: Float32Array, named: Int32Array, count: number) =>
-      writeNamedRuns(f, f.worlds, 'Matrix', next, 16, named, count),
+      writeNamedRuns(f.worlds, 'Matrix', next, 16, named, count),
     /** Word `slot` of placement `w`'s frame words, set in the host's row; its record receives the
      *  row at the next `flushWords`. */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
@@ -92,11 +86,6 @@ export function createCameraFrames(
      *  one run writer (`writeRanges`): a row is the host's words alone. Nothing when no word was
      *  written. */
     flushWords: () => flushWords(f),
-    /** Writes the host made into the frame words, the worlds and their exact translations since
-     *  they were made: what a GPU writer of the same words follows (`../../placement/gpuCompose.ts`). */
-    get writes() {
-      return f.writes
-    },
   }
   table.writeRows()
   table.writeWorlds(worlds)
@@ -112,14 +101,11 @@ type Frames = {
   worlds: RecordTexture
   /** The placements whose row holds a word not yet sent. */
   pending: ChangedRuns
-  /** Writes sent into the tables above (`writes`). */
-  writes: number
 }
 
 /** The `count` increasing placements of `named` of `data`, `stride` words each, to field
  *  `field` of `table`, each run to its records (`writeRanges`). */
 function writeNamedRuns(
-  f: Frames,
   table: RecordTexture,
   field: string,
   data: Float32Array,
@@ -127,7 +113,6 @@ function writeNamedRuns(
   named: Int32Array,
   count: number,
 ) {
-  if (count) f.writes++
   writeRanges(table.target(field), named, count, { data, sourceBase: 0, targetBase: 0, stride })
 }
 
@@ -144,21 +129,19 @@ function writeSpan(
 ) {
   const count = Math.min(to, f.worldCount, data.length / stride) - from
   if (count <= 0) return
-  f.writes++
   table.write(field, from, count, data.buffer as ArrayBuffer, data.byteOffset + from * stride * 4)
 }
 
-/** A word staged counts as a write from now: it goes up at the next flush, before any cut reads it. */
+/** A word staged: it goes up at the next flush, before any cut reads it. */
 function writeWord(f: Frames, w: number, slot: number, value: number) {
   f.frameInts[primitiveWordAt(w) + slot] = value
   f.pending.mark(w)
-  f.writes++
 }
 
 function flushWords(f: Frames) {
   if (!f.pending.count) return
   const named = f.pending.take()
-  writeNamedRuns(f, f.rows, 'Row', f.frameData, FRAME_ROW_WORDS, named, named.length)
+  writeNamedRuns(f.rows, 'Row', f.frameData, FRAME_ROW_WORDS, named, named.length)
 }
 export type CameraFrames = ReturnType<typeof createCameraFrames>
 /** A cut's group without the record tables it binds (`dagGroupEntries`). */

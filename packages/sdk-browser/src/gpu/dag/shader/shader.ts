@@ -32,12 +32,14 @@ import { ROW_CLOSURE_WGSL } from '../../../webgpu/row/rowClosureWgsl.ts'
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts'
 import { DAG_CONE_WGSL } from './coneWgsl.ts'
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
+import { markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
+import { CLUSTER_LAYOUT } from '../layout.ts'
 
 /** The selection kernel over the record tables `DAG_ACCESS_WGSL` reads. The `DAG_*_WGSL`
  *  fragments are this program's parts, which it lists all (`docs/MATHS.md`, "The WGSL library"). */
 export const DAG_SELECTION_SHADER = wgslProgram(
-  `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
+  `${CLUSTER_LAYOUT.wgsl}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,kind:u32,pad:u32,}
 // \`view\` and \`planes\` are those of the render frame, whose origin is \`cameraWorld\` — the camera sits at zero
 // there —; \`eye\` is that origin in doubles, which every translation a cut reads is taken off (\`worldPoseWgsl.ts\`).
@@ -60,7 +62,7 @@ fn grownPlane(p:vec4f,reach:f32)->vec4f{return vec4f(p.xyz,p.w+reach*(abs(p.x)+a
  *  (\`reachOf\`), set once the kernel knows which primitive it reads: every box and sphere grows by it. */
 var<private> deformReach:f32;
 /** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`rootMark\`). */
-fn reachOf(w:u32)->f32{return unpack2x16float(markOf(w)).y;}
+fn reachOf(w:u32)->f32{return markReach(markOf(w));}
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
 fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 fn visible(r:u32,w:u32,cluster:Cluster)->bool{
@@ -108,6 +110,8 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
    // matrix product, no projection, no sphere read again.
    draw=drawsCompared(isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,childResident(i));
   }
+  // A placement its cell returns to asks for its pages and draws none (\`worldWaits\`).
+  draw=draw&&!worldWaits(w);
   tallyDrawn(r,clusterFlags,draw);
   // Drawn count of this page's block, held here rather than reread later page by page; its bit is
   // the draw mask every reader takes (\`compactWgsl.ts\`).
@@ -152,5 +156,6 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
     ROW_CLOSURE_WGSL,
     boxBehindPlane,
     isNanWord,
+    markReachWgsl,
   ],
 )

@@ -3,6 +3,8 @@ import { createWebgpuPagesRuntime } from './runtime.ts'
 import { renderWebgpuPages } from './render/render.ts'
 import { refreshSceneLights } from './io/hostApi.ts'
 import { webgpuAudits } from './io/audits.ts'
+import { dropTaaHistory } from '../../taa/landing.ts'
+import { followFrameDifference } from './render/frameDifference.ts'
 import {
   backendHostApi,
   backendSetters,
@@ -34,6 +36,9 @@ export const webgpuPagesEngine = ((context) => {
     },
     setDiagnostic(mode) {
       run.diagnostic = mode
+      // The history accumulated another view: none of it is an image of this one.
+      dropTaaHistory(rt.gpu.temporal?.frame)
+      followFrameDifference(rt)
       // The diagnostic view changes the table rows and the shading: the scene must be rebuilt.
       run.gate.sceneChanged()
     },

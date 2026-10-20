@@ -6,8 +6,6 @@ import { grantCapability } from '../io/drops.ts'
 import { throwIfStopped } from '../io/lost.ts'
 import { litPrograms } from './contractLight.ts'
 import { type WebgpuPagesRuntime } from '../runtime.ts'
-import { loadImpostorCode } from '../../../impostor/code.ts'
-import { impostorLent } from '../../impostor/lent.ts'
 import {
   finishPreparation,
   prepareGeometryAndBlend,
@@ -23,12 +21,10 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     rt.context.preparationStep?.(name)
     return work()
   }
-  // The impostor draw's code, on its way beside every step below, awaited before the first image.
-  const impostorCode = loadImpostorCode(rt.context, impostorLent)
   await preparePrograms(rt, gpuDevice, step)
   preparePresenter(rt, gpuDevice)
   await prepareGeometryAndBlend(rt, gpuDevice, step)
-  await prepareMaterials(rt, gpuDevice, step, { impostorCode })
+  await prepareMaterials(rt, gpuDevice, step)
   await finishPreparation(rt, gpuDevice, step)
 }
 

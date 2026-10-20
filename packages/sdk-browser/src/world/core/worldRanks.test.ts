@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWorldRanks } from './worldRanks.ts'
 import type { Cut } from './worldCuts.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import type { ModelRecord } from './loadedModel.ts'
 
 const cut = () => ({ runtime: { primitive: {} } }) as unknown as Cut
-const model = () => ({}) as LoadedModel
+const model = () => ({}) as ModelRecord
 
 test('a resource keeps the rank it was given, whatever is seated after it', () => {
   const ranks = createWorldRanks()

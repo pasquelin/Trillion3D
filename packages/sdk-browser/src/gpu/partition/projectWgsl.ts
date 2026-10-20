@@ -1,12 +1,12 @@
 import {
   FLAG_CLIP,
   FLAG_HISTORY,
-  FLAG_KEPT,
   FLAG_PREV_REST,
   FLAG_PROJECTED,
   ROW_DATA_U32,
   ROW_FLAGS,
   ROW_NEAREST,
+  ROW_RECT_WGSL,
   ST_HISTORY_OCCLUDERS,
   ST_WITHDRAWN,
   VERDICT_REJECTED,
@@ -35,15 +35,8 @@ import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
  * other half, and the halves decide draw order. That is why the previous image's data need
  * little validation — a moved world, a resized target: the held rectangle is stale, the row is
  * at worst tested twice, and the image is the same. A rank the table rewrote reaches this kernel
- * with its words cleared (`forgetRows`): zero flags are a row never projected, and the kept flag
- * above all must not pass from one page to the next.
- *
- * One exception to the withdrawal, so that a still view converges: a row the test kept while the
- * view stood still keeps its place among the occluders until the view moves (`FLAG_KEPT`). The
- * antialiasing jitter shifts the raster by a fraction of a pixel each image, and a row at the
- * edge of an occluder is hidden under one jitter and seen under the next; withdrawn, kept,
- * withdrawn again, it would keep the counters moving and no image would ever be held. With the
- * exception every row settles — occluder, or tested and rejected — within one jitter cycle.
+ * with its words cleared (`forgetRows`): zero flags are a row never projected, whose history
+ * must not pass from one page to the next.
  *
  * The arithmetic itself is `projectBox` (`../core/boxProjectWgsl.ts`), shared with the transparent-
  * cluster occlusion test: that is what carries the conservativeness proof, and this kernel only
@@ -51,7 +44,14 @@ import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
  */
 export const PARTITION_PROJECT_WGSL = wgslBlock(
   'PARTITION_PROJECT_WGSL',
-  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL],
+  [
+    STATE_TALLY_WGSL,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    BOX_PROJECT_WGSL,
+    HIZ_HIDDEN_WGSL,
+    ROW_RECT_WGSL,
+  ],
   `
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn projectRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
@@ -65,23 +65,13 @@ fn projectRow(i:u32){
  // then was cleared before this pass: its zero flags read as never projected.
  let held=rowData[base+${ROW_FLAGS}u];
  var drawn=1u;
- // Kept by the test while the view stood still: an occluder until the view moves. Under the
- // antialiasing jitter a row at the edge of an occluder is hidden on one image and seen on the
- // next; without this the two halves would trade it every image, and no image would be held.
- var kept=uni.viewMoved==0u&&(held&${FLAG_KEPT}u)!=0u;
- if((held&${FLAG_PREV_REST}u)!=0u){
-  let rejected=flags[i]==${VERDICT_REJECTED}u;
-  drawn=select(1u,0u,rejected);
-  if(!rejected&&uni.viewMoved==0u){kept=true;}
- }
+ if((held&${FLAG_PREV_REST}u)!=0u){drawn=select(1u,0u,flags[i]==${VERDICT_REJECTED}u);}
  if(drawn!=0u){tallyAdd(${ST_HISTORY_OCCLUDERS}u,1u);}
  // A frame with no tested half has nowhere to send a withdrawn row; a rectangle never projected
  // or cut by the near plane is nothing the pyramid can judge.
  let judged=(held&(${FLAG_PROJECTED}u|${FLAG_CLIP}u))==${FLAG_PROJECTED}u;
- if(drawn!=0u&&!kept&&uni.hasRest!=0u&&judged){
-  let heldRect=vec4i(bitcast<i32>(rowData[base]),bitcast<i32>(rowData[base+1u]),
-   bitcast<i32>(rowData[base+2u]),bitcast<i32>(rowData[base+3u]));
-  if(hiddenByPyramid(heldRect,bitcast<f32>(rowData[base+${ROW_NEAREST}u]))){
+ if(drawn!=0u&&uni.hasRest!=0u&&judged){
+  if(hiddenByPyramid(rowRect(base),bitcast<f32>(rowData[base+${ROW_NEAREST}u]))){
    drawn=0u;
    tallyAdd(${ST_WITHDRAWN}u,1u);
   }
@@ -93,7 +83,7 @@ fn projectRow(i:u32){
  rowData[base+3u]=bitcast<u32>(box.rect.w);
  rowData[base+${ROW_NEAREST}u]=bitcast<u32>(box.nearest);
  rowData[base+${ROW_FLAGS}u]=${FLAG_PROJECTED}u|select(0u,${FLAG_CLIP}u,box.clips!=0u)
-  |select(0u,${FLAG_HISTORY}u,drawn!=0u)|select(0u,${FLAG_KEPT}u,kept);
+  |select(0u,${FLAG_HISTORY}u,drawn!=0u);
 }
 `,
 )

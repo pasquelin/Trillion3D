@@ -15,9 +15,9 @@ test('a row names its cell and node while it holds them, grown or not', () => {
   ]
   const meshes = new Map([[4, placedMesh(links)]])
   sizeRows(meshes, new Map([[4, 2]]))
-  const placements = createCellPlacements(G.mesh(), [], meshes)
+  const placements = createCellPlacements(G.mesh(), [], meshes, {}, () => 0)
   const cell = { nodes: 2, ranks: Int32Array.of(-1, 4, -1, 4), locals: new Float64Array(32) }
-  assert.ok(placements.place(9, cell, 'scene-cell-9.json'))
+  assert.ok(placements.place(9, cell, 'scene-cell-9.json', 3))
   const held = placements.held.get(9)!
   for (const [node, { row }] of held.entries())
     for (const link of links) {

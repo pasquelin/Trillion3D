@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wideProduct } from '../../../math/src/wgsl/integer.ts'
+import { unorm8Byte } from '../../../math/src/wgsl/color.ts'
 import { SCALED_WGSL } from './coverageMathWgsl.ts'
 
 /**
@@ -27,11 +28,10 @@ const [U_ALPHA, V_ALPHA] = middles('a')
 
 export const COVERAGE_SCALE_WGSL = wgslBlock(
   'COVERAGE_SCALE_WGSL',
-  [SCALED_WGSL],
+  [SCALED_WGSL, unorm8Byte],
   `
-fn toByte(x:f32)->u32{return u32(round(x*255.0));}
 fn median(a:vec4f)->u32{
- let b=vec4u(toByte(a.x),toByte(a.y),toByte(a.z),toByte(a.w));
+ let b=vec4u(unorm8Byte(a.x),unorm8Byte(a.y),unorm8Byte(a.z),unorm8Byte(a.w));
  return (${U_BYTE}+${V_BYTE}+1u)>>1u;
 }
 fn reducedAlpha(a:vec4f,c:u32,t:u32)->f32{

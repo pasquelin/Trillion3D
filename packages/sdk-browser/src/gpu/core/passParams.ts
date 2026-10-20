@@ -1,20 +1,17 @@
 import { writeChanged } from './writeChanged.ts'
 
 /** A pass's parameters — the roots it runs over, how many roots its list holds, whether it runs
- *  over every root, and what else its `Params` holds —, one uniform block of `words` words (a
- *  multiple of four, the uniform's alignment) sent when one of them moved: a frame that runs under
- *  the same lists sends none. The composition's worlds and roots passes, the root boxes pass, the
- *  tree's leaves and the transparent entries' corners keep four words; the rows pass, eight
- *  (`../../placement/`). */
-export const passParams = (label: string, words = 4) => ({
+ *  over every root, and what else its `Params` holds —, one uniform block of four words sent when
+ *  one of them moved: a frame that runs under the same lists sends none. */
+export const passParams = (label: string) => ({
   label,
   buffer: undefined as GPUBuffer | undefined,
-  words: new Uint32Array(words),
+  words: new Uint32Array(4),
 })
 type PassParams = ReturnType<typeof passParams>
 
-/** `params` written as the words `a`…`e`, in its `Params`' order — most passes `roots`, `listed`
- *  and `whole` —, those past its block left out, its buffer made at its first write; the words that
+/** `params` written as the words `a`…`d`, in its `Params`' order — most passes `roots`, `listed`
+ *  and `whole` —, its buffer made at its first write; the words that
  *  moved go up through the engine's one changed-words write (`writeChanged`). */
 export function writePassParams(
   device: GPUDevice,
@@ -23,14 +20,12 @@ export function writePassParams(
   b: number,
   c = 0,
   d = 0,
-  e = 0,
 ) {
   const { words } = params
   words[0] = a
   words[1] = b
   words[2] = c
   words[3] = d
-  if (words.length > 4) words[4] = e
   params.buffer ??= device.createBuffer({
     label: params.label,
     size: words.byteLength,

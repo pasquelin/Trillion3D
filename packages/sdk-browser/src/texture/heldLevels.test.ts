@@ -65,7 +65,7 @@ test('a level another request would refuse again (404) is never asked again', as
 test("one tile's record landing leaves another failing record's wait running", async (t) => {
   const good = tileRecord(256, 256, 1, 0)
   const { sent, frames } = serving(t, 503, (request) => {
-    if (request.range?.offset !== good.offset) throw refusal(503)
+    if (request.tx !== 1 || request.ty !== 0) throw refusal(503)
     return new Uint8Array(good.bytes)
   })
   await frames(1_000, [

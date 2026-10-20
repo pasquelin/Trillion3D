@@ -133,7 +133,7 @@ function presenterOf(
      *  when the first one is added, before it presents. */
     preparePlaced: program.prepare,
     /** The image over the whole canvas, sized to it; at `at`, a persistent view's rectangle of
-     *  the canvas, which keeps its size and what else it shows this frame. */
+     *  the canvas, which keeps its size and what else it shows this frame. Whether it presented. */
     present(
       encoder: GPUCommandEncoder,
       image: GPUTexture,
@@ -146,14 +146,14 @@ function presenterOf(
         // last frame it showed, never a blank one with this view alone on it. Either way the
         // canvas no longer holds one image whole.
         hold.forget()
-        if (!hold.configured) return
+        if (!hold.configured) return false
         const current = context.getCurrentTexture()
         if (current === hold.shown) program.at(encoder, current.createView(), image, at, canvas)
-        return
+        return true
       }
-      const view = hold.targetView(width, height)
-      program.whole(encoder, view, image)
+      program.whole(encoder, hold.targetView(width, height), image)
       hold.composed(image, width, height)
+      return true
     },
     /** Withdraws the image: nothing that samples the canvas afterwards reads a frame of this
      *  device — at once, or once no session follows on a kept canvas (`closeCanvasImage`). */

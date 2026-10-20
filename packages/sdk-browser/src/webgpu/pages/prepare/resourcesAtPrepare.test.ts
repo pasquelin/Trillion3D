@@ -9,6 +9,8 @@ import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 import type { Engine } from '../../../engine/types.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
   installGpuGlobals()
@@ -16,6 +18,7 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
   const fixture = quadScene(),
     { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     indices: new Map(),
     readPage: async () => {
@@ -54,8 +57,10 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     roughnessMap: rough,
     emissiveMap: emissive,
   })
-  ;(fixture.source.children[0] as HostMesh).material = material
+  const mesh = fixture.source.children[0] as HostMesh
+  mesh.material = material
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,

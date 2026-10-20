@@ -13,11 +13,13 @@ import {
   hizTextureSize,
 } from './pyramidTexture.ts'
 import { hizLevelWords } from './levelsUniform.ts'
-import { level0Of } from './level0.ts'
+import { HIZ_LEVEL0_FORMAT, level0Of } from './level0.ts'
+import { texelBytesOf } from '../core/textureBytes.ts'
 
 /** Bytes of one layer of level 0 at `width × height`: an r32float texel a pixel. The front layer,
  *  a scene's whose transparents write a front depth, is one more (`GpuHiz.front`). */
-export const level0LayerBytes = (width: number, height: number) => width * height * 4
+export const level0LayerBytes = (width: number, height: number) =>
+  width * height * texelBytesOf(HIZ_LEVEL0_FORMAT)
 
 /** Bytes one view's pyramid holds at `width × height` (`allocPyramid`) without the front layer:
  *  its level 0's opaque depth, and its three layers of packed mips. */

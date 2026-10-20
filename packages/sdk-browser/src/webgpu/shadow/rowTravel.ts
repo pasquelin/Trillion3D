@@ -18,7 +18,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 import type { ComposeState } from '../../placement/gpuComposeState.ts'
 import { takeFarthest } from './mobilityTravel.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
-import { movedPagesBox } from '../pages/render/movedGeometry.ts'
+import { rootLocalBound } from '../pages/render/movedGeometry.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 const box = new Float64Array(6)
@@ -26,23 +26,14 @@ const ascending = (a: number, b: number) => a - b
 
 /** ρ of `root`: no row of it lies farther from its origin, centre and half extent summed;
  *  unbounded without a local box. Its pages' own boxes are read as their one union, kept where
- *  they are written (`movedPagesBox`): one look a mover, whatever its pages. */
+ *  they are written (`rootLocalBound`): one look a mover, whatever its pages. */
 function rootReach(root: ClusterRoot<PageRec> | undefined) {
-  const local = root?.localBox
-  if (!root || !local || !(local[3] >= local[0])) return Infinity
-  box.set(local)
-  const moved = movedPagesBox(root.pages)
-  if (moved)
-    for (let a = 0; a < 3; a++) {
-      box[a] = Math.min(box[a], moved[a])
-      box[3 + a] = Math.max(box[3 + a], moved[3 + a])
-    }
-  const reach = root.reach ?? 0
+  if (!root || !rootLocalBound(box, root)) return Infinity
   let corner = 0,
     half = 0
   for (let a = 0; a < 3; a++) {
-    const low = box[a] - reach,
-      high = box[3 + a] + reach
+    const low = box[a],
+      high = box[3 + a]
     corner += Math.max(Math.abs(low), Math.abs(high)) ** 2
     half += ((high - low) / 2) ** 2
   }

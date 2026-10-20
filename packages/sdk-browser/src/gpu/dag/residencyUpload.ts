@@ -9,8 +9,7 @@ import { heldOpenAt } from './listCap.ts'
 import { SELECTION_HEADER_WORDS } from './readoutWords.ts'
 import { HELD_BY_WORD } from './frameTable.ts'
 import { createDagReadiness } from './readiness.ts'
-import { writeRanges, type RangeTarget } from './runWrites.ts'
-import { createStandInFlags } from './worldStandIns.ts'
+import { bufferRangeTarget, writeRanges, type RangeTarget } from './runWrites.ts'
 
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
@@ -73,8 +72,7 @@ type HeldTarget = {
 
 /**
  * The kernel's residency, kept by difference: the pool's per-page residency goes in, the cut
- * rule's two bit sets, the world's stand-in flags and the open counts the placements hold come out
- * (`readiness.ts`, `worldStandIns.ts`), and only
+ * rule's two bit sets and the open counts the placements hold come out (`readiness.ts`), and only
  * the word ranges and table slots that changed are written, each page whose readiness moved handed
  * to `moved`. Returns whether anything did. Its change lists grow to the largest change seen,
  * never to the catalogue.
@@ -114,9 +112,6 @@ export function createDagResidencyUpload(
   writeBlankBits(packed, readiness, bits)
   const { pageCones } = packed
   cold(0, pageCones.buffer as ArrayBuffer, pageCones.byteOffset, 2 * residentWords(pageCount) * 4)
-  // The world's stand-ins follow its roots' readiness (`worldStandIns.ts`), down from the start.
-  const world = packed.world,
-    standIns = world && createStandInFlags(world.standIns, world.flagBase, bits, cold)
   const apply = (
     next: PageResidency,
     changes?: ResidencyChanges,
@@ -124,17 +119,23 @@ export function createDagResidencyUpload(
   ) => {
     const settled = readiness.apply(next, changes)
     const held = sendHeld()
-    if (!settled.pages.length) return held
+    if (!settled.pages.length) return held && ('gained' as const)
     if (moved) for (const page of settled.pages) moved(page)
-    if (standIns) {
-      for (const page of settled.pages) standIns.ready(page, readiness.isReady(page))
-      standIns.flush()
-    }
     const most = settled.pages.length
     if (changed.pages.length < most) changed.pages = resized(changed.pages, most)
     if (touched.length < most) touched = resized(touched, most)
     changed.pages.set(settled.pages)
     changed.count = settled.pages.length
+    // A page that was ready, or whose children were, and no longer is voids the cuts that may
+    // draw it, read on the bits before they follow; a page that only arrived, or whose children
+    // did, voids none.
+    let withdrawn = false
+    for (let i = 0; i < changed.count && !withdrawn; i++) {
+      const page = changed.pages[i]
+      withdrawn =
+        (hasBit(bits, page, 0) && !readiness.isReady(page)) ||
+        (hasBit(bits, page, sets[1].base) && !readiness.isChildReady(page))
+    }
     for (const { values, base } of sets)
       upload(
         packed.pageCones,
@@ -142,7 +143,7 @@ export function createDagResidencyUpload(
         1,
         updateResidencyBits(values, pageCount, bits, base, changed, touched),
       )
-    return true
+    return withdrawn ? ('withdrawn' as const) : ('gained' as const)
   }
   return Object.defineProperties(apply, {
     /** Bytes of the host tables: the readiness and this upload's change lists. */
@@ -181,8 +182,7 @@ function heldSender(device: GPUDevice, target: Partial<HeldTarget>, held: HeldOp
       return slots.length > 0 || placements.length > 0
     const { output, frames } = target
     const at = (heldOpenAt(target as HeldTarget).base + SELECTION_HEADER_WORDS) * 4
-    const send: RangeTarget = (offset, data, dataOffset, size) =>
-      device.queue.writeBuffer(output, at + offset, data, dataOffset, size)
+    const send = bufferRangeTarget(device, output, at)
     const source = { data: held.words, sourceBase: 0, targetBase: 0, stride: OPEN_SLOT_WORDS }
     writeRanges(send, slots, slots.length, source)
     for (const w of placements) frames.writeWord(w, HELD_BY_WORD, held.heldBy(w))

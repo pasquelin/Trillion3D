@@ -4,6 +4,29 @@ import type { createKeyUnion } from '../cut/keyUnion.ts'
 
 type Union = ReturnType<typeof createKeyUnion>
 
+/** Each listed page's rank and its place in the list (`byRank`), grown as the lists do: one rank
+ *  read a page, never two a comparison. */
+let rankScratch = new Float64Array(64),
+  orderScratch = new Uint32Array(64)
+
+/** The first `limit` of `pages` by `rank`, the lowest first, ties in their order. */
+function byRank(pages: readonly PageRec[], rank: (page: PageRec) => number, limit: number) {
+  const n = pages.length
+  if (rankScratch.length < n) {
+    rankScratch = new Float64Array(2 * n)
+    orderScratch = new Uint32Array(2 * n)
+  }
+  const ranks = rankScratch
+  for (let i = 0; i < n; i++) {
+    ranks[i] = rank(pages[i])
+    orderScratch[i] = i
+  }
+  const order = orderScratch.subarray(0, n).sort((a, b) => ranks[a] - ranks[b] || a - b)
+  const out: PageRec[] = new Array(Math.min(n, limit))
+  for (let k = 0; k < out.length; k++) out[k] = pages[order[k]]
+  return out
+}
+
 /**
  * THE ROOT COVER, COUNTED BY ITS HOLDERS. `holders` says per key how many hold it: the session its
  * roots from open, and each held cell the roots it alone needs. A page joins the cover with its
@@ -60,15 +83,20 @@ export function createCoverHolders(options: {
       return moved
     },
     /** The pages a later holder brought into the cover that the pool lacks, as `holds` says, at
-     *  most `limit` — the slots that could take them: those it holds leave the list. A list of its
-     *  own, read across the awaits of a burst. */
-    missing(holds: (page: PageRec) => boolean, limit = Infinity): readonly PageRec[] {
+     *  most `limit` — the slots that could take them —, the first by `rank` when given (the lowest
+     *  first): those it holds leave the list. A list of its own, read across the awaits of a
+     *  burst. */
+    missing(
+      holds: (page: PageRec) => boolean,
+      limit = Infinity,
+      rank?: (page: PageRec) => number,
+    ): readonly PageRec[] {
       if (lacking.count === 0) return none
       const out: PageRec[] = []
-      for (let i = lacking.count - 1; i >= 0 && out.length < limit; i--)
+      for (let i = lacking.count - 1; i >= 0 && (rank || out.length < limit); i--)
         if (holds(missingPages[i])) lacking.remove(lacking.list[i])
         else out.push(missingPages[i])
-      return out
+      return rank ? byRank(out, rank, limit) : out
     },
     /** How many pages a later holder brought that the pool may lack still. */
     lacking: () => lacking.count,

@@ -95,6 +95,9 @@ export function createSoftVertices(
     bySlot[slot] = undefined
     return false
   }
+  const drawAll = (moving: Readonly<Int32Array>, count: number, t: number) => {
+    for (let i = 0; i < count; i++) draw(moving[i], t)
+  }
   return {
     /** A tick's records, after `steps` fixed steps; returns how many it kept. */
     receive(records: TickRecords | null, steps: number) {
@@ -117,11 +120,6 @@ export function createSoftVertices(
     },
     /** Draws every moving soft body at `t` of its step (`along`), `waiting` while the page waits
      *  for the worker's next state; whether any is still on its way. */
-    apply(t: number, waiting: boolean) {
-      if (!steps2.count) return false
-      steps2.keep(alive)
-      for (let i = 0; i < steps2.count; i++) draw(steps2.moving[i], t)
-      return steps2.settle(t, waiting)
-    },
+    apply: (t: number, waiting: boolean) => steps2.apply(t, waiting, alive, drawAll),
   }
 }

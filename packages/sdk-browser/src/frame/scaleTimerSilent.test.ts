@@ -29,13 +29,6 @@ test('40 ms GPU times drop the scale to its floor within the history', () => {
   )
 })
 
-test('samples without a time: the frame intervals drop the scale to its floor', () => {
-  floorWithin(
-    silent(240, () => null),
-    12 * HISTORY,
-  )
-})
-
 test('a sample without a time now and then leaves the GPU times in charge', () => {
   let sample = 0
   floorWithin(

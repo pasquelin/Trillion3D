@@ -1,18 +1,18 @@
 /**
  * THE ROWS THE CPU NAMES TO THE ROWS PASS (`rowWords.ts`, `rowWordsPass.ts`), a list the pass reads
  * a thread an entry: each row once however often it is named — its place among them is kept a row
- * (`at`), so a row two reasons or two pumps name in a frame takes one entry, its bits joined
- * (`ROW_EMITS`, `ROW_STALES`). While every row is derived (`all`) the list keeps the rows whose
+ * (`at`), so a row two reasons or two pumps name in a frame takes one entry, its bit joined
+ * (`ROW_STALES`). While every row is derived (`all`) the list keeps the rows whose
  * shadow changed where they stand alone: deriving a row finds no such change. A command buffer
  * holding the pass that is dropped has every row derived again, and the rows it staled named again
  * (`rowWordsDropped`): the spheres it would have read are the ones the GPU still holds.
  */
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { RowWords } from './rowWords.ts'
-import { ROW_EMITS, ROW_NAMED, ROW_STALES } from './rowWordsWgsl.ts'
+import { ROW_NAMED, ROW_STALES } from './rowWordsWgsl.ts'
 
-/** Row `row` derived at the next pass, with `bits` (`ROW_EMITS`, `ROW_STALES`): a row named already
- *  keeps its place and joins them. While every row is derived, a row staled alone is listed. */
+/** Row `row` derived at the next pass, with `bits` (`ROW_STALES`): a row named already keeps its
+ *  place and joins them. While every row is derived, a row staled alone is listed. */
 export function target(state: RowWords, row: number, bits = 0) {
   if (state.all && !(bits & ROW_STALES)) return
   state.at = resized(state.at, row + 1)
@@ -23,7 +23,6 @@ export function target(state: RowWords, row: number, bits = 0) {
     state.at[row] = ++state.count
   }
   const was = state.targets[place]
-  if (bits & ~was & ROW_EMITS) state.emits++
   if (bits & ~was & ROW_STALES) state.stales++
   state.targets[place] = (was | bits) >>> 0
 }
@@ -31,7 +30,7 @@ export function target(state: RowWords, row: number, bits = 0) {
 /** The rows named forgotten: every row is derived, its shadows staled anew (`spheresMadeAnew`). */
 function forgetTargets(state: RowWords) {
   for (let k = 0; k < state.count; k++) state.at[state.targets[k] & ROW_NAMED] = 0
-  state.count = state.emits = state.stales = 0
+  state.count = state.stales = 0
 }
 
 /** Every row derived at the next pass: the rows named forgotten but those staled, which deriving
@@ -48,7 +47,6 @@ export function deriveEveryRow(state: RowWords) {
     state.at[row] = ++kept
   }
   state.count = state.stales = kept
-  state.emits = 0
 }
 
 /** A buffer the pass binds was made anew: every row derived at the next pass

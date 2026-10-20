@@ -44,7 +44,10 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     state,
     budget: frameBudget,
   })
-  const drawFrame = createDrawFrame({ camera, streamer, streaming, engine, hostBytes })
+  const drawFrame = createDrawFrame({
+    ...{ camera, streamer, streaming, engine, hostBytes },
+    drawViews: options.drawViews,
+  })
   const followCells = createPartitionFrame({
     partitions,
     streamer,

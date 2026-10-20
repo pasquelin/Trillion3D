@@ -35,22 +35,42 @@ const parentsOf = (cells: readonly TableCell[]) =>
  *  each mesh's rows at each rung. By default every rung holds every node. */
 type Ladder = { cube: number; rows: (mesh: number, total: number, rung: number) => number }
 
+/** The grids' loading ranges a test's partition names (`TablePartition.hlod.ranges`): the main
+ *  grid's, then HLOD 0's and HLOD 1's, twice the one below. */
+const RANGES = [2000, 4000, 8000]
+
+/** A cell as a test states it: its grid fields, when it gives none, its own (`gridded`). */
+export type CellRecord = Omit<TableCell, 'grid' | 'bounds' | 'hlod'> & Partial<TableCell>
+
+/** Bounds no eye comes near. */
+const NOWHERE = [1e300, 1e300, 1e300, 1e300, 1e300, 1e300]
+
+/** `cell` as the cook writes it, its grid fields its own when the test gives none: its own grid
+ *  cell, streaming by its declared `box`, its own HLOD 0 cell, rank `rank`, streaming by that box
+ *  too — the HLOD 0 cell holds its cells' content —, in an HLOD 1 cell no grid streams. */
+function gridded(cell: CellRecord, rank: number, box: Box): TableCell {
+  const { grid = [0, 0, 0], bounds = box, hlod = [rank, box, NOWHERE] } = cell
+  return { ...cell, grid, bounds, hlod }
+}
+
 /**
- * The partition of `cells` as the cook pages it (`partition/pages.rs`): halved in order down to
+ * The partition of `records` as the cook pages it (`partition/pages.rs`): halved in order down to
  * region pages of `per` cells, under index pages of two, the top one in the root's first slot;
  * each cell boxed at the declared poses, in the root's frame, by `declared`, each page listed with
- * the core parents its cells hang under, and the rows laid by `ladder`. `files` holds each page's
+ * the core parents its cells hang under, the rows laid by `ladder` and the grids' loading `ranges`. `files` holds each page's
  * bytes by name; a slot's fingerprint is a serial number, which no test here verifies.
  */
 export function paged(
-  cells: readonly TableCell[],
+  records: readonly CellRecord[],
   per: number,
-  declared: (cell: TableCell) => Box = (cell) => cell.parents[0][1],
+  declared: (cell: CellRecord) => Box = (cell) => cell.parents[0][1],
   ladder: Ladder = { cube: 1, rows: (_, total) => total },
+  ranges: readonly number[] = RANGES,
 ) {
   const files = new Map<string, Uint8Array>()
+  const cells = records.map((cell, rank) => gridded(cell, rank, declared(cell)))
   const write = (body: object, box: Box, list: readonly TableCell[]) => {
-    const json = JSON.stringify({ version: 4, ...body })
+    const json = JSON.stringify({ version: 6, ...body })
     const sha = hex(++serial, 64)
     files.set(`scene-page-${sha}.json`, new TextEncoder().encode(json))
     return { slot: `${sha}${hex(json.length, 8)}${box.map(f64).join('')}`, box, list }
@@ -75,13 +95,14 @@ export function paged(
   const rungs = (mesh: number, total: number) =>
     Array.from({ length: RUNGS }, (_, rung) => hex(ladder.rows(mesh, total, rung), 8)).join('')
   const root = {
-    version: 4,
+    version: 6,
     pages: [top.slot, ...Array<string>(7).fill('0'.repeat(168))],
     parents: [parentsOf(top.list), ...Array<string>(7).fill('')],
     meshes: [...totals]
       .sort(([a], [b]) => a - b)
       .map(([m, n]) => hex(m, 8) + hex(n, 8) + rungs(m, n)),
     cube: f64(ladder.cube),
+    hlod: { ranges: ranges.map(f64), cells: hex(cells.length, 8) },
   }
   return { partition: tablePartition(root), files, root }
 }
@@ -114,7 +135,7 @@ export function openAll(
 
 /** The index of `cells` in region pages of four, every page on the way from `eye` within
  *  `radius` opened, then walked once more: the cells it finds and what it tested. */
-export function walked(cells: TableCell[], eye: ArrayLike<number>, radius: number) {
+export function walked(cells: CellRecord[], eye: ArrayLike<number>, radius: number) {
   const { partition, files } = paged(cells, 4)
   const boxes = createCellBoxes([], new Group(), [])
   boxes.refresh()

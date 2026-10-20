@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assignDeformationOutputs, writeRowDeformation, writeSpanDeformation } from './outputs.ts'
-import { DEFORM_SOURCE_IN_POOL, DEFORM_NO_HEADER } from '../visibility/types.ts'
 import type { ClusterRoot, DeformationOutput, PageRec } from '../page/selection/types.ts'
 
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
@@ -61,11 +60,31 @@ test('the pages of a geometry read as floats share one block a placement', () =>
   }
 })
 
+test('the roots of one batch ask its meshes whether they animate once, not once a root', () => {
+  let asked = 0
+  const mesh = (moving: boolean) => ({
+    get skeleton() {
+      asked++
+      return moving ? {} : undefined
+    },
+  })
+  const still = [page('a', 3, false)],
+    count = 2000
+  const quiet = { sourceModels: new Set(Array.from({ length: count }, () => mesh(false))) },
+    crowd = { sourceModels: new Set([...quiet.sourceModels, mesh(true)]) }
+  const placed = (rows: object) =>
+    Array.from({ length: count }, () => ({ ...rootOf(still), placement: { rows } }))
+  const roots = [...placed(quiet), ...placed(crowd)] as ClusterRoot<PageRec>[]
+  assert.equal(assignDeformationOutputs(roots).length, count, 'a block a root of the crowd')
+  assert.equal(asked, 2 * count + 1, 'each mesh asked once for the whole pass')
+  assert.equal(roots[0].deformationOutputs, undefined, 'none where no mesh of the rows animates')
+})
+
 // The words a row and a span put to name an output.
 test('a row and a span name an output by its words', () => {
   const own: DeformationOutput = { from: 34, count: 3 },
     pool = { from: 100, count: 7, pool: {} } as DeformationOutput,
-    poolWord = ((101 | DEFORM_SOURCE_IN_POOL | DEFORM_NO_HEADER) >>> 0) as number
+    poolWord = 101
   const ints = new Uint32Array(200),
     spans = new Uint32Array(8)
   const at = 3 * 16

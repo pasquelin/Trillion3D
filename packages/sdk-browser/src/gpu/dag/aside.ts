@@ -97,7 +97,7 @@ function dispatchAside(aside: Aside, uniforms: SelectionUniforms, shared: GPUCom
   if (slots.disposed) return undefined
   // What moved since the last cut reaches the tables before this view reads them, as before the
   // main view's cut.
-  aside.syncTables(uniforms, aside)
+  aside.syncTables()
   if (tablesHeld(resources, state)) return undefined
   // A coarsened view whose wait ran out tries its own threshold (`coarsening.ts`).
   if (coarsenTick(slots.coarse)) recutView(swap, view)
@@ -154,7 +154,7 @@ function copyLists(
     worldRevision: state.worldRevision,
     coarsen: slots.coarse.factor,
   }
-  const copy: AsideCopy = { ranks, listCap, captured, serial, residency: -1 }
+  const copy: AsideCopy = { ranks, listCap, captured, serial, withdrawn: -1 }
   const target = slots.ring.take(copy, 2 * bytes)
   if (!target) return undefined
   // The requests, then the drawn list right behind them, each its header and `ranks` ranks.
@@ -162,7 +162,7 @@ function copyLists(
   shared.copyBufferToBuffer(output, listWords(listCap) * 4, target, bytes, bytes)
   slots.inFlight = serial
   const read = () => {
-    copy.residency = state.residencyRevision
+    copy.withdrawn = state.withdrawnRevision
     slots.ring.submitted(target)
   }
   return { target, copy, read }

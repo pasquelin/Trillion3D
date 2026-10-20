@@ -1,8 +1,7 @@
 import { msSince } from '../../../diagnostic/stopwatch.ts'
 import { materialsAndTangentsCount } from '../io/catalogue.ts'
 import type { takeMaterialTextures } from './textures.ts'
-import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts'
-import { appendCardMaps, cardsStream } from '../../tile/cardMaps.ts'
+import { tileCatalogue } from '../../tile/catalogue.ts'
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts'
 import { chooseBlockFormat, poolEncoding } from '../../../texture/blockFormats.ts'
 import type { TexturePool } from '../../residency/memoryBudgets.ts'
@@ -35,37 +34,24 @@ export function reportTextureNeeds(rt: WebgpuPagesRuntime, { maps, dataMaps }: C
   })
 }
 
-/** The block family, the pools' encoding and each atlas's tile catalogue, the impostor maps
- *  appended after the scene's textures (`appendCardMaps`) with each mesh's slots. */
+/** The block family, the pools' encoding and each atlas's tile catalogue. */
 export function textureCatalogues(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
   { maps, dataMaps, coverage }: Census,
 ) {
-  const previews = rt.context.metadata.texturePreviews ?? []
-  const previewAt = previewsByAtlas(previews)
-  // The family is settled here, the chains in hand: the one the device samples AND the cache
-  // holds kept chains in — a device with both features takes the family the cook wrote.
-  const choice = chooseBlockFormat(gpuDevice.features, previews, rt.context.textureCompression)
+  const caches = rt.context.textureCaches
+  // The family is settled here, the chains in hand: the one the device samples AND the caches
+  // hold kept chains in — a device with both features takes the family the cook wrote.
+  const { textureCompression } = rt.context
+  const choice = chooseBlockFormat(gpuDevice.features, caches.previews, textureCompression)
   const encoding = poolEncoding(choice.block)
-  // The glTF rank of each record: what its baked preview is found by.
-  const ranks = rt.context.textureIndices
-  const previewOf = (atlas: number, list: typeof maps) => (index: number) => {
-    const source = ranks?.get(list[index])
-    return source === undefined ? undefined : previewAt(source, atlas)
-  }
-  const readLevel = rt.context.readTextureLevel
-  const color = tileCatalogue(
-    maps,
-    previewOf(PREVIEW_ATLAS_COLOR, maps),
-    readLevel,
-    encoding,
-    coverage,
-  )
-  const data = tileCatalogue(dataMaps, previewOf(PREVIEW_ATLAS_DATA, dataMaps), readLevel, encoding)
-  const section = cardsStream(rt) ? rt.context.metadata.impostors : undefined
-  const cards = appendCardMaps(section, color, data, rt.diag.diagnosticFailure)
-  return { choice, encoding, color, data, readLevel, cards }
+  // Each record's chain, in the cache whose scene built it, with that cache's reader.
+  const chainOf = (atlas: number, list: typeof maps) => (index: number) =>
+    caches.chainOf(list[index], atlas)
+  const color = tileCatalogue(maps, chainOf(PREVIEW_ATLAS_COLOR, maps), encoding, coverage)
+  const data = tileCatalogue(dataMaps, chainOf(PREVIEW_ATLAS_DATA, dataMaps), encoding)
+  return { choice, encoding, color, data }
 }
 
 /** The tile streamer over the lane pools' `layers`. */
@@ -74,7 +60,7 @@ export function tileStreamerFor(
   gpuDevice: GPUDevice,
   catalogues: ReturnType<typeof textureCatalogues>,
 ) {
-  const { color, data, encoding, readLevel, cards } = catalogues
+  const { color, data, encoding } = catalogues
   return (layers: TexturePool['layers']) =>
     createWebgpuTileStreamer({
       device: gpuDevice,
@@ -85,10 +71,7 @@ export function tileStreamerFor(
       budgetBytes: rt.setup.textureBudget,
       budgetMs: rt.setup.textureUploadMs,
       clock: rt.clock,
-      readLevel,
       onFailure: rt.diag.diagnosticFailure,
-      cards,
-      onCardsLanded: () => rt.run.gate.resourcesChanged(),
       onColorChanged: (slots) => {
         // Origin of the resource change: colour tiles have just reached the pool or left it, or a
         // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —

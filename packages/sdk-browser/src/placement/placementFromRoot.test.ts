@@ -99,7 +99,7 @@ async function steps<T>(look: (session: Session) => T, light?: SceneLight) {
     const seen = [look(session)]
     core.position.set(0.5, 10, -0.25)
     core.rotation.set(0, 0.3, 0)
-    for (let frame = 0; frame < 2; frame++) cells.frame([0, 0, 0], 100, io, noBudget)
+    for (let frame = 0; frame < 2; frame++) cells.frame([0, 0, 0], io, noBudget)
     await draw()
     await draw()
     seen.push(look(session))

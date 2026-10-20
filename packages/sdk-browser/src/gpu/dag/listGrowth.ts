@@ -1,8 +1,8 @@
 // THE CAMERA CUT'S LIST GROWN (`growDagList`): a new readout and its kept ranks made beside the
 // old ones within the cut's share, the kept snapshot and the open counts carried over, the old
 // ones retired by the one growth transaction (`../core/tableGrowth.ts`).
-import { validationScope } from '../core/errorScope.ts'
-import { pendingBuffers } from '../core/tableGrowth.ts'
+import { validated } from '../core/errorScope.ts'
+import { bytesOfBuffers, pendingBuffers } from '../core/tableGrowth.ts'
 import {
   DAG_READBACK_SLOTS,
   KEPT_HEADER_WORDS,
@@ -62,31 +62,22 @@ export async function growDagList(
   const replaced = [resources.output, ...resources.ranks]
   // The ring's next copies take the grown size: kept in the share, asked now (`mainReadbacks.ts`).
   const ring = DAG_READBACK_SLOTS * residentReadbackBytes(listCap) - resources.readbacks.bytes
-  const admission = admitBeside<GPUBuffer>(
-    resources,
-    replaced.reduce((sum, buffer) => sum + buffer.size, 0),
-    Math.max(0, ring),
-  )
+  const admission = admitBeside<GPUBuffer>(resources, bytesOfBuffers(replaced), Math.max(0, ring))
   // Each buffer noted in what the admission made: one past the share is never made, and the growth
   // is refused by name (`pastShare`): the view coarsens instead (`coarsening.ts`).
   const make = (descriptor: GPUBufferDescriptor) =>
     admission.admit({ label: descriptor.label, bytes: descriptor.size }, () =>
       resources.device.createBuffer(descriptor),
     )
-  let list: ReturnType<typeof createDagList> | undefined
-  try {
-    const { value, error } = await validationScope(
-      resources.device,
-      () => {
-        if (ring > 0) resources.admit(ring)
-        return createDagList(make, listCap, regions, heldSlots)
-      },
-      'out-of-memory',
-    )
-    if (!error) list = value
-  } catch {
-    /* A creation the device throws on is a refusal too. */
-  }
+  // A creation the device throws on is a refusal too.
+  const list = await validated(
+    resources.device,
+    () => {
+      if (ring > 0) resources.admit(ring)
+      return createDagList(make, listCap, regions, heldSlots)
+    },
+    'out-of-memory',
+  ).catch(() => undefined)
   const made = admission.made.map(({ resource }) => resource)
   const growth = cutGrowth(resources, made, replaced, () => {
     const from = { output: resources.output, listCap: resources.listCap },

@@ -6,21 +6,20 @@
  * and a moved root's world, 128 bytes (`rootWorlds.ts`). Here, once a frame before the rows go up
  * (`followRows`), the rows the pass derives are named: the rows the table declared dirty, and the
  * rows of each root whose world moved, found by its pages — the work follows what moved, never the
- * table. A frame the pass does not run keeps them for the next. A row of a root that moved, or whose
- * casting or mobility changed, asks its shadow change (`deriveRootRows`, `ROW_EMITS`,
- * `rowCastWgsl.ts`); a row the table rewrote does not — its residency is the CPU's to declare —, nor
- * one whose root's world was sent at a pose its shadows hold (`mobility.holds`), and a row named
- * twice is named once, its asks joined.
+ * table. A frame the pass does not run keeps them for the next. Every row derived appends its shadow
+ * change (`rowCastWgsl.ts`): a root that moved, or whose casting or mobility changed where it
+ * stands (`deriveRootRows`), and a row the table rewrote alike — its former page stales the pages it
+ * was drawn into at the pose it was drawn at —; a row named twice is named once.
  */
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { RowRunVisitor } from '../webgpu/row/dirty.ts'
 import { createRowInputs, ensureRowInputs, sendRowFlags, sendRowInputs } from './rowInputs.ts'
 import { sendRootWorlds } from './rootWorlds.ts'
 import { takeMoved } from './rootMoves.ts'
-import { followComposedRun, rootRows } from './composedRows.ts'
+import { rootRows } from './composedRows.ts'
 import { commitRowMotion } from '../webgpu/shadow/rowTravel.ts'
 import type { RowWordsGpu } from './rowWordsGpu.ts'
-import { ROW_EMITS, ROW_STALES } from './rowWordsWgsl.ts'
+import { ROW_STALES } from './rowWordsWgsl.ts'
 import { deriveEveryRow, target } from './rowTargets.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 
@@ -35,20 +34,17 @@ function createRowWords() {
     /** The command encoder the last pass was encoded into. */
     encodedInto: undefined as GPUCommandEncoder | undefined,
     /** The rows named since the last pass, the first `count` of `targets` (`ROW_NAMED`, with
-     *  `ROW_EMITS` when its shadow change is asked and `ROW_STALES` when its shadow changed where
-     *  it stands), `emits` and `stales` of them so marked; each row's place among them plus one
-     *  (`at`), 0 for a row not named (`rowTargets.ts`). */
+     *  `ROW_STALES` when its shadow changed where it stands), `stales` of them so marked; each
+     *  row's place among them plus one (`at`), 0 for a row not named (`rowTargets.ts`). */
     targets: new Uint32Array(64),
     count: 0,
-    emits: 0,
     stales: 0,
     at: new Int32Array(0),
     /** The rows the last pass staled, the first `staledCount`: named again should its command
      *  buffer be dropped (`rowWordsDropped`). */
     staled: new Uint32Array(0),
     staledCount: 0,
-    /** The roots whose rows the next follow names, their shadow changes asked (`deriveRootRows`),
-     *  each once. */
+    /** The roots whose rows the next follow names (`deriveRootRows`), each once. */
     roots: createChangedRuns(),
     /** The pass's GPU side (`rowWordsPass.ts`), made at its first run. */
     gpu: undefined as RowWordsGpu | undefined,
@@ -68,43 +64,36 @@ const rowWordsOf = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>) => (rt.rowWords ??
 export const nameCastRow = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>, row: number) =>
   target(rowWordsOf(rt), row, ROW_STALES)
 
-/** Root `rank`'s rows derived at the next pass, their shadow changes asked: it moved — a node's
- *  move, a row posed past what its shadows hold, a parent let go —, or its casting or its mobility
- *  changed where it stands (`flipWorld`, `../webgpu/shadow/mobility.ts`'s settle). */
+/** Root `rank`'s rows derived at the next pass: it moved — a node's move, a row posed past what its
+ *  shadows hold, a parent let go —, or its casting or its mobility changed where it stands
+ *  (`flipWorld`, `../webgpu/shadow/mobility.ts`'s settle), which no world sent says. */
 export const deriveRootRows = (rt: Pick<WebgpuPagesRuntime, 'rowWords'>, rank: number) =>
   rowWordsOf(rt).roots.mark(rank)
 
-/** A run of rows the table declared dirty: their inputs sent and their words derived again, the
- *  composed rows' list following them. */
+/** A run of rows the table declared dirty: their inputs sent and their words derived again. */
 const dirtyRun: RowRunVisitor<WebgpuPagesRuntime> = (rt, from, to) => {
   const state = rt.rowWords!
   if (!state.sentWhole) sendRowInputs(rt, rt.gpu.device!, state.inputs, from, to)
   for (let row = from; row <= to; row++) target(state, row)
   state.derived += to - from + 1
-  followComposedRun(rt, from, to)
 }
 
-/** The rows of root `rank`'s resident pages derived again (`rootRows`) — its world was sent —,
- *  their shadow changes asked when `emits`. */
-const targetRootRows = (rt: WebgpuPagesRuntime, state: RowWords, rank: number, emits: boolean) =>
-  rootRows(rt, rank, (row) => target(state, row, emits ? ROW_EMITS : 0))
+/** The rows of root `rank`'s resident pages derived again (`rootRows`). */
+const targetRootRows = (rt: WebgpuPagesRuntime, state: RowWords, rank: number) =>
+  rootRows(rt, rank, (row) => target(state, row))
 
 /**
  * Brings the rows pass's inputs and its rows level with the table and the worlds, before the rows
  * go up (`uploadDirtyRows`, which clears the marks this reads): the moved roots' worlds sent, the
  * dirty rows' inputs sent, and both named. A table of another size, or a world table sent whole,
  * has every row's inputs sent and every row derived; a pass whose command buffer was dropped, every
- * row derived (`all`). A frame no parent composes stops the composed
- * rows' list, made again whole at the next link.
+ * row derived (`all`).
  */
 export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { rows } = rt.layout,
-    compose = rt.compose,
     state = rowWordsOf(rt)
   if (!rows.pageTableInts) return
-  if (compose && !compose.parentIds.size) compose.rowsFollowed = false
   const fresh = ensureRowInputs(state.inputs, device, rows.casterSlots)
-  if (fresh && compose) compose.rowsFollowed = false
   sendRootWorlds(rt, device)
   const moved = takeMoved(rt.rootWorlds!.rows)
   state.sentWhole = fresh || !moved
@@ -121,15 +110,15 @@ export function followRowWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     target(state, ready[k])
     state.derived++
   }
-  // A root listed for its shadow change too is walked once, by that list: its rows' asks are
-  // joined. Both lists increase: one walk skips the moved roots the asked list holds.
+  // A root both lists name is walked once, by the asked list. Both lists increase: one walk skips
+  // the moved roots the asked list holds.
   const asked = state.roots.take()
   if (moved)
     for (let k = 0, j = 0; k < moved.length; k++) {
       while (j < asked.length && asked[j] < moved[k]) j++
-      if (asked[j] !== moved[k]) targetRootRows(rt, state, moved[k], false)
+      if (asked[j] !== moved[k]) targetRootRows(rt, state, moved[k])
     }
-  for (const rank of asked) targetRootRows(rt, state, rank, true)
+  for (const rank of asked) targetRootRows(rt, state, rank)
   // The rows a moving root's travel carries are counted by how far it went, the others whole.
   commitRowMotion(rt, state.derived)
   state.derived = 0

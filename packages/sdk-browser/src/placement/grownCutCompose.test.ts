@@ -15,7 +15,7 @@ test('a link made while the grown cut is made opens its group in that cut once s
   const { rt, cells, core, io, draw } = session
   try {
     core.scale.set(1e-3, 1e-3, 1e-3)
-    await settled(cells, [0, 0, 0], 100, io, noBudget)
+    await settled(cells, [0, 0, 0], io, noBudget)
     await draw()
     await rt.growth?.making
     const ready = rt.growth!.ready!

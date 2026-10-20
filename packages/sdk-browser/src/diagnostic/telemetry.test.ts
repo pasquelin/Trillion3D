@@ -10,7 +10,7 @@ import { FALLBACK_REFRESH_MS } from '../frame/scaleTargets.ts'
 test('the frame report records frames and produces accurate statistics and bottlenecks', () => {
   const profiler = new EngineProfiler()
   const manifest: ClusterManifest = {
-    schema: 1,
+    formatVersion: 1,
     status: 'ready',
     key: 'test',
     scope: 'slice',

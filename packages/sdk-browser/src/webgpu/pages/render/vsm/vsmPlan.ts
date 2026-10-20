@@ -63,16 +63,17 @@ export function castingLights(rt: WebgpuPagesRuntime) {
 
 /**
  * The shadow maps' pipelines for the set the scene's casting lights are first granted
- * (`vsmFirstSetLayout`: their maps at the full pool), described here and compiled off the thread
- * before the first frame (`prepareShadowPipelines` awaits the compiles returned): every compute
- * pipe of the passes (`vsmComputePipe`), the raster's render pipeline on the shadow page group,
- * the projection's twin and the row bins' kernel (`prepareRowBins`). That frame compiles none of them unless the budget grants a smaller pool,
- * or other lights a larger set. Nothing while no light casts.
+ * (`vsmFirstSetLayout`: their maps at the pool the view asks), described here and compiled off the
+ * thread before the first frame (`prepareShadowPipelines` awaits the compiles returned): every
+ * compute pipe of the passes (`vsmComputePipe`), the raster's render pipeline on the shadow page
+ * group, the projection's opaque pipelines and the row bins' kernel (`prepareRowBins`). That frame compiles
+ * none of them unless the budget grants a smaller pool, or other lights a larger set. Nothing while
+ * no light casts.
  */
 export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const pageLayout = rt.lights.pageLayout
   if (!castingLights(rt) || !pageLayout) return []
-  const layout = vsmFirstSetLayout(frameLights(rt, 'reserve'))
+  const layout = vsmFirstSetLayout(rt, frameLights(rt, 'reserve'))
   const marking = vsmMarkingPipes(device, layout),
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)
@@ -87,12 +88,12 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
     ...Object.values(vsmPageManagementPipes(device, layout, vsmCountersOn(device))).map(
       ({ pipe }) => pipe,
     ),
-    ...[render.candidates, render.cull, render.expand],
+    ...[render.candidates, render.views, render.cull, render.bin, ...render.expands],
     ...Object.values(render.args),
   ]
   return [
     ...pipes.map((pipe) => pipe?.prepared.prepare()),
-    vsmRasterPipe(device, layout, pageLayout).prepared.prepare(),
+    ...vsmRasterPipe(device, layout, pageLayout).tiers.map((tier) => tier.prepare()),
     vsmProjectionPipeline(device, layout)
       .prepare()
       .then(() => undefined),
@@ -161,6 +162,8 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
       projection: cam.projection,
       eye: cam.eye,
       perspective: cam.perspective === 1,
+      // Each view keeps its suns' clipmaps, centred on its own eye.
+      viewId: rt.views.active.id,
     },
     { width, height, minScreenWidth: gpu.displaySize[0] },
     (maps) =>

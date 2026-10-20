@@ -14,6 +14,8 @@ import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { materialRecordsSent } from '../material/materialRecordsSent.fixture.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../material/materialLayout.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** Each drawn row's line flag and the width its surface's record holds, after one frame of
  *  `scene`: the records as the table last sent them up. */
@@ -23,6 +25,7 @@ async function rowLineWidths(lineWidth: number | undefined) {
   if (lineWidth !== undefined) scene.material.lineWidth = lineWidth
   const { device, buffers, textureWrites } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,

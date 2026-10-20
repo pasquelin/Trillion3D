@@ -14,7 +14,8 @@ import { ROUGHNESS_FLOOR_WGSL } from './shaderConstantsWgsl.ts'
  * orthogonal to the normal, its unit vector as `xyz` and αt = mix(α, 1, strength²) along it as `w`
  * (`lobeAxis`); a direction that is none after the rejection, or a strength of zero, is the round
  * lobe, `xyz` zero and `w` α. `packedLobeAxis` reads them of a texel `w` of the lobes target
- * (direction in `x`, strength in `z`).
+ * (direction in `x`, strength in `z`), and `packedCoat` its clear coat: the coat's strength (`z`'s
+ * high half) and roughness (`w`), the one reading of every program that decodes a coat.
  */
 export const LOBE_AXIS_WGSL = wgslBlock(
   'LOBE_AXIS_WGSL',
@@ -28,5 +29,21 @@ fn lobeAxis(d:vec3f,strength:f32,N:vec3f,alpha:f32)->vec4f{
 }
 fn packedLobeAxis(w:vec4u,N:vec3f,alpha:f32)->vec4f{
  return lobeAxis(lobeOctDecode(w.x),unpack2x16unorm(w.z).x,N,alpha);
-}`,
+}
+fn packedCoat(w:vec4u)->vec2f{return vec2f(unpack2x16unorm(w.z).y,bitcast<f32>(w.w));}`,
 )
+
+/** The lobe a surface of roughness `rough` reflects through (`reflectionLobe`): the long axis
+ *  `setLobes` left — its direction and αt where the material is anisotropic —, a round lobe elsewhere;
+ *  with `lobes` its host declares them (`direct/lobesWgsl.ts`). */
+export const reflectionLobeWgsl = (lobes: boolean) =>
+  wgslBlock(
+    `reflectionLobeWgsl(${lobes})`,
+    [LOBE_AXIS_WGSL],
+    lobes
+      ? `fn reflectionLobe(rough:f32)->vec4f{
+ if(lobes.on){return vec4f(lobes.T,lobes.at);}
+ return vec4f(0.0,0.0,0.0,lobeAlpha(rough));
+}`
+      : `fn reflectionLobe(rough:f32)->vec4f{return vec4f(0.0,0.0,0.0,lobeAlpha(rough));}`,
+  )

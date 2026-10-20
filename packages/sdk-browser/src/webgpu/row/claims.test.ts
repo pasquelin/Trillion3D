@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWebgpuRowClaims, serveClaims } from './claims.ts'
+import { serveClaims } from './claims.ts'
+import { createMarkedList } from '../../../../math/src/sequence/markedList.ts'
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 
@@ -10,7 +11,7 @@ let now = 0
 const slowPlace = () => ((now += 3), true)
 
 const owed = () => {
-  const claims = createWebgpuRowClaims()
+  const claims = createMarkedList()
   for (const page of [3, 1, 2, 0]) claims.add(page)
   return claims
 }
@@ -21,7 +22,7 @@ test('an image writes owed rows within its time budget and leaves the rest owed'
   budget.open()
   serveClaims(claims, () => true, slowPlace, budget)
   assert.equal(claims.count, 3, 'one row goes through, three wait for the next image')
-  assert.deepEqual(Array.from(claims.pages.subarray(0, claims.count)), [1, 2, 3])
+  assert.deepEqual(Array.from(claims.list.subarray(0, claims.count)), [1, 2, 3])
 })
 
 test('a barrier image lifts the time budget and writes every owed row', () => {

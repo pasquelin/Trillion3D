@@ -8,7 +8,7 @@ import { collectClusterPages } from '../page/selection/collect.ts'
 import { dagRoots, DAG, exactPrimitive } from './pagesEngine.fixture.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 
-test('transmissive materials stay as unsplit source meshes even when the cache pass is exact-clusters', () => {
+test('a transmissive material on exact-clusters streams its pages, drawn blended, no source copy', () => {
   const geometry = new Geometry()
   geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0], 3))
   geometry.setIndex(G.indices([0, 1, 2]))
@@ -25,7 +25,7 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   ]
   const manifest: ClusterManifest = {
     ...DAG,
-    schema: 1,
+    formatVersion: 1,
     status: 'ready',
     key: 'k',
     scope: 'full',
@@ -38,14 +38,12 @@ test('transmissive materials stay as unsplit source meshes even when the cache p
   const indices = new Map([['0', new Uint32Array([0, 1, 2])]]),
     associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
   const collected = collectClusterPages(source, graphDraws(source, associations), manifest, indices)
-  assert.equal(collected.allPages.length, 0)
-  assert.equal(collected.blendCopies.length, 1)
-  // The collection hands out the ENGINE's own record: the geometry and the surface record of the
-  // source mesh, and the mesh itself only as the identity the record stands for.
-  const record = collected.blendCopies[0]
-  assert.equal(record.geometry, geometry)
-  assert.equal(record.userData.drawSource?.node, mesh)
-  assert.equal(record.surface.transmission, 1)
+  // Its pages stream and coarsen as any, the transparent pass composing them: no whole-mesh copy.
+  assert.equal(collected.allPages.length, 1)
+  const [record] = collected.allPages
+  assert.equal(record.transparent, true, 'drawn blended')
+  assert.equal(record.drawSource?.node, mesh)
+  assert.equal(record.material.transmission, 1)
   geometry.dispose()
   material.dispose()
 })

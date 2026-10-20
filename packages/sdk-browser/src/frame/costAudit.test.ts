@@ -3,17 +3,13 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { surfaceOf } from '../page/surface.ts'
-import { createHostFrameCostAudit, gpuFrameCostSnapshot } from './costAudit.ts'
+import { gpuFrameCostSnapshot } from './costAudit.ts'
 import { createEngineCamera } from '../camera/engineCamera.ts'
 import { readCameraWorld } from '../camera/world.ts'
-import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
-test('opt-in audit: bounded snapshot, deferred, without changing the selection or inventing the GPU mask', async (t) => {
+test('opt-in snapshot: bounded, without changing the selection or inventing the GPU mask', () => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'location')
-  const output: string[] = []
-  t.mock.method(console, 'info', (_label: string, payload: string) => output.push(payload))
-  t.mock.method(performance, 'now', () => 10000)
   const setSearch = (search: string) =>
     Object.defineProperty(globalThis, 'location', {
       configurable: true,
@@ -21,10 +17,11 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     })
   try {
     setSearch('')
-    createHostFrameCostAudit()(1, {} as FrameMetrics)
-    assert.equal(gpuFrameCostSnapshot({} as WebgpuPagesRuntime), undefined)
-    await Promise.resolve()
-    assert.equal(output.length, 0)
+    assert.equal(
+      gpuFrameCostSnapshot({} as WebgpuPagesRuntime),
+      undefined,
+      'none outside debug mode',
+    )
     setSearch('?profile')
     const item = {
       bounds: [10, 0, 0, 11, 1, 1],
@@ -45,15 +42,6 @@ test('opt-in audit: bounded snapshot, deferred, without changing the selection o
     assert.equal(snapshot.gpuEmptyDraws, null)
     assert.equal(items.length, 1)
     assert.equal(items[0], item)
-    const audit = createHostFrameCostAudit()
-    const metrics = { cpuFrameMs: 42, drawCalls: 2 } as FrameMetrics
-    audit(1, metrics)
-    audit(2, metrics)
-    assert.equal(output.length, 0, 'no console during the measured render call')
-    metrics.cpuFrameMs = 99
-    await Promise.resolve()
-    assert.equal(output.length, 1, 'one snapshot in the two-second window')
-    assert.equal(JSON.parse(output[0]).cpuFrameMs, 42, 'values belong to the captured frame')
   } finally {
     if (descriptor) Object.defineProperty(globalThis, 'location', descriptor)
     else Reflect.deleteProperty(globalThis, 'location')

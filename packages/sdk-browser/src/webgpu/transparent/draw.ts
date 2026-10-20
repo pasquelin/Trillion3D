@@ -1,6 +1,7 @@
 import { refreshTransparentSpans } from './spans.ts'
 import { refreshTransparentCorners } from './occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { prepared } from '../pages/state/prepared.ts'
 
 /**
  * The transparent instance lists of one image.
@@ -18,7 +19,10 @@ export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUC
   // The occlusion verdict is written just before the compaction, in the same submission and on
   // this frame's pyramid: the compaction never reads another frame's verdict.
   refreshTransparentCorners(rt, encoder)
-  if (blendState.occlusion) blendState.occlusion.encode(encoder, run.hizPyramidFresh)
+  // The image's cull says whether it tests or draws a frozen cut's kept verdicts again
+  // (`../pages/render/cutFreeze.ts`).
+  if (blendState.occlusion)
+    blendState.occlusion.encode(encoder, run.hizPyramidFresh, prepared(rt.vis, 'gpuPartition'))
   else encoder.clearBuffer(compaction.occludedBuffer)
   compaction.encode(encoder, selection.maskBuffer, selection.maskOffset)
 }

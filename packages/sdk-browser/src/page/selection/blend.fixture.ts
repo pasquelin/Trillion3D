@@ -61,7 +61,7 @@ export function blendFixture(
     },
   ]
   const metadata = {
-    errorModel: 'dag-group-qem-v3',
+    errorModel: 'dag-group-qem-v4',
     clusterStrategy: 'dag-groups',
     primitives: [
       {

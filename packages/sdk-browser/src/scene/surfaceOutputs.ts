@@ -2,9 +2,9 @@ import { FEEDBACK_FORMAT } from './targetFormats.ts'
 import type { FragmentOutput } from '../gpu/core/fragmentOutputs.ts'
 
 /** THE SURFACE TARGETS a pass writes before lighting, in their locations' order: name, WGSL type,
- *  format. The opaque resolve, the water surfaces and the impostor cards build their output
- *  structs (`fragmentMembers`) and their targets (`fragmentTargets`) from this one table
- *  (`surfaceBuffer.ts` holds what each one stores). */
+ *  format. The opaque resolve builds its output structs (`fragmentMembers`)
+ *  and their targets (`fragmentTargets`) from this one table (`surfaceBuffer.ts` holds what each
+ *  one stores). */
 export const SURFACE_OUTPUTS = [
   { name: 'baseMetal', wgsl: 'vec4f', format: 'rgba16float' },
   { name: 'normalRough', wgsl: 'vec4f', format: 'rgba16float' },

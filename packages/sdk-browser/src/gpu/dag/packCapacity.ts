@@ -78,27 +78,35 @@ export function dagRootCounts(roots: readonly DagRoot[]): DagCapacity {
 
 /**
  * What a packing of `roots` at `capacity` holds before any is written: its live counts, the
- * placement tree over every placement but the world DAG's — wherever it sits, which starts its own
- * descent —, laid out for the capacity's placements, and its levels: a member's lie below the
- * tree's. The world DAG's rank is named (`PackedWorld.root`), so a packing that holds it keeps
+ * placement tree over every placement but the world DAG's — wherever they sit, each starting its
+ * own descent —, laid out for the capacity's placements, and its levels: a member's lie below the
+ * tree's. The world DAG's ranks are named (`PackedWorld.roots`), so a packing that holds it keeps
  * room as any other, its links laid out for every placement the room takes.
  */
 export function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagCapacity) {
-  const world = roots.findIndex((root) => root.origins),
+  const worldRoots = worldRanks(roots),
+    isWorld = new Set(worldRoots),
     room = capacity,
     worlds = Math.max(roots.length, room?.worlds ?? 0),
-    members = worlds - (world >= 0 ? 1 : 0)
+    members = worlds - worldRoots.length
   // The tree's nodes follow the primitives' shared ones: an append adds none of either.
   const first = countRoots(roots, shared)
   const primitiveNodes = roomFor(first.nodes, room?.primitiveNodes, room)
-  const tree = placementTreeShape(roots, world, { members, worlds }, primitiveNodes)
+  const tree = placementTreeShape(roots, isWorld, { members, worlds }, primitiveNodes)
   const shift = tree?.depth ?? 0
-  const counted = shift ? countRoots(roots, shared, (w) => (w === world ? 0 : shift)) : first
+  const counted = shift ? countRoots(roots, shared, (w) => (isWorld.has(w) ? 0 : shift)) : first
   tree?.levels.forEach(({ count }, l) => (counted.levels[l] = (counted.levels[l] ?? 0) + count))
   const treeNodes = treeNodeCount(tree),
     nodes = primitiveNodes + treeNodes
   // Every placement's entry for each of its nodes — the room's included —, one at least for each
   // placement's root slot (`dagPrepare`), then the tree's.
   const entries = Math.max(first.entries, room?.nodes ?? 0, worlds) + treeNodes
-  return { ...counted, nodes, primitiveNodes, entries, tree, world, room, worlds }
+  return { ...counted, nodes, primitiveNodes, entries, tree, worldRoots, room, worlds }
 }
+
+/** The ranks of `roots` that place the world DAG (an `hlod`), by the row each is placed by —
+ *  instance `k` the root of row `k`, the placement of its model it draws (`placeInCell`). */
+const worldRanks = (roots: readonly DagRoot[]) =>
+  roots
+    .flatMap((root, w) => (root.hlod ? [w] : []))
+    .sort((a, b) => (roots[a].placement?.index ?? 0) - (roots[b].placement?.index ?? 0))

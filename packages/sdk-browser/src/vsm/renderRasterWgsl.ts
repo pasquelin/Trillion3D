@@ -8,17 +8,16 @@
  * triangle over four pages is drawn four times,
  * once per pair. The page clip (clip distances to the uncached rect) is the pair's page itself.
  *
- * One non-indexed `drawIndirect` per chunk (vertex pulling): `vertex_index` is the corner of the
- * row (`PageInfo.indexCount`, the chunk's draw counts the largest), `instance_index` the pair;
- * corners past a row's own and culled triangles output a NaN position.
+ * One non-indexed `drawIndirect` per corner tier of a chunk (vertex pulling, `vsmRenderArgsDraw`):
+ * a tier's pipeline draws `VSM_RENDER_CORNERS` corners a pair (an override), vertex k of pair p
+ * being `vertex_index` p · corners + k of one instance; corners past a row's own and culled
+ * triangles output a NaN position.
  *
  * Face culling: the mesh's cull mode, by the rasterizer (`cullMode: 'back'`, `frontFace: 'ccw'`): each
  * vertex emits its triangle in the winding that makes a face toward the light counter-clockwise on
- * the framebuffer (`vsmRenderEmitsSwapped`): a counter-clockwise world normal, turned by a mirroring
- * placement (the main raster's `windingCw`) and by a back-side row (`FLAG_BACK`, which keeps its back
- * faces), against the map's own handedness. A two-sided row (`FLAG_DOUBLE`) draws its corners twice,
- * the second time swapped: one of the two copies faces the light. A vertex decodes its own corner
- * alone.
+ * the framebuffer, the pair's swapped bit (`vsmRenderSwapped`, decided once a candidate and map by
+ * the cull). A two-sided row (`FLAG_DOUBLE`) draws its corners twice, the second time swapped: one
+ * of the two copies faces the light. A vertex decodes its own corner alone.
  *
  * Emitter envelope: a local light that declares an emitter radius (`emitterSize`, the
  * scene light's `emitterRadius`) accepts no depth from inside that sphere — the bulb, the glass or
@@ -37,10 +36,11 @@
 import { VSM_CASTER_PROJECTION_WGSL } from './renderCasterWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { bitAt, bitIsSet, byteOf } from '../../../math/src/wgsl/integer.ts'
-import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
+import { maskUvWgsl } from '../visibility/shader/pageUv1Wgsl.ts'
+import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
-import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts'
+import { FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts'
 import {
   colorSampleWgsl,
   maskAlphaWgsl,
@@ -70,6 +70,8 @@ ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 ${materialDeclarations()}
 @group(1) @binding(0) var<storage,read> vsmRenderPairs:array<vec4u>;
+/** The corners a pair of this pipeline's tier draws (\`VSM_RENDER_TIER_CORNERS << tier\`). */
+override VSM_RENDER_CORNERS:u32=96u;
 struct VsmRenderOut{
  @builtin(position) position:vec4f,
  @location(0) @interpolate(flat) row:u32,
@@ -84,38 +86,22 @@ struct VsmRenderOut{
 /** A dropped corner: every corner of a dropped triangle lands on this one point outside the
  *  viewport, a zero-area triangle no rasterizer covers (a NaN constant does not compile in Tint). */
 fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
-/**
- * Whether a vertex emits its triangle with corners 1 and 2 swapped, so that a face toward the light
- * is counter-clockwise on the framebuffer. A triangle's projected winding is its facing times the
- * sign of D: for a perspective map, D = −det of the UV matrix's u, v, w rows (the light at the
- * shifted origin, those rows linear), for an orthographic one det of its u, v, z rows (z toward the
- * light, reversed Z); the page's NDC y and the framebuffer's y each turn it once. Swapped where D < 0,
- * where a mirroring placement turns the counter-clockwise normal, where a back-side row keeps its back
- * faces, and for a two-sided row's second copy.
- */
-fn vsmRenderEmitsSwapped(page:PageInfo,raw:VsmProjectionRecord,second:bool)->bool{
- let m=raw.shiftedToMapUv;
- let ortho=raw.lightViewToClip[3][3]>=1.0;
- let r3=select(vec3f(m[0].w,m[1].w,m[2].w),vec3f(m[0].z,m[1].z,m[2].z),ortho);
- let d=dot(vec3f(m[0].x,m[1].x,m[2].x),cross(vec3f(m[0].y,m[1].y,m[2].y),r3));
- let negative=select(d>0.0,d<0.0,ortho);
- return negative!=(matrixWindingCw(page.world)!=(((page.flags&${FLAG_BACK}u)!=0u)!=second));
-}
-@vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VsmRenderOut{
- let pair=vsmRenderPairs[instanceIndex];
+@vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32)->VsmRenderOut{
+ let pair=vsmRenderPairs[vertexIndex/VSM_RENDER_CORNERS];
+ let pairCorner=vertexIndex%VSM_RENDER_CORNERS;
  var out:VsmRenderOut;
  out.row=pair.x;out.uv=vec2f(0.0);out.dest=vec2u(pair.w,bitAt(pair.y,21u));out.fromEmitter=vec4f(0.0);
  let page=pages[pair.x];
  out.masked=page.flags&${FLAG_MASK}u;
  let n=page.indexCount;
- let second=vertexIndex>=n;
- if(vertexIndex>=select(n,2u*n,(page.flags&${FLAG_DOUBLE}u)!=0u)){out.position=vsmRenderNan();return out;}
- let v=select(vertexIndex,vertexIndex-n,second);
+ let second=pairCorner>=n;
+ if(pairCorner>=select(n,2u*n,(page.flags&${FLAG_DOUBLE}u)!=0u)){out.position=vsmRenderNan();return out;}
+ let v=select(pairCorner,pairCorner-n,second);
  let raw=vsmProjectionData[pair.y&0xFFFFu];
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let tri=pageTriangle(page,h,v/3u);
  var corner=v%3u;
- if(corner!=0u&&vsmRenderEmitsSwapped(page,raw,second)){corner=3u-corner;}
+ if(corner!=0u&&bitIsSet(pair.y,22u)!=second){corner=3u-corner;}
  let id=select(select(tri.z,tri.y,corner==1u),tri.x,corner==0u);
  let world=vsmRenderWorld(page,h,id);
  // Translated world of the VSM view, then its clip.
@@ -130,7 +116,7 @@ fn vsmRenderEmitsSwapped(page:PageInfo,raw:VsmProjectionRecord,second:bool)->boo
  let vPage=vec2f(f32(byteOf(pair.z,0u)),f32(byteOf(pair.z,1u)));
  out.position=vec4f(clip.x*s-clip.w*(2.0*vPage.x+1.0),clip.w*(2.0*vPage.y+1.0)-clip.y*s,clip.z,clip.w);
  // The fragment's cutout reads the UV of a masked row alone (\`maskKeep\`).
- if((page.flags&${UV_READ}u)==${UV_READ}u){out.uv=pageUv(page,h,id);}
+ if((page.flags&${UV_READ}u)==${UV_READ}u){out.uv=pageMaskUv(page,h,id);}
  return out;
 }
 /** The depth fragment: the emitter envelope and the material clip of a masked row, then an
@@ -161,6 +147,7 @@ fn vsmRenderEmitsSwapped(page:PageInfo,raw:VsmProjectionRecord,second:bool)->boo
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
       PAGE_GEOMETRY_WGSL,
+      maskUvWgsl(VIS_BINDINGS.normals),
       byteOf,
       bitAt,
       bitIsSet,

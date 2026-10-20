@@ -5,14 +5,13 @@ import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { mixWord } from '../../../../math/src/wgsl/sampling.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
-import { openProbeWgsl } from '../../gpu/dag/shader/probeWgsl.ts'
+import { openProbeStatement } from '../../gpu/dag/shader/probeWgsl.ts'
 
 /**
  * The ray query's parameters, one uniform its two kernels read (`rayQuery.ts`): the rays and where
  * their records, their filter lists and their hits lie in the query's buffer; where the record
  * table lies in it; where the deformation index lies and its mask, and the rows and the blended
- * entries it is made over; the tree's top, none without a tree; the placements the packing holds
- * and the world DAG's.
+ * entries it is made over; the tree's top, none without a tree; the placements the packing holds.
  */
 export const RAY_PARAMS = fieldLayout('RayParams', [
   ['rays', 'u32'],
@@ -26,7 +25,6 @@ export const RAY_PARAMS = fieldLayout('RayParams', [
   ['entries', 'u32'],
   ['treeRoot', 'u32'],
   ['placements', 'u32'],
-  ['worldPlacement', 'u32'],
 ] as const)
 
 /** Words of a slot of the deformation index: the page plus one, its results' word, its row's
@@ -44,9 +42,9 @@ export const rayQueryBindingsWgsl = (group: number, atomic: boolean) =>
 @group(${group}) @binding(1) var<storage,read_write> query:array<${atomic ? 'atomic<u32>' : 'u32'}>;`,
   )
 
-/** A step over the deform index from `page`'s slot (`openProbeWgsl`), three words a slot. */
+/** A step over the deform index from `page`'s slot (`openProbeStatement`), three words a slot. */
 const deformProbe = (step: string) =>
-  openProbeWgsl({
+  openProbeStatement({
     home: 'deformSlot(page)',
     mask: 'params.hashMask',
     slotWord: (s) => `params.hashWord+${DEFORM_SLOT_WORDS}u*${s}`,

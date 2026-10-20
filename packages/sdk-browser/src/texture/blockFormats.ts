@@ -1,24 +1,26 @@
 import {
   PREVIEW_BLOCK_FORMATS,
   PREVIEW_LAYOUT_NAMES,
+  PREVIEW_STORED_FORMAT,
   type TextureBlockFormat,
   type TextureLayout,
 } from '../../../sdk-core/src/texture/previewFormat.ts'
 import { textureLevelFormat } from '../../../sdk-core/src/texture/levelUrl.ts'
 import type { TexturePreview } from '../../../sdk-core/src/texture/previewContracts.ts'
+import { formatTexelCost } from '../gpu/core/textureBytes.ts'
 
 /**
  * Which block family a session's pools take, and everything that follows from it.
  *
- * The cache bakes a chain in the families the cook asked for — every one by default — beside the
- * lossless PNG, and only where a quality gate kept it; the device says which family it samples —
- * desktop cards BC, mobile ones ASTC or ETC2, some several, a software adapter none. An atlas then
- * has one pool per LANE, the layouts the sidecar names: `lossless` (RGBA8, four bytes a texel —
- * what a chain under the bar, a host image or a device without any of the features reads),
- * `rgba` (BC7, ASTC or ETC2 RGBA8, one byte a texel) and `two-channel` (BC5, ASTC
- * luminance-alpha or EAC RG11, one byte a texel, the normal map's X and Y with Z rebuilt by the
- * shader). Nothing is lost by the engine: a texture takes
- * the lane its chain was kept in, and the choice is published (`texturePoolFormat`).
+ * The cache stores every chain in BC (`PREVIEW_STORED_FORMAT`) and bakes it in the other families
+ * the cook asked for — every one by default — only where a quality gate kept it; the device says
+ * which family it samples — desktop cards BC, mobile ones ASTC or ETC2, some several, a software
+ * adapter none. An atlas then has one pool per LANE, the layouts the sidecar names: `lossless`
+ * (RGBA8, four bytes a texel — what a chain the session's family does not hold reads, its BC files
+ * decoded (`blockDecode.ts`), and what a host image reads), `rgba` (BC7, ASTC or ETC2 RGBA8, one
+ * byte a texel) and `two-channel` (BC5, ASTC luminance-alpha or EAC RG11, one byte a texel, the
+ * normal map's X and Y with Z rebuilt by the shader). Nothing is lost by the engine: a texture
+ * takes the lane its chain was kept in, and the choice is published (`texturePoolFormat`).
  */
 export type TextureCompression = 'auto' | TextureBlockFormat | 'none'
 
@@ -34,10 +36,10 @@ export type BlockChoice = { block: TextureBlockFormat | undefined; reason: strin
 
 /**
  * The family the session samples: among those the host allows, the first the device has AND
- * some chain of the cache was kept in. `'auto'` tries BC, then ASTC, then ETC2 — a device with
- * BC is a desktop one, and BC is the family its drivers optimise; ASTC 4×4 holds more of a chain
- * than ETC2 at the same byte a texel —, but a cache cooked in ASTC alone takes ASTC on such a
- * device: a family without a kept chain would open no block lane and save nothing. `'none'` keeps
+ * some chain of the cache was kept in — every chain is in the stored family, BC. `'auto'` tries
+ * BC, then ASTC, then ETC2 — a device with BC is a desktop one, and BC is the family its drivers
+ * optimise; ASTC 4×4 holds more of a chain than ETC2 at the same byte a texel —; a gated family
+ * without a kept chain would open no block lane and save nothing. `'none'` keeps
  * RGBA8 — the "before" of a measurement. The reason names what settled it.
  */
 export function chooseBlockFormat(
@@ -59,6 +61,8 @@ export function chooseBlockFormat(
     return count
   }
   for (const block of sampled) {
+    if (block === PREVIEW_STORED_FORMAT)
+      return { block, reason: `device has ${BLOCK_FEATURES[block]}, every chain stored in it` }
     const chains = kept(block)
     if (chains > 0)
       return { block, reason: `device has ${BLOCK_FEATURES[block]}, ${chains} chains kept in it` }
@@ -83,6 +87,8 @@ export const laneCounts = (): LaneCounts =>
 
 /** A tail as the sidecar carries it: RGBA8 levels, and the kept families' blocks. */
 export type TailBytes = Pick<TexturePreview, 'levels' | 'blocks'>
+/** What each family holds of a chain, the stored family's layout among them. */
+export type ChainLayouts = Pick<TexturePreview, 'layouts'>
 
 /** The GPU formats of a family's lanes, the data atlas's; the colour atlas decodes sRGB. */
 const LANE_FORMATS: Record<TextureBlockFormat, Record<PoolLane, GPUTextureFormat>> = {
@@ -94,18 +100,20 @@ const LANE_FORMATS: Record<TextureBlockFormat, Record<PoolLane, GPUTextureFormat
 /**
  * Everything the pools, the catalogue and the streamer derive from one block choice: which lane
  * a chain takes, each lane's pool format (sRGB-decoded for colour, linear for data), the bytes a
- * texel costs there, the level file the reader asks for, and which of a tail's encodings is
- * pinned. One carrier, so that a lane is described here and nowhere else.
+ * texel costs there, the level file the reader asks for — the lossless lane's the stored family's,
+ * decoded —, and which of a tail's encodings is pinned. One carrier, so that a lane is described here and nowhere else.
  */
 export type PoolEncoding = {
   block: TextureBlockFormat | undefined
   /** The family held, as the metrics publish it: `bc7`, `astc`, `etc2` or `rgba8`. */
   name: TextureBlockFormat | 'rgba8'
-  laneOf(chain: Pick<TexturePreview, 'layouts'>): PoolLane
+  laneOf(chain: ChainLayouts): PoolLane
   formatOf(kind: 'color' | 'data', lane: PoolLane): GPUTextureFormat
   /** Four in RGBA8, one in either block lane (sixteen per 4×4 block). */
   texelBytes(lane: PoolLane): number
-  levelFormat(lane: PoolLane): ReturnType<typeof textureLevelFormat>
+  /** The level file a lane reads of `chain`: the family's blocks in a block lane, the stored
+   *  family's in the lossless one, which decodes them to RGBA8. */
+  levelFormat(lane: PoolLane, chain: ChainLayouts): ReturnType<typeof textureLevelFormat>
   tailOf(tail: TailBytes, lane: PoolLane): readonly Uint8Array[]
   /** What the shader reads of a lane's texture (`../webgpu/tile/wgsl.ts`): 0 the raw pool, 1 the RGBA
    *  block pool, 2 the two-channel pool with Y in its second channel (BC5, EAC RG11), 3 the same
@@ -119,18 +127,20 @@ export type PoolEncoding = {
 
 export function poolEncoding(block: TextureBlockFormat | undefined): PoolEncoding {
   const formats = block ? LANE_FORMATS[block] : undefined
+  const formatOf: PoolEncoding['formatOf'] = (kind, lane) => {
+    const base = formats?.[lane] ?? 'rgba8unorm'
+    return kind === 'color' && lane !== 'two-channel' ? (`${base}-srgb` as GPUTextureFormat) : base
+  }
   return {
     block,
     name: block ?? 'rgba8',
     laneOf: (chain) => (block ? chain.layouts[block] : 'lossless'),
-    formatOf(kind, lane) {
-      const base = formats?.[lane] ?? 'rgba8unorm'
-      return kind === 'color' && lane !== 'two-channel'
-        ? (`${base}-srgb` as GPUTextureFormat)
-        : base
-    },
-    texelBytes: (lane) => (lane === 'lossless' || !block ? 4 : 1),
-    levelFormat: (lane) => textureLevelFormat(block, lane),
+    formatOf,
+    texelBytes: (lane) => formatTexelCost(formatOf('data', lane)),
+    levelFormat: (lane, { layouts }) =>
+      lane === 'lossless' || !block
+        ? textureLevelFormat(PREVIEW_STORED_FORMAT, layouts[PREVIEW_STORED_FORMAT])
+        : textureLevelFormat(block, lane),
     tailOf: (tail, lane) => (lane === 'lossless' || !block ? tail.levels : tail.blocks[block]),
     tapOf: (lane) =>
       lane === 'two-channel' && block === 'astc' ? 3 : PREVIEW_LAYOUT_NAMES.indexOf(lane),

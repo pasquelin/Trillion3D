@@ -134,7 +134,7 @@ test('the residency log keeps one entry a key, and nothing of a page the host ne
   const cache = createGpuPageCache(
     device,
     { read: async () => new Uint8Array([1, 2, 3, 4]) },
-    { pageBytes: 8, slots: 1 },
+    { pageBytes: 4, slots: 1 },
   )
   const drained = () => {
     const keys: string[] = [],

@@ -37,7 +37,6 @@ const VIEW = fieldLayout('VsmProjectionView', [
   ['screenRayScale', 'vec4f'],
   ['halfFovTangents', 'vec4f'],
   ['viewPixels', 'vec4f'],
-  ['screenSlab', 'vec4f'],
   ['projectionRect', 'vec4i'],
   ['lights', arrayOf(LIGHT, VSM_PROJECTION_MAX_PASS_LIGHTS)],
 ] as const)

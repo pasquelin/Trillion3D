@@ -1,7 +1,7 @@
 import { COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { CUT_BIN_WGSL } from './coverageMathWgsl.ts'
-import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
-import { mipSize2 } from '../../../math/src/wgsl/integer.ts'
+import { linearToSrgb, unorm8Byte } from '../../../math/src/wgsl/color.ts'
+import { byteOf, mipSize2 } from '../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -86,11 +86,11 @@ export const MATERIAL_MIP_WGSL = wgslProgram(
   var t=pack4x8unorm(textureLoad(source,vec2i(vec2u(id.x,select(id.y,size.y-1u-id.y,FLIP))),0));
   if(PREMULTIPLY){
    let a=t>>24u;
-   t=turnTimes(t&255u,a)|(turnTimes((t>>8u)&255u,a)<<8u)|(turnTimes((t>>16u)&255u,a)<<16u)|(a<<24u);
+   t=turnTimes(byteOf(t,0u),a)|(turnTimes(byteOf(t,1u),a)<<8u)|(turnTimes(byteOf(t,2u),a)<<16u)|(a<<24u);
   }
   textureStore(written,vec2i(id.xy),unpack4x8unorm(t));
  }`,
-  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, linearToSrgb],
+  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, linearToSrgb, byteOf],
 )
 
 /**
@@ -105,13 +105,13 @@ export const MATERIAL_MIP_WGSL = wgslProgram(
  */
 export const COVERAGE_COUNT_WGSL = wgslBlock(
   'COVERAGE_COUNT_WGSL',
-  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, CUT_BIN_WGSL, mipSize2],
+  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, CUT_BIN_WGSL, mipSize2, unorm8Byte],
   `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(2) var<storage,read_write> cover:array<atomic<u32>>;
  fn alphaAt(q:vec2u)->u32{
   let k=level.base.z;let p=vec2i(min(q,mipSize2(level.base.xy,k)-vec2u(1u)));
-  if(k==0u){return toByte(textureLoad(source,p,0).w);}
+  if(k==0u){return unorm8Byte(textureLoad(source,p,0).w);}
   let s=p*2;let hi=vec2i(level.extent.xy)-vec2i(1);
   return median(vec4f(textureLoad(source,min(s,hi),0).w,textureLoad(source,min(s+vec2i(1,0),hi),0).w,
    textureLoad(source,min(s+vec2i(0,1),hi),0).w,textureLoad(source,min(s+vec2i(1,1),hi),0).w));

@@ -128,22 +128,55 @@ export const bounceBindingsWgsl = (group: number, grid: number, probes: number) 
  * through walls; a probe that does not carry the requested cell, was never updated, or is buried
  * in a surface, weighs nothing. A level whose probes all weigh nothing leaves its share to the next.
  * `${name}Gathered` is the levels' answer with the share they hold in `w`, at most one, zero when none
- * answers — the reflections' confidence in the field; `name` is its mean.
+ * answers — the reflections' confidence in the field; `name` is its mean. With two `value`s, both are
+ * evaluated from the one gather, on the same weights — the very sums each would take alone —, a
+ * column each of the `mat2x4f` `${name}Gathered` answers.
  */
-export const probeFieldWgsl = (name: string, level: string, params: string, value: string) => {
+/** The WGSL of a field's answer over its `count` values (one or two): its type, one value a `vec4f`,
+ *  two a `mat2x4f` of a column each; `answer`, the answer of one column each value (`column(i)`);
+ *  `column`, the `i`-th column of an answer `of` — the first's `w` the share every column carries. */
+const fieldAnswer = (count: number) => {
+  const pair = count === 2
+  return {
+    type: pair ? 'mat2x4f' : 'vec4f',
+    none: pair ? 'mat2x4f()' : 'vec4f(0.0)',
+    answer: (column: (i: number) => string) =>
+      pair ? `mat2x4f(${column(0)},${column(1)})` : column(0),
+    column: (of: string, i: number) => (pair ? `${of}[${i}]` : of),
+  }
+}
+
+/** The sum of the `i`-th value. */
+const sumOf = (i: number) => (i === 0 ? 'sum' : `sum${i}`)
+
+/** One statement of WGSL a value, `line(sum, i)` for the sum of the `i`-th, joined at `indent`. */
+const perValue = (
+  values: readonly string[],
+  line: (sum: string, i: number) => string,
+  indent = ' ',
+) => values.map((_, i) => line(sumOf(i), i)).join(`\n${indent}`)
+
+export const probeFieldWgsl = (
+  name: string,
+  level: string,
+  params: string,
+  value: string | readonly [string, string],
+) => {
   const args = params.replace(/:[^,]+/g, '')
+  const values = typeof value === 'string' ? [value] : value
+  const { type, none, answer, column } = fieldAnswer(values.length)
   return wgslBlock(
     `probeFieldWgsl(${name})`,
     [BOUNCE_GRID_HEAD_WGSL, perspectiveDivide, bitAt],
-    `fn ${level}(level:u32,P:vec3f,N:vec3f${params})->vec4f{
+    `fn ${level}(level:u32,P:vec3f,N:vec3f${params})->${type}{
  let read=bounceRead(level,P,N);
- if(!read.holds){return vec4f(0.0);}
+ if(!read.holds){return ${none};}
  let spacing=bounce.levels[level].spacing;
  let biased=read.biased;
  let corner=read.corner;
  let fraction=clamp(read.local-floor(read.local),vec3f(0.0),vec3f(1.0));
  let margin=BOUNCE_VISIBILITY*spacing;
- var sum=vec3f(0.0);
+ ${perValue(values, (sum) => `var ${sum}=vec3f(0.0);`)}
  var total=0.0;
  // A corner's neighbour one cell further on an axis has the next remainder, wrapped once at
  // the side: one remainder per axis for the eight corners, where each corner took its own.
@@ -165,36 +198,43 @@ export const probeFieldWgsl = (name: string, level: string, params: string, valu
   weight*=facing*facing;
   if(distance>probeDistance(probe,-direction)+margin){weight=0.0;}
   if(weight<=0.0){continue;}
-  sum+=${value}*weight;
+  ${perValue(values, (sum, i) => `${sum}+=${values[i]}*weight;`, '  ')}
   total+=weight;
  }
- if(total<=1e-5){return vec4f(0.0);}
- return vec4f(sum,total)*(read.fade/total);
+ if(total<=1e-5){return ${none};}
+ return ${answer((i) => `vec4f(${sumOf(i)},total)*(read.fade/total)`)};
 }
-fn ${name}Gathered(P:vec3f,N:vec3f${params})->vec4f{
- if(bounce.counts.w==0u){return vec4f(0.0);}
- var sum=vec3f(0.0);
+fn ${name}Gathered(P:vec3f,N:vec3f${params})->${type}{
+ if(bounce.counts.w==0u){return ${none};}
+ ${perValue(values, (sum) => `var ${sum}=vec3f(0.0);`)}
  var rest=1.0;
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y||rest<=1e-5){break;}
   let gathered=${level}(level,P,N${args});
-  if(gathered.w<=0.0){continue;}
-  let take=rest*gathered.w;
-  sum+=take*perspectiveDivide(gathered);
+  if(${column('gathered', 0)}.w<=0.0){continue;}
+  let take=rest*${column('gathered', 0)}.w;
+  ${perValue(values, (sum, i) => `${sum}+=take*perspectiveDivide(${column('gathered', i)});`, '  ')}
   rest-=take;
  }
  let held=1.0-rest;
- if(held<=0.0){return vec4f(0.0);}
- return vec4f(sum/held,held);
-}
-fn ${name}(P:vec3f,N:vec3f${params})->vec3f{return ${name}Gathered(P,N${args}).xyz;}`,
+ if(held<=0.0){return ${none};}
+ return ${answer((i) => `vec4f(${sumOf(i)}/held,held)`)};
+}${
+      values.length === 2
+        ? ''
+        : `
+fn ${name}(P:vec3f,N:vec3f${params})->vec3f{return ${name}Gathered(P,N${args}).xyz;}`
+    }`,
   )
 }
+
+/** A probe's irradiance at the normal `N`, the value of the field the diffuse reads. */
+export const PROBE_IRRADIANCE = 'shIrradiance(probe,N)'
 
 /** The cascades' irradiance at a point of normal `N` (`sampleBounce`), what the diffuse reads. */
 export const BOUNCE_GRID_WGSL = probeFieldWgsl(
   'sampleBounce',
   'sampleLevelField',
   '',
-  'shIrradiance(probe,N)',
+  PROBE_IRRADIANCE,
 )

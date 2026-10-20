@@ -26,15 +26,18 @@ import { surfaceOf } from '../../page/surface.ts'
 test('the three material classes take the three paths the engine has for them', () => {
   const { source, meshes, metadata, indices, associations } = scene()
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
-  // Cut-out and blend both become cluster roots, so both are cut by the GPU selection; only the
-  // blend is drawn by the transparent pass. Transmission leaves the DAG as one mesh.
+  // Cut-out, blend and transmission all become cluster roots, so all are cut by the GPU selection;
+  // the blend and the transmission are drawn by the transparent pass.
   assert.deepEqual(
     collected.roots.map((root) => root.pages[0].transparent),
-    [false, true],
+    [false, true, true],
   )
   assert.equal(collected.roots[0].pages[0].drawSource?.node, meshes[0], 'the cut-out stays opaque')
-  assert.equal(collected.blendCopies.length, 1, 'only transmission leaves the DAG')
-  assert.equal(collected.blendCopies[0].userData.drawSource?.node, meshes[2])
+  assert.equal(
+    collected.roots[2].pages[0].drawSource?.node,
+    meshes[2],
+    'transmission streams pages',
+  )
   assert.equal(surfaceOf(meshes[2].material).transmission > 0, true)
   assert.equal(surfaceOf(meshes[1].material).transmission, 0, 'a plain blend does not transmit')
 })
@@ -106,7 +109,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
   assert.equal(ints[ROW_WORDS + PAGE_INFO.at.materialClass], HAS_VERTEX_NORMAL, 'the plain blend')
   assert.equal(cutout & HAS_UV, 0, 'no uv block, no uv class bit')
   // The census reads the same fields the rows will carry, for the pages that take a row: the
-  // blend is a transparent page and the transmission left the DAG, so the cut-out's class alone
+  // blend and the transmission are transparent pages, so the cut-out's class alone
   // is compiled at preparation.
   const census = createShadeCensus(collected.allPages, geometryBlocks, layers)
   assert.deepEqual(census.keys, [cutout])

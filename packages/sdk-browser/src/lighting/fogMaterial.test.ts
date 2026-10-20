@@ -7,14 +7,7 @@ import { writeMaterialRecord } from '../webgpu/material/materialRecord.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../webgpu/material/materialLayout.ts'
 import { FOG_FREE_MODEL_BIT } from '../scene/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
-import { prepared } from '../webgpu/water/pass.fixture.ts'
-import { writeVolumeRecords } from '../webgpu/transparent/transmission.ts'
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import {
-  BLEND_SHADER,
-  DIRECT_LIGHTING_SHADER,
-  WATER_COMPOSITE_SHADER,
-} from '../gpu/core/shaderTexts.fixture.ts'
+import { BLEND_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 import { surfaceWritten } from '../page/surfaceWrites.ts'
 
 test('a fog-free material reaches both the opaque flag and transparent shader', () => {
@@ -36,18 +29,4 @@ test('a fog-free material reaches both the opaque flag and transparent shader', 
   surfaceWritten(material)
   assert.equal(surfaceOf(material).fog, true, 'a declared material change is heard')
   assert.equal(rowFlags(surfaceRow(surface, layers), undefined, undefined).flags & (1 << 20), 0)
-})
-
-test('a fog-free transmissive material reaches the water composite without changing opacity', () => {
-  const { blendState, gpu, device } = prepared()
-  const item = blendState.blendGpu.find((entry) => entry.transmissive)
-  assert.ok(item)
-  item.surface.fog = false
-  const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime
-  writeVolumeRecords(rt, device)
-  assert.equal(blendState.volumePacked[7], 1)
-  assert.match(WATER_COMPOSITE_SHADER, /volumeMarked\(vol,1u\)\),a\);/)
-  item.surface.fog = true
-  writeVolumeRecords(rt, device)
-  assert.equal(blendState.volumePacked[7], 0)
 })

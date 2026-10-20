@@ -4,6 +4,7 @@ import { BODY_INDEX, EVENT, FLAG, POSE_WORDS, SHAPE } from '../../../sdk-core/sr
 import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { events, startModule } from './module.fixture.ts'
 import { body, id } from './records.fixture.ts'
+import { nearRelative } from '../../../math/src/float/near.fixture.ts'
 
 const MASS = 10,
   SPEED = 3
@@ -43,12 +44,6 @@ async function landing(
   return { reported: enter[3], solver: MASS * (floats[at + 9] + SPEED) }
 }
 
-const near = (actual: number, expected: number, what: string) =>
-  assert.ok(
-    Math.abs(actual - expected) <= 1e-3 * expected,
-    `${what}: ${actual} N·s, not ${expected}`,
-  )
-
 test('a box landing flat reports its mass times its speed, and half again when it bounces at 0.5', async () => {
   for (const restitution of [0, 0.5]) {
     const { reported, solver } = await landing(
@@ -58,8 +53,8 @@ test('a box landing flat reports its mass times its speed, and half again when i
       0.5,
       restitution,
     )
-    near(reported, (1 + restitution) * MASS * SPEED, `bounce ${restitution}`)
-    near(reported, solver, `bounce ${restitution}, the solver's`)
+    nearRelative(reported, (1 + restitution) * MASS * SPEED, `bounce ${restitution}`, 1e-3)
+    nearRelative(reported, solver, `bounce ${restitution}, the solver's`, 1e-3)
   }
 })
 
@@ -75,7 +70,7 @@ test('a rod landing on its tip reports what stops the tip, its turn included: th
       half + 0.05,
       restitution,
     )
-    near(reported, solver, `bounce ${restitution}`)
+    nearRelative(reported, solver, `bounce ${restitution}`, 1e-3)
     assert.ok(
       reported < 0.5 * (1 + restitution) * MASS * SPEED,
       `the tip turns away: ${reported} N·s`,

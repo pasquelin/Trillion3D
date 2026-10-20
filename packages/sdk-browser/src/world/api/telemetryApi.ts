@@ -24,6 +24,9 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, engine: Eng
      *  corners and the frame depth: enough to check, cluster by cluster, that each one was
      *  entirely behind the opaque. */
     transparentOcclusionAudit: () => engine.transparentOcclusionAudit(),
+    /** What the main view's next image computes, and where: its cut's clusters, its shadow pages,
+     *  its reflection rays, its lights and frustums, in world metres (`FrameInspection`). */
+    inspectFrame: () => engine.inspectFrame(),
     /** Clears the engine's profile window, to measure only what comes next. */
     resetStageProfile: () => engine.resetStageProfile(),
     /**

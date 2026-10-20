@@ -13,8 +13,8 @@
  * physical pool (R32 texel array, 2 slices) is, a slice, buffers of one window each
  * (`poolWindowSizes`), its texels page by page (`vsmPoolTexelIndexWgsl`): WebGPU's guaranteed
  * binding, so the same buffers and the same addressing on every device. The VSM passes bind every
- * window of both slices; a reader outside them (`../lighting/direct/shadowWgsl.ts`: blended
- * surfaces, water) every window of the first, which is one (`VSM_FORWARD_LAYOUT`).
+ * window of both slices; a reader outside them (`../lighting/direct/shadowWgsl.ts`: translucent
+ * surfaces) every window of the first, which is one (`VSM_FORWARD_LAYOUT`).
  */
 import { vsmProjectionSampleWgsl } from './projectionSampleWgsl.ts'
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
@@ -69,7 +69,8 @@ export interface VsmResources {
   /** Per physical page, the closest depth (the greatest word, read as a float) of each of its
    *  8×8-texel tiles of slice 0 (`VSM_LOG2_TILE_DEPTH_TEXELS`), rebuilt where a page changed
    *  (`vsmTileDepthsBuild`): what the sun's rays prove they miss against
-   *  (`vsmRayMisses`). Made with the pool, both zero: a page never written holds 0. */
+   *  (`vsmRayMisses`). Made with the pool, every tile +inf until built: a tile never built proves
+   *  no miss. */
   tileDepths: GPUBuffer
   /** The `VSM_COUNTERS` counters. */
   stats: GPUBuffer
@@ -218,6 +219,8 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     },
     bytes: bytesOf(tableBuffers) + bytesOf(rest),
   }
+  // A tile never built bounds nothing: +inf, whose test no sample passes (`vsmRayMisses`).
+  device.queue.writeBuffer(res.tileDepths, 0, new Float32Array(once.tileDepths / 4).fill(Infinity))
   return res
 }
 
@@ -439,7 +442,7 @@ export function vsmBindingsWgsl(
 const layoutKey = (layout: VsmLayout) => `${poolWindowSizes(layout).length}/${layout.poolRowShift}`
 
 /**
- * The layout a reader outside the VSM passes (blend, water) is compiled for, before any pool is
+ * The layout a reader outside the VSM passes (the translucent layers) is compiled for, before any pool is
  * granted: the largest pool the engine grants (`VSM_POOL_PAGES`), whose windows and row shift are
  * every smaller pool's text too. Its slice is one window — 2048 pages of 64 KiB, WebGPU's
  * guaranteed binding of 128 MiB —, so such a reader binds every window of the slice it reads in

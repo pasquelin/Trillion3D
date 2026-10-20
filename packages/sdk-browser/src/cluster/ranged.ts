@@ -1,5 +1,6 @@
 import { unmetered, type ByteMeter } from './byteMeter.ts'
 import { checked, letGo } from './checked.ts'
+import { followSignal } from '../../../sdk-core/src/runtime/followSignal.ts'
 import { waitShared, waited, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
 
 /** How one range is read: the meter counting what arrives, the requests `checked` makes at most,
@@ -85,8 +86,7 @@ export function createRangedReads(files: WholeFiles) {
   ) => {
     const stop = new AbortController()
     signal?.throwIfAborted()
-    const leave = () => stop.abort(signal!.reason)
-    signal?.addEventListener('abort', leave, { once: true })
+    const leave = followSignal(stop, signal)
     const answer = checked(url, stop.signal, attempts, {
       Range: `bytes=${offset}-${offset + length - 1}`,
     })
@@ -100,7 +100,7 @@ export function createRangedReads(files: WholeFiles) {
       else letGo(response) // a server that stopped answering ranges
     } finally {
       if (file.asking === answer) file.asking = undefined
-      signal?.removeEventListener('abort', leave)
+      leave()
     }
   }
   const readOf = async (

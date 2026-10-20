@@ -37,45 +37,7 @@ export {
 export * from './world/controls/index.ts'
 export * from './world/page/index.ts'
 export * from './world/api/budgetFamily.ts'
-export {
-  ObjectPhysics,
-  type ContactEvent,
-  type ContactEventName,
-  type PhysicsHost,
-} from '../../sdk-core/src/physics/objectPhysics.ts'
-export {
-  GRAVITY_PRESETS,
-  PHYSICS_MATERIALS,
-  DEFAULT_PHYSICS_BUDGET,
-  type PhysicsType,
-  type PhysicsShape,
-  type PhysicsPrimitive,
-  type PhysicsPart,
-  type PhysicsBodyOptions,
-  type PhysicsOption,
-  type GravityPreset,
-  type PhysicsMaterialPreset,
-  type PhysicsMatter,
-  type PhysicsBudget,
-} from '../../sdk-core/src/physics/options.ts'
-export {
-  SOFT_AREAL_DENSITY,
-  SOFT_LINEAR_DENSITY,
-  SOFT_FOOTPRINT,
-  type SoftBodyCommon,
-  type SoftBodyOptions,
-  type SoftBodyType,
-  type SoftSettings,
-  type SoftVolumeOptions,
-} from '../../sdk-core/src/physics/soft.ts'
-export { Joint, joint } from '../../sdk-core/src/physics/joint.ts'
-export type {
-  JointKind,
-  JointLimits,
-  JointMotor,
-  JointOptions,
-  SixDofAxis,
-} from '../../sdk-core/src/physics/jointOptions.ts'
+export * from '../../sdk-core/src/physics/index.ts'
 export type { WorldPhysics } from './physics/worldPhysics.ts'
 export type { WorldPhysicsOptions, GravityInput } from './physics/worldPhysicsOptions.ts'
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts'
@@ -93,7 +55,7 @@ export type { SceneMaterial, SceneMaterialPatch } from './world/api/materialValu
 export { EngineProfiler } from './diagnostic/telemetry.ts'
 export type { TelemetryReport } from './diagnostic/telemetryTypes.ts'
 export type { AssetScope, StablePreview } from '../../sdk-core/src/contracts/base.ts'
-export type { FrameMetrics } from '../../sdk-core/src/contracts/metrics.ts'
+export type { FrameMetrics, ViewFrameMetrics } from '../../sdk-core/src/contracts/metrics.ts'
 export type { ClusterManifest } from '../../sdk-core/src/contracts/geometry.ts'
 export type { EngineDiagnostic, DiagnosticDetail } from './diagnostic/types.ts'
 export type { PointOfInterest } from './world/session/options.ts'
@@ -104,6 +66,7 @@ export type { PlacementLink } from './placement/gpuCompose.ts'
 /** What the engine draws, source by source (`page/selection/drawSource.ts`). */
 export type { DrawAssociations, DrawRanks, DrawSource } from './page/selection/drawSource.ts'
 export type { CellRows } from './partition/cellDecode.ts'
+export type { CellBudget, CellFrameIo, CellPrimeIo } from './partition/cellsPrime.ts'
 export type { PlacementGrowth } from './placement/engineSceneUpdates.ts'
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
@@ -150,6 +113,15 @@ export type {
 export type { TexturePool } from './webgpu/residency/memoryBudgets.ts'
 export type { BudgetCanvas } from './residency/memoryBudget.ts'
 export type { PartitionAudit } from './webgpu/core/partitionAudit.ts'
+export type {
+  FrameInspection,
+  InspectedCamera,
+  InspectedClusters,
+  InspectedLight,
+  InspectedReflections,
+  InspectedShadowMap,
+} from './webgpu/pages/diagnostic/inspection/types.ts'
+export { CLUSTER_STATE } from './webgpu/pages/diagnostic/inspection/types.ts'
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts'
 export type { CpuStepSummary } from './stage/profiler.ts'
 export type { ArrivalPlan } from './page/integration/host.ts'
@@ -162,6 +134,8 @@ export type {
   TextureLevelStore,
 } from './texture/levelReader.ts'
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts'
+export type { TextureCache } from './texture/textureCaches.ts'
+export type { WorldCells } from './gpu/core/selection.ts'
 export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts'
 export type { BatchRead } from './streaming/types.ts'
 export type { BoxTransformLot, MultiplyLot } from './page/decode/batch/batchRuntime.ts'
@@ -191,11 +165,5 @@ export type { FlyCameraControls } from './camera/controls/flyControls.ts'
 export type { FirstPersonCameraControls } from './camera/controls/firstPersonControls.ts'
 export type { HeadSettings, PersonHead } from './camera/controls/look.ts'
 export type { CharacterCameraControls } from './camera/controls/characterControls.ts'
-export * from '../../sdk-core/src/physics/vehicle.ts'
-export {
-  VEHICLE_SPECS,
-  type VehicleSpec,
-  type VehicleSpecs,
-} from '../../sdk-core/src/physics/vehicleSpec.ts'
 export type { TrackballCameraControls } from './camera/controls/trackballControls.ts'
 export type { PanZoomCameraControls } from './camera/controls/panZoomControls.ts'

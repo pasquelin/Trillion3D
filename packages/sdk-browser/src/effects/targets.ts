@@ -1,18 +1,20 @@
 import type { EffectKind, EffectPass } from '../../../sdk-core/src/world/effect/chain.ts'
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts'
+import type { Outline } from '../../../sdk-core/src/world/effect/outline.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
 import { EFFECT_KIND_BYTES } from './kindBytes.ts'
 
 /** Every built-in pass; a kind without its class here has no pass to draw (`never`). */
-type BuiltIn = Bloom
+type BuiltIn = Bloom | Outline
 /** The pass of one kind: what a renderer's implementation of that kind draws. */
 export type EffectPassOf<K extends EffectKind> = Extract<BuiltIn, { kind: K }>
 
-/** Counts the passes of each kind into `counts`, which it returns: nothing is allocated. */
+/** Counts the passes of each kind into `counts`, which it returns, an idle one counting for none:
+ *  nothing is allocated. */
 export function countKinds(passes: readonly EffectPass[], counts: Record<EffectKind, number>) {
   for (const kind of EFFECT_KINDS) counts[kind] = 0
-  for (const pass of passes) counts[pass.kind]++
+  for (const pass of passes) if (!pass.idle) counts[pass.kind]++
   return counts
 }
 

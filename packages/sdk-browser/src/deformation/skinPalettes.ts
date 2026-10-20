@@ -1,16 +1,12 @@
 import { paletteReach } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import { keepNumbers } from '../../../math/src/vector/vector.ts'
+import { sameRange } from '../../../math/src/matrix/matrixElements.ts'
 import type { Deformed } from './frame.ts'
+import { keepPrevious } from './layout.ts'
 
 /** The world a placement's palette is made in: that of its bones. */
 const frameOf = (entry: Deformed) => entry.mesh.frame ?? entry.world.elements
-
-/** True when the `size` floats at `a` and at `b` of `block` differ. */
-export function differs(block: Float32Array, a: number, b: number, size: number) {
-  for (let k = 0; k < size; k++) if (block[a + k] !== block[b + k]) return true
-  return false
-}
 
 /** What one placement's palette holds of its inputs and its last write. */
 type Held = {
@@ -123,7 +119,7 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
     /** Placement `i`'s palette, `floats` long from `at`, kept as the last frame's beside it. */
     keep(i: number, at: number, floats: number) {
       const own = held[i]
-      if (!own.settled) kept.copyWithin(at + floats, at, at + floats)
+      if (!own.settled) keepPrevious(kept, at, floats)
       own.settled = true
     },
     /** Placement `i`'s palette of this frame from `at` (`keep` first), the last frame's taken for
@@ -133,8 +129,8 @@ export function createSkinPalettes(placed: readonly (Deformed | null)[], block: 
       entry.mesh.skeleton!.palette(frameOf(entry), kept, at)
       const own = held[i]
       own.reach = paletteReach(kept, at, entry.shape.joints, entry.reach.joints)
-      if (cold) kept.copyWithin(at + floats, at, at + floats)
-      else if (moved || differs(kept, at, at + floats, floats)) {
+      if (cold) keepPrevious(kept, at, floats)
+      else if (moved || !sameRange(kept, kept, floats, at, at + floats)) {
         own.settled = false
         return true
       }

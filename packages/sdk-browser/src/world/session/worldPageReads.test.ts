@@ -1,6 +1,5 @@
-// A world page the pool admits is read as any geometry page: under the session's signal at least —
-// a read never outlives its session — and at the admission's priority. Read with none, it waited
-// on a closed session's queue for good, its bundle counted.
+// A world page is read as any geometry page, by the session's one reader: under the session's
+// signal at least — a read never outlives its session — and at the admission's priority.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { probeEngineContext } from './engine.fixture.ts'
@@ -21,10 +20,8 @@ test("a world page and a cache page are read under the session's signal, at the 
     readBytes: record,
     reserve: () => {},
   }
-  // The world's source serves the pages of its own binary; the hold holds no byte the prepared
-  // engine's reserve counts.
-  const serves = (url: string) => url.startsWith('world-roots.bin#')
-  const hold = { metadata, drawn: { source: { serves, read: record } }, bytes: () => 0 }
+  // The hold holds no byte the prepared engine's reserve counts.
+  const hold = { metadata, bytes: () => 0 }
   const context = await probeEngineContext(
     metadata,
     {
@@ -35,10 +32,10 @@ test("a world page and a cache page are read under the session's signal, at the 
     } as never,
     { worldRoots: [hold] as never },
   )
-  await context.readGeometryPage!('world-roots.bin#1:0', undefined, 7)
+  await context.readGeometryPage!('world-roots.bin#64', undefined, 7)
   await context.readGeometryPage!('objects/page.bin', undefined, 3)
   assert.deepEqual(asked, [
-    ['world-roots.bin#1:0', session.signal, 7],
+    ['world-roots.bin#64', session.signal, 7],
     ['objects/page.bin', session.signal, 3],
   ])
 })

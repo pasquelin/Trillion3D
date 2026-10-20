@@ -1,25 +1,26 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
 import { askedTableRows, rowScratch } from './layout.ts'
 import { grownTableRows, rowsAhead, viewRowsFor } from '../../row/tableRows.ts'
-import { invalidateOccluderHistory } from '../io/drops.ts'
 import { deviceMade } from '../../../gpu/core/errorScope.ts'
 import { pendingAll } from '../../../gpu/core/tableGrowth.ts'
-import { forgetReflectedImages } from '../../../reflections/forget.ts'
 import { gpuGrowth } from './growGpuTables.ts'
+import { dropRaster } from '../io/drops.ts'
 import { queueTableGrowth } from './growthQueue.ts'
 import type { TableGrowthReport } from '../../../residency/pools.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { pagesHeld } from '../../../gpu/page/placement.ts'
 
-/** The rows the tables ask for a pool of `slots` slots, the catalogue as the layout counts it. */
+/** The rows the tables ask for a pool of `slots` slots — the pages it holds at most
+ *  (`pagesHeld`) —, the catalogue as the layout counts it. */
 export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
-  const { layout } = rt
-  const blended = layout.packedPages.length - layout.opaquePageCount
+  const { layout, setup } = rt
+  const blended = layout.blendedPageCount
   const limits = rt.context.gpuDevice?.limits
   return askedTableRows(
-    layout.opaquePageCount,
+    layout.packedPages.length - blended,
     blended,
-    slots,
-    layout.copies.max,
+    pagesHeld(setup.pageBytes, slots, setup.homes),
+    layout.rows.instances.copiesMax,
     limits,
     layout.viewRows,
   )
@@ -123,9 +124,6 @@ async function growTables(
     })
   // Origin of the resource change: the tables the image reads were replaced.
   run.gate.resourcesChanged()
-  // The rows that waited draw now: the lit image the images meanwhile left lacks them, and the series
-  // the reflections converge to restarts from the one that holds them.
-  forgetReflectedImages(rt)
   const durationMs = msSince(started)
   const report = { drawSlots, casterSlots, bytes: made.bytes, refused: false, durationMs }
   diag.engineDiagnostic('page-tables-grown', 'Page tables grown in place', report)
@@ -134,13 +132,9 @@ async function growTables(
 
 /** What reads the grown buffers without owning them follows them: the Hi-Z test the partition's
  *  bounds. The page table, made at preparation (`ensurePageTable`), grew with the others
- *  (`gpuGrowth`). The diagnostic compute raster is made again at its next image, at the new
- *  capacity; no occluder history describes the new rows. */
+ *  (`gpuGrowth`). The diagnostic compute raster goes (`dropRaster`). */
 function follow(rt: WebgpuPagesRuntime) {
-  const { vis, run } = rt,
-    { gpuHiz, gpuPartition } = vis
+  const { gpuHiz, gpuPartition } = rt.vis
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state)
-  vis.gpuRaster?.dispose()
-  vis.gpuRaster = undefined
-  invalidateOccluderHistory(run)
+  dropRaster(rt)
 }

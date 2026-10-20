@@ -103,9 +103,11 @@ test('a scattered model whose winding turned writes its own rows, run by run', (
   const { rt, model, forgotten, table, sum } = scatteredScene()
   model.windingCw = true
   assert.equal(moveRootRows(rt, model, 0), MODEL_ROWS.length)
-  assert.notEqual(
-    model.windingEpoch,
-    worldVersion(model as { worldAt?: number }),
+  // Its winding is computed again from its new world, which reverses nothing, at its new world
+  // version (`winding.ts`).
+  assert.deepEqual(
+    [model.windingCw, model.windingEpoch],
+    [false, worldVersion(model as { worldAt?: number })],
     'its winding is computed again',
   )
   forgetRewrittenRows(rt)

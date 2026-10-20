@@ -1,23 +1,40 @@
-import { VERTEX_LISTS_WGSL, VERTEX_READS_WGSL, vsOutWgsl } from './vertexReadsWgsl.ts'
+import {
+  TRI_CHANNELS_SHIFT,
+  VERTEX_LISTS_WGSL,
+  VERTEX_READS_WGSL,
+  vsOutWgsl,
+} from './vertexReadsWgsl.ts'
 import * as itemFlags from '../../visibility/types.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
-import { mixWord } from '../../../../math/src/wgsl/sampling.ts'
+import { DIAGNOSTIC_VIEWS } from '../../visibility/shader/shadeMode.ts'
+import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_UV1_WGSL } from '../../visibility/shader/pageUv1Wgsl.ts'
-import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
-import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts'
+import { FACING_DROP, FACING_MATERIAL_MASK, FACING_SHIFT, FACING_WGSL } from './facing.ts'
+import { ITEM_FLAG_BITS, ITEM_HLOD_PROXY } from './items.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { lowBits } from '../../../../math/src/wgsl/integer.ts'
+import { cornerBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 
-/** A lobed program's two UV sets of the vertex: the second where its surface carries a lobe and
- *  its geometry a second set — the only fragments that read it (`blendPhysicalBegin`). The lobe
- *  word shares its texel with the maps the stage reads already (`materialAt`): no read more. */
+/** The diagnostic view a transparent fragment draws (`DIAGNOSTIC_VIEWS`), out of its frame flags
+ *  (`DIAGNOSTIC_CODE_SHIFT`): zero in the image. */
+const BLEND_DIAGNOSTIC_CODE_WGSL = wgslBlock(
+  'BLEND_DIAGNOSTIC_CODE_WGSL',
+  [],
+  `fn blendDiagnosticCode(flags:u32)->u32{return (flags>>${itemFlags.DIAGNOSTIC_CODE_SHIFT}u)&${itemFlags.DIAGNOSTIC_CODE_MASK}u;}`,
+)
+
+/** A lobed program's two UV sets of the vertex: the second where its surface carries a lobe or a
+ *  map reading it (glTF's `texCoord`, the record's `channels`) and its geometry a second set —
+ *  the only fragments that read it (`blendPhysicalBegin`, `blendUv`) —, and the channels word in
+ *  `tri` (`TRI_CHANNELS_SHIFT`). All are read with the record the stage reads already
+ *  (`materialAt`). */
 const UV_PAIR = `let uv0=pageUv(page,h,v);var uv1=uv0;
- if(m.lobes!=0u&&pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
- out.uv=vec4f(uv0,uv1);`
+ if((m.lobes!=0u||m.channels!=0u)&&pageHasUv1(page,h)){uv1=pageUv1(page,h,v,normalTexels());}
+ out.uv=vec4f(uv0,uv1);out.tri|=m.channels<<${TRI_CHANNELS_SHIFT}u;`
 
 /** What a lobed program's vertex stage adds (`blendVertexWgsl`): the second UV set beside the
  *  first, the item's material word beside its ids and in its page, and their reads. */
@@ -43,8 +60,7 @@ const LAYOUTS = {
 /**
  * The vertex stage of the transparent runs and all it reads: the view, the item records, the
  * paged geometry and the plan's instances. Every module that draws the runs starts from it — the
- * blend and water stages (`shader.ts`), so each draws the
- * same fragments; only their fragment stages differ.
+ * blend stages (`shader.ts`), so each draws the same fragments; only their fragment stages differ.
  *
  * With `lobes`, a lobed program's (`physicalWgsl.ts`): `uv` carries the second UV set in its last
  * two lanes (`pageUv1`, the first where the geometry has none) and `ids` the item's material word
@@ -63,23 +79,20 @@ export const blendVertexWgsl = (lobes: boolean) => {
       ...layout.read,
       VERTEX_LISTS_WGSL,
       vsOutWgsl(layout.uv, layout.ids),
-      mixWord,
+      DIAGNOSTIC_PALETTE_WGSL,
+      BLEND_DIAGNOSTIC_CODE_WGSL,
       FACING_WGSL,
       lowBits,
+      cornerBarycentric,
     ],
     blendVertexStage(layout),
   )
 }
 
-/** The paged cluster's span, the corners of its triangle and its facing; a padding lane reads none. */
-const VERTEX_PAGE = ` var count=it.indexCount-slot.y;
- var clusterId=0u;
- if((flags&${itemFlags.FLAG_PAGED}u)!=0u){
-  let span=clusterSpans[slot.y];
-  page.pageOffset=span.x;page.deformOutput=span.z;page.deformCount=span.w;
-  count=span.y;
-  clusterId=clusterDiagnostic[slot.y];
- }
+/** The cluster's span, the corners of its triangle and its facing; a padding lane reads none. */
+const VERTEX_PAGE = ` let span=clusterSpans[slot.y];
+ page.pageOffset=span.x;page.deformOutput=span.z;page.deformCount=span.w;
+ let count=span.y;
  // A padding lane past the cluster's corners reads nothing, not even the page header.
  var h:ClusterHeader;
  var corners=vec3u(0u);var facing=0u;
@@ -88,7 +101,7 @@ const VERTEX_PAGE = ` var count=it.indexCount-slot.y;
   corners=pageTriangle(page,h,local/3u);
   if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,corners);}
  }
- out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);`
+ out.material=(it.material&${FACING_MATERIAL_MASK}u)|(facing<<${FACING_SHIFT}u);`
 
 /** The corner's colour, position, diagnostics and frame. */
 const VERTEX_CORNER = ` let v=corners[local%3u];
@@ -101,15 +114,17 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  if(m.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(pageNormal(page,h,v),0.0)),m.lineWidth,uni.viewport,uni.pixelRatio);}
  // A sprite's quad turns to face the camera (\`spriteAt\`), about its origin.
  if(m.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,m.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
- out.tri=0u;
- out.diagId=0u;
- if((flags&${itemFlags.FLAG_DIAGNOSTIC_CLUSTER_VIEWS}u)!=0u){out.diagId=clusterId;}
- if((flags&${itemFlags.FLAG_DIAGNOSTIC_WIREFRAME}u)!=0u){
-  let a=mixWord(corners.x);let b=mixWord(corners.y);let c=mixWord(corners.z);
-  out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
+ // The diagnostic views' cluster word and triangle (\`diagnosticColor\`), the opaque resolve's:
+ // the screen-error view's word turned to the cluster's world error, which needs the item's world.
+ // Read in a diagnostic view alone: a test of the image's view flags, the same for every lane.
+ out.tri=local/3u;
+ if((uni.viewFlags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
+  out.diagId=clusterDiagnostic[slot.y];
+  // The HLOD view's word, of a placement drawn as its cell's HLOD 0 actor (\`ITEM_HLOD_PROXY\`).
+  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS.hlod.code}u&&(it.flags&${ITEM_HLOD_PROXY}u)!=0u){out.diagId=diagnosticProxied(out.diagId);}
+  if(blendDiagnosticCode(uni.viewFlags)==${DIAGNOSTIC_VIEWS['screen-error'].code}u){out.diagId=bitcast<u32>(diagnosticWorldError(out.diagId,it.world));}
  }
- let corner=local%3u;
- out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
+ out.bary=cornerBarycentric(local%3u);
  out.normal=vec4f(vec3f(0.0),out.normal.w);
  if((flags&${itemFlags.FLAG_HAS_NORMAL}u)!=0u){out.normal=vec4f(xformNormal(it.world,pageNormal(page,h,v)),out.normal.w);}
  out.tangent=vec4f(vec3f(0.0),out.tangent.w);out.bitangent=vec4f(vec3f(0.0),out.bitangent.w);
@@ -124,13 +139,13 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  }`
 
 /**
- * The vertex stage of a layout (`LAYOUTS`). An instance draws a paged cluster compaction kept, or a
- * piece of indices of an unpaged primitive, as the list plan expansion wrote it (`expandWgsl.ts`),
- * both read through `pageGeometryWgsl.ts`. The rank of the first instance of the call is read in
- * the high bits of the vertex index, and the local rank of the vertex in the low: the indirect
- * argument of a slice starts at vertex base << vertexShift. That is what lets a whole slice fit in
- * ONE call, with nothing to bind between two plan entries — firstInstance would say the same, but
- * WebGPU only opens it to an indirect call under an extension.
+ * The vertex stage of a layout (`LAYOUTS`). An instance draws a cluster compaction kept, as the
+ * list plan expansion wrote it (`expandWgsl.ts`), read through `pageGeometryWgsl.ts`. The rank of
+ * the first instance of the call is read in the high bits of the vertex index, and the local rank
+ * of the vertex in the low: the indirect argument of a slice starts at vertex base << vertexShift.
+ * That is what lets a whole slice fit in ONE call, with nothing to bind between two plan entries —
+ * firstInstance would say the same, but WebGPU only opens it to an indirect call under an
+ * extension.
  */
 const blendVertexStage = ({
   ids,
@@ -143,11 +158,11 @@ const blendVertexStage = ({
  let it=items[slot.x&${INSTANCE_ITEM_MASK}u];
  let cull=slot.x>>${INSTANCE_CULL_SHIFT}u;
  let local=vertexIndex&lowBits(uni.vertexShift);
- let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
+ let flags=(it.flags&${ITEM_FLAG_BITS}u)|uni.viewFlags;
  var page:PageInfo;
- page.flags=flags;page.vertexBase=it.vertexBase;page.pageOffset=slot.y;page.deform=it.deform;page.packedBase=it.deformInput;page.deformOutput=it.deformOutput;${page}
+ page.flags=flags;page.vertexBase=it.vertexBase;page.deform=it.deform;${page}
 ${VERTEX_PAGE}
- // A padding or dropped lane leaves the clip volume; every output but \`water\` and the normal
+ // A padding or dropped lane leaves the clip volume; every output but \`material\` and the normal
  // stays zero, as declared.
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.normal=vec4f(0.0,0.0,1.0,0.0);return out;}
  // Its surface's record (\`materialAt\`): its factors, maps, model and fog, read once a drawn

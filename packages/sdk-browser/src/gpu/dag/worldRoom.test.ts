@@ -2,6 +2,7 @@
 // the whole cut again, its cost following the world. Its rank named, it keeps room as any other:
 // later placements append in place, each with a link slot to the world. On the cook's world.
 import test from 'node:test'
+import { LINK_WORDS } from './worldLinks.ts'
 import assert from 'node:assert/strict'
 import { worldScene } from './worldScene.fixture.ts'
 import { packDagSelection } from './pack.ts'
@@ -30,7 +31,16 @@ test('a packing of the world DAG keeps room: placements append in place, linked 
   assert.deepEqual(added.worlds, [before.length, after.length])
   for (const table of ['clusters', 'nodes', 'pageCones', 'worlds', 'levelSizes'] as const)
     assert.deepEqual(grown[table], whole[table], table)
-  assert.equal(grown.world!.root, before.length - 1, 'the world DAG where it was packed')
-  assert.equal(grown.world!.links.length, capacity.worlds, 'a link slot per placement slot')
-  assert.ok(grown.world!.links.every((link) => link === NO_INDEX))
+  assert.deepEqual(grown.world!.roots, [before.length - 1], 'the world DAG where it was packed')
+  assert.equal(
+    grown.world!.links.length,
+    LINK_WORDS * capacity.worlds,
+    'a link slot per placement slot',
+  )
+  assert.ok(
+    grown.world!.links.every((link, at) =>
+      at === LINK_WORDS * (before.length - 1) + 1 ? link === 0 : link === NO_INDEX,
+    ),
+    'no placement in a cell yet; the world DAG names its instance',
+  )
 })

@@ -5,22 +5,8 @@ import { FEEDBACK_EVERY, PICK_SHIFT } from './feedback.ts'
 import { TILE_REQUEST_WGSL } from './requestWgsl.ts'
 import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts'
 import { blendRequestWgsl } from '../blend/requestWgsl.ts'
-import {
-  convergeBound,
-  drainsAgain,
-  mustRestartTaaAfterSettle,
-  texturesConverged,
-} from './convergeRules.ts'
+import { convergeBound, drainsAgain, texturesConverged } from './convergeRules.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
-
-test('a quiet barrier leaves TAA history in place', () => {
-  assert.equal(mustRestartTaaAfterSettle(0, 0), false)
-})
-
-test('tiles or shadow pages that landed during the barrier restart the still TAA average', () => {
-  assert.equal(mustRestartTaaAfterSettle(1, 0), true)
-  assert.equal(mustRestartTaaAfterSettle(0, 3), true)
-})
 
 // A pixel named ONE map, blend level and tap, picked by its position. A sliver of a
 // surface — three pixels at the edge of a lamp — named nothing it reads, and the settled image
@@ -66,31 +52,24 @@ test('a convergence image names, per pixel, the first of all its picks whose til
   }
 })
 
-// The barrier must not converge only at the jitter of the image it replays; the still
-// frames average eight others, whose slivers named tiles that landed during the average, when
-// the readback happened to come back. A capture's barrier converges a whole round of phases.
-test("a capture's convergence stops on a quiet round of the still phases, closing on the replayed one", () => {
-  assert.equal(texturesConverged(7, 8, 6, 0, false), false, 'a phase not yet heard')
-  assert.equal(texturesConverged(8, 8, 7, 0, false), true)
-  assert.equal(
-    texturesConverged(9, 8, 8, 0, false),
-    false,
-    'the next image is not the replayed one',
-  )
-  assert.equal(texturesConverged(8, 8, 15, 0, false), true)
-  assert.equal(texturesConverged(8, 8, 7, 2, true), false, 'a level still read is waited for')
-  assert.equal(texturesConverged(1, 1, 0, 0, false), false, 'no accumulation: one row of two heard')
-  assert.equal(texturesConverged(2, 1, 1, 0, false), true, 'no accumulation: two quiet images')
+// The barrier must not converge at one jitter phase only: the images after it draw the others,
+// whose slivers name other tiles. A capture's barrier converges a whole round of phases.
+test("a capture's convergence stops on a quiet round of the jitter phases", () => {
+  assert.equal(texturesConverged(7, 8, 0, false), false, 'a phase not yet heard')
+  assert.equal(texturesConverged(8, 8, 0, false), true)
+  assert.equal(texturesConverged(8, 8, 2, true), false, 'a level still read is waited for')
+  assert.equal(texturesConverged(1, 1, 0, false), false, 'no accumulation: one row of two heard')
+  assert.equal(texturesConverged(2, 1, 0, false), true, 'no accumulation: two quiet images')
 })
 
-// A round of the still phases outnumbers the 64 turns at a low render scale (8 per
+// A round of the jitter phases outnumbers the 64 turns at a low render scale (8 per
 // (display / render)²): a barrier whose last tile landed late never had a whole quiet round left.
 test('a convergence always has room for a quiet round after a tile served on its last turn', () => {
   for (const phases of [1, 8, 32, 128]) {
     const last = convergeBound(1) - 3
     let closed = -1
     for (let image = last + 1, quiet = 1; image < convergeBound(phases); image++, quiet++)
-      if (texturesConverged(quiet, phases, image, 0, false)) {
+      if (texturesConverged(quiet, phases, 0, false)) {
         closed = image
         break
       }

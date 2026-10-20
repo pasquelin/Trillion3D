@@ -10,6 +10,7 @@ import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 import { BLOOM_PASS } from '../../stage/passLabels.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
+import { levelViews } from '../../texture/mipGroups.ts'
 
 /** Words of one uniform slot, the `Bloom` struct a pass binds. */
 const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4
@@ -154,9 +155,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
       packed = new Float32Array(slots.bytes / 4)
       packedWords = new Uint32Array(packed.buffer)
       held = new Float64Array(2 * passes).fill(Number.NaN)
-      views = sizes.map((_, level) =>
-        texture!.createView({ baseMipLevel: level, mipLevelCount: 1 }),
-      )
+      views = levelViews(texture, sizes.length)
       groups = views.map(levelGroup)
     },
     /** The last blend the last `encode` left to the composition. */

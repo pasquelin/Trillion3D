@@ -4,14 +4,16 @@ import { createGpuPartitionBuffers, createGpuPartitionLayout } from './buffers.t
 import { createPartitionUniformWriter } from './uniform.ts'
 import { createPartitionCounters } from './counters.ts'
 import { PARTITION_SHADER } from './shader.ts'
-import { constructGpuResources, validated } from '../core/errorScope.ts'
+import { constructGpuResources, destroyAll, validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { readGpuBuffer } from '../core/readback.ts'
+import { createHeldCopy } from '../core/heldCopy.ts'
 import type { GpuPartition, PartitionSources } from './types.ts'
 import {
   KERNELS,
   beginPartitionFrame,
   encodePartition,
+  keepPartitionVerdicts,
   growPartition,
   rebindPartition,
   regroupPartition,
@@ -42,12 +44,7 @@ export async function createGpuPartition(
     regroupPartition(p)
     return partitionApi(p)
   } catch {
-    for (const buffer of allocated.all)
-      try {
-        buffer.destroy()
-      } catch {
-        /* A partial GPU setup must leak nothing. */
-      }
+    destroyAll(allocated.all)
     return undefined
   }
 }
@@ -62,7 +59,7 @@ function partitionState(
 ): Partition {
   // The pyramid changes identity on every target resize: the projection's group follows it,
   // remade only then. A fresh pyramid is all zeros — the far plane — and hides nothing.
-  const buffers = { ...allocated, ...inputs, pyramid }
+  const buffers = { ...allocated, ...inputs, pyramid, selectionMask: inputs.items }
   return {
     ...made,
     device,
@@ -92,6 +89,11 @@ function partitionState(
     },
     lastFrame: undefined,
     counters: createPartitionCounters(device),
+    heldFlags: createHeldCopy(device, 'Trillion3D held occlusion verdicts'),
+    heldRest: createHeldCopy(device, 'Trillion3D held rest bits'),
+    cull: 'follow',
+    held: false,
+    keepDue: false,
   }
 }
 
@@ -142,6 +144,13 @@ function partitionApi(p: Partition): GpuPartition {
       return p.counting
     },
     beginFrame: (encoder, frame) => beginPartitionFrame(p, encoder, frame),
+    get cull() {
+      return p.cull
+    },
+    get held() {
+      return p.held
+    },
+    keepVerdicts: (encoder) => keepPartitionVerdicts(p, encoder),
     encode: (open) => encodePartition(p, open),
     encodeCounts(encoder: GPUCommandEncoder, frame: number) {
       if (!p.disposed && p.counting) counters.encodeCopy(encoder, allocated.state, frame)
@@ -151,6 +160,8 @@ function partitionApi(p: Partition): GpuPartition {
     counts: counters.counts,
     dispose() {
       p.disposed = true
+      p.heldFlags.drop()
+      p.heldRest.drop()
       counters.dispose()
       for (const buffer of allocated.all) buffer.destroy()
     },

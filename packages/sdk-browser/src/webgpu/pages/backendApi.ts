@@ -7,8 +7,14 @@ import { flushWebgpuPages } from './render/flush.ts'
 import { captureSurfaceView } from './io/surfaceCapture.ts'
 import { captureColorView } from './io/colorCapture.ts'
 import { castWebgpuRay } from './io/castRay.ts'
-import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
+import {
+  addWebgpuView,
+  removeWebgpuView,
+  renderWebgpuView,
+  resizeWebgpuView,
+} from './state/persistentView.ts'
 import { captureImage, rasterView, syncResident } from './io/hostApi.ts'
+import { freezeWebgpuCut } from './render/cutFreeze.ts'
 import { pendingUrls, retainedRanks } from './io/hostLists.ts'
 import { acceptPage, dropPage } from './io/pageApi.ts'
 import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts'
@@ -32,12 +38,11 @@ import { namesNoSession } from '../../gpu/core/sessionHandle.ts'
 import { families } from '../../host/families.ts'
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts'
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
+import type { WorldCells } from '../../gpu/core/selection.ts'
 import {
   measureWebgpuFrame,
   pendingWebgpuFrame,
   skipsWebgpuFrame,
-  webgpuArriving,
-  webgpuLandings,
 } from '../frame/interactiveFrame.ts'
 
 const views = () => families.diagnostics.load()
@@ -45,6 +50,25 @@ const views = () => families.diagnostics.load()
 /** The device this session holds until disposed, and its teardown once begun; `setup.preparing`
  *  is the running preparation. */
 export type PagesSession = { claim?: GpuDeviceClaim; closing?: Promise<void> }
+
+/** Each cut's world cells as the partition tells them: a cell told anew wakes the next image, which
+ *  a still camera would hold (`../frame/hold.ts`) — one kept per cut, the partition's to compare. */
+const wakingCells = new WeakMap<WorldCells, WorldCells>()
+function wakingWorld(world: WorldCells, wake: () => void) {
+  let waking = wakingCells.get(world)
+  if (!waking) {
+    waking = {
+      show: (instance, cell, word) => world.show(instance, cell, word) && (wake(), true),
+      visible: world.visible,
+      stands: world.stands,
+      get revision() {
+        return world.revision
+      },
+    }
+    wakingCells.set(world, waking)
+  }
+  return waking
+}
 
 /** The engine's scene writes: transforms, bounce, antialiasing, scale, placements, vertices,
  *  materials, budgets, clear colour. */
@@ -54,22 +78,25 @@ export function backendSetters(rt: WebgpuPagesRuntime) {
     setTransform: (nodeName, matrix) => setWebgpuTransform(rt, nodeName, matrix),
     setTransforms: (nodes, matrices) => setWebgpuTransforms(rt, nodes, matrices),
     setBounce: (on) => setWebgpuBounce(rt, on),
-    setTemporalAntialiasing: (on) => setWebgpuTemporalAntialiasing(rt, on),
-    setRenderScale: (scale) => void (rt.scale.set(scale), rt.run.gate.resourcesChanged()),
-    renderScale: () => rt.scale.drawn,
+    setTemporalAntialiasing: (level) => setWebgpuTemporalAntialiasing(rt, level),
+    setRenderScale: (scale) =>
+      void (rt.views.main.scale.set(scale), rt.run.gate.resourcesChanged()),
+    renderScale: () => rt.views.main.scale.drawn,
+    setMaxFrameRate: (rate) => void (rt.views.main.scale.maxFrameRate = rate),
     ...webgpuPlacementApi(rt),
     composePlacements: (parent, world, links, whole) =>
       composeWebgpuPlacements(rt, parent, world, links, whole),
-    worldCut: (roots) =>
-      run.gpuSelection?.packsWorld && roots && rt.context.worldRoots === roots
-        ? run.selectionUniforms
-        : undefined,
+    worldCells(roots) {
+      const world = roots && rt.context.worldRoots === roots ? run.gpuSelection?.world : undefined
+      return world && wakingWorld(world, run.gate.resourcesChanged)
+    },
     ...webgpuVertexApi(rt),
     refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
     materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
     wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     addPlacements: (source, primitive) => addWebgpuPlacements(rt, source, primitive),
+    addTextureCaches: (caches) => rt.context.textureCaches.add(...caches),
     addWorldRoots: (roots) => addWebgpuWorldRoots(rt, roots as WorldRootsHold),
     ...runtimeMaterialApi(rt),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
@@ -125,11 +152,11 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     feedbackAbResidency: async () => (await views()).feedbackAbResidency(rt),
     captureFeedbackAb: async () => (await views()).captureFeedbackAb(rt),
     feedbackAbSpatial: async () => (await views()).feedbackAbSpatial(rt),
+    inspectFrame: async () => (await views()).inspectFrame(rt),
+    freezeCut: (frozen) => freezeWebgpuCut(rt, frozen),
     pendingFrame: () => pendingWebgpuFrame(rt),
     measureFrame: () => measureWebgpuFrame(rt),
     skipsFrame: () => skipsWebgpuFrame(rt),
-    landings: () => webgpuLandings(rt),
-    arriving: () => webgpuArriving(rt),
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options)
     },
@@ -139,17 +166,20 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     captureColorView(camera, size) {
       return captureColorView(rt, camera, size)
     },
-    async addView(rect) {
-      const view = await addWebgpuView(rt, rect)
+    async addView(options) {
+      const { view, setRenderScale, setTemporalAntialiasing } = await addWebgpuView(rt, options)
       return {
-        render: (camera) => renderWebgpuView(rt, view, camera),
+        render: (camera, index) => renderWebgpuView(rt, view, camera, index),
+        resize: (width, height, rect) => resizeWebgpuView(view, width, height, rect),
+        setRenderScale,
+        setTemporalAntialiasing,
         release: () => removeWebgpuView(rt, view),
       }
     },
     capture() {
       return captureImage(rt)
     },
-    castRay: (ray, filter, reach) => castWebgpuRay(rt, ray, filter, reach),
+    castRay: (ray, filter, bounds) => castWebgpuRay(rt, ray, filter, bounds),
     selectedPageIds: () => run.shown.map((rec) => rec.url),
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
     rasterView: () => rasterView(rt),
@@ -185,7 +215,7 @@ export function backendTiming(rt: WebgpuPagesRuntime) {
       hostCpuStep(rt, step, ms)
     },
     frameCpuMs(ms) {
-      rt.timing.logFrame?.(ms, rt.scale.frameIntervalMs)
+      rt.timing.logFrame?.(ms, rt.views.main.scale.frameIntervalMs)
     },
     cpuFrameEnd() {
       endCpuFrame(rt)

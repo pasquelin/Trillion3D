@@ -47,6 +47,14 @@
 // twice the held one), where they took a power of two of 256 bytes at least: the parameters' and
 // the views' buffers hashed at their own size, every word written the same; the chunks'
 // parameters leave their unread pad word at 0 (it was written 1). Every other buffer kept.
+// Retaken when the maps became one kind, each its page-table blocks by its finest mip, and the
+// raster's views were listed on the GPU: every map's id from 0, none past 8192 for a single-page
+// map — the per-page ids, the next-map table, the marking's bins and the cast stale's maps naming
+// them so —; each record at its new id, its kind in the lights' one numbering (`LIGHT_KIND`, a sun
+// 2 where it was 0) and its table's origin in its last word (`tableOrigin`), its other words kept;
+// the uniform block one map count (no single-page count) and none of the page-table row words no
+// shader read, the cover size at word 12, two pad words before the mip offsets; `vsm.render.views`
+// no longer written by the CPU (`renderViewsWgsl.ts`), the render parameters carrying its bound.
 import { mulberry32 } from '../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -54,14 +62,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    'd5493f876aad6dd5877e1ef68a3b141eef14b775d16b3e75f806c821414a94dc',
-    '3deb123cc7a065118dd4e08b14360393b77ffe07273051c65ea5088bc9013403',
-    '127521a043e9fad16774acb412f74f3352b41fd2cd7f671430a9c96e36f1fca4',
+    '3f8e6326efce79e9aec068fb2003abf164249c181a560f70f79cb5c52c403cad',
+    '292e35ab022be2de2ebcb48913e115429a837ff380a4fd69a1a1d32bb56c6740',
+    '256a3224d671b8a4b157424ab16a2b2905c39289ca9740b1ff2451bdeee44056',
   ],
   2: [
-    '91a0923ab5742baee1bbb2d19ad1f7c000ee93dd74c70a04fe2d5be96af49a93',
-    '9cfb9b9be3ab4d737f487c62a3f478c53b021ae5829c620a43b690f83cf2a1f0',
-    'abe54502b78db457fff9630faca7059789ea30296e515097ca745ceea2959d84',
+    'fbed468038d7cfeb71c59edfee8fb420715004886a6c597e83ee292b6b2e879d',
+    '54122da0c7c4cbbfed02d3d21d9059b46ffb7f147c01cef7a7f7c084d03d7cd7',
+    '8ee3dd4d5b922aec186ea1853a10408636c54e52f7aa13339407cdf213ff11bf',
   ],
 }
 

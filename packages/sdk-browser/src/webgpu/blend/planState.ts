@@ -1,3 +1,4 @@
+import { planRegion } from './planLayout.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendExpand } from './expand.ts'
@@ -17,13 +18,12 @@ export function planState() {
      *  paged cluster — the stride of every shared run. */
     vertexShift: 2,
     maxVertexWords: 3,
-    /** Instances the scene can expand, and where each pass starts its own. */
+    /** Instances the scene can expand. */
     instanceCapacity: 1,
-    instanceBase: [0, 0],
-    /** Plan entries a pass can carry at most, and the regions each occupies in the plan and
+    /** Plan entries the pass can carry at most, and the region it occupies in the plan and
      *  argument buffers (`planLayout.ts`). */
     maxPlanEntries: 1,
-    planRegions: [] as { seeds: number; order: number; runs: number; args: number }[],
+    planRegion: planRegion(1),
     /** What the GPU verdict reads moved this many times (`expansionFrame.ts`): its counts come
      *  back under it, and a count read under the current one still holds. */
     verdictEpoch: 0,
@@ -32,18 +32,17 @@ export function planState() {
   }
 }
 
-/** What the plan counts and draws, built with it, and the paged items' group. */
+/** What the plan draws, built with it, and the items' group. */
 export function planTotals() {
   return {
-    /** Triangles unpaged items submit in each pass, twice for a double-sided item: a scene count,
-     *  built with the plan, not a frame count. */
-    blendTriangles: 0,
-    transmissionTriangles: 0,
     /** A blend of the plan filters the display value (`filtersDisplay`), built with the plan. */
     filtersDisplay: false,
     /** The blending modes the plan draws, built with it: what a later change must compile for. */
     planModes: [] as Blending[],
-    /** Bind group ALL paged items share, by identity slot. */
-    pagedGroups: [] as (GPUBindGroup | undefined)[],
+    /** A transmissive item of the plan refracts (`refracts`): the distortion is drawn
+     *  (`distortion.ts`), built with the plan. */
+    refracts: false,
+    /** Bind group ALL items share, by identity slot. */
+    sharedGroups: [] as (GPUBindGroup | undefined)[],
   }
 }

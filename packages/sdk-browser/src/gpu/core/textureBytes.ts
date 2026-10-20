@@ -9,6 +9,7 @@ const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   r16float: 2,
   r16uint: 2,
   rg8unorm: 2,
+  rg8uint: 2,
   depth16unorm: 2,
   r32float: 4,
   r32uint: 4,
@@ -53,6 +54,11 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
  *  table of uncompressed formats. */
 export const texelBytesOf = (format: GPUTextureFormat) => BYTES_PER_TEXEL[format] ?? 0
 
+/** Bytes a texel of `format` costs: its own, or a sixteenth of its 4×4 block's; 0 outside both
+ *  tables. */
+export const formatTexelCost = (format: GPUTextureFormat) =>
+  BYTES_PER_TEXEL[format] ?? (BYTES_PER_BLOCK[format] ?? 0) / 16
+
 /** Bytes of a texture, every mip level included; `null` on a format outside the table. */
 export function textureBytesOf(
   descriptor: Partial<GPUTextureDescriptor> & Pick<GPUTextureDescriptor, 'size' | 'format'>,
@@ -73,6 +79,15 @@ export function textureBytesOf(
   }
   return bytes * (descriptor.sampleCount ?? 1)
 }
+
+/** Bytes of an optional target of a `width` × `height` frame, `texelBytes` a texel: a texel per
+ *  pixel when `wanted`, a 1×1 stand-in otherwise. */
+export const wantedTargetBytes = (
+  width: number,
+  height: number,
+  wanted: boolean,
+  texelBytes: number,
+) => (wanted ? width * height : 1) * texelBytes
 
 /** Bytes of a texture already made, from what it says of itself (`textureBytesOf`); 0 for a
  *  format outside the table, which the ledger counts as zero too. */

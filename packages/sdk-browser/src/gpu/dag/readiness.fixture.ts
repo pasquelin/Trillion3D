@@ -20,10 +20,6 @@ export function uploadResidency(packed: PackedDag, resident: ArrayLike<number> |
   return upload
 }
 
-/** The flags of `resident` from page `from` on, as an array. */
-export const residencySlice = (resident: PageResidency, from: number) =>
-  Uint8Array.from({ length: resident.length - from }, (_, i) => resident.flag(from + i))
-
 /** Per-page residency `values` as the cut reads it (`PageResidency`): an absent page reads 0. */
 export const pageResidency = (values: ArrayLike<number>): PageResidency => ({
   length: values.length,

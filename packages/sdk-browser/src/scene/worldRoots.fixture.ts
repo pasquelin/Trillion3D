@@ -4,9 +4,11 @@ import type { TestContext } from 'node:test'
 import { createHash } from 'node:crypto'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { worldRootsFixture } from './worldRootsPages.fixture.ts'
-import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import { bundlePageRanges, type WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import { geometryPageAddress } from '../../../sdk-core/src/page/contracts.ts'
 import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { openWorldRoots, type WorldRootsHold } from './worldRoots.ts'
+import { worldBundleAddress } from './worldRuns.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 import type { PageStreamerOptions } from '../streaming/types.ts'
@@ -17,7 +19,7 @@ export const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).dig
  *  session: through a queue of its own over `cache`, on the load's `signal`, let go once opened. */
 export async function modelOpened(
   manifest: ClusterManifest,
-  opening: { signal?: AbortSignal; whole?: boolean } = {},
+  opening: { signal?: AbortSignal } = {},
   cache = createPageCache(),
 ) {
   const queue = createPageStreamer([], 'http://world/', { cache, signal: opening.signal })
@@ -71,24 +73,39 @@ export function rangeOf(table: WorldRoots, first: number, end: number) {
   return `bytes=${table.bundles[first].offset}-${last.offset + last.bytes - 1}`
 }
 
-/** How `opened` opens a world: the queue's transfers, its transfer budget and who hears a stall,
- *  and `whole` for a scene not partitioned. */
+/** How `opened` opens a world: the queue's transfers, its transfer budget and who hears a
+ *  stall. */
 type Opening = Pick<PageStreamerOptions, 'onStalled' | 'maxTransferBytes'> & {
   transfers?: number
-  whole?: boolean
 }
 
 /** The world `manifest` declares, opened at `http://world/` as a session's load opens it: through
  *  the session's queue, closed with the test. */
 export async function opened(t: TestContext, manifest: ClusterManifest, opening: Opening = {}) {
-  const { transfers, whole, onStalled, maxTransferBytes } = opening
+  const { transfers, onStalled, maxTransferBytes } = opening
   const options = { cache: createPageCache(), workerCount: transfers, onStalled, maxTransferBytes }
   const queue = createPageStreamer([], 'http://world/', options)
   t.after(() => queue.dispose())
-  const roots = (await openWorldRoots(manifest, 'http://world/', queue, { whole }))!
+  const roots = (await openWorldRoots(manifest, 'http://world/', queue))!
   return { roots, queue }
 }
 
-/** The bundles `roots` holds now, ascending. */
-export const heldBy = (roots: Pick<WorldRootsHold, 'table' | 'has'>) =>
-  roots.table.bundles.map((_, bundle) => bundle).filter((bundle) => roots.has(bundle))
+/** The bundles `roots` holds now, ascending: those a hold asked at a priority. */
+export const heldBy = (roots: Pick<WorldRootsHold, 'table' | 'priorityOf'>) =>
+  roots.table.bundles
+    .map((_, bundle) => bundle)
+    .filter((bundle) => roots.priorityOf(bundle) !== Infinity)
+
+/** `table`'s binary as served at `http://world/`. */
+export const binaryOf = (table: WorldRoots) => new URL(table.payload.url, 'http://world/').href
+
+/** The catalogue name of bundle `bundle` of `table`, served at `http://world/`. */
+export const bundleOf = (table: WorldRoots, bundle: number) =>
+  worldBundleAddress(table, binaryOf(table), bundle)
+
+/** The catalogue name of page `page` of bundle `bundle` of `table`, served at `http://world/`. */
+export const pageOf = (table: WorldRoots, bundle: number, page = 0) =>
+  geometryPageAddress(
+    binaryOf(table),
+    table.bundles[bundle].offset + bundlePageRanges(table, bundle)[page].offset,
+  )

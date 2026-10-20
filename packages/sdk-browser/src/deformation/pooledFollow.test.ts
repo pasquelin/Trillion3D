@@ -1,4 +1,4 @@
-// A growth of the float pool moves the deformation block after the wider vertices (`wholePool.ts`,
+// A growth of the float pool moves the deformation block after the wider vertices (`pooledRows.ts`,
 // `SessionDeformation.place`): every row that reads a record or a float-pool block, and every
 // transparent span that reads a block, is pointed at the new place; a row with no results is left as it is.
 import assert from 'node:assert/strict'

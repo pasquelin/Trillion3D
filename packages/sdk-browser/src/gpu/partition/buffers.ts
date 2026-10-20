@@ -68,6 +68,7 @@ const BINDING_TYPE: Record<Exclude<Binding, 'pyramid'>, GPUBufferBindingType> = 
   state: 'storage',
   uniforms: 'uniform',
   hizLevels: 'uniform',
+  selectionMask: 'read-only-storage',
 }
 /** The bind layout of one kernel: its resources alone, at the module's binding numbers — its
  *  buffers, and the pyramid texture whose farthest layer it reads. */

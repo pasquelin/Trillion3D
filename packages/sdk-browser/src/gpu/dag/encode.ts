@@ -157,13 +157,12 @@ function arm(pass: GPUComputePassEncoder, { armPipeline, armGroup, bindGroup }: 
 }
 
 /** The entries of queue 0, one `dagPrepare` thread each: without a placement tree, every
- *  placement; with one, the tree's top nodes, the world DAG's root, then each member drawn whatever
- *  the view (`shader/placementTreeWgsl.ts`). */
+ *  placement; with one, the tree's top nodes, then each member drawn whatever the view and each
+ *  placement of the world DAG (`shader/placementTreeWgsl.ts`). */
 function levelEntries({ packed, worldCount }: DagResources) {
   const tree = packed.placementTree
   if (!tree) return worldCount
-  const world = (packed.world?.root ?? -1) >= 0 ? 1 : 0
-  return tree.levels[0].count + world + tree.always.set.count
+  return tree.levels[0].count + tree.always.set.count
 }
 
 /** A kernel on `threads` threads, in rows of `width` workgroups. */

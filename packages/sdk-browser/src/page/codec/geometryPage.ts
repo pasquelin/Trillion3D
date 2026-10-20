@@ -1,8 +1,9 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { MIB } from '../../../../math/src/constants.ts'
+import { fromF32Bits } from '../../../../math/src/float/bits.ts'
 import { loadedSdkWasm, type SdkWasm } from '../../wasm/sdkWasm.ts'
 import { META, META_WORDS } from '../../wasm/encodeAbi.ts'
-import { reserveArena, type Arena } from '../../wasm/wasmArena.ts'
+import { withArena, type Arena } from '../../wasm/wasmArena.ts'
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts'
 
 /**
@@ -36,9 +37,6 @@ export type DecodedGeometryPage = {
 /** The decoded page budget a call may spend unless it names another. */
 const DEFAULT_MAX_DECODED_BYTES = 16 * MIB
 
-/** The module's memory is shared by all callers; a refusal to reserve it is an error. */
-const memoryRefused = () => new Error('PAGE_DECODER_MEMORY')
-
 /** The page copied into the module's memory with the block the module answers in, run through
  *  `use`; the memory is freed whatever `use` does. The module allocates: its memory may have grown
  *  and detached the views taken before a call, so `use` asks `arena.blocks()` again after each. */
@@ -47,28 +45,33 @@ function staged<T>(
   data: Uint8Array,
   use: (arena: Arena, answer: number, page: number) => T,
 ): T {
-  const arena = reserveArena(module, [
-    { type: 'u32', length: META_WORDS },
-    { type: 'u32', length: ceilDiv(data.length, 4) },
-  ])
-  if (!arena) throw memoryRefused()
-  try {
-    const [answer, page] = arena.blocks()
-    new Uint8Array(page.view.buffer, page.offset, data.length).set(data)
-    return use(arena, answer.offset, page.offset)
-  } finally {
-    arena.freed()
-  }
+  return withArena(
+    module,
+    [
+      { type: 'u32', length: META_WORDS },
+      { type: 'u32', length: ceilDiv(data.length, 4) },
+    ],
+    'PAGE_DECODER_MEMORY',
+    (arena) => {
+      const [answer, page] = arena.blocks()
+      new Uint8Array(page.view.buffer, page.offset, data.length).set(data)
+      return use(arena, answer.offset, page.offset)
+    },
+  )
 }
 
 /** The answer block of the staged reservation, as words. */
 const answerOf = (arena: Arena) => arena.blocks()[0].view as Uint32Array
 
 /** Throws the refusal the module wrote in `answer`: its length in word 0, its ASCII from byte 4. */
-function refused(answer: Uint32Array): never {
+export function refused(answer: Uint32Array): never {
   const bytes = new Uint8Array(answer.buffer, answer.byteOffset + 4, answer[0])
   throw new Error(new TextDecoder().decode(bytes))
 }
+
+/** The page's quantization error the module answered in `words`, a float32 at `META`'s word. */
+export const pageQuantizationError = (words: Uint32Array) =>
+  fromF32Bits(words[META.QUANTIZATION_ERROR])
 
 /**
  * The format's gate on a page the pool uploads as it is and the shaders decode in place: magic,
@@ -89,11 +92,7 @@ export function checkGeometryPage(
       indexCount: words[META.INDEX_COUNT],
       flags: words[META.FLAGS],
       decodedBytes: words[META.DECODED_BYTES],
-      quantizationError: new Float32Array(
-        words.buffer,
-        words.byteOffset + META.QUANTIZATION_ERROR * 4,
-        1,
-      )[0],
+      quantizationError: pageQuantizationError(words),
       morphTargets: words[META.MORPH_TARGETS],
       skinInfluences: words[META.SKIN_INFLUENCES],
     }
@@ -115,9 +114,7 @@ export function decodeGeometryPage(
     maxDecodedBytes,
   )
   const block = new ArrayBuffer(decodedBytes)
-  const out = reserveArena(module, [{ type: 'u32', length: decodedBytes / 4 }])
-  if (!out) throw memoryRefused()
-  try {
+  withArena(module, [{ type: 'u32', length: decodedBytes / 4 }], 'PAGE_DECODER_MEMORY', (out) => {
     staged(module, data, (arena, answer, page) => {
       const status = module.page_unpack(
         page,
@@ -130,9 +127,7 @@ export function decodeGeometryPage(
     })
     const [source] = out.blocks()
     new Uint8Array(block).set(new Uint8Array(source.view.buffer, source.offset, decodedBytes))
-  } finally {
-    out.freed()
-  }
+  })
   const { indices, attributes } = pageViews(
     block,
     pageAttributeNames(counts.flags),

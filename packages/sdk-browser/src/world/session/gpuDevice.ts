@@ -6,7 +6,8 @@ import { addressParam } from '../../host/addressFlag.ts'
  * Every optional feature the engine can use, in request order: instanced indirect draws, GPU
  * timestamps, subgroups (the light tiles' depth bounds), 16-bit shader floats, depth clipping
  * control (the shadow pool's sun casters), clip distances (they spare a lamp's moving group
- * the overdraw past its page), and the block-compressed texture formats the cache bakes. A
+ * the overdraw past its page), dual-source blending (the water composite's per-channel
+ * transmittance), and the block-compressed texture formats the cache bakes. A
  * kernel that uses one branches on the device's own `features` and keeps its plain path as the
  * fallback when it is absent; the session publishes what the device got
  * (`grantedGpuFeatures`), never guesses it.
@@ -18,11 +19,12 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
   'shader-f16',
   'depth-clip-control',
   'clip-distances',
+  'dual-source-blending',
   ...Object.values(BLOCK_FEATURES),
 ]
 
 /** The features the address's test switch names off (`trillion3dGpuFeaturesOff`), as written. */
-export const featuresOffIn = (params: URLSearchParams) =>
+const featuresOffIn = (params: URLSearchParams) =>
   params.get('trillion3dGpuFeaturesOff')?.split(',') ?? []
 /** Those of the page's address, read through the one address reader (`addressParam`). */
 const gpuFeaturesOff = addressParam(featuresOffIn, [] as string[])

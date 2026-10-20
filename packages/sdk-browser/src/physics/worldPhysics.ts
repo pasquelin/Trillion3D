@@ -2,6 +2,7 @@ import { cpuNow, msSince } from '../diagnostic/stopwatch.ts'
 import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
 import type { WaterSpec } from '../../../sdk-core/src/fluids/buoyancy.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
+import { joined } from '../../../sdk-core/src/runtime/joined.ts'
 import { listen } from '../../../sdk-core/src/world/observed.ts'
 import type { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -107,10 +108,6 @@ function worldControls(s: PhysicsState) {
   }
 }
 
-/** `target` with `source`'s properties, its accessors kept as accessors. */
-const joined = <A extends object, B extends object>(target: A, source: B) =>
-  Object.defineProperties(target, Object.getOwnPropertyDescriptors(source)) as A & B
-
 /** Hears the scene's changes for the session; without water, nothing is carried: a change is no
  *  mesh to read again. */
 function linkPhysics(s: PhysicsState) {
@@ -165,7 +162,7 @@ export function createWorldPhysics(
     s.session?.writer.gravity(s.gravity.elements)
     s.invalidate()
   })
-  const handle = joined(joined({ ...s.joints.methods }, simulationControls(s)), worldControls(s))
+  const handle = joined({ ...s.joints.methods }, simulationControls(s), worldControls(s))
   setGravity(s, settings.gravity ?? 'earth')
   if (options) handle.enabled = true
   linkPhysics(s)

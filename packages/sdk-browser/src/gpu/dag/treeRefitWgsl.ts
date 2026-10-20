@@ -22,6 +22,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { dAbs, dAdd, dLess, dMax, dMin, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
+import { D_INFINITY, D_NEG_INFINITY, D_ZERO } from '../../../../math/src/wgsl/doubleConstants.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { treeTableWgsl } from './treeTable.ts'
@@ -29,21 +30,21 @@ import { frameTableWgsl, ROOT_WORD } from './frameTable.ts'
 import { MARGIN, TREE_SPAN } from './placementTree.ts'
 import { NODE_MAX, NODE_MIN } from './nodeLayout.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/wgsl/constants.ts'
-import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
+import { f64WordsInto } from '../../../../math/src/float/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** What the shader reads a level's parameters as: words of `Params`. */
 export const REFIT_PARAM_WORDS = 8
 
-/** The margin as the shaders hold a double, high word then low (`packDoubles`). */
+/** The margin as the shaders hold a double, high word then low (`f64WordsInto`). */
 const margin = new Uint32Array(2)
-packDoubles(margin, 0, [MARGIN])
+f64WordsInto(margin, 0, MARGIN)
 
 /** The node `n` written from the doubles `lo` and `hi`: the empty box when they cross, else as
  *  fitted. */
 const WRITE_BOX_WGSL = wgslBlock(
   'WRITE_BOX_WGSL',
-  [dAdd, dSub, dMul, dLess, dMax, dAbs, toF32, FINITE_SENTINEL],
+  [dAdd, dSub, dMul, dLess, dMax, dAbs, toF32, FINITE_SENTINEL, D_ZERO],
   `
 fn writeBox(n:u32,lo:array<vec2u,3>,hi:array<vec2u,3>){
  if(dLess(hi[0],lo[0])||dLess(hi[1],lo[1])||dLess(hi[2],lo[2])){
@@ -52,7 +53,7 @@ fn writeBox(n:u32,lo:array<vec2u,3>,hi:array<vec2u,3>){
   for(var a=0u;a<3u;a++){treeSetWord(n,${NODE_MIN}u+a,low);treeSetWord(n,${NODE_MAX}u+a,high);}
   return;
  }
- var reach=vec2u(0u,0u);
+ var reach=D_ZERO;
  for(var a=0u;a<3u;a++){
   reach=dMax(reach,dMax(dAbs(lo[a]),dAbs(hi[a])));
   reach=dMax(reach,dSub(hi[a],lo[a]));
@@ -67,7 +68,7 @@ fn writeBox(n:u32,lo:array<vec2u,3>,hi:array<vec2u,3>){
 
 const FIT_WGSL = wgslBlock(
   'FIT_WGSL',
-  [WRITE_BOX_WGSL, fromF32, dMin, dMax],
+  [WRITE_BOX_WGSL, fromF32, dMin, dMax, D_INFINITY, D_NEG_INFINITY],
   `
 fn fitGroup(j:u32){
  let first=j*${TREE_SPAN}u;
@@ -75,7 +76,7 @@ fn fitGroup(j:u32){
  if(params.live>first){gm=min(params.live-first,${TREE_SPAN}u);}
  var lo:array<vec2u,3>;
  var hi:array<vec2u,3>;
- for(var a=0u;a<3u;a++){lo[a]=vec2u(0x7ff00000u,0u);hi[a]=vec2u(0xfff00000u,0u);}
+ for(var a=0u;a<3u;a++){lo[a]=D_INFINITY;hi[a]=D_NEG_INFINITY;}
  for(var k=0u;k<gm;k++){
   let w=treeMember(first+k);
   if(w==${NO_INDEX}u){continue;}
@@ -91,7 +92,7 @@ fn fitCell(j:u32){
  let first=j*${TREE_SPAN}u;
  var lo:array<vec2u,3>;
  var hi:array<vec2u,3>;
- for(var a=0u;a<3u;a++){lo[a]=vec2u(0x7ff00000u,0u);hi[a]=vec2u(0xfff00000u,0u);}
+ for(var a=0u;a<3u;a++){lo[a]=D_INFINITY;hi[a]=D_NEG_INFINITY;}
  let end=min(first+${TREE_SPAN}u,params.childCount);
  for(var c=first;c<end;c++){
   let child=params.childBase+c;

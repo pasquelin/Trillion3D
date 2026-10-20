@@ -80,6 +80,11 @@ function placementUpdates(check: () => void, engine: Engine) {
       engine.addPlacements?.(source, primitive) ??
         Promise.resolve('the engine takes no source in place')
     ),
+    /** The caches a joining model's textures come from (`Engine.addTextureCaches`). */
+    addTextureCaches: (caches: Parameters<NonNullable<Engine['addTextureCaches']>>[0]) => (
+      check(),
+      engine.addTextureCaches?.(caches)
+    ),
     /** The world DAG a model joined with is drawn from now on (`Engine.addWorldRoots`). */
     addWorldRoots: (roots: Parameters<NonNullable<Engine['addWorldRoots']>>[0]) => (
       check(),

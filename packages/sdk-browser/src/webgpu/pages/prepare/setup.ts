@@ -118,7 +118,6 @@ function setupSlots(
   diag.engineDiagnostic('geometry-pages', 'Clusters drawn from their quantized page', {
     clusters: allPages.length,
     ...clusterSides,
-    sharedBlendMeshes: pages.sharedBlendMeshes,
     slotBytes: pageBytes,
     homeBytes: homes?.bytes ?? null,
     drawCorners: maxCorners,

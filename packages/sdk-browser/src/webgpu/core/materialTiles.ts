@@ -16,6 +16,7 @@ import {
   COMPUTE,
 } from '../../gpu/core/computeBindings.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /** Bytes of one class's indirect draw: vertex count, instance count, first vertex, first instance. */
 const DRAW_BYTES = 16
@@ -126,13 +127,16 @@ type Tiles = {
   held: readonly number[]
 }
 
+/** The slots of `keys` written over those of the keys held: only the words of either go up, never
+ *  the whole table. */
 function assign(t: Tiles, keys: readonly number[]) {
-  const { slotWords, held } = t
-  if (keys.length === held.length && keys.every((key, at) => held[at] === key)) return
+  const { slotWords, held, device } = t
+  if (sameValues(held, keys)) return
   for (const key of held) slotWords[key] = MATERIAL_TILE_SLOTS
   keys.forEach((key, at) => (slotWords[key] = at < t.listed ? at : MATERIAL_TILE_SLOTS))
+  for (const key of held) device.queue.writeBuffer(t.slots, key * 4, slotWords, key, 1)
+  for (const key of keys) device.queue.writeBuffer(t.slots, key * 4, slotWords, key, 1)
   t.held = keys.slice()
-  t.device.queue.writeBuffer(t.slots, 0, slotWords)
 }
 
 function layFor(t: Tiles, width: number, height: number) {

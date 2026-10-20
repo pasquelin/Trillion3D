@@ -13,7 +13,14 @@ import type { VsmListName, VsmListSizes, VsmWithin } from './chunkSizing.ts'
 /** Bytes a list holds at least: a binding is never empty, whatever a chunk asks. */
 const LIST_FLOOR = 256
 /** The lists the kernels fill that are storage alone, in the order they are made. */
-const STORAGE_LISTS: readonly VsmListName[] = ['views', 'candidates', 'counts', 'cmds', 'pairs']
+const STORAGE_LISTS: readonly VsmListName[] = [
+  'views',
+  'candidates',
+  'counts',
+  'cmds',
+  'order',
+  'pairs',
+]
 
 /** Usage of the lists the kernels fill. */
 export const vsmRenderStorage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
@@ -109,7 +116,7 @@ function ensureList(
   ctx.buffers[name] = sizedBuffer(ctx.device, held, bytes, usage, `${label}.${name}`)
 }
 
-/** The seven lists of a chunked raster under `label`, grown to `size` (`vsmChunkListSizes`): the
+/** The eight lists of a chunked raster under `label`, grown to `size` (`vsmChunkListSizes`): the
  *  context's own buffers, every one made, returned — its parameters, its views, its counters and
  *  its arguments are written or cleared in them. A frame allocates nothing. */
 export function vsmEnsureLists(

@@ -1,4 +1,5 @@
 import type { PackedDag } from './types.ts'
+import { coarsenedThreshold } from './coarsening.ts'
 import {
   OUT_AHEAD_PLACED,
   OUT_COUNT,
@@ -15,7 +16,6 @@ import { viewWord, writeAheadBlock } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { dagQueueWords } from './flagSections.ts'
-import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /** Where a cut's tables lie for its kernels: the open counts placements hold in `out` — the first
  *  word in `out.pages`, the slots less one (`heldOpen.ts`) —, then the words of each descent queue
@@ -39,7 +39,6 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
     frustumRejected: 0,
     lodLevel: 0,
     selectedTriangles: 0,
-    drawnTriangles: 0,
     transparentTriangles: 0,
   },
   drawable: [],
@@ -73,7 +72,7 @@ export function writeDagUniforms(
   target.set(uniforms.view, W('view'))
   target[W('pixelScale')] = uniforms.pixelScale[0]
   target[W('pixelScale') + 1] = uniforms.pixelScale[1]
-  target[W('pixelError')] = uniforms.pixelError * coarsen
+  target[W('pixelError')] = coarsenedThreshold(uniforms.pixelError, coarsen)
   target[W('near')] = uniforms.near
   const ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
   ints[W('clusterCount')] = packed.pageCount
@@ -109,19 +108,16 @@ export function writeDagUniforms(
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
-  // The world DAG's placement, wherever the packing put it, NO_INDEX without one; the placement tree
-  // (`placementTree.ts`): its top level's nodes, which open the descent, the queue entry of its
-  // first node and the members drawn whatever the view (`treeTable.ts`); no top node, no tree.
+  // The placement tree (`placementTree.ts`): its top level's nodes, which open the descent, the
+  // queue entry of its first node and the members drawn whatever the view — the world DAG's
+  // placements among them (`treeTable.ts`); no top node, no tree.
   const tree = packed.placementTree,
     world = packed.world
-  ints[W('worldRoot')] = world?.root ?? NO_INDEX
   ints[W('treeTop')] = tree?.levels[0].count ?? 0
   ints[W('cellBase')] = tree?.cellBase ?? 0
   ints[W('alwaysCount')] = tree?.always.set.count ?? 0
-  // The placements' links to the world DAG (`worldLinks.ts`): none, no gate.
+  // The placements' links to the world's cells (`worldLinks.ts`): none, no gate.
   ints[W('worldLinks')] = world?.linkBase ?? 0
-  // The world DAG's threshold this cut, its transitions dithered in time (`worldFade.ts`).
-  target[W('worldScale')] = world?.scale ?? 1
   writeAheadBlock(target, ints, uniforms)
 }
 
@@ -160,8 +156,6 @@ export function parseDagOutput(
   // sample still returns them correctly (`shader/totalsWgsl.ts`).
   result.selectedTriangles = ints[OUT_SELECTED_TRIANGLES] ?? 0
   result.transparentTriangles = ints[OUT_TRANSPARENT_TRIANGLES] ?? 0
-  // The rule draws what it selects: one counter, published under both names.
-  result.drawnTriangles = result.selectedTriangles
   // Bit 1: the cut did not fit under the sample cap. This is not a GPU fault — the kernels ran,
   // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
   // it must take it for the whole cut.

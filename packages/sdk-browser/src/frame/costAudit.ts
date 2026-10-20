@@ -1,27 +1,11 @@
-import { cpuNow } from '../diagnostic/stopwatch.ts'
-import type { FrameMetrics } from '../../../sdk-core/src/contracts/metrics.ts'
 import { enginePose } from '../camera/world.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
-import { families } from '../host/families.ts'
 import { debugMode } from '../host/debugMode.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { transparentCounts } from '../webgpu/pages/state/transparentCounts.ts'
-import { log } from '../diagnostic/log.ts'
 
-// The frame audit, no per-frame trace, is a debug-mode tool (`debugMode`: a world's `debug`,
-// `?profile`): no switch of its own.
-
-/** Serialisation and the console stay outside the measured render call. */
-export function logFrameCostAudit(context: Record<string, unknown>) {
-  if (!debugMode()) return
-  queueMicrotask(() => {
-    try {
-      log.info('frame audit', JSON.stringify(context))
-    } catch {
-      // An observer must never interrupt the render.
-    }
-  })
-}
+// The frame's cost snapshot, a debug-mode tool (`debugMode`: a world's `debug`, `?profile`): the
+// CPU profile carries it on the diagnostic channel (`cpuSteps.ts`), no console of its own.
 
 /** The view as the audit publishes it: the engine camera’s world pose, and its field. */
 const viewPose = (cam: EngineCamera) => ({
@@ -59,33 +43,5 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     gpuTiming: timing.lastGpuPassMs,
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuTimingIsAsynchronous: true,
-  }
-}
-
-/** Host view: what the frame published, as the engine counted it.
- * Detailed CPU percentiles are published separately by the existing profiles. */
-export function createHostFrameCostAudit() {
-  let last = -Infinity
-  return (frame: number, metrics: FrameMetrics) => {
-    if (!debugMode()) return
-    const now = cpuNow()
-    if (now - last < 2000) return
-    last = now
-    // The provenance, a family the session opened with when the audit is on (`familyUse.ts`).
-    const build = families.measurement.get()?.SDK_BUILD_PROVENANCE
-    logFrameCostAudit({
-      kind: 'host',
-      frame,
-      build: { hash: build?.hash ?? null, generatedAt: build?.generatedAt ?? null },
-      dpr: typeof devicePixelRatio === 'number' ? devicePixelRatio : null,
-      cpuFrameMs: metrics.cpuFrameMs,
-      cpuSubmitMs: metrics.cpuSubmitMs,
-      reportedDrawCalls: metrics.drawCalls,
-      selectedTriangles: metrics.selectedTriangles,
-      reportedSubmittedTriangles: metrics.totalSubmittedTriangles,
-      transparentDrawCalls: metrics.transparentDrawCalls,
-      pagesLoading: metrics.pagesLoading,
-      residentPages: metrics.residentPages,
-    })
   }
 }

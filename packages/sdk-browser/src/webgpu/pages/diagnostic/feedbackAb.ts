@@ -7,11 +7,11 @@ import { blendWritesShare } from '../prepare/asIsShareTarget.ts'
 import { blendContext } from '../prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-/** The pipelines one arm binds: the resolve's classes and the blends of `vis`, and `water`. */
-const pipelinesOf = (
-  { shadeClasses, blendPipelines }: Omit<FeedbackPipelines, 'water'>,
-  water: FeedbackPipelines['water'],
-): FeedbackPipelines => ({ shadeClasses, blendPipelines, water })
+/** The pipelines one arm binds: the resolve's classes and the blends of `vis`. */
+const pipelinesOf = ({ shadeClasses, blendPipelines }: FeedbackPipelines): FeedbackPipelines => ({
+  shadeClasses,
+  blendPipelines,
+})
 
 export type FeedbackAbState = {
   target: boolean
@@ -86,25 +86,25 @@ export async function prepareFeedbackAb(
     blendWritesShare(rt),
     blendContext(rt),
   )
-  if (blend.waterRefused) throw blend.waterRefused
-  if (rt.blendState.transmissive > 0 && !rt.blendState.water)
-    throw new Error('FEEDBACK_AB_WATER_PATH_UNAVAILABLE')
+  if (rt.blendState.transmissive > 0 && !rt.vis.blendPipelines?.transmission)
+    throw new Error('FEEDBACK_AB_TRANSMISSION_PATH_UNAVAILABLE')
   rt.feedbackAB = {
     target: true,
     force: false,
-    on: pipelinesOf(rt.vis, rt.blendState.water),
-    off: pipelinesOf({ ...shade, blendPipelines: blend.blendPipelines }, blend.water),
+    on: pipelinesOf(rt.vis),
+    off: pipelinesOf({ ...shade, blendPipelines: blend.blendPipelines }),
   }
 }
 
-/** A frame-boundary diagnostic switch; callers must first converge the same frozen pose. */
+/** A frame-boundary diagnostic switch, applied between two frames: the next frame drawn binds the
+ *  chosen pipelines, no hold needed — the loop draws every frame. Callers converge the same frozen
+ *  pose first. */
 export async function setFeedbackTargetAb(rt: WebgpuPagesRuntime, target: boolean) {
   const state = rt.feedbackAB
   const device = rt.gpu.device
   if (!state || !device) throw new Error('FEEDBACK_AB_UNAVAILABLE')
   if (rt.views.active !== rt.views.main || rt.capture.capturing)
     throw new Error('FEEDBACK_AB_VIEW_BUSY')
-  if (!state.force && !rt.run.frameHeld) throw new Error('FEEDBACK_AB_POSE_NOT_HELD')
   const texture = rt.vis.textures?.metrics()
   if (
     !texture ||
@@ -120,7 +120,6 @@ export async function setFeedbackTargetAb(rt: WebgpuPagesRuntime, target: boolea
     const selected = target ? state.on : state.off
     rt.vis.shadeClasses = selected.shadeClasses
     rt.vis.blendPipelines = selected.blendPipelines
-    rt.blendState.water = selected.water
     rt.vis.writesFeedback = state.target = target
     syncFeedbackTarget(rt, device)
   }

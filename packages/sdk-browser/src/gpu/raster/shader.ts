@@ -10,6 +10,7 @@ import { RASTER_PIXEL_WGSL, pixelCount, pixelOffset } from './pixelWgsl.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
 import { HIZ_REJECTED_WGSL } from '../partition/contract.ts'
 import { rasterKernels } from './kernelsWgsl.ts'
+import { visTriangle } from '../../visibility/visWords.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
@@ -54,6 +55,7 @@ ${rasterKernels(capacity)}`,
       COLOR_SAMPLE_WGSL,
       RASTER_TRI_WGSL,
       RASTER_PIXEL_WGSL,
+      visTriangle,
       worldMatrix3,
       FLAT_INDEX_WGSL,
       GROUP_GRID_WGSL,

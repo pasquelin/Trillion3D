@@ -1,6 +1,6 @@
 import { withEmissiveAo } from '../../../scene/surfaceAllocation.ts'
-import { holdsWater } from '../../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { swapSurfaces } from '../state/gpu.ts'
 
 /** A diagnostic GPU variant, or the feedback A/B's session: their stages have no twin without an
  *  output, so the pipelines keep every one (`wantsEmissiveAo`, `wantsFeedback`). */
@@ -9,17 +9,14 @@ export const keepsEveryOutput = ({ context }: Pick<WebgpuPagesRuntime, 'context'
 
 /**
  * Whether an image needs the emission-and-occlusion layer, as its preparation sees it: one of its
- * opaque surfaces can emit or occlude (`ShadeCensus.emits`); a water surface draws, whose
- * composite reads the layer without the mark; impostor cards may draw, whose occlusion is their
- * atlas's; or a diagnostic variant or the feedback A/B runs, whose stages have no twin without it.
+ * opaque surfaces can emit or occlude (`ShadeCensus.emits`); or a diagnostic variant or the
+ * feedback A/B runs, whose stages have no twin without it.
  * A surface that comes to emit later is heard by the census at the next frame entry, which holds
  * the image until the classes that write the layer are compiled (`../../frame/framePipelines.ts`).
  */
 export function wantsEmissiveAo(rt: WebgpuPagesRuntime) {
-  const { gpu, vis } = rt
   if (keepsEveryOutput(rt)) return true
-  if (holdsWater(rt) || gpu.impostorCode) return true
-  return !!vis.shadeCensus?.emits
+  return !!rt.vis.shadeCensus?.emits
 }
 
 /**
@@ -38,6 +35,5 @@ export function followEmissiveAo(rt: WebgpuPagesRuntime) {
   }
   const surfaces = gpu.surfaces
   if (!vis.writesEmissiveAo || !surfaces || surfaces.hasEmissiveAo || !gpu.device) return
-  gpu.surfaces = withEmissiveAo(gpu.device, surfaces)
-  gpu.targetBytes += gpu.surfaces.allocationBytes - surfaces.allocationBytes
+  swapSurfaces(gpu, surfaces, withEmissiveAo(gpu.device, surfaces))
 }

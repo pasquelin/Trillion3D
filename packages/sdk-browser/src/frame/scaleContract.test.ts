@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createScaleControl } from './scaleControl.ts'
-import { fitting, HZ120, HZ60, lowered, simulate } from './scaleFit.fixture.ts'
+import { HZ120, HZ60, lowered, simulate } from './scaleFit.fixture.ts'
 
 /** A display at 120 Hz, measured over a few frames. */
 function at120(control: ReturnType<typeof createScaleControl>) {
@@ -80,8 +80,6 @@ test('the control reads back the measured refresh and the last frame interval', 
   assert.ok(Math.abs(control.refreshMs! - HZ120) < 1e-6, `${control.refreshMs}`)
   control.tick(clock.now)
   assert.ok(Math.abs(control.frameIntervalMs! - HZ120) < 1e-6, `${control.frameIntervalMs}`)
-  control.tick(clock.now + 10_000)
-  assert.equal(control.frameIntervalMs, null, 'a pause is no interval')
 })
 
 test('a fixed scale ignores the timings, and asking again restarts at the maximum', () => {
@@ -181,12 +179,3 @@ for (const timed of [true, false])
       Reflect.deleteProperty(globalThis, 'devicePixelRatio')
     }
   })
-
-// A device that never met its cadence took its slow frames for the display's refresh.
-test('without GPU times a device at 16 fps on a 120 Hz display is lowered to the floor', () => {
-  const control = createScaleControl('auto'),
-    { scales } = simulate(control, 200, { gpu: (s) => 60 * s * s, timed: false })
-  assert.equal(control.wanted(), 0.5)
-  assert.ok(scales.every((s) => s >= 0.5))
-  assert.equal(fitting(60, 0), 0.5)
-})

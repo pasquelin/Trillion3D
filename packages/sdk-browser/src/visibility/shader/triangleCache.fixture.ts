@@ -32,7 +32,7 @@ export function cacheRun(width: number, height: number, none = false) {
   }
   const decode = shaderRun<Record<string, Fn>>(
     SHADE_TRIS_SHADER,
-    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep pow2FromExponent bitLength ceilDiv clusterStream clusterPosition clusterGrid clusterUv clusterNormal octDecode octFold byteOf'.split(
+    'pageHeader pageHeaderFor pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep pow2FromExponent bitLength ceilDiv clusterStream clusterPosition clusterGrid clusterUv clusterNormal octBytesDecode octDecode octUnfold octFold byteOf'.split(
       ' ',
     ),
     {
@@ -56,6 +56,9 @@ export function cacheRun(width: number, height: number, none = false) {
       rounded(name),
     ]),
   )
+  // A triangle's three positions, as the page geometry reads each (`pageTrianglePositions`).
+  geometry.pageTrianglePositions = (page, h, corners) =>
+    (corners as number[]).map((corner) => geometry.pagePosition(page, h, corner))
   const exact = shaderRun<Record<string, Fn>>(
     SHADE_TRIS_SHADER,
     [

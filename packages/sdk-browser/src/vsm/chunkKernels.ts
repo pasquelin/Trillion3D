@@ -1,6 +1,6 @@
 /**
- * THE KERNELS OF A CHUNKED RASTER OVER CASTER ROWS (`renderCullWgsl.ts`): the cull, the expand and
- * their arguments — the opaque raster's, and the transmission's with its own cull —, what a pass
+ * THE KERNELS OF A CHUNKED RASTER OVER CASTER ROWS (`renderCullWgsl.ts`): the views, the cull and
+ * the arguments — the opaque raster's, and the transmission's with its own cull —, what a pass
  * holds of its chunks.
  */
 import { COMPUTE, computeBufferEntry } from '../gpu/core/computeBindings.ts'
@@ -12,25 +12,23 @@ import { vsmBindGroupLayoutEntries, vsmFrameSetHeld, type VsmPerFrameSet } from 
 import type { VsmListName } from './chunkSizing.ts'
 import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
 import { VSM_RENDER_ARGS_WGSL } from './renderParamsWgsl.ts'
-import { VSM_RENDER_EXPAND_SPECS, vsmRenderExpandWgsl } from './renderExpandWgsl.ts'
 import { VSM_RENDER_VIEWS_SPECS, vsmRenderViewsWgsl } from './renderViewsWgsl.ts'
 import { createVsmRowBound, type VsmRowBound } from './rowPageBound.ts'
 import { vsmChunkParamSlots, vsmRenderParamsEntry } from './chunkParams.ts'
 
-/** The cull, expand and argument kernels of a raster over caster rows (`renderCullWgsl.ts`):
- *  the opaque raster's, and the transmission atlas's with its own cull. */
+/** The views, cull and argument kernels of a raster over caster rows (`renderCullWgsl.ts`): the
+ *  opaque raster's, and the transmission atlas's with its own cull. */
 export interface VsmChunkKernels {
   /** The views with pages to draw, listed on the GPU (`renderViewsWgsl.ts`). */
   views: VsmComputePipe
   cull: VsmComputePipe
-  expand: VsmComputePipe
   /** One source, one group layout: each pipe's `groups[0]` is the same entries. */
   args: { cull: VsmComputePipe; expand: VsmComputePipe; draw: VsmComputePipe }
 }
 
-/** The cull (`cullCode`), expand and argument kernels, labelled under `label`: pipes made once a
+/** The views, cull (`cullCode`) and argument kernels, labelled under `label`: pipes made once a
  *  device and source (`vsmComputePipe`), so a pass whose kernel is another's shares its pipe — the
- *  raster's and the transmission's expand and arguments are one — and their groups' layouts. Each
+ *  raster's and the transmission's views and arguments are one — and their groups' layouts. Each
  *  pipeline is read from its pipe where it is bound. */
 export function vsmChunkKernels(
   device: GPUDevice,
@@ -59,15 +57,6 @@ export function vsmChunkKernels(
       computeBufferEntry(4, 'storage', COMPUTE),
     ],
   ])
-  const expand = pipe('expand', vsmRenderExpandWgsl(layout), 'vsmRenderExpand', [
-    vsmBindGroupLayoutEntries(VSM_RENDER_EXPAND_SPECS, layout, COMPUTE),
-    [
-      P(0),
-      computeBufferEntry(1, 'read-only-storage', COMPUTE),
-      computeBufferEntry(2, 'storage', COMPUTE),
-      computeBufferEntry(3, 'storage', COMPUTE),
-    ],
-  ])
   const argsEntries = [
     P(0),
     computeBufferEntry(1, 'storage', COMPUTE),
@@ -77,7 +66,6 @@ export function vsmChunkKernels(
   return {
     views,
     cull,
-    expand,
     args: {
       cull: args('vsmRenderArgsCull'),
       expand: args('vsmRenderArgsExpand'),

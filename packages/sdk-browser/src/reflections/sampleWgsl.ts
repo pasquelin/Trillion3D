@@ -23,7 +23,7 @@ export const REFLECTION_LOBE_RAY_WGSL = wgslBlock(
  * EVERY LOBE, SAMPLED (`reflectionLobeRay`, the trace's kernels', `u` turning per pixel and per image,
  * `reflectionSampleAt`): every lobe that traces (`reach.ts`) casts its ray in a direction drawn from its
  * own GGX distribution, a new one every image,
- * so that the history's images (`temporalWgsl.ts`) and the neighbours' reuse (`spatialWgsl.ts`) average
+ * so that the history's images (`temporalWgsl.ts`) and the neighbours' reuse (`resolveWgsl.ts`) average
  * the whole lobe, its long tail included. A mirror is the limit: its widths at the smoothest lobe the
  * engine draws, its draws all within a fraction of a degree of its centre — its sample is its centre
  * ray, with no rule of its own.
@@ -32,7 +32,7 @@ export const REFLECTION_LOBE_RAY_WGSL = wgslBlock(
  *   view stretched by the lobe's widths along its axis and across, a direction drawn on the spherical cap
  *   the visible normals cover — its height drawn over all but the `REFLECTION_TAIL_BIAS` of it nearest
  *   the horizon, the grazing microfacets whose rays are the noisiest and dimmest —, unstretched; the ray
- *   its mirror about it, pdf D(h)·G₁(v) / (4 n·v), which the reuse weighs by (`spatialWgsl.ts`). A ray
+ *   its mirror about it, pdf D(h)·G₁(v) / (4 n·v), which the reuse weighs by (`resolveWgsl.ts`). A ray
  *   that would leave under the surface is folded back above it: never the lobe's centre, a spike.
  * - THIN RAYS: each ray is read through the cone of the smoothest lobe the engine draws (`lobeAlpha(0)`,
  *   under a pixel over the whole march), so the mean of the rays is the lobe's own. A wider cone with a
@@ -43,7 +43,8 @@ export const REFLECTION_LOBE_RAY_WGSL = wgslBlock(
  *   (`ReflectionView.temporal.x`), shifted by a hash of the texel or the pixel (`mixWord`) so neighbours
  *   differ: a low-discrepancy set within each texel's history, a turning one across the grid.
  *
- * The coat's lobe is sampled the same way, its pair of numbers swapped (`reflectionTrace`).
+ * The lobe a pixel traces is its top layer's, the coat's where it carries one (`reflectionTopRay`,
+ * `weight.ts`), sampled the same way.
  */
 export const REFLECTION_SAMPLE_WGSL = wgslBlock(
   'REFLECTION_SAMPLE_WGSL',

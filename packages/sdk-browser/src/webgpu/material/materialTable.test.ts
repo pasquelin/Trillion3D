@@ -59,7 +59,7 @@ test('a record holds the factors, the cut, both normal factors, the slots and th
     ...lit(),
     ...{ baseColor: [0.5, 0.25, 1] as [number, number, number], opacity: 2, alphaTest: 0 },
     ...{ dashSize: 0, gapSize: 3, normalScaleY: -1, tangentNormalScaleY: 1, map, normalMap },
-    ...{ ior: 1.5, attenuationColor: [1, 0.5, 0] as [number, number, number] },
+    ...{ ior: 1.5, refracts: true, attenuationColor: [1, 0.5, 0] as [number, number, number] },
     ...{ attenuationDistance: 2, transmission: 1, fog: false, model: 3 },
   }
   table.surface(surface, l)
@@ -72,7 +72,7 @@ test('a record holds the factors, the cut, both normal factors, the slots and th
   assert.deepEqual([floats[F.normalScaleY], floats[F.tangentNormalScaleY]], [-1, 1])
   assert.deepEqual([words[F.mapIndex], words[F.normalIndex], words[F.aoIndex]], [4, 7, 0])
   assert.equal(words[F.model], 3 | 8, 'the model, the fog opt-out above it')
-  assert.deepEqual([floats[F.invIor], floats[F.f0]], [Math.fround(1 / 1.5), Math.fround(0.04)])
+  assert.equal(floats[F.invIor], Math.fround(1 / 1.5))
   // k = log2(c) / d, a black channel's past any path but zero.
   assert.deepEqual([floats[F.attenuation], floats[F.attenuation + 1]], [0, -0.5])
   assert.ok(floats[F.attenuation + 2] < -1e18)

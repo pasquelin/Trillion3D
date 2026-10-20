@@ -1,6 +1,5 @@
 // The loop keeps the CPU and the GPU at work together: frame n+1 is drawn while the GPU still runs
-// frame n, never more than `FRAMES_IN_FLIGHT` feedbacks awaited, each consumed once and in order,
-// and a still view still pauses at its settle limit.
+// frame n, never more than `FRAMES_IN_FLIGHT` feedbacks awaited, each consumed once and in order.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createExplorerFrameScheduler } from './frameScheduler.ts'
@@ -11,51 +10,27 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 /** The scheduler's `FRAMES_IN_FLIGHT`: the cut's readback slots. */
 const FRAMES_IN_FLIGHT = DAG_READBACK_SLOTS
 
-/** Every microtask a settled feedback runs is done: the loop's decision is made. */
-
-/** Runs the frames the loop asks, each decided, until it asks none; a loop that never stops fails. */
-async function runFrames(frames: ReturnType<typeof frameQueue>) {
-  for (let frame = 0; frames.run(); frame++) {
-    assert.ok(frame < 1000, 'the loop never stopped')
-    await decided()
-  }
-}
-
 /** A loop over `pending`, drawing into `render`, its frames a queue the test runs. */
-function loop(render: () => void, pending: () => Promise<boolean>, progress?: () => number) {
+function loop(render: () => void, pending: () => Promise<unknown>) {
   const frames = frameQueue()
-  let limited = 0
   const run = createExplorerFrameScheduler({
-    ...{ request: frames.request, cancel: frames.cancel, render, pending, progress },
+    ...{ request: frames.request, cancel: frames.cancel, render, pending },
     error: (error) => assert.fail(String(error)),
-    limited: () => void limited++,
   })
-  return {
-    run,
-    frames,
-    get limited() {
-      return limited
-    },
-  }
+  return { run, frames }
 }
 
 /** A GPU running the frames submitted to it in order, one every `pace` browser frames: slower
  *  than the CPU, which draws one a frame. A frame's feedback lands when the GPU finished it. */
 function slowGpu(pace: number) {
   const queue: (() => void)[] = []
-  let ticks = 0,
-    idle = 0
+  let ticks = 0
   return {
     queue,
-    /** Completions that left the GPU nothing to run. */
-    get idle() {
-      return idle
-    },
     submit: () => new Promise<boolean>((done) => queue.push(() => done(true))),
     tick() {
       if (++ticks % pace || !queue.length) return
       queue.shift()!()
-      if (!queue.length) idle++
     },
   }
 }
@@ -75,20 +50,15 @@ test('a GPU slower than the CPU always has the next frame queued, never more tha
     return feedback
   })
   t.run.invalidate()
-  let browserFrames = 0
-  while (t.frames.size || gpu.queue.length) {
-    assert.ok(++browserFrames < 1000, 'the loop never stopped')
+  for (let browserFrames = 0; browserFrames < 300; browserFrames++) {
     t.frames.run()
     gpu.tick()
     await decided()
   }
-  assert.equal(renders, 120, 'the still view drew its settle limit, then paused')
-  assert.equal(t.limited, 1)
+  assert.equal(renders, 300, 'one frame a browser frame')
   assert.equal(overlapped, renders - 1, 'each frame after the first is drawn before the last ran')
   assert.equal(deepest, FRAMES_IN_FLIGHT, 'never more frames in flight than K')
-  assert.equal(gpu.idle, 1, 'the GPU waits for no frame but after the last')
-  // The GPU's time alone: three browser frames a frame, plus the first frame's CPU.
-  assert.ok(browserFrames <= 3 * renders + 1, `${browserFrames} browser frames`)
+  t.run.dispose()
 })
 
 test('feedbacks settling out of order are consumed in order, each once, K at most in flight', async () => {
@@ -106,12 +76,12 @@ test('feedbacks settling out of order are consumed in order, each once, K at mos
     assert.ok(inFlight() < FRAMES_IN_FLIGHT, 'a feedback asked with every slot taken')
     const frame = renders
     return new Promise<boolean>((resolve) => {
-      const answer = { frame, settled: false, settle: () => resolve(frame < 80) }
+      const answer = { frame, settled: false, settle: () => resolve(true) }
       answers.push(answer)
     })
   })
   t.run.invalidate()
-  for (let turn = 0; turn < 2000 && (t.frames.size || answers.some((a) => !a.settled)); turn++) {
+  for (let turn = 0; turn < 400; turn++) {
     t.frames.run()
     const open = answers.filter((a) => !a.settled)
     // Settles any of them, the newer ones first as often as not.
@@ -122,55 +92,33 @@ test('feedbacks settling out of order are consumed in order, each once, K at mos
       }
     await decided()
   }
-  assert.equal(t.frames.size, 0, 'the loop stopped on the newest feedback')
-  assert.ok(renders >= 80, `${renders} frames`)
+  assert.equal(renders, 400, 'a frame every turn, whatever the feedbacks do')
   assert.deepEqual(
     answers.map((a) => a.frame),
     [...new Set(answers.map((a) => a.frame))].sort((x, y) => x - y),
     'a feedback asked per frame at most, each frame its own',
   )
+  t.run.dispose()
 })
 
 test('an older feedback settling after a newer one is still consumed first', async () => {
-  const answers: ((again: boolean) => void)[] = []
+  const answers: ((value: boolean) => void)[] = []
+  let asked = 0
   const t = loop(
     () => {},
-    () => new Promise((resolve) => answers.push(resolve)),
+    () => (asked++, new Promise((resolve) => answers.push(resolve))),
   )
   t.run.invalidate()
   t.frames.run()
   t.frames.run()
   const [older, newer] = answers
-  newer(false)
+  newer(true)
   await decided()
-  assert.equal(t.frames.size, 1, 'the newer stop waits for the older feedback')
+  t.frames.run()
+  assert.equal(asked, 2, 'the newer one settled, the older not: both slots still taken')
   older(true)
   await decided()
-  assert.equal(t.frames.size, 0, 'consumed in order, the newer stop has the last word')
-})
-
-test('a job loading keeps every tick drawing; once nothing arrives, the limit pauses the loop', async () => {
-  let loads = 0,
-    renders = 0
-  const frames = frameQueue()
-  let limited = 0
-  const run = createExplorerFrameScheduler({
-    request: frames.request,
-    cancel: frames.cancel,
-    render: () => void renders++,
-    pending: async () => true,
-    progress: () => 0,
-    arriving: () => loads < 200,
-    error: (error) => assert.fail(String(error)),
-    limited: () => void limited++,
-  })
-  run.invalidate()
-  for (; loads < 200; loads++) {
-    assert.ok(frames.run(), 'a tick with the job loading always has a frame')
-    await decided()
-  }
-  assert.equal(renders, 200, 'one frame a tick while the job loads')
-  await runFrames(frames)
-  assert.equal(limited, 1)
-  assert.equal(renders, 200 + 120, 'then the limit counted from the last tick of the job')
+  t.frames.run()
+  assert.equal(asked, 3, 'consumed in order, both slots freed')
+  t.run.dispose()
 })

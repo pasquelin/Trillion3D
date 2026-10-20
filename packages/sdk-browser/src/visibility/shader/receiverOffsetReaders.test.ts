@@ -70,6 +70,7 @@ test('the receiver target keeps the offset to 1/4095 of its largest component an
       'shadowReceiverTexel',
       'shadowReceiverOf',
       'octDecode',
+      'octUnfold',
       'octFold',
       'unitToSigned2',
       'pow2FromExponent',

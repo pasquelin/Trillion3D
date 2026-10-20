@@ -4,6 +4,7 @@ import { viewProj } from '../pages/helpers.ts'
 import { routedFilter } from '../blend/displayFilter.ts'
 import { particleCode } from '../../particles/particleFamily.ts'
 import { opensDisplayFilter } from '../pages/render/encodeDisplayFilter.ts'
+import { keepsBeautyChain } from '../../visibility/shader/shadeMode.ts'
 
 /** True while one of the world's pools moves: the image changes, and is not held. */
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles)
@@ -42,9 +43,10 @@ export function askParticles(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (opensDisplayFilter(rt)) rt.gpu.particles.askRouted()
 }
 
-/** Whether this image draws the world's pools: it has some, and shows beauty. */
+/** Whether this image draws the world's pools: it has some, and shows beauty, its chain whole
+ *  (`keepsBeautyChain`). */
 export const drawsParticles = (rt: Pick<WebgpuPagesRuntime, 'context' | 'run'>) =>
-  !!rt.context.particles && rt.run.diagnostic === 'beauty'
+  !!rt.context.particles && keepsBeautyChain(rt.run.diagnostic)
 
 /** What this image draws the pools with, once a camera and the targets are; else `undefined`. */
 function particleDrawOf(rt: WebgpuPagesRuntime) {

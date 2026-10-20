@@ -16,7 +16,7 @@ import {
 import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
 import { rayInverseDirection, transformHalfExtent } from '../../../../math/src/wgsl/geometry.ts'
-import { floorMod as floorModTs } from '../../../../math/src/scalar/reals.ts'
+import { floorMod as floorModTs } from '../../../../math/src/scalar/reals.fixture.ts'
 import { haltonSpan } from '../../../../math/src/sequence/sweep.fixture.ts'
 
 type V = number[]
@@ -78,16 +78,16 @@ test('clampToExtent holds a texel on its image, edges included', () => {
   assert.deepEqual(call('clampToExtent', [5, -1], [1, 1]), [0, 0])
 })
 
-test('wireframeEdge: 1 on an edge, 0 past 1.2 pixel widths from all three', () => {
+test('wireframeEdge: 1 on an edge, 0 past 1.05 deltas from all three', () => {
   const width = [0.01, 0.02, 0.04]
   assert.equal(call('wireframeEdge', [0, 0.5, 0.5], width), 1)
   assert.equal(call('wireframeEdge', [0.4, 0.3, 0.3], width), 0)
-  // Half the ramp from the first edge: the smoothstep's midpoint.
-  assert.equal(call('wireframeEdge', [0.006, 0.5, 0.494], width), 0.5)
-  // The nearest edge in widths decides: 0.012 is past x's ramp but inside z's.
+  // Half the ramp past the first edge's thickness: the smoothstep's midpoint.
+  assert.ok(Math.abs((call('wireframeEdge', [0.0055, 0.5, 0.4945], width) as number) - 0.5) < 1e-6)
+  // The nearest edge in deltas decides: 0.012 is past x's ramp but inside z's.
   const edge = call('wireframeEdge', [0.5, 0.488, 0.012], width) as number
-  const t = 0.012 / (0.04 * 1.2)
-  assert.ok(Math.abs(edge - (1 - t * t * (3 - 2 * t))) < 1e-12)
+  const t = (0.012 - 0.04 * 0.05) / 0.04
+  assert.ok(Math.abs(edge - (1 - t * t * (3 - 2 * t))) < 1e-6)
 })
 
 test('transformHalfExtent is the processor transformHalfExtent on a world matrix', () => {

@@ -1,5 +1,6 @@
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
 import { log } from '../../../diagnostic/log.ts'
+import { countBy } from '../../../../../math/src/sequence/counts.ts'
 import type { PagesSession } from '../backendApi.ts'
 
 /**
@@ -13,7 +14,7 @@ export function sweepSession(session: PagesSession) {
   const swept = gpuDeviceLedgerOf(session.claim?.device)?.sweep() ?? []
   if (!swept.length) return
   const byLabel = new Map<string, number>()
-  for (const label of swept) byLabel.set(label, (byLabel.get(label) ?? 0) + 1)
+  for (const label of swept) countBy(byLabel, label, 1)
   const named = [...byLabel].map(([label, count]) => (count > 1 ? `${label} ×${count}` : label))
   log.info(`A closed session destroyed what its handle still held: ${named.join(', ')}`)
 }

@@ -76,6 +76,7 @@ function factors(d: SurfaceDeclaration, { lit, side, standard, sheet }: Reading)
         : 1,
     lit,
     fog: d.fog !== false,
+    historyShare: d.temporalAntialiasing ?? 1,
     side,
     alphaTest: d.alphaTest ?? 0,
     emissive: emissive ? (rgb(emissive).map((c) => c * glow) as Rgb) : ([0, 0, 0] as Rgb),
@@ -129,6 +130,9 @@ function lobes(d: SurfaceDeclaration, { physical }: Reading) {
     clearcoatRoughness: valueIf(physical, d.clearcoatRoughness, 0),
     transmission: valueIf(physical, d.transmission, 0),
     ior: valueIf(physical, d.ior, DEFAULT_IOR, DEFAULT_IOR),
+    // A glTF material refracts only when it declares its ior: the default 1.5 is there for
+    // Fresnel, and bending every transmissive surface by it would distort what never asked to.
+    refracts: physical && d.ior !== undefined,
     thickness: valueIf(physical, d.thickness, 0),
     attenuationDistance:
       physical && Number.isFinite(d.attenuationDistance) ? d.attenuationDistance! : 0,
@@ -150,7 +154,8 @@ const raster = (d: SurfaceDeclaration) => ({
   name: d.name ?? '',
   family: d.family,
   opacity: d.opacity ?? 1,
-  transparent: d.transparent === true,
+  // A shadow catcher is the image behind it, darkened where a shadow falls: always blended.
+  transparent: d.transparent === true || d.family === 'shadow',
   blending: d.blending ?? 'normal',
   forceSinglePass: d.forceSinglePass === true,
   transparentShadow: d.transparentShadow === true,

@@ -36,11 +36,9 @@ export function heldFrame() {
   timing.profiler.row.fill(7)
   timing.cpuSample = { version: 1 }
   Object.assign(gpu, {
-    presenter: { present: () => {}, holds: () => false },
+    presenter: { present: () => true, holds: () => false },
     displayTexture: {},
     cache: undefined,
-    vertexBytes: 0,
-    positionBuffers: new Map(),
   })
   Object.assign(rt, { setup: { geometryPool: { slots: 0 }, texturePool: {} } })
   Object.assign(rt.services, { residencySets: { keepCount: 0 } })

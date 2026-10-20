@@ -8,6 +8,7 @@
  */
 import { createPlacementRows, growPlacementRows, type PlacementRows } from '../placement/rows.ts'
 import { grownLength } from '../../../math/src/sequence/resized.ts'
+import { countBy } from '../../../math/src/sequence/counts.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { createChangedRuns, type ChangedRuns } from '../webgpu/residency/ranges.ts'
@@ -81,7 +82,7 @@ export function rowsFree(meshes: ReadonlyMap<number, PlacedMesh>, ranks: Int32Ar
       throw new EngineError('PREPARED_SCENE_MISMATCH', `a scene cell places mesh ${ranks[at]}`, {
         cell,
       })
-    needed.set(mesh, (needed.get(mesh) ?? 0) + 1)
+    countBy(needed, mesh, 1)
   }
   for (const [mesh, count] of needed) if (mesh.free.length < count) return false
   return true

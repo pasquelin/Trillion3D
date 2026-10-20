@@ -2,13 +2,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { slotCount } from './contract.ts'
 import {
+  groupsWithCounts,
   prefixScan,
   prefixSerial,
 } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
 import { lcgFloatWord } from '../../../../math/src/sequence/seeded.fixture.ts'
 
 // The multi-lane scan shader.ts carries produces exactly the same totals
-// (indirect[slot*4+1]) and groupOffsets as the serial prefix (workgroup_size(1)). This
+// (indirect[slot*4+1]) and group offsets as the serial prefix (workgroup_size(1)), each read and
+// written in its region of the one `groups` buffer (`drawGroupWords`). This
 // file keeps the equivalence proof on hostile inputs: that is what authorizes the shipped kernel to
 // decide the indirect draw.
 
@@ -19,10 +21,11 @@ function assertSameResult(
   groupCount: number,
   slots: number,
 ) {
-  const serial = prefixSerial(overflow, slotUsed, groupCounts, groupCount, slots)
-  const scan = prefixScan(overflow, slotUsed, groupCounts, groupCount, slots)
+  const { groups } = groupsWithCounts(groupCounts, groupCount, slots)
+  const serial = prefixSerial(overflow, slotUsed, groups, groupCount, slots)
+  const scan = prefixScan(overflow, slotUsed, groups, groupCount, slots)
   assert.deepEqual([...scan.totals], [...serial.totals], 'totals (indirect count) differ')
-  assert.deepEqual([...scan.offsets], [...serial.offsets], 'groupOffsets differ')
+  assert.deepEqual([...scan.offsets], [...serial.offsets], 'group offsets differ')
   return serial
 }
 

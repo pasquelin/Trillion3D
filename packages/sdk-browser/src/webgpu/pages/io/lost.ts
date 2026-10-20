@@ -79,6 +79,10 @@ function deviceCauseAfter(
   log.error(`WebGPU device lost after the error (${reason}): ${message}`)
 }
 
+/** A session lost or released: what it asked is never a refusal. */
+export const stopped = (rt: Pick<WebgpuPagesRuntime, 'run' | 'signal'>) =>
+  rt.run.lost || rt.signal.aborted
+
 /** A preparation stops once the backend is closed (`AbortError`: cancelled) or its device lost. */
 export function throwIfStopped(rt: Pick<WebgpuPagesRuntime, 'run' | 'signal'>) {
   rt.signal.throwIfAborted()

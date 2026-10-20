@@ -1,6 +1,7 @@
-// The image's first three bounds partition what precedes the transparents: the gate, the tile
-// pump, the world step. `worldMs` therefore measures the world step alone, and the pump's bound is
-// the only one the textures stage reads — an image with no tile to serve files none.
+// The gate and the world step open the image; the tile pump runs once the rows and the residency
+// are synced, on what they left of the frame's clock. `worldMs` therefore measures the world step
+// alone, and the pump's bound is the only one the textures stage reads — an image with no tile to
+// serve files none.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTimingState } from '../state/timing.ts'
@@ -13,14 +14,14 @@ function image(worked: boolean) {
   Object.assign(timing.marks, {
     preStart: 10,
     gateEnd: 10.5,
-    tilesEnd: 12.5,
-    blendStart: 13,
-    cpuStart: 13.25,
-    adoptEnd: 13.5,
-    admissionEnd: 13.75,
-    queueEnd: 14,
-    rowsEnd: 14,
-    residencyUploadEnd: 14.25,
+    blendStart: 11,
+    cpuStart: 11.25,
+    adoptEnd: 11.5,
+    admissionEnd: 11.75,
+    queueEnd: 12,
+    rowsEnd: 12,
+    residencyUploadEnd: 12.25,
+    tilesEnd: 14.25,
     selectionEnd: 14.75,
     encodeStart: 15,
     cpuEnd: 16,

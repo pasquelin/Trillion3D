@@ -6,12 +6,15 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createTileSources } from './sources.ts'
 import { createTileCounters } from './counters.ts'
 import { tileLayout } from '../../texture/tiles.ts'
-import { poolEncoding } from '../../texture/blockFormats.ts'
+import { poolEncoding, type ChainLayouts } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { createTextureLevelReader } from '../../texture/levelReader.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
-import { tileRecord } from '../../texture/tileRecords.ts'
-import { tiledLevelBytes } from '../../texture/tileRecords.fixture.ts'
+import { recordRange, tileRecord } from '../../texture/tileRecords.ts'
+import { tiledLevelFile } from '../../texture/tileRecords.fixture.ts'
+
+/** A chain kept in BC7 alone, as the compiler stores it. */
+const BC7_CHAIN: ChainLayouts['layouts'] = { bc7: 'rgba', astc: 'lossless', etc2: 'lossless' }
 
 // Behaviour: a block level whose bytes are not the whole blocks its dimensions imply is refused
 // where its read resolves — one failure, never held, never read again — and no tile of it takes
@@ -21,27 +24,27 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   const failures: string[] = []
   const { device, textureWrites } = fakeDevice()
   const layout = tileLayout(256, 256)
-  const tail = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
+  const tail = { levels: [], blocks: { bc7: [], astc: [], etc2: [] }, layouts: BC7_CHAIN }
   const read: string[] = []
+  const reader = Object.assign(
+    async ({ format }: { format: string }) => (read.push(format), new Uint8Array(1)),
+    { store: createPageCache(), key: 'k' },
+  )
+  const source = { kind: 'baked', sha256: 'a'.repeat(64), atlas: 0, tail, read: reader }
   const atlas = {
     kind: 'color',
-    textures: [
-      { layout, lane: 'rgba', source: { kind: 'baked', sha256: 'a'.repeat(64), atlas: 0, tail } },
-    ],
+    textures: [{ layout, lane: 'rgba', source }],
     roomFor: () => true,
     place: (key: unknown) => (placed.push(key), { x: 0, y: 0, layer: 0 }),
     poolOf: () => ({ texture: {} }),
   } as unknown as WebgpuTileAtlas
   const sources = createTileSources({
     device,
-    readLevel: Object.assign(
-      async ({ format }: { format: string }) => (read.push(format), new Uint8Array(1)),
-      { store: createPageCache(), key: 'k' },
-    ),
     encoding: poolEncoding('bc7'),
     counters: createTileCounters(),
     onFailure: (phase, error) => failures.push(`${phase}: ${(error as Error).message}`),
   })
+  sources.hold(atlas.textures[0])
   const key = { slot: 0, level: 0, tx: 0, ty: 0 }
   const serve = (frame: number) => sources.serve(atlas, key, frame, () => ({}) as never)
   assert.equal(serve(1), 'waiting')
@@ -63,9 +66,8 @@ test('a block level of the wrong length fails once, is never held, and takes no 
 // which, one read goes alone: six tiles asked at once from a server that ignores Range would each
 // download the whole file.
 test('a block tile is read by its Range; a whole-file answer serves the whole level', async () => {
-  globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
-  const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255)
-  const tail = { levels: [], blocks: { bc7: [], astc: [], etc2: [] } }
+  const { file, records: raw } = tiledLevelFile(256, 256)
+  const tail = { levels: [], blocks: { bc7: [], astc: [], etc2: [] }, layouts: BC7_CHAIN }
   const source = { kind: 'baked', sha256: 'c'.repeat(64), atlas: 0, tail }
   const atlas = {
     kind: 'color',
@@ -94,13 +96,15 @@ test('a block tile is read by its Range; a whole-file answer serves the whole le
       'https://host/',
       createPageCache(),
     )
+    // The source reads its levels through its cache's reader.
+    Object.assign(source, { read: readLevel })
     const sources = createTileSources({
       device,
-      readLevel,
       encoding: poolEncoding('bc7'),
       counters: createTileCounters(),
       onFailure: (_, error) => assert.fail(error as Error),
     })
+    sources.hold(atlas.textures[0])
     const pass = (frame: number) =>
       tiles.map((key) => sources.serve(atlas, key, frame, () => ({}) as never))
     // Four tiles asked at once: one request asks the server, the others wait for its answer.
@@ -108,11 +112,16 @@ test('a block tile is read by its Range; a whole-file answer serves the whole le
     assert.equal(asked.length, 1, 'one request while Range support is unknown')
     await sources.settled()
     assert.deepEqual(pass(2), ['served', 'served', 'served', 'served'])
-    const slices = records.map(({ offset, bytes }) => file.subarray(offset, offset + bytes))
-    assert.deepEqual(written, slices, 'each tile written from its record, a slice of the file')
+    const inflated = records.map(({ index }) => raw[index])
+    assert.deepEqual(written, inflated, 'each tile written from its record, inflated')
     return asked
   }
-  const ranges = records.map(({ offset, bytes }) => `bytes=${offset}-${offset + bytes - 1}`)
-  assert.deepEqual(await run(true), ranges, 'one request per tile, its Range')
-  assert.deepEqual(await run(false), [ranges[0]], 'the whole file, once, for the first record')
+  const head = file.subarray(0, records[0]!.count * 4)
+  const ranges = records.map(({ count, index }) => {
+    const { offset, bytes } = recordRange(head, count, index)
+    return `bytes=${offset}-${offset + bytes - 1}`
+  })
+  const headRange = `bytes=0-${head.byteLength - 1}`
+  assert.deepEqual(await run(true), [headRange, ...ranges], 'the head, then one request per tile')
+  assert.deepEqual(await run(false), [headRange], 'the whole file, once, for the head')
 })

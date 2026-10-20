@@ -2,6 +2,7 @@ import type { TransparentTable } from './table.ts'
 import { compactKernels, compactPasses } from './compactPasses.ts'
 import { compactBuffers } from './compactBuffers.ts'
 import { grownByCopy } from '../../gpu/core/tableGrowth.ts'
+import { destroyAll } from '../../gpu/core/errorScope.ts'
 
 export type TransparentCompaction = NonNullable<
   Awaited<ReturnType<typeof createTransparentCompaction>>
@@ -104,12 +105,7 @@ export async function createTransparentCompaction(device: GPUDevice, table: Tran
       },
     }
   } catch {
-    for (const buffer of buffers)
-      try {
-        buffer.destroy()
-      } catch {
-        /* Partial transparent compaction setup must not leak. */
-      }
+    destroyAll(buffers)
     return undefined
   }
 }

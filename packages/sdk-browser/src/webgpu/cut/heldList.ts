@@ -48,3 +48,9 @@ export function mapRawRanks(held: HeldList, count: number, from: number) {
   held.rawToHeld = true
   return held.rawRank
 }
+
+/** Marks `id` with `value` when the list holds it — it has a record, or the list names no
+ *  records — and returns the mark it had; an id without a record answers `value`, as a repeat
+ *  does: either difference skips it. */
+export const markListed = (held: HeldList, id: number, rec: PageRec | undefined, value: number) =>
+  rec || !held.recordOf ? held.mark.set(id, value) : value

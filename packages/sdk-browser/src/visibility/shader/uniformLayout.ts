@@ -19,7 +19,8 @@ export const VIS_UNIFORM = fieldLayout('Uniforms', [
   ['mipBias', 'f32'],
 ] as const)
 
-/** The surface resolve's uniform (`ShadeUni`): its camera, viewport and page count, then the depth
+/** The surface resolve's uniform (`ShadeUni`): its camera, viewport and page count, the cut's pixel
+ *  threshold the screen-error view measures against (`diagnosticScreenError`), then the depth
  *  material's ramp (`writeDepthRamp`, `../../camera/depthConvention.ts`) at `depthRamp`. */
 export const SHADE_UNIFORM = fieldLayout('ShadeUni', [
   ['viewProj', 'mat4x4f'],
@@ -29,5 +30,6 @@ export const SHADE_UNIFORM = fieldLayout('ShadeUni', [
   ['pageCount', 'u32'],
   ['mode', 'u32'],
   ['feedback', 'u32'],
+  ['pixelError', 'f32'],
   ['depthRamp', 'vec4f'],
 ] as const)

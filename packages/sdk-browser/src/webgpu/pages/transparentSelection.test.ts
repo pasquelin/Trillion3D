@@ -7,6 +7,8 @@ import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/gp
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from './testScenes.fixture.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('a host diagnostic exception cannot break GPU initialization or rendering', async () => {
   installGpuGlobals()
@@ -29,7 +31,7 @@ test('a host diagnostic exception cannot break GPU initialization or rendering',
   }
 })
 
-test('transparent frustum selection preserves intersections, transformed bounds and the opt-out', async () => {
+test('transparent frustum selection preserves intersections and transformed bounds', async () => {
   installGpuGlobals()
   const cases = [
     { name: 'in view', position: [0, 0, 0], visible: true },
@@ -42,13 +44,14 @@ test('transparent frustum selection preserves intersections, transformed bounds 
     { name: 'partly in view', position: [3, 0, 0], visible: true },
     { name: 'near plane intersection', position: [0, 0, 4.9], rotate: true, visible: true },
     { name: 'mirrored nonuniform scale', position: [4, 0, 0], scale: [-4, 2, 1], visible: true },
-    { name: 'disabled culling', position: [100, 0, 0], unculled: true, visible: true },
+    // Its clusters are culled by the cut on their bounds, which hold every vertex they draw: the
+    // host's opt-out keeps nothing in view that the cut can see is out.
+    { name: 'disabled culling', position: [100, 0, 0], unculled: true, visible: false },
   ]
   for (const item of cases) {
     const fixture = quadScene(),
       { device, draws } = fakeDevice(BACKEND),
       mesh = fixture.source.children[0] as HostMesh
-    fixture.metadata.primitives[0].pass = 'shared-blend'
     fixture.material.transparent = true
     G.sided(fixture.material, G.DOUBLE_SIDE)
     mesh.position.fromArray(item.position)
@@ -57,6 +60,7 @@ test('transparent frustum selection preserves intersections, transformed bounds 
     mesh.frustumCulled = !item.unculled
     fixture.source.updateMatrixWorld(true)
     const backend = webgpuPagesEngine({
+      textureCaches: createTextureCaches(createPageCache()),
       ...fixture,
       gpuDevice: device,
       maxResidentPages: 2,
@@ -70,17 +74,18 @@ test('transparent frustum selection preserves intersections, transformed bounds 
       draws.length = 0
       backend.render(camera())
       const metrics = backend.metrics()
-      // The scene carries its item and the cut writes the instance count of each draw; the
-      // frustum verdict is the GPU's (`../blend/verdictWgsl.ts`): an item's slots are encoded as in
-      // view, and an item entirely out of frustum leaves each indirect draw without an instance, a
-      // partly visible item keeps both faces. The reject count is read back on its own.
-      assert.equal(metrics.submittedTriangles, 4, item.name)
+      // The scene carries its item and the cut writes the instance count of each draw: an item's
+      // slot is encoded as in view — one draw for both faces, its vertex stage culling each
+      // (`../blend/planEntry.ts`) —, an item the cut left without a cluster leaves it without an
+      // instance, a partly visible item keeps both faces. The reject count is read back on its own.
+      const selected = item.visible ? 2 : 0
+      assert.equal(metrics.submittedTriangles, selected, item.name)
       assert.equal(metrics.transparentMeshes, 1, item.name)
       assert.equal(metrics.transparentFrustumRejected, item.visible ? 0 : 1, item.name)
-      assert.equal(metrics.transparentDrawCalls, 2, item.name)
-      assert.equal(metrics.transparentSubmittedTriangles, 4, item.name)
+      assert.equal(metrics.transparentDrawCalls, 1, item.name)
+      assert.equal(metrics.transparentSubmittedTriangles, selected, item.name)
       const actual = transparentDraws(draws)
-      assert.equal(actual.length, 2, item.name + ' actual GPU commands, encoded as in view')
+      assert.equal(actual.length, 1, item.name + ' actual GPU commands, encoded as in view')
       assert.equal(
         actual.reduce((sum, draw) => sum + ((draw.instanceCount ?? 0) * draw.vertexCount) / 3, 0),
         item.visible ? 4 : 0,
@@ -98,9 +103,9 @@ test('transparent selection follows each camera without retaining an old rejecte
   installGpuGlobals()
   const fixture = quadScene(),
     { device, draws } = fakeDevice(BACKEND)
-  fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,

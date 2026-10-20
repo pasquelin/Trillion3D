@@ -12,7 +12,7 @@ import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimi
 import { packDrawn } from '../page/runtimePack.ts'
 import type { CutWay } from '../page/runtimePack.ts'
 import { composesWithBackground } from '../../scene/materialBlending.ts'
-import { firstMaterial } from '../../scene/materialSide.ts'
+import { firstMaterial } from '../../../../sdk-core/src/contracts/material.ts'
 import { createWorldDynamic, type DynamicHeld } from './worldDynamic.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 

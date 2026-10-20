@@ -15,12 +15,15 @@ import type { Engine } from '../../engine/types.ts'
 import { EVICT_IN_USE } from '../../gpu/pool/rank.ts'
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('a host eviction deferred for coverage is applied once the GPU order gives the page up', async () => {
   installGpuGlobals()
   const fixture = coarseQuadScene(),
     { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 3,
@@ -61,6 +64,7 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
     primitives: [{ ...fixture.metadata.primitives[0], ...level }],
   }
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     metadata,
     indices: new Map(),
@@ -96,6 +100,7 @@ test('cancelling initial coverage loading cannot publish a ready backend', async
       release = resolve
     })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     indices: new Map(),
     readPage: async (url) => {
@@ -137,6 +142,7 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
   const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,

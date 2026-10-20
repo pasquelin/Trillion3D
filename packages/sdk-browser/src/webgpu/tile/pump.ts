@@ -2,7 +2,6 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { createTileSources } from './sources.ts'
 import type { createTileRequests } from './requests.ts'
-import type { createCardTiles } from './cardTiles.ts'
 import type { TileCounters } from './counters.ts'
 
 /** What a tile pass reads: the streamer's parts (`./streamer.ts`). */
@@ -16,7 +15,6 @@ type PumpParts = {
   colorChanged: Set<number>
   sources: ReturnType<typeof createTileSources>
   requests: ReturnType<typeof createTileRequests>
-  cards: ReturnType<typeof createCardTiles>
   counters: TileCounters
   flushAll: () => void
   onFailure: (phase: string, error: unknown) => void
@@ -44,14 +42,12 @@ export const createTilePump =
     colorChanged.clear()
     const open = () =>
       (encoder ??= p.device.createCommandEncoder({ label: 'Trillion3D texture tiles' }))
-    const pinned = p.cards.pass(),
-      wanted = requests.take(frame),
+    const wanted = requests.take(frame),
       at = requests.frame
     counters.worked = wanted.to > wanted.from
     let index = wanted.from
     for (; index < wanted.to && !stop; index++) {
       const request = wanted.list[index]
-      // A tile both asked and named by a pass deferred lands once.
       if (request.atlas.resides(request.key)) continue
       let verdict: ReturnType<typeof sources.serve> = 'waiting'
       try {
@@ -75,7 +71,6 @@ export const createTilePump =
     counters.deferred = requests.deferred
     counters.pending = waiting + requests.deferred
     counters.bytesLastFrame = bytes
-    p.cards.served(served, pinned)
     // The shadows that follow the landed tiles are the pass's cost too: timed before the clock stops.
     if (colorChanged.size) p.onColorChanged(colorChanged)
     counters.pass(clock.stageMs(), unbounded)

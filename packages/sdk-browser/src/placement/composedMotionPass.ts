@@ -10,14 +10,44 @@ import { composeGroup } from '../webgpu/core/bindIdentity.ts'
 import { COMPOSE_MOTION_PASS } from '../stage/passLabels.ts'
 import { MOTION_KEEP, MOTION_RESET, MOTION_SCAN } from './composedMotionWgsl.ts'
 import { composeKernels } from './gpuComposeFrame.ts'
+import { MOTION_LIST } from './gpuComposeGpu.ts'
 import { motionEntries } from './gpuComposeEntries.ts'
-import { dispatchGroup } from './rootListPass.ts'
+import { dispatchGroup, sendWords } from './rootListPass.ts'
+import { writePassParams } from '../gpu/core/passParams.ts'
+import { noteMoved, takeMoved } from './rootMoves.ts'
+import { everyComposed, type ComposeState } from './gpuComposeState.ts'
+
+/**
+ * The roots the motion pass writes this image (`ComposeState.owed`): those moved since their world
+ * was last taken as reference, and those whose row the last compared image may have left other
+ * than identity — every composed root on a restart or into a motion buffer it never wrote. What it
+ * leaves owed: a restart nothing; a compared image the rows of the roots it took anew; a kept one
+ * the references it did not take.
+ */
+function motionRanks(state: ComposeState, mode: number) {
+  const { reference, motion } = state.owed
+  if (mode === MOTION_RESET) reference.whole = motion.whole = true
+  // The roots owed a reference joined into those owed a row, each once: the pass's roots.
+  const stale = takeMoved(reference)
+  if (stale) noteMoved(motion, stale)
+  else motion.whole = true
+  const ranks = takeMoved(motion) ?? everyComposed(state)
+  if (mode === MOTION_SCAN) {
+    if (stale) noteMoved(motion, stale)
+    else motion.whole = true
+  } else if (mode === MOTION_KEEP) {
+    if (stale) noteMoved(reference, stale)
+    else reference.whole = true
+  }
+  return ranks
+}
 
 /**
  * The temporal pass's decision for the linked roots' motion — a restart without `history`, a
  * compared image when the scene moved (`scan`), else one kept —, `eye` the one it reports the
- * motion to, then their motion into `encoder`: a thread each of the composed roots. Nothing on a
- * frame whose roots pass bound no motion, or another buffer than the temporal pass's.
+ * motion to, then their motion into `encoder`: a thread each of the roots it is owed
+ * (`motionRanks`). Nothing on a frame whose roots pass bound no motion, or another buffer than the
+ * temporal pass's.
  */
 export function encodeComposedMotion(
   rt: WebgpuPagesRuntime,
@@ -35,22 +65,18 @@ export function encodeComposedMotion(
   state.motionMode[0] = mode
   packDoubles(state.motionMode, 2, eye, 0, 3)
   device.queue.writeBuffer(gpu.motionMode, 0, state.motionMode)
-  // What the pass leaves: a restart takes every world as reference with no motion; a compared
-  // image takes them too, its motion identity where the reference was current already; a kept one
-  // writes identity and keeps the reference (`COMPOSE_MOTION_WGSL`).
-  if (mode === MOTION_RESET) state.previousCurrent = state.motionIdentity = true
-  else if (mode === MOTION_SCAN) {
-    state.motionIdentity = state.ranCurrent
-    state.previousCurrent = true
-  } else state.motionIdentity = true
-  const listed = state.rankList.set.count
-  if (!gpu.rankList || !listed) return
+  // What the pass leaves (`COMPOSE_MOTION_WGSL`) is what the roots owe after it (`motionRanks`): a
+  // motion buffer bound anew owes every root both (`encodeRootsPass`).
+  const ranks = motionRanks(state, mode)
+  if (!ranks.length) return
+  gpu.motionList = sendWords(device, gpu.motionList, ranks, ranks.length, MOTION_LIST)
+  writePassParams(device, gpu.motionParams, state.roots, ranks.length)
   const pipeline = composeKernels.motion(device).get(),
     held = gpu.motionGroup
   held.identity.entries[0] ??= motionEntries(rt, gpu)
   composeGroup(device, held, pipeline)
   const pass = encoder.beginComputePass({ label: COMPOSE_MOTION_PASS })
   pass.setPipeline(pipeline)
-  dispatchGroup(rt, pass, held, listed)
+  dispatchGroup(rt, pass, held, ranks.length)
   pass.end()
 }

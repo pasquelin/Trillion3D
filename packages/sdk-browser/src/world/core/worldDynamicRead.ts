@@ -37,16 +37,22 @@ function inBox(p: ArrayLike<number>, box: ArrayLike<number>) {
 }
 
 /** What a dynamic resource reads each rewrite into: lists of its own, and the index its corners
- * came from, at its version. */
-export type Reading = { next: DrawnTriangles; index: Geometry['index']; indexVersion: number }
+ * came from, at its version, within the drawn range. */
+export type Reading = {
+  next: DrawnTriangles
+  index: Geometry['index']
+  indexVersion: number
+  range: readonly [number, number]
+}
 
 /** The reading of `geometry`, first drawn as `drawn`: a copy of each of its lists. */
-export function readingOf({ index }: Geometry, drawn: DrawnTriangles): Reading {
+export function readingOf({ index, drawRange }: Geometry, drawn: DrawnTriangles): Reading {
   const [positions, normals, uvs, colors] = LISTS.map(([list]) => drawn[list]?.slice() ?? null)
   return {
     next: { ...drawn, positions: positions!, normals: normals!, uvs, colors },
     index,
     indexVersion: index?.version ?? 0,
+    range: [drawRange.start, drawRange.count],
   }
 }
 
@@ -63,6 +69,8 @@ export function readInPlace(
     index = geometry.index
   if (reading !== 'triangles' || options.wireframe || options.flat || next.lines) return false
   if (index !== into.index || (index?.version ?? 0) !== into.indexVersion) return false
+  const { start, count } = geometry.drawRange
+  if (start !== into.range[0] || count !== into.range[1]) return false
   if (!position || position.count * 3 !== next.positions.length) return false
   position.readInto(next.positions, 0, 3, 0, position.count, 3, 0)
   // Every other list as `drawnTriangles` reads it; missing normals are made below.
@@ -75,6 +83,6 @@ export function readInPlace(
   }
   if (!inBox(next.positions, into.box)) return false
   if (!normal || normal.count < position.count)
-    computeNormals(next.positions, index?.array ?? null, next.normals)
+    computeNormals(next.positions, next.indices, next.normals)
   return true
 }

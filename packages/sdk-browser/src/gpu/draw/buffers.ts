@@ -1,11 +1,17 @@
-import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
-import { slotCount, DRAW_ITEM_U32, UNIFORM_BYTES, DRAW_INDIRECT_STRIDE } from './contract.ts'
-import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import {
+  slotCount,
+  drawGroupWords,
+  drawIndirectBytes,
+  DRAW_ITEM_U32,
+  UNIFORM_BYTES,
+} from './contract.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * Compact buffers: they depend only on the row count, the coplanar-layer count and the instances a
- * row takes at most, never on the frame. `slotTotals` holds each slot's total between the count
- * and the prefix of a run, zero otherwise, then where the occluder half's instances end.
+ * row takes at most, never on the frame. `groups` holds the groups' offsets and their counts in
+ * one storage buffer (`drawGroupWords`), `groupEntries` words a region; `indirect` the commands,
+ * then the slots' totals (`drawIndirectBytes`).
  */
 export function createGpuDrawBuffers(
   device: GPUDevice,
@@ -14,13 +20,13 @@ export function createGpuDrawBuffers(
   perRow: number,
 ) {
   const slots = slotCount(layerSlots)
-  const groupCount = ceilDiv(slotCap, WORKGROUP_THREADS),
-    groupBytes = groupCount * slots * 4
+  const { entries: groupEntries, words: groupWords } = drawGroupWords(slotCap, slots)
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const itemsBuf = device.createBuffer({ size: slotCap * DRAW_ITEM_U32 * 4, usage: storage })
+  // Copied aside and back while the cut is frozen (`../core/heldCopy.ts`).
   const restBuf = device.createBuffer({
     size: Math.max(4, bitWords(slotCap) * 4),
-    usage: storage,
+    usage: storage | GPUBufferUsage.COPY_SRC,
   })
   const uniforms = device.createBuffer({
     label: 'Trillion3D draw compaction uniform',
@@ -33,31 +39,19 @@ export function createGpuDrawBuffers(
     usage: storage | GPUBufferUsage.COPY_SRC,
   })
   const indirectBuffer = device.createBuffer({
-    size: slots * DRAW_INDIRECT_STRIDE,
+    size: drawIndirectBytes(slots),
     usage: GPUBufferUsage.INDIRECT | storage | GPUBufferUsage.COPY_SRC,
   })
-  const groupCounts = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE })
-  const groupOffsets = device.createBuffer({ size: groupBytes, usage: GPUBufferUsage.STORAGE })
-  const slotTotals = device.createBuffer({ size: (slots + 1) * 4, usage: GPUBufferUsage.STORAGE })
+  const groups = device.createBuffer({ size: groupWords * 4, usage: GPUBufferUsage.STORAGE })
   return {
     slots,
+    groupEntries,
     itemsBuf,
     restBuf,
     uniforms,
     instanceBuffer,
     indirectBuffer,
-    groupCounts,
-    groupOffsets,
-    slotTotals,
-    all: [
-      itemsBuf,
-      restBuf,
-      uniforms,
-      instanceBuffer,
-      indirectBuffer,
-      groupCounts,
-      groupOffsets,
-      slotTotals,
-    ],
+    groups,
+    all: [itemsBuf, restBuf, uniforms, instanceBuffer, indirectBuffer, groups],
   }
 }

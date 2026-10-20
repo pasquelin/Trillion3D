@@ -5,7 +5,6 @@ import assert from 'node:assert/strict'
 import { eventually } from '../../streaming/eventually.fixture.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
-import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createViewAsks } from './viewAsks.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
 
@@ -39,7 +38,7 @@ const turns = async () => {
 test('a page the next frame no longer asks is let go: waiting after a failure, it is dropped', async (t) => {
   const { streamer, release } = await served(t, 503)
   const asks = createViewAsks(streamer)
-  asks.ask(['p0.bin'], PRIORITY_VISIBLE)
+  asks.ask(['p0.bin'])
   asks.end()
   release()
   await eventually(() => streamer.stats().failed === 1)
@@ -48,24 +47,23 @@ test('a page the next frame no longer asks is let go: waiting after a failure, i
   assert.equal(streamer.loading('p0.bin'), false, 'dropped, never asked again')
 })
 
-test('a page asked again while on its way is waited on till it lands, lifted once visible', async (t) => {
-  const { streamer, sent, release } = await served(t, 200, 3)
+test('a page asked again while on its way is waited on till it lands, read once', async (t) => {
+  const { streamer, sent, release } = await served(t, 200, 2)
   const asks = createViewAsks(streamer)
-  asks.ask(['p0.bin'], PRIORITY_VISIBLE) // the one transfer
-  asks.ask(['p1.bin', 'p2.bin'], PRIORITY_PREFETCH)
+  asks.ask(['p0.bin']) // the one transfer
+  asks.ask(['p1.bin'])
   asks.end()
-  await eventually(() => sent.length === 1) // p0 under way, the others queued
+  await eventually(() => sent.length === 1) // p0 under way, p1 queued
   let landed = false
-  const [visible] = asks.ask(['p2.bin'], PRIORITY_VISIBLE) // turned visible
-  void visible.then(() => (landed = true))
-  asks.ask(['p1.bin'], PRIORITY_PREFETCH)
+  const [again] = asks.ask(['p1.bin']) // asked again
+  void again.then(() => (landed = true))
   asks.end()
   await turns()
   assert.equal(landed, false, 'the frame waits on it')
   release()
-  await visible
-  await eventually(() => sent.length === 3)
-  assert.deepEqual(sent, ['p0.bin', 'p2.bin', 'p1.bin'], 'lifted before the one still ahead')
+  await again
+  await eventually(() => sent.length === 2)
+  assert.deepEqual(sent, ['p0.bin', 'p1.bin'], 'each read once')
 })
 
 test('a page asked holds one pin while the frames ask it, and none once it left the plan', () => {
@@ -75,9 +73,9 @@ test('a page asked holds one pin while the frames ask it, and none once it left 
     pin: (url) => void pinned.set(url, (pinned.get(url) ?? 0) + 1),
     unpin: (url) => void pinned.set(url, pinned.get(url)! - 1),
   })
-  asks.ask(['a', 'b'], PRIORITY_PREFETCH)
+  asks.ask(['a', 'b'])
   asks.end()
-  asks.ask(['a'], PRIORITY_VISIBLE) // lifted: still one pin
+  asks.ask(['a']) // asked again: still one pin
   asks.end()
   assert.deepEqual(Object.fromEntries(pinned), { a: 1, b: 0 }, 'b left the plan')
   asks.drop(new Error('closed'))

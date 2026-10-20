@@ -8,28 +8,21 @@ import {
   type SurfaceAssignment,
 } from '../../../placement/engineSceneUpdates.ts'
 import type { HostMaterials } from '../../../host/resources.ts'
-import {
-  recordsOfMeshes,
-  unpagedRefusal,
-  wearDeclaration,
-  type PageSurface,
-} from '../../../page/surface.ts'
+import { recordsOfMeshes, wearDeclaration, type PageSurface } from '../../../page/surface.ts'
 import type { PageRec } from '../../../page/selection/types.ts'
 
 /**
  * Opaque and masked clusters are drawn by the same visibility passes, told apart by the flag and
- * cutoff the row writer rereads off the surface (`../../row/pageRowMaterial.ts`), a resolve class
- * a material changed into compiled before the image that draws it
- * (`../../frame/framePipelines.ts`): a material moves between them in place. Blended clusters are
- * laid out at open — after the opaque ones in the cluster catalogue, with no geometry page, in the
- * transparent table and its forward copies — and no cluster enters or leaves them inside the
- * session, nor takes another surface.
+ * cutoff the row writer rereads off the surface (`../../row/pageRowMaterial.ts`), a resolve class a
+ * material changed into compiled before the image that draws it (`../../frame/framePipelines.ts`):
+ * a material moves between them in place. Blended clusters are laid out at open — after the opaque
+ * ones in the cluster catalogue, in the transparent table and its forward copies — and no cluster
+ * enters or leaves them inside the session, nor takes another surface.
  */
 export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[]) =>
-  unpagedRefusal(pages, alpha) ||
-  ((isAssignment(alpha) ? assignsBlended(alpha, pages) : blendMoves(alpha))
+  (isAssignment(alpha) ? assignsBlended(alpha, pages) : blendMoves(alpha))
     ? 'its blended clusters are laid out in their forward pass when the session opens'
-    : undefined)
+    : undefined
 
 /** An assignment into or out of blended, or onto a drawable whose clusters are drawn blended
  *  whatever their surface (`clustered-blend`). */

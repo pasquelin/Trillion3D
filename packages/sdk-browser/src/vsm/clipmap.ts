@@ -94,6 +94,9 @@ export interface VsmCameraInput {
   eye: ArrayLike<number>
   /** The camera's kind as the engine set it (`EngineCamera.perspective` is exactly 0 or 1). */
   perspective: boolean
+  /** The view it draws (`WebgpuView.id`), whose suns' clipmaps are its own; the main one's
+   *  (`''`) when none is said. */
+  viewId?: string
 }
 
 /** The view rect size, in pixels. */
@@ -260,7 +263,7 @@ export function createVsmClipmap(
   const levelCount = lastLevel - firstLevel + 1
 
   const uncached = !cache.cacheEnabled
-  const cacheEntry = cache.lightEntryFor(light.id, levelCount)
+  const cacheEntry = cache.lightEntryFor(light.id, levelCount, camera.viewId ?? '')
   cacheKey.firstLevel = firstLevel
   cacheEntry.updateClipmap(cacheKey, uncached)
 

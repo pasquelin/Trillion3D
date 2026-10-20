@@ -20,16 +20,16 @@ test("a parent's turn advances the cut's world revision on the frame it moved, a
     local = turn(0.4)
   const links = [0, 1].map((index) => ({ rows, index, local }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
-  assert.equal(frame(), 0, 'the link frame: the rows were written whole, the CPU worlds moved')
-  assert.equal(frame(), 0, 'a still parent moves nothing')
+  assert.equal(frame(), 1, 'the link frame: the links went up, the cut is told')
+  assert.equal(frame(), 1, 'a still parent moves nothing')
   composeWebgpuPlacements(rt, parent, turn(0.1), [], false)
-  assert.equal(frame(), 1, 'the turn: no row written, the cut is told')
-  assert.equal(frame(), 1, 'the next still frame keeps the cut')
+  assert.equal(frame(), 2, 'the turn: no row written, the cut is told')
+  assert.equal(frame(), 2, 'the next still frame keeps the cut')
   composeWebgpuPlacements(rt, parent, turn(0.2), [], false)
   composeWebgpuPlacements(rt, parent, turn(0.3), [], false)
-  assert.equal(frame(), 2, 'two sends before one frame: one cut')
+  assert.equal(frame(), 3, 'two sends before one frame: one cut')
   composeWebgpuPlacements(rt, parent, turn(0.3), [], false)
-  assert.equal(frame(), 2, 'the same world sent again moves nothing')
+  assert.equal(frame(), 3, 'the same world sent again moves nothing')
 })
 
 test('a parent unlinked and linked anew starts from its new world: no motion from its old one', () => {
@@ -37,13 +37,13 @@ test('a parent unlinked and linked anew starts from its new world: no motion fro
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
-  frame()
+  const linked = frame()
   composeWebgpuPlacements(rt, parent, turn(0), [], true)
   assert.deepEqual([...rt.compose!.parentOf], [NO_INDEX, NO_INDEX])
   composeWebgpuPlacements(rt, parent, turn(1), [], false)
   composeWebgpuPlacements(rt, parent, turn(2), links.slice(1), true)
   assert.deepEqual([...rt.compose!.parentOf], [NO_INDEX, 0], 'its slot taken again, one root')
-  assert.equal(frame(), 0, 'linked at its new world: nothing moved on the GPU')
+  assert.equal(frame(), linked + 1, 'linked at its new world: the cut is told once')
 })
 
 test('the compose kernels are asked once a parent links rows, the frames held until they compiled off the thread', async () => {

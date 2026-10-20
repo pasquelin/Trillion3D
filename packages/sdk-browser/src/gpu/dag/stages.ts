@@ -1,5 +1,5 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
-import { DEFAULT_GROUP_WIDTH, groupWidth } from '../dispatch/grid.ts'
+import { groupWidth, groupWidthConstants } from '../dispatch/grid.ts'
 import type { CutSteps } from './cutSteps.ts'
 import { POOL_SORT_STAGES, type PoolSortStage } from '../pool/sort.ts'
 import { DIFFERENCE_STAGES, KEEP_STAGES, REKEEP_STAGES } from './shader/differenceWgsl.ts'
@@ -18,8 +18,7 @@ export async function createDagStages(
   arm: { layout: GPUBindGroupLayout; words: DagArmWords },
   steps?: CutSteps,
 ) {
-  const width = groupWidth(device.limits)
-  const constants = width !== DEFAULT_GROUP_WIDTH ? { GROUP_WIDTH: width } : undefined
+  const constants = groupWidthConstants(groupWidth(device.limits))
   const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`)
   const entries = [
     ...levels,

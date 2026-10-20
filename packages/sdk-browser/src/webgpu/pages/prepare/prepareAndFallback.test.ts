@@ -6,6 +6,8 @@ import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { assertBothQuadPagesDrawn, camera, quadBackend, quadScene } from '../testScenes.fixture.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 /** The quad prepared with no resident bytes, its first frame rendered. */
 async function firstFrameWithoutBytes() {
@@ -13,6 +15,7 @@ async function firstFrameWithoutBytes() {
   const { device, draws } = fakeDevice(BACKEND)
   const { source, metadata, associations, geometry, material } = quadScene()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices: new Map(),
@@ -75,6 +78,7 @@ test('webgpu pages prepare without resident bytes and stream the visible set', a
 test('webgpu pages without a device fail prepare so the explorer can keep the host-library path', async () => {
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,

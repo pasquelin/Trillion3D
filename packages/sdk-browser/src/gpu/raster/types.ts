@@ -13,6 +13,8 @@ export type GpuRasterInput = {
   sampler: GPUSampler
   /** The surfaces' records (`../../webgpu/material/materialTable.ts`): a row's cutout and shape. */
   material: GPUTextureView
+  /** The float pool's normal atlas: a float geometry's second UV set (`pageMaskUv`). */
+  normals: GPUTextureView
   pageRows: number
   maxTriangles: number
   idsView: GPUTextureView

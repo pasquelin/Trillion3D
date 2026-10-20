@@ -21,11 +21,7 @@ const FRONT_BEHIND = 1 - 1 / 1024
  *  model (`modelFlag`) — what makes a front pass write the reflecting surface. */
 export const blendReflects = (mat: Pick<VisMaterial, 'lit' | 'model'>) => {
   const model = (mat.model ?? 0) & surfaceModel.SURFACE_MODEL_MASK
-  return (
-    mat.lit &&
-    model !== surfaceModel.SURFACE_MODEL.diffuse &&
-    model !== surfaceModel.SURFACE_MODEL.toon
-  )
+  return mat.lit && model === surfaceModel.SURFACE_MODEL.standard
 }
 
 /**

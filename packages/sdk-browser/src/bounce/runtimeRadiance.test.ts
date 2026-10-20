@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
-import { SURFACE_BLENDED } from './runtimeLayout.ts'
+import { RAY_SPREAD_FLOOR, SURFACE_BLENDED } from './runtimeLayout.ts'
 import { along, ahead, origin, runOver } from './runtimeRun.fixture.ts'
 import { world } from './runtimeScene.fixture.ts'
 
@@ -56,13 +56,20 @@ test('a deformed placement is met at its rest shape, its reach taking confidence
   // mark (`INSTANCE.mark`).
   w.worlds.set('Instance', 0, [0, 0, 0, 0x3c00 << 16])
   const run = runOver(w)
-  // A ray's footprint at 4 metres, a hundredth of a metre per metre: 0.05 wide against a metre of reach,
-  // on each of the solid's two faces.
-  const narrow = run.rtRadiance(origin, ahead, 1000, 0.01).confidence
-  assert.ok(narrow < 0.1 && narrow > 0.03, `${narrow}`)
-  // A lobe wide as it is long: the footprint is wider than the reach, the hit holds.
+  // The solid is opaque whatever its deformation: the ray stops on its front face, 3.5 metres out,
+  // and the reach takes confidence alone — the footprint `spread` against it,
+  // `spread / (spread + 1)`.
+  const known = (tangent: number) => {
+    const spread = 3.5 * tangent + RAY_SPREAD_FLOOR
+    return spread / (spread + 1)
+  }
+  // A hundredth of a metre per metre: 0.045 wide against a metre of reach.
+  const narrow = run.rtRadiance(origin, ahead, 1000, 0.01)
+  assert.equal(narrow.distance, 3.5, 'stopped on the front face')
+  assert.ok(Math.abs(narrow.confidence - known(0.01)) < 1e-6, `${narrow.confidence}`)
+  // A lobe wide as it is long: the footprint is wider than the reach, the hit holds most of it.
   const wide = run.rtRadiance(origin, ahead, 1000, 1).confidence
-  assert.ok(wide > 0.8 && wide > 10 * narrow, `${wide}`)
+  assert.ok(Math.abs(wide - known(1)) < 1e-6 && wide > 10 * narrow.confidence, `${wide}`)
 })
 
 test('a ray that spends its budget answers nothing, never a miss that darkens', () => {

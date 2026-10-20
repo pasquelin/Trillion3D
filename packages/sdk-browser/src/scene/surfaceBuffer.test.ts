@@ -103,8 +103,9 @@ test('every flag the resolve writes fits the r8uint flags target unchanged', () 
       'ao',
       `return ${expression.replace(/(\d)u\b/g, '$1')};`,
     )
-    // The page's flags: unlit or lit, its model in its lane.
-    for (const model of Object.values(SURFACE_MODEL))
+    // The page's flags: unlit or lit, its model in its lane — any but the shadow catcher's, which
+    // is always blended.
+    for (const model of Object.values(SURFACE_MODEL).filter((m) => m !== SURFACE_MODEL.shadow))
       for (const lit of [0, 1])
         for (const flag of [1, 2, 4, 5])
           for (const mark of [0, EMISSIVE_AO_SURFACE_FLAG])

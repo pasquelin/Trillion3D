@@ -7,6 +7,7 @@ import { textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import {
   VSM_RENDER_CMD_BYTES,
+  VSM_RENDER_ORDER_BYTES,
   VSM_RENDER_PAIR_BYTES,
   VSM_RENDER_PAIR_CAPACITY,
 } from './constants.ts'
@@ -19,7 +20,7 @@ import { renderTarget } from './renderPipes.ts'
 
 /** The raster's worst case and its list sizing, rewritten by each frame and floor: read at once. */
 const worst: VsmWorst = { rows: 0, cmdsPerRow: 0, pages: 0, cap: 0 }
-const sizing = vsmListSizing(VSM_RENDER_PAIR_BYTES, 0)
+const sizing = vsmListSizing(VSM_RENDER_PAIR_BYTES, 0, VSM_RENDER_ORDER_BYTES)
 const floorBound = createVsmRowBound()
 
 /** Rows a chunk of the raster asks for `rowCount` rows at `pages` pages in the worst case: pairs

@@ -6,6 +6,7 @@ import { flipWorld } from '../../../placement/webgpuPlacements.ts'
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { worldMoved } from '../../../page/selection/rootWorld.ts'
 import { finishMoves, noteMoved } from './movedBatch.ts'
+import { composeHostWrites } from '../../../placement/gpuComposeState.ts'
 import { appendRootsUnder, appendUnder } from './movedNode.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -63,15 +64,16 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
   // (`movedWorlds.ts`): their worlds alone go up — a write that moved no pose, a light dimmed, names
   // none and sends nothing. A scene that changed shape names none: every one does. The GPU cut
   // says which poses its send moved (`updateWorlds`) — without one, those named, or those a scan
-  // finds —, and the impostor cards follow those alone.
+  // finds.
   const named = run.movedWorlds.take(),
-    selection = run.gpuSelection,
-    cards = rt.gpu?.impostors
+    selection = run.gpuSelection
+  // A host write lands on the cut's worlds of the roots it moved, composed ones included: the
+  // composition writes theirs again, they alone (`composeHostWrites`).
   if (!reshaped) {
     rootWorlds(worldUpdates, selectionRoots, named)
     rt.timing.worldCounts.rootsUploaded = named.length
     const moved = selection && named.length ? selection.updateWorlds(worldUpdates, named) : named
-    cards?.worldsMoved(moved)
+    composeHostWrites(rt, moved)
     rt.gpu?.temporal?.motion.noteMoved(moved)
     return true
   }
@@ -90,7 +92,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime) {
     moved = rootWorldsMoved(worldUpdates, selectionRoots, scanned)
     rootWorlds(worldUpdates, selectionRoots)
   }
-  cards?.worldsMoved(moved)
+  composeHostWrites(rt, moved)
   rt.gpu?.temporal?.motion.noteMoved(moved)
   // A scene that changed shape names no root: every row's world matrix, the only shared input to
   // a row the scene can still change after `prepare()`, is written again.

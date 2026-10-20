@@ -2,8 +2,7 @@
 import type { VisMaterial } from '../materialType.ts'
 import { length3, transformPointRow } from '../../../../math/src/vector/vector.ts'
 
-/** `SPRITE_WGSL` on the CPU, statement for statement: the impostor card's corner
- *  (`../../impostor/card.fixture.ts`). Both matrices are column-major; writes the point, `w` one, into
+/** `SPRITE_WGSL` on the CPU, statement for statement. Both matrices are column-major; writes the point, `w` one, into
  *  `out` and returns it. */
 export function spriteAt(
   out: Float64Array,

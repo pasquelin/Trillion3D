@@ -52,10 +52,10 @@ test("encoding-submit: the traced pose is the engine camera's, not the host came
   }
 })
 
-// Synchronous-triangles lot: the trace publishes `run.drawnTriangles` as-is, without the `pending`
-// guard that hid `submittedTriangles` — the value it protected never waited for a GPU readback, so
-// it is always a number once an image has been submitted, never `null`.
-test('encoding-submit: drawnTriangles publishes run.drawnTriangles, never null once the image is submitted', async () => {
+// The trace publishes the triangles drawn as the metrics do (`drawnTrianglesOf`), without the
+// `pending` guard that hid `submittedTriangles`: a number once an image has been submitted, never
+// `null`.
+test("encoding-submit: drawnTriangles is the metrics' count, never null once the image is submitted", async () => {
   const { events, fixture, backend } = tracedQuad()
   try {
     await backend.prepare()

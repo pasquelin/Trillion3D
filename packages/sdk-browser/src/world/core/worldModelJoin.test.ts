@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { DrawSource } from '../../page/selection/drawSource.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import { placeModel, placementIndex, type LoadedModel } from './loadedModel.ts'
 import { createModelJoins, type ModelSession } from './worldModelJoin.ts'
 import { createWorldModels } from './worldModels.ts'
 import { createWorldPoses } from './worldPoses.ts'
@@ -15,11 +15,8 @@ import { createWorldRanks } from './worldRanks.ts'
 import { loadedModel, meshLinks } from './worldModels.fixture.ts'
 
 /** A model of `count` meshes (`loadedModel`). */
-const model = (
-  count: number,
-  textureSource: 'cache' | 'host' = 'host',
-  partitions: object[] = [],
-) => loadedModel(meshLinks(count), { textureSource, partitions }).loaded
+const model = (count: number, partitions: object[] = []) =>
+  loadedModel(meshLinks(count), { partitions }).loaded
 
 /** The joins of a world on a scene, and a session that records what it is handed, in order. */
 function world(refusal?: string) {
@@ -37,7 +34,7 @@ function world(refusal?: string) {
   })
   const session: ModelSession = {
     growsInPlace: () => true,
-    growPlacements() {},
+    growPlacements: (from, to) => void calls.push(`grow ${from.capacity}→${to.capacity}`),
     addPlacements: (source: DrawSource, primitive: Primitive) => (
       calls.push(`add ${source.mesh}/${primitive.mesh}`),
       Promise.resolve(refusal)
@@ -56,7 +53,7 @@ const flush = () => new Promise((resolve) => setImmediate(resolve))
 test('a model the scene gains is handed to the session, its cells first, then each source', async () => {
   const { joins, session, calls, members, add } = world()
   joins.opened([])
-  const loaded = model(2, 'host', [{ pose() {} }])
+  const loaded = model(2, [{ pose() {} }])
   add(loaded)
   joins.reconcile(members, session)
   assert.ok(joins.flying, 'a join is in flight until the session has taken it')
@@ -84,7 +81,7 @@ test('no session, no join: the next opening takes the model', () => {
 
 test('a model the scene loses is parked, its cells let go, and drawn again when it comes back', () => {
   const { joins, session, calls, members, add, scene, models } = world()
-  const loaded = model(2, 'host', [{ pose() {} }])
+  const loaded = model(2, [{ pose() {} }])
   add(loaded)
   joins.opened(members)
   const { rowed } = models.drawsOf(loaded)
@@ -131,22 +128,50 @@ test('what the session refuses is said by name, the model is not handed again, a
   assert.equal(said.length, 1, 'said once')
 })
 
-test('a model whose images were left to the cache is refused: only the session’s base reads them', async () => {
-  const { joins, session, said, calls, members, add } = world()
-  joins.opened([])
-  add(model(1, 'cache'))
-  joins.reconcile(members, session)
-  await joins.flying
-  assert.deepEqual(calls, [])
-  assert.match(said[0][1], /left to the cache/)
-})
-
 test('a session that follows no partition refuses a model with cells, by name', async () => {
   const { joins, session, said, members, add } = world()
   joins.opened([])
   delete session.preparePartitions
-  add(model(1, 'host', [{ pose() {} }]))
+  add(model(1, [{ pose() {} }]))
   joins.reconcile(members, session)
   await joins.flying
   assert.match(said[0][1], /follows no partition/)
+})
+
+test('a placement of a record the session holds adds a row alone, and leaves alone', async () => {
+  const { joins, session, calls, members, add, scene, models } = world()
+  joins.opened([])
+  const first = model(2)
+  add(first)
+  joins.reconcile(members, session)
+  await joins.flying
+  // The same manifest placed again: the same record, read once — its graph, images and pages.
+  const second = placeModel(first)
+  assert.deepEqual([second.record === first.record, placementIndex(second)], [true, 1])
+  assert.equal(placementIndex(placeModel(second)), 2, 'placed from any placement, ranked after')
+  second.position.set(100, 0, 0)
+  add(second)
+  calls.length = 0
+  joins.reconcile(members, session)
+  await joins.flying
+  // No source, primitive, page nor image handed again: each source grows a row, in place.
+  assert.deepEqual(calls, ['grow 1→2', 'grow 1→2'])
+  const drawn = models.drawsOf(first)
+  assert.equal(models.drawsOf(second), drawn, 'one set of sources for every placement')
+  scene.updateMatrixWorld(true)
+  models.pose(first, true)
+  models.pose(second, true)
+  const rows = drawn.rowed[0].rows,
+    x = (row: number) => rows.matrices[16 * row + 12]
+  assert.deepEqual(
+    [x(0), x(1), rows.live[0], rows.live[1]],
+    [0, 100, 1, 1],
+    'each at its own world',
+  )
+  // The second leaves: its row is parked, the first's drawn still.
+  members.delete(second)
+  scene.remove(second)
+  joins.reconcile(members, session)
+  assert.deepEqual([rows.live[0], rows.live[1]], [1, 0])
+  assert.deepEqual(calls, ['grow 1→2', 'grow 1→2'], 'nothing let go that the first draws')
 })

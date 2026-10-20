@@ -1,16 +1,16 @@
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { createChangedRuns, type ChangedRuns } from '../residency/ranges.ts'
+import { tailSlotOf } from './ids.ts'
 
 // The places of a tile pool (`pool.ts`): which key each holds, the free ones, the changed ones.
 
-/** What a pool knows of its places: per place, the key it holds — `NO_INDEX` free: no key reaches it, a tail's id sets the high bit, a tile's never does —, whether it is pinned
- *  and the arrival it came with; the free places; the places changed since their use words were
- *  written. */
+/** What a pool knows of its places: per place, the key it holds — `NO_INDEX` free: no key reaches
+ *  it, a tail's id sets the high bit, a tile's never does — and the arrival it came with; the free
+ *  places; the places changed since their use words were written. */
 type Places = {
   tiles: number
   /** Unsigned: a tail's id, its high bit set (`ids.ts`), is read back as the key it was given. */
   owner: Uint32Array
-  pinned: Uint8Array
   arrived: Uint32Array
   arrivals: number
   count: number
@@ -24,7 +24,6 @@ type Places = {
 export const placesOf = (tiles: number): Places => ({
   tiles,
   owner: new Uint32Array(tiles).fill(NO_INDEX),
-  pinned: new Uint8Array(tiles),
   arrived: new Uint32Array(tiles),
   arrivals: 0,
   count: 0,
@@ -51,36 +50,29 @@ export function taken(places: Places, index: number) {
   return index
 }
 
-function occupy(places: Places, index: number, key: number, pin: boolean) {
+/** Whether `index` is pinned: a tail's place, its key's high bit set (`ids.ts`), held for good. */
+export const pinnedAt = (places: Places, index: number) =>
+  tailSlotOf(places.owner[taken(places, index)]) !== undefined
+
+function occupy(places: Places, index: number, key: number) {
   places.owner[index] = key
-  places.pinned[index] = pin ? 1 : 0
   places.arrived[index] = ++places.arrivals
   places.count++
   places.changed.mark(index)
 }
 
-export function acquire(places: Places, key: number, pin: boolean) {
+export function acquire(places: Places, key: number) {
   settle(places)
   const index = places.free.pop()
   if (index === undefined) return undefined
-  occupy(places, index, key, pin)
+  occupy(places, index, key)
   return index
 }
 
-export function adopt(places: Places, index: number, key: number, pin: boolean) {
+export function adopt(places: Places, index: number, key: number) {
   if (!freeAt(places, index)) throw new Error('TEXTURE_TILE_OCCUPIED')
-  occupy(places, index, key, pin)
+  occupy(places, index, key)
   places.freeStale = true
-}
-
-/** `index` pinned or unpinned by an asker that may read no pixel of it (a card's maps,
- *  `cardTiles.ts`): pinned, unranked; unpinned, used as an arrival is — its use word written at the
- *  next flush's clock. Either way a queue cut before it never names it. */
-export function pin(places: Places, index: number, pinned: boolean) {
-  if (places.pinned[taken(places, index)] === Number(pinned)) return
-  places.pinned[index] = Number(pinned)
-  places.arrived[index] = ++places.arrivals
-  places.changed.mark(index)
 }
 
 export function release(places: Places, index: number) {

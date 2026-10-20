@@ -2,7 +2,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { FINITE_SENTINEL } from '../../../../math/src/constants.ts'
 import { mirrorKey } from '../../webgpu/cut/denseKeys.ts'
-import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
+import { DAG_NODE_FLOATS, type DagRoot, type PackedDag } from './types.ts'
 import {
   NODE_CEIL,
   NODE_CHILD_COUNT,
@@ -40,7 +40,8 @@ const groupMembers = (tree: PlacementTree, g: number) =>
  * Writes every tree node into `tree.nodes`: children, kind, the world it is read under (the
  * first), no error to prune by, its box open until the refit fits it. A cell's children
  * are every node of the level below it lays out; a group's, its live members. The list of members
- * drawn whatever the view starts as written whole (`treeTable.ts`).
+ * drawn whatever the view starts as written whole (`treeTable.ts`), and holds each placement of the
+ * world DAG too, which no group holds: queue 0 opens them all.
  */
 export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
   const nodeInts = new Uint32Array(tree.nodes.buffer, tree.nodes.byteOffset)
@@ -65,6 +66,9 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
     const w = tree.order[k]
     if (drawnAlways(packed.mark[w])) mirrorKey(tree.always, w, true)
   }
+  packed.worldSources.forEach(
+    (root, w) => (root as DagRoot).hlod && mirrorKey(tree.always, w, true),
+  )
   tree.always.moves.clear()
   for (let n = 0; n < treeNodeCount(tree); n++) wholeNode(tree.nodes, n)
 }

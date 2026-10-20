@@ -12,8 +12,11 @@ import { pageAddress } from '../../row/pageSlots.ts'
  * address, set at load from already-served pages, completed on every arrival and cleared on every
  * drop — one view per cluster, never a copy.
  */
-export function indexSourceBytes(allPages: readonly PageRec[]) {
-  const sourceBytes = new Map<string, Uint8Array>()
+export function indexSourceBytes(
+  allPages: readonly PageRec[],
+  /** The table the pages' bytes join: a new one at the open. */
+  sourceBytes = new Map<string, Uint8Array>(),
+) {
   for (const page of allPages) {
     const bytes = pageSourceBytes(page)
     if (bytes) sourceBytes.set(pageAddress(page), bytes)
@@ -22,7 +25,7 @@ export function indexSourceBytes(allPages: readonly PageRec[]) {
 }
 
 /** Index bytes of a page, seen as bytes, or `undefined` until it has some. */
-export function pageSourceBytes(rec: PageRec | undefined) {
+function pageSourceBytes(rec: PageRec | undefined) {
   const array = rec?.array
   return array && new Uint8Array(array.buffer, array.byteOffset, array.byteLength)
 }

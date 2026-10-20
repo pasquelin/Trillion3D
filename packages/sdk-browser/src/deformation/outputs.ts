@@ -2,13 +2,13 @@ import { FLAG_MORPH, FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/p
 import type { ClusterRoot, DeformationOutput, PageRec } from '../page/selection/types.ts'
 
 import type { HostAttributes } from '../host/resources.ts'
-import { DEFORM_SOURCE_IN_POOL, DEFORM_NO_HEADER, ROW_WORDS } from '../visibility/types.ts'
+import { ROW_WORDS } from '../visibility/types.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { rootOfPacked } from '../page/selection/placements.ts'
 import { PAGE_INFO } from '../visibility/pageInfo.ts'
 
 /** The words a vertex's results start with: its owner's tag, then its image's; a block's address
- *  lies past the first vertex's (a whole copy keeps none, its words reserved all the same). */
+ *  lies past the first vertex's. */
 export const DEFORM_TAG_WORDS = 2
 /** Where each result of a vertex lies from its address, three floats each: its current position,
  *  its previous one, its current normal — what the stage writes and the page passes read. */
@@ -17,18 +17,13 @@ export const DEFORMED_FIELD = { position: 0, previous: 3, normal: 6 } as const
 export const DEFORM_VERTEX_WORDS = DEFORM_TAG_WORDS + 3 * 3
 
 /** The word a row or a transparent span carries to name the results of a page and a placement
- *  (`ClusterRoot.deformationOutputs`): their first float plus one, in the float pool, zero for none.
- *  The block of a float geometry is marked as one with no source header, its source lying in the
- *  pool as well; a page's own results keep the source in the slot, whose header the row reads. */
+ *  (`ClusterRoot.deformationOutputs`): their first float plus one, in the float pool, zero for
+ *  none. */
 export const deformOutputWord = (output: DeformationOutput | undefined) =>
-  !output
-    ? 0
-    : output.pool
-      ? ((output.from + 1) | DEFORM_SOURCE_IN_POOL | DEFORM_NO_HEADER) >>> 0
-      : output.from + 1
+  output ? output.from + 1 : 0
 
 /** The vertices a page's own row deforms: none for a float-pool block, which one row of the
- *  pool's table deforms once for every page that reads it (`wholePool.ts`). */
+ *  pool's table deforms once for every page that reads it (`pooledRows.ts`). */
 const deformCountWord = (output: DeformationOutput | undefined) =>
   output && !output.pool ? output.count : 0
 
@@ -58,21 +53,36 @@ export function writeSpanDeformation(
 }
 
 /** Whether a mesh is moved by a skeleton, morph weights or waves. */
-export const animates = (
+const animates = (
   mesh:
     { skeleton?: unknown; waves?: unknown; morphTargetInfluences?: unknown[] } | null | undefined,
 ) => !!mesh && (!!mesh.skeleton || !!mesh.waves || !!mesh.morphTargetInfluences?.length)
 
 /** Whether a page asks for results by itself: its node animates, the host rewrites its geometry,
  *  or it carries a skin, a morph or a soft source. */
-export const pageDeforms = (page: PageRec) =>
+const pageDeforms = (page: PageRec) =>
   animates(page.drawSource?.node) ||
   !!page.drawSource?.dynamic ||
   !!((page.geometryPage?.flags ?? 0) & (FLAG_SOFT_SOURCE | FLAG_SKIN | FLAG_MORPH))
 
-/** Whether one of the meshes that own the rows of a placement animates. */
-export const rowsAnimate = (rows: { sourceModels?: ReadonlySet<object> } | undefined) =>
-  [...(rows?.sourceModels ?? [])].some(animates)
+/** Asks whether one of the meshes that own the rows of a placement animates, once per rows for
+ *  one pass over roots: every root of a batch reads the same rows, whose meshes can number a
+ *  hundred thousand, so asking them again for each root is quadratic. */
+export function createRowsAnimate() {
+  const known = new Map<object, boolean>()
+  return (rows: { sourceModels?: ReadonlySet<object> } | undefined) => {
+    if (!rows?.sourceModels) return false
+    let animate = known.get(rows)
+    if (animate === undefined) {
+      animate = false
+      for (const mesh of rows.sourceModels) if ((animate = animates(mesh))) break
+      known.set(rows, animate)
+    }
+    return animate
+  }
+}
+
+export type RowsAnimate = ReturnType<typeof createRowsAnimate>
 
 /** The vertices of a page, its results' length. */
 const pageVertices = (page: PageRec) =>
@@ -80,7 +90,7 @@ const pageVertices = (page: PageRec) =>
 
 /** Whether a root's pages get results (`assignDeformationOutputs`): one with vertices deforms by
  *  itself, or the meshes owning the root's rows animate. */
-export const rootHasOutputs = (root: ClusterRoot<PageRec>) => {
+export const rootHasOutputs = (root: ClusterRoot<PageRec>, rowsAnimate: RowsAnimate) => {
   const animate = rowsAnimate(root.placement?.rows)
   return root.pages.some((page) => (animate || pageDeforms(page)) && pageVertices(page) > 0)
 }
@@ -91,19 +101,20 @@ export const rootHasOutputs = (root: ClusterRoot<PageRec>) => {
  * rank in the root), so that two placements of one primitive — the rows of a crowd, each with its own
  * pose — never write the same vertices. A page drawn from its quantized page has a block of its
  * own, deformed by its own row; the pages of a geometry the passes read as floats share one block
- * a placement, which one row of the pool's table deforms once (`wholePool.ts`). The blocks lie
- * after the records and the whole copies in the pool's tail (`wholeDeformationPool`), their first
+ * a placement, which one row of the pool's table deforms once (`pooledRows.ts`). The blocks lie
+ * after the records in the pool's tail (`pooledDeformationRows`), their first
  * float set when the tail is laid out. Returns the blocks made, in order.
  */
 export function assignDeformationOutputs(roots: readonly ClusterRoot<PageRec>[]) {
   const blocks: DeformationOutput[] = []
   const wanting = new WeakMap<readonly PageRec[], boolean[]>()
+  const rowsAnimate = createRowsAnimate()
   for (const root of roots) {
-    delete root.deformationOutputs
     let want = wanting.get(root.pages)
     if (!want) wanting.set(root.pages, (want = root.pages.map(pageDeforms)))
-    const animate = rowsAnimate(root.placement?.rows),
-      shared = new Map<HostAttributes, DeformationOutput>()
+    const animate = rowsAnimate(root.placement?.rows)
+    // Made on the first float page that deforms: a still root allocates nothing.
+    let shared: Map<HostAttributes, DeformationOutput> | undefined
     let outputs: (DeformationOutput | undefined)[] | undefined
     root.pages.forEach((page, k) => {
       const count = want[k] || animate ? pageVertices(page) : 0
@@ -111,7 +122,7 @@ export function assignDeformationOutputs(roots: readonly ClusterRoot<PageRec>[])
       let output: DeformationOutput | undefined
       if (page.geometryPage) blocks.push((output = { from: 0, count }))
       else {
-        output = shared.get(page.attributes)
+        output = (shared ??= new Map()).get(page.attributes)
         if (!output) {
           shared.set(
             page.attributes,
@@ -122,13 +133,13 @@ export function assignDeformationOutputs(roots: readonly ClusterRoot<PageRec>[])
       }
       ;(outputs ??= new Array(root.pages.length))[k] = output
     })
-    if (outputs) root.deformationOutputs = outputs
+    root.deformationOutputs = outputs
   }
   return blocks
 }
 
 /** The tail of the float pool laid out again moves the deformation block and the result blocks
- *  (`SessionDeformation.place`, `wholePool.ts`). The rows that read a record or a block, and the
+ *  (`SessionDeformation.place`, `pooledRows.ts`). The rows that read a record or a block, and the
  *  transparent spans that read a block, are pointed at them again, before the next image's
  *  deformation reads them. */
 export function followPooledBlocks(rt: Pick<WebgpuPagesRuntime, 'layout' | 'blendState' | 'vis'>) {

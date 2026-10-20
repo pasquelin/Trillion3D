@@ -14,7 +14,6 @@ import {
   RAY_TREE_STEPS,
   RAY_WORK,
   RUNTIME_PROXY_WGSL,
-  RUNTIME_WORLD_WORDS,
 } from './runtimeLayout.ts'
 import { worldTableWgsl } from '../gpu/dag/worldTable.ts'
 import { treeTableWgsl } from '../gpu/dag/treeTable.ts'
@@ -58,7 +57,6 @@ ${wgslConsts({
   RT_INSTANCE_TRIANGLE: INSTANCE.triangle,
   RT_INSTANCE_SURFACE: INSTANCE.surface,
   RT_INSTANCE_MARK: INSTANCE.mark,
-  RT_WORLD_WORDS: RUNTIME_WORLD_WORDS,
 })}
 @group(${scene.group}) @binding(${scene.proxy}) var<storage,read> rtProxy:RuntimeProxy;
 /** The ray's spending: box tests and node visits in \`rtWork\`, triangle tests in \`rtTests\`. */
@@ -108,13 +106,8 @@ ${wideTraversal({
 })}
 /** Placement \`w\`'s world, column-major: the culling's, read in its record — its linear part and the exact
  *  translation beside the matrix, rounded once to the f32 a host write holds (\`rtWorldsTranslation\`; the
- *  matrix's own is no cut's) —; a blended copy's, the proxy's own, past the placements. */
+ *  matrix's own is no cut's) —. */
 fn rtWorldOf(w:u32)->mat4x4f{
- if(w>=rtProxy.instances){
-  let at=rtProxy.copyWorldsWord+(w-rtProxy.instances)*RT_WORLD_WORDS;
-  return mat4x4f(vec4f(rtVec(at),0.0),vec4f(rtVec(at+4u),0.0),vec4f(rtVec(at+8u),0.0),
-   vec4f(rtVec(at+12u),1.0));
- }
  let l=rtWorldsLinear(w);
  return mat4x4f(vec4f(l[0],0.0),vec4f(l[1],0.0),vec4f(l[2],0.0),vec4f(rtWorldsTranslation(w),1.0));
 }
@@ -166,13 +159,6 @@ ${placementTreeWalk({
   steps: 'RT_TREE_STEPS',
   cut: 'rtWork=rtBudget;',
 })}
- }
- // The blended copies, members after the placements: each tried in turn, a unit apiece.
- for(var k=0u;k<rtProxy.copies;k++){
-  if(rtSpent()){break;}
-  rtWork+=1u;
-  best=rtEnter(rtProxy.instances+k,origin,direction,inverse,best);
-  if(rtAnyHit&&best.found){return best;}
  }
  return best;
 }

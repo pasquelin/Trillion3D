@@ -3,10 +3,11 @@ import type { PlacementGrowth } from '../../placement/engineSceneUpdates.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import { modelPartitions, type LoadedModel, type ModelRecord } from './loadedModel.ts'
 import type { WorldModels } from './worldModels.ts'
 import type { createWorldPoses } from './worldPoses.ts'
 import { rootedUnder } from '../../host/world/rooted.ts'
+import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'
 
 /** What a running session lends the models joining it: the engine's growth, and the partitions it
  *  follows (`world/api/sceneApi.ts`). */
@@ -58,49 +59,107 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
   /** Parks `model`, which the scene lost — rows down, cells given back —, or draws it again, the
    *  scene took it back. */
   const setParked = (model: LoadedModel, entry: Held, session: ModelSession, parked: boolean) => {
-    const { partitions } = model.record.scene
+    const partitions = modelPartitions(model)
     entry.state = parked ? 'parked' : 'shown'
     write(model)
     if (!partitions.length) return
     if (parked) session.leavePartitions?.(partitions)
     else session.followPartitions?.(partitions)
   }
+  /** Once `model` joined: parked if it left the scene meanwhile, drawn else — unless a session
+   *  opened meanwhile holds it by its own open (`opened`). */
+  const settle = (
+    model: LoadedModel,
+    entry: Held,
+    session: ModelSession,
+    members: ReadonlySet<LoadedModel>,
+  ) => {
+    if (held.get(model) === entry) setParked(model, entry, session, !members.has(model))
+  }
+  /** Why the session cannot follow `model`'s partitions, if it cannot. */
+  const unfollowed = (model: LoadedModel, session: ModelSession) =>
+    modelPartitions(model).length && !session.preparePartitions
+      ? 'the session follows no partition added to it'
+      : undefined
   /** Why `model` cannot be handed to the session, if it cannot. */
   const unfit = (model: LoadedModel, session: ModelSession) =>
-    !session.addPlacements
-      ? 'the session takes no source in place'
-      : model.record.scene.partitions.length && !session.preparePartitions
-        ? 'the session follows no partition added to it'
-        : model.record.textureSource === 'cache'
-          ? 'its images were left to the cache, whose levels only the model the session is based on reads'
-          : undefined
-  /** Hands the model's content to the session: its cells first, then each source. */
+    !session.addPlacements ? 'the session takes no source in place' : unfollowed(model, session)
+  /** The join of each record the session holds or takes: a later placement of it waits for it,
+   *  then adds its rows alone. */
+  const records = new Map<ModelRecord, Promise<boolean>>()
+  /** Hands the model's content to the session: its cells first, then each source — or, a
+   *  placement of a record the session holds already (`placeModel`), its rows and its cells
+   *  alone: its sources, pages, images and world DAG are the session's already, its instance of
+   *  the world DAG a row of its poses. */
   async function join(
     model: LoadedModel,
     entry: Held,
     session: ModelSession,
     members: ReadonlySet<LoadedModel>,
   ) {
-    const { primitives, draws } = models.drawsOf(model),
-      partitions = model.record.scene.partitions
     const refuse = (reason: string) => {
       if (held.get(model) !== entry) return // a session opened meanwhile holds the model by its open
       entry.state = 'refused'
       refused(`the model ${model.record.manifestUrl}`, reason)
     }
-    const why = unfit(model, session)
-    if (why) return void refuse(why)
-    const roots = models.rootsOf(model) // its world DAG's pose is written with its meshes'
-    write(model)
-    const find = primitiveFinder(primitives)
+    // A throw anywhere refuses the model by name: it never stays joining, and its join settles.
     try {
+      const partitions = modelPartitions(model)
+      const taken = records.get(model.record)
+      if (taken) {
+        if (!(await taken)) return void refuse('the session refused the model it places again')
+        const why = unfollowed(model, session)
+        if (why) return void refuse(why)
+        // Its row of each source and of the world DAG's poses: a row past their buffers grows
+        // them, and the session adds a root per new row — a new instance of the world DAG among
+        // them.
+        const grown = models.place(model, session)
+        if (grown) return void refuse(grown)
+        write(model)
+        if (partitions.length) await session.preparePartitions!(partitions, [])
+        return settle(model, entry, session, members)
+      }
+      const { promise, resolve: took } = createDeferred<boolean>()
+      records.set(model.record, promise)
+      // Settled whatever happens, a throw included: a later placement of the record never waits
+      // on a join that will not end.
+      let joined = false
+      try {
+        joined = await content(model, entry, session, members, partitions, refuse)
+      } finally {
+        took(joined)
+        if (!joined) records.delete(model.record)
+      }
+    } catch (error) {
+      refuse(String(error))
+    }
+  }
+  /** The content of a record the session does not hold yet, handed through `model`: true once
+   *  the session holds its sources. */
+  async function content(
+    model: LoadedModel,
+    entry: Held,
+    session: ModelSession,
+    members: ReadonlySet<LoadedModel>,
+    partitions: ReturnType<typeof modelPartitions>,
+    refuse: (reason: string) => void,
+  ) {
+    try {
+      const why = unfit(model, session)
+      if (why) return (refuse(why), false)
+      const { primitives, draws } = models.drawsOf(model)
+      const roots = models.rootsOf(model) // its world DAG's pose is written with its meshes'
+      write(model)
+      // Its textures read the levels its own cache baked, as the open's read the session's.
+      session.addTextureCaches?.(model.record.scene.textureCaches)
+      const find = primitiveFinder(primitives)
       if (partitions.length) await session.preparePartitions!(partitions, roots)
       for (const source of draws) {
         const primitive = find({ meshes: source.mesh, primitives: source.primitives })
         const reason = !primitive
           ? `no primitive for mesh ${source.mesh}/${source.primitives ?? 0}`
           : await session.addPlacements!(source, primitive)
-        if (reason) return void refuse(reason)
+        if (reason) return (refuse(reason), false)
       }
       // Its world DAG, once its sources wear its pages: the session draws it by the cut made over
       // every root. Refused, the cells are drawn by their objects alone, and it is said.
@@ -109,18 +168,20 @@ export function createModelJoins({ scene, models, poses, refused }: Inputs) {
         if (reason) refused(`the world DAG of ${model.record.manifestUrl}`, reason)
       }
     } catch (error) {
-      return void refuse(String(error))
+      return (refuse(String(error)), false)
     }
-    // A session opened meanwhile holds the model by its own open (`opened`).
-    if (held.get(model) !== entry) return
-    // It left the scene while it joined: parked as any model that leaves.
-    setParked(model, entry, session, !members.has(model))
+    settle(model, entry, session, members)
+    return true
   }
   return {
     /** A session opens on `members`: every one of them is in it. */
     opened(members: Iterable<LoadedModel>) {
       held.clear()
-      for (const model of members) held.set(model, { state: 'shown' })
+      records.clear()
+      for (const model of members) {
+        held.set(model, { state: 'shown' })
+        records.set(model.record, Promise.resolve(true))
+      }
     },
     /** Settles once the joins in flight have; none, nothing. */
     get flying() {

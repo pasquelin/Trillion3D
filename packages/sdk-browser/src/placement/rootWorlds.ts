@@ -22,7 +22,8 @@ import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 import { joinedRanges, joinedSpans } from '../gpu/dag/runWrites.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { LazyComputePass } from '../gpu/core/lazyComputePass.ts'
-import { movedList, noteMoved } from './rootMoves.ts'
+import { movedList, noteMoved, noteMovedRank } from './rootMoves.ts'
+import { composedRoot } from './gpuComposeState.ts'
 import {
   cutRoots,
   ROOT_BOX_WORDS,
@@ -172,6 +173,8 @@ export function sendRootWorlds(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const from = joinedSpans[r * 2]
     if (from < all) sendSpan(rt, device, from, Math.min(joinedSpans[r * 2 + 1], all - 1))
   }
-  noteMoved(held.rows, moved)
+  // A composed root's rows are the composition's to name (`ComposeState.owed`), from the world it
+  // writes: never derived twice.
+  for (const rank of moved) if (!composedRoot(rt, rank)) noteMovedRank(held.rows, rank)
   noteMoved(held.roots, moved)
 }

@@ -5,11 +5,7 @@
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import type { DeferredPlaceholders } from './setup.ts'
-import {
-  CONTRACT_SHADOW_BINDINGS,
-  CONTRACT_TRACE_BINDINGS,
-  CONTRACT_VSM_BINDINGS,
-} from '../direct/shadowBindings.ts'
+import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
 import type { ComposeInput } from './shaders.ts'
 import type { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts'
 import type { createCompositions } from './compositions.ts'
@@ -18,12 +14,11 @@ import type { DeferredBindings, DeferredSources, DirectLightResources } from './
 
 /** A composition: its group, and the input its pipelines compose (`compositions`). */
 type Composition = { group: GPUBindGroup; input: ComposeInput }
-type VsmResources = NonNullable<DirectLightResources['vsm']>
 
 /** What a program keeps between its calls: what its light group names, rebuilt when one of them is
  *  replaced (`bindIdentity.ts`) — two identities are held, with a group each (`held`, by identity
- *  slot, with the flags it was made with): the shadow maps' tables are double-buffered, this
- *  frame's then the other's, and their frames take turns —, the bound surface, its lit image and
+ *  slot, with the flags it was made with): resources that take turns frame by frame keep their
+ *  groups —, the bound surface, its lit image and
  *  its flags — the share the lit image is composed with —, the light group, and its compositions,
  *  one per colour and share read, weakly keyed by every view it reads: nothing to reset. */
 export type ProgramState = {
@@ -43,9 +38,6 @@ export type ProgramParts = {
   bindings: DeferredBindings
   lightingLayout: GPUBindGroupLayout
   compositions: Awaited<ReturnType<typeof createCompositions>>
-  /** The virtual shadow maps' stand-ins as a frame's group (`DirectLightResources.vsm`), made
-   *  once: a frame without maps binds them and allocates nothing. */
-  vsmPlaceholders: VsmResources
 }
 
 /** The program's `bind`: names the frame's resources, an absent one by its stand-in, and rebuilds
@@ -62,10 +54,9 @@ export function bindLight(
     { placeholders } = bindings
   const lights = direct.lights,
     tiles = direct.tiles ?? placeholders.tiles,
-    vsm = direct.vsm ?? parts.vsmPlaceholders,
     mask = direct.vsmMask ?? placeholders.vsmMask,
     maskTiles = direct.vsmMaskTiles ?? placeholders.vsmMaskTiles,
-    vsmTransmission = direct.vsmTransmission ?? placeholders.transmittanceView,
+    through = direct.vsmThrough ?? placeholders.vsmThrough,
     probes = direct.probes,
     receiver = direct.receiver ?? placeholders.receiver,
     reflection = direct.reflection ?? placeholders.reflection
@@ -74,16 +65,12 @@ export function bindLight(
   next[0] = surface
   next[1] = lights
   next[2] = tiles
-  next[3] = vsm.pageTable
-  next[4] = mask
-  next[5] = probes
-  next[6] = receiver
-  next[7] = vsm.projectionData
-  next[8] = vsm.uniforms
-  next[9] = vsmTransmission
-  next[10] = maskTiles
-  next[11] = reflection
-  next[12] = vsm.view
+  next[3] = mask
+  next[4] = probes
+  next[5] = receiver
+  next[6] = through
+  next[7] = maskTiles
+  next[8] = reflection
   state.boundSurface = surface
   if (reboundLight(state)) return
   state.boundFlags = surface.views()[3]
@@ -96,10 +83,9 @@ export function bindLight(
     const contract = {
       lights,
       tiles,
-      vsm,
       mask,
       maskTiles,
-      vsmTransmission,
+      through,
       receiver,
       reflection,
     }
@@ -139,10 +125,9 @@ function contractEntries(
   r: {
     lights: GPUBuffer
     tiles: GPUBuffer
-    vsm: VsmResources
     mask: GPUTextureView
     maskTiles: GPUTextureView
-    vsmTransmission: GPUTextureView
+    through: GPUTextureView
     receiver: GPUTextureView
     reflection: GPUTextureView
   },
@@ -155,15 +140,9 @@ function contractEntries(
       lights: { buffer: r.lights },
       tiles: { buffer: r.tiles },
     }),
-    ...namedEntries(CONTRACT_VSM_BINDINGS, {
-      pageTable: { buffer: r.vsm.pageTable },
-      projectionData: { buffer: r.vsm.projectionData },
-      uniforms: { buffer: r.vsm.uniforms },
-    }),
-    { binding: CONTRACT_TRACE_BINDINGS.view, resource: { buffer: r.vsm.view } },
     { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: r.mask },
     { binding: DEFERRED_BINDINGS.maskTiles, resource: r.maskTiles },
-    { binding: DEFERRED_BINDINGS.transmissionResolve, resource: r.vsmTransmission },
+    { binding: DEFERRED_BINDINGS.transmissionResolve, resource: r.through },
     { binding: DEFERRED_BINDINGS.reflection, resource: r.reflection },
   ]
 }

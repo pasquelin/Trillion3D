@@ -1,6 +1,6 @@
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { adaptivePixelError } from '../../../../sdk-core/src/lod/policy.ts'
+import { adaptivePixelError, DEFAULT_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
 import type { CameraMotion } from '../../camera/motion.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraMotion } from '../../camera/motion.ts'
@@ -11,7 +11,7 @@ export function resolvePixelError(
   cam: EngineCamera,
   motion: CameraMotion,
 ) {
-  const base = context.pixelError ?? 0
+  const base = context.pixelError ?? DEFAULT_PIXEL_ERROR
   const speed = readCameraMotion(cam, motion, cpuNow())
   if (!explorerSwitch(context, 'lodAdaptive') || !(base > 0)) return base
   return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1))
@@ -89,19 +89,17 @@ export class RequestStamps {
   }
 }
 /**
- * Records grouped by address. The default key is the streaming request, which a path fetching
- * packed cluster-index bundles reads; a path that reads, stores and evicts one geometry page at
- * a time passes `(rec) => rec.url` instead — on a cache whose pages share one bundle the default
- * would file every record of the scene under that single key.
+ * Records grouped by address: the streaming request (`pageRequestUrl`), which a path fetching
+ * packed cluster-index bundles reads.
  */
 export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   pages: readonly T[],
-  keyOf: (rec: T) => string = pageRequestUrl,
+  /** The map the records join, behind what it holds: a new one at the open. */
+  byUrl = new Map<string, T[]>(),
 ) {
-  const byUrl = new Map<string, T[]>()
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i],
-      key = keyOf(rec)
+      key = pageRequestUrl(rec)
     let list = byUrl.get(key)
     if (!list) byUrl.set(key, (list = []))
     list.push(rec)

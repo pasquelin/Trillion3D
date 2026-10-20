@@ -33,8 +33,13 @@ test('the raster-compute variant hands the whole cut to the compute raster', asy
   // Hardware passes always encode: they open the image, and their indirect commands remain — it is
   // the vertex stage that folds what compute takes.
   assert.ok(draws.some((draw) => draw.indirect))
-  // The two compute resolves, each a full-screen triangle: the pyramid and the closed image.
-  assert.equal(draws.filter((draw) => draw.entryPoint === 'vs').length, 2)
+  // The two compute resolves, each a full-screen triangle (`resolve.ts`): the pyramid and the
+  // closed image, its identifiers and depth.
+  const resolves = draws
+    .filter((draw) => draw.entryPoint === 'fullscreen')
+    .map((draw) => draw.pipeline.fragment?.entryPoint)
+    .filter((entry) => entry === 'hiz' || entry === 'one' || entry === 'two')
+  assert.deepEqual(resolves, ['hiz', 'two'])
   // This raster takes the whole cut: it is not the reference's, and it does not claim to be.
   assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'))
   disposeQuadRun(backend, fixture)

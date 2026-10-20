@@ -31,26 +31,24 @@ export function createProxyColumns(arena: ProxyArena) {
   /** `count` units of each table taken, the tables laid out again when one cannot hold them: the
    *  spans, or none where the arena cannot be made larger (the engine's own refusal says why). */
   function taken(triangleCount: number, nodeCount: number, cornerCount = 0) {
-    const take = () => [
-      triangles.take(triangleCount),
-      nodes.take(nodeCount),
-      corners.take(cornerCount),
-    ]
-    let [triangle, node, corner] = take()
-    if (triangle === undefined || node === undefined || corner === undefined) {
+    const take = () => {
+      const triangle = triangles.take(triangleCount),
+        node = nodes.take(nodeCount),
+        corner = corners.take(cornerCount)
+      if (triangle !== undefined && node !== undefined && corner !== undefined)
+        return { triangle, node, corner }
       if (triangle !== undefined) triangles.release(triangle, triangleCount)
       if (node !== undefined) nodes.release(node, nodeCount)
       if (corner !== undefined) corners.release(corner, cornerCount)
-      relayout({
-        triangles: triangles.extent + triangleCount,
-        nodes: nodes.extent + nodeCount,
-        corners: corners.extent + cornerCount,
-      })
-      ;[triangle, node, corner] = take()
     }
-    return triangle === undefined || node === undefined || corner === undefined
-      ? undefined
-      : { triangle, node, corner }
+    const spans = take()
+    if (spans) return spans
+    relayout({
+      triangles: triangles.extent + triangleCount,
+      nodes: nodes.extent + nodeCount,
+      corners: corners.extent + cornerCount,
+    })
+    return take()
   }
 
   /** `cut`'s triangles, bounds and children sent to the arena from `triangle` and `node`. */

@@ -30,7 +30,7 @@ test('the order kernel sorts every pass and places every slot as the CPU model d
     for (let frame = 0; frame < frames; frame++) {
       const eye = [0, 1, 2].map(() => Math.round((next() - 0.5) * 16) / 2)
       checkKernel(blendState, eye, `${count} items, seed ${seed}, frame ${frame}`)
-      if (count >= 700) assert.ok(blendState.orderSteps[0].length > 2, 'the network crosses blocks')
+      if (count >= 700) assert.ok(blendState.orderSteps.length > 2, 'the network crosses blocks')
     }
   }
 })

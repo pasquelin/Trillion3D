@@ -8,9 +8,10 @@ import {
 type DeformationResource = GPUBuffer | GPUTextureView
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { DEFORMATION_PASS } from './pass.ts'
-import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { buildComputeStage } from '../gpu/core/computeStages.ts'
 import { uniformSlots } from '../residency/pools.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { heldGroup } from '../webgpu/core/bindIdentity.ts'
 
 /** The stage's image records, one per dispatch at its own aligned offset (`slot`): the image
  *  number, then the rows that dispatch deforms — its padding groups leave past them. */
@@ -26,12 +27,12 @@ function deformationImage(device: GPUDevice) {
   return {
     buffer,
     entry: (slot: number) => ({ buffer, offset: slots.offset(slot)[0], size: 16 }),
-    write(frame: number, rows: number, wholeRows: number) {
+    write(frame: number, rows: number, pooledRows: number) {
       words[0] = frame
       words[1] = rows
       device.queue.writeBuffer(buffer, 0, words)
-      if (!wholeRows) return
-      words[1] = wholeRows
+      if (!pooledRows) return
+      words[1] = pooledRows
       device.queue.writeBuffer(buffer, slots.offset(1)[0], words)
     },
   }
@@ -40,62 +41,59 @@ function deformationImage(device: GPUDevice) {
 /** Builds once; binding identities follow cache relocation and table growth, never a steady frame. */
 export async function createDeformationCompute(device: GPUDevice) {
   const layout = device.createBindGroupLayout({ entries: deformationBindings() })
-  const pipeline = await buildComputePipeline(device, {
-    label: DEFORMATION_PASS,
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: {
-      module: device.createShaderModule({ code: DEFORMATION_COMPUTE_WGSL }),
-      entryPoint: 'deform',
-    },
-  })
+  const pipeline = await buildComputeStage(
+    device,
+    [layout],
+    device.createShaderModule({ code: DEFORMATION_COMPUTE_WGSL }),
+    'deform',
+    undefined,
+    DEFORMATION_PASS,
+  )
   const image = deformationImage(device)
-  const wholeBuffers: DeformationResource[] = []
-  const held: { buffers: readonly DeformationResource[]; group: GPUBindGroup }[] = []
-  const moved = (buffers: readonly DeformationResource[], slot: number) => {
-    if (!held[slot]) return true
-    for (let i = 0; i < buffers.length; i++) if (buffers[i] !== held[slot].buffers[i]) return true
-    return false
-  }
+  const pooledBuffers: DeformationResource[] = []
+  // One group per dispatch slot (0 rows, 1 pooled), made again when a resource it names moved.
+  const held = [heldGroup(), heldGroup()]
   const bind = (buffers: readonly DeformationResource[], slot: number) => {
-    if (moved(buffers, slot))
-      held[slot] = {
-        buffers: [...buffers],
-        group: device.createBindGroup({
-          layout,
-          entries: sequentialEntries(
-            [...buffers, image.buffer].map((resource, at) =>
-              at === DEFORMATION_BINDING.normals
-                ? (resource as GPUTextureView)
-                : at === DEFORMATION_BINDING.image
-                  ? image.entry(slot)
-                  : { buffer: resource as GPUBuffer },
-            ),
+    const kept = held[slot],
+      { next } = kept.identity
+    next.length = buffers.length
+    for (let i = 0; i < buffers.length; i++) next[i] = buffers[i]
+    if (kept.identity.moved())
+      kept.group = device.createBindGroup({
+        layout,
+        entries: sequentialEntries(
+          [...buffers, image.buffer].map((resource, at) =>
+            at === DEFORMATION_BINDING.normals
+              ? (resource as GPUTextureView)
+              : at === DEFORMATION_BINDING.image
+                ? image.entry(slot)
+                : { buffer: resource as GPUBuffer },
           ),
-        }),
-      }
-    return held[slot].group
+        ),
+      })
+    return kept.group!
   }
   const encode = (
     encoder: GPUCommandEncoder,
     buffers: readonly DeformationResource[],
     rows: number,
     frame: number,
-    whole?: { table: GPUBuffer; count: number },
+    pooled?: { table: GPUBuffer; count: number },
   ) => {
-    if (!rows && !whole?.count) return
-    image.write(frame, rows, whole?.count ?? 0)
+    if (!rows && !pooled?.count) return
+    image.write(frame, rows, pooled?.count ?? 0)
     const pass = encoder.beginComputePass({ label: DEFORMATION_PASS })
     pass.setPipeline(pipeline)
     if (rows) {
       pass.setBindGroup(0, bind(buffers, 0))
       dispatchRows(pass, rows)
     }
-    if (whole?.count) {
-      // The whole copies' set: the passes' resources, their rows the whole copies' table.
-      wholeBuffers.splice(0, wholeBuffers.length, ...buffers)
-      wholeBuffers[DEFORMATION_BINDING.pages] = whole.table
-      pass.setBindGroup(0, bind(wholeBuffers, 1))
-      dispatchRows(pass, whole.count)
+    if (pooled?.count) {
+      // The float-pool blocks' set: the passes' resources, their rows the pooled table.
+      pooledBuffers.splice(0, pooledBuffers.length, ...buffers)
+      pooledBuffers[DEFORMATION_BINDING.pages] = pooled.table
+      pass.setBindGroup(0, bind(pooledBuffers, 1))
+      dispatchRows(pass, pooled.count)
     }
     pass.end()
   }

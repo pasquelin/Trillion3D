@@ -19,8 +19,9 @@ import {
  * casts no shadow from a translucent material, the engine does.
  *
  * Nothing is drawn in texels. For each physical page and slice the VSM redraws, the translucent
- * triangles that cover it are binned into 16 × 16 cells of 8 × 8 texels; a receiver then tests the
- * ray toward the light exactly against the two to four triangles of its cell. The class-2 contract
+ * triangles that cover it are binned into 16 × 16 cells of 8 × 8 texels; each shadow ray of a
+ * receiver then walks the cells it crosses and meets their triangles exactly
+ * (`transmissionRayWgsl.ts`). The class-2 contract
  * (declared): every opaque shadow identical; inside a one-layer area the triangle's quantised
  * transmittance, as the texel store had it; edges at the exact geometric boundary; with several
  * layers only those above the receiver; a translucent receiver never shadows itself.

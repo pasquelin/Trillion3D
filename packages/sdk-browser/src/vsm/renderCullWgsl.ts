@@ -57,10 +57,11 @@ export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
 
 /**
  * `vsmRenderCull`: group 0 = `VSM_RENDER_CULL_SPECS`; group 1: 0 params (uniform, dynamic),
- * 1 map views (vec4u: id, mip count, flags, pad), 2 candidates, 3 counters (rw atomic),
+ * 1 map views (vec4u: id, mip count, flags, stale layers), 2 candidates, 3 counters (rw atomic),
  * 4 commands (rw). Dispatch: x over the chunk's candidates (64 each), y = map view index.
  *
- * Command (vec4u): x row; y VSM id | mip << 16 | static << 19 | clamp-to-near << 20;
+ * Command (vec4u): x row; y VSM id | mip << 16 | static << 19 | clamp-to-near << 20 | swapped << 21
+ * (\`vsmRenderSwapped\`);
  * z page rect x0 | y0 << 7 | x1 << 14 | y1 << 21 (inclusive, pages of the mip);
  * w corners (16 bits) | mark mask << 16 | mark-page-dirty flags << 24.
  */
@@ -72,6 +73,20 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
 @group(1) @binding(2) var<storage,read> candidates:array<VsmRenderCandidate>;
 @group(1) @binding(3) var<storage,read_write> counts:array<atomic<u32>>;
 @group(1) @binding(4) var<storage,read_write> cmds:array<vec4u>;
+/**
+ * Whether the raster emits the candidate's triangles in this map with corners 1 and 2 swapped, so
+ * that a face toward the light is counter-clockwise on the framebuffer (\`vsmRenderVs\`). A
+ * triangle's projected winding is its facing times the sign of D: for a perspective map, D = −det
+ * of the UV matrix's u, v, w rows (the light at the shifted origin, those rows linear), for an
+ * orthographic one det of its u, v, z rows (z toward the light, reversed Z); the page's NDC y and
+ * the framebuffer's y each turn it once. Swapped where D < 0, against a row whose faces turn
+ * (\`VSM_RENDER_CAND_FLIPPED\`); a two-sided row's second copy swaps once more.
+ */
+fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
+ let r3=select(vec3f(m[0].w,m[1].w,m[2].w),vec3f(m[0].z,m[1].z,m[2].z),ortho);
+ let d=dot(vec3f(m[0].x,m[1].x,m[2].x),cross(vec3f(m[0].y,m[1].y,m[2].y),r3));
+ return select(d>0.0,d<0.0,ortho)!=((flags&VSM_RENDER_CAND_FLIPPED)!=0u);
+}
 @compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_index) lane:u32){
  let local=wid.x*WORKGROUP_THREADS+lane;
  let k=params.chunkFirst+local;
@@ -99,6 +114,8 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
  // The receiver cover and the mark mask depend on the cache state.
  let useCover=pd.useCover&&!staticLayer;
  let markMask=select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,staticLayer);
+ // A view with no stale page of the caster's layer draws nothing of it (\`vsmRenderViews\`).
+ if((view.w&select(1u,2u,staticLayer))==0u){return;}
  // One caster rule for every map, cached or not: a caster's size is judged in the map's own
  // pixels alone (\`vsmIsFineCaster\`, per mip below), never by its distance to the eye, which a
  // cached page would hold from the frame it was drawn.
@@ -113,6 +130,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
  if(!visible){return;}
  let deformsNow=(cand.flags&VSM_RENDER_CAND_DEFORMING)!=0u;
  ${marksDirty ? 'let dirtyFlags=vsmRasterMarkBits(staticLayer,deformsNow);' : 'let dirtyFlags=0u;'}
+ let swapped=select(0u,1u<<21u,vsmRenderSwapped(pd.shiftedToMapUv,isOrtho,cand.flags));
  let mips=min(view.y,VSM_MIPS);
  // The map's mips from its finest on: its table holds no finer one (\`vsmTableLevelOrigin\`).
  var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS>>pd.finestMip);
@@ -121,14 +139,16 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
   var pixels=vsmRectPixels(vec4i(0,0,levelTexels,levelTexels),cull);
   let fineCaster=vsmIsFineCaster(staticLayer,pixelRadius);
   pixelRadius*=0.5;
-  pixels=vsmClipToStaleRect(pixels,h,mipLevel);
+  pixels=vsmClipToStaleRect(pixels,h,mipLevel,staticLayer);
   if(!vsmTouchesMappedPixels(h,mipLevel,pixels,markMask,fineCaster,useCover)){continue;}
   let pagesRect=vec4u(pixels)>>vec4u(VSM_LOG2_PAGE);
   let slot=atomicAdd(&counts[vsmRenderChunkCounter(params.chunk,0u)],1u);
   if(slot>=params.cmdCapacity){continue;}
+  // Its tier's count: the expand of each tier runs over its own commands (\`vsmRenderBin\`).
+  atomicAdd(&counts[vsmRenderChunkCounter(params.chunk,VSM_RENDER_TIER_CMDS+vsmRenderTierOf(cand.corners))],1u);
   cmds[slot]=vec4u(
    cand.row,
-   view.x|(mipLevel<<16u)|select(0u,1u<<19u,staticLayer)|select(0u,1u<<20u,directional),
+   view.x|(mipLevel<<16u)|select(0u,1u<<19u,staticLayer)|select(0u,1u<<20u,directional)|swapped,
    pagesRect.x|(pagesRect.y<<7u)|(pagesRect.z<<14u)|(pagesRect.w<<21u),
    (cand.corners&0xFFFFu)|(markMask<<16u)|(dirtyFlags<<24u));
  }

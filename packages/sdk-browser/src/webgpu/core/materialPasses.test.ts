@@ -11,6 +11,8 @@ import type { FakePass } from '../../../../../tests/kit/gpu/fakeRenderPass.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 const passSummary = (passes: FakePass[]) => passes.map((pass) => [pass.label, drawsOf(pass)])
 
@@ -124,6 +126,7 @@ test('a backend makes no material depth, its class pipelines test no depth, and 
   const { device, textures, renderPipelines, destroyed } = fakeDevice(BACKEND)
   const { source, metadata, indices, associations } = quadScene()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,

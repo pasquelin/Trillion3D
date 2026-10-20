@@ -14,6 +14,7 @@ import {
   CELL_COUNT,
   HEADER_TEXELS,
   RECORDS_TEXEL,
+  VSM_TRANSMISSION_CELL,
   VSM_TRANSMISSION_CELLS,
   VSM_TRANSMISSION_CHAIN,
 } from './transmissionShared.ts'
@@ -78,7 +79,10 @@ export function memoryOf(casters: Caster[]) {
   return memory
 }
 
-export type Read = { vsmTransmissionThrough: (...a: unknown[]) => V }
+export type Read = {
+  vsmTCellThrough: (...a: unknown[]) => V
+  vsmTransmissionBlocks: (page: V) => V
+}
 
 /** The shipped read over `memory`, the light straight down the map's z. */
 export function reader(memory: Map<string, V>): Read {
@@ -91,18 +95,18 @@ export function reader(memory: Map<string, V>): Read {
   return shaderRun<Read>(
     wgslModule(vsmTransmissionReadWgsl(14)),
     [
-      'vsmTransmissionThrough',
+      'vsmTCellThrough',
       'vsmTransmissionBlocks',
+      'vsmTranslucentCasters',
       'vsmTLoad',
       'vsmTBlock',
       'vsmTRead',
       'vsmTMemBlock',
       'vsmTBlockAt',
-      'vsmTScanPage',
-      'vsmTScanSlice',
       'vsmTHitOf',
+      'vsmTPageAt',
       'vsmTPatch',
-      'vsmTLess',
+      'vsmTLogOf',
       'vsmTInside',
       'vsmTEdgeHolds',
       'vsmTEdge',
@@ -120,33 +124,33 @@ export function reader(memory: Map<string, V>): Read {
       textureLoad: (_m: string, t: V) => [...(memory.get(`${t[0]},${t[1]}`) ?? [0, 0, 0, 0])],
       bitcast_vec4f: (w: V) => [...new Float32Array(new Uint32Array(w).buffer)],
       unpack4x8unorm: (w: number) => [0, 8, 16, 24].map((s) => ((w >>> s) & 255) / 255),
-      fract: (v: V) => v.map((x) => x - Math.floor(x)),
-      vsmProjectionOf: () => ({
-        shiftedToMapUv: [
-          [0, 0, 0, 0],
-          [0, 0, 0, 0],
-          [0, 0, 1, 0],
-          [0, 0, 0, 1],
-        ],
-      }),
     },
   )
 }
 
-/** The read at page point `p` for a receiver at height `z` (the normal bias already added). */
-export const readAt = (read: Read, p: V, z: number) =>
-  read.vsmTransmissionThrough(
+/** The read at page point `p` for a receiver at height `z` (the normal bias already added): a ray
+ *  of no length, its line on to the light straight up the map's axis, in the cell `p` lies in. */
+export const readAt = (read: Read, p: V, z: number) => {
+  const x = [p[0], p[1], z]
+  return read.vsmTCellThrough(
+    read.vsmTransmissionBlocks([0, 0]),
     {
-      poolTexel: p.map(Math.floor),
-      mapTexelPos: p,
-      handle: { id: 0 },
-      valid: true,
+      directional: true,
+      c0: [...x, 1],
+      c1: [...x, 1],
+      r: [z, z],
+      x0: x,
+      x1: x,
+      x0Length: Math.hypot(...x),
+      face: -1,
+      scale: 1,
+      offset: [0, 0],
+      pA: [p[0], p[1]],
+      pB: [p[0], p[1]],
     },
-    [p[0], p[1], z],
-    [p[0], p[1], z],
-    [0, 0, 0],
-    true,
+    p.map((c) => Math.floor(c / VSM_TRANSMISSION_CELL)),
   )
+}
 
 export const pack = (c: V) =>
   c.reduce((w, x, i) => w | (Math.floor(Math.min(Math.max(x, 0), 1) * 255 + 0.5) << (8 * i)), 0)

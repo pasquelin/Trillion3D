@@ -13,6 +13,7 @@ import {
   emptyRowSpheres,
   PAGES,
   scene,
+  speaks,
   sunAt,
   worstOf,
   writeRow,
@@ -71,12 +72,14 @@ test('no histogram landed: the bound cannot speak, the raster keeps the worst ca
   const rows = scene(500, [0, 0, 0], 50, 0.02, 1, 2)
   const sun = sunAt([0, 2, 0]),
     bound = createVsmRowBound()
-  assert.equal(frame(rows, sun, bound), undefined)
+  frame(rows, sun, bound)
+  assert.ok(!speaks(bound))
   const range = { first: 0, end: 500, candidates: 500 }
   const blindBound = createVsmRowBound(),
     blindSpheres = emptyRowSpheres()
   const blind = vsmChunkRows(blindBound, blindSpheres, range, [sun.light], worstOf())
-  assert.deepEqual([blind.rows, blind.pairs(blind.rows)], [worstOf().rows, worstOf().rows * PAGES])
+  // Every candidate at the worst case: the 500 drawn reach every page, no row past them.
+  assert.deepEqual([blind.rows, blind.pairs(blind.rows)], [worstOf().rows, 500 * PAGES])
   // The worst case was a new object and two closures every frame: now the bound's own, rewritten.
   const smaller = vsmChunkRows(blindBound, blindSpheres, range, [sun.light], worstOf(1 << 20))
   assert.equal(smaller, blind, 'the same chunk, rewritten')
@@ -86,7 +89,8 @@ test('no histogram landed: the bound cannot speak, the raster keeps the worst ca
   )
   // Another sphere buffer than the one binned: none either.
   const other = { ...rows, spheres: emptyRowSpheres() }
-  assert.equal(frame(other, sun, bound, 1 << 21, false), undefined)
+  frame(other, sun, bound, 1 << 21, false)
+  assert.ok(!speaks(bound))
 })
 
 test('rows written since the histogram, then a camera moved: still above every K', () => {
@@ -125,10 +129,13 @@ test('a turning sun keeps the worst case until a histogram of its new axes lands
   const sun = sunAt([0, 2, 0]),
     bound = createVsmRowBound()
   frame(rows, sun, bound)
-  assert.ok(frame(rows, sun, bound, 1 << 21, false))
+  frame(rows, sun, bound, 1 << 21, false)
+  assert.ok(speaks(bound))
   sun.clipmap.lightViewRotation[0] += 1e-3
-  assert.equal(frame(rows, sun, bound), undefined)
-  assert.ok(frame(rows, sun, bound))
+  frame(rows, sun, bound)
+  assert.ok(!speaks(bound))
+  frame(rows, sun, bound)
+  assert.ok(speaks(bound))
 })
 
 test('a camera travelling, a histogram landing every third frame: every frame above every K', () => {

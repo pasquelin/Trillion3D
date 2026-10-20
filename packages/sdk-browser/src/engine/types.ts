@@ -1,12 +1,15 @@
 import type { AdmitGpuMemory } from '../residency/activeMemory.ts'
+import type { TemporalAntialiasingLevel } from '../../../sdk-core/src/contracts/compilerAbi.ts'
 import type { HostScene } from '../host/resources.ts'
 import type { HostCamera } from '../camera/world.ts'
-import type { EngineCapabilities } from '../../../sdk-core/src/contracts/metrics.ts'
+import type {
+  EngineCapabilities,
+  ViewFrameMetrics,
+} from '../../../sdk-core/src/contracts/metrics.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { DiagnosticMode } from '../../../sdk-core/src/runtime/diagnostics.ts'
 import type { SceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import type { StageProfile } from '../../../sdk-core/src/runtime/stageProfile.ts'
-import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../residency/pools.ts'
 import type { CpuStepSummary } from '../stage/profiler.ts'
@@ -18,14 +21,32 @@ import type { EngineSceneUpdates } from '../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { EngineProbes } from './probes.ts'
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
-import type { Intersection, RayFilter } from '../world/query/types.ts'
+import type { Intersection, RayFilter, RayReach } from '../world/query/types.ts'
+import type { PresentRect } from '../gpu/core/presentAt.ts'
+import type { RenderScale } from '../frame/renderScaleOption.ts'
+import type { WebgpuViewOptions } from '../webgpu/pages/state/persistentView.ts'
 type ViewSize = { width: number; height: number }
+/** A view drawn beside the main one (`Engine.addView`). */
+export interface EngineView {
+  /** Draws the view from `camera`, after the frame's main image; `index` names it in its
+   *  metrics. */
+  render(camera: HostCamera, index: number): ViewFrameMetrics
+  /** Its drawing buffer's size, canvas pixels; or its rectangle of the main canvas. */
+  resize(width: number, height: number, rect?: PresentRect): void
+  setRenderScale(scale: RenderScale): void
+  setTemporalAntialiasing(level: TemporalAntialiasingLevel): void
+  /** Leaves, its GPU resources released once the device answered what it asked. */
+  release(): Promise<void>
+}
 /** The engine: the WebGPU page raster (`../webgpu/pages/pages.ts`), the session's one renderer.
  *  Every member is its own and required; a test's stand-in casts a partial one. */
 export interface Engine extends EngineSceneUpdates, EngineProbes {
   id: string
   capabilities: EngineCapabilities
   setDiagnostic(mode: DiagnosticMode): void
+  /** Holds the main view's cut at the camera it has now, or follows the camera again
+   *  (`world.diagnostic.freeze`, `../webgpu/pages/render/cutFreeze.ts`). */
+  freezeCut(frozen: boolean): void
   /** The contract light store has changed: the next frame will reread it. */
   refreshSceneLights(): void
   /** Extra lighting facts: shadow support and a reason when absent. */
@@ -35,6 +56,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   signal: AbortSignal // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
   prepare(): Promise<void>
   render(camera: HostCamera): void
+  /** A view drawn beside the main one, from a camera of its own, into a canvas of its own or at a
+   *  rectangle of the main one's (`../webgpu/pages/state/persistentView.ts`). */
+  addView(options: WebgpuViewOptions): Promise<EngineView>
   readonly overBudget: boolean
   scene: HostScene
   /** Canvas the engine presented its image into when the host handed it none (`gpuCanvas`): a
@@ -86,24 +110,21 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   hostTableBytes(): number
   syncResident(): void
   flush(options?: { image?: boolean }): Promise<void> // image: false skips the readback
-  /** Wait for submitted work without image readback; true asks for another interactive frame. */
+  /** Wait for submitted work without image readback: the frame's feedback, consumed in order by
+   *  the interactive loop, which draws every frame whatever it answers (`frameScheduler.ts`). */
   pendingFrame(): Promise<boolean>
   /** The interactive loop's frame began: true where the engine holds it, drawing nothing, to
    *  measure the display (`../webgpu/frame/interactiveFrame.ts`); an explicit render never is. */
   measureFrame(): boolean
-  /** The interactive loop's display frame began: true where the engine leaves it out of its steady
-   *  cadence (`../frame/cadence.ts`) — nothing drawn, no frame counted; an explicit render never is. */
+  /** The interactive loop's display frame began: true where the engine leaves it out under its
+   *  frame cap (`../frame/cadence.ts`) — nothing drawn, no frame counted; an explicit render never
+   *  is. */
   skipsFrame(): boolean
-  /** What the view received so far — camera pages made resident, quiet images a still average not
-   *  yet whole took —: the view still arriving, which spends no settle limit (#836). */
-  landings(): number
-  /** A residency job still loads pages: the view is arriving, whatever the last landing. */
-  arriving(): boolean
-  /** The nearest drawn triangle a world ray meets, of the objects `filter` lets it meet, within
-   *  `reach` (`../webgpu/rays/rayQueue.ts`): traced on the GPU at the next tick with every ray cast
-   *  meanwhile, answered a frame or so later, never waited for. A session that cannot trace —
-   *  opening, lost, disposed — answers `null`. */
-  castRay(ray: Ray, filter?: RayFilter, reach?: number): Promise<Intersection | null>
+  /** The nearest drawn triangle a world ray meets — or line it passes within `lineReach` of —, of
+   *  the objects `filter` lets it meet, within `reach` (`../webgpu/rays/rayQueue.ts`): traced on
+   *  the GPU at the next tick with every ray cast meanwhile, answered a frame or so later, never
+   *  waited for. A session that cannot trace — opening, lost, disposed — answers `null`. */
+  castRay(ray: Ray, filter?: RayFilter, bounds?: RayReach): Promise<Intersection | null>
   /** Current GPU image, bottom-left origin, read back without stalling a frame: the one the last
    *  flush read when it is still current. */
   capture(): Promise<Uint8Array>
@@ -122,10 +143,9 @@ export interface EngineContext {
   /** What the session draws, source by source: its geometry, surface and primitive ranks, and the
    *  instance rows that place it in place of a node's pose (`page/selection/drawSource.ts`). */
   draws: readonly DrawSource[]
-  /** glTF rank of each texture of the prepared scene, to tie an atlas layer to its preview. */
-  textureIndices?: Map<Texture, number>
-  /** Reader of texture levels baked in the cache; absent from a cache that has none. */
-  readTextureLevel?: import('../texture/levelReader.ts').TextureLevelReader
+  /** The caches the drawn textures come from — the session's own, each model a world adds —: the
+   *  chain of each texture and the reader of its levels (`../texture/textureCaches.ts`). */
+  textureCaches: import('../texture/textureCaches.ts').TextureCaches
   signal?: AbortSignal
   maxResidentPages?: number
   pixelError?: number
@@ -156,13 +176,17 @@ export interface EngineContext {
    *  beyond it waits; `textureCompression`: the block family, `'auto'` what the device samples. */
   texturePoolBytes?: number
   textureCompression?: import('../texture/blockFormats.ts').TextureCompression
-  /** Temporal antialiasing, on by default: `false` renders the image sampled at
-   *  the pixel centre, no jitter, no history. `renderScale`: 1 when absent (`renderScaleOption.ts`). */
-  temporalAntialiasing?: boolean
+  /** Temporal antialiasing's level (`TEMPORAL_AA_LEVELS`), the default one by default, `true` the
+   *  same: `false` or `'off'` renders the image sampled at the pixel centre, no jitter, no
+   *  history. `renderScale`: the display resolution's default when absent,
+   *  1 draws at the display's own size (`renderScaleOption.ts`). */
+  temporalAntialiasing?: boolean | TemporalAntialiasingLevel
   renderScale?: import('../frame/renderScaleOption.ts').RenderScale
+  /** The interactive loop's frame cap, frames a second (`../frame/cadence.ts`); none when
+   *  absent. */
+  maxFrameRate?: number
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain
-  sceneLighting?: Object3D
   /** The world's guides, drawn over the image, and its particle pools, stepped once per image. */
   guides?: import('../guides/guideSet.ts').GuideSet
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
@@ -188,8 +212,8 @@ export interface EngineContext {
   /** Reader of the cache's geometry pages; absent from a cache that carries none, whose slots are
    *  written from the index pages the arrivals left in memory (`../webgpu/pages/readPage.ts`). */
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>
-  /** The world roots this scene's manifest opened, whose DAG the cut packs and whose pages
-   *  `readGeometryPage` serves (`../scene/worldRoots.ts`); absent without them. */
+  /** The world roots this scene's manifest opened, whose DAG the cut packs; their pages are read
+   *  as any geometry page (`../scene/worldRuns.ts`); absent without them. */
   worldRoots?: import('../scene/worldRoots.ts').WorldRootsHold
   pageRoundTripMs?: () => number // the reads' measured round trip (`../streaming/roundTrip.ts`)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */

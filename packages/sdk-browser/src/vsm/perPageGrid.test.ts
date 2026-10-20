@@ -33,6 +33,8 @@ function walks(b: number, count: number, xs: number) {
       vsmPerPageIds: Array.from({ length: idStart + count }, (_, i) => i - idStart),
       vsmHandleFromId: (id: number) => ({ id }),
       vsmHandleInvalid: () => ({ id: -1 }),
+      // Every map's projection: its mips from the finest, a local light's whole chain.
+      vsmProjectionData: new Proxy({}, { get: () => ({ finestMip: 0, lightKind: 1 }) }),
       VSM_MIPS: 8,
       // Every word of the walk is a u32: its division truncates, as WGSL's does.
       $b: (op: string, a: number, b: number) =>

@@ -1,33 +1,46 @@
 // A transparent fragment the material rejects — its alpha test, the side a doubtful triangle does
 // not draw, a dashed line's gap — reads its base colour and nothing more: no map, no light. A
 // `discard` alone only demotes the invocation to a helper, which a backend runs to its end; the
-// blend and water stages return after it (`shaderSurface.ts`). Every derivative is taken before
+// blend and transmissive stages return after it, their prologue's verdict (`blendLayer`,
+// `transmitSurface`). Every derivative is taken before
 // that return, in uniform control flow, so a kept fragment's quad reads the derivatives it read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'
-import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
+import { transmitWgsl } from './transmission/transmitWgsl.ts'
 import { blendShader } from './shader.ts'
 import { blendFrontShader } from './frontStageWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { FACING_SHIFT } from './facing.ts'
 
 const DERIVATIVE = /\b(?:dpdx|dpdy|fwidth)(?:Fine|Coarse)?\(|\btextureSample(?:Bias|Compare)?\(/
-const COVERAGE = /if\(!blendKeeps\([^{]*\)\{discard;return /
-const STAGES = blendShader({}, { stage: waterSurfaceWgsl(true) })
+// The first test a stage returns at: the material's coverage (\`blendKeeps\`, through the layer's
+// prologue \`blendLayer\` or \`transmitSurface\`), or a distortion's ior before it.
+const COVERAGE = /if\([^{]*\)\{discard;return /
+const STAGES = blendShader({}, { stage: transmitWgsl({}, false) })
 /** The front stage's modules, one for each of what its pass writes (`frontStage.ts`). */
 const FRONTS = ([0, 1, 2] as const).map((outputs) => blendFrontShader(outputs))
 
-test('the blend and water stages take every derivative before their coverage test returns', () => {
+test('the blend and transmissive stages take every derivative before their coverage test returns', () => {
   const taking = [...STAGES.matchAll(/fn (\w+)\(/g)]
     .map(([, name]) => name)
     .filter((name) => DERIVATIVE.test(functionsOf(STAGES, [name])))
-  assert.deepEqual(taking, ['blendGrads', 'blendFragment'])
+  assert.deepEqual(taking, [
+    'blendGrads',
+    'blendFragment',
+    'fsBlendCoverage',
+    'transmitFragment',
+    'fsTransmitCoverage',
+    'fsDistortionCoverage',
+  ])
   for (const [stage, text] of [
     ['blendFragment', STAGES],
-    ['fsWater', STAGES],
-    ['fsWaterLobed', STAGES],
+    ['fsBlendCoverage', STAGES],
+    ['transmitFragment', STAGES],
+    ['fsTransmitCoverage', STAGES],
+    ['fsDistortion', STAGES],
+    ['fsDistortionCoverage', STAGES],
     ...FRONTS.map((front) => ['fsFront', front]),
   ]) {
     const body = functionsOf(text, [stage]),
@@ -55,6 +68,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'floorMod',
     'modelFlag',
     'blendLit',
+    'blendToEye',
     // The lobeless program's stand-ins: no record read, no lobe set, the whole base let through.
     'blendPhysicalBegin',
     'blendLobes',
@@ -63,6 +77,8 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     'ormRoughness',
     'ormMetalness',
     'ormOcclusion',
+    'roughnessWidened',
+    'normalFootprintVariance',
     'lobeRoughness',
     'bendNormal',
   ]
@@ -78,16 +94,18 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     blendRequest: () => 7,
     unitOrZero: (v: number[]) => v,
     declaredLighting: lit,
-    bounceLighting: lit,
+    // The bounce and the reflection, two light terms of one call.
+    forwardIndirect: () => [lit(), lit()],
     environmentLighting: lit,
-    surfaceReflection: lit,
     fogged: (rgb: number[]) => rgb,
     displayRoute: () => ({ keep: 1, tint: [1, 1, 1, 1], add: [0, 0, 0, 0] }),
     reflectionFrontOut: () => [0, 0, 0, 0],
+    // The diagnostic palettes' lookups, never reached by a beauty item.
+    diagnosticLevel: () => [0, 0, 0],
+    diagnosticHlod: () => [0, 0, 0],
     uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], eye: [0, 0, 5] },
     surfaceModel: 0,
     thinSubsurface: [0, 0, 0],
-    shadowCamera: [0, 0, 0],
   }
   // `discard` demotes and goes on: counted, it runs as a helper would. The program of a scene
   // without lobes: a lobed one sets none on a fragment whose item names no record.
@@ -104,7 +122,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     bary: [1, 0, 0],
     color: [1, 1, 1, 1],
     alphaAo: [0.5, 1, ...dash],
-    water: facing << FACING_SHIFT,
+    material: facing << FACING_SHIFT,
     maps: [2, 3, 0, 4],
     pbr: [0.5, 0.25, 1, 1],
     emissive: [0, 0, 0, 0],
@@ -126,8 +144,8 @@ test('a fragment the material rejects reads its base colour alone, and lights no
     runBlendFragment(1, LIT, 0, [0.1, 0.5]),
   ])
     assert.deepEqual(rejected.counts, { color: 1, data: 0, lights: 0, discarded: 1 })
-  // A kept fragment reads its three maps and lights itself: four light terms, the reflection the
-  // fourth, nothing discarded.
+  // A kept fragment reads its three maps and lights itself: four light terms, the bounce and the
+  // reflection of one call, nothing discarded.
   assert.deepEqual(runBlendFragment(1, LIT).counts, { color: 1, data: 3, lights: 4, discarded: 0 })
   const unlit = runBlendFragment(0.75, FLAG_UNLIT_VIEW)
   assert.deepEqual(unlit.counts, { color: 1, data: 3, lights: 0, discarded: 0 })

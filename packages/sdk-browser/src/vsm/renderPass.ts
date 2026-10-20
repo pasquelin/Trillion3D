@@ -26,8 +26,10 @@
  *
  * Order (one frame per submit: parameters go through `queue.writeBuffer`):
  *   clear counters → vsmRenderCandidates (rows) → vsmRenderArgsCull
- *   per chunk: vsmRenderCull (indirect) → vsmRenderArgsExpand → vsmRenderExpand (indirect)
- *              → vsmRenderArgsDraw → raster pass, one drawIndirect into a 128×128 dummy target.
+ *   per chunk: vsmRenderCull (indirect) → vsmRenderArgsExpand → vsmRenderBin (indirect) →
+ *              vsmRenderExpand (indirect, once a corner tier, over its commands) →
+ *              vsmRenderArgsDraw → raster pass, one drawIndirect a tier into a 128×128 dummy
+ *              target.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
@@ -47,7 +49,12 @@ import { vsmWriteChunkParams, type VsmRenderCamera, type VsmRenderChunking } fro
 import { RENDER_LABEL, vsmRenderContext } from './renderPipes.ts'
 import { renderChunking, renderSizes } from './renderBudget.ts'
 import { vsmRenderViewBound } from './mapViews.ts'
-import { renderGroups, vsmEncodeChunks, type RasterTables } from './renderChunks.ts'
+import {
+  renderGroups,
+  vsmEncodeChunks,
+  type RasterChunkGroups,
+  type RasterTables,
+} from './renderChunks.ts'
 
 /**
  * The engine's caster rows. `pageTable`, `spheres`, `mobility`, `rowLods` are the buffers of
@@ -92,15 +99,20 @@ export interface VsmRenderContext extends VsmChunkKernels, VsmChunkContext<Raste
   layout: VsmLayout
   pageLayout: GPUBindGroupLayout
   candidates: VsmComputePipe
+  /** The bin of the commands by corner tier, and the expand of each tier, lowest first
+   *  (`vsmRenderExpandWgsl`). */
+  bin: VsmComputePipe
+  expands: VsmComputePipe[]
   raster: {
-    readonly pipeline: GPURenderPipeline
     layout1: GPUBindGroupLayout
-    prepared: PreparedPipeline<GPURenderPipeline>
+    /** The raster pipeline of each corner tier, lowest first; read where it is bound. */
+    tiers: PreparedPipeline<GPURenderPipeline>[]
   }
   target: GPUTextureView
   targetTexture: GPUTexture
-  /** The groups over the scene's rows and the lists alone, made again when one of them moved. */
-  groups?: ReturnType<typeof vsmChunkListGroups>
+  /** The groups over the scene's rows and the lists alone, made again when one of them moved:
+   *  the chunk groups and the expand's over the lists. */
+  groups?: ReturnType<typeof vsmChunkListGroups> & Pick<RasterChunkGroups, 'expand1'>
 }
 
 /** Frees the raster's context of `res`, with the set it was made for (`destroyEngineVsm`). */

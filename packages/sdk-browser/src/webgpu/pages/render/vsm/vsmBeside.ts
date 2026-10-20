@@ -16,9 +16,10 @@ import {
   engineVsmOptions,
   fullMapsFor,
   renderViewBound,
+  vsmPoolAsked,
 } from './vsmLightMaps.ts'
 import { engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
-import { ensureMask, maskBytes, maskGrowth, maskLayersFor } from './vsmMask.ts'
+import { ensureMasks, masksGrowth, sharedMaskSize } from './vsmMask.ts'
 import { vsmRenderContextBytes } from '../../../../vsm/renderPass.ts'
 import { vsmRenderFloorBytes } from '../../../../vsm/renderBudget.ts'
 import { vsmLayout, type VsmLayout } from '../../../../vsm/layout.ts'
@@ -43,7 +44,7 @@ export const heldBeside = (vsm: EngineVsm | undefined): HeldBeside => ({
  * never under the least that draws every caster row (`vsmRenderFloorBytes`); and, while a blended
  * caster casts, the coloured atlas as large as the replaced set's, never under the first one and
  * its least draw context. The lists grow past these only within the room (`vsmChunkRowsWithin`).
- * Without `mask`, all but the mask, which a frame's own size sets (`vsmAskedBytes`).
+ * Without `mask`, all but the masks, which a frame's own size sets (`vsmAskedBytes`).
  */
 export function bytesBeside(
   rt: WebgpuPagesRuntime,
@@ -53,7 +54,7 @@ export function bytesBeside(
   held: HeldBeside,
   mask = true,
 ) {
-  const [width, height] = rt.gpu.allocatedSize
+  const [width, height] = sharedMaskSize(rt, ...rt.gpu.allocatedSize)
   const { viewWords, viewMips } = renderViewBound(lights)
   const pages = layout.poolPages
   const casters = rt.layout.rows,
@@ -76,16 +77,16 @@ export function bytesBeside(
   return (
     engineVsmSideBytes(device.limits) +
     passes +
-    (mask ? maskBytes(width, height, casting) : 0) +
+    (mask ? masksGrowth(undefined, width, height, casting) : 0) +
     Math.max(held.lists, raster) +
     transmission
   )
 }
 
 /** The layout of the first set of `lights` (`grantEngineVsm`, from `planVsmFrame`): the maps they
- *  want at every physical page. */
-export const vsmFirstSetLayout = (lights: readonly VsmFrameLight[]) =>
-  vsmLayout(engineVsmOptions(fullMapsFor(lights), directionalCount(lights)))
+ *  want at every physical page the view asks (`vsmPoolAsked`). */
+export const vsmFirstSetLayout = (rt: WebgpuPagesRuntime, lights: readonly VsmFrameLight[]) =>
+  vsmLayout(engineVsmOptions(fullMapsFor(lights), directionalCount(lights), vsmPoolAsked(rt)))
 
 /** Bytes the first set of `lights` takes as the first lit frame asks it (`grantEngineVsm`, from
  *  `planVsmFrame`) — the maps they want at every physical page — with what the frame makes beside
@@ -95,18 +96,18 @@ export function vsmSetBytes(
   device: GPUDevice,
   lights: readonly VsmFrameLight[],
 ) {
-  const layout = vsmFirstSetLayout(lights)
+  const layout = vsmFirstSetLayout(rt, lights)
   return (
     vsmResourceBytes(layout) + bytesBeside(rt, device, lights, layout, heldBeside(undefined), false)
   )
 }
 
 /**
- * Makes what the frame projects with before any other shadow allocation of the frame — the mask
- * array, a layer per four casting lights, the projection's view uniforms and blue noise
- * — when the budget's room holds what they grow by: a larger canvas, more casting lights
- * (`maskGrowth`). The lists the raster then grows within the room cannot take theirs. Past it the
- * lights read no shadow this frame, said once a set, and the next frames ask again.
+ * Makes what the frame projects with before any other shadow allocation of the frame — the mask,
+ * a layer per four casting lights, the projection's view uniforms and blue noise — when the
+ * budget's room holds what they grow by: a larger canvas, more casting lights (`masksGrowth`). The
+ * lists the raster then grows within the room cannot take theirs. Past it the lights read no
+ * shadow this frame, said once a set, and the next frames ask again.
  */
 export function reserveProjection(
   rt: WebgpuPagesRuntime,
@@ -114,12 +115,11 @@ export function reserveProjection(
   vsm: EngineVsm,
   list: readonly VsmFrameLight[],
 ) {
-  const [width, height] = rt.gpu.allocatedSize
-  const lights = castingCount(list),
-    layers = maskLayersFor(lights)
-  const growth = maskGrowth(vsm, width, height, lights) + vsmProjectionBytesToMake(vsm.res)
+  const [width, height] = sharedMaskSize(rt, ...rt.gpu.allocatedSize)
+  const lights = castingCount(list)
+  const growth = masksGrowth(vsm, width, height, lights) + vsmProjectionBytesToMake(vsm.res)
   if (growth <= 0 || growth <= ledgerRoom(device)) {
-    ensureMask(device, vsm, width, height, layers, true)
+    ensureMasks(device, vsm, width, height, lights)
     vsmProjectionReserve(device, vsm.res)
     return true
   }

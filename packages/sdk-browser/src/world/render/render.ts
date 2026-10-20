@@ -2,7 +2,6 @@ import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import type { CameraPose } from '../../../../sdk-core/src/contracts/base.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import { emitExplorerFrameDiagnostic } from '../diagnostic/frameDiagnostic.ts'
-import { createHostFrameCostAudit } from '../../frame/costAudit.ts'
 import { debugMode } from '../../host/debugMode.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { SessionState } from './sessionState.ts'
@@ -44,7 +43,6 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
   const { scope, diagnosticChannel, diagnose } = session
   const { check, followCells, guides, state, engine, camera, lookAtTarget, setPose } = inputs
   const { streaming, frameBudget, drawFrame, fillMetrics, metricsScratch, profiler } = inputs
-  const auditFrame = createHostFrameCostAudit()
   const render = (pose?: CameraPose): FrameMetrics => {
     check()
     const frameNumber = ++state.frame
@@ -69,7 +67,6 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     const frameEnd = cpuNow()
     metricsScratch.cpuFrameMs = frameEnd - start
     engine.frameCpuMs(metricsScratch.cpuFrameMs)
-    auditFrame(frameNumber, metricsScratch)
     if (debugMode()) profiler.record(metricsScratch) // the frame report is a debug tool
     const { pageIdByUrl, streamer } = inputs
     emitExplorerFrameDiagnostic({

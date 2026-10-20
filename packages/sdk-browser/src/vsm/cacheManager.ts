@@ -2,11 +2,12 @@
  * CPU side of the virtual shadow map cache: the array-level cache manager, the per-light cache
  * entries and the per-map cache entries.
  *
- * What it holds across frames: one entry per light, keyed by its scene id, each with one
- * entry per shadow map (clipmap levels, 6 cube faces or 1 spot map) carrying the cached projection
- * data, the clipmap panning / depth range state and the next-map data the page
- * management uses to carry pages from the previous frame's ids to this frame's. Also the
- * pool pressure bias fed back from the GPU free page count.
+ * What it holds across frames: one entry per light, keyed by its scene id — a sun's clipmap,
+ * centred on the eye, one per view (`VsmCacheManager.view`) —, each with one entry per shadow map
+ * (clipmap levels, 6 cube faces or 1 spot map) carrying the cached projection data, the clipmap
+ * panning / depth range state and the next-map data the page management uses to carry pages from
+ * the previous frame's ids to this frame's. Also the pool pressure bias fed back from the GPU free
+ * page count.
  *
  * Units: the clipmap's depth state (`depthCentre`, `depthRadius`) is kept in
  * centimetres, the units of the clipmap's level arithmetic (`clipmap.ts`); the
@@ -17,6 +18,7 @@ import {
   VSM_PRESSURE_LOAD,
   VSM_PRESSURE_BIAS_MAX,
   VSM_PRESSURE_CALM_FRAMES,
+  VSM_PRESSURE_HOLD,
   VSM_LIGHT_KEEP_FRAMES,
   VSM_POOL_PAGES,
   VSM_NEXT_KEEPS_PAGES,
@@ -28,6 +30,7 @@ import {
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import { createReadbackRing, type ReadbackRing } from '../gpu/core/readbackRing.ts'
+import { vsmDemandPages } from './poolDraw.ts'
 import { clamp, lerp } from '../../../math/src/scalar/reals.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import type { VsmLocalLightSetup } from './localLight.ts'
@@ -150,9 +153,16 @@ export class VsmLightCache {
   localSetup?: VsmLocalLightSetup
 
   readonly lightId: string
+  /** The view it is drawn for: a sun's clipmap's (`''` the main view's); none for a local light's
+   *  maps, which every view shares. */
+  readonly view: string | undefined
+  /** Its key in the cache's entries: the light's id, then the view's past the main one. */
+  readonly key: string
 
-  constructor(lightId: string, mapCount: number) {
+  constructor(lightId: string, mapCount: number, view?: string, key = lightId) {
     this.lightId = lightId
+    this.view = view
+    this.key = key
     this.mapCaches = Array.from({ length: mapCount }, () => new VsmMapCache())
   }
 
@@ -238,6 +248,10 @@ export class VsmCacheManager {
   frameStamp = 0
   /** Previous frame's map count; null = no cache data. */
   prevFrame: { mapCount: number } | null = null
+  /** The frames each view set up: a view's entry ages by its view's frames only. Views drawn in
+   *  turn (`world.addView`) each keep their suns' clipmaps, centred on their own eyes, and share
+   *  the local lights' maps and the pool. */
+  private readonly viewFrames = new Map<string, number>()
 
   constructor(options: VsmCacheManagerOptions = {}) {
     this.cacheEnabled = options.cacheEnabled ?? true
@@ -253,34 +267,51 @@ export class VsmCacheManager {
     return this.hasPreviousFrame() && (this.prevFrame?.mapCount ?? 0) > 0
   }
 
-  /** Finds or creates a light's cache entry. */
-  lightEntryFor(lightId: string, mapCount: number) {
-    const found = this.entries.get(lightId)
-    if (found) {
-      if (found.mapCaches.length === mapCount) {
-        found.seenThisFrame = true
-        found.lastSeenFrame = this.frameStamp
-        return found
-      }
-      this.entries.delete(lightId) // level count changed: drop and recreate
-    }
-    const entry = new VsmLightCache(lightId, mapCount)
+  /** Frame `frameStamp` is set up, for `view` (`''` the main one): its frames counted. */
+  beginFrame(frameStamp: number, view = '') {
+    this.frameStamp = frameStamp
+    this.viewFrames.set(view, (this.viewFrames.get(view) ?? 0) + 1)
+  }
+
+  /** The frames `entry` ages by: its view's, or every frame for maps all views share. */
+  private stampOf({ view }: VsmLightCache) {
+    return view === undefined ? this.frameStamp : (this.viewFrames.get(view) ?? 0)
+  }
+
+  /** The key of light `lightId`'s entry for `view`: the light's id for the main view's and for the
+   *  maps every view shares (no `view`), then the view's past it. */
+  private keyOf(lightId: string, view: string | undefined) {
+    return view ? `${lightId}#${view}` : lightId
+  }
+
+  /** Finds or creates a light's cache entry: `view`'s own (`''` the main one's), or, with none,
+   *  the one every view shares. */
+  lightEntryFor(lightId: string, mapCount: number, view?: string) {
+    const key = this.keyOf(lightId, view)
+    let entry = this.entries.get(key)
+    // Level count or kind changed: dropped and recreated.
+    if (entry && (entry.mapCaches.length !== mapCount || entry.view !== view)) entry = undefined
+    if (!entry) this.entries.set(key, (entry = new VsmLightCache(lightId, mapCount, view, key)))
     entry.seenThisFrame = true
-    entry.lastSeenFrame = this.frameStamp
-    this.entries.set(lightId, entry)
+    entry.lastSeenFrame = this.stampOf(entry)
     return entry
+  }
+
+  /** `view` is no longer drawn: its entries go, their pages freed as any unreferenced map's. */
+  dropView(view: string) {
+    for (const [key, entry] of this.entries) if (entry.view === view) this.entries.delete(key)
+    this.viewFrames.delete(view)
   }
 
   /** Updates the unreferenced cache entries: ids for inactive lights, ages out, writes next data. */
   carryUnseenLights(ids: VsmIdAllocator) {
-    const frameStamp = this.frameStamp
     for (const [key, entry] of this.entries) {
       let keep = true
       if (entry.seenThisFrame) {
         if (entry.mapId + entry.mapCaches.length > ids.mapCount)
           throw new Error('VSM: referenced cache entry id out of range')
       } else if (
-        ((frameStamp - entry.lastSeenFrame) | 0) <= VSM_LIGHT_KEEP_FRAMES &&
+        ((this.stampOf(entry) - entry.lastSeenFrame) | 0) <= VSM_LIGHT_KEEP_FRAMES &&
         ids.fits(entry.mapCaches.length)
       ) {
         const numMaps = entry.mapCaches.length
@@ -329,6 +360,9 @@ export class VsmCacheManager {
 
   /** Free AVAILABLE pages of the last status message read back (diagnostics). */
   lastFreePages = 0
+  /** The pages the last fill read back asks of the pool (`vsmDemandPages`), 0 within its load:
+   *  what grows the next set (`regrowEngineVsm`). */
+  demandPages = 0
 
   /**
    * The page-management status feedback handler: `freePages` is the
@@ -337,19 +371,21 @@ export class VsmCacheManager {
    */
   readPoolFeedback(freePages: number, lastPressureBias: number) {
     this.lastFreePages = freePages
+    this.demandPages = vsmDemandPages(this.poolPages, freePages, lastPressureBias)
     const frameStamp = this.frameStamp >>> 0
     const currentAllocation = Math.fround(1 - Math.fround(freePages / this.poolPages))
     const allocationRatio = Math.fround(currentAllocation / Math.fround(VSM_PRESSURE_LOAD))
     const targetBias = Math.fround(Math.max(0, lastPressureBias + Math.log2(allocationRatio)))
-    if (
-      currentAllocation <= Math.fround(VSM_PRESSURE_LOAD) &&
-      (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES
-    ) {
-      this.pressureBias = approach(this.pressureBias, targetBias, VSM_PRESSURE_FALL)
-    } else if (currentAllocation > Math.fround(VSM_PRESSURE_LOAD)) {
+    const over = currentAllocation > Math.fround(VSM_PRESSURE_LOAD)
+    if (over) {
       this.lastFrameOverBudget = frameStamp
       this.pressureBias = approach(this.pressureBias, targetBias, VSM_PRESSURE_RISE)
-    }
+    } else if (
+      (frameStamp - this.lastFrameOverBudget) >>> 0 > VSM_PRESSURE_CALM_FRAMES &&
+      (targetBias === 0 || Math.abs(this.pressureBias - targetBias) > VSM_PRESSURE_HOLD)
+    )
+      // Within a sixteenth of a level of a target above 0 it holds: the jitter's wander is no move.
+      this.pressureBias = approach(this.pressureBias, targetBias, VSM_PRESSURE_FALL)
     this.pressureBias = clamp(this.pressureBias, 0, VSM_PRESSURE_BIAS_MAX)
     return this.pressureBias
   }

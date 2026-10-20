@@ -3,7 +3,7 @@ import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { opaqueTwin, VIS_DEPTH, VIS_TARGETS } from './pipelines.ts'
 import { visGroupFor } from './visGroup.ts'
-import type { RecordBundle } from '../../gpu/core/renderBundles.ts'
+import type { RecordBundle, RenderCommands } from '../../gpu/core/renderBundles.ts'
 import { prepared } from '../pages/state/prepared.ts'
 
 /** `pipeline`, or its twin that neither reads the page nor discards when the draw holds no cutout
@@ -32,21 +32,26 @@ const walking = {
 }
 
 /**
- * Records a half's slot draws (`walking`). A slot draws with its face mode's pipeline — the twin
- * for its opaque bins — and its group; a slot with a pipeline whose group cannot be made yet leaves
- * the walk incomplete, walked again next frame.
+ * Walks a half's slots (`rest` false the occluder half) into `encoder`: each slot with a pipeline
+ * is set its pipeline — `pipelineOf` of its raster pipeline and whether its bin holds cutout rows,
+ * or the one its caller set for every slot —, binds its group and draws its indirect command; a
+ * slot with a pipeline whose group cannot be made yet leaves the walk incomplete. A coplanar layer
+ * is one more set of slots, drawn in the same order: its clusters carry their pipeline's depth bias,
+ * those of layer 0 do not change. The raster's halves (`recordSlots`) and the x-ray pass
+ * (`./xray.ts`) walk them so.
  */
-const recordSlots: RecordBundle = (encoder): SlotWalk => {
-  const { rest } = walking,
-    rt = walking.rt!,
-    device = walking.device!,
-    { vis } = rt,
+export function walkSlots(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: RenderCommands,
+  rest: boolean,
+  pipelineOf?: (pipeline: GPURenderPipeline, cuts: boolean) => GPURenderPipeline,
+): SlotWalk {
+  const { vis } = rt,
     indirect = prepared(vis, 'gpuDraw').indirectBuffer
   const walk = { draws: 0, complete: true }
   // No layout: no slot binds this frame, the key holding it.
   if (!vis.visBindGroupLayout) return walk
-  // A coplanar layer is one more set of slots, drawn in the same order: its clusters carry their
-  // pipeline's depth bias, those of layer 0 do not change.
   for (let layer = 0; layer < vis.drawLayerSlots; layer++) {
     const start = layer * BASE_SLOTS + (rest ? HALF_SLOTS : 0)
     for (let bin = 0; bin < HALF_SLOTS; bin++) {
@@ -58,7 +63,7 @@ const recordSlots: RecordBundle = (encoder): SlotWalk => {
         walk.complete = false
         continue
       }
-      encoder.setPipeline(drawnWith(pipeline, bin >= CULL_BINS))
+      if (pipelineOf) encoder.setPipeline(pipelineOf(pipeline, bin >= CULL_BINS))
       encoder.setBindGroup(0, group)
       encoder.drawIndirect(indirect, s * 16)
       walk.draws++
@@ -66,6 +71,11 @@ const recordSlots: RecordBundle = (encoder): SlotWalk => {
   }
   return walk
 }
+
+/** Records a half's slot draws (`walking`, `walkSlots`); an incomplete walk is walked again next
+ *  frame. */
+const recordSlots: RecordBundle = (encoder): SlotWalk =>
+  walkSlots(walking.rt!, walking.device!, encoder, walking.rest, drawnWith)
 
 /**
  * Draws the occluder half (`rest` false) or the tested half, by indirect commands, executed as the

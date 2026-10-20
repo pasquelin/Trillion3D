@@ -2,7 +2,6 @@
  * The projection's tile pieces (`projectionWgsl.ts`): the region tests of a light at a pixel and at
  * a tile, the mask code, and the tile's box its lanes join.
  */
-
 /** The light's region tests and the mask code (the receiver's trace: `receiverTraceWgsl.ts`). */
 export const VSM_PROJECTION_REGION_WGSL = /* wgsl */ `/** The region test: whether light k shades the pixel at all (in the view rect, a lit surface,
  *  where the lighting gives the light energy — \`localLightReaches\` —, not back-facing). */

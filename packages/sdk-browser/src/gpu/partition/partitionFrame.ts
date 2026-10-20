@@ -11,13 +11,15 @@ import type { createPartitionUniformWriter, PartitionFrame } from './uniform.ts'
 import type { createPartitionCounters } from './counters.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import type { KeptFrame, PartitionSources } from './types.ts'
+import type { CullStep, HeldCopy } from '../core/heldCopy.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
 
 /** The partition's kernels, in the order a frame dispatches them. */
 export const KERNELS = ['clearRows', 'projectRows', 'classifyRows'] as const
 const CLEAR = 0,
-  PROJECT = 1
+  PROJECT = 1,
+  CLASSIFY = 2
 
 type Allocated = ReturnType<typeof createGpuPartitionBuffers>
 
@@ -27,7 +29,10 @@ export type Partition = {
   device: GPUDevice
   allocated: Allocated
   inputs: PartitionSources
-  buffers: Allocated & Omit<PartitionSources, 'pyramid'> & { pyramid: GPUTextureView }
+  /** Its resources by binding: the cut's draw mask the frame's (`PartitionFrame.selection`), the
+   *  items when it has none — bound, never read. */
+  buffers: Allocated &
+    Omit<PartitionSources, 'pyramid'> & { pyramid: GPUTextureView; selectionMask: GPUBuffer }
   layouts: GPUBindGroupLayout[]
   pipelines: GPUComputePipeline[]
   /** Each kernel's group on the buffers of the moment, in `KERNELS` order. */
@@ -40,6 +45,16 @@ export type Partition = {
   kept: KeptFrame
   lastFrame: KeptFrame | undefined
   counters: ReturnType<typeof createPartitionCounters>
+  /** The verdicts and rest bits a frozen cut tested, kept aside (`heldCopy.ts`): what its images
+   *  draw again whatever a view drawn aside wrote in the buffers they share. */
+  heldFlags: HeldCopy
+  heldRest: HeldCopy
+  /** What this image does with its occlusion (`PartitionFrame.cull`). */
+  cull: CullStep
+  /** This image draws the kept verdicts again: nothing is tested. */
+  held: boolean
+  /** This image's verdicts are the first a frozen cut keeps (`keepPartitionVerdicts`). */
+  keepDue: boolean
 }
 
 /** Each kernel's group made again on the buffers of the moment. */
@@ -52,9 +67,12 @@ export function regroupPartition(p: Partition) {
 
 /** The partition reads what `next` gives from now on, its groups made again (`GpuPartition.rebind`). */
 export function rebindPartition(p: Partition, next: () => Omit<PartitionSources, 'pyramid'>) {
-  const read = next()
+  const read = next(),
+    { buffers } = p
+  // The items standing in for a mask follow the items.
+  if (buffers.selectionMask === buffers.items) buffers.selectionMask = read.items
   Object.assign(p.inputs, read)
-  Object.assign(p.buffers, read)
+  Object.assign(buffers, read)
   regroupPartition(p)
 }
 
@@ -79,28 +97,45 @@ export function growPartition(
 }
 
 /** The frame's rows forgotten, its uniforms written and kept, the projection's group following
- *  the pyramid (`GpuPartition.beginFrame`). */
+ *  the pyramid and the classification's the cut's mask (`GpuPartition.beginFrame`). */
 export function beginPartitionFrame(
   p: Partition,
   encoder: GPUCommandEncoder,
   frame: PartitionFrame,
 ) {
   if (p.disposed) return
-  const { allocated, forgotten, kept, buffers } = p
+  const { allocated, forgotten, kept, buffers, inputs } = p
   const rowBytes = ROW_DATA_U32 * 4
-  // Zero flags are a row never projected: the kernel keeps nothing of what they held.
+  // Zero words are a row never projected, an occluder, of the occluder half: a row reused forgets
+  // its rectangle, and in the copies a frozen cut kept its verdict and its half — a whole word of
+  // rest bits, its neighbours drawn as occluders until the cut follows again.
   for (let i = 0; i < forgotten.length; i += 2) {
     const from = forgotten[i],
       to = Math.min(forgotten[i + 1], allocated.rows - 1)
-    if (to >= from)
-      encoder.clearBuffer(allocated.rowData, from * rowBytes, (to - from + 1) * rowBytes)
+    if (to < from) continue
+    encoder.clearBuffer(allocated.rowData, from * rowBytes, (to - from + 1) * rowBytes)
+    p.heldFlags.clear(encoder, from * 4, (to - from + 1) * 4)
+    p.heldRest.clear(encoder, (from >> 5) * 4, ((to >> 5) - (from >> 5) + 1) * 4)
   }
   forgotten.length = 0
-  const pyramid = p.inputs.pyramid()
-  // A frame without a pyramid runs no kernel: it counts nothing, and its sample waits.
-  p.running = !!pyramid
+  p.cull = frame.cull
+  if (frame.cull === 'follow') {
+    p.heldFlags.drop()
+    p.heldRest.drop()
+  }
+  // A frozen cut draws again what it kept from the buffers in place; else it tests, and keeps.
+  p.held =
+    frame.cull === 'held' &&
+    p.heldFlags.restore(encoder, inputs.flags) &&
+    p.heldRest.restore(encoder, inputs.restBits)
+  const pyramid = inputs.pyramid()
+  // Kept only once tested: an image without a pyramid tests nothing.
+  p.keepDue = frame.cull === 'held' && !p.held && !!pyramid
+  // A frame without a pyramid runs no kernel: it counts nothing, and its sample waits. A held one
+  // neither, nor writes its uniform or the frame the audit reads: they stay the frozen image's.
+  p.running = !!pyramid && !p.held
   p.counting = p.running && frame.counting
-  if (!pyramid) return
+  if (!pyramid || p.held) return
   const rows = Math.min(frame.rows, allocated.rows)
   p.writeUniform(p.device, allocated.uniforms, frame, rows)
   kept.rows = rows
@@ -115,6 +150,22 @@ export function beginPartitionFrame(
     const layout = p.layouts[PROJECT]
     p.groups[PROJECT] = createGpuPartitionGroup(p.device, layout, 'projectRows', buffers)
   }
+  // The classification follows the cut's mask, remade when its buffer moved.
+  const mask = frame.selection?.maskBuffer ?? buffers.items
+  if (mask !== buffers.selectionMask) {
+    buffers.selectionMask = mask
+    const layout = p.layouts[CLASSIFY]
+    p.groups[CLASSIFY] = createGpuPartitionGroup(p.device, layout, 'classifyRows', buffers)
+  }
+}
+
+/** The verdicts and rest bits this image tested kept aside, on the first image of a frozen cut, once
+ *  its occlusion test ran (`GpuPartition.keepVerdicts`). */
+export function keepPartitionVerdicts(p: Partition, encoder: GPUCommandEncoder) {
+  if (p.disposed || !p.keepDue) return
+  p.heldFlags.keep(encoder, p.inputs.flags)
+  p.heldRest.keep(encoder, p.inputs.restBits)
+  p.keepDue = false
 }
 
 /** The partition's dispatches in the frame's compute pass (`GpuPartition.encode`). */

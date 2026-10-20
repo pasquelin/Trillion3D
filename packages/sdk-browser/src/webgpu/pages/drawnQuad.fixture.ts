@@ -9,6 +9,8 @@ import { renderWebgpuPages } from './render/render.ts'
 import { flushWebgpuPages } from './render/flush.ts'
 import type { EngineContext } from '../../engine/types.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** The red quad on a prepared runtime, its main view drawn twice from the front; `options` add
  *  to its context. */
@@ -18,6 +20,7 @@ export async function drawnQuad(options: Partial<EngineContext> = {}) {
   const fixture = quadScene(),
     events: EngineDiagnostic[] = []
   const rt = createWebgpuPagesRuntime({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,

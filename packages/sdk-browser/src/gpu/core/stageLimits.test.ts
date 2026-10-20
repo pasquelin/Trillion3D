@@ -1,10 +1,10 @@
-// Every program of the opaque resolve, the blends, the water pass, the reflections, the depth
-// pyramid and the ray query, and of the cut — its culling, the composition of the poses, the root
-// boxes, the tree's leaves and refit —, binds no more of a kind in one stage than WebGPU guarantees
-// a device that asks for nothing: 16 sampled textures, 8 storage buffers, 4 storage textures — the
-// engine runs on any machine at the default limits, whatever the world's size. The kit's device,
-// holding the defaults, refuses a pipeline layout past them (`tests/kit/gpu/limitRules.ts`); each
-// test reads every stage it built too.
+// Every program of the opaque resolve, the blends, the transmissive stages, the reflections, the depth
+// pyramid and the ray query, of the cut — its culling, the composition of the poses, the root
+// boxes, the tree's leaves and refit —, and both halves of the draw compaction, binds no more of a
+// kind in one stage than WebGPU guarantees a device that asks for nothing: 16 sampled textures,
+// 8 storage buffers, 4 storage textures — the engine runs on any machine at the default limits,
+// whatever the world's size. The kit's device, holding the defaults, refuses a pipeline layout
+// past them (`tests/kit/gpu/limitRules.ts`); each test reads every stage it built too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -23,8 +23,8 @@ import { createHizPipelines } from '../hiz/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { limitOf, stageBindingCounts } from '../../../../../tests/kit/gpu/limitRules.ts'
 import { BLEND_BINDINGS } from '../../webgpu/core/bindLayout.ts'
-import { WATER_BINDINGS } from '../../webgpu/water/compositeWgsl.ts'
 import { dagBindEntries } from '../dag/shader/bindings.ts'
+import { drawBindEntries } from '../draw/shader.ts'
 import { dagDeviceRefusal } from '../dag/deviceRefusal.ts'
 import type { PackedDag } from '../dag/types.ts'
 import { TREE_REFIT_WGSL } from '../dag/treeRefitWgsl.ts'
@@ -97,11 +97,11 @@ const bindsFront = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
     ),
   )
 
-test("the blends and the water pass fit WebGPU's default limits", async () => {
+test("the blends and the transmissive stages fit WebGPU's default limits", async () => {
   const { device, pipelineLayouts: layouts, bindGroupLayouts } = fakeDevice()
   const failures: unknown[] = []
   // One item per blending mode, every display route among them, and one that transmits: every
-  // blend set, the routed ones and the water stage and composite are built.
+  // blend set, the routed ones and the transmissive stages are built.
   const items = [...BLEND_MODES, 'normal' as const].map((blending, index, all) => {
     const surface = G.basicSurface()
     Object.assign(surface, { blending })
@@ -120,23 +120,18 @@ test("the blends and the water pass fit WebGPU's default limits", async () => {
         lit,
       },
     )
-    assert.equal(built.waterRefused, undefined)
-    assert.ok(built.water, 'the water pass is built')
+    assert.ok(built.blendPipelines.transmission, 'the transmissive stages are built')
   }
   assert.deepEqual(failures, [])
   // Neither casts a ray of the proxy: the trace's cast does, within its frame's budget, and the front
   // surface reads what the trace wrote, one sampled texture within the sixteen of their fragment
   // stage with the display mask's group and the reflection group; no proxy buffer nor table.
-  for (const [name, bindings] of [
-    ['blends', BLEND_BINDINGS],
-    ['water', WATER_BINDINGS],
-  ] as const) {
+  for (const [name, bindings] of [['blends', BLEND_BINDINGS]] as const) {
     assert.ok(bindsFront(bindGroupLayouts, bindings.frontTraced), `the ${name} bind the front`)
     for (const proxy of ['proxy', 'proxyWorlds', 'proxyTree'])
       assert.ok(!(proxy in bindings), `the ${name} bind no ${proxy}`)
   }
-  // The water composite's lobes target, read by load alone, is a read-only storage texture.
-  withinDefaults(layouts, 'the blends and the water pass')
+  withinDefaults(layouts, 'the blends and the transmissive stages')
 })
 
 test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {
@@ -183,4 +178,14 @@ test('a device whose binding holds two thirds of the frame words binds the cut a
   const limits = { maxStorageBufferBindingSize: 400 * 32 }
   assert.equal(dagDeviceRefusal(limits, packed), undefined, 'the device holds the cut')
   withinDefaults([{ bindGroupLayouts: [{ entries: dagBindEntries() }] as never }], 'its culling')
+})
+
+test("both halves of the draw compaction fit WebGPU's default limits", () => {
+  // The tested half reads the page table and the Hi-Z verdicts beside the occluder half's six
+  // storage buffers: eight, the default, the groups' offsets, counts and slot totals in one.
+  for (const tested of [false, true])
+    withinDefaults(
+      [{ bindGroupLayouts: [{ entries: drawBindEntries(tested) }] as never }],
+      tested ? 'the tested draw compaction' : 'the occluder draw compaction',
+    )
 })

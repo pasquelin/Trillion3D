@@ -1,12 +1,17 @@
 import { receiverPlaceholders } from '../../webgpu/visibility/receiver.ts'
 import { deferredLayoutEntries } from './layoutEntries.ts'
 import { standInTexture } from '../../gpu/core/standInTexture.ts'
+import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { arrayView } from '../../gpu/core/textureViews.ts'
 import { BOUNCE_ATLAS_FORMAT, PROBE_TEXELS } from '../../bounce/atlas.ts'
 import { BOUNCE_GRID_BYTES } from '../../bounce/uniform.ts'
 import { runtimeStandIns } from '../../bounce/runtimeStandIns.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
-import { VSM_PROJECTION_MASK_FORMAT, VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
+import {
+  VSM_PROJECTION_MASK_FORMAT,
+  VSM_PROJECTION_THROUGH_FORMAT,
+  VSM_PROJECTION_TILE_FORMAT,
+} from '../../vsm/projectionWgsl.ts'
 import { VSM_TRANSMISSION_FORMAT } from '../../vsm/transmissionLayout.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from '../../vsm/projectionView.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
@@ -85,7 +90,7 @@ export function createDeferredPlaceholders(device: GPUDevice) {
 
 /** The virtual shadow maps' stand-ins: no light reads them (no light has a map without them). The
  *  resolve's mask stand-in, one zero texel (every lane lit), its tile words, one zero texel (no
- *  layer stored); the projection's view and blue noise a
+ *  layer stored), its transmission, one texel (none read); the projection's view and blue noise a
  *  forward pass traces with (`vsmTraceFactor`): zeros. */
 function createVsmPlaceholders(device: GPUDevice) {
   const vsmPageTable = device.createBuffer({
@@ -109,18 +114,26 @@ function createVsmPlaceholders(device: GPUDevice) {
     usage: GPUBufferUsage.STORAGE,
   })
   const vsmMask = standInTexture(device, 'Trillion3D empty VSM mask', VSM_PROJECTION_MASK_FORMAT)
-  const vsmMaskTiles = standInTexture(
-    device,
-    'Trillion3D empty VSM mask tiles',
-    VSM_PROJECTION_TILE_FORMAT,
-  )
+  // Read as storage (`MASK_TILES_TARGET`): its usage the load-only targets' own.
+  const vsmMaskTiles = device.createTexture({
+    label: 'Trillion3D empty VSM mask tiles',
+    size: [1, 1, 1],
+    format: VSM_PROJECTION_TILE_FORMAT,
+    usage: loadOnlyUsage(),
+  })
   const vsmProjectionView = device.createBuffer({
     label: 'Trillion3D empty VSM projection view',
     size: VSM_PROJECTION_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM,
   })
   const vsmBlueNoise = standInTexture(device, 'Trillion3D empty VSM blue noise', 'rgba8unorm')
-  const textures = [vsmMask, vsmMaskTiles, vsmBlueNoise]
+  // One texel: the resolve tells it from a real transmission by its size, and never reads it.
+  const vsmThrough = standInTexture(
+    device,
+    'Trillion3D empty VSM transmission',
+    VSM_PROJECTION_THROUGH_FORMAT,
+  )
+  const textures = [vsmMask, vsmMaskTiles, vsmBlueNoise, vsmThrough]
   return {
     views: {
       vsmPageTable,
@@ -129,6 +142,7 @@ function createVsmPlaceholders(device: GPUDevice) {
       vsmPool,
       vsmMask: arrayView(vsmMask),
       vsmMaskTiles: vsmMaskTiles.createView(),
+      vsmThrough: arrayView(vsmThrough),
       vsmProjectionView,
       vsmBlueNoise: vsmBlueNoise.createView(),
     },

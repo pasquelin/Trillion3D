@@ -12,7 +12,6 @@ import { flushWebgpuPages } from './render/flush.ts'
 import { renderWebgpuPages } from './render/render.ts'
 import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
 import type { Engine } from '../../engine/types.ts'
-import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 import { families } from '../../host/families.ts'
 
 // The effects' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
@@ -27,18 +26,22 @@ test('drawing another view every frame never resets the main view’s hold, nor 
   scene.metadata.primitives[0].pass = 'clustered-blend'
   scene.material.transparent = true
   scene.material.opacity = 0.5
-  const { backend, textures } = await flushedGpuScene(scene)
-  const side = await (backend as Engine).addView(RECT)
+  // A view whose temporal pass runs draws every frame (`taaRuns`): the hold is the plain view's.
+  const { backend, textures } = await flushedGpuScene(scene, { temporalAntialiasing: false })
+  const side = await (backend as Engine).addView({ rect: RECT })
   /** One host frame: the main view, then the side one; whether the main view was held. */
   const frame = async () => {
     backend.render(camera())
     const held = backend.metrics().frameHeld
-    side.render(awayCamera())
+    side.render(awayCamera(), 0)
     await backend.flush()
     return held
   }
   let frames = 0
-  while (!(await frame())) assert.ok(frames++ < TAA_STILL_FRAMES + 8, 'the main view holds')
+  while (!(await frame())) assert.ok(frames++ < 8, 'the main view holds')
+  // The side view's own pass is rigged in the background meanwhile: its targets come once.
+  for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate)
+  await frame()
   const made = textures.length
   for (let i = 0; i < 3; i++) assert.equal(await frame(), true, 'and stays held')
   assert.equal(textures.length, made, 'no view is sized again: no pyramid, no target is made')
@@ -48,8 +51,8 @@ test('drawing another view every frame never resets the main view’s hold, nor 
 
 test('a target grant lands on the view that asked for it, whichever is drawn', async () => {
   const { rt } = await drawnQuad()
-  const side = await addWebgpuView(rt, RECT)
-  renderWebgpuView(rt, side, awayCamera())
+  const { view: side } = await addWebgpuView(rt, { rect: RECT })
+  renderWebgpuView(rt, side, awayCamera(), 0)
   assert.equal(rt.views.active, rt.views.main, 'the main view is drawn again at once')
   const asked = side.gpu.targetGrant
   assert.ok(asked && rt.gpu.targetGrant === undefined, 'the side view asked, not the main one')
@@ -64,9 +67,9 @@ test('a persistent view accumulates its own history, the main view’s left as i
   const { rt } = await drawnQuad()
   const main = rt.gpu.temporal!,
     frame = { ...main.frame }
-  const side = await addWebgpuView(rt, RECT)
+  const { view: side } = await addWebgpuView(rt, { rect: RECT })
   for (let i = 0; i < 2; i++) {
-    renderWebgpuView(rt, side, camera())
+    renderWebgpuView(rt, side, camera(), 0)
     await flushWebgpuPages(rt)
   }
   const own = side.gpu.temporal
@@ -82,10 +85,10 @@ test('a persistent view is no capture: it draws the effect chain, with its own t
   const { rt } = await drawnQuad({ effects })
   const chain = rt.gpu.effects
   assert.ok(chain, 'the main view draws the chain')
-  const side = await addWebgpuView(rt, RECT)
+  const { view: side } = await addWebgpuView(rt, { rect: RECT })
   // Its first image makes its region of the cut's readout (`gpu/dag/swap.ts`), then it cuts.
   for (let i = 0; i < 3; i++) {
-    renderWebgpuView(rt, side, camera())
+    renderWebgpuView(rt, side, camera(), 0)
     await flushWebgpuPages(rt)
   }
   assert.equal(rt.capture.capturing, false)
@@ -93,4 +96,21 @@ test('a persistent view is no capture: it draws the effect chain, with its own t
   renderWebgpuPages(rt, camera())
   assert.equal(rt.gpu.effects, chain, 'the main view keeps its own')
   await removeWebgpuView(rt, side)
+})
+
+test('a persistent view draws at its own render scale and says what its image cost', async () => {
+  const { rt } = await drawnQuad()
+  const added = await addWebgpuView(rt, { rect: { x: 0, y: 0, width: 32, height: 16 } })
+  const side = added.view
+  added.setRenderScale(0.5)
+  added.setTemporalAntialiasing('off')
+  renderWebgpuView(rt, side, camera(), 3)
+  await side.gpu.targetGrant?.done
+  const metrics = renderWebgpuView(rt, side, camera(), 3)
+  assert.equal(metrics.index, 3)
+  assert.deepEqual([metrics.renderWidth, metrics.renderHeight], [16, 8], 'half its viewport')
+  assert.equal(metrics, side.metrics, 'the record it keeps, no frame allocating one')
+  assert.deepEqual(rt.gpu.targetSize, [32, 32], 'the main view keeps its scale')
+  await removeWebgpuView(rt, side)
+  assert.throws(() => renderWebgpuView(rt, side, camera(), 3), /VIEW_RELEASED/)
 })

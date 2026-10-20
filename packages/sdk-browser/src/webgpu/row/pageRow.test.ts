@@ -8,7 +8,16 @@ import { emptyGeometryBlock, rowGeometry, type MaterialLayers } from './pageRowM
 import { rowFlags, surfaceRow } from './surfaceRow.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { FLAG_COLOR, FLAG_UV } from '../../../../sdk-core/src/page/format.ts'
-import { FLAG_CLUSTER_PAGE, FLAG_HAS_COLOR, FLAG_SAMPLED } from '../../visibility/types.ts'
+import {
+  FLAG_CLUSTER_PAGE,
+  FLAG_DOUBLE,
+  FLAG_HAS_COLOR,
+  FLAG_HAS_MAP,
+  FLAG_HAS_NORMAL,
+  FLAG_SAMPLED,
+  FLAG_VOXEL,
+} from '../../visibility/types.ts'
+import { GEOMETRY_VOXEL } from '../../../../sdk-core/src/page/voxelPage.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from '../tile/pageTable.ts'
@@ -76,6 +85,7 @@ test('a row over a quantized page takes its attributes from the page, never a ta
       // No second UV set: the page header says so (`FLAG_UV1`).
       hasUv1: false,
       quantized: true,
+      voxel: false,
     },
   )
 })
@@ -165,4 +175,29 @@ test('a row multiplies by its vertex colours only when the material asks and the
   assert.equal(coloured.classKey, plain.classKey | CLASS_FEATURE.HAS_VERTEX_COLOR)
   assert.deepEqual(rowMaterial(ignores, { ...page(FLAG_UV | FLAG_COLOR) }, layers), plain)
   assert.deepEqual(rowMaterial(asks, { ...page(FLAG_UV) }, layers), plain)
+})
+
+// A voxel brick is no quantized page: its row reads its voxels' contours, carries their normals,
+// draws from both sides, and wears its voxels' surface — none of its material's maps.
+test("a voxel brick's row reads its voxels, both sides, in the voxel class alone", () => {
+  const map = {} as Texture
+  const layers = { mapLayer: new Map([[map, 1]]), dataLayer: new Map() }
+  const geometryPage = {
+    ...{ url: 'v', sha256: 'v', bytes: 96, vertexCount: 24, indexCount: 24 },
+    ...{ flags: GEOMETRY_VOXEL, uncompressedBytes: 96 },
+  }
+  const geo = rowGeometry(
+    { attributes: {} as never, geometryPage },
+    new Map(),
+    emptyGeometryBlock(),
+  )!
+  assert.deepEqual([geo.voxel, geo.quantized, geo.hasNormal, geo.hasUv], [true, false, true, false])
+  const row = rowMaterial({ ...surfaceOf(G.standardSurface()), map }, geo, layers)
+  assert.equal(row.flags & (FLAG_HAS_MAP | FLAG_CLUSTER_PAGE), 0)
+  assert.equal(
+    row.flags & (FLAG_VOXEL | FLAG_DOUBLE | FLAG_HAS_NORMAL),
+    FLAG_VOXEL | FLAG_DOUBLE | FLAG_HAS_NORMAL,
+  )
+  const f = CLASS_FEATURE
+  assert.equal(row.classKey, f.VOXEL | f.DOUBLE_SIDED | f.HAS_VERTEX_NORMAL)
 })

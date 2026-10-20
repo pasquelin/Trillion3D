@@ -1,4 +1,4 @@
-import { arrayView } from '../core/textureViews.ts'
+import { arrayView, layerView } from '../core/textureViews.ts'
 import { HIZ_DEPTH_LAYERS, HIZ_FRONT_LAYER, HIZ_OPAQUE_LAYER } from './pyramidTexture.ts'
 
 // A pyramid's level 0 (`pyramid.ts`): the opaque depth, and the transparents' front layer beside it,
@@ -20,12 +20,10 @@ export function level0Of(device: GPUDevice, usage: number, width: number, height
     format: HIZ_LEVEL0_FORMAT,
     usage,
   })
-  const layer = (baseArrayLayer: number) =>
-    level0.createView({ dimension: '2d', baseArrayLayer, arrayLayerCount: 1 })
   return {
     level0,
-    level0View: layer(HIZ_OPAQUE_LAYER),
+    level0View: layerView(level0, HIZ_OPAQUE_LAYER),
     depthView: arrayView(level0),
-    frontView: layer(HIZ_FRONT_LAYER),
+    frontView: layerView(level0, HIZ_FRONT_LAYER),
   }
 }

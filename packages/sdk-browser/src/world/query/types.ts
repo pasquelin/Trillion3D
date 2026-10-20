@@ -23,3 +23,9 @@ export type RayFilter = {
   objects?: readonly Object3D[]
   skip?: readonly Object3D[]
 }
+
+/** How far a ray reaches, and how near a line it must pass to meet it, in world units. */
+export type RayReach = {
+  reach?: number
+  lineReach?: number
+}

@@ -58,9 +58,7 @@ export function createLanding() {
     wake: (() => void) | undefined,
     unheard = false
   const landing = {
-    landings: 0,
     landed: () => {
-      landing.landings++
       unheard = !wake
       wake?.()
       next = wake = undefined

@@ -1,12 +1,14 @@
-// The world DAG in the WebGPU cut: a partitioned world's DAG joins the catalogue as one more
-// root, its pages read through the world's own source, each placed row linked to the object it
-// draws. On the cook's world fixture, served.
+// The world HLOD in the WebGPU cut: a partitioned world's DAG joins the catalogue as one more
+// root, its pages read through the world's own source, each placed row linked to the HLOD 0 cell it
+// lies in. On the cook's world fixture, served.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows } from '../../../placement/rows.ts'
 import { setRowCell } from '../../../partition/rowCells.ts'
-import { linkWorldObject, linkWorldObjects, takeLandedPages, withWorldRoot } from './worldRoot.ts'
+import { linkWorldCell, linkWorldCells, withWorldRoot } from './worldRoot.ts'
 import { placed, scene } from './worldRoot.fixture.ts'
+import { pageOf } from '../../../scene/worldRoots.fixture.ts'
+import { bundlePageRanges } from '../../../../../sdk-core/src/manifest/worldRoots.ts'
 import { drawSourceOf } from '../../../page/selection/drawSource.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { createWebgpuPagesLayout } from './layout.ts'
@@ -17,47 +19,46 @@ test('the world joins the catalogue as the last root, its requests ranked again'
   const { context, hold, opaque } = await scene(t)
   const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
   const allPages = [...roots[0].pages]
-  const collected = withWorldRoot({ roots, allPages, requests: new Map() }, context, context.draws)
+  const collected = withWorldRoot({ roots, allPages, requests: new Map() }, context)
   const world = collected.roots.at(-1)!
-  assert.equal(world.pages.length, hold.drawn!.dag!.pages.length)
-  assert.ok('origins' in world, 'the world DAG, packed last')
+  assert.equal(world.pages.length, hold.dag!.pages.length)
+  assert.ok('hlod' in world, 'the world DAG, packed last')
   assert.equal(collected.allPages.length, 1 + world.pages.length)
   assert.equal(world.pages[0].renderOrder, 4, 'drawn after every other')
   assert.ok(collected.requests.size > 1, 'its pages ranked among the requests')
 })
 
-test("a world page is read through the world's source, any other through the host", async (t) => {
-  const { context, bin, table, reads } = await scene(t)
-  const read = context.readGeometryPage!
-  const { offset, bytes } = table.bundles[2]
-  assert.deepEqual([...(await read('world-roots.bin#2:0'))], [...bin.slice(offset, offset + bytes)])
-  await read('../../objects/page.bin')
-  assert.deepEqual(reads, ['../../objects/page.bin'])
+test("a world page is a slice of its bundle, read by the session's one reader", async (t) => {
+  const { context, bin, table } = await scene(t)
+  const at = table.bundles[2].offset + bundlePageRanges(table, 2)[0].offset,
+    { bytes } = bundlePageRanges(table, 2)[0]
+  const read = await context.readGeometryPage!(pageOf(table, 2), undefined, undefined)
+  assert.deepEqual([...read], [...bin.slice(at, at + bytes)])
 })
 
-test('a placed row is linked to the object its cell places there, a parked one to none', async (t) => {
+test('a placed row is linked to the HLOD 0 cell it lies in, a parked one to none', async (t) => {
   const { context, opaque } = await scene(t)
   const rows = createPlacementRows(2),
     root = placed(opaque, rows) as unknown as ClusterRoot<PageRec>
-  // The cut hears each link as `placeObject(rank, object)`.
-  const links: [number, number][] = []
+  // The cut hears each link as `placeInCell(rank, cell, instance)`.
+  const links: [number, number, number][] = []
   const rt = {
     context,
     layout: { selectionRoots: [root] },
     run: {
       gpuSelection: {
-        packsWorld: true,
-        placeObject: (rank: number, object: number) => links.push([rank, object]),
+        world: {},
+        placeInCell: (rank: number, cell: number, instance: number) =>
+          links.push([rank, cell, instance]),
       },
     },
-  } as unknown as Parameters<typeof linkWorldObject>[0]
-  const linked = () => (linkWorldObject(rt, 0), links.at(-1)![1])
-  assert.equal(linked(), -1, 'no cell placed it')
-  // Cell 1's first node, of mesh 0: the cell's first object, the table's rank 1.
-  setRowCell(rows, 0, { cell: 1, node: 0 })
-  assert.equal(linked(), 1)
+  } as unknown as Parameters<typeof linkWorldCell>[0]
+  const linked = () => (linkWorldCell(rt, 0), links.at(-1)!)
+  assert.deepEqual(linked(), [0, -1, 0], 'no cell placed it')
+  setRowCell(rows, 0, { cell: 1, node: 0, instance: 1, hlod: 2, proxy: false })
+  assert.deepEqual(linked(), [0, 2, 1], 'its HLOD 0 cell, in its model\u2019s instance')
   root.parked = true
-  assert.equal(linked(), -1, 'parked')
+  assert.deepEqual(linked(), [0, -1, 0], 'parked')
 })
 
 test('the layout keeps the world DAG among the opaque roots, wherever it sits', async (t) => {
@@ -72,7 +73,6 @@ test('the layout keeps the world DAG among the opaque roots, wherever it sits', 
       requests: new Map(),
     },
     context,
-    context.draws,
   ).roots
   const layout = createWebgpuPagesLayout(
     {
@@ -88,85 +88,29 @@ test('the layout keeps the world DAG among the opaque roots, wherever it sits', 
   assert.deepEqual(layout.selectionRoots, [roots[2], roots[0], roots[1]])
 })
 
-test('the pages a bundle read lands go to the free slots of the pool, unpinned, never past them', async (t) => {
-  const { context, hold } = await scene(t)
-  const loads: [string, unknown][] = [],
-    resident = new Set(['held'])
-  let inFlight = 0
-  const cache = {
-    stats: () => ({ slots: 3, residentPages: resident.size, loading: inFlight }),
-    get: (address: string) => resident.has(address),
-    load: (address: string, _signal: unknown, tier: unknown) => (
-      loads.push([address, tier]),
-      Promise.resolve()
-    ),
-  }
-  const rt = {
-    context,
-    gpu: { cache },
-    signal: new AbortController().signal,
-    setup: { geometryUrls: new Map(['held', 'a', 'b', 'c', 'd', 'e'].map((url) => [url, url])) },
-  }
-  takeLandedPages(rt as unknown as Parameters<typeof takeLandedPages>[0])
-  hold.drawn!.landed.emit(['held', 'unknown', 'a', 'b', 'c'])
-  assert.deepEqual(loads, [
-    ['a', undefined],
-    ['b', undefined],
-  ])
-  // A load in flight takes the slot it lands in: a landed page counts it as taken.
-  loads.length = 0
-  inFlight = 1
-  hold.drawn!.landed.emit(['d', 'e'])
-  assert.deepEqual(loads, [['d', undefined]], 'one free slot, not two')
-})
-
-test('a cut that packs no world DAG reads no root for an object, at its adoption or a row moved', () => {
-  let reads = 0
-  const context = {
-    get worldRoots() {
-      reads++
-      return undefined
-    },
-    associations: new Map(),
-  } as never
+test('a cut that packs no world DAG links no placement, at its adoption or a row moved', () => {
+  let told = 0
   const roots = Array.from(
     { length: 1000 },
     () => ({ pages: [{}], placement: {} }) as unknown as ClusterRoot<PageRec>,
   )
-  const cut = { packsWorld: false, placeObject: () => {} } as never
-  linkWorldObjects(context, cut, roots)
-  linkWorldObject({ context, layout: { selectionRoots: roots }, run: { gpuSelection: cut } }, 7)
-  assert.equal(reads, 0, 'no root read')
+  const cut = { world: undefined, placeInCell: () => void told++ } as never
+  linkWorldCells(cut, roots)
+  linkWorldCell({ layout: { selectionRoots: roots }, run: { gpuSelection: cut } }, 7)
+  assert.equal(told, 0, 'nothing linked')
 })
 
-test('a world a merged manifest moved ranks its objects by the primitives it was given, its root posed by its model', async (t) => {
+test('a world placed by its model is posed by its row, parked with it', async (t) => {
   const { context, hold } = await scene(t)
-  // A model whose mesh the world merged at rank 7: its row draws what the table's first object is.
   const seven = drawSourceOf(G.triangleMesh(G.standardSurface()), { meshes: 7, primitives: 0 })
-  const rows = createPlacementRows(2),
-    root = placed(seven, rows) as unknown as ClusterRoot<PageRec>
-  setRowCell(rows, 0, { cell: 1, node: 0 })
-  const links: number[] = []
-  const rt = {
-    context,
-    layout: { selectionRoots: [root] },
-    run: {
-      gpuSelection: { packsWorld: true, placeObject: (_: number, o: number) => links.push(o) },
-    },
-  } as unknown as Parameters<typeof linkWorldObject>[0]
-  linkWorldObject(rt, 0)
-  assert.equal(links.at(-1), -1, 'a mesh the table does not name')
+  const root = placed(seven) as unknown as ClusterRoot<PageRec>
   const pose = createPlacementRows(1)
   pose.live[0] = 1
   pose.matrices.set([2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 2, 0, 5, 0, 0, 1])
-  hold.drawnAs({ primitives: [{ mesh: 7, primitive: 0, pass: 'clustered' } as never], pose })
-  linkWorldObject(rt, 0)
-  assert.equal(links.at(-1), 1, 'the table’s first primitive is mesh 7 now')
+  hold.drawnAs({ pose: { rows: pose } })
   const posed = () =>
-    withWorldRoot({ roots: [root], allPages: [], requests: new Map() }, context, [seven]).roots.at(
-      -1,
-    )!
-  assert.equal(posed().world.elements[12], 5, 'drawn at its model’s world')
+    withWorldRoot({ roots: [root], allPages: [], requests: new Map() }, context).roots.at(-1)!
+  assert.equal(posed().world.elements[12], 5, 'drawn at its model\u2019s world')
   assert.equal(posed().parked, false)
   pose.live[0] = 0
   assert.equal(posed().parked, true, 'parked with its model')

@@ -4,6 +4,7 @@ import type { TelemetryReport } from './telemetryTypes.ts'
 import { formatFrameReport, frameReport } from './frameProfile.ts'
 import { setDebugMode } from '../host/debugMode.ts'
 import { log } from './log.ts'
+import { createRings } from '../../../math/src/sequence/rings.ts'
 
 /**
  * THE ENGINE'S ONE PROFILER: it watches frame after frame and says how smoothly the engine runs,
@@ -13,25 +14,19 @@ import { log } from './log.ts'
  * mode (`../world/render/render.ts`), so a shipping page records nothing.
  */
 export class EngineProfiler {
-  private readonly intervals: Float64Array
-  private intervalCount = 0
-  private intervalHead = 0
+  private readonly intervals: ReturnType<typeof createRings>
   private lastMetrics: FrameMetrics | null = null
   private sourceTriangles = 0
   private totalClusters = 0
   private autoLogTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(maxIntervals = 120) {
-    this.intervals = new Float64Array(Math.max(1, maxIntervals))
+    this.intervals = createRings(1, Math.max(1, maxIntervals))
   }
 
   /** Kept intervals, from oldest to newest: what `frameStatistics` receives. */
   orderedIntervals(): number[] {
-    const size = this.intervals.length,
-      ordered = new Array<number>(this.intervalCount)
-    const first = this.intervalCount === size ? this.intervalHead : 0
-    for (let i = 0; i < this.intervalCount; i++) ordered[i] = this.intervals[(first + i) % size]
-    return ordered
+    return this.intervals.ordered(0)
   }
 
   /** Tells it which model is loaded. */
@@ -44,11 +39,7 @@ export class EngineProfiler {
    *  (`rafIntervalMs`, none after a pause), never one of its own. */
   record(metrics: FrameMetrics) {
     const dt = metrics.rafIntervalMs
-    if (dt != null && dt > 0) {
-      this.intervals[this.intervalHead] = dt
-      this.intervalHead = (this.intervalHead + 1) % this.intervals.length
-      if (this.intervalCount < this.intervals.length) this.intervalCount++
-    }
+    if (dt != null && dt > 0) this.intervals.push(0, dt)
     this.lastMetrics = metrics
   }
 
@@ -87,8 +78,7 @@ export class EngineProfiler {
   /** Stops and forgets everything. */
   dispose() {
     this.stopAutoLog()
-    this.intervalCount = 0
-    this.intervalHead = 0
+    this.intervals.clear()
     this.lastMetrics = null
   }
 }

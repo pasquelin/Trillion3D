@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PageRec } from './types.ts'
-import { linkBundleDependencies, withClosure } from './bundleDependencies.ts'
+import { linkBundleDependencies } from './bundleDependencies.ts'
 import { awaitedPages } from '../../webgpu/row/pageSlots.ts'
 
 const recs = (names: string[]) => names.map((url) => ({ url }) as PageRec)
@@ -20,19 +20,11 @@ test("a record's dependencies are one record of each fetched bundle its bundle l
   assert.deepEqual(m.dependencies, [r])
   assert.equal(a.dependencies, b.dependencies, 'one list per bundle, shared')
   assert.deepEqual(a.dependencies, [r, m])
-  // A bundle whose clusters read a quantized geometry page is never fetched: it is not listed.
+  // A quantized geometry page is a slice of its bundle: its bundle is fetched and listed alike.
   const quantized = recs(['r', 'm'])
   quantized[0].geometryPage = {} as never
   linkBundleDependencies(primitive([0, 1], [[], [0]]), quantized)
-  assert.deepEqual(quantized[1].dependencies, [])
-})
-
-test('the retained cut carries the bundles it is installed after', () => {
-  const pages = recs(['r', 'm', 'a'])
-  linkBundleDependencies(primitive([0, 1, 2], [[], [0], [0, 1]]), pages)
-  const marked: string[] = []
-  withClosure([pages[2]], (list) => list.forEach((rec) => marked.push(rec.url)))
-  assert.deepEqual(marked, ['a', 'r', 'm'])
+  assert.deepEqual(quantized[1].dependencies, [quantized[0]])
 })
 
 test('a record with its bytes still awaits while a bundle it follows has none', () => {

@@ -1,24 +1,25 @@
 /**
  * A SOURCE JOINS THE WEBGPU SESSION IN PLACE: a source the session was not opened with — its rows,
- * its surface — draws a primitive, one the session holds or one it does not. The open's own functions
- * run on its content alone: a primitive the session does not hold joins the manifest and the read
- * queue (`EngineContext.admitPages`); its records are made by the collection that made the others
- * (`createCollector`); the catalogue ranks and lists them (`growCatalogue`) and the pool is laid out
- * for the pages they add (`growWebgpuPagePool`); its surface's textures are taken into the atlas
- * (`appendWebgpuTexture`); its roots wait beside those a growth brings and join the cut with them
- * (`webgpuGrowth.ts`, `webgpuGrownCut.ts`), the cut taking them in the room it kept
+ * its surface — draws a primitive, one the session holds or one it does not. The open's own
+ * functions run on its content alone: a primitive the session does not hold joins the manifest and
+ * the read queue (`EngineContext.admitPages`); its records are made by the collection that made the
+ * others (`createCollector`); the catalogue ranks and lists them (`growCatalogue`) and the pool is
+ * laid out for the pages they add (`growWebgpuPagePool`); its surface's textures are taken into the
+ * atlas (`appendWebgpuTexture`); its roots wait beside those a growth brings and join the cut with
+ * them (`webgpuGrowth.ts`, `webgpuGrownCut.ts`), the cut taking them in the room it kept
  * (`appendDagRoots`). A blended or transmissive source brings copies, which join the transparent
- * pass with them (`webgpu/blend/growth.ts`), the water pass and its targets made for the first
- * transmissive one. A source the deformation stage moves — a skeleton, morph weights, waves — or one
- * whose vertices are read as floats joins with its records and its float geometries, the stage's code
- * loaded when the session had none (`deformation/growth.ts`). The coplanar layers its pages stack
- * are granted the slots of their own (`webgpu/pages/prepare/layerGrowth.ts`). Refused, by name, where the catalogue,
- * the pool or the pass cannot hold it (`catalogueRefusal`, `blendRefusal`).
+ * pass with them (`webgpu/blend/growth.ts`), the transmissive stages and the distortion's targets
+ * made for the first transmissive one. A source the deformation stage moves — a skeleton, morph
+ * weights, waves — or one whose vertices are read as floats joins with its records and its float
+ * geometries, the stage's code loaded when the session had none (`deformation/growth.ts`). The
+ * coplanar layers its pages stack are granted the slots of their own
+ * (`webgpu/pages/prepare/layerGrowth.ts`). Refused, by name, where the catalogue, the pool or the
+ * pass cannot hold it (`catalogueRefusal`, `blendRefusal`).
  */
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import { collectedSink, type Collected } from '../page/selection/collect.ts'
-import { drawsBlended } from '../page/selection/collectBlend.ts'
+import { pagesBlend } from '../page/selection/collectBlend.ts'
 import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import { sourceSurface, type PageSurface } from '../page/surface.ts'
@@ -51,6 +52,13 @@ function texturesOf(surface: PageSurface) {
   ].filter((entry): entry is readonly [Texture, 'color' | 'data'] => !!entry[0])
 }
 
+/** `surface`'s textures taken into the atlas, its coverage readers counted first: each reads its
+ *  own cache's chain where it has one (`appendWebgpuTexture`). */
+export async function appendSurfaceTextures(rt: WebgpuPagesRuntime, surface: PageSurface) {
+  rt.setup.texturePools?.coverage.read(surface)
+  for (const [texture, kind] of texturesOf(surface)) await appendWebgpuTexture(rt, texture, kind)
+}
+
 /** Why content cannot join, said by name; the session is the owner's still, nothing of it lost. */
 export const CLOSED = 'the session holds no GPU cut: it is closing or its device is lost'
 
@@ -59,7 +67,7 @@ export const shut = ({ gpu, run }: WebgpuPagesRuntime) =>
   !gpu.device || run.lost || !run.gpuSelection
 
 /** The check after each await of a join: an aborted session throws, a shut one is `CLOSED`. */
-function closed(rt: WebgpuPagesRuntime) {
+export function closed(rt: WebgpuPagesRuntime) {
   rt.signal.throwIfAborted()
   return shut(rt)
 }
@@ -102,15 +110,14 @@ export async function addWebgpuPlacements(
   if (held && held.pages !== primitive.pages)
     return 'a primitive of the same ranks drawn from other pages'
   const surface = sourceSurface(source)
-  const blend = drawsBlended(primitive, surface) && blendRefusal(rt)
+  const blend = pagesBlend(primitive, surface) && blendRefusal(rt)
   if (blend) return blend
   if (!held) {
     // Pushed on the manifest array the collector's finder indexes: found at its next look.
     context.metadata.primitives.push(primitive)
     context.admitPages?.(primitivePages(primitive))
   }
-  setup.texturePools?.coverage.read(surface)
-  for (const [texture, kind] of texturesOf(surface)) await appendWebgpuTexture(rt, texture, kind)
+  await appendSurfaceTextures(rt, surface)
   if (closed(rt)) return CLOSED
   const into = collectedSink()
   collector.add(source, into)
@@ -121,13 +128,12 @@ export async function addWebgpuPlacements(
     return 'the device refused the slots of its coplanar layers'
   if (closed(rt)) return CLOSED
   // The copies it draws blended or transmissive, ordered as the open orders them.
-  const copies = [...into.blendCopies, ...pagedBlendCopiesOf(into.roots, setup.pagedBlendCopies)]
-  copies.sort(byRenderOrder)
+  const copies = pagedBlendCopiesOf(into.roots, setup.pagedBlendCopies).sort(byRenderOrder)
   if (!(await prepareBlendGrowth(rt, gpu.device, copies, into.allPages)))
     return 'the device refused the transparent pass'
   if (closed(rt)) return CLOSED
   // The deformation stage, and the float geometries its pages read, for what moves or is rewritten.
-  if (!(await prepareDeformationGrowth(rt, gpu.device, into.roots, copies, into.allPages)))
+  if (!(await prepareDeformationGrowth(rt, gpu.device, into.roots, into.allPages)))
     return 'the deformation stage or the float pool was refused'
   if (closed(rt)) return CLOSED
   return joinCatalogued(rt, into, copies)

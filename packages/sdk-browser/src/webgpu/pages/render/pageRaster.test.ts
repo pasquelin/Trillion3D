@@ -95,7 +95,7 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
     2,
   )
   assert.deepEqual([...new Set(vis.map((draw) => draw.bindOffset ?? 0))], [0])
-  assert.ok(vis.every((draw) => draw.instanceBuffer && draw.slotOffsetsBuffer))
+  assert.ok(vis.every((draw) => draw.instanceBuffer && draw.groupsBuffer))
   backend.dispose()
   geoA.dispose()
   geoB.dispose()

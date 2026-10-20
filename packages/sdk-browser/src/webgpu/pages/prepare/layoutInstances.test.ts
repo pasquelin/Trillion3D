@@ -39,8 +39,11 @@ test('the packed tables hold one entry per primitive page, whatever the placemen
   assert.equal(many.packedPages.length, 40 * pages, 'every instance keeps its packed rank')
   assert.equal(Array.isArray(many.packedPages), false, 'no flat list of records per instance')
   assert.deepEqual([one.rows.instances.size, many.rows.instances.size], [pages, pages])
-  assert.deepEqual([one.copies.byAddress.size, many.copies.byAddress.size], [pages, pages])
-  assert.deepEqual([one.copies.max, many.copies.max], [1, 40], 'the largest placement count')
+  assert.deepEqual(
+    [one.rows.instances.copiesMax, many.rows.instances.copiesMax],
+    [1, 40],
+    'the largest placement count',
+  )
   // A rank resolves through its placement's base to the shared record, and the address's least
   // rank names it, as the flat list did.
   const last = 39 * pages + 3

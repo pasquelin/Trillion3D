@@ -12,9 +12,9 @@ import { BACKEND, dispatchedEntries } from '../../../../../../tests/kit/gpu/fake
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts'
 import { webgpuPagesEngine } from '../pages.ts'
-import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { Engine } from '../../../engine/types.ts'
-import { followFeedback } from './feedbackVariant.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 const FEEDBACK_TARGET = 'Trillion3D texture feedback target'
 type Gpu = ReturnType<typeof fakeDevice>
@@ -29,6 +29,7 @@ async function opened(textured: boolean) {
       map: G.dataTexture(new Uint8Array(16).fill(255), 2, 2),
     })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -122,24 +123,4 @@ test('a texture that comes after open brings the target in place, the other targ
   } finally {
     disposeQuadRun(backend, fixture)
   }
-})
-
-test('a variant replaced before it was installed frees the water pass it made', () => {
-  let disposed = 0
-  const water = { frame: { dispose: () => void disposed++ } }
-  const rt = {
-    context: {},
-    gpu: {},
-    vis: {
-      mapLayer: new Map(),
-      dataLayer: new Map(),
-      writesFeedback: false,
-      writesEmissiveAo: true,
-      feedbackAside: { feedback: true, emissiveAo: true, set: { water } },
-    },
-  } as unknown as WebgpuPagesRuntime
-  // The texture left again before the variant that writes its feedback was installed.
-  followFeedback(rt, {} as GPUDevice)
-  assert.equal(disposed, 1, 'its water pass never drew: it goes')
-  assert.equal(rt.vis.feedbackAside, undefined, 'the pipelines in place already fit')
 })

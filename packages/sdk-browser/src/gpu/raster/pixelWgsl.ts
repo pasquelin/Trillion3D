@@ -8,6 +8,7 @@ import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
 import { VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { FLAG_MASK } from '../../visibility/types.ts'
+import { visTriangle } from '../../visibility/visWords.ts'
 
 /** The pixels of the frame the raster writes: the work buffer holds their depths, then their
  *  identifiers one frame further. */
@@ -67,6 +68,7 @@ export const RASTER_PIXEL_WGSL = wgslBlock(
     maskKeepWgsl(maskAlphaWgsl(false)),
     pixelCount,
     pixelOffset,
+    visTriangle,
   ],
   `
 /** Canonical order of two screen vertices: highest first, then leftmost. */
@@ -124,7 +126,7 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  let offset=pixelOffset(vec2u(pixel));
  let raw=bitcast<u32>(depth);
  let bits=min(bitcast<u32>(${wgslF32(DEPTH_NEAR)}),raw+page.depthBias);
- if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|(t.triangle&0xffu));}}
+ if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|visTriangle(t.triangle));}}
  else{atomicMax(&work[offset],bits);}
 }
 `,

@@ -14,7 +14,9 @@ export function structureFamily(seed: number, leaves: number, widest = 6): Clust
   const shuffled = (list: number[]) => {
     for (let i = list.length - 1; i > 0; i--) {
       const j = pick(i + 1)
-      ;[list[i], list[j]] = [list[j], list[i]]
+      const kept = list[i]
+      list[i] = list[j]
+      list[j] = kept
     }
     return list
   }

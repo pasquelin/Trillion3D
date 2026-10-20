@@ -6,8 +6,8 @@
  * new rows follow their owner's writes.
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { countRootCopies } from '../webgpu/pages/prepare/layout.ts'
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts'
+import { blendedPagesOf } from '../webgpu/pages/prepare/layout.ts'
 import { postPackedBases } from '../page/selection/placements.ts'
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts'
 import { rootMark } from '../deformation/halfFloat.ts'
@@ -18,11 +18,10 @@ import { forgetRowRoots } from './update.ts'
 import { adoptRootedReaders } from './gpuCompose.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
 import { adoptCut } from '../webgpu/pages/prepare/cut.ts'
-import { followWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
+import { coverHeldRoots, isWorldRoot } from '../webgpu/pages/prepare/worldRoot.ts'
 import { takeGrownCopies } from './webgpuGrowth.ts'
 import { heldPage } from './grownCutStart.ts'
-import { growBlend, waitsForFrontDepth, waitsForWater } from '../webgpu/blend/growth.ts'
-import { forgetReflectedImages } from '../reflections/forget.ts'
+import { growBlend, waitsForFrontDepth, waitsForRefraction } from '../webgpu/blend/growth.ts'
 import { announceGrowth, replayMoves, type GrownRoots } from './growthAnnounce.ts'
 import { joinDeformation, placeDeformation } from '../deformation/growth.ts'
 
@@ -37,8 +36,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   const { layout, setup, run } = rt,
     { selectionRoots, packedPages, rows } = layout
   if (!growth || !ready || selectionRoots.length + growth.roots.length !== ready.roots) return false
-  // A transmissive copy joins over the water pass's targets and classes, asked of the frame.
-  if (waitsForWater(rt, growth.copies)) return false
+  // A refracting copy joins over the distortion's targets, asked of the frame.
+  if (waitsForRefraction(rt, growth.copies)) return false
   // A blend joins over the front depth the targets and the Hi-Z were remade to hold.
   if (waitsForFrontDepth(rt, growth.copies)) return false
   growth.ready = undefined
@@ -58,16 +57,14 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   }
   forgetRowRoots(selectionRoots)
   // The new rows read their primitive's own shared records (#1235); the placement tables are
-  // rewritten in place, and the pool's copies count each primitive page once by its placements.
-  countRootCopies(layout.copies, added)
+  // rewritten in place, and the pool's copies follow the instances (`rows.addPages`).
   postPackedBases(selectionRoots, layout.placement) // in place: readers hold this object
-  for (const root of added)
-    if (!root.pages[0]?.transparent) layout.opaquePageCount += root.pages.length
+  for (const root of added) layout.blendedPageCount += blendedPagesOf(root)
   rows.addPages(first)
   // Their records join the deformation's, before the blended items name them; the pool lays its
-  // tail out for them, and for the whole copies the items bring, once these exist.
+  // tail out for them once these exist.
   const copies = takeGrownCopies(rt)
-  joinDeformation(rt, added, copies, firstRank)
+  joinDeformation(rt, added, firstRank)
   // The blended copies join the pass with the ranks their pages hold now, before the first sync of
   // the rows names them.
   joinBlend(rt, copies, added, first)
@@ -91,8 +88,9 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   for (const view of rt.views.persistent) viewGpu(rt, view).temporal?.motion.grow()
   // Taken in place, the running cut already holds them; else the cut made over them replaces it.
   if (!ready.inPlace) swapCut(rt, ready, added, firstRank)
-  // A world DAG among them is the session's: the cells it draws far are followed.
-  if (added.some((root) => 'origins' in root)) followWorldRoot(rt)
+  // A world DAG among them is the session's (`webgpuAppendWorld.ts`): the roots its held cells add
+  // follow the cells, as at the open.
+  if (added.some(isWorldRoot)) coverHeldRoots(rt, rt.services.residencySets)
   // The new rows as their owner wrote them meanwhile: parked or taken, posed, casting or not.
   for (const root of added)
     if (root.placement)
@@ -103,8 +101,6 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
     growWebgpuTables(rt, setup.cap).catch((error) =>
       rt.diag.diagnosticFailure('page-tables-growth-failed', error),
     )
-  // What the reflections held shows the scene without them: the series restarts, as a fresh open's.
-  forgetReflectedImages(rt)
   announceGrowth(rt, added, firstRank)
   return true
 }

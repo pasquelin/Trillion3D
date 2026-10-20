@@ -12,6 +12,8 @@ import { renderWebgpuPages } from '../render/render.ts'
 import { flushWebgpuPages } from '../render/flush.ts'
 import { disposeWebgpuPages } from './metrics.ts'
 import { SHADOW_LIMITS } from '../testScenes.fixture.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 /** A sun that casts: the session's shadow cull, spheres and mobility words then exist. */
 export const SUN: SceneLight = {
@@ -47,6 +49,7 @@ export async function coarseSession(light?: SceneLight) {
     },
   })
   const rt = createWebgpuPagesRuntime({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     pixelError: 0,
     gpuDevice: device,

@@ -9,11 +9,14 @@ import {
   materialDeclarations,
 } from '../../webgpu/tile/wgsl.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { maskUvWgsl } from './pageUv1Wgsl.ts'
 import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
-import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
-import { FLAG_MASK } from '../types.ts'
+import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
+import { cornerBarycentric, wireframeEdge } from '../../../../math/src/wgsl/barycentric.ts'
+import { DIAGNOSTIC_WIRE_WGSL } from '../../diagnostic/colors.ts'
+import { FLAG_DYNAMIC, FLAG_MASK } from '../types.ts'
 import { visTriangle } from '../visWords.ts'
 
 /** The raster's one fragment stage, and the override that compiles its mask test out for a slot
@@ -22,17 +25,19 @@ import { visTriangle } from '../visWords.ts'
 export const VIS_FRAGMENT = 'vis_hiz_fs'
 export const VIS_UNMASKED = { MASKED: 0 }
 
-/** The vertex stage of the hardware raster, both halves': a row the Hi-Z test rejected never
- *  reaches it (`GpuDraw.encodeTested`). */
-const VIS_VERTEX = `@vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
+/** A vertex stage over the indirect slots, the hardware raster's (`vis_vs`) or the x-ray view's
+ *  (`vis_xray_vs`): one text, which reads the compute share (`hardwareIdle`,
+ *  `hardwareCorner`) only where `share` says, and ends with `tail`, what it writes into `tc`. */
+const visVertex = (entry: string, share: boolean, tail: string) =>
+  `@vertex fn ${entry}(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
  let at=drawBatch(instanceIndex);let pageIndex=at.x;let corner=at.y+vertexIndex;
  let page=pages[pageIndex];
  out.instance=pageIndex;out.tc=vec3f(0.0);
- if(hardwareIdle(page,corner)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
+ if(${share ? 'hardwareIdle(page,corner)' : 'corner>=page.indexCount'}){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let shape=pageShape(page);
- let id=hardwareCorner(page,h,corner,shape);
+ let id=${share ? 'hardwareCorner(page,h,corner,shape)' : 'pageCorner(page,h,corner)'};
  if(id==NO_INDEX){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
@@ -40,11 +45,44 @@ const VIS_VERTEX = `@vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@bu
  if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}
  if(shape.sprite.y!=0.0){out.position=uni.viewProj*pageSprite(page,p,shape.sprite);}
  out.id=page.packedBase|visTriangle(corner/3u);
- if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageUv(page,h,id),0.0);}
- if((page.flags&${FLAG_MASK}u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
- return out;
+${tail} return out;
 }
 `
+
+/** The vertex stage of the hardware raster, both halves': a row the Hi-Z test rejected never
+ *  reaches it (`GpuDraw.encodeTested`). */
+const VIS_VERTEX = visVertex(
+  'vis_vs',
+  true,
+  ` if((page.flags&${UV_READ}u)==${UV_READ}u){out.tc=vec3f(pageMaskUv(page,h,id),0.0);}
+ if((page.flags&${FLAG_MASK}u)!=0u){out.tc.z=pageMaskAlpha(page,h,id);}
+`,
+)
+
+/**
+ * THE X-RAY VIEW (`xray`), a see-through wireframe — every triangle's edges, the hidden ones
+ * too, both faces, no culling — over what the GPU cut submitted this image: the same
+ * indirect slots, both halves, the rows the frustum, the cut's levels and the Hi-Z test dropped
+ * already gone (`GpuDraw.encodeTested`), drawn again with no depth test and added
+ * (`../../webgpu/visibility/xray.ts`). Its vertex stage is the raster's, the compute share left
+ * out — a triangle the compute raster took was submitted too —, its `tc` the corner's
+ * barycentric basis; its fragment the wireframe's coverage of the edges (`wireframeEdge`, the
+ * barycentrics' change over one pixel as the blended wireframe takes it) times the primitive's wire
+ * colour by its mobility (`diagnosticWireColor`).
+ */
+export const VIS_XRAY_VERTEX = 'vis_xray_vs',
+  VIS_XRAY_FRAGMENT = 'vis_xray_fs'
+const VIS_XRAY_WGSL = wgslBlock(
+  'VIS_XRAY_WGSL',
+  [wireframeEdge, cornerBarycentric, DIAGNOSTIC_WIRE_WGSL],
+  `${visVertex(VIS_XRAY_VERTEX, false, ' out.tc=cornerBarycentric(corner%3u);\n')}
+@fragment fn ${VIS_XRAY_FRAGMENT}(in:VSOut)->@location(0) vec4f{
+ let coverage=wireframeEdge(in.tc,max(fwidth(in.tc),vec3f(1e-6)));
+ if(coverage==0.0){discard;}
+ return vec4f(diagnosticWireColor((pages[in.instance].flags&${FLAG_DYNAMIC}u)!=0u)*coverage,0.0);
+}
+`,
+)
 
 /**
  * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
@@ -103,6 +141,7 @@ override MASKED:bool=true;
       materialTableWgsl(VIS_BINDINGS.material),
       maskKeepWgsl(maskAlphaWgsl(false)),
       PAGE_GEOMETRY_WGSL,
+      maskUvWgsl(VIS_BINDINGS.normals),
       COMPUTE_TAKES_WGSL,
       NO_INDEX,
       visTriangle,
@@ -112,3 +151,8 @@ override MASKED:bool=true;
 
 /** The raster's module without a diagnostic stage: what production compiles. */
 export const VIS_SHADER = visShader()
+
+/** The x-ray pass's module: the raster's, with its x-ray stages (`VIS_XRAY_WGSL`), assembled at
+ *  its first use only. */
+let xrayShader: string | undefined
+export const visXrayShader = () => (xrayShader ??= visShader({ diagnostic: VIS_XRAY_WGSL }))

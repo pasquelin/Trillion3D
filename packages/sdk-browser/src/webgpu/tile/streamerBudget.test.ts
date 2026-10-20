@@ -9,29 +9,35 @@ import { poolEncoding } from '../../texture/blockFormats.ts'
 import { tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
+import { tileLevelBytes, type TextureLevelRequest } from '../../texture/levelReader.ts'
+import { tileRecord } from '../../texture/tileRecords.ts'
 
 /** Milliseconds each fake copy costs on the test's own clock — the budget is read on it — and
  *  what the shadows that follow the landed colour tiles cost after the last copy. */
 const COPY_MS = 2,
   FOLLOW_MS = 1
 
-/** The device of the pass: each image copy costs `COPY_MS` on the test's clock, and each colour
- *  signal `FOLLOW_MS` after it; a readback buffer gives back what the test wrote in it. */
+/** The device of the pass: each tile written costs `COPY_MS` on the test's clock — the writes
+ *  before `start`, the fills' and the tails', count nothing —, and each colour signal `FOLLOW_MS`
+ *  after it; a readback buffer gives back what the test wrote in it. */
 function tileDevice() {
-  const { device, buffers, imageCopies } = fakeDevice()
-  let follows = 0
+  const { device, buffers, textureWrites } = fakeDevice()
+  let follows = 0,
+    before = 0
+  const copies = () => textureWrites.length - before
   return {
     device,
     staging: buffers,
-    copies: () => imageCopies.length,
-    now: () => imageCopies.length * COPY_MS + follows * FOLLOW_MS,
+    copies,
+    start: () => void (before = textureWrites.length),
+    now: () => copies() * COPY_MS + follows * FOLLOW_MS,
     follow: () => void follows++,
   }
 }
 
 /** One baked 256² colour texture: four level-0 tiles and one level-1 tile to stream. */
 function streamer(budgetMs: number) {
-  const { device, staging, copies, now, follow } = tileDevice()
+  const { device, staging, copies, start, now, follow } = tileDevice()
   const layout = tileLayout(256, 256)
   const tail: Uint8Array<ArrayBuffer>[] = []
   for (let level = layout.tail; level <= layout.last; level++) {
@@ -39,12 +45,20 @@ function streamer(budgetMs: number) {
     tail.push(new Uint8Array(w * h * 4))
   }
   const blocks = { bc7: [], astc: [], etc2: [] }
+  const layouts = { bc7: 'rgba', astc: 'lossless', etc2: 'lossless' } as const
   const fill = {
     layout: tileLayout(1, 1),
     lane: 'lossless' as const,
     source: { kind: 'bytes' as const, tail: { levels: [new Uint8Array(4)], blocks } },
   }
   const sha256 = 'a'.repeat(64)
+  const read = Object.assign(
+    async ({ level, tx, ty }: TextureLevelRequest) => {
+      const [width, height] = previewLevelSize(256, 256, level)
+      return new Uint8Array(tileLevelBytes(tileRecord(width, height, tx, ty).bytes, true))
+    },
+    { store: createPageCache(), key: 'k' },
+  )
   const lossless = { lossless: 1, rgba: 0, 'two-channel': 0 }
   const textures = createWebgpuTileStreamer({
     device,
@@ -53,7 +67,7 @@ function streamer(budgetMs: number) {
       {
         layout,
         lane: 'lossless',
-        source: { kind: 'baked', sha256, atlas: 0, tail: { levels: tail, blocks } },
+        source: { kind: 'baked', sha256, atlas: 0, tail: { levels: tail, blocks, layouts }, read },
       },
     ],
     data: [fill],
@@ -62,17 +76,11 @@ function streamer(budgetMs: number) {
     budgetBytes: Number.MAX_SAFE_INTEGER,
     budgetMs,
     clock: createFrameBudget(Infinity, now),
-    readLevel: Object.assign(
-      async ({ level }: { level: number }) => {
-        const [width, height] = previewLevelSize(256, 256, level)
-        return { width, height, close() {} } as ImageBitmap
-      },
-      { store: createPageCache(), key: 'k' },
-    ),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
     onColorChanged: follow,
   })
   textures.prepare()
+  start()
   /** Image feedback that names every streamed tile, heaviest first: the next pass takes it. */
   const feed = async () => {
     textures.feedback.encode(device.createCommandEncoder())

@@ -5,7 +5,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { vectors } from '../../../../../tests/kit/gpu/fakeBuffers.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { BLEND_VERDICT_SHADER, VERDICT_GROUP } from './verdictWgsl.ts'
-import { VERDICT, verdictWords } from './verdictLayout.ts'
+import { VERDICT, VERDICT_WORDS } from './verdictLayout.ts'
 import { FRAME_HEAD } from './frameHead.ts'
 import { writeKeyRecords } from './keyRecords.ts'
 import type { WebgpuBlendState } from './state.ts'
@@ -19,13 +19,15 @@ const NAMES = [
   'judgeLane',
   'packLane',
   'judgeItem',
+  'cellDraws',
   'boxExcluded',
   'boundedDouble',
   'frameDouble',
   'keyedDouble',
 ]
 
-/** The words of the verdict's six bindings (`VERDICT_BINDING`), read and written where they sit. */
+/** The words of the verdict's buffers (`VERDICT_BINDING`), read and written where they sit: a frame
+ *  that names no cell states (`FRAME_CELL_STATES` zero) reads no cell. */
 type VerdictWords = {
   keyed: ArrayLike<number>
   draws: Uint32Array
@@ -63,7 +65,7 @@ export function runVerdict(words: VerdictWords) {
 export function gpuVerdict(blendState: WebgpuBlendState, counts: number[]) {
   const items = blendState.blendGpu.length
   const keep = new Array<number>(bitWords(items)).fill(0xdeadbeef),
-    verdict = new Array<number>(verdictWords(blendState.transmissive)).fill(7)
+    verdict = new Array<number>(VERDICT_WORDS).fill(7)
   verdict[VERDICT.rejected] = verdict[VERDICT.inView] = 0
   runVerdict({
     keyed: writeKeyRecords(blendState),
@@ -73,11 +75,9 @@ export function gpuVerdict(blendState: WebgpuBlendState, counts: number[]) {
     keep,
     verdict,
   })
-  const water = VERDICT.waterDraws
   return {
     keep: Uint32Array.from(keep),
     rejected: verdict[VERDICT.rejected],
     inView: verdict[VERDICT.inView],
-    waterDraws: Uint32Array.from(verdict.slice(water, water + blendState.transmissive)),
   }
 }

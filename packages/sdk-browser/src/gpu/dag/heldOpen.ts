@@ -1,9 +1,14 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import * as sampling from '../../../../math/src/wgsl/sampling.ts'
-import { halfLoadSlots, mixWord, slotsWithin } from '../../../../math/src/scalar/integers.ts'
+import {
+  halfLoadSlots,
+  mixWord,
+  movesIntoHole,
+  slotsWithin,
+} from '../../../../math/src/scalar/integers.ts'
 import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
-import { openProbeWgsl } from './shader/probeWgsl.ts'
+import { openProbeStatement } from './shader/probeWgsl.ts'
 
 /**
  * THE OPEN COUNTS A PLACEMENT HOLDS OF ITS OWN, beside its primitive's shared nodes.
@@ -75,8 +80,7 @@ export function createHeldOpen(capacity: number) {
         touched.mark(hole)
         return
       }
-      const home = heldHash(words[at] - 1, words[at + 1], mask)
-      if (((j - home) & mask) >= ((j - hole) & mask)) {
+      if (movesIntoHole(j, heldHash(words[at] - 1, words[at + 1], mask), hole, mask)) {
         words.copyWithin(hole * OPEN_SLOT_WORDS, at, at + OPEN_SLOT_WORDS)
         touched.mark(hole)
         hole = j
@@ -183,7 +187,7 @@ export const DAG_HELD_OPEN_WGSL = wgslBlock(
 fn heldHash(w:u32,node:u32)->u32{return mixWord(w^mixWord(node))&views[0u].heldMask;}
 fn openOf(w:u32,node:u32,blank:u32)->u32{
  if(heldByOf(w)==0u){return blank;}
-${openProbeWgsl({
+${openProbeStatement({
   home: 'heldHash(w,node)',
   mask: 'views[0u].heldMask',
   steps: 'HELD_PROBES',

@@ -15,6 +15,12 @@ export type RangeTarget = (
   size: number,
 ) => void
 
+/** `buffer` as a run target: each run written `baseBytes` past its offset. */
+export const bufferRangeTarget =
+  (device: GPUDevice, buffer: GPUBuffer, baseBytes = 0): RangeTarget =>
+  (offset, data, dataOffset, size) =>
+    device.queue.writeBuffer(buffer, baseBytes + offset, data, dataOffset, size)
+
 /** What `writeRanges` sends: the source's words, `stride` per index, from word `sourceBase` there
  *  and from word `targetBase` in the table. */
 export type RangeSource = {
@@ -42,7 +48,7 @@ export const joinedRanges = (sorted: Int32Array, count: number, stride: number) 
  * The one run writer of the engine's tables: the `count` increasing indices of `sorted` joined into
  * ranges (`joinedRanges`), each sent as one write through `target` — the residency bits, the
  * placements' links, the cut's records, the worlds a call named and their exact translations, the
- * frame words, the placement tree's nodes and lists (`treeTable.ts`), the impostor cards.
+ * frame words, the placement tree's nodes and lists (`treeTable.ts`).
  */
 export function writeRanges(
   target: RangeTarget,
@@ -58,4 +64,22 @@ export function writeRanges(
       from = data.byteOffset + (sourceBase + first * stride) * 4
     target(offset, data.buffer as ArrayBuffer, from, bytes)
   }
+}
+
+/** The `count` increasing indices of `sorted`, records of `stride` words of `words`, sent into
+ *  `buffer` at the same places in `writeRanges`'s runs. */
+export function writeBufferRuns(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  sorted: Int32Array,
+  count: number,
+  words: Uint32Array,
+  stride: number,
+) {
+  writeRanges(bufferRangeTarget(device, buffer), sorted, count, {
+    data: words,
+    sourceBase: 0,
+    targetBase: 0,
+    stride,
+  })
 }

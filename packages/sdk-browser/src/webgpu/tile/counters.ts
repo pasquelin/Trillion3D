@@ -33,7 +33,10 @@ export function createTileCounters() {
     },
     metrics(
       atlases: readonly WebgpuTileAtlas[],
-      { levels, liveBytes }: { levels?: HeldLevels; liveBytes: number },
+      {
+        levels,
+        liveBytes,
+      }: { levels?: Pick<HeldLevels, 'inFlight' | 'fetched' | 'bytes'>; liveBytes: number },
       family: string,
     ) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>

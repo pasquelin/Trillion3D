@@ -49,7 +49,8 @@ test('a still scene, its lights settled, writes none of the uploads of these pas
     ...['vsm.nextMaps', 'vsm.perPageIds', 'vsm.marking.params', 'vsm.marking.perPage'],
     // Both frame sets' projection records.
     ...['vsm.projectionData0', 'vsm.projectionData1'],
-    ...['vsm.render.params', 'vsm.render.views'],
+    // The raster's parameters: its views the GPU lists (`renderViewsWgsl.ts`), no upload.
+    'vsm.render.params',
   ]
   const first = new Set(only([...run[0].writes, ...run[1].writes], uploads))
   assert.deepEqual([...first].sort(), uploads.slice().sort(), 'the first two frames write them')

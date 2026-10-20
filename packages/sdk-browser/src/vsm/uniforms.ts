@@ -34,8 +34,6 @@ struct VsmUniforms{
  staticSlice:u32,
  poolPagesXY:vec2u,
  pageTableSize:vec2u,
- pageTableRowShift:u32,
- pageTableRowMask:u32,
  coverSize:vec2u,
  detailPixelsStatic:f32,
  detailPixelsDynamic:f32,
@@ -79,14 +77,14 @@ export function writeVsmUniforms(
   u[9] = layout.poolPagesXY[1]
   u[10] = layout.pageTableSize[0]
   u[11] = layout.pageTableSize[1]
-  u[12] = layout.pageTableRowShift
-  u[13] = layout.pageTableRowMask
-  u[14] = layout.coverSize[0]
-  u[15] = layout.coverSize[1]
-  f[16] = VSM_DETAIL_PIXELS_STATIC
-  f[17] = VSM_DETAIL_PIXELS_DYNAMIC
-  f[18] = VSM_NORMAL_BIAS
-  f[19] = VSM_SCREEN_RAY_SHARE
+  u[12] = layout.coverSize[0]
+  u[13] = layout.coverSize[1]
+  f[14] = VSM_DETAIL_PIXELS_STATIC
+  f[15] = VSM_DETAIL_PIXELS_DYNAMIC
+  f[16] = VSM_NORMAL_BIAS
+  f[17] = VSM_SCREEN_RAY_SHARE
+  // Words 18 and 19: the padding WGSL puts before markMipOffset, an array at a 16-byte boundary.
+  u[18] = u[19] = 0
   for (let m = 0; m < VSM_MIPS; m++) {
     u[20 + m] = layout.markMipOffsets[m] ?? 0
     u[28 + m] = layout.coverMipOffsets[m] ?? 0

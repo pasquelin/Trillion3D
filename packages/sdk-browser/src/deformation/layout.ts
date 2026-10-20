@@ -40,7 +40,7 @@ export const WORLD_BLOCK = {
   floats: 4 * MATRIX_VALUES,
 } as const
 /** Floats of a soft source's node: its point this frame, the last one, at rest, its normal. */
-export const SOFT_FLOATS = 4 * 3
+const SOFT_FLOATS = 4 * 3
 /** Floats of one wave: its `WAVE_FIELDS`, padded to a multiple of four. */
 export const WAVE_FLOATS = alignUp(WAVE_FIELDS.length, 4)
 
@@ -56,3 +56,8 @@ export function recordLayout({ joints, targets, waves, soft = 0 }: RecordShape) 
   const simulation = wave + 2 * waves * WAVE_FLOATS
   return { palette, weights, world, wave, simulation, floats: simulation + soft * SOFT_FLOATS }
 }
+
+/** The `n` floats of this frame from `at` copied to the last frame's place beside them, `at + n`:
+ *  each block's "previous copy", before this frame's write, or after it on a cold write. */
+export const keepPrevious = (block: Float32Array, at: number, n: number) =>
+  block.copyWithin(at + n, at, at + n)

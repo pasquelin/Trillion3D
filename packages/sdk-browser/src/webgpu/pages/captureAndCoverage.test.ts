@@ -17,6 +17,8 @@ import { deepQuadScene } from './deepQuad.fixture.ts'
 import type { Engine } from '../../engine/types.ts'
 import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
 import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('a surface capture blocks external renders while its own view is drawn, and not after', async () => {
   installGpuGlobals()
@@ -26,6 +28,7 @@ test('a surface capture blocks external renders while its own view is drawn, and
   let capturing = false,
     blocked: unknown
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -64,7 +67,6 @@ test('a failed transparent material pipeline refuses the scene by name, never dr
   const fixture = quadScene()
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
-  fixture.metadata.primitives[0].pass = 'shared-blend'
   const create = device.createRenderPipeline.bind(device)
   device.createRenderPipeline = (descriptor) => {
     const target = descriptor.fragment ? [...descriptor.fragment.targets][0] : undefined
@@ -73,6 +75,7 @@ test('a failed transparent material pipeline refuses the scene by name, never dr
     return create(descriptor)
   }
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -97,7 +100,7 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
   // field at runtime, only their perceived type loses them. The rest of `ClusterManifest` is
   // never read past `primitives`, so the rest is filled with placeholders.
   const metadata: ClusterManifest = {
-    schema: 0,
+    formatVersion: 0,
     status: 'ready',
     key: 'test-two-coarse-quads',
     scope: DEFAULT_SCOPE,
@@ -108,10 +111,13 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     primitives: fixture.metadata.primitives as Primitive[],
   }
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     metadata,
     gpuDevice: device,
-    maxResidentPages: 6,
+    // Five slots of the widest page (24 bytes): below the eight clusters' 144, so the pool holds no
+    // home of each (`poolBytes`) and a jump between the quads evicts.
+    maxResidentPages: 5,
     viewport: [32, 32],
   }) as Engine
   const cam = camera()
@@ -158,6 +164,7 @@ test('a visible opaque primitive of root pages has complete exact-page coverage'
   const fixture = quadScene(),
     { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     metadata: { ...fixture.metadata, primitives: [{ ...fixture.metadata.primitives[0] }] },
     gpuDevice: device,

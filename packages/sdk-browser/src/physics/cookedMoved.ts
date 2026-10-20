@@ -10,8 +10,8 @@ export type Pose = {
 }
 
 /** A made body of one kind as a move reads it: the world scale it was made at, how it is made
- *  again at another (the new body, made before the old one leaves, or null: refused and listed,
- *  or on its way), and how it is placed. */
+ *  again at another (the new body — a page's soft body made before the old one leaves, any other
+ *  after —, or null: refused and listed, or on its way), and how it is placed. */
 export type Following<M> = {
   madeAt(one: M): ArrayLike<number>
   remake(one: M, scale: number[]): M | null

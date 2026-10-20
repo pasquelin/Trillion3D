@@ -15,7 +15,6 @@ import { buildComputeStages } from '../gpu/core/computeStages.ts'
 import { radianceLayouts } from './radiance.ts'
 import { RADIANCE_SHADER } from './radianceWgsl.ts'
 import { REFLECTION_TRACE_SHADER } from './trace.ts'
-import { REFLECTION_CLASSIFY_SHADER } from './tiles.ts'
 import { createTraceStages } from './traceEncode.ts'
 import {
   REFLECTION_DEPTH_BINDING,
@@ -59,10 +58,6 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
         label: 'Trillion3D reflection trace',
         code: REFLECTION_TRACE_SHADER,
       }),
-      classify: device.createShaderModule({
-        label: 'Trillion3D reflection tiles',
-        code: REFLECTION_CLASSIFY_SHADER,
-      }),
       radiance: device.createShaderModule({
         label: 'Trillion3D reflection radiance',
         code: RADIANCE_SHADER,
@@ -70,24 +65,16 @@ export const createReflectionPipelines = oncePerDevice((device: GPUDevice) =>
     }
     for (const made of Object.values(modules)) if (await shaderFailed(made)) return undefined
     const layouts = radianceLayouts(device)
-    const [trace, first, down, roll] = await Promise.all([
+    const [trace, first, down] = await Promise.all([
       createTraceStages(device, modules, reflectionLayout(device)),
-      buildComputeStages(device, [layouts.firstLayout], modules.radiance, [
-        'radianceFirst',
-        'radianceFirstHashed',
-        'radianceFirstBoth',
-      ]),
+      buildComputeStages(device, [layouts.firstLayout], modules.radiance, ['radianceFirst']),
       buildComputeStages(device, [layouts.downLayout], modules.radiance, ['radianceDown']),
-      buildComputeStages(device, [layouts.rollLayout], modules.radiance, ['radianceRoll']),
     ])
     return {
       ...trace,
       ...layouts,
       firstPipeline: first.radianceFirst,
-      firstHashedPipeline: first.radianceFirstHashed,
-      firstBothPipeline: first.radianceFirstBoth,
       downPipeline: down.radianceDown,
-      rollPipeline: roll.radianceRoll,
     }
   }),
 )

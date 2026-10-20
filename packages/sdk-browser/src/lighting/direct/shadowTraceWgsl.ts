@@ -1,79 +1,69 @@
-// The shadow read's pieces past the maps (`shadowWgsl.ts`): the translucent casters'
-// transmission at a receiver, a blend's or the water's own trace, the resolve's mask.
+// The shadow read's pieces past the maps (`shadowWgsl.ts`): a blend's own trace, the mask and its
+// transmission the opaque resolve reads.
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
+import { VSM_PROJECTION_TILE_FORMAT } from '../../vsm/projectionWgsl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { byteOf } from '../../../../math/src/wgsl/integer.ts'
-import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
+import { VSM_MASK_THROUGH_SHIFT, VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/constants.ts'
 import { vsmReceiverTraceWgsl } from '../../vsm/receiverTraceWgsl.ts'
 import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from '../../vsm/blueNoise.ts'
 import { VSM_PROJECTION_VIEW_STRUCT } from '../../vsm/projectionView.ts'
-import { VSM_TRACE_LIGHT_WGSL } from '../../vsm/traceWgsl.ts'
+import { vsmTraceLightWgsl } from '../../vsm/traceWgsl.ts'
+import { vsmSampleLightWgsl } from '../../vsm/sampleLightWgsl.ts'
+import { vsmTransmissionReadWgsl } from '../../vsm/transmissionReadWgsl.ts'
 import { REFLECTION_DEPTH_BINDING, REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
-import {
-  forwardPool,
-  vsmBindingsLabel,
-  vsmTraceBindingsLabel,
-  type VsmConsumerBindings,
-  type VsmTraceBindings,
-} from './shadowBindings.ts'
-
-/** The translucent casters' transmission at a receiver, every pass's (`directShadowWgsl`). */
-export const VSM_TRANSMISSION_AT_WGSL = wgslBlock(
-  'VSM_TRANSMISSION_AT_WGSL',
-  [],
-  `
-/** Whether the frame holds translucent casters' transmission: a one-texel stand-in otherwise. */
-fn vsmTranslucentCasters()->bool{return textureDimensions(vsmTransmissionMemory).x>1u;}
-/** The translucent casters' transmission at \`P\` alone, into \`shadowTransmission\`: the located
- *  sample (\`vsmLocate\`), without an opaque compare — the trace holds the opaque shadow —, read only
- *  where its physical page holds a translucent slice: elsewhere all the light passes, as
- *  \`shadowFactor\` set it, at the lookup's cost alone on the pages no pane covers. */
-fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,N:vec3f){
- let fromEye=vsmReceiverFromEye(P,normalize(N));
- let at=vsmLocate(id,directional,fromEye);
- if(!vsmTransmissionPaned(at.sm)){return;}
- shadowTransmission=vsmTransmissionThrough(at.sm,at.fromMap,fromEye,shadowCamera,at.clipmap);
-}`,
-)
+import { forwardPool, vsmTraceBindingsLabel, type VsmTraceBindings } from './shadowBindings.ts'
 
 /** The shadow projection's view uniform (`VsmProjectionView`) at `binding`: what a fragment's trace
- *  and every pass's transmission read take their normal bias from (`vsmNormalOffset`). */
-export const vsmTraceViewWgsl = (binding: number) =>
+ *  reads. */
+export const vsmTraceViewWgsl = (binding: number, kinds: number) =>
   wgslBlock(
-    `vsmTraceViewWgsl(${binding})`,
-    [VSM_TRACE_LIGHT_WGSL],
+    `vsmTraceViewWgsl(${binding}, ${kinds})`,
+    [vsmTraceLightWgsl(kinds)],
     `
 ${VSM_PROJECTION_VIEW_STRUCT}
 @group(0) @binding(${binding}) var<uniform> vsmView:VsmProjectionView;`,
   )
 
 /**
- * A blended surface's or the water's trace (`vsmTraceFactor`): the receiver's trace of the
+ * A blended surface's trace (`vsmTraceFactor`): the receiver's trace of the
  * projection (`vsmReceiverTraceWgsl`), lone, at the fragment's point. Its pixel is the fragment's,
  * set before its lights (`vsmTraceAt`), which takes the blue noise there; its view depth, its
  * point shifted to the projection's origin and its screen ray are the projection's own
  * expressions; a thin two-sided surface takes no normal bias and no screen ray, as the projection's
  * subsurface pixel. Every receiver the trace reads is the light's: `facing` was tested by
- * `shadowFactor`, its range by `directIncidence`.
+ * `shadowFactor`, its range by `directIncidence`. Its rays read the translucent casters' memory at
+ * `transmission` (`vsmRayThrough`), whose average over the missed rays it writes into
+ * `shadowTransmission`; it traces the light kinds `kinds` (`vsmTraceKindsOf`).
  */
-export const vsmFragmentTraceWgsl = (vsm: VsmConsumerBindings, t: VsmTraceBindings) =>
+export const vsmFragmentTraceWgsl = (
+  pool: number,
+  t: VsmTraceBindings,
+  transmission: number,
+  kinds: number,
+) =>
   wgslBlock(
-    `vsmFragmentTraceWgsl(${vsmBindingsLabel(vsm)}, ${vsmTraceBindingsLabel(t)})`,
+    `vsmFragmentTraceWgsl(${pool}, ${vsmTraceBindingsLabel(t)}, ${transmission}, ${kinds})`,
     [
-      vsmTraceViewWgsl(t.view),
+      vsmTraceViewWgsl(t.view, kinds),
       vsmBlueNoiseWgsl(0, t.noise),
       vsmReceiverTraceWgsl({
-        pool: forwardPool(vsm.pool),
+        pool: forwardPool(pool),
         noise: vsmBlueNoiseTwo(0, t.noise),
         hiz: [REFLECTION_GROUP, REFLECTION_DEPTH_BINDING],
         lone: true,
+        subgroups: t.subgroups,
+        transmission: vsmTransmissionReadWgsl(transmission),
+        kinds,
       }),
     ],
     `
 var<private> vsmTracePixel:vec2u=vec2u(0u);
 /** The fragment the lights that follow are traced at (\`pixel\`, its framebuffer position). */
 fn vsmTraceAt(pixel:vec2f){vsmTracePixel=vec2u(pixel);}
-/** Light \`channel\`'s share at \`P\`, of bias normal \`N\`: the share of its rays that missed. */
+/** Light \`channel\`'s share at \`P\`, of bias normal \`N\`: the share of its rays that missed, what
+ *  the panes let through along them into \`shadowTransmission\`. */
 fn vsmTraceFactor(channel:u32,P:vec3f,N:vec3f)->f32{
  let n=normalize(N);
  var r:VsmPixel;
@@ -84,18 +74,55 @@ fn vsmTraceFactor(channel:u32,P:vec3f,N:vec3f)->f32{
  r.sceneDepth=(vsmView.shiftedToView*vec4f(r.shifted,1.0)).z;
  r.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayShare*r.sceneDepth)+vsmView.screenRayScale.zw).y;
  r.noise=vsmNoiseOne(r.pos,vsmView.frameIndex);
- return vsmProjectLight(channel,r,true).shadowFactor;
+ let traced=vsmProjectLight(channel,r,true);
+ shadowTransmission=traced.through;
+ return traced.shadowFactor;
 }`,
   )
 
-/** The opaque resolve's read of the projection's mask at its pixel (`vsmMaskFactor`). */
-export const vsmMaskWgsl = (binding: number) =>
+/** The trace's pixel setter (`vsmFragmentTraceWgsl`) where no read takes a pixel: a sample, or no
+ *  read at all. */
+export const VSM_NO_PIXEL_WGSL = wgslFn('vsmTraceAt', [], 'fn vsmTraceAt(pixel:vec2f){}')
+
+/**
+ * A blended surface's one-sample read (`vsmSampleFactor`), the default for translucency
+ * (`vsmSampleLightWgsl`), cheap enough for every layer of a blend: the light's map at the fragment's point, no ray, no noise,
+ * no screen segment, nothing of the translucent casters. Its fragment needs no pixel
+ * (`vsmTraceAt` keeps none).
+ */
+export const vsmFragmentSampleWgsl = (pool: number, view: number, kinds: number) =>
   wgslBlock(
-    `vsmMaskWgsl(${binding})`,
+    `vsmFragmentSampleWgsl(${pool}, ${view}, ${kinds})`,
+    [
+      vsmTraceViewWgsl(view, kinds),
+      vsmSampleLightWgsl(forwardPool(pool), kinds),
+      VSM_NO_PIXEL_WGSL,
+    ],
+    `
+/** Light \`channel\`'s share at \`P\`, one sample of its map. */
+fn vsmSampleFactor(channel:u32,P:vec3f)->f32{
+ return vsmSampleLight(vsmView.lights[channel],(P+vsmView.originShiftHigh)+vsmView.originShiftLow);
+}`,
+  )
+
+/** The mask's tile words, read by load alone: a read-only storage texture, which spends none of the
+ *  sixteen sampled textures of the widest program (`loadOnlyTarget`). */
+export const MASK_TILES_TARGET = loadOnlyTarget(
+  DEFERRED_BINDINGS.maskTiles,
+  VSM_PROJECTION_TILE_FORMAT,
+  'vsmShadowMaskTiles',
+)
+
+/** The read of a projection's mask and its transmission at the pixel (`vsmMaskFactor`,
+ *  `vsmMaskThrough`), at `binding` and `through`: the opaque resolve's. */
+export const vsmMaskWgsl = (binding: number, through: number) =>
+  wgslBlock(
+    `vsmMaskWgsl(${binding}, ${through})`,
     [byteOf],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
-@group(0) @binding(${DEFERRED_BINDINGS.maskTiles}) var vsmShadowMaskTiles:texture_2d<u32>;
+@group(0) @binding(${through}) var vsmShadowThrough:texture_2d_array<f32>;
+${MASK_TILES_TARGET.wgsl}
 /** A lane's code to its factor (\`vsmMaskCode\`, \`vsm/projectionWgsl.ts\`): 1 where no ray was
  *  traced, else the k of its n rays that missed, k / n by the projection's own expression, as the
  *  half float the mask held. */
@@ -128,7 +155,7 @@ fn vsmMaskAt(coord:vec2i){
  *  word is loaded once for the pixel, whatever the number of lights it holds. */
 fn vsmMaskFactor(channel:u32)->f32{
  if(vsmMaskTile==VSM_MASK_TILE_UNREAD){
-  vsmMaskTile=textureLoad(vsmShadowMaskTiles,vsmMaskPixel>>vec2u(${VSM_PROJECTION_GROUP_SHIFT}u),0).r;
+  vsmMaskTile=textureLoad(vsmShadowMaskTiles,vsmMaskPixel>>vec2u(${VSM_PROJECTION_GROUP_SHIFT}u)).r;
  }
  let layer=channel>>2u;
  if((vsmMaskTile&(1u<<layer))==0u){return 1.0;}
@@ -137,5 +164,14 @@ fn vsmMaskFactor(channel:u32)->f32{
   vsmMaskLayer=layer;
  }
  return vsmMaskDecode(byteOf(vsmMaskWord,channel%4u));
+}
+/** What the translucent casters let through along light \`channel\`'s missed rays (its layer of the
+ *  mask's transmission, \`vsmProjectTile\`), read after its factor (\`vsmMaskFactor\`, which loads the
+ *  tile word): 1 where its tile stored no pane's colour of its layer (bit
+ *  \`VSM_MASK_THROUGH_SHIFT\` + layer, \`vsmFillThrough\`), or the frame holds no translucent caster
+ *  (a one-texel stand-in). */
+fn vsmMaskThrough(channel:u32)->vec3f{
+ if(textureDimensions(vsmShadowThrough).x<=1u||(vsmMaskTile&(1u<<(${VSM_MASK_THROUGH_SHIFT}u+(channel>>2u))))==0u){return vec3f(1.0);}
+ return textureLoad(vsmShadowThrough,vsmMaskPixel,channel,0).rgb;
 }`,
   )

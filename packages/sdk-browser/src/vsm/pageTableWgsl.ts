@@ -1,6 +1,7 @@
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { NO_INDEX } from '../../../math/src/wgsl/constants.ts'
 import { highHalf, lowBits, lowHalf } from '../../../math/src/wgsl/integer.ts'
 
 /**
@@ -26,16 +27,16 @@ import { highHalf, lowBits, lowHalf } from '../../../math/src/wgsl/integer.ts'
  *  \`vsmProjectionData\`, so that no table lookup reads the record again (\`vsmTableLevelOrigin\`). */
 export const VSM_HANDLE_WGSL = wgslBlock(
   'VSM_HANDLE_WGSL',
-  [VSM_CONSTANTS_WGSL],
+  [VSM_CONSTANTS_WGSL, NO_INDEX],
   `
 struct VsmHandle{id:u32,tableOrigin:u32,finestMip:u32,}
 fn vsmHandleFromId(id:u32)->VsmHandle{
  return VsmHandle(id,vsmProjectionData[id].tableOrigin,vsmProjectionData[id].finestMip);
 }
-fn vsmHandleInvalid()->VsmHandle{return VsmHandle(0xFFFFFFFFu,0u,0u);}
+fn vsmHandleInvalid()->VsmHandle{return VsmHandle(NO_INDEX,0u,0u);}
 /** The map \`offset\` ids on: a clipmap's next level, a cube's face. */
 fn vsmHandleOffset(h:VsmHandle,offset:i32)->VsmHandle{return vsmHandleFromId(u32(i32(h.id)+offset));}
-fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
+fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=NO_INDEX;}
 `,
 )
 
@@ -98,12 +99,12 @@ fn vsmPackTableEntry(physicalAddress:vec2u,validForRendering:bool)->u32{
 }
 /** Hierarchical pointer to a coarser mapped page, never valid for rendering (FillCoarserFallbacks). */
 fn vsmPackFallbackEntry(physicalAddress:vec2u,coarserLevels:u32)->u32{
- return VSM_ENTRY_MAPPED_BIT|(coarserLevels<<20u)|(physicalAddress.y<<10u)|physicalAddress.x;
+ return VSM_ENTRY_MAPPED_BIT|(coarserLevels<<VSM_ENTRY_COARSER_SHIFT)|(physicalAddress.y<<10u)|physicalAddress.x;
 }
 fn vsmUnpackTableEntry(v:u32)->VsmTableEntry{
  var r:VsmTableEntry;
  r.physicalAddress=vec2u(v&0x3FFu,(v>>10u)&0x3FFu);
- r.coarserLevels=(v>>20u)&0x3Fu;
+ r.coarserLevels=(v>>VSM_ENTRY_COARSER_SHIFT)&VSM_ENTRY_COARSER_MASK;
  r.anyLevelMapped=(v&VSM_ENTRY_MAPPED_BIT)!=0u;
  r.thisLevelDrawable=(v&VSM_ENTRY_DRAWABLE_BIT)!=0u;
  r.thisLevelMapped=r.anyLevelMapped&&r.coarserLevels==0u;
@@ -157,7 +158,11 @@ struct VsmLocalPage{
 /** The best-resolution mapped page at a UV, following the coarser-level count (local lights). */
 fn vsmLocalPageAt(h:VsmHandle,mapUvAt:vec2f,finestMip:u32)->VsmLocalPage{
  let vPage=vec2u(mapUvAt*f32(VSM_LEVEL0_PAGES));
- let e=vsmUnpackTableEntry(vsmTableWord(vsmTableEntryOf(h,finestMip,vPage>>vec2u(finestMip))));
+ return vsmLocalPageFrom(vsmTableWord(vsmTableEntryOf(h,finestMip,vPage>>vec2u(finestMip))),mapUvAt,finestMip);
+}
+/** \`vsmLocalPageAt\` of the entry word \`word\` read at mip \`finestMip\`. */
+fn vsmLocalPageFrom(word:u32,mapUvAt:vec2f,finestMip:u32)->VsmLocalPage{
+ let e=vsmUnpackTableEntry(word);
  var r:VsmLocalPage;
  r.valid=e.anyLevelMapped;
  r.coarserLevels=e.coarserLevels+finestMip;

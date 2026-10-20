@@ -15,11 +15,17 @@ export type WorldRuntimeInputs = {
   camera: () => Camera
   /** The session options of the moment: pools, loop and hooks. */
   options: () => MeasuredWorldOptions
-  /** Runs on every new session, before its first frame: diagnostic mode, pools. */
-  opened: (explorer: MeasuredWorld) => void
+  /** Runs on every new session, before its first frame: diagnostic mode, pools, the switches
+   *  changed since it was `given` its options. */
+  opened: (explorer: MeasuredWorld, given: MeasuredWorldOptions) => void
   frame: (metrics: FrameMetrics) => void
-  /** What the page set: exposure, curve and fog; the lights add their irradiance. */
-  display: () => { exposure: number; toneMapping: SceneToneMapping; fog?: SceneFog }
+  /** What the page set: exposure, curve, sharpening and fog; the lights add their irradiance. */
+  display: () => {
+    exposure: number
+    toneMapping: SceneToneMapping
+    sharpness?: number
+    fog?: SceneFog
+  }
   /** Whether the world has drawn a frame yet. */
   drawn: () => boolean
   /** Settles once the world's device is granted, a lost one asked again. */

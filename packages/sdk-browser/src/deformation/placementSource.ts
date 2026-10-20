@@ -1,8 +1,11 @@
 import type { DeformationCapacity } from './source.ts'
 import type { PlacementOf, PlacementRows } from '../placement/rows.ts'
 import type { DeformedMesh } from './frame.ts'
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 
-/** Mirroring shares geometry and material; a row still reads its own original animation source. */
+/** Mirroring shares geometry and material; a row still reads its own original animation source:
+ *  its skeleton, morph weights, waves and the simulation a cooked soft body writes back
+ *  (`softSource.ts`). */
 export function placementDeformation(
   placement: PlacementOf | undefined,
   fallback: DeformedMesh,
@@ -19,7 +22,8 @@ export function placementDeformation(
     }
     capacities.set(rows, capacity)
   }
-  const current = () => rows.sources?.[index]
+  const current = (): (Mesh<object> & Pick<DeformedMesh, 'softSource'>) | null | undefined =>
+    rows.sources?.[index]
   const mesh: DeformedMesh = {
     get sourceIdentity() {
       return current() ?? null
@@ -32,6 +36,9 @@ export function placementDeformation(
     },
     get waves() {
       return current()?.waves
+    },
+    get softSource() {
+      return current()?.softSource
     },
     // The rows of a model's meshes stand in the world; their bones in the model's graph.
     get frame() {

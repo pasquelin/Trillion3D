@@ -119,7 +119,7 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
   )
   const hardware =
     ' out.position=uni.viewProj*world;\n if(shape.lineWidth>0.0){out.position=pageLine(page,h,id,uni.viewProj*page.world,out.position,shape.lineWidth);}'
-  assert.equal(VIS_SHADER.split(hardware).length - 1, 2, 'both hardware vertex stages')
+  assert.equal(VIS_SHADER.split(hardware).length - 1, 1, 'the one hardware vertex stage')
   assert.match(SHADE_SHADER, /var c0=uni\.viewProj\*w0;var c1=uni\.viewProj\*w1;/)
   assert.match(
     SHADE_SHADER,
@@ -129,9 +129,13 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
   assert.match(BLEND_SHADER, /out\.position=uni\.viewProj\*world;out\.view=world\.xyz;/)
   assert.match(BLEND_SHADER, /if\(m\.lineWidth>0\.0\)\{out\.position=lineClip\(out\.position,/)
   assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL.text))
-  for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)])
+  for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)]) {
     assert.ok(
       text.includes('lineClip(clip,vp*vec4f(along,0.0),width,uni.viewport.xy,uni.pixelRatio)'),
     )
+    // A line its host rewrites, or a rope its simulation moves, keeps its width: its direction is
+    // this frame's result, read from the float pool as its position is.
+    assert.ok(text.includes('if(page.deformOutput!=0u){along=pageDeformed(page,vertex,6u);}'))
+  }
   assert.match(BLEND_SHADER, /m\.lineWidth,uni\.viewport,uni\.pixelRatio\)/)
 })

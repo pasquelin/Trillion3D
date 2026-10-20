@@ -7,11 +7,10 @@ import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
-import { structZero } from '../../texture/shaderRunStructs.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { PARTITION_SHADER } from './shader.ts'
 import { HIZ_SHADER } from '../hiz/shader.ts'
+import { rowRoutineScope, testedBounds } from '../hiz/rowRoutines.fixture.ts'
 import { createGpuPartition } from './factory.ts'
 import * as C from './contract.ts'
 import { HALF_SLOTS } from '../draw/contract.ts'
@@ -19,11 +18,6 @@ import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: unknown[]) => unknown
-type Ref = { get: () => number; set: (value: number) => void }
-/** The members of a tested box, in the order the test reads its words (`struct Bounds`). */
-const BOUNDS = Object.keys(structZero(HIZ_SHADER)('Bounds') as object)
-/** `bitcast<u32>` of the kernels' `i32` rectangle words, or of a depth's `f32`. */
-const bitsOf = (x: number) => (Number.isInteger(x) ? x >>> 0 : builtins.bitcast_u32(x))
 
 /** `rows` random rows: what each held from the previous image, its item, its projected box. */
 function frameOf(seed: number, rows: number) {
@@ -34,19 +28,21 @@ function frameOf(seed: number, rows: number) {
       k % C.ROW_DATA_U32 === C.ROW_FLAGS ? int(32) : int(48) - 8,
     ),
     flags: Array.from({ length: rows }, () => int(3)),
-    items: Array.from({ length: rows }, () => ({
+    items: Array.from({ length: rows }, (_, row) => ({
       // A face mode, or its cutout bin.
       bin: int(HALF_SLOTS),
       layer: int(3),
       triangles: int(1 << 24),
+      selectionIndex: row,
     })),
+    // The cut's draw mask: a row it leaves undrawn is neither tested nor counted.
+    selectionMask: Array.from({ length: bitWords(rows) }, () => int(2 ** 32)),
     boxes: Array.from({ length: rows }, () => ({
       rect: [int(40) - 8, int(40) - 8, int(90), int(90)],
       nearest: r() + 1e-3,
       clips: int(4) === 0 ? 1 : 0,
     })),
     pages: Array.from({ length: rows }, () => ({ hizSlot: r() < 0.1 ? 0xffffffff : 0 })),
-    viewMoved: int(2),
   }
 }
 
@@ -65,27 +61,10 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     ...m,
     items: frame.items,
     pages: frame.pages,
-    // A `u32` atomic wraps: the triangle counts pass 2^32.
-    atomicAdd: (p: Ref, n: number) => [p.get(), p.set((p.get() + n) >>> 0)][0],
-    bitcast_u32: bitsOf,
-    bitcast_i32: (x: number) => x | 0,
+    selectionMask: frame.selectionMask,
+    ...rowRoutineScope,
     workgroupBarrier: () => {},
-    // What the pyramids answer: a function of what is asked, the same in both runs.
     projectBox: (i: number) => ({ ...frame.boxes[i], rect: [...frame.boxes[i].rect] }),
-    hiddenByPyramid: (rect: number[]) => (rect[0] & 1) === 0,
-    // The one pick, clipped to the 64 × 48 viewport; the mip table's offset and width of a level.
-    hizRectPick: (rect: number[]) => {
-      const r = [
-        Math.max(rect[0], 0),
-        Math.max(rect[1], 0),
-        Math.min(rect[2], 63),
-        Math.min(rect[3], 47),
-      ]
-      const empty = r[2] < r[0] || r[3] < r[1]
-      return { rect: r, level: r[0] & 3, coarse: 3, found: !empty && (r[1] & 3) !== 0 }
-    },
-    hizMip: (l: number) => [l, l],
-    pyramidHides: (minX: number, minY: number) => ((minX + minY) & 1) === 0,
     ...(perRow && {
       tallyAdd: (word: number, n: number) => (m.state[word] = (m.state[word] + n) >>> 0),
     }),
@@ -99,13 +78,15 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     layerTop: 1,
     hasRest: 1,
     counting: counted,
+    selectionEnabled: 1,
+    selectionOffset: 0,
   }
   const partition = shaderRun<Record<string, Fn>>(
     PARTITION_SHADER,
     ['projectRow', 'classifyRow', 'bitWord', 'bitMask', ...own],
     {
       ...scope,
-      uni: { ...uni, viewMoved: frame.viewMoved },
+      uni,
     },
   )
   const bounds: Record<string, number>[] = []
@@ -125,13 +106,7 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
   }
   each(partition.projectRow, rows, partition.flushTally)
   each(partition.classifyRow, rows, partition.flushTally)
-  for (let k = 0; k < m.state[C.ST_TESTED]; k++) {
-    const words = BOUNDS.map((name, w) => [name, m.tested[k * C.TESTED_BOX.words + w] ?? 0])
-    const box = Object.fromEntries(words)
-    for (const side of ['minX', 'minY', 'maxX', 'maxY']) box[side] |= 0
-    box.nearest = builtins.bitcast_f32(box.nearest) as number
-    bounds.push(box)
-  }
+  bounds.push(...testedBounds(m.tested, m.state[C.ST_TESTED]))
   each(hiz.testBox, m.state[C.ST_TESTED], hiz.flushTally)
   return { ...m, tally: undefined }
 }
@@ -181,7 +156,7 @@ test('the partition copies its counters on the frame that counted, and only then
   const copies: number[] = []
   const encoder = device.createCommandEncoder()
   const matrix = new Float64Array(16),
-    sizes = { width: 8, height: 8, layerTop: 0, hasRest: true, viewMoved: false }
+    sizes = { width: 8, height: 8, layerTop: 0, hasRest: true, cull: 'follow' as const }
   const frame = { view: matrix, viewProj: matrix, anchor: [0, 0, 0] as const, near: 1, rows: 4 }
   for (; at < 60; at++) {
     // The caller's one `countsDue` answer: the frame's `counting`.

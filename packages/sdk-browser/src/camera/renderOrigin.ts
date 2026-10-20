@@ -1,10 +1,5 @@
-import {
-  FAR_PLANE_SLOT,
-  FRUSTUM_PLANE_VALUES,
-  frustumFarPlane,
-  frustumPlanesFromMatrix,
-} from '../../../math/src/geometry/frustum/frustum.ts'
-import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { FRUSTUM_PLANE_VALUES } from '../../../math/src/geometry/frustum/frustum.ts'
+import { viewFrustum } from '../../../math/src/projection/camera.ts'
 import { viewToRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 
 /**
@@ -52,9 +47,13 @@ export function updateRenderOriginFrame(
   far = Infinity,
 ) {
   viewToRenderOrigin(frame.viewRelative, view)
-  multiplyMatrix4(frame.viewProjectionRelative, projection, frame.viewRelative)
-  frustumPlanesFromMatrix(frame.planesRelative, frame.viewProjectionRelative)
-  frustumFarPlane(frame.planesRelative, FAR_PLANE_SLOT * 4, frame.viewRelative, far, true)
+  viewFrustum(
+    frame.viewProjectionRelative,
+    frame.planesRelative,
+    projection,
+    frame.viewRelative,
+    far,
+  )
   return frame
 }
 

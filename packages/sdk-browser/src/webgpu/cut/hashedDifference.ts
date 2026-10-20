@@ -1,4 +1,4 @@
-import { mapRawRanks, type HeldList } from './heldList.ts'
+import { mapRawRanks, markListed, type HeldList } from './heldList.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 /**
@@ -27,7 +27,7 @@ export function applyHashed(held: HeldList, ids: ArrayLike<number>, count: numbe
     const id = ids[i]
     published[i] = id
     const rec = recordOf?.(id)
-    const seen = rec || !recordOf ? mark.set(id, epoch) : epoch
+    const seen = markListed(held, id, rec, epoch)
     if (seen === epoch) {
       raw ??= mapRawRanks(held, count, i)
       raw[i] = NO_INDEX

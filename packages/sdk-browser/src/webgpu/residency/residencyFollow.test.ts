@@ -103,13 +103,15 @@ function pooled(slots: number) {
 
 test('a slot the cache moves is the one every instance reads, before any sync', async () => {
   const { cache, pages, rows } = pooled(4)
-  await cache.load(pageAddress(pages[0]))
-  const before = rows.offsetOf(0)
-  // The pool shrinks: the page moves to the lowest free slot, and no journal was drained.
+  for (const page of pages.slice(0, 4)) await cache.load(pageAddress(page))
+  for (const page of pages.slice(0, 3)) cache.unload(pageAddress(page))
+  const before = rows.offsetOf(3)
+  // The pool shrinks past the last slot: its page moves to the lowest free one (a page the
+  // shrunk pool still holds keeps its bytes), and no journal was drained.
   await cache.resize(2)
-  const moved = cache.get(pageAddress(pages[0]))!
+  const moved = cache.get(pageAddress(pages[3]))!
   assert.notEqual(moved.offset / 4, before, 'the page moved')
-  assert.equal(rows.offsetOf(0), moved.offset / 4)
+  assert.equal(rows.offsetOf(3), moved.offset / 4)
 })
 
 test('loads, evictions and resizes: every instance reads the cache, never a stale slot', async () => {

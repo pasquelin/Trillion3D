@@ -16,6 +16,8 @@ import { runtime } from './targets.fixture.ts'
 import { frameTargetAllocation } from './targetAllocation.ts'
 import { wantsEmissiveAo } from './emissiveAoLayer.ts'
 import { surfaceWritten } from '../../../page/surfaceWrites.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 type Gpu = ReturnType<typeof fakeDevice>
 const count = (list: string[], item: string) => list.filter((at) => at === item).length
@@ -26,8 +28,10 @@ async function opened(emits: boolean) {
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
   if (emits) material.emissive = [0.5, 0.25, 0]
-  ;(fixture.source.children[0] as HostMesh).material = material
+  const mesh = fixture.source.children[0] as HostMesh
+  mesh.material = material
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -109,7 +113,9 @@ test('a surface made to emit after open brings the layer before the image that d
     const seen = surfacesOf(gpu)
     assert.equal(seen.slot, 'rgba16float', 'the first image drawn writes the emission')
     assert.equal(count(seen.layers, '32×32'), count(before, '32×32') + 1, 'the drawn view grew one')
-    assert.equal(count(seen.layers, '1×1'), count(before, '1×1'), 'its stand-in kept a while')
+    // The stand-in replaced is retired, destroyed once the frame that named it is submitted.
+    assert.equal(count(seen.layers, '1×1'), count(before, '1×1') - 1, 'its stand-in retired')
+    assert.equal(gpu.destroyed.includes(standIn), true, 'with the frame that replaced it')
     // The classes compiled since write it; the other targets stay in place.
     assert.deepEqual(seen.shade.at(-1), { target: { format: 'rgba16float' }, constant: undefined })
     // The scene's one class keeps its direct draw, now writing the layer: no tile classified.
@@ -117,17 +123,12 @@ test('a surface made to emit after open brings the layer before the image that d
     assert.equal(shaded.at(-1)?.entryPoint, 'shade_vs', 'drawn whole, as before it emitted')
     assert.deepEqual(hdr(), lit, 'no frame target remade')
     backend.dispose()
-    assert.equal(
-      gpu.destroyed.includes(standIn!),
-      true,
-      'the stand-in goes with the buffer that took its place',
-    )
   } finally {
     disposeQuadRun(backend, fixture)
   }
 })
 
-test("the frame's bytes count the layer only where it is made; water and cards keep it", () => {
+test("the frame's bytes count the layer only where it is made", () => {
   const { rt } = runtime()
   rt.vis.writesEmissiveAo = true
   const full = frameTargetAllocation(rt, {
@@ -150,6 +151,5 @@ test("the frame's bytes count the layer only where it is made; water and cards k
     } as unknown as Parameters<typeof wantsEmissiveAo>[0])
   assert.equal(scene({}), false)
   assert.equal(scene({ vis: { shadeCensus: { emits: true } } }), true, 'a surface emits')
-  assert.equal(scene({ blendState: { transmissive: 1 } }), true, 'the water composite reads it')
-  assert.equal(scene({ gpu: { impostorCode: {} } }), true, 'a card carries its occlusion')
+  assert.equal(scene({ blendState: { transmissive: 1 } }), false, 'no transmissive layer reads it')
 })

@@ -1,12 +1,16 @@
 import { frontStamp } from '../../reflections/frontLayer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { drawBlendRuns } from './draw.ts'
+import { drawBlendRuns, type BlendRuns } from './draw.ts'
+
+/** The front pass's runs: no reflection read, near to far — the depth it writes rejects early
+ *  what lies behind (`BlendRuns`). */
+const FRONT_RUNS: BlendRuns = { reflected: false, nearFirst: true }
 
 /**
  * The transparents' front pass (`../../reflections/frontLayer.ts`), the one producer of the nearest
  * transparent depth, after the transparents were prepared (`prepareBlend`) and bound (`bindBlend`), and
  * before the depth pyramid that folds it in and the trace that reads it: the opaque depth copied into the
- * layer's, then every transparent run of the image — the blends and the transmissive slice — drawn
+ * layer's, then every transparent run of the image — the blends and the transmissive layers — drawn
  * through the front stage, on the blend group alone. It writes the covering depth into the Hi-Z front
  * layer, and, where a transparent of the scene reflects (`blendState.frontOutputs`), the reflecting surface
  * too — with its lobes where one carries them —, the store's front cells held from then on
@@ -26,7 +30,7 @@ export function encodeFrontPass(
     !hiz ||
     !gpu.depthTexture ||
     !vis.blendPipelines ||
-    (!blendState.runCount[0] && !blendState.runCount[1])
+    !blendState.runCount
   )
     return
   const outputs = blendState.frontOutputs
@@ -41,8 +45,6 @@ export function encodeFrontPass(
   ])
   const pass = encoder.beginRenderPass(front.begin(frontStamp(run.frame), hizFront, outputs, gpu))
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
-  for (const slice of [0, 1])
-    if (blendState.runCount[slice])
-      run.gpuDrawCalls += drawBlendRuns(rt, device, pass, slice, set, undefined, false, false)
+  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, set, FRONT_RUNS)
   pass.end()
 }

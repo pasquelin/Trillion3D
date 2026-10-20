@@ -1,5 +1,6 @@
 import type { ControlCamera, ControlVector } from './types.ts'
 import { screenWorldLength } from './math.ts'
+import { loadXyz, loadXyzw } from '../../../../sdk-core/src/world/math/likes.ts'
 
 /**
  * THE ONE PLACE A CONTROLLER TOUCHES A CAMERA. The controllers themselves only ever see the
@@ -30,33 +31,14 @@ export function controlPose(camera: ControlCamera): ControlPose {
     object: camera,
     vector: () => camera.position.clone().set(0, 0, 0),
     worldLength: (depth, share) => screenWorldLength(camera, depth, share),
-    readPosition(out) {
-      out[0] = camera.position.x
-      out[1] = camera.position.y
-      out[2] = camera.position.z
-      return out
-    },
-    readOrientation(out) {
-      out[0] = camera.quaternion.x
-      out[1] = camera.quaternion.y
-      out[2] = camera.quaternion.z
-      out[3] = camera.quaternion.w
-      return out
-    },
+    readPosition: (out) => loadXyz(out, camera.position),
+    readOrientation: (out) => loadXyzw(out, camera.quaternion),
     write(position, orientation) {
       camera.position.set(position[0], position[1], position[2])
       camera.quaternion.set(orientation[0], orientation[1], orientation[2], orientation[3])
       camera.updateMatrixWorld()
     },
   }
-}
-
-/** Reads a target into flat numbers, so the maths never sees a host vector. */
-export function readVector(out: Float64Array, v: { x: number; y: number; z: number }) {
-  out[0] = v.x
-  out[1] = v.y
-  out[2] = v.z
-  return out
 }
 
 /** Writes flat numbers back into a host vector. */

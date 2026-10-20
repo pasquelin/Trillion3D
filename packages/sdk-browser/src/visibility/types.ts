@@ -1,11 +1,11 @@
 import type { HostAttributes } from '../host/resources.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
-import { VIS_CARD_ROWS, VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
+import { VIS_MAX_PAGE_TRIANGLES, VIS_PAGE_ROWS } from './visWords.ts'
 import { PAGE_INFO } from './pageInfo.ts'
 import { rgbaBytes } from '../texture/imageExtent.ts'
-/** Largest addressable page count: the rows below a card's identifiers (`VIS_CARD_BASE`). */
-export const VIS_MAX_PAGES = VIS_CARD_ROWS - 1
+/** Largest addressable page count: the rows an identifier names (`VIS_PAGE_ROWS`). */
+export const VIS_MAX_PAGES = VIS_PAGE_ROWS
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
 export function assertVisibilityPageTriangles(triangles: number, page?: string) {
   if (!Number.isInteger(triangles) || triangles < 0 || triangles > VIS_MAX_PAGE_TRIANGLES)
@@ -23,14 +23,9 @@ export const ROW_WORDS = PAGE_INFO.words,
  *  own header. Below it, the rank of its surface's record (`../webgpu/material/materialTable.ts`). */
 export const MATERIAL_SECOND_UV = 0x80000000,
   MATERIAL_RANK_MASK = 0x7fffffff
-/** The bits of `PageInfo.deformOutput`, the results lying in the float pool whatever they are:
- *  the source of the deformation lies in the pool too — a whole copy's streams after a source
- *  header, a float page's geometry — rather than in the page of the row's slot; a float-pool block
- *  with no source header (`../deformation/outputs.ts`); the address, the results' first word
- *  plus one. */
-export const DEFORM_SOURCE_IN_POOL = 0x80000000,
-  DEFORM_NO_HEADER = 0x40000000,
-  DEFORM_ADDRESS = 0x3fffffff
+/** The address bits of `PageInfo.deformOutput`: the results' first word in the float pool plus
+ *  one, wherever their source lies (`../deformation/outputs.ts`). */
+export const DEFORM_ADDRESS = 0x3fffffff
 export const FLAG_LIT = 1,
   FLAG_DOUBLE = 2,
   FLAG_HAS_UV = 4,
@@ -49,8 +44,10 @@ export const FLAG_LIT = 1,
   FLAG_HAS_ORM = 512,
   FLAG_HAS_NORMAL_MAP = 1024,
   FLAG_HAS_TANGENT = 2048,
-  /** The transparent draw reads its clusters from the compacted list, not an index buffer of its own. */
-  FLAG_PAGED = 4096,
+  /** The row's pool slot holds a voxel brick (`../../../sdk-core/src/page/voxelPage.ts`): each
+   *  corner is a corner of a voxel's contour, built from its record in place
+   *  (`shader/voxelWgsl.ts`), and its surface is the voxel's own. */
+  FLAG_VOXEL = 4096,
   /** Frame flag, not a material one: the whole frame comes out as raw albedo because no light is
    *  declared, or because the host asked for the unlit view. Only the transparent draw reads it —
    *  the opaque path has its own resolve program for that. */
@@ -65,21 +62,37 @@ export const FLAG_LIT = 1,
   FLAG_BLEND_CASTER = 65536,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
    *  not (`../webgpu/blend/uniforms.ts`, `diagnosticBits`). */
-  FLAG_DIAGNOSTIC_VIEW = 0x40000000,
-  /** Beside it, which view: the triangles' edges, the clusters, their level of detail, their screen
-   *  error — the last three read the cluster's identifier (`FLAG_DIAGNOSTIC_CLUSTER_VIEWS`). */
-  FLAG_DIAGNOSTIC_WIREFRAME = 0x20000000,
-  FLAG_DIAGNOSTIC_CLUSTERS = 0x10000000,
-  FLAG_DIAGNOSTIC_LOD = 0x08000000,
-  FLAG_DIAGNOSTIC_SCREEN_ERROR = 0x04000000,
-  FLAG_DIAGNOSTIC_CLUSTER_VIEWS = 0x1c000000
+  FLAG_DIAGNOSTIC_VIEW = 0x40000000
+/** Beside it, which view: its code (`DIAGNOSTIC_VIEWS`, `shader/shadeMode.ts`) in the frame flags'
+ *  four bits from here, which the transparent pass reads as the resolve reads `uni.mode`: above
+ *  every row flag (`FLAG_MAP_UV1` the last), which the frame flags are OR'd with. */
+export const DIAGNOSTIC_CODE_SHIFT = 25,
+  DIAGNOSTIC_CODE_MASK = 15
 /** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573);
  *  a row whose surface draws a sprite, or a line of a width other than zero: what every raster
  *  reads its surface's record for (`pageShape`), a row of neither reading none. */
 export const FLAG_FOG_FREE = 1 << 20,
   FLAG_DYNAMIC = 1 << 21,
   FLAG_SPRITE = 1 << 22,
-  FLAG_LINE = 1 << 23
+  FLAG_LINE = 1 << 23,
+  /** A row whose base map reads the second UV set (glTF's `texCoord` 1, `Texture.channel`): what
+   *  every vertex stage hands its cutout and transmittance (`pageMaskUv`,
+   *  `shader/pageGeometryWgsl.ts`). A row flag alone: a blend item reads its record's `channels`. */
+  FLAG_MAP_UV1 = 1 << 24
+/** The four bits from here of a row's flags: the most of its history the temporal anti-aliasing
+ *  keeps on its surface's pixels (`VisMaterial`'s `historyShare`), as its code
+ *  (`historyShareCode`). The passes carry it as they carry a pixel animation, and the history
+ *  update caps the history's share by it (`../taa/resolveWgsl.ts`). Where a blend item's word
+ *  holds the frame flags' diagnostic code, which it never takes from a row: a row's flags reach an
+ *  item through `ITEM_FLAG_BITS`, its low sixteen bits. Bits 17 to 19 are the surface model's
+ *  (`MODEL_SHIFT`), 20 to 24 the flags above, 29 and up free. */
+export const HISTORY_SHARE_SHIFT = 25
+/** The code's steps: a share is a whole number of twelfths of history, so 1, 0.75, 0.5, 0.25 and 0
+ *  are exact; code 0 the whole history, the engine's own blend, `HISTORY_SHARE_STEPS` none. */
+export const HISTORY_SHARE_STEPS = 12
+/** The history share's code (`HISTORY_SHARE_SHIFT`), the nearest twelfth of what it gives up. */
+export const historyShareCode = (share = 1) =>
+  Math.round((1 - Math.min(Math.max(share, 0), 1)) * HISTORY_SHARE_STEPS)
 export type VisPage = {
   array: Uint32Array
   attributes: HostAttributes

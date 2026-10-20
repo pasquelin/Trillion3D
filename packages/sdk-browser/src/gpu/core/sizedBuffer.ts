@@ -27,3 +27,18 @@ export function sizedBuffer(
   if (held) grownByCopy(device, [held])
   return made
 }
+
+/** Makes buffers of `min` bytes at least, `usage` unless told otherwise, each pushed into `into` as
+ *  soon as it is made: a setup that fails part-way destroys those it made. */
+export function trackedBuffers(
+  device: GPUDevice,
+  into: GPUBuffer[],
+  min: number,
+  usage?: GPUBufferUsageFlags,
+) {
+  return (label: string, size: number, use = usage!) => {
+    const buffer = device.createBuffer({ label, size: Math.max(min, size), usage: use })
+    into.push(buffer)
+    return buffer
+  }
+}

@@ -84,7 +84,11 @@ test('the resident mask recomputes for residency changes with an unchanged camer
   )
   assert.deepEqual(mask(), ['root'])
   selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
-  assert.equal(selection.peek(), null)
+  // Pages that only arrived leave the cut in hand drawable: everything it draws is still resident.
+  assert.deepEqual(
+    selection.peek()?.result.drawablePageIds?.map((id) => dag.pageUrlOf(id)),
+    ['root'],
+  )
   selection.dispatch(uniforms)
   assert.deepEqual(
     (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)).sort(),
@@ -111,18 +115,43 @@ test('a failed readback is read again at the next dispatch, the selection kept',
   fixture.geometry.dispose()
 })
 
-test('readback from an older resident cut cannot restore an invalidated drawable mask', async () => {
+/** The readback of a cut made with only `first` resident, landing once `then` is: adopted or
+ *  not. */
+async function readbackAfter(first: (url: string) => boolean, then: (url: string) => boolean) {
   const { release, fixture, dag, uniforms, device } = gatedDag()
   const selection = await createGpuDagSelection(device, dag, { roots: hostStretches(dag) })
   assert.ok(selection)
-  selection.updateResidency(
-    pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0)))),
-  )
+  const residency = (resident: (url: string) => boolean) =>
+    pageResidency(Uint32Array.from(dagPageUrls(dag).map((url) => (resident(url) ? 1 : 0))))
+  selection.updateResidency(residency(first))
   selection.dispatch(uniforms)
-  selection.updateResidency(pageResidency(new Uint32Array(dag.pageCount).fill(1)))
+  selection.updateResidency(residency(then))
   release()
-  assert.equal(await selection.flush(), null)
-  assert.equal(selection.peek(), null)
+  const flushed = await selection.flush()
+  const peeked = selection.peek()
   selection.dispose()
   fixture.geometry.dispose()
+  return { flushed, peeked, dag }
+}
+
+test('readback from an older resident cut cannot restore an invalidated drawable mask', async () => {
+  // The root it draws withdrawn before it lands: never adopted.
+  const { flushed, peeked } = await readbackAfter(
+    (url) => url === 'root',
+    (url) => url !== 'root',
+  )
+  assert.equal(flushed, null)
+  assert.equal(peeked, null)
+})
+
+test('readback from an older resident cut is adopted once pages only arrived', async () => {
+  // Every page it draws is still resident: adopted, a frame late as a camera's cut.
+  const { flushed, dag } = await readbackAfter(
+    (url) => url === 'root',
+    () => true,
+  )
+  assert.deepEqual(
+    flushed?.drawablePageIds?.map((id) => dag.pageUrlOf(id)),
+    ['root'],
+  )
 })

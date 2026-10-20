@@ -2,6 +2,7 @@ import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import {
   environmentCurve,
   environmentExposure,
+  environmentSharpness,
 } from '../../../../../sdk-core/src/scene/core/environment.ts'
 import { uploadSceneLights } from '../state/lightBuffer.ts'
 import { ensureBounce, syncLightingProxies } from '../prepare/bounce.ts'
@@ -10,8 +11,8 @@ import { encodeVsmFrame } from './vsm/vsmEncode.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The floats the deferred and blend passes reread: lights, tiles in X and Y, exposure, display
- *  curve, then the eye the fog is measured from. */
-const directParams = new Float32Array(8)
+ *  curve, the eye the fog is measured from, then the composition's sharpening strength. */
+const directParams = new Float32Array(9)
 /** Camera world position, reused from one image to the next: bounce allocates nothing. */
 const viewpoint = new Float64Array(3)
 
@@ -40,6 +41,7 @@ export function encodeDirectLights(
   directParams[4] = environmentCurve(environment)
   // The eye itself, under any projection: an orthographic camera's view point is a direction.
   directParams.set(cam.eye, 5)
+  directParams[8] = environmentSharpness(environment)
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.
   // A representation change held for the camera to rest is released to the list now: the first
   // lit frame's invalidation stales its pages, whatever the camera does.

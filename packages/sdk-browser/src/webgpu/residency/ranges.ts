@@ -1,4 +1,5 @@
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { createMarkedList } from '../../../../math/src/sequence/markedList.ts'
 
 /**
  * How increasing indices become write ranges. `gap`: the largest step between two neighbours still
@@ -75,11 +76,9 @@ export function coalesceRanges(
  * write — no probe, which a flush of every row of a rebuilt table would pay per row.
  */
 export function createChangedRuns(strideWords = 0) {
-  let marked = new Uint8Array(0),
-    changed = new Int32Array(8),
-    count = 0,
-    /** The last `take`, increasing: a view the next take overwrites. */
-    taken = new Int32Array(0)
+  const changed = createMarkedList()
+  /** The last `take`, increasing: a view the next take overwrites. */
+  let taken = new Int32Array(0)
   /** The runs as `[first, last]` pairs, valid while `joined`. */
   let pairs = new Int32Array(0),
     runCount = 0,
@@ -88,52 +87,43 @@ export function createChangedRuns(strideWords = 0) {
   const runs = {
     /** How many indices changed. */
     get count() {
-      return count
+      return changed.count
     },
     /** Bytes of the marks, the lists and the runs. */
     get byteLength() {
-      return (
-        marked.byteLength +
-        changed.byteLength +
-        taken.byteLength +
-        pairs.byteLength +
-        rule.steps.byteLength
-      )
+      return changed.byteLength + taken.byteLength + pairs.byteLength + rule.steps.byteLength
     },
     /** `index` changed since the last `clear`. */
     mark(index: number) {
-      if (index >= marked.length) marked = resized(marked, index + 1)
-      if (marked[index]) return
-      marked[index] = 1
-      if (count === changed.length) changed = resized(changed, count + 1)
-      changed[count++] = index
-      joined = false
+      if (changed.add(index)) joined = false
     },
     /** The runs of the changed indices, in increasing order, as `[first, last]` pairs. */
     runs() {
       if (!joined) {
+        const { count } = changed
         if (strideWords) writeRule(rule, strideWords, count)
         else rule.steps = resized(rule.steps, count)
         rule.cap = strideWords ? Math.min(WRITE_CAP, count) : count
         pairs = resized(pairs, 2 * rule.cap)
-        runCount = coalesceRanges(changed.subarray(0, count).sort(), count, pairs, rule)
+        runCount = coalesceRanges(changed.list.subarray(0, count).sort(), count, pairs, rule)
         joined = true
       }
       return { count: runCount, pairs }
     },
     /** The changed indices, increasing, every mark cleared: a view the next take overwrites. */
     take() {
+      const { count } = changed
       taken = resized(taken, count)
       const sorted = taken.subarray(0, count)
-      sorted.set(changed.subarray(0, count))
+      sorted.set(changed.list.subarray(0, count))
       sorted.sort()
       runs.clear()
       return sorted
     },
     /** Every change sent: nothing is marked. */
     clear() {
-      for (let i = 0; i < count; i++) marked[changed[i]] = 0
-      count = runCount = 0
+      changed.clear()
+      runCount = 0
       joined = true
     },
   }

@@ -15,14 +15,15 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
  * its half, counts its indirect slot and packs the tested box. The CPU encodes only these three
  * dispatches, whose count depends only on the row count, and reads nothing back.
  *
- * Nine buffers, of which eight are storage, and the Hi-Z pyramid: each kernel's layout names the
+ * Ten buffers, of which eight are storage, and the Hi-Z pyramid: each kernel's layout names the
  * resources it touches and no other (`PARTITION_KERNEL_BINDINGS`). Rest bits and per-slot
  * counts are those of the draw compact, written here rather than uploaded; `flags` is the
  * verdict buffer: `projectRows` reads last frame's, then `classifyRows` writes this frame's —
  * `0` for the occluder half, `2` for the tested half, which the Hi-Z test will set to `1` on
  * rows it rejects. It is through this word, not an extra buffer, that the compute raster learns
  * which half a row is in. `hizPyramid` is the Hi-Z pyramid as the previous image left it, of
- * which `projectRows` reads the farthest layer.
+ * which `projectRows` reads the farthest layer. `selectionMask` is the cut's draw mask, the draw
+ * compaction's (`maskSelects`): `classifyRows` packs for the test only a row the cut draws.
  */
 export const PARTITION_SHADER = wgslProgram(
   `@group(0) @binding(${PARTITION_BINDING.corners}) var<storage, read> corners:array<f32>;
@@ -35,6 +36,7 @@ export const PARTITION_SHADER = wgslProgram(
 @group(0) @binding(${PARTITION_BINDING.uniforms}) var<uniform> uni:Uni;
 @group(0) @binding(${PARTITION_BINDING.pyramid}) var hizPyramid:texture_2d_array<u32>;
 @group(0) @binding(${PARTITION_BINDING.hizLevels}) var<uniform> hizLevels:HizLevels;
+@group(0) @binding(${PARTITION_BINDING.selectionMask}) var<storage, read> selectionMask:array<u32>;
 `,
   [
     DRAW_ITEM_WGSL,

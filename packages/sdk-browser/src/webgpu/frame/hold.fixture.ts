@@ -34,7 +34,6 @@ export function settledRt() {
     visible: 1,
     selectedTriangles: 3,
     submittedTriangles: 3,
-    drawnTriangles: 3,
     frustumRejected: 0,
     lodLevel: 0,
     gpuDrawCalls: 2,
@@ -52,8 +51,9 @@ export function settledRt() {
     packedCount: 1,
     rowCount: 1,
   }
-  // The main view alone, drawn.
-  const main = {}
+  // The main view alone, drawn, its scale the world's controller.
+  const scale = createScaleControl(undefined),
+    main = { scale }
   const rt = {
     run,
     views: { main, active: main, persistent: [] },
@@ -89,7 +89,6 @@ export function settledRt() {
       lastSubmitMs: null as number | null,
     },
     texturePump: { inFlight: false },
-    scale: createScaleControl(undefined),
     gpu: {
       presenter: undefined as unknown,
       displayTexture: undefined as unknown,

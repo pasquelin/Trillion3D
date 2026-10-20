@@ -1,4 +1,3 @@
-import type { HostAttributes } from '../../host/resources.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -20,20 +19,6 @@ export const uvBufferFloats = (vertices: number, coloured: boolean) =>
 /** The float vertex `vertex`'s colour starts at, in the tail of a buffer of `vertices` vertices. */
 export const colorFloatAt = (vertices: number, vertex: number) =>
   vertices * UV_FLOATS + vertex * COLOR_FLOATS
-
-/** Writes up to `count` colours of `color` at vertex `base` of the tail of a buffer of `vertices`
- *  vertices; a three-component colour takes an alpha of one, as the forward path reads it. */
-export function writeVertexColors(
-  into: Float32Array,
-  vertices: number,
-  base: number,
-  count: number,
-  color: HostAttributes[string],
-) {
-  for (let i = 0; i < Math.min(count, color.count); i++)
-    for (let c = 0; c < COLOR_FLOATS; c++)
-      into[colorFloatAt(vertices, base + i) + c] = c < color.itemSize ? color.getComponent(i, c) : 1
-}
 
 /** Colour of source vertex `id`, read in the tail of the `uvs` buffer the host declares.
  *  Called only where the row or the item says its geometry has colours, hence a tail. */

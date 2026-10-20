@@ -3,9 +3,11 @@
  * two ranges of records of one format: the list the passes appended
  * (`../webgpu/shadow/castChanges.ts`), read where it lies, never by the CPU, then the CPU's boxes
  * of what no row says (`castBoxes.ts`), read from their own buffer. One thread a (record, map) pair
- * stales a record's box (`vsmStaleBoxPages`), its map named through the one filter (`vsmStaleMap`,
- * `staleMapWgsl.ts`): a map drawing its moving casters over a receiver cover skips a box of casters
- * already moving.
+ * stales a record's box (`vsmStaleBoxPages`) in every map: a box of casters already moving stales
+ * the dynamic layer of each page it touches, whatever drew it, but for the coarse pages of a map
+ * whose coarse pages keep their dynamic layer (`VSM_MAP_COARSE_KEEPS_DYNAMIC`): those, which a
+ * receiver cover never redraws either, keep the shadow a mover left until a static change stales
+ * both their layers.
  *
  * A list's record is a world box, its centre and its half extent, negative for casters already
  * moving; a CPU box's two vectors, its centre and moving sign, then its half extent per axis. A
@@ -22,7 +24,6 @@ import { ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { UNBOUNDED_EXTENT, vsmInvalidationProgram } from './invalidationWgsl.ts'
 import type { VsmLayout } from './layout.ts'
-import { VSM_STALE_MAP_WGSL } from './staleMapWgsl.ts'
 
 /** Whether a list of `records` records whose header is `header` overflowed, and the boxes the stale
  *  reads: the list's then the CPU's `boxes`; one, the world's, once the list overflowed. The two
@@ -84,12 +85,12 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
   inst.centre=record.xyz;
   inst.flags=select(0u,VSM_BOX_MOVING,record.w<0.0);
  }
- let mapId=vsmStaleMap(vsmCastMaps[thread%maps],(inst.flags&VSM_BOX_MOVING)!=0u);
+ let mapId=vsmCastMaps[thread%maps];
  if(mapId>=arrayLength(&vsmProjectionData)){return;}
  vsmStaleBoxPages(vsmProjectionOf(vsmHandleFromId(mapId)),inst);
 }
 `,
-    [CAST_PARAMS, CAST_TOTAL, VSM_STALE_MAP_WGSL],
+    [CAST_PARAMS, CAST_TOTAL],
   )
 
 /** The arguments' kernel's entry. */

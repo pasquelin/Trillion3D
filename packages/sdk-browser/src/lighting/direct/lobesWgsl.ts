@@ -11,8 +11,7 @@ import { DIELECTRIC_F0, fresnelScalar, fresnelSchlick } from '../../../../math/s
  * (`../../scene/physicalLobes.ts`), from the Khronos material extension equations: in the opaque
  * resolve's program that has them (`contractLightingProgram`, `key.lobeless` false), which reads a
  * pixel's lobes from the lobes target (`LOBES_TARGET_WGSL`), in the blend pass's lobed programs,
- * which compute them in place (`../../webgpu/blend/physicalWgsl.ts`), and in the water composite's,
- * which reads what its surface stage left in that target (`../../webgpu/water/waterLobesWgsl.ts`).
+ * which compute them in place (`../../webgpu/blend/physicalWgsl.ts`).
  * Each sets them once a pixel (`setLobes`) where it carries them, and every term below falls back
  * on the standard one, operand for operand, on a pixel that does not.
  *
@@ -72,8 +71,7 @@ fn anisotropicLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energ
 }
 /** The hooks of the one \`surfaceLight\` and \`rectLight\` (\`../standardLighting.ts\`,
  *  \`rectLightWgsl.ts\`) on a pixel whose lobes are set: the base's lobe, anisotropic where it is
- *  skewed — on the surface the lobes were set for, or the water's null albedo, a dielectric's
- *  (\`declaredLightingPair\`) —, and the coat's own lobe (\`standardLobe\` on the coat's surface) at
+ *  skewed, on the surface the lobes were set for, and the coat's own lobe (\`standardLobe\` on the coat's surface) at
  *  its cosine; a pixel without lobes answers the standard lobe and no coat. The light's direction
  *  and half-vector serve both. */
 fn coatCosine(L:vec3f)->f32{if(lobes.on&&lobes.coat>0.0){return max(dot(lobes.coatN,L),0.0);}return 0.0;}
@@ -138,16 +136,17 @@ fn rectCoat(r:RectView,V:vec3f,energy:f32)->vec3f{return vec3f(0.0);}`,
 )
 
 /** The decode of a texel of the lobes target into a pixel's lobes (`lobesAt`), at its roughness
- *  `rough`, its coat normal turned by `side` (-1 where the water composite turned the stored
- *  normal to face the eye, `../../webgpu/water/waterLobesWgsl.ts`): the one reading of the opaque
- *  resolve, the water and the opaque reflection (`../../reflections/trace.ts`). */
+ *  `rough`, its coat normal turned by `side` (-1 where a reader turned the stored normal to face the
+ *  eye): the one reading of the opaque resolve and the opaque reflection
+ *  (`../../reflections/trace.ts`). */
 export const LOBES_DECODE_WGSL = wgslBlock(
   'LOBES_DECODE_WGSL',
   [LOBE_PACK_WGSL, LOBE_AXIS_WGSL],
   `
 fn lobesAt(w:vec4u,side:f32,N:vec3f,V:vec3f,rough:f32){
  let alpha=lobeAlpha(rough);
- setLobes(packedLobeAxis(w,N,alpha),unpack2x16unorm(w.z).y,bitcast<f32>(w.w),lobeOctDecode(w.y)*side,N,V,alpha);
+ let coat=packedCoat(w);
+ setLobes(packedLobeAxis(w,N,alpha),coat.x,coat.y,lobeOctDecode(w.y)*side,N,V,alpha);
 }`,
 )
 

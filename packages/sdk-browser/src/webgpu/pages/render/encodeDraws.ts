@@ -16,7 +16,6 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import { uploadDirtyRows } from './dirtyRows.ts'
 import { castingLights } from './vsm/vsmPlan.ts'
-import { writeRowDiagnostics } from './rowDiagnostic.ts'
 
 /**
  * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
@@ -51,19 +50,17 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /**
  * Brings the row table up to date, once an image and before anything reads it — the deformation,
- * the cut, the raster: the table made, the rows' diagnostic words written (`rowDiagnostic.ts`), then
- * every reader of the row table's dirty marks followed — draw records, mobility, the occlusion
- * history, the rows pass's inputs and rows — and the rows uploaded, the marks cleared. A reader
- * skipped would keep another occupant's words (#198). Each
+ * the cut, the raster: the table made, then every reader of the row table's dirty marks followed —
+ * draw records, mobility, the occlusion history, the rows pass's inputs and rows — and the rows
+ * uploaded, the marks cleared. A reader skipped would keep another occupant's words (#198). Each
  * costs the rows that changed. An image with no visibility row follows them too: the blended
  * casters' rows, behind, still feed its shadows, and rows left dirty would keep the frame from
  * being held.
  */
-export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
+export function followRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis, timing } = rt
   timing.encodeCounts.itemsUploaded = 0
   ensurePageTable(rt, device)
-  writeRowDiagnostics(rt, cam)
   refreshDrawItemWords(rt, visLayerTop(vis), vis.gpuDraw)
   followShadowRows(rt, device)
   forgetRewrittenRows(rt)

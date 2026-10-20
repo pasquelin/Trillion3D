@@ -1,95 +1,59 @@
-// The world DAG as the cut's records: a super-root is a geometry page in world space worn
-// in the surface of the primitive it names, a placed object's cluster a record without a page, and
-// a world no opaque mesh wears is not packed at all. On the cook's world fixture.
+// The world HLOD as the cut's records: every cluster is a geometry page in world space worn in its
+// actor's flattened surface, a cluster whose actor has none a record without a page, and a world
+// with no surface is not packed at all. On the cook's world fixture.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldRootsDag } from './worldRootsPages.fixture.ts'
-import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
+import { worldBinary, worldRootsDag } from './worldRootsPages.fixture.ts'
 import * as G from '../host/graph/graph.fixture.ts'
-import { worldRootDag } from './worldSuperRoots.ts'
-import { worldRootPages } from './worldPageServe.ts'
-import { worldSelectionRoot, worldWearers } from './worldRecords.ts'
+import { worldRootDag } from './worldHlod.ts'
+import { worldRootPages } from './worldRootPages.ts'
+import { worldSelectionRoots } from './worldRecords.ts'
 import { sourceSurface } from '../page/surface.ts'
-import { drawSourceOf, graphDraws } from '../page/selection/drawSource.ts'
+import { drawSourceOf } from '../page/selection/drawSource.ts'
 import { rootCoverOf } from '../webgpu/pages/prepare/rootCover.ts'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'
 import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
 import { rootWorldBox } from '../page/selection/rootWorld.ts'
 
-/** The cook's world DAG, every cluster wearing primitive 0. */
+/** The cook's world DAG, every cluster worn by actor 0. */
 function dag() {
   const { clusters, groups, culling } = worldRootsDag()
-  return worldRootDag(
-    { clusters, groups, culling, url: 'world-roots.bin', pinned: 1 },
-    worldRootPages,
-  )!
+  return worldRootDag({ clusters, groups, culling, ...worldBinary() }, worldRootPages)!
 }
 
-test("a super-root is a geometry page worn in its primitive's surface", () => {
-  const mesh = G.triangleMesh(G.standardSurface()),
-    drawSource = drawSourceOf(mesh),
-    surface = sourceSurface(drawSource)
+test("a world cluster is a geometry page worn in its actor's flattened surface", () => {
+  const surface = sourceSurface(drawSourceOf(G.triangleMesh(G.standardSurface())))
   const world = dag(),
-    root = worldSelectionRoot(world, (p) => (p === 0 ? { drawSource, surface } : undefined), 7)!
+    [root] = worldSelectionRoots(world, [surface], 7)
   assert.equal(root.pages.length, world.pages.length)
   root.pages.forEach((rec, rank) => {
     const page = world.pages[rank]
     assert.equal(rec.material, surface)
     assert.equal(rec.renderOrder, 7)
-    if (world.origins[rank] >= 0) {
-      assert.deepEqual([rec.url, rec.geometryPage], ['', undefined], 'its placement draws it')
-      return
-    }
     assert.equal(rec.url, page.url)
     assert.equal(rec.geometryPage?.url, page.url, 'the pool reads it at its world address')
     assert.equal(rec.geometryPage?.bytes, page.page?.bytes)
     assert.equal(rec.parentError, page.parentError)
+    assert.equal(rec.hlodLayer, 1, 'HLODLayer_Merged')
+    assert.equal(rec.drawSource, undefined, 'no mesh of the scene draws an actor')
   })
-  assert.equal(root.origins, world.origins)
-  assert.deepEqual(root.structure!.roots, [world.pages.length - 1], 'the world top')
-  assert.deepEqual([...rootWorldBox(root)!], [0, -0.25, -0.25, 12, 0.25, 0.25])
-  // Nothing an opaque mesh wears: no world to pack.
-  assert.equal(
-    worldSelectionRoot(world, () => undefined, 7),
-    undefined,
-  )
+  assert.equal(root.hlod, world.hlod, "each rank's HLOD 0 cell")
+  assert.equal(root.structure!.roots.length, 3, 'one HLOD 1 root per HLOD 0 cell')
+  assert.deepEqual([...rootWorldBox(root)!], [0, -0.25, -0.25, 3, 0.25, 0.25])
+  // No actor's surface: no world to pack.
+  assert.deepEqual(worldSelectionRoots(world, [], 7), [])
 })
 
-test('a world page is worn by the mesh of its primitive, never a blended one', () => {
-  const opaque = G.triangleMesh(G.standardSurface()),
-    clear = G.triangleMesh(G.standardSurface({ transparent: true, opacity: 0.5 })),
-    blended = G.triangleMesh(G.standardSurface())
-  const source = G.mesh()
-  source.add(opaque, clear, blended)
-  const associations = new Map([
-    [opaque, { meshes: 0, primitives: 0 }],
-    [clear, { meshes: 1, primitives: 0 }],
-    [blended, { meshes: 2, primitives: 0 }],
-  ])
-  const primitives = [
-    { mesh: 0, primitive: 0, pass: 'clustered' },
-    { mesh: 1, primitive: 0, pass: 'clustered' },
-    { mesh: 2, primitive: 0, pass: 'clustered-blend' },
-    { mesh: 3, primitive: 0, pass: 'clustered' },
-  ] as Primitive[]
-  const wear = worldWearers(graphDraws(source, associations), primitives)
-  assert.equal(wear(0)?.drawSource.node, opaque)
-  assert.equal(wear(1), undefined, 'its surface blends')
-  assert.equal(wear(2), undefined, 'its primitive blends')
-  assert.equal(wear(3), undefined, 'no mesh draws it')
-})
-
-test('a world root no mesh wears is no page: the cover and the floor take no slot for it', () => {
-  const mesh = G.triangleMesh(G.standardSurface()),
-    drawSource = drawSourceOf(mesh),
-    surface = sourceSurface(drawSource)
+test('a world root whose actor has no surface is no page: the cover and the floor take no slot for it', () => {
+  const surface = sourceSurface(drawSourceOf(G.triangleMesh(G.standardSurface())))
   const world = dag(),
-    top = world.pages.length - 1
-  ;(world.pages as { primitive: number | null }[])[top].primitive = 1
-  const root = worldSelectionRoot(world, (p) => (p === 0 ? { drawSource, surface } : undefined), 7)!
-  assert.equal(root.pages[top].url, '', 'the pinned top no mesh wears')
+    top = world.structure!.roots[0]
+  ;(world.pages as { material: number }[])[top].material = 1
+  const [root] = worldSelectionRoots(world, [surface], 7)
+  assert.equal(root.pages[top].url, '', 'the root no surface wears')
   const cover = rootCoverOf([root], createWebgpuPageTracking(root.pages))
-  assert.ok(cover.bootstrap.length > 0 || cover.floorUrls.size > 0)
+  const holder = (world.pages[top] as { holder?: number }).holder!
+  assert.ok(!root.pagesOf(holder).includes(root.pages[top]), 'its cell holds it not')
   assert.ok(
     !cover.bootstrap.some((page) => pageAddress(page) === ''),
     'no page read at an empty address',

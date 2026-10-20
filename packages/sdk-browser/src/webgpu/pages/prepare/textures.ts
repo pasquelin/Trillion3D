@@ -4,6 +4,7 @@ import { prepareHostReductions } from '../../../texture/mips.ts'
 import { texturePoolFor } from '../../residency/memoryBudgets.ts'
 import { grantedTexturePool, sameLayers } from '../../residency/poolGrants.ts'
 import { grantedLatest } from './grantLatest.ts'
+import { stopped } from '../io/lost.ts'
 import { laneDemand, laneTails } from './textureCensus.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import {
@@ -45,7 +46,7 @@ export async function prepareWebgpuTextures(
   gpuDevice: GPUDevice,
   census = takeMaterialTextures(rt),
 ) {
-  const { vis, diag, run } = rt
+  const { vis, diag } = rt
   reportTextureNeeds(rt, census)
   const textureStarted = cpuNow()
   const catalogues = textureCatalogues(rt, gpuDevice, census)
@@ -74,7 +75,7 @@ export async function prepareWebgpuTextures(
       grantedTexturePool(gpuDevice, asked, { poolFor }, diag.engineDiagnostic, (pool) =>
         streamer(pool.layers),
       ),
-    stopped: () => rt.signal.aborted || run.lost,
+    stopped: () => stopped(rt),
   })
   if (!granted) throw new Error('WEBGPU_TEXTURE_POOL_REFUSED')
   const { coverage } = census

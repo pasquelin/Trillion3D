@@ -10,7 +10,7 @@ import type { Batch } from './worldBatches.ts'
 import type { WorldModels } from './worldModels.ts'
 import type { WorldRanks } from './worldRanks.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import { modelPartitions, type LoadedModel } from './loadedModel.ts'
 
 /** What a session is opened on: the batches placed by rows, and the models. */
 export type WorldPlan = {
@@ -26,13 +26,15 @@ export type WorldPlan = {
  * The scene a world's session opens on: one manifest merging the loaded models' (their page
  * addresses made absolute, their mesh ranks moved past each other's) and one primitive per
  * geometry resource, and the sources that are drawn by it — the batches, then each model's
- * meshes: no node stands for any of them. One model lends the session its base — its baked
- * texture levels, its resident proxy, its declared lights: the one whose images were left to the
- * cache, which only that base serves; else the first. Null when nothing is drawn.
+ * meshes: no node stands for any of them. Each model's textures read the levels its own cache
+ * baked. The first model lends the session its base — its resident proxy, its declared lights.
+ * Null when nothing is drawn.
  */
 export function buildWorldSource(plan: WorldPlan) {
   const { batches, models, ranks, worldModels } = plan
-  const drawn = models.map((model) => worldModels.drawsOf(model))
+  // A model placed again is one record: its sources, primitives and world roots enter once, each
+  // placement a row of them (`WorldModels.place`); its partitions' placements each follow the view.
+  const drawn = [...new Set(models.map((model) => worldModels.drawsOf(model)))]
   const placed = drawn.flatMap(({ draws }) => draws)
   const primitives: Primitive[] = drawn.flatMap(({ primitives }) => primitives)
   // One primitive per geometry resource, however many batches wear it and rows place it.
@@ -55,32 +57,32 @@ export function buildWorldSource(plan: WorldPlan) {
       metadata,
       scene: {
         source: root,
-        sceneLightingSource: root,
         draws: [...batches, ...placed],
-        textureIndices: first?.scene.textureIndices ?? new Map(),
+        // Each record's textures from its own cache: its chains, read from its folder.
+        textureCaches: models.flatMap((model) => model.record.scene.textureCaches),
         ...{ framingLot: null, nodes: null },
         // A world plays its models' clips through their own mixers, never through its session.
         clips: [],
         // Each model's cells follow the session's camera.
-        partitions: models.flatMap((model) => model.record.scene.partitions),
-        worldRoots: models.flatMap((model) => worldModels.rootsOf(model)),
+        partitions: models.flatMap((model) => modelPartitions(model)),
+        // Each record's world roots once, whatever its placements: each one an instance of them.
+        worldRoots: [...new Set(models.flatMap((model) => worldModels.rootsOf(model)))],
       },
     },
   }
 }
 
-/** The one manifest a world's session reads, lent its base by the model whose images were left
- *  to the cache, else the first; and the address its pages resolve against. */
+/** The one manifest a world's session reads, lent its base by the first model; and the address its
+ *  pages resolve against. */
 function worldManifest(models: readonly LoadedModel[], primitives: Primitive[]) {
-  const first = (models.find((model) => model.record.textureSource === 'cache') ?? models[0])
-    ?.record
+  const first = models[0]?.record
   const triangles = primitives.reduce(
     (sum, p) => sum + p.pages.reduce((t, page) => t + page.count / 3, 0),
     0,
   )
   const metadata: ClusterManifest = {
     ...(first?.metadata ?? {}),
-    schema: first?.metadata.schema ?? CLUSTERED_BLEND_FORMAT_VERSION,
+    formatVersion: first?.metadata.formatVersion ?? CLUSTERED_BLEND_FORMAT_VERSION,
     status: 'ready',
     key: first?.metadata.key ?? 'world',
     scope: first?.metadata.scope ?? 'full',

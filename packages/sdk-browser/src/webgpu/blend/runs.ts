@@ -10,19 +10,19 @@ import { EXPAND_UNI } from './expandUniform.ts'
  * does not write depth, and only the order in which primitives pass the rasterizer separates two
  * surfaces. That order is GUARANTEED INSIDE A DRAW: a draw's primitives are rasterized instance by
  * instance, and in each instance vertex by vertex. A stretch of plan entries that set the same
- * pipeline and read the same buffers can therefore fit in ONE draw whose instances are, in order,
- * those of each entry.
+ * pipeline — every item reads the one shared bind group — can therefore fit in ONE draw whose
+ * instances are, in order, those of each entry.
  *
  * The GPU sorts the plan (`orderWgsl.ts`) and the CPU encodes the draws without that order: WebGPU
- * lets an indirect draw take its counts from the GPU, never its pipeline nor its bind group. The
- * draws are therefore laid out ahead of the order, as SLOTS:
- * - the pass's MAIN CLASS — the paged entries of its most common pipeline, which all read the one
- *   shared bind group — paints in any order inside a draw of its own;
- * - every other entry is an OWN entry — an unpaged item with its own buffers, or a paged one of
- *   another pipeline — and needs a draw of its own: the CPU orders these few itself, with the GPU's
- *   keys and rule (`sortPlan.ts`), so it knows which draw each one is;
+ * lets an indirect draw take its counts from the GPU, never its pipeline. The draws are therefore
+ * laid out ahead of the order, as SLOTS:
+ * - the pass's MAIN CLASS — the entries of its most common pipeline — paints in any order inside a
+ *   draw of its own;
+ * - every other entry is an OWN entry — one of another pipeline — and needs a draw of its own:
+ *   the CPU orders these few itself, with the GPU's keys and rule (`sortPlan.ts`), so it knows
+ *   which draw each one is;
  * - the main class is drawn in the GAPS between own items: a gap before the first, one after each.
- *   An item's own entries — the back and the face of an unpaged double-sided item — tie on their
+ *   An item's own entries — the back and the face of a double-sided item — tie on their
  *   key and follow each other in seed order: nothing can paint between them, and no gap does.
  * A gap may hold no entry: a draw of no instance. A pass without a main class has only its own
  * slots; a pass of one class has a single slot, one draw, and nothing ordered on the CPU. Once the

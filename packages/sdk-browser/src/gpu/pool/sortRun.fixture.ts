@@ -6,60 +6,20 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import type { WgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { POOL_RANKS } from './rank.ts'
 import { POOL_SORT_BOUND } from './sortWords.ts'
+import { SORT_PARTS, type Parts } from './sortParts.fixture.ts'
 
 const LANES = 256,
   THREADS = 64
 const BARRIER = Symbol('barrier')
-
-/** The sort's parts, and the host's words they read. */
-type Parts = {
-  poolCount: (id: number[], n: number[], lane: number) => void
-  poolPlaceSum: (span: number[]) => number
-  poolPlaceRun: (span: number[], first: number) => number
-  poolPlaceTotal: (total: number) => void
-  poolGroupRun: (g: number, lane: number, bound: number) => number[]
-  poolGroupAt: (g: number, half: number) => number
-  poolOffsetSum: (span: number[], half: number) => number
-  poolOffsetRun: (span: number[], half: number, first: number) => void
-  poolSpreadRun: (g: number, lane: number, bound: number, first: number[]) => void
-  poolStagedCount: () => number
-  poolStagedAt: (i: number, staged: number) => number[]
-  poolChunkPeers: (lane: number, rank: number) => number[]
-  poolChunkTake: (entry: number[], at: number, peers: number[]) => void
-  poolCountLoad: (i: number) => number
-  poolScratchLoad: (i: number) => number
-  poolScratchStore: (i: number, v: number) => void
-  poolSlotCount: () => number
-  laneRun: (lane: number, len: number) => number[]
-}
-
-/** The parts the sort runs, beside the host's `names`. */
-const SORT_PARTS = [
-  'poolCount',
-  'poolRankAt',
-  'poolPlaceSum',
-  'poolPlaceRun',
-  'poolPlaceTotal',
-  'poolSlotPart',
-  'poolGroupRun',
-  'poolGroupAt',
-  'poolOffsetSum',
-  'poolOffsetRun',
-  'poolSpreadRun',
-  'poolStagedCount',
-  'poolStagedAt',
-  'poolChunkPeers',
-  'poolChunkTake',
-  'laneRun',
-  'flatIndex',
-]
 
 /** `0 … count − 1` in an order `random` draws. */
 function order(count: number, random: () => number) {
   const out = Array.from({ length: count }, (_, i) => i)
   for (let i = count - 1; i > 0; i--) {
     const k = Math.floor(random() * (i + 1))
-    ;[out[i], out[k]] = [out[k], out[i]]
+    const kept = out[i]
+    out[i] = out[k]
+    out[k] = kept
   }
   return out
 }
@@ -93,8 +53,9 @@ export function runPoolSort(
     ...scope,
   }
   // The count's halves either side of its barrier: every lane's local count, then every lane's
-  // flush of the group's counts, a lane counting nothing. The host's words are its text's when
-  // `names` lists them, else its `scope`'s.
+  // flush of the group's counts and of its ranks' words, a lane counting nothing and keeping the
+  // rank its first half wrote. The host's words are its text's when `names` lists them, else its
+  // `scope`'s.
   const run: Parts = {
     ...(scope as Partial<Parts>),
     ...shaderRun<Parts>(code, all, {
@@ -107,7 +68,13 @@ export function runPoolSort(
   const flushing = shaderRun<Parts>(
     code,
     all.filter((name) => name !== 'poolSlotRank'),
-    { ...base, workgroupBarrier() {}, poolSlotRank: () => POOL_RANKS },
+    {
+      ...base,
+      workgroupBarrier() {},
+      poolSlotRank: () => POOL_RANKS,
+      // The ranks the first half kept stand: its writes before the barrier are not made again.
+      poolChunk: new Proxy(poolChunk, { set: () => true }),
+    },
   )
   const groups = Math.ceil(slots / LANES),
     n = [groups, 1, 1]
@@ -122,13 +89,26 @@ export function runPoolSort(
     for (const lane of order(LANES, random)) flushing.poolCount([g * LANES + lane, 0, 0], n, lane)
   }
   const lanes = order(THREADS, random)
-  // `poolPlace`: the runs summed, scanned, placed; the last lane's end the total.
-  const placeSpans = lanes.map(() => [0, 0])
+  // `poolPlace` (`laneRunOffsets`): the runs summed, scanned, each rank placed from the highest
+  // down; the last lane's end the total.
+  const placeSpans = lanes.map(() => [0, 0]),
+    taken = (d: number) => run.poolCountLoad(run.poolRankAt(d))
   for (const lane of lanes) placeSpans[lane] = run.laneRun(lane, POOL_RANKS)
   const placeSums: number[] = []
-  for (const lane of lanes) placeSums[lane] = run.poolPlaceSum(placeSpans[lane])
+  for (const lane of lanes) {
+    const [first, end] = placeSpans[lane]
+    placeSums[lane] = 0
+    for (let d = first; d < end; d++) placeSums[lane] += taken(d)
+  }
   const placed = scan(placeSums)
-  for (const lane of lanes) run.poolPlaceRun(placeSpans[lane], placed.before[lane])
+  for (const lane of lanes) {
+    const [first, end] = placeSpans[lane]
+    for (let d = first, cursor = placed.before[lane]; d < end; d++) {
+      const count = taken(d)
+      run.poolPlaceAt(run.poolRankAt(d), cursor, count)
+      cursor += count
+    }
+  }
   run.poolPlaceTotal(placed.total)
   const bound = run.poolCountLoad(POOL_SORT_BOUND)
   // `poolGroups`, `poolOffsets`, `poolSpread`.

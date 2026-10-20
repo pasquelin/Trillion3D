@@ -7,7 +7,7 @@ import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Matrix3 } from '../../../../sdk-core/src/world/math/matrix3.ts'
 import { surfaceOf } from '../surface.ts'
-import { OPEN_CONE, leafCone } from './cone.ts'
+import { leafCone } from './cone.ts'
 import {
   coneCullsPageWith,
   coneContextFor,
@@ -31,14 +31,14 @@ test('opposite triangles produce an open cone', () => {
   assert.ok(cone.angle >= HALF_PI - 1e-6)
 })
 
-test('OPEN_CONE never rejects', () => {
+test('the open cone, a leaf without one, never rejects', () => {
   const world = new Matrix4()
   const cam = G.perspectiveCamera(55, 1, 0.1, 100)
   cam.position.set(0, 0, 5)
   cam.lookAt(0, 0, 0)
   cam.updateMatrixWorld()
   assert.equal(
-    coneCullsPage(OPEN_CONE, world, [-1, -1, 0], [1, 1, 0], engineCamera(cam).eye),
+    coneCullsPage(leafCone({}), world, [-1, -1, 0], [1, 1, 0], engineCamera(cam).eye),
     false,
   )
 })
@@ -150,7 +150,7 @@ test('a surface switched to double-sided in place gets its page back at the cut'
   // The host opens the surface on the declaration it shares with its mesh: no version is bumped,
   // and nothing on this path refreshes the record.
   G.sided(material, G.DOUBLE_SIDE)
-  assert.equal(leafCone({ cone, material: surface }), OPEN_CONE, 'the cut reopens the cone')
+  assert.equal(leafCone({ cone, material: surface }), leafCone({}), 'the cut reopens the cone')
   assert.equal(
     coneCullsPage(cone, world, min, max, cam.eye, surface),
     false,

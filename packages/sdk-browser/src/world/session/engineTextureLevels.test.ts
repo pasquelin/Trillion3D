@@ -1,23 +1,33 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { probeEngineContext } from './engine.fixture.ts'
-import type { Engine } from '../../engine/types.ts'
+import type { Engine, EngineContext } from '../../engine/types.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
+import { PREVIEW_ATLAS_COLOR } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { ExplorerSession } from './session.ts'
 import type { MeasuredWorldOptions } from './options.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 
 /**
- * Behaviour: the reader of baked texture levels follows the CACHE, not `textureSource`. Before
- * this batch it existed only under `'cache'`, so a default session regenerated on the GPU every
- * mip level the compiler had already baked and filed beside the pages. A host that asks for
- * `'host'` asks the LOADER for the source images — for a backend that draws the host scene — and
- * that is all it asks: the engine still reads the levels.
+ * Behaviour: the reader of baked texture levels follows the CACHE: a cache that files levels hands
+ * the reader of its own folder to each texture its scene built, so no session regenerates on the
+ * GPU a mip level the compiler already baked and filed beside the pages.
  */
 /** What the session reserved in the page cache for the engines' host tables, call by call. */
 const reserved: number[] = []
+/** A texture of the scene, rank 0, and its colour chain. */
+const texture = {} as Texture
+const ranks = new Map([[texture, 0]])
 const metadata = (textures?: { url: string }) =>
-  ({ primitives: [], textures }) as unknown as ClusterManifest
+  ({
+    primitives: [],
+    textures,
+    texturePreviews: [{ texture: 0, atlas: PREVIEW_ATLAS_COLOR }],
+  }) as unknown as ClusterManifest
+/** The reader `context` hands the texture's colour chain. */
+const readerOf = (context: EngineContext) =>
+  context.textureCaches.chainOf(texture, PREVIEW_ATLAS_COLOR)?.read
 
 /** The cache a session with no world reads its pages through: the session's own. */
 const ownCache = createPageCache()
@@ -37,21 +47,15 @@ const run = (
   cacheTextures?: { url: string },
   probe: Partial<Engine> = {},
   session: Partial<ExplorerSession> = {},
-) => probeEngineContext(metadata(cacheTextures), pageSources, { options, probe, session })
+) => probeEngineContext(metadata(cacheTextures), pageSources, { options, probe, session, ranks })
 
-test('the baked-level reader follows the cache, not the texture-source option', async () => {
+test('a cache with baked chains hands the reader of its levels to its textures', async () => {
   // `createTextureLevelReader` needs the browser decoder to hand a level back; Node has none.
   const scope = globalThis as { createImageBitmap?: unknown }
   scope.createImageBitmap = async () => ({})
   try {
-    for (const textureSource of ['cache', 'host', undefined] as const) {
-      const context = await run(textureSource ? { textureSource } : {}, { url: 'textures/v4' })
-      assert.equal(
-        typeof context.readTextureLevel,
-        'function',
-        `a cache with baked chains hands the reader over under ${textureSource ?? 'the default'}`,
-      )
-    }
+    const context = await run({}, { url: 'textures/v4' })
+    assert.equal(typeof readerOf(context), 'function')
   } finally {
     delete scope.createImageBitmap
   }
@@ -64,15 +68,15 @@ test("the baked levels are held in the cache the session's pages are read throug
   scope.createImageBitmap = async () => ({})
   try {
     const context = await run({}, { url: 'textures/v4' })
-    assert.equal(context.readTextureLevel?.store, ownCache)
+    assert.equal(readerOf(context)?.store, ownCache)
   } finally {
     delete scope.createImageBitmap
   }
 })
 
 test('a cache that bakes no texture chain hands no reader over', async () => {
-  const context = await run({ textureSource: 'cache' }, undefined)
-  assert.equal(context.readTextureLevel, undefined)
+  const context = await run({}, undefined)
+  assert.equal(readerOf(context), undefined)
 })
 
 test("the engines' host tables are reserved in the page cache once the engine is ready", async () => {

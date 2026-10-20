@@ -2,11 +2,7 @@ import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { toF32 } from '../../../../math/src/wgsl/f32.ts'
 import { rayInverseDirection } from '../../../../math/src/wgsl/geometry.ts'
-import {
-  invTranspose3Apply,
-  invTranspose3Prep,
-  unitOrZero,
-} from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { inverseTranspose3, unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { PLACEMENT_TREE_WALK_WGSL, placementTreeWalk } from '../../gpu/dag/treeWalkWgsl.ts'
 import { HIT_CUT, HIT_FOUND, RAY_HIT, RAY_RECORD } from './rayRecord.ts'
@@ -17,16 +13,17 @@ import { RAY_PLACEMENT_WGSL } from './rayPlacementWgsl.ts'
 const TREE_STEPS = 1 << 16
 
 /**
- * THE RAY QUERY (`rayQuery.ts`): one thread a ray, the nearest triangle it meets of what the
- * engine draws. Level 1 is the placement tree the cut refits (`../../gpu/dag/placementTree.ts`),
- * read in its record table as the culling reads it, walked by the engine's one walk of it
- * (`placementTreeWalk`) on its world boxes, from the ray's
- * origin rounded to single precision — a packing too small for a tree tries its placements in turn.
- * Level 2 is each placement met: its hierarchy, its pages and their triangles, in its own space
- * from the ray's exact origin (`rayPlacementWgsl.ts`). One dispatch reads every placement, each
- * table a record table whatever the world's size. The hit is written at the ray's rank: the placement, the page and the triangle met, the distance, and the
- * face normal brought to the world by the inverse transpose of the placement's world, as its
- * winding turns it — what the host turns into an intersection (`rayQueue.ts`).
+ * THE RAY QUERY (`rayQuery.ts`): one thread a ray, the nearest triangle it meets of what the engine
+ * draws. Level 1 is the placement tree the cut refits (`../../gpu/dag/placementTree.ts`), read in
+ * its record table as the culling reads it, walked by the engine's one walk of it
+ * (`placementTreeWalk`) on its world boxes, grown by how near a line the ray meets it, from the
+ * ray's origin rounded to single precision — a packing too small for a tree tries its placements in
+ * turn. Level 2 is each placement met: its hierarchy, its pages and their triangles, in its own
+ * space from the ray's exact origin (`rayPlacementWgsl.ts`). One dispatch reads every placement,
+ * each table a record table whatever the world's size. The hit is written at the ray's rank: the
+ * placement, the page and the triangle met, the distance, and the face normal brought to the world
+ * by the inverse transpose of the placement's world, as its winding turns it — what the host turns
+ * into an intersection (`rayQueue.ts`).
  */
 export const RAY_QUERY_WGSL = wgslProgram(
   `${wgslConsts({
@@ -46,7 +43,8 @@ fn rqRay(k:u32)->RqRay{
   query[at+${RAY_RECORD.at.filterFirst}u],
   query[at+${RAY_RECORD.at.filterWord}u],
   bitcast<vec3f>(vec3u(query[d],query[d+1u],query[d+2u])),
-  bitcast<f32>(query[at+${RAY_RECORD.at.reach}u]));
+  bitcast<f32>(query[at+${RAY_RECORD.at.reach}u]),
+  bitcast<f32>(query[at+${RAY_RECORD.at.lineReach}u]));
 }
 /** Ray \`k\`'s hit, written at its rank (\`rayRecord.ts\`): the nearest it met, its face normal
  *  brought to the world, unit, and whether its walk was cut short. */
@@ -54,7 +52,7 @@ fn rqAnswer(k:u32,best:RqHit){
  let at=params.hitWord+k*RQ_HIT_WORDS;
  query[at+${RAY_HIT.at.flags}u]=select(0u,RQ_FOUND,best.found)|select(0u,RQ_CUT,rqCut);
  if(!best.found){return;}
- let normal=unitOrZero(invTranspose3Apply(invTranspose3Prep(worldsLinear(best.placement)),best.normal));
+ let normal=unitOrZero(inverseTranspose3(worldsLinear(best.placement),best.normal));
  query[at+${RAY_HIT.at.placement}u]=best.placement;
  query[at+${RAY_HIT.at.page}u]=best.page;
  query[at+${RAY_HIT.at.triangle}u]=best.triangle;
@@ -84,6 +82,7 @@ ${placementTreeWalk({
   visit: '',
   steps: 'RQ_TREE_STEPS',
   cut: 'rqCut=true;',
+  grow: 'ray.lineReach',
 })}
  }
  rqAnswer(k,best);
@@ -95,8 +94,7 @@ ${placementTreeWalk({
     RAY_PLACEMENT_WGSL,
     toF32,
     rayInverseDirection,
-    invTranspose3Prep,
-    invTranspose3Apply,
+    inverseTranspose3,
     unitOrZero,
   ],
 )

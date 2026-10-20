@@ -13,7 +13,7 @@ import {
   NODE_OPEN,
   NODE_SPHERE,
 } from '../nodeLayout.ts'
-import { projectedError, thresholdOf, type DagViewFrames } from './math.fixture.ts'
+import { projectedError, type DagViewFrames } from './math.fixture.ts'
 
 /** Kernel verdict on a cut node read by placement `w` (`../shader/levelWgsl.ts`, `levelStep`):
  *  `-1` rejected — outside the trunk, or whose subtree replacement is not yet too coarse —,
@@ -52,7 +52,7 @@ export function dagNodeVerdict(
       f.focal,
       f.near,
       f.perspective,
-    ) <= thresholdOf(f, w)
+    ) <= f.pixelError
   )
     return -1
   return ints[base + NODE_CHILD_COUNT]

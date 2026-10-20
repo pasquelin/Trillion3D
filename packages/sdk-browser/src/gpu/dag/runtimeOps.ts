@@ -6,7 +6,6 @@ import { readFor } from './dispatchRead.ts'
 import type { createDifferenceChain } from './differenceChain.ts'
 import type { DagRuntimeState } from './runtimeState.ts'
 import type { DagResources } from './resources.ts'
-import type { createWorldResidencyMirror } from './residencyMirror.ts'
 import { MAIN_VIEW, sameCut } from './swap.ts'
 import type { TreeFollower, TreeLeaves } from './treeFollow.ts'
 import type { RecordTexture } from '../core/recordTexture.ts'
@@ -15,9 +14,10 @@ import type { LinkFollower } from './worldFollow.ts'
 import type { PageResidency } from '../core/selection.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { MARK_WORD, ROOT_WORD } from './frameTable.ts'
+import { markWithdraws } from './placementTree.ts'
 
 /** What a camera cut's methods share (`runtime.ts`): its tables, its state, the difference chain,
- *  the residency upload, the pool list, the world mirror, the tree's and links' followers, and the
+ *  the residency upload, the pool list, the tree's and the world cells' followers, and the
  *  main view's dispatch. */
 export type DagRun = ReturnType<typeof createDagDispatch> & {
   resources: DagResources
@@ -25,15 +25,12 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
   chain: ReturnType<typeof createDifferenceChain>
   uploadResidency: ReturnType<typeof createDagResidencyUpload>
   poolList: ReturnType<typeof createDagPoolList>
-  mirror: ReturnType<typeof createWorldResidencyMirror> | undefined
   /** The placement tree's follower (`treeFollow.ts`), none without a tree. */
   tree: TreeFollower | undefined
   /** The run-time cuts' instances, one a placement (`proxyInstances.ts`). */
   proxies: ProxyInstances
-  /** The world links' follower (`worldFollow.ts`), none without a world DAG. */
+  /** The world cells' follower (`worldFollow.ts`), none without a world DAG. */
   links: LinkFollower | undefined
-  /** Told of each placement whose link moved (`GpuSelection.linkMoved`). */
-  linkMoved: ((world: number) => void) | undefined
   /** The placements a send moved, each once, increasing (`posesMoved`). */
   moves: Int32Array
 }
@@ -43,27 +40,31 @@ export type DagRun = ReturnType<typeof createDagDispatch> & {
  *  writer (`../../placement/rootPasses.ts`) —, then the tree's leaves. */
 export type RootsOnGpu = { roots(frames: RecordTexture): void; leaves?: TreeLeaves }
 
-/** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
-export function voidCuts(state: DagRuntimeState) {
+/** The cut made from here differs. `withdrawn`: cuts in hand and in flight name pages the kernel
+ *  may no longer choose — a page left, the roots changed —, and they are void; a residency that
+ *  only gained pages leaves them adoptable. */
+export function voidCuts(state: DagRuntimeState, withdrawn: boolean) {
   state.residencyRevision++
+  if (!withdrawn) return
+  state.withdrawnRevision++
   state.last = null
 }
 
-/** `GpuSelection.updateResidency`: the pool's residency, through the world mirror when one packs. */
+/** `GpuSelection.updateResidency`: the pool's residency, which the world's cells read too. */
 export function updateRuntimeResidency(
-  { resources, state, uploadResidency, mirror, links }: DagRun,
+  { resources, state, uploadResidency, links }: DagRun,
   next: PageResidency,
   changes?: ResidencyChanges,
   moved?: (page: number) => void,
 ) {
-  // The links moved since reach the mirror before the rows it mirrors.
-  links?.residency(next)
   if (state.disposed || state.dead) return false
-  if (mirror) ({ flags: next, changes } = mirror.update(next, changes))
+  // Each cell's readiness follows the rows: its actor's roots and its placements' (`worldFollow.ts`).
+  links?.residency(next, changes)
   // The pages its roots hold, never more than its tables are laid out for.
   if (next.length > resources.pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED')
-  if (!uploadResidency(next, changes, moved)) return false
-  voidCuts(state)
+  const uploaded = uploadResidency(next, changes, moved)
+  if (!uploaded) return false
+  voidCuts(state, uploaded === 'withdrawn')
   return true
 }
 
@@ -77,7 +78,7 @@ export function parkRoot({ resources, state, tree, proxies }: DagRun, w: number,
   frames.writeWord(w, ROOT_WORD, node)
   proxies.park(w, parked)
   tree?.touch(w)
-  voidCuts(state)
+  voidCuts(state, true)
 }
 
 /** Primitive `w`'s mark, as `parkRoot`. */
@@ -89,7 +90,12 @@ export function writeMark({ resources, state, tree, proxies }: DagRun, w: number
   frames.writeWord(w, MARK_WORD, mark)
   proxies.mark(w, mark)
   tree?.marked(w, before)
-  voidCuts(state)
+  // A reach alone only grows or shrinks the root's bounds: a grown one cuts again, the cut in hand
+  // still adoptable; a shrunk one draws a little more until the next cut and cuts nothing — a
+  // deformed root's reach moves every frame it deforms. Half bits of a positive reach order as
+  // their values.
+  if (markWithdraws(before, mark)) voidCuts(state, true)
+  else if (mark >>> 16 > before >>> 16) voidCuts(state, false)
 }
 
 /** `GpuSelection.flush`: the reads in flight drained, a list grown or a cut coarsened and the cut

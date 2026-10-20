@@ -1,10 +1,10 @@
 import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
-import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { CLUSTER_HEADER_WGSL } from '../../cluster/headerWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
+import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { CULL_RANK } from './planCull.ts'
 
 /**
@@ -36,15 +36,18 @@ const FACING_TOLERANCE = 8 * FLOAT32_STEP * 2 ** 10
 const SNAP_STEP = 2 ** -4
 /** What `vertexFacing` answers besides a mode: the vertex stage drops the triangle. */
 export const FACING_DROP = 3
-/** The mode the fragment applies rides above the water rank, in the same flat word. */
-export const FACING_SHIFT = WATER_RANK_SHIFT
+/** The mode the fragment applies rides above the item's material rank, in the same flat word
+ *  (`VSOut.material`, `vertexWgsl.ts`). */
+export const FACING_SHIFT = 30
+/** The material rank's bits below the facing in that word. */
+export const FACING_MATERIAL_MASK = (1 << FACING_SHIFT) - 1
 
 /** The two functions in WGSL, on the page geometry's points
  *  (`../../visibility/shader/pageGeometryWgsl.ts`); the host declares `uni`. `corners` are the
  *  triangle's local vertex indices (`pageTriangle`). */
 export const FACING_WGSL = wgslBlock(
   'FACING_WGSL',
-  [perspectiveDivide, PAGE_INFO_STRUCT_WGSL, CLUSTER_HEADER_WGSL, PAGE_POINTS_WGSL],
+  [perspectiveDivide, edgeFunction, PAGE_INFO_STRUCT_WGSL, CLUSTER_HEADER_WGSL, PAGE_POINTS_WGSL],
   `
 fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec3u)->u32{
  var c:array<vec3f,3>;
@@ -61,7 +64,7 @@ fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec
  let area=t0+t1+t2+t3+t4+t5;
  let bound=abs(t0)+abs(t1)+abs(t2)+abs(t3)+abs(t4)+abs(t5);
  let e1=p[1]-p[0];let e2=p[2]-p[0];
- let pixels=abs(e1.x*e2.y-e1.y*e2.x);
+ let pixels=abs(edgeFunction(p[0],p[1],p[2]));
  let edges=abs(e1.x)+abs(e1.y)+abs(e2.x)+abs(e2.y);
  if(!inside||!(abs(area)>${FACING_TOLERANCE}*bound)||!(pixels>${SNAP_STEP}*(2.0*edges+${8 * SNAP_STEP}))){return cull;}
  if(cull==${CULL_RANK.front}u){return select(0u,${FACING_DROP}u,area>=0.0);}

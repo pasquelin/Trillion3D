@@ -85,6 +85,37 @@ test('the projection rebinds the pyramid when its identity changes, and only the
   partition.dispose()
 })
 
+test("the classification binds the cut's draw mask, the items without one, remade when it moves", async () => {
+  const { device, bindGroups } = fakeDevice()
+  const items = buffer('items')
+  const partition = await createGpuPartition(device, 4, {
+    items,
+    flags: buffer('flags'),
+    restBits: buffer('rest'),
+    hizLevels: buffer('levels'),
+    pyramid: () => view('pyramid'),
+  })
+  assert.ok(partition)
+  const masks = () =>
+    bufferGroups(bindGroups)
+      .filter((group) => PARTITION_BINDING.selectionMask in group)
+      .map((group) => group[PARTITION_BINDING.selectionMask])
+  assert.deepEqual(masks(), [items], 'no cut yet: the items stand in, never read')
+  const mask = buffer('mask')
+  partition.beginFrame(device.createCommandEncoder(), {
+    ...frame(4),
+    selection: { maskBuffer: mask, maskOffset: 2 },
+  })
+  partition.beginFrame(device.createCommandEncoder(), {
+    ...frame(4),
+    selection: { maskBuffer: mask, maskOffset: 5 },
+  })
+  assert.deepEqual(masks(), [items, mask], 'the same mask at another offset is not rebound')
+  partition.beginFrame(device.createCommandEncoder(), frame(4))
+  assert.deepEqual(masks(), [items, mask, items])
+  partition.dispose()
+})
+
 test('rows rewritten since the last image are cleared run by run, once', async () => {
   const { device, clears } = fakeDevice()
   const partition = await createGpuPartition(device, 64, {

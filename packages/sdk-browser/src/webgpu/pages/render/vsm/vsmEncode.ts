@@ -17,7 +17,11 @@ import {
   encodeVsmPageCarry,
 } from '../../../../vsm/pageManagementEncode.ts'
 import type { VsmPageManagementFrame } from '../../../../vsm/pageManagementPass.ts'
-import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
+import type {
+  VsmProjectionFrame,
+  VsmProjectionLight,
+  VsmProjectionSource,
+} from '../../../../vsm/projectionPass.ts'
 import { encodeCastInvalidation } from '../../../../vsm/castInvalidation.ts'
 import { createCastChanges } from '../../../shadow/castChanges.ts'
 import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
@@ -31,13 +35,18 @@ const forwardZViewToClip = new Float32Array(16)
 const renderProjection = new Float64Array(16)
 
 /** What a set's frames rebuild in place (`frameScratch`, kept on `EngineVsm.frameScratch`): the
- *  per-page entries and their bins, the suns' ids and the lights the projection reads. */
+ *  per-page entries and their bins, the suns' ids and the projection's context and sources. */
 export interface VsmFrameScratch {
   perPage: VsmPerPageFrame
   suns: Uint32Array<ArrayBuffer>
-  projected: VsmProjectionLight[]
   /** The image's projection, held until the depth pyramid holds its transparents (`encodeHeldVsmProjection`). */
   held?: { frame: VsmFrame; views: GPUTextureView[] }
+  /** The frame's projection context (`projectionContext`, `vsmProject.ts`), which the opaque
+   *  projection reads; this frame's while `projecting`. */
+  context: VsmProjectionFrame & { lights: VsmProjectionLight[] }
+  projecting: boolean
+  /** The opaque source, its views set each frame. */
+  opaque: VsmProjectionSource
   /** The marking's frame and its view of the engine's frame, their fields set each frame. */
   marking: VsmMarkingFrame
   markingView: VsmMarkingView
@@ -46,7 +55,22 @@ const frameScratch = (vsm: EngineVsm) =>
   (vsm.frameScratch ??= {
     perPage: vsmPerPageFrame(),
     suns: new Uint32Array(vsm.directionalIds.size / 4),
-    projected: [],
+    context: {
+      device: undefined as never,
+      hizDepth: undefined as never,
+      width: 0,
+      height: 0,
+      camera: { view: undefined as never, projection: undefined as never, perspective: true },
+      frameIndex: 0,
+      lights: [],
+    },
+    projecting: false,
+    opaque: {
+      depth: undefined as never,
+      normalRough: undefined as never,
+      flags: undefined as never,
+      receiver: undefined as never,
+    },
     marking: {
       mapCount: 0,
       perPage: undefined as never,

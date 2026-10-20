@@ -2,6 +2,7 @@ import type { Job, StreamContext } from './types.ts'
 import { PRIORITY_VISIBLE } from './priority.ts'
 import type { Landed } from './fetch.ts'
 import { waitShared } from '../../../sdk-core/src/runtime/sharedRead.ts'
+import { microtaskOnce } from '../../../sdk-core/src/runtime/microtaskOnce.ts'
 import { createPump } from './queueTransfer.ts'
 import { createQueueEnds } from './queueEnds.ts'
 import { answerFromCache, dropQueued, jobFor } from './queueRequest.ts'
@@ -26,15 +27,7 @@ export function createStreamingQueue(
   const { evict } = pages
   const { end, forget, keep, forgotten } = createQueueEnds(context, pages)
   const pump = createPump(context, { read, end, evict, forgotten })
-  let owed = false
-  const later = () => {
-    if (owed) return
-    owed = true
-    queueMicrotask(() => {
-      owed = false
-      pump()
-    })
-  }
+  const { schedule: later } = microtaskOnce(pump)
   const subscribe = (
     url: string,
     requestSignal: AbortSignal,

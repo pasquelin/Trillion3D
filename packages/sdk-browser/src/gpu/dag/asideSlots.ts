@@ -21,13 +21,14 @@ type Captured = { uniforms: SelectionUniforms; worldRevision: number; coarsen: n
 const ASIDE_LEAST_RANKS = 1024
 
 /** What a copy of a view's lists was: `ranks` of each list out of a list of `listCap`, the cut
- *  `serial` of `captured`, on the residency in place when its encoder was submitted. */
+ *  `serial` of `captured`, under the withdrawals in place when its encoder was submitted
+ *  (`DagRuntimeState.withdrawnRevision`). */
 export type AsideCopy = {
   ranks: number
   listCap: number
   captured: Captured
   serial: number
-  residency: number
+  withdrawn: number
 }
 
 /** What a view aside's reads follow (`createAsideSlots`). */
@@ -142,12 +143,12 @@ function readAsideSlot(
   // never; the factor follows the readouts cut under it alone.
   if (moved) recutView(resources.swap, own.view)
   if (retried && (!grown || parsed?.dropped)) return
-  // Lists copied short of the cut are copied again at their size; a residency moved since names
-  // pages the mask no longer draws: the next cut will.
+  // Lists copied short of the cut are copied again at their size; a page withdrawn since may be
+  // named by them, which the mask no longer draws: the next cut will.
   const whole = demand <= ranks || ranks === listCap
   // Read whole on a list that stays: no copy of this cut is owed any more.
   if (parsed && whole && !grown) slots.whole = read.serial
-  if (parsed && whole && read.residency === state.residencyRevision) {
+  if (parsed && whole && read.withdrawn === state.withdrawnRevision) {
     const { uniforms, worldRevision } = read.captured
     slots.last = { uniforms, worldRevision, result: parsed }
     // Every page its mask draws is in its journal: the swap can bring it back.

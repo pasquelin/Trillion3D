@@ -2,7 +2,7 @@ import { createGpuPageCache } from '../../../gpu/page/pages.ts'
 import { grantedGeometryPool } from '../../residency/poolGrants.ts'
 import { grantedLatest } from './grantLatest.ts'
 import { geometryBudgetBeside } from '../io/besidePools.ts'
-import { throwIfStopped } from '../io/lost.ts'
+import { stopped, throwIfStopped } from '../io/lost.ts'
 import { type WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
@@ -43,7 +43,7 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
  * turn (`grantedLatest`).
  */
 export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { setup, gpu, diag, run, signal } = rt
+  const { setup, gpu, diag } = rt
   const held = await grantedLatest({
     budget: () => setup.geometryPool.budgetBytes,
     draw: (asked) => {
@@ -64,7 +64,7 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
       )
       return granted && { ...granted, pool: declared(granted.pool) }
     },
-    stopped: () => signal.aborted || run.lost,
+    stopped: () => stopped(rt),
   })
   if (!held) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED')
   setup.geometryPool = held.pool

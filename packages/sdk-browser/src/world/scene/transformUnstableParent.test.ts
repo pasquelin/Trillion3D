@@ -20,14 +20,7 @@ import { createWebgpuRunState } from '../../webgpu/pages/state/runState.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts'
-
-function near(actual: ArrayLike<number>, expected: ArrayLike<number>, tolerance: number) {
-  for (let i = 0; i < expected.length; i++)
-    assert.ok(
-      Math.abs(actual[i] - expected[i]) <= tolerance,
-      `[${i}]: ${actual[i]} instead of ${expected[i]}`,
-    )
-}
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 /** A parent/child scene, and the public explorer wired to the real `setWebgpuTransform`. */
 function banc() {
@@ -85,11 +78,11 @@ test(
     parent.scale.set(2, 3, 0.5)
     const requestedHere = requested()
     explorer.setTransform('target', requestedHere)
-    near(world.elements, requestedHere, 1e-9)
+    near(world.elements, requestedHere, 'the world matrix', 1e-9)
     // Stabilisation: the next render walks the index. The pose that was set must not move.
     worlds.refresh()
     worlds.refresh()
-    near(world.elements, requestedHere, 1e-9)
+    near(world.elements, requestedHere, 'the world matrix', 1e-9)
   },
 )
 
@@ -101,7 +94,7 @@ test(
     const requestedHere = requested()
     explorer.setTransform('target', requestedHere)
     worlds.refresh()
-    near(world.elements, requestedHere, 1e-9)
+    near(world.elements, requestedHere, 'the world matrix', 1e-9)
     // The revision settles: remaking the same request, before any motion, must change nothing.
     const stable = rt.run.gate.revisions.scene
     explorer.setTransform('target', requestedHere)
@@ -118,7 +111,7 @@ test(
       'the parent moved: the identical request is not a no-op',
     )
     worlds.refresh()
-    near(world.elements, requestedHere, 1e-9)
+    near(world.elements, requestedHere, 'the world matrix', 1e-9)
   },
 )
 

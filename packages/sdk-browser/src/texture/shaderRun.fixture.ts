@@ -4,7 +4,8 @@
 import { reachedFunctions } from './shaderRule.fixture.ts'
 import { builtins } from './shaderRunBuiltins.fixture.ts'
 import { structMakers, structZero } from './shaderRunStructs.fixture.ts'
-import { Translator, tokens } from './shaderRunTranslator.fixture.ts'
+import { Translator } from './shaderRunTranslator.fixture.ts'
+import { tokens } from './shaderRunTokens.fixture.ts'
 import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 const NAMED = /^(?:const|override(?= \w+:\w+=(?:true|false|\d+u?);)) (\w+)(?::[\w<>]+)?=([^;]+);/gm

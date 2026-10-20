@@ -1,16 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { instanceItem } from '../../../../../bench/oracles/browser/instanceItem.ts'
-import { blendChunkWords, blendVertexShift, RUN_WORDS } from './planLayout.ts'
+import { blendVertexShift, RUN_WORDS } from './planLayout.ts'
 import { expandBlendPlan } from './expandCpu.fixture.ts'
 import { planEntry } from './planEntry.ts'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
-/** A plan entry: item rank, share bit, pipeline. */
-const entryOf = (item: number, shared: boolean, pipeline = 1) => planEntry(item, pipeline, shared)
+/** A plan entry: item rank, pipeline. */
+const entryOf = (item: number, pipeline = 1) => planEntry(item, pipeline)
 
-/** Minimal expansion setup: three paged items on one side, one isolated primitive. */
+/** Minimal expansion setup: three items the table lists, one it does not list yet. */
 function scene() {
   const draws = new Uint32Array(4 * 4)
   for (let item = 0; item < 3; item++) {
@@ -18,10 +18,8 @@ function scene() {
     draws[item * 4 + 1] = 4
     draws[item * 4 + 2] = item * 4
   }
-  // The fourth carries its own indices: eighteen words, six per instance, hence three chunks.
+  // The fourth has no cluster in the table yet.
   draws[12] = NO_INDEX
-  draws[13] = 3
-  draws[15] = 6
   const instances = Uint32Array.from({ length: 12 }, (_, k) => 100 + k)
   return {
     draws,
@@ -37,9 +35,9 @@ function scene() {
   }
 }
 
-test('a shared run expands the instances of its entries, in plan order', () => {
+test('a run expands the instances of its entries, in plan order', () => {
   const base = scene()
-  const order = Uint32Array.from([entryOf(2, true), entryOf(0, true), entryOf(1, true)])
+  const order = Uint32Array.from([entryOf(2), entryOf(0), entryOf(1)])
   const runs = new Uint32Array(RUN_WORDS)
   runs.set([0, 3])
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 })
@@ -57,7 +55,7 @@ test('a shared run expands the instances of its entries, in plan order', () => {
 test('an item the frustum rejects expands no instance, and does not shift the others', () => {
   const base = scene()
   base.keep[0] = 0b1101
-  const order = Uint32Array.from([entryOf(0, true), entryOf(1, true), entryOf(2, true)])
+  const order = Uint32Array.from([entryOf(0), entryOf(1), entryOf(2)])
   const runs = new Uint32Array(RUN_WORDS)
   runs.set([0, 3])
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 })
@@ -66,22 +64,9 @@ test('an item the frustum rejects expands no instance, and does not shift the ot
   assert.equal(base.args[1], 3)
 })
 
-test('an unpaged primitive expands into chunks of one index stride', () => {
-  const base = scene()
-  const order = Uint32Array.from([entryOf(3, false)])
-  const runs = new Uint32Array(RUN_WORDS)
-  runs.set([0, 1])
-  const total = expandBlendPlan({ ...base, order, runs, runCount: 1 })
-  assert.equal(total, 3, 'eighteen index words, six per instance')
-  // Each instance says where its chunk starts; the shader takes its length from that.
-  assert.deepEqual(Array.from(base.expanded.subarray(0, 6)), [3, 0, 3, 6, 3, 12])
-  // A run of a single unpaged item draws ITS vertices, not those of a cluster.
-  assert.deepEqual(Array.from(base.args.subarray(0, 4)), [6, 3, 0, 0])
-})
-
 test('the two passes expand into two disjoint regions, each at its base', () => {
   const base = scene()
-  const order = Uint32Array.from([entryOf(0, true)])
+  const order = Uint32Array.from([entryOf(0)])
   const runs = new Uint32Array(RUN_WORDS)
   runs.set([0, 1])
   expandBlendPlan({ ...base, order, runs, runCount: 1, instanceBase: 5, argsBase: 8 })
@@ -94,9 +79,9 @@ test('a double-sided paged item draws back then face in ONE run, its vertex stag
   const base = scene()
   // Two double-sided items, far to near: each sets the back (culls the face, 1) then the face.
   const order = Uint32Array.from(
-    [0, 1].flatMap((item) => [planEntry(item, 1, true, true), planEntry(item, 2, true, true)]),
+    [0, 1].flatMap((item) => [planEntry(item, 1, true), planEntry(item, 2, true)]),
   )
-  // Four entries of one pipeline, all shared: the main class of the pass, one slot, one draw.
+  // Four entries of one pipeline: the main class of the pass, one slot, one draw.
   const runs = Uint32Array.from([0, order.length])
   const total = expandBlendPlan({ ...base, order, runs, runCount: 1 })
   assert.equal(total, 10, 'each item expands its clusters once per side')
@@ -112,45 +97,26 @@ test('a double-sided paged item draws back then face in ONE run, its vertex stag
 
 test('an empty slot draws no instance and shifts none of the slots after it', () => {
   const base = scene()
-  // The main class around one own entry: nothing before it, item 0 after it.
-  const order = Uint32Array.from([entryOf(3, false), entryOf(0, true)])
+  // The main class around one own entry: nothing before it, item 0 after it. The own entry's item
+  // has no cluster listed yet: it draws none either.
+  const order = Uint32Array.from([entryOf(3), entryOf(0)])
   const runs = Uint32Array.from([0, 0, 0, 1, 1, 1])
   const total = expandBlendPlan({ ...base, order, runs, runCount: 3 })
-  assert.equal(total, 5, 'three chunks, then two clusters')
-  assert.deepEqual(Array.from(base.args.subarray(0, 12)), [
-    48,
-    0,
-    0,
-    0,
-    6,
-    3,
-    0,
-    0,
-    48,
-    2,
-    3 << 6,
-    0,
-  ])
+  assert.equal(total, 2, 'the two clusters of item 0')
+  assert.deepEqual(Array.from(base.args.subarray(0, 12)), [48, 0, 0, 0, 48, 0, 0, 0, 48, 2, 0, 0])
 })
 
 test('a pipeline cull leaves the instance word as the bare item rank', () => {
   const base = scene()
-  const order = Uint32Array.from([entryOf(0, true, 2)])
+  const order = Uint32Array.from([entryOf(0, 2)])
   const runs = Uint32Array.from([0, 1])
   expandBlendPlan({ ...base, order, runs, runCount: 1 })
   assert.deepEqual(Array.from(base.expanded.subarray(0, 4)), [0, 100, 0, 101])
 })
 
-test('the addressing stride holds the longest instance, and the chunk stays a multiple of three', () => {
-  for (const mots of [3, 48, 384, 385, 4096]) {
-    const shift = blendVertexShift(mots)
-    assert.ok(1 << shift >= mots, `${mots} words fit in the stride`)
-    const chunk = blendChunkWords(shift, 10000)
-    assert.equal(chunk % 3, 0, 'a chunk never splits a triangle')
-    assert.ok(chunk <= 1 << shift, 'a chunk fits in the stride')
-  }
-  // A primitive shorter than the stride is not split: one chunk, its exact vertices.
-  assert.equal(blendChunkWords(9, 384), 384)
+test('the addressing stride holds the longest instance', () => {
+  for (const mots of [3, 48, 384, 385, 4096])
+    assert.ok(1 << blendVertexShift(mots) >= mots, `${mots} words fit in the stride`)
 })
 
 test('the frustum verdict is read bit by bit, at the item rank', () => {

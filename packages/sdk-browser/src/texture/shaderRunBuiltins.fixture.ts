@@ -5,6 +5,7 @@ import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { SCALAR } from './shaderRunOperators.fixture.ts'
 import { Mat, Mat3, matrixProduct } from './shaderRunMatrix.fixture.ts'
+import { resources } from './shaderRunResources.fixture.ts'
 
 /** A vector: its components. A boolean vector holds booleans. */
 export type Vec = Array<number | boolean>
@@ -51,14 +52,18 @@ export const assigned = (target: string, value: string) => {
   return part ? `$set(${part[1]},"${part[2]}",${value})` : `${target}=${value}`
 }
 
-/** A copy of a value: a vector's or an array's elements, a structure's members (a matrix is never
- *  written in place). */
+/** A copy of a value: a vector's or an array's elements, a structure's members, a matrix's
+ *  columns (one is written column by column). */
 export const $cp = <T>(value: T): T =>
   Array.isArray(value)
     ? (value.map($cp) as T)
-    : value?.constructor === Object
-      ? (Object.fromEntries(Object.entries(value).map(([k, v]) => [k, $cp(v)])) as T)
-      : value
+    : value instanceof Mat
+      ? (new Mat(value.m) as T)
+      : value instanceof Mat3
+        ? (new Mat3(value.columns) as T)
+        : value?.constructor === Object
+          ? (Object.fromEntries(Object.entries(value).map(([k, v]) => [k, $cp(v)])) as T)
+          : value
 
 /** A vector constructor: its arguments flattened, one scalar splat to `size`. */
 export const vector =
@@ -76,19 +81,10 @@ const toBits = each((x) => f32Bits(n(x)))
 const toFloat = each((x) => fromF32Bits(n(x)))
 const vec = (value: Value) => value as number[]
 
-/** A pointer: what `&x` gives an atomic (`shaderRun.fixture.ts`). */
-type Ref = { get: () => number; set: (value: number) => void }
-const swap = (p: Ref, value: number) => {
-  const old = p.get()
-  p.set(value)
-  return old
-}
-
 export const builtins = {
   $b,
   $sw,
-  $ref: (get: Ref['get'], set: Ref['set']): Ref => ({ get, set }),
-  $deref: (p: Ref) => p.get(),
+  ...resources,
   // WGSL's values are copies: what a name holds is never another name's.
   $cp,
   // A vector's one component (`step.x=1`, `c.a=0`), or a structure's member of that name.
@@ -96,13 +92,6 @@ export const builtins = {
     if (Array.isArray(base)) base[LETTERS[name]] = value as Scalar
     else base[name] = value
   },
-  atomicAdd: (p: Ref, value: number) => swap(p, p.get() + value),
-  atomicMax: (p: Ref, value: number) => swap(p, Math.max(p.get(), value)),
-  atomicLoad: (p: Ref) => p.get(),
-  atomicStore: (p: Ref, value: number) => void p.set(value),
-  atomicExchange: swap,
-  atomicOr: (p: Ref, value: number) => swap(p, (p.get() | value) >>> 0),
-  atomicAnd: (p: Ref, value: number) => swap(p, (p.get() & value) >>> 0),
   countOneBits: each((x) => {
     let count = 0
     for (let v = n(x) >>> 0; v; v &= v - 1) count++
@@ -111,6 +100,7 @@ export const builtins = {
   countLeadingZeros: each((x) => Math.clz32(n(x))),
   // The lowest set bit's rank; all ones (-1 as `i32`) for zero.
   firstTrailingBit: each((x) => (n(x) ? 31 - Math.clz32(n(x) & -n(x)) : 0xffffffff)),
+  array: (...values: unknown[]) => values.map($cp),
   mat3x3f: (...columns: number[][]) => new Mat3(columns),
   mat4x4f: (...values: Array<number | number[]>) => new Mat(values.flat()),
   vec2f: vector(2, float),
@@ -128,21 +118,6 @@ export const builtins = {
   bitcast_f32: toFloat,
   bitcast_vec3f: toFloat,
   bitcast_vec4f: toFloat,
-  // A texture the scope binds answers its own loads: a record table's words
-  // (`../gpu/core/recordTexture.fixture.ts`).
-  textureLoad: (
-    texture: { load(coords: number[], layer: number): number[] },
-    coords: number[],
-    layer: number,
-  ) => texture.load(coords, layer),
-  // The layers a bound array texture holds: its own (`layers`).
-  textureNumLayers: (texture: { layers: number }) => texture.layers,
-  textureStore: (
-    texture: { store(coords: number[], layer: number, value: number[]): void },
-    coords: number[],
-    layer: number,
-    value: number[],
-  ) => texture.store(coords, layer, value),
   f32: each(float),
   i32: each(int),
   u32: each((x) => int(x) >>> 0),

@@ -1,6 +1,5 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
-import { DEFORM_SOURCE_IN_POOL } from '../visibility/types.ts'
 import {
   KIND_MORPH,
   KIND_SKIN,
@@ -19,7 +18,6 @@ import { clusterDecodeWgsl } from '../cluster/decodeWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { WAVE_TERMS } from './waveTermsWgsl.ts'
-import { WHOLE_HEADER, WHOLE_TARGET } from './wholeInputs.ts'
 
 /** Where a deformation record lies: the float storage that holds it, and the prefix its reads are
  *  named with (`deformRecordFns`). */
@@ -115,22 +113,14 @@ export const DEFORM_WGSL = wgslBlock(
     PAGE_POINTS_WGSL,
   ],
   `
-fn wholeVertex(page:PageInfo,vertex:u32)->u32{
- let start=page.packedBase-1u;
- return start+${WHOLE_HEADER.floats}u+vertex*u32(positions[start+${WHOLE_HEADER.stride}u]);
-}
 fn deformJointId(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->u32{
- if((page.deformOutput&${DEFORM_SOURCE_IN_POOL}u)==0u){return clusterJoint(h,page.pageOffset,vertex,k);}
- return u32(positions[wholeVertex(page,vertex)+k]);
+ return clusterJoint(h,page.pageOffset,vertex,k);
 }
 fn deformWeight(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->f32{
- if((page.deformOutput&${DEFORM_SOURCE_IN_POOL}u)==0u){return clusterWeight(h,page.pageOffset,vertex,k);}
- return positions[wholeVertex(page,vertex)+h.influences+k];
+ return clusterWeight(h,page.pageOffset,vertex,k);
 }
 fn deformMorphValue(h:ClusterHeader,page:PageInfo,t:u32,vertex:u32,normal:bool)->vec3f{
- if((page.deformOutput&${DEFORM_SOURCE_IN_POOL}u)==0u){return clusterMorph(h,page.pageOffset,t,vertex,normal);}
- let at=wholeVertex(page,vertex)+h.influences*2u+t*${WHOLE_TARGET.floats}u+select(0u,${WHOLE_TARGET.normal}u,normal);
- return vec3f(positions[at],positions[at+1u],positions[at+2u]);
+ return clusterMorph(h,page.pageOffset,t,vertex,normal);
 }
 ${deformRecordFns(PAGE_RECORD)}
 /** A point (\`w\` 1) or a direction (\`w\` 0) carried by the palette's blend of all joints. */

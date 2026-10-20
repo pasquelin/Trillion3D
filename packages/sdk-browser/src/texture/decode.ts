@@ -15,8 +15,21 @@ const RAW_BITMAP: ImageBitmapOptions = {
   colorSpaceConversion: 'none',
 }
 
-/** `blob` decoded by the browser, off the main thread, as the file stores its pixels. */
-export const decodeRaw = (blob: Blob) => createImageBitmap(blob, RAW_BITMAP)
+/** `blob` decoded by the browser, off the main thread, as the file stores its pixels. A vector
+ *  picture has no pixels stored: `createImageBitmap` refuses an SVG file, so an image element draws
+ *  it at its own size first, and that drawing is the bitmap's source. */
+export async function decodeRaw(blob: Blob) {
+  if (!blob.type.startsWith('image/svg+xml')) return createImageBitmap(blob, RAW_BITMAP)
+  const url = URL.createObjectURL(blob)
+  try {
+    const drawing = new Image()
+    drawing.src = url
+    await drawing.decode()
+    return await createImageBitmap(drawing, RAW_BITMAP)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
 
 /** The image at `url`, fetched (`checked`, at most `attempts` requests), its body counted by
  *  `meter` once accepted — a refused body is never read, so its length never joins the total —,

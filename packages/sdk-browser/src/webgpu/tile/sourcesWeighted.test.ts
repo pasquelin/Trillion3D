@@ -38,7 +38,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   const census = collectWebgpuMaterialTextures(pages, copies, new Map(), new Map())
   const encoding = poolEncoding(undefined)
   const hosted = () => undefined
-  const textures = tileCatalogue(census.maps, hosted, undefined, encoding, census.coverage)
+  const textures = tileCatalogue(census.maps, hosted, encoding, census.coverage)
   const atlas = {
     kind: 'color',
     textures,

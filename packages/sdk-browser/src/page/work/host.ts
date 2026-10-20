@@ -5,7 +5,11 @@ import { createWorkerLatch } from '../workerLatch.ts'
 import { runPageTask } from './task.ts'
 import { sha256Hex } from '../../streaming/sha256Hex.ts'
 import { ownBuffer } from '../../../../sdk-core/src/runtime/ownBuffer.ts'
-import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
+import type {
+  PageCutPayload,
+  PageTaskBlocks,
+  PageTaskOp,
+} from '../../../../sdk-core/src/page/taskContracts.ts'
 
 const counters = { checked: 0, checkMs: 0 }
 let admissionLimit = 1
@@ -38,20 +42,31 @@ export async function verifyPageBytes(source: ArrayBuffer | Uint8Array<ArrayBuff
 }
 
 /**
- * A task that is never urgent — a `cut`, a partition's `cells` or `cellPage` (#575) — in a worker
- * while the pool lives, else by the same task on the main thread. The worker receives a copy of
- * `source`, so a vanished worker leaves it whole for the main thread.
+ * A task that is never urgent — a `cut`, a partition's `cells` or `cellPage` (#575), a texture
+ * tile's `blocks` — in a worker while the pool lives, else by the same task on the main thread.
+ * The worker receives a copy of `source`, so a vanished worker leaves it whole for the main
+ * thread.
  */
 export async function patientTask(
-  op: 'cut' | 'cells' | 'cellPage',
+  op: PageTaskOp,
   source: Uint8Array,
   name?: string,
+  blocks?: PageTaskBlocks,
 ) {
   const open = pool.open()
-  const answer = open ? await open.submit(op, source.slice().buffer as ArrayBuffer, name) : null
+  const copy = () => source.slice().buffer as ArrayBuffer
+  const answer = open ? await open.submit(op, copy(), name, blocks) : null
   if (answer && !(!answer.ok && answer.code === 'PAGE_TASK_WORKER')) return answer
-  const request = { protocol: PAGE_TASK_PROTOCOL, id: 0, op, name }
+  const request = { protocol: PAGE_TASK_PROTOCOL, id: 0, op, name, blocks }
   return (await runPageTask({ ...request, source: ownBuffer(source) })).answer
+}
+
+/** A tile record's BC blocks decoded to RGBA8 off the main thread (`patientTask`), `width` ×
+ *  `height` texels of whole blocks — BC5 when `twoChannel` (`texture/blockDecode.ts`). */
+export async function decodeBlocksOffThread(blocks: Uint8Array, surface: PageTaskBlocks) {
+  const answer = await patientTask('blocks', blocks, undefined, surface)
+  if (!answer.ok || !answer.texels) throw new Error(answer.ok ? 'PAGE_TASK_FAILED' : answer.message)
+  return new Uint8Array(answer.texels)
 }
 
 /** Drawn triangles, packed by `packDrawn`, cut into pages (`patientTask`). **The caller yields

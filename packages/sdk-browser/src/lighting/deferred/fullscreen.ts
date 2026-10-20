@@ -5,7 +5,7 @@
 // waited for there — the frame is held on it (`pipelinesCompiling`,
 // `../../webgpu/frame/deviceAnswer.ts`) — and a frame finds it compiled; one only started
 // (`started`) holds no frame, and prepare's end waits for it. The deferred lighting and
-// composition, the temporal resolve, the water composite and the blend stages build theirs here
+// composition, the temporal resolve, the distortion and the blend stages build theirs here
 // too; compute stages by entry point are built on it in `../../gpu/core/computeStages.ts`. The
 // compiles in flight are held in `compileLedger.ts`.
 

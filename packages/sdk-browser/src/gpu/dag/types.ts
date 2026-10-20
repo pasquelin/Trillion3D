@@ -59,8 +59,7 @@ export type DagRoot = {
   /** The row the placement draws from, when it draws from one (`ClusterRoot.placement`): a row a
    *  partition placed knows its cell (`../../partition/rowCells.ts`). */
   placement?: PlacementOf
-  /** Its root mark (`ClusterRoot.mark`): a root its impostor card draws opens no descent, one never
-   *  culled takes planes no box leaves. */
+  /** Its root mark (`ClusterRoot.mark`): one never culled takes planes no box leaves. */
   mark?: number
   /** `bounds`: per-node bounds `cullingBounds` derives from the pages. The host shares them
    *  among all placements of a primitive; without them, the layout derives them itself. */
@@ -70,9 +69,9 @@ export type DagRoot = {
   proxy?: RootProxy
   /** Group links: what the cut rule's residency is derived from (`../../page/cut/readiness.ts`). */
   structure?: ClusterStructureIndex
-  /** The world DAG's alone (`scene/worldSuperRoots.ts`): per rank, the table object an object
-   * root mirrors, -1 for a super-root. */
-  origins?: Int32Array
+  /** The world HLOD's alone (`scene/worldHlod.ts`): each rank's HLOD cell, and each cell of the
+   *  chain's parent (-1 for a top cell) and layer. */
+  hlod?: { cells: Int32Array; parent: Int32Array; layer: Uint8Array }
 }
 /** What a placement's cut residency is derived from, and where its pages sit in the packing and
  *  its primitive's shared nodes in the node table (`readiness.ts`). */
@@ -166,9 +165,8 @@ export type PackedDag = {
   pageUrlOf(page: number): string | undefined
   /** Per placement, its group and culling links (`readiness.ts`). */
   cutLinks: DagCutLinks[]
-  /** The world DAG, when packed: its placement and its `origins`, which the cut's residency
-   *  mirrors (`residencyMirror.ts`), and each placement's link to the world cluster that stands in for
-   *  it (`worldLinks.ts`). */
+  /** The world DAG, when packed: its placements, each rank's HLOD cell, each placement's link to
+   *  its HLOD 0 cell and each cell's state (`worldLinks.ts`). */
   world?: PackedWorld
   /** The cells and groups above the placements (`placementTree.ts`), when they take one. */
   placementTree?: PlacementTree

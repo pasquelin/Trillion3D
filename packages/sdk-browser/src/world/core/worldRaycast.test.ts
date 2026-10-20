@@ -7,7 +7,7 @@ import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { markHelper } from './helperMark.ts'
 import type { Engine } from '../../engine/types.ts'
-import type { RayFilter } from '../query/types.ts'
+import type { RayFilter, RayReach } from '../query/types.ts'
 
 test('a canvas point aims at the shape the frame is drawn at, not the CSS box', () => {
   const camera = new Camera('perspective', { fov: 50 })
@@ -20,9 +20,9 @@ test('a canvas point aims at the shape the frame is drawn at, not the CSS box', 
 
 /** A world's raycast over an engine that records what it is asked, and answers nothing. */
 function recordedRaycast(engine = true) {
-  const asked: Array<{ ray: Ray; filter?: RayFilter }> = []
-  const castRay = (ray: Ray, filter?: RayFilter) => (
-    asked.push({ ray, filter }),
+  const asked: Array<{ ray: Ray; filter?: RayFilter; bounds?: RayReach }> = []
+  const castRay = (ray: Ray, filter?: RayFilter, bounds?: RayReach) => (
+    asked.push({ ray, filter, bounds }),
     Promise.resolve(null)
   )
   const canvas = { clientWidth: 400, clientHeight: 400, width: 400, height: 400 }
@@ -55,4 +55,14 @@ test('the helper marks are passed by unless asked, and the objects are handed on
   assert.ok(asked[0].filter?.skip?.includes(mark), 'a helper is passed by')
   raycast({ x: 200, y: 200 }, { helpers: true, objects: [picked] })
   assert.deepEqual(asked[1].filter, { objects: [picked], skip: [] })
+})
+
+test('a line is hit within one world unit by default, as three.js hits it, or as asked', () => {
+  const { raycast, asked } = recordedRaycast()
+  raycast({ x: 200, y: 200 })
+  raycast({ x: 200, y: 200 }, { lineThreshold: 0.25 })
+  assert.deepEqual(
+    asked.map(({ bounds }) => bounds),
+    [{ lineReach: 1 }, { lineReach: 0.25 }],
+  )
 })

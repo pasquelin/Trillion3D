@@ -21,6 +21,8 @@ import {
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 export function occluderScene() {
   const geometry = new Geometry()
@@ -123,6 +125,7 @@ export async function preparedOccluderRun(
 ) {
   const { source, indices, draws } = scene
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,

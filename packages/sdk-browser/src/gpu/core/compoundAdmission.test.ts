@@ -32,11 +32,13 @@ for (const kind of ['draw', 'partition'] as const) {
     let ceiling = 1e9
     const ledger = installGpuDeviceLedger(gpu.device, { limit: () => ceiling })
     const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
+    // The pyramid's levels are a uniform the projection reads.
+    const levels = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM })
     const sources = {
       items: previous,
       flags: previous,
       restBits: previous,
-      hizLevels: previous,
+      hizLevels: levels,
       pyramid: () => ({}) as GPUTextureView,
     }
     const made =
@@ -57,6 +59,7 @@ for (const kind of ['draw', 'partition'] as const) {
     assert.equal(gpu.destroyed.includes(gpu.buffers.at(-1)!), true)
     made.dispose()
     previous.destroy()
+    levels.destroy()
     assert.equal(ledger.bytes, 0)
   })
 }

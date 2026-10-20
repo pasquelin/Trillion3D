@@ -15,10 +15,9 @@ export type TailWrite = (pool: WebgpuTilePool, place: TilePlace) => void
  * THE ONE TAIL PIN of an atlas: a texture's tail takes a place of its lane's pool for good, held by
  * its key with the tiles (`Lane.resident`), `write` fills it and the table names it. The floor
  * holds every tail (`texturePoolFor`): a tail pinned late into a pool its streamed tiles fill takes
- * the place one of them gives up (`makeRoom`); only a pool drawn under the floor refuses by name. At prepare every
- * tail in bytes or a host's is pinned (`pinTails`); a level files' tail waits for its levels and is
- * pinned by its asker (`fileTails.ts`); the white fill, until a map opens its lane, takes no place
- * and reads the white stand-in.
+ * the place one of them gives up (`makeRoom`); only a pool drawn under the floor refuses by name.
+ * At prepare every tail in bytes or a host's is pinned (`pinTails`); the white fill, until a map
+ * opens its lane, takes no place and reads the white stand-in.
  */
 export function createTailPins(atlas: {
   textures: readonly TileTexture[]
@@ -34,8 +33,7 @@ export function createTailPins(atlas: {
     const lane = atlas.laneOf(slot),
       id = tailId(slot)
     const index =
-      lane.pool.acquire(id, true) ??
-      (atlas.makeRoom(lane) ? lane.pool.acquire(id, true) : undefined)
+      lane.pool.acquire(id) ?? (atlas.makeRoom(lane) ? lane.pool.acquire(id) : undefined)
     if (index === undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR')
     lane.resident.set(id, index)
     const place = lane.pool.placeOf(index)
@@ -52,7 +50,7 @@ export function createTailPins(atlas: {
   ) => {
     for (let slot = from; slot < to; slot++) {
       const { layout, source, lane, retired } = textures[slot]
-      if (retired || source.kind === 'files') continue
+      if (retired) continue
       if (slot === 0 && atlas.fillWaits()) {
         atlas.pages().setTail(0, { x: 0, y: 0, layer: 0 }, encoding.tapOf(lane))
         continue

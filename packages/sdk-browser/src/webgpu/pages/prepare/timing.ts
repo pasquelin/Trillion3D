@@ -2,54 +2,74 @@ import { createGpuTiming } from '../../../gpu/timing/timing.ts'
 import { addGpuPasses, bounceGpuMs, reflectionSceneGpuMs } from '../../../stage/mapping.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { createGpuLog } from './gpuLog.ts'
+import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
+import { viewGroup, type WebgpuView } from '../state/view.ts'
+
+/** Trace samples every image; the per-stage profile needs enough samples for an honest p95;
+ *  without either, the original cadence is kept as-is. The render-scale controller reads every
+ *  image it can (`../../../frame/scaleControl.ts`), its bounds read at each frame: a page may ask
+ *  `'auto'` after the session opened. */
+const sampleEvery = (rt: WebgpuPagesRuntime) => () =>
+  rt.diag.traceEnabled || rt.views.main.scale.bounds.auto ? 1 : rt.timing.profiler.stages ? 3 : 12
+
+/** What a sample says of its image, written into the timing group of the view that drew it: the
+ *  public metric carries the contract's fields only; the diagnostic keeps the full context. */
+function noteSample(timing: WebgpuView['timing'], sample: GpuTimingSample) {
+  timing.lastGpuPassMs = {
+    frame: sample.frame,
+    totalMs: sample.totalMs,
+    passes: sample.passes,
+    truncated: sample.truncated,
+    ...(sample.error ? { error: sample.error } : {}),
+  }
+  timing.lastGpuFrameMs = sample.submittedMs
+  timing.lastGpuHostGapMs = sample.hostGapMs
+  timing.lastGpuIdleMs = sample.idleBetweenMs
+}
+
+/** The GPU milliseconds a frame spends beside its main image: each view drawn beside it
+ *  (`../state/persistentView.ts`), its last image's time over the frames it is drawn on. */
+function besideMs(rt: WebgpuPagesRuntime) {
+  let ms = 0
+  for (const view of rt.views.persistent)
+    ms += (viewGroup(rt, view, 'timing').lastGpuFrameMs ?? 0) / Math.max(1, view.every ?? 1)
+  return ms
+}
 
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
 export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { timing, diag } = rt
-  // Trace samples every image; the per-stage profile needs enough samples for an honest p95;
-  // without either, the original cadence is kept as-is. The render-scale controller reads every
-  // image it can (`../../../frame/scaleControl.ts`), its bounds read at each frame: a page may ask
-  // `'auto'` after the session opened.
-  const sampleEveryFrames = () =>
-    diag.traceEnabled || rt.scale.bounds.auto ? 1 : timing.profiler.stages ? 3 : 12
   const gpuLog = createGpuLog(gpuDevice)
   timing.logFrame = gpuLog.frame
   const gpuTiming = createGpuTiming(gpuDevice, {
-    sampleEveryFrames,
+    sampleEveryFrames: sampleEvery(rt),
     onSample: (sample) => {
-      // The public metric carries the contract's fields only; the diagnostic keeps the full context.
-      timing.lastGpuPassMs = {
-        frame: sample.frame,
-        totalMs: sample.totalMs,
-        passes: sample.passes,
-        truncated: sample.truncated,
-        ...(sample.error ? { error: sample.error } : {}),
-      }
-      timing.lastGpuFrameMs = sample.submittedMs
+      const main = viewGroup(rt, rt.views.main, 'timing')
+      noteSample(main, sample)
       gpuLog(rt, sample)
-      // The span is the image's whole time, or a lower bound of it where a pass's pair cannot be
-      // read (that pass may lie outside it): the scale steps on a whole one alone, the cadence
-      // slows on a bound too (`frame/cadence.ts`).
-      rt.scale.observe(
-        sample.frameMs,
-        sample.renderScale,
+      // The dynamic resolution reads the frame's GPU busy time, never the CPU's: the time the
+      // submissions cover, the host gaps between them left out — a gap is the host's, no lower
+      // resolution shortens it —, and the views drawn beside the main image with it, since the
+      // frame's GPU time holds all of its GPU work. An image a pass's pair could not be read in
+      // holds no whole time: none, as a frame with no GPU timing yet is skipped.
+      const busy = sample.pairs.invalid === 0 ? sample.submittedMs : null
+      rt.views.main.scale.observe(
+        busy === null ? null : busy + besideMs(rt),
+        sample.renderScale as number,
         sample.scaleSteered !== false,
-        sample.pairs.invalid === 0,
       )
       // The proxy rays' budget is a duration: it reads here the reflection scene's pass and the
       // bounce stage, the per-pass profile's, and corrects the next images' units and batch.
       rt.bounce.budget.observe(
-        reflectionSceneGpuMs(timing.lastGpuPassMs),
-        bounceGpuMs(timing.lastGpuPassMs),
+        reflectionSceneGpuMs(main.lastGpuPassMs),
+        bounceGpuMs(main.lastGpuPassMs),
       )
-      timing.lastGpuHostGapMs = sample.hostGapMs
-      timing.lastGpuIdleMs = sample.idleBetweenMs
       // The sample describes an image already past: it is filed by stage without ever blocking this one.
       // The image envelope is published separately: on a device that overlaps passes, the sum of stages
       // exceeds the image, and it is the envelope that tells the truth about its duration.
       const { stages } = timing.profiler
       if (stages) {
-        stages.frameGpu((add) => addGpuPasses(timing.lastGpuPassMs, add))
+        stages.frameGpu((add) => addGpuPasses(main.lastGpuPassMs, add))
         if (sample.submittedMs !== null) stages.pushImageGpu(sample.submittedMs)
       }
       const phase = sample.error ? 'gpu-timing-unavailable' : 'gpu-timing',
@@ -77,5 +97,16 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     scope: 'selection-and-render-passes',
     excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
     stats: timingStats,
+  })
+}
+
+/** The GPU timer of a view drawn beside the main one, sampled at the main one's cadence: what its
+ *  images cost, its own metrics (`../io/metrics.ts`), and its share of the frame's budget
+ *  (`besideMs`). None where the device times nothing. */
+export function createViewGpuTiming(rt: WebgpuPagesRuntime, device: GPUDevice, view: WebgpuView) {
+  if (!rt.timing.gpuTiming?.supported) return undefined
+  return createGpuTiming(device, {
+    sampleEveryFrames: sampleEvery(rt),
+    onSample: (sample) => noteSample(viewGroup(rt, view, 'timing'), sample),
   })
 }

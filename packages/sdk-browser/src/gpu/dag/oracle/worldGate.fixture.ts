@@ -1,61 +1,42 @@
-import { bandError, bandSphere, dagRecords } from '../records.fixture.ts'
-import { projectedError, thresholdOf, type DagViewFrames } from './math.fixture.ts'
+import { worldOf, dagRecords } from '../records.fixture.ts'
 import type { PackedDag } from '../types.ts'
+import { CELL_DRAW, LINK_WORDS, PLACEMENT_BITS } from '../worldLinks.ts'
 import { NO_INDEX } from '../../../../../math/src/constants.ts'
 
-/** The parent band of world cluster `c` — its world group's error — projected in the world DAG's
- *  frame, as `worldCovers` projects it. */
-export function oracleWorldPixels(packed: PackedDag, frames: DagViewFrames) {
-  const root = packed.world!.root,
-    records = dagRecords(packed),
-    { hot } = records
-  return (c: number) => {
-    const sphere = bandSphere(records, c, 1)
-    return projectedError(
-      bandError(records, c, 1),
-      hot[sphere],
-      hot[sphere + 1],
-      hot[sphere + 2],
-      hot[sphere + 3],
-      frames.views[root],
-      frames.stretches[root],
-      frames.focal,
-      frames.near,
-      frames.perspective,
-    )
-  }
+/** The word of HLOD cell `h` of instance `k` as the host last wrote it (`../worldFollow.ts`). */
+const stateOf = (packed: PackedDag, k: number, h: number) => {
+  const world = packed.world!
+  return world.states[k * world.cells + h]
 }
 
-/** The CPU mirror of `worldStandsIn`: whether every root of the world above world cluster `c` is
- *  `ready` — each of its set's roots (`../worldStandIns.ts`), its set read off the packed words. */
-function standsIn(packed: PackedDag, ready: ArrayLike<number>, c: number) {
-  const { standIns, flagBase, linkBase } = packed.world!,
-    cold = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset),
-    at = (cold[linkBase - 2] + c) >>> 0,
-    set = at + cold[at] - flagBase
-  for (let i = standIns.offsets[set]; i < standIns.offsets[set + 1]; i++)
-    if (!ready[standIns.roots[i]]) return false
-  return true
+/** The CPU mirror of `worldStateOf` (`../shader/worldGateWgsl.ts`): the word of placement `w`'s
+ *  HLOD 0 cell, its placements drawn for one in no cell. */
+function placementState(packed: PackedDag, w: number) {
+  const world = packed.world
+  const h = world ? world.links[w * LINK_WORDS] : NO_INDEX
+  if (!world || h === NO_INDEX) return CELL_DRAW.placements
+  return stateOf(packed, world.links[w * LINK_WORDS + 1], h)
 }
 
-/**
- * The CPU mirror of `worldCovers` (`../shader/placementTreeWgsl.ts`): whether the world DAG draws a
- * placement in its place — its object's world cluster not ready while every root above it is, or
- * that cluster's parent band, its world group's error, projected within the threshold in the world
- * DAG's frame. `ready` is the cut rule's residency; none, every cluster is.
- */
-export function oracleWorldCovers(
-  packed: PackedDag,
-  frames: DagViewFrames,
-  ready?: ArrayLike<number>,
-) {
+/** The CPU mirror of `worldCovers`: whether a placement opens nothing, its HLOD 0 cell neither
+ *  drawing nor asking for its placements. */
+export const oracleWorldCovers = (packed: PackedDag) => (w: number) =>
+  (placementState(packed, w) & PLACEMENT_BITS) === 0
+
+/** The CPU mirror of `worldWaits`: whether a placement asks for its pages and draws none. */
+export const oracleWorldWaits = (packed: PackedDag) => (w: number) =>
+  (placementState(packed, w) & PLACEMENT_BITS) === CELL_DRAW.asking
+
+/** The CPU mirror of `worldHides`: whether packed page `i` is a world cluster whose cell does not
+ *  draw its actor, neither drawn nor asked for. */
+export function oracleWorldHides(packed: PackedDag) {
   const world = packed.world
   if (!world) return () => false
-  const pixels = oracleWorldPixels(packed, frames)
-  return (w: number) => {
-    const c = world.links[w]
-    if (c === NO_INDEX) return false
-    if (ready && !ready[c]) return standsIn(packed, ready, c)
-    return !(pixels(c) > thresholdOf(frames, world.root))
+  const records = dagRecords(packed)
+  return (i: number) => {
+    const w = worldOf(records, i),
+      k = world.roots.indexOf(w)
+    if (k < 0) return false
+    return (stateOf(packed, k, world.hlod[i - packed.cutLinks[w].pageBase]) & CELL_DRAW.hlod) === 0
   }
 }

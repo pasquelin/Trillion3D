@@ -60,6 +60,10 @@ export type SurfaceDeclaration = {
   readonly attenuationColor?: HostColour
   /** False keeps the surface outside the scene's fog. */
   readonly fog?: boolean
+  /** The most of its history the temporal anti-aliasing keeps where the surface is drawn, in
+   *  [0, 1] (`HISTORY_SHARE_SHIFT`): 0.75 a responsive history, 0 the current image alone.
+   *  @defaultValue 1, the engine's own blend */
+  readonly temporalAntialiasing?: number
   readonly lineWidth?: number
   readonly dashSize?: number
   readonly gapSize?: number

@@ -3,7 +3,7 @@ import type { CutDelta, createCutDelta } from './delta.ts'
 import type { createCutPending } from './pending.ts'
 import type { createWebgpuCutAdopter } from './adoption.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
-import { markDrawnMirrored } from '../pages/helpers.ts'
+import { copyDrawnFromShown, markDrawnMirrored } from '../pages/helpers.ts'
 import { copyRanks } from './copyRanks.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
 import type { WebgpuResidencySets } from '../residency/sets.ts'
@@ -51,14 +51,13 @@ function applyTotals(
   run: WebgpuPagesCore['run'],
   totals: Pick<
     GpuCut['result'],
-    'selectedTriangles' | 'drawnTriangles' | 'transparentTriangles' | 'frustumRejected' | 'lodLevel'
+    'selectedTriangles' | 'transparentTriangles' | 'frustumRejected' | 'lodLevel'
   >,
   visible: number,
   ready: boolean,
 ) {
   run.visible = visible
   run.selectedTriangles = run.submittedTriangles = totals.selectedTriangles
-  run.drawnTriangles = totals.drawnTriangles
   run.blendPagedTriangles = totals.transparentTriangles
   run.frustumRejected = totals.frustumRejected
   run.lodLevel = totals.lodLevel
@@ -95,8 +94,7 @@ export function adoptAsideCut(p: Publication, cut: ViewCut) {
   adoptView(p, cut, pageIds, drawablePageIds)
   copyRanks(run.desiredPacked, cut.asked.ids, cut.asked.count)
   copyRanks(run.shownPacked, cut.drawn.ids, cut.drawn.count)
-  copyRanks(run.drawnPacked, cut.drawn.ids, cut.drawn.count)
-  copyRanks(run.drawn, run.shown)
+  copyDrawnFromShown(run)
   markDrawnMirrored(run)
   run.cutEpoch++
   run.pagesEntered = cut.asked.enteredCount

@@ -86,6 +86,8 @@ export async function createDeferredLighting(
       return state.active !== unlit
     },
     setJitter: view.setJitter,
+    /** The lighting term a view of the lit image shows in place of the surface (`writeLightView`). */
+    setLightView: view.writeLightView,
     /** Writes the view uniform of this image (`view.ts`). */
     update: viewUpdate(state, view),
     /** Select and lazily compile the active lighting program. */
@@ -102,7 +104,7 @@ export async function createDeferredLighting(
     composesBloom: (fail: (error: unknown) => void) =>
       state.active.compositions.composesBloom(fail),
     /** Composes the lit image, or the one handed in (`composePass`). */
-    compose: composePass(state),
+    compose: composePass(state, view),
     dispose() {
       view.dispose()
       placeholders.dispose()
@@ -179,10 +181,17 @@ function lightPass(state: LightingState) {
   }
 }
 
+/** The size of the image a composition reads, `drawn`, and of the display it shows it at,
+ *  `shown`. */
+type ComposeSource = { drawn: readonly number[]; shown: readonly number[] }
+/** A source at the display's size: read pixel for pixel. */
+const AT_DISPLAY: ComposeSource = { drawn: [1, 1], shown: [1, 1] }
+
 /** The lighting's `compose`: composes the lit image, or `composed`: the temporal output, or the
  *  effect chain's, with the bloom blend it left; reading no as-is share when `asIs` says none is in
- *  the frame. */
-function composePass(state: LightingState) {
+ *  the frame. `source` is the size of the image composed and the display's, which it upscales to
+ *  where it was drawn below it (`writeSource`); none, an image at the display's size. */
+function composePass(state: LightingState, uniform: DeferredView) {
   const target: GPURenderPassColorAttachment = {
     view: undefined as unknown as GPUTextureView,
     loadOp: 'clear',
@@ -204,9 +213,11 @@ function composePass(state: LightingState) {
     presentation?: GPUTextureView,
     composed?: ComposedImage,
     asIs = true,
+    source: ComposeSource = AT_DISPLAY,
   ) => {
     const { active } = state
     const composition = active.composition(composed, asIs)
+    uniform.writeSource(source.drawn, source.shown)
     if (!composition) throw new Error('SURFACE_NOT_BOUND')
     target.view = view
     target.clearValue = clear

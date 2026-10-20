@@ -45,24 +45,34 @@ export function createRasterResolves(
      *  buffer; no identifier. */
     encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
       refresh(z, input)
-      const pass = encoder.beginRenderPass(z.hizPass!)
-      pass.setViewport(0, 0, width, height, 0, 1)
-      pass.setPipeline(z.hizOnly.get())
-      pass.setBindGroup(0, bound(z, input.uniform))
-      pass.draw(3)
-      pass.end()
+      drawResolve(encoder, z, z.hizPass!, z.hizOnly, input.uniform, width, height)
     },
     /** Closed frame: identifiers, depth, and the pyramid reset to the whole cut. */
     encodeFinal(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
       refresh(z, input)
-      const pass = encoder.beginRenderPass(z.finalPass!)
-      pass.setViewport(0, 0, width, height, 0, 1)
-      pass.setPipeline((input.hizView ? z.two : z.one).get())
-      pass.setBindGroup(0, bound(z, input.uniform))
-      pass.draw(3)
-      pass.end()
+      const pipeline = input.hizView ? z.two : z.one
+      drawResolve(encoder, z, z.finalPass!, pipeline, input.uniform, width, height)
     },
   }
+}
+
+/** One full-screen resolve over the view's `uniform`; the pipeline is asked for only once its
+ *  pass is open. */
+function drawResolve(
+  encoder: GPUCommandEncoder,
+  z: Resolves,
+  desc: GPURenderPassDescriptor,
+  pipeline: Resolves['one'],
+  uniform: GPUBuffer,
+  width: number,
+  height: number,
+) {
+  const pass = encoder.beginRenderPass(desc)
+  pass.setViewport(0, 0, width, height, 0, 1)
+  pass.setPipeline(pipeline.get())
+  pass.setBindGroup(0, bound(z, uniform))
+  pass.draw(3)
+  pass.end()
 }
 
 type Resolves = ReturnType<typeof resolvePipelines> & {

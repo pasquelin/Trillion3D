@@ -46,8 +46,9 @@ function surfaceFor(entry: MaterialEntry, drawn: DrawnTriangles, twoSided: boole
 function release(entries: Iterable<MaterialEntry>) {
   for (const entry of entries) {
     for (const surface of entry.surfaces) surface?.dispose()
+    // Sparse, by reading rank: a line's entry holds none of the faces' ranks.
     for (const variants of entry.variants)
-      for (const surface of variants.values()) surface.dispose()
+      for (const surface of variants?.values() ?? []) surface.dispose()
     entry.surfaces.length = 0
     entry.variants.length = 0
   }
@@ -60,13 +61,14 @@ export type RepaintedEntry = { entry: MaterialEntry } & Repaint
 
 /**
  * The material table of a world. Materials of identical parameters are one entry, however many
- * objects the page made; an entry is a copy taken when it was made, so a material written after
- * it was placed moves its wearers to the entry of its new parameters and leaves the old one as it
- * was — copy on write. Two exceptions keep a live edit off the session's reopening: an opaque
- * entry that only one material object resolves to, written on its value fields alone (#335), and
- * any entry whose textures' pictures alone moved (#362), are REPAINTED — the entry keeps its
- * place under its new key and `takeRepainted` names it, for the session to rewrite what reads it. `counts.duplicates` says how often the table folded one
- * material onto an entry another material had made.
+ * objects the page made; an entry is a copy taken when it was made, so a material written after it
+ * was placed moves its wearers to the entry of its new parameters and leaves the old one as it was
+ * — copy on write. Two exceptions keep a live edit off the session's reopening: an entry, opaque or
+ * blended, that only one material object resolves to, written on its value fields alone (#335) — a
+ * glass's opacity —, and any entry whose textures' pictures alone moved (#362), are REPAINTED — the
+ * entry keeps its place under its new key and `takeRepainted` names it, for the session to rewrite
+ * what reads it. `counts.duplicates` says how often the table folded one material onto an entry
+ * another material had made.
  */
 export function createWorldMaterials() {
   const state: MaterialsState = {

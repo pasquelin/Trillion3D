@@ -21,8 +21,8 @@ export const visPageIndex = wgslFn(
 )
 
 /** Whether identifier `id` names a row of a table of `rows`: the one "no page" test. The
- *  background (0) and every id below a page's first (`visPageIndex` wraps them past any table),
- *  and a card's pixel (`VIS_CARD_BASE`, past every table a view holds), name none. */
+ *  background (0) and every id below a page's first (`visPageIndex` wraps them past any table)
+ *  name none. */
 export const visRowIn = wgslFn(
   'visRowIn',
   [visPageIndex],
@@ -39,14 +39,5 @@ export const visTriangle = wgslFn(
 /** Largest triangle count a page may carry; one more would collide with the next page's rows. */
 export const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1
 
-/**
- * The identifier a card's pixel holds: `VIS_CARD_BASE | slot`, its slot in the card records. Its page
- * row lies past every table a view can hold (`VIS_CARD_ROWS` rows below it), so each pass that
- * reads an identifier already leaves it as a pixel of no page — the resolve and the shadow
- * receiver reject a row past the table, the temporal passes (`taa/`) read it as the background —
- * and only the card pass's surface stage reads it, by equality (`webgpu/impostor/cardWgsl.ts`).
- */
-export const VIS_CARD_BASE = 0xff000000
-
-/** The most page rows an identifier names beside a card's. */
-export const VIS_CARD_ROWS = VIS_CARD_BASE >>> VIS_TRIANGLE_BITS
+/** The most page rows an identifier names: every value of its high bits but the background's. */
+export const VIS_PAGE_ROWS = 2 ** (32 - VIS_TRIANGLE_BITS) - 1

@@ -101,3 +101,35 @@ test('a moving placement turns static after resting more than the 100-frame thre
   for (let frame = 1; frame <= 100; frame++) mobility.settle(VSM_STILL_FRAMES, () => {})
   assert.ok(mobility.moves(1), 'moved 100 frames ago')
 })
+
+test('each view keeps its own sun clipmap, aged by its own frames, and the local maps are shared', () => {
+  const cache = new VsmCacheManager()
+  const ids = {
+    mapCount: 9000,
+    allocateUnreferenced: () => 0,
+    writeNextMap: () => {},
+    fits: () => true,
+  }
+  cache.beginFrame(1)
+  const main = cache.lightEntryFor('sun', 17, '')
+  const lamp = cache.lightEntryFor('lamp', 6)
+  cache.keepFrameForNext(null)
+  cache.beginFrame(2, 'side')
+  const side = cache.lightEntryFor('sun', 17, 'side')
+  assert.notEqual(side, main, 'centred on another eye: an entry of its own')
+  assert.equal(side.key, 'sun#side')
+  assert.equal(cache.lightEntryFor('lamp', 6), lamp, 'a local light’s maps every view shares')
+  cache.keepFrameForNext(null)
+  // The side view drawn far more often than the main one: the main view's clipmap is still its own
+  // one frame old.
+  for (let n = 3; n < 3 + 4 * VSM_LIGHT_KEEP_FRAMES; n++) {
+    cache.beginFrame(n, 'side')
+    cache.lightEntryFor('sun', 17, 'side')
+    cache.carryUnseenLights(ids)
+    cache.keepFrameForNext(null)
+  }
+  assert.equal(cache.entries.get('sun'), main, 'kept: the main view has not drawn since')
+  cache.dropView('side')
+  assert.equal(cache.entries.has('sun#side'), false, 'a released view’s clipmap goes')
+  assert.equal(cache.entries.get('sun'), main)
+})

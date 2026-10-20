@@ -29,7 +29,8 @@ const light = (id: string, kind: 'point' | 'spot', position: number[], range: nu
 function world(side: number, near = 0) {
   const lights = createSceneLightStore()
   lights.add(SUN)
-  // Lamps a step before the quad: each face of each asks finer than one page, a full map.
+  // Lamps a step before the quad: each face of each asks its finest mip but one, a quarter of a
+  // page-table block (`tableBlocks.ts`).
   for (let i = 0; i < near; i++) lights.add(light(`near ${i}`, 'point', [i / near - 0.5, 0, 1], 3))
   for (const x of [-0.5, 0.5]) lights.add(light(`spot ${x}`, 'spot', [x, 0, 2], 4))
   for (let i = 0; i < side * side; i++) {
@@ -46,8 +47,10 @@ async function shadowSet(side: number, near = 0) {
   const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
   const { fixture, backend } = quadBackend(gpu.device, {
     sceneLights: world(side, near),
-    // A view wide enough that a lamp a step away asks its faces finer than one page.
+    // A view wide enough that a lamp a step away asks its faces finer than one page, drawn at its
+    // own size: the display's default fraction (about 0.58 here) would ask them a mip coarser.
     viewport: [2048, 2048],
+    renderScale: 1,
   })
   try {
     await backend.prepare()
@@ -76,7 +79,9 @@ test('worlds of growing extent seen through the same view hold the same shadow s
 
 test('lamps near the eye past the first set of maps grow its tables in the frame, every one shadowed', async () => {
   const first = await shadowSet(2)
-  const near = await shadowSet(2, 16)
-  assert.equal(near.shadowed, 3 + 16, 'the sun, both spots and every near lamp cast')
+  // 40 lamps of six faces a quarter block each, beside the sun's levels and the spots: past the
+  // first set's 64 blocks (`fullMapsFor`).
+  const near = await shadowSet(2, 40)
+  assert.equal(near.shadowed, 3 + 40, 'the sun, both spots and every near lamp cast')
   assert.ok(near.tables > first.tables, `${near.tables} > ${first.tables}: the tables grew`)
 })

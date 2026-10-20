@@ -112,6 +112,8 @@ test('a flush under image: false settles the pages and reads no image back', asy
   rt.run.imageRevision = 1
   await flushWebgpuPages(rt, { image: false })
   assert.equal(touched, 0, 'a wait for pages must take no picture')
-  // A plain flush still starts the readback, which this GPU-less runtime cannot finish.
-  await assert.rejects(flushWebgpuPages(rt), /GPUBufferUsage|image read back/)
+  // A plain flush still starts the readback: it asks the device a staging buffer, which this
+  // GPU-less runtime refuses, a refusal said by name (`readbackRing.ts`).
+  await assert.rejects(flushWebgpuPages(rt), /READBACK_STAGING_REFUSED/)
+  assert.ok(touched > 0, 'the readback asked the device')
 })

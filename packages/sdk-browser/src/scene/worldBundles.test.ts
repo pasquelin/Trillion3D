@@ -1,15 +1,27 @@
 // A placed cell's world bundles are pages of the session's one read queue: those queued end to end
 // in the binary are one ranged request, a bundle on its way is shared, one no hold waits on is
 // dropped unread, one that may pass waits its turn, and one refused for good is never asked again.
+// The bundles the held cells need are told to who follows them — each once when its first cell
+// holds it and once when its last lets it go, those held already first.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from '../streaming/eventually.fixture.ts'
 import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { encodeWorldRoots } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { readWorldRoots } from '../../../sdk-core/src/manifest/worldRootsTable.ts'
-import { heldBy, modelOpened, opened, rangeOf, served, sha } from './worldRoots.fixture.ts'
+import {
+  bundleOf,
+  heldBy,
+  modelOpened,
+  opened,
+  rangeOf,
+  served,
+  sha,
+} from './worldRoots.fixture.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
+import { createWorldBundles } from './worldBundles.ts'
+import type { PageQueue } from '../streaming/types.ts'
 
 type Dag = ReturnType<typeof worldRootsDag>
 
@@ -34,24 +46,24 @@ test("a cell's bundles contiguous in the binary are one ranged read", async (t) 
   const { manifest, ranges, table } = served(t)
   const { roots } = await opened(t, manifest)
   await roots.hold(1) // bundles 2 and 3, side by side in the binary
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 2, 4)])
+  assert.deepEqual(ranges, [rangeOf(table, 2, 4)])
   assert.deepEqual(heldBy(roots), [2, 3])
 })
 
 test('a hold let go while its bundle waits in the queue drops it, its cell still placed; a shared one is read once', async (t) => {
-  // The first bundle past the top holds the queue's one transfer until `land`.
+  // Bundle 1 holds the queue's one transfer until `land`.
   const { roots, queue, ranges, table, land } = await heldAt(t, 1, 1)
   const placed = roots.hold(0) // bundles 1 and 3: two ranges apart
-  await eventually(() => ranges.length === 2) // bundle 1 transfers
+  await eventually(() => ranges.length === 1) // bundle 1 transfers
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundle 3 on its way, bundle 2 queued
-  await eventually(() => queue.loading('http://world/world-roots.bin#2'))
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2)], 'one transfer, the rest wait')
+  await eventually(() => queue.loading(bundleOf(table, 2)))
+  assert.deepEqual(ranges, [rangeOf(table, 1, 2)], 'one transfer, the rest wait')
   leaving.abort() // the hold lets go: its cell is not released yet
   await assert.rejects(left, { name: 'AbortError' })
   land()
   await placed
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)], 'bundle 2 unread')
+  assert.deepEqual(ranges, [rangeOf(table, 1, 2), rangeOf(table, 3, 4)], 'bundle 2 unread')
   roots.release(1)
   assert.deepEqual(heldBy(roots), [1, 3])
 })
@@ -64,8 +76,8 @@ test('a bundle the server refuses for good (404) is never asked again', async (t
   const { roots, queue } = await opened(t, world.manifest)
   await assert.rejects(roots.hold(1), /PAGE_STREAM_FAILED.*after one attempt/)
   await assert.rejects(roots.hold(1), /PAGE_STREAM_FAILED/)
-  assert.deepEqual(world.ranges.slice(1), [rangeOf(world.table, 2, 4)], 'asked once')
-  assert.equal(queue.failed('http://world/world-roots.bin#2'), true)
+  assert.deepEqual(world.ranges, [rangeOf(world.table, 2, 4)], 'asked once')
+  assert.equal(queue.failed(bundleOf(world.table, 2)), true)
   roots.release(1)
   roots.release(1)
   assert.deepEqual(heldBy(roots), [], 'let go: refused at once while the session reads')
@@ -77,7 +89,7 @@ test('a bundle whose read may pass keeps its hold waiting; let go, it is dropped
       from === world.table.bundles[1].offset ? new Response('', { status: 503 }) : respond(),
   })
   const { roots, queue } = await opened(t, world.manifest)
-  const bundle = 'http://world/world-roots.bin#1'
+  const bundle = bundleOf(world.table, 1)
   const leaving = new AbortController()
   let settled = false
   const held = roots.hold(0, { signal: leaving.signal }).finally(() => (settled = true))
@@ -96,12 +108,11 @@ test('a bundle read for one page request alone, refused for good, is refused at 
     answer: async (from, _to, respond) =>
       from === world.table.bundles[2].offset ? new Response('', { status: 404 }) : respond(),
   })
-  const { roots } = await opened(t, world.manifest)
-  const stream = await roots.stream()
-  const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
-  await assert.rejects(stream.source.page(far.url), /PAGE_STREAM_FAILED/)
+  const { roots, queue } = await opened(t, world.manifest)
+  const far = roots.dag!.pages.find((page) => page.holder === 2)! // cell 1's HLOD 1 root
+  await assert.rejects(queue.readBytes(far.url, queue.signal), /PAGE_STREAM_FAILED/)
   const asked = world.ranges.length
-  await assert.rejects(stream.source.page(far.url), /PAGE_STREAM_FAILED/)
+  await assert.rejects(queue.readBytes(far.url, queue.signal), /PAGE_STREAM_FAILED/)
   assert.equal(world.ranges.length, asked, 'refused at once, never asked every frame')
   assert.deepEqual(heldBy(roots), [], 'let go')
 })
@@ -110,48 +121,40 @@ test('a cell let go while its bundles transfer and held again joins that read: r
   const { roots, ranges, table, land } = await heldAt(t, 2)
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one read
-  await eventually(() => ranges.length === 2) // under way
+  await eventually(() => ranges.length === 1) // under way
   leaving.abort()
   await assert.rejects(left, { name: 'AbortError' })
   roots.release(1)
   const back = roots.hold(1)
   land()
   await back
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 2, 4)], 'read once')
+  assert.deepEqual(ranges, [rangeOf(table, 2, 4)], 'read once')
   assert.deepEqual(heldBy(roots), [2, 3])
 })
 
-test('a bundle that lands unreadable fails its hold: the next hold reads it again, never stuck', async (t) => {
+test('a table whose bundle holds pages it does not name is refused at open, naming the bundle', async (t) => {
   const fixture = worldRootsFixture(sha)
   const spec = { ...fixture.spec, bundles: fixture.spec.bundles.map((b) => ({ ...b })) }
   spec.bundles[3].count = 0 // its bytes hold a page its table does not name
   const bytes = encodeWorldRoots(spec)
   const world = served(t, { world: { bytes, bin: fixture.bin, table: readWorldRoots(bytes) } })
-  const { roots } = await opened(t, world.manifest)
-  await assert.rejects(roots.hold(1), /bundle 3/)
-  await assert.rejects(roots.hold(1), /bundle 3/)
-  assert.deepEqual(
-    world.ranges.slice(1),
-    [rangeOf(world.table, 2, 4), rangeOf(world.table, 3, 4)],
-    'the unreadable one read again, the other kept',
-  )
-  assert.deepEqual(heldBy(roots), [2, 3])
+  await assert.rejects(opened(t, world.manifest), /bundle 3/)
+  assert.deepEqual(world.ranges, [], 'no bundle read from a table that misnames one')
 })
 
 test('a page asked while its bundle transfers holds the bundle: its cell leaving stops nothing', async (t) => {
-  const { roots, ranges, land } = await heldAt(t, 2, undefined, worldRootsDag())
-  const stream = await roots.stream()
-  const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
+  const { roots, queue, ranges, land } = await heldAt(t, 2, undefined, worldRootsDag())
+  const far = roots.dag!.pages.find((page) => page.holder === 2)! // cell 1's HLOD 1 root
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one read
-  await eventually(() => ranges.length === 2) // under way
-  const page = stream.source.page(far.url)
+  await eventually(() => ranges.length === 1) // under way
+  const page = queue.readBytes(far.url, queue.signal)
   leaving.abort()
   await assert.rejects(left, { name: 'AbortError' })
   roots.release(1) // the cell left
   land()
-  assert.ok((await page).bytes.byteLength > 0, 'the page lands')
-  assert.deepEqual([ranges.length, heldBy(roots)], [2, []], 'its bundle read once, then let go')
+  assert.ok((await page).byteLength > 0, 'the page lands')
+  assert.deepEqual([ranges.length, heldBy(roots)], [1, []], 'its bundle read once, then let go')
 })
 
 test('a cell held before its world is bound waits for the bind, then reads', async (t) => {
@@ -163,13 +166,13 @@ test('a cell held before its world is bound waits for the bind, then reads', asy
   await new Promise(setImmediate)
   roots.bind(queue)
   await held
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 2, 4)])
+  assert.deepEqual(ranges, [rangeOf(table, 2, 4)])
 })
 
 test("a hold under way as its session's queue closes reads in the next session's queue: never lost", async (t) => {
   const { roots, queue, ranges, table, land } = await heldAt(t, 2)
   const held = roots.hold(1) // bundles 2 and 3, one read, under way
-  await eventually(() => ranges.length === 2)
+  await eventually(() => ranges.length === 1)
   const next = createPageStreamer([], 'http://world/', { cache: createPageCache() })
   queue.dispose() // the device is lost: its session closes
   land()
@@ -177,5 +180,69 @@ test("a hold under way as its session's queue closes reads in the next session's
   t.after(() => next.dispose())
   await held
   const run = rangeOf(table, 2, 4)
-  assert.deepEqual(ranges.slice(1), [run, run], 'read again there')
+  assert.deepEqual(ranges, [run, run], 'read again there')
+})
+
+/** The fixture's bundles, no session bound: a hold counts its bundles at once and waits for a
+ *  queue, let go with the test. */
+function bundlesOf() {
+  const bundles = createWorldBundles(worldRootsFixture().table, 'world-roots.bin')
+  const stop = new AbortController()
+  const hold = (cell: number) => void bundles.hold(cell, { signal: stop.signal }).catch(() => {})
+  return { bundles, hold, stop }
+}
+
+test('a watcher is told each bundle as the cells start or stop holding it', () => {
+  // Cell 0 holds bundles 1 and 3, cell 1 bundles 2 and 3 (`worldRootsFixture`).
+  const { bundles, hold, stop } = bundlesOf()
+  hold(0)
+  const told: [number, boolean][] = []
+  const unwatch = bundles.watch((bundle, held) => void told.push([bundle, held]))
+  assert.deepEqual(
+    told,
+    [
+      [1, true],
+      [3, true],
+    ],
+    'what is held already, first',
+  )
+  hold(1)
+  bundles.release(0)
+  bundles.release(1)
+  assert.deepEqual(told.slice(2), [
+    [2, true],
+    [1, false],
+    [2, false],
+    [3, false],
+  ])
+  unwatch()
+  hold(0)
+  assert.equal(told.length, 6, 'a watcher that stopped is told nothing')
+  stop.abort()
+})
+
+test("a hold refused for good takes its bundles' roots out at once, its cell still held", async () => {
+  const { bundles } = bundlesOf()
+  const refusing = {
+    signal: new AbortController().signal,
+    admit: () => {},
+    pin: () => {},
+    readBytes: async () => {
+      throw new Error('PAGE_STREAM_FAILED: refused for good')
+    },
+  } as unknown as PageQueue
+  bundles.bind(refusing)
+  const told: [number, boolean][] = []
+  bundles.watch((bundle, held) => void told.push([bundle, held]))
+  await assert.rejects(bundles.hold(0), /PAGE_STREAM_FAILED/)
+  assert.deepEqual(
+    told
+      .filter(([, held]) => !held)
+      .map(([bundle]) => bundle)
+      .sort(),
+    [1, 3],
+  )
+  assert.deepEqual(bundles.held(), [], 'no root that can never load stays followed')
+  bundles.release(0)
+  assert.equal(told.length, 4, 'its leave tells nothing more')
 })

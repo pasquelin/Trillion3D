@@ -4,7 +4,7 @@ import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pag
 
 /** The stage's bindings, named once: the text and the layout print them. `normals` is the float
  *  pool's normal atlas (`../webgpu/core/floatAtlas.ts`); `pages` the rows deformed, the page table
- *  or the whole copies' (`../deformation/wholePool.ts`); `image` the dispatch's record. */
+ *  or the float-pool blocks' (`../deformation/pooledRows.ts`); `image` the dispatch's record. */
 export const DEFORMATION_BINDING = {
   indices: 0,
   positions: 1,
@@ -49,17 +49,15 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
   var n=vec3f(0.0);
   if((page.flags&${FLAG_CLUSTER_PAGE}u)!=0u){n=clusterNormal(h,page.pageOffset,v);}
   else{n=vertN(page.vertexBase,v);}
-  // A whole copy keeps no tags; a page's results and a float page's block do.
-  let tagged=!deformWholeCopy(page);
   let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*${DEFORM_VERTEX_WORDS}u;
   let tags=at-${DEFORM_TAG_WORDS}u;
   var before=deformVertex(page,h,v,p,n,true).p;
-  if(tagged&&(page.flags&${FLAG_DYNAMIC}u)!=0u&&deformTag(tags)==deformTagOf(page.selectionIndex+1u)){
+  if((page.flags&${FLAG_DYNAMIC}u)!=0u&&deformTag(tags)==deformTagOf(page.selectionIndex+1u)){
    let last=deformTag(tags+1u);
    if(last==deformTagOf(image.x-1u)){before=pageDeformed(page,v,${DEFORMED_FIELD.position}u);}
    if(last==deformTagOf(image.x)){before=pageDeformed(page,v,${DEFORMED_FIELD.previous}u);}
   }
-  if(tagged){storeTag(tags,page.selectionIndex+1u);storeTag(tags+1u,image.x);}
+  storeTag(tags,page.selectionIndex+1u);storeTag(tags+1u,image.x);
   let now=deformVertex(page,h,v,p,n,false);
   storeDeformed(at+${DEFORMED_FIELD.position}u,now.p);
   storeDeformed(at+${DEFORMED_FIELD.previous}u,before);

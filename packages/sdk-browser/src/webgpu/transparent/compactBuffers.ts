@@ -1,4 +1,5 @@
 import type { TransparentTable } from './table.ts'
+import { trackedBuffers } from '../../gpu/core/sizedBuffer.ts'
 
 /** The words of the compaction's uniform: the table's length, its groups, its items, the mask's
  *  offset and the widest vertex record, padded. */
@@ -10,11 +11,7 @@ export type CompactBuffers = ReturnType<typeof compactBuffers>
  *  that fails part-way destroys those it made. */
 export function compactBuffers(device: GPUDevice, table: TransparentTable, buffers: GPUBuffer[]) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  const make = (label: string, size: number, usage = storage) => {
-    const buffer = device.createBuffer({ label, size: Math.max(8, size), usage })
-    buffers.push(buffer)
-    return buffer
-  }
+  const make = trackedBuffers(device, buffers, 8, storage)
   const items = table.itemRanges.length / 2
   const entriesBuf = make('Trillion3D transparent entries', table.capacity * 4)
   const itemRangesBuf = make('Trillion3D transparent item ranges', items * 8)
@@ -30,7 +27,8 @@ export function compactBuffers(device: GPUDevice, table: TransparentTable, buffe
   // Occlusion verdict of each entry, written by the transparent Hi-Z test a little earlier in the
   // same submission. Zero before any image, and zero on an image without a pyramid: nothing is then
   // dropped from the table.
-  // `COPY_SRC` only serves the audit, which rereads the verdicts; no image copies them.
+  // `COPY_SRC` serves the audit, which rereads the verdicts, and a frozen cut, which copies them
+  // aside and back (`../../gpu/core/heldCopy.ts`).
   const occludedBuffer = make(
     'Trillion3D transparent occlusion verdicts',
     table.capacity * 4,

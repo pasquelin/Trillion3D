@@ -113,7 +113,10 @@ export class Scene extends Object3D {
     if (value) listen(value.color, this.refogged)
     this.refogged()
   }
-  /** Loads a compiled model — its manifest URL — and adds it to this scene. */
+  /** Loads a compiled model — its manifest URL — and adds it to this scene. A manifest this world
+   *  loaded already is not read again: the model returned is another placement of it, its own
+   *  position, rotation and visibility over the same pages, images and buffers, each placement
+   *  drawn at the detail its own distance asks. */
   async load(manifestUrl: string, options: LoadOptions = {}) {
     if (!this.loader)
       throw new EngineError(

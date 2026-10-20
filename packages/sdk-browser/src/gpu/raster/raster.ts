@@ -125,6 +125,7 @@ function rasterPipelines(device: GPUDevice, capacity: number, listOffset: number
       computeBufferEntry(b.work, 'storage', compute),
       computeBufferEntry(b.selectionMask, 'read-only-storage', compute),
       computeTextureEntry(b.material, 'uint', '2d-array', compute),
+      computeTextureEntry(b.normals, 'unfilterable-float', '2d-array', compute),
     ],
   })
   const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) })

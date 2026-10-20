@@ -7,6 +7,8 @@ import { webgpuPagesEngine } from '../pages.ts'
 import { coarseQuadScene } from '../coarseQuads.fixture.ts'
 import { camera, disposeQuadRun } from '../testScenes.fixture.ts'
 import { settledImage } from '../settledImage.fixture.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 // `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
 // the float geometry of what no page covers, a one-vertex placeholder at least. The pool is drawn
@@ -18,6 +20,7 @@ function budgetedQuad(geometryPoolBytes: number) {
   const fixture = coarseQuadScene(),
     { device } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     viewport: [32, 32],

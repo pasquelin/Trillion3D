@@ -2,13 +2,13 @@
 // drops what its plan decoded; followed again, its cells place again (`PartitionCells.close`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cellUrl, everywhere, io, noBudget, settled, sizedWhole, world } from './cells.fixture.ts'
+import { between, cellUrl, io, noBudget, settled, sizedWhole, world } from './cells.fixture.ts'
 
 test('a partition let go gives every row back, parked, and places again once followed', async () => {
   const { cells, links, bytes } = await sizedWhole(world())
   const { port, held, updates } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
-  await settled(cells, [0, 0, 0], everywhere, port, noBudget)
+  await settled(cells, between, port, noBudget)
   assert.equal(cells.stats().held, 2)
   updates.length = 0
   cells.close(port)
@@ -21,6 +21,6 @@ test('a partition let go gives every row back, parked, and places again once fol
     )
   assert.ok(updates.length, 'the parked rows are sent')
   // Followed again, the cells place again: the rows were given back, not lost.
-  await settled(cells, [0, 0, 0], everywhere, port, noBudget)
+  await settled(cells, between, port, noBudget)
   assert.equal(cells.stats().held, 2)
 })

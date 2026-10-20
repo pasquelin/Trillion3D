@@ -5,14 +5,12 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { drawnViewChanged, type WebgpuView } from '../state/view.ts'
 import { onView } from '../state/viewSwitch.ts'
 import { makeTargets } from './targets.ts'
+import { stopped } from '../io/lost.ts'
 import { fundFrameTargets, poolFundingPending } from './targetFunding.ts'
 import type { AskedTargets, HeldTargets } from './targetsSet.ts'
 
 /* What the device is asked for one view's frame targets the held way (`targetGrant.ts`): made under
  * its out-of-memory check, or refused by name. */
-
-/** A session lost or released: what it asked is never a refusal. */
-export const stopped = (rt: WebgpuPagesRuntime) => rt.run.lost || rt.signal.aborted
 
 /** The frame targets `asked` refused by name, and why. */
 export const refuseTargets = (

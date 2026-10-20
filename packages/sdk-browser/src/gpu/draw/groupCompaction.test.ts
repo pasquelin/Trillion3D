@@ -2,7 +2,11 @@ import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BASE_SLOTS, HALF_SLOTS, slotCount } from './contract.ts'
-import { prefixSerial } from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
+import {
+  groupCountAt,
+  groupsWithCounts,
+  prefixSerial,
+} from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
@@ -10,8 +14,9 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 // The counting and scattering kernels moved from one thread per (group, slot) — each walking the
 // group's 64 items in the storage buffer — to one workgroup per group, each lane reading its own
 // item once and working from workgroup memory. Below, both pairs of kernels transcribed line by
-// line must write the same `groupCounts` and the same `instances`, hence the same draws in the
-// same order, on random frames: partial groups, selection masks, empty slots, overflow.
+// line must write the same group counts — the counts region of `groups` (`drawGroupWords`) — and
+// the same `instances`, hence the same draws in the same order, on random frames: partial groups,
+// selection masks, empty slots, overflow.
 
 type Frame = {
   bins: number[]
@@ -50,8 +55,9 @@ function countBefore(f: Frame, groups: number, slots: number) {
   return counts
 }
 
+/** Transcribes `countGroups`: each group's tallies stored in the counts region of `groups`. */
 function countAfter(f: Frame, groups: number, slots: number) {
-  const counts = new Uint32Array(groups * slots)
+  const held = groupsWithCounts(new Uint32Array(0), groups, slots)
   for (let group = 0; group < groups; group++) {
     const tally = new Uint32Array(slots)
     for (let lane = 0; lane < WORKGROUP_THREADS; lane++) {
@@ -59,9 +65,10 @@ function countAfter(f: Frame, groups: number, slots: number) {
       if (s !== NO_INDEX) tally[s]++
     }
     for (let slot = 0; slot < slots; slot++)
-      counts[group * slots + slot] = f.slotUsed[slot] === 0 ? 0 : tally[slot]
+      held.groups[groupCountAt(held.entries, slots, group, slot)] =
+        f.slotUsed[slot] === 0 ? 0 : tally[slot]
   }
-  return counts
+  return held.groups.slice(held.entries, 2 * held.entries)
 }
 
 function scatterBefore(f: Frame, groups: number, slots: number, offsets: Uint32Array) {
@@ -128,9 +135,10 @@ test('grouped counting and scattering write the counts and draws of the per-slot
     const slots = slotCount(f.layerSlots)
     const groups = workgroupCount(Math.min(f.count, f.slotCap), WORKGROUP_THREADS)
     const counts = countBefore(f, groups, slots)
-    assert.deepEqual(countAfter(f, groups, slots), counts, `trial ${trial}: groupCounts`)
+    assert.deepEqual(countAfter(f, groups, slots), counts, `trial ${trial}: group counts`)
     const overflow = f.count > f.slotCap
-    const { offsets } = prefixSerial(overflow, f.slotUsed, counts, groups, slots)
+    const held = groupsWithCounts(counts, groups, slots).groups
+    const { offsets } = prefixSerial(overflow, f.slotUsed, held, groups, slots)
     assert.deepEqual(
       scatterAfter(f, groups, slots, offsets),
       scatterBefore(f, groups, slots, offsets),

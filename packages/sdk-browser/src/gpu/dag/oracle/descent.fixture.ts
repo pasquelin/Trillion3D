@@ -2,8 +2,7 @@ import { DAG_NODE_FLOATS } from '../types.ts'
 import { dagNodeFloor, dagNodeVerdict, dagTreeVerdict } from './nodeVerdict.fixture.ts'
 import { NODE_FIRST_CHILD, NODE_KIND, NODE_PAGE_COUNT } from '../nodeLayout.ts'
 import { drawnAlways, TREE_GROUP, type PlacementTree } from '../placementTree.ts'
-import { drawsCard } from '../../../page/cut/select.fixture.ts'
-import { thresholdOf, type DagViewFrames } from './math.fixture.ts'
+import type { DagViewFrames } from './math.fixture.ts'
 
 /** A kept leaf reached only by the view ahead (`../shader/aheadWgsl.ts`): its pages are requested
  *  ahead and never drawn. */
@@ -28,7 +27,7 @@ function keeps(
   const children = dagNodeVerdict(frames, nodes, nodeInts, n, w)
   if (children < 0) return -1
   const open = packed.heldOpen?.get(w, n)
-  return dagNodeFloor(frames, nodes, nodeInts, n, w, open) > thresholdOf(frames, w) ? -1 : children
+  return dagNodeFloor(frames, nodes, nodeInts, n, w, open) > frames.pixelError ? -1 : children
 }
 
 /**
@@ -61,7 +60,6 @@ type Descended = {
   rootNodes: Uint32Array
   mark?: Uint32Array
   placementTree?: PlacementTree
-  world?: { root: number }
   heldOpen?: { get(w: number, node: number): number | undefined }
 }
 
@@ -91,22 +89,22 @@ function firstChild(packed: Descended, nodeInts: Uint32Array, n: number) {
     : tree.cellBase + first
 }
 
-/** Whether the world DAG draws a placement in its place (`./worldGate.fixture.ts`). */
+/** Whether a placement draws nothing, its cell drawn by its HLOD or nothing (`./worldGate.fixture.ts`). */
 type Covers = (w: number) => boolean
 
 /** The placement a member entry (`nodeCount + k`, member `k` of the tree's order) names, and the
- *  root it opens, or none: parked, drawn by its card, or drawn by the world DAG — or drawn whatever
- *  the view, which queue 0 opens (`drawnAlways`). */
+ *  root it opens, or none: parked, or drawn by the world DAG — or drawn whatever the view, which
+ *  queue 0 opens (`drawnAlways`). */
 function memberRoot(packed: Descended, k: number, covers: Covers) {
   const w = packed.placementTree!.order[k]
   const always = w !== 0xffffffff && drawnAlways(packed.mark?.[w] ?? 0)
   return { w, root: w === 0xffffffff || always ? -1 : placementRoot(packed, w, covers) }
 }
 
-/** The root placement `w` opens, or none: parked, drawn by its card, or by the world DAG. */
+/** The root placement `w` opens, or none: parked, or drawn by the world DAG. */
 function placementRoot(packed: Descended, w: number, covers: Covers) {
   const root = packed.rootNodes[w]
-  return root === 0xffffffff || drawsCard(packed.mark?.[w]) || covers(w) ? -1 : root
+  return root === 0xffffffff || covers(w) ? -1 : root
 }
 
 /**
@@ -117,8 +115,8 @@ function placementRoot(packed: Descended, w: number, covers: Covers) {
  * (placement, node) verdict — non-zero means « the camera does not descend here » —, and only kept
  * leaves fall back to zero: they alone are what clusters consult next. A node the camera rejects is tried
  * against the view `ahead`, when there is one, and what that view keeps continues under it alone;
- * its kept leaves take `AHEAD_LEAF`. With a placement tree, the descent starts at its top nodes,
- * the world DAG's root, wherever it sits, and the members drawn whatever the view (`always`); a
+ * its kept leaves take `AHEAD_LEAF`. With a placement tree, the descent starts at its top nodes
+ * and the members drawn whatever the view — the world DAG's placements among them (`always`); a
  * placement the world DAG draws in its place (`covers`) opens nothing.
  *
  * Top-down pruning drops a subtree whose error floor is above the threshold, unless the subtree
@@ -138,11 +136,8 @@ export function dagOracleDescent(
   /** Quadruples: the node, the placement reading it, whether it is the view ahead's alone, then its
    *  level. */
   const frontier: number[] = []
-  // The cut opens no descent on a root its impostor card draws (`drawsCard`, `markOf`).
   const always = tree ? Array.from(tree.always.set.list.subarray(0, tree.always.set.count)) : []
-  const opened = tree
-    ? [...(packed.world ? [packed.world.root] : []), ...always]
-    : packed.rootNodes.keys()
+  const opened = tree ? always : packed.rootNodes.keys()
   for (const w of opened)
     if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], w, 0, 0)
   const top = tree?.levels[0]
@@ -150,7 +145,7 @@ export function dagOracleDescent(
   // The entries each level's queue holds, as the kernel counts them: queue 0 a slot a root (a
   // placement's without a tree, the top nodes and the world DAG's with one); and the candidates.
   const work = {
-    levels: [tree ? (top?.count ?? 0) + (packed.world ? 1 : 0) + always.length : packed.worldCount],
+    levels: [tree ? (top?.count ?? 0) + always.length : packed.worldCount],
     candidates: 0,
   }
   while (frontier.length) {

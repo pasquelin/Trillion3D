@@ -12,7 +12,6 @@ import { sdkWasm } from '../wasm/sdkWasm.fixture.ts'
 import { PROXY_TRIANGLE_FLOATS } from '../../../sdk-core/src/contracts/writtenFormats.ts'
 import { buildCutProxy } from '../world/page/runtimeProxy.ts'
 import { cubeGeometry } from '../world/page/cube.fixture.ts'
-import { RUNTIME_WORLD_WORDS } from './runtimeLayout.ts'
 import { proxyArena, proxyHeader } from './proxyBuffer.fixture.ts'
 import { packDoubles } from '../../../math/src/float/splitDouble.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -29,7 +28,7 @@ export function cubeCut() {
 }
 
 /** `count` cubes turned and stretched, packed with the culling's tree, the run-time proxy's buffer
- *  over them as the shader reads it — the copies' worlds, the surfaces, then the cut's columns —,
+ *  over them as the shader reads it — the surfaces, then the cut's columns —,
  *  and the culling's record tables the trace reads beside it: `worlds`, the instances in its
  *  `Instance` field, and `tree`. */
 export function world(
@@ -39,8 +38,6 @@ export function world(
     places?: Matrix4[]
     surfaces?: number[][]
     surfaceOf?: (w: number) => number
-    /** Blended copies, members after the placements, each a cube at the pose given. */
-    copies?: Matrix4[]
   } = {},
 ) {
   const random = lcgRandom(seed),
@@ -76,17 +73,13 @@ export function world(
   const cut = cubeCut()
   const triangles = cut.triangles.length / PROXY_TRIANGLE_FLOATS
   const surfaces = options.surfaces ?? [[1, 1, 1, 1, 0, 0, 0, 0]]
-  const copies = options.copies ?? []
-  const copyWorlds = new Float32Array(copies.length * RUNTIME_WORLD_WORDS)
-  copies.forEach((m, k) => copyWorlds.set(m.elements, k * RUNTIME_WORLD_WORDS))
   const tree = packed.placementTree
-  // The placements' records as the culling holds them, a copy's after them: each instance wearing the
+  // The placements' records as the culling holds them: each instance wearing the
   // cube's cut, its first node and triangle, the surface asked; each placement's matrix, and its
   // exact translation beside it, three doubles.
-  const table = recordTable(WORLD_TABLE, count + copies.length),
+  const table = recordTable(WORLD_TABLE, count),
     origin = new Uint32Array(8)
-  for (let w = 0; w < count + copies.length; w++)
-    table.set('Instance', w, [0, 0, options.surfaceOf?.(w) ?? 0, 0])
+  for (let w = 0; w < count; w++) table.set('Instance', w, [0, 0, options.surfaceOf?.(w) ?? 0, 0])
   for (let w = 0; w < count; w++) {
     table.set(
       'Matrix',
@@ -105,7 +98,7 @@ export function world(
     for (let r = 0; r * TREE_SPAN < tree.capacity; r++)
       treeTable.set('Members', r, tree.order.subarray(r * TREE_SPAN, (r + 1) * TREE_SPAN))
   }
-  const arena = proxyArena(cut, surfaces, copyWorlds)
+  const arena = proxyArena(cut, surfaces)
   const header = {
     ...proxyHeader(arena, {
       instances: count,
@@ -120,17 +113,14 @@ export function world(
     nodeChildren: cut.nodeChildren,
   }
   const instances = new Map<number, Instance>(
-    Array.from({ length: count + copies.length }, (_, w) => [
-      w,
-      { node: 0, triangle: 0, triangles },
-    ]),
+    Array.from({ length: count }, (_, w) => [w, { node: 0, triangle: 0, triangles }]),
   )
   return {
     packed,
     header,
     worlds: table,
     tree: treeTable,
-    scene: { packed, columns, instances, copyBase: count, copyWorlds } satisfies OracleScene,
+    scene: { packed, columns, instances } satisfies OracleScene,
   }
 }
 

@@ -61,18 +61,3 @@ export function hizPagesGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
     return group!
   }
 }
-
-/** A partial GPU setup must release every resource it has acquired. */
-export function cleanupFailedHiz(buffers: GPUBuffer[], owned?: { destroy(): void }) {
-  for (const buffer of buffers)
-    try {
-      buffer.destroy()
-    } catch {
-      /* Partial setup. */
-    }
-  try {
-    owned?.destroy()
-  } catch {
-    /* Partial setup. */
-  }
-}

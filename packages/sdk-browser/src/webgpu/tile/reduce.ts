@@ -156,8 +156,11 @@ export function createWebgpuTileReduce(device: GPUDevice): WebgpuTileReduce {
               { buffer: gatherUniform },
             ]),
           })
-        capWord[0] = feedback.capacity
-        device.queue.writeBuffer(gatherUniform, 0, capWord)
+        // The capacity changes only when the list grows: written then, not every frame.
+        if (capWord[0] !== feedback.capacity) {
+          capWord[0] = feedback.capacity
+          device.queue.writeBuffer(gatherUniform, 0, capWord)
+        }
         pass.setPipeline(gathering.get())
         pass.setBindGroup(0, gathered!)
         dispatchRows(pass, ceilDiv(feedback.capacity, WORKGROUP_THREADS))

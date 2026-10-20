@@ -108,18 +108,30 @@ test('boundary: the held-frame gate sees a rig move that the host has not walked
   assert.equal(image(), true, 'still again: the frame becomes holdable once more')
 })
 
-test('boundary: the occluder history follows the world pose, not the local pose', () => {
+test('boundary: the view revision follows the world pose, not the local pose', () => {
   const { rig, camera } = sousRig(POSES_PARENT[1] as Pose)
   const gate = createFrameGateCore(1)
-  const drawn = () => (gate.viewChanged(engineCamera(camera), VIEWPORT, 1), gate.takeViewMoved())
+  const drawn = () => gate.viewChanged(engineCamera(camera), VIEWPORT, 1)
   drawn()
-  assert.equal(drawn(), false, 'reread at once, the history describes this view')
+  assert.equal(drawn(), false, 'reread at once, the view has not moved')
   poseRig(rig, DEPLACE_ET_TOURNE, false)
   assert.equal(
     drawn(),
     true,
-    'a rig that moves alone invalidates the history: the local pose, for its part, has not changed',
+    'a rig that moves alone moves the view: the local pose, for its part, has not changed',
   )
+})
+
+test('boundary: NaN in the world matrix never reads as a still view', () => {
+  const { camera } = sousRig(POSES_PARENT[1] as Pose)
+  const gate = createFrameGateCore(1)
+  const drawn = () => gate.viewChanged(engineCamera(camera), VIEWPORT, 1)
+  drawn()
+  // A NaN enters through the local pose: the engine camera inverts the world matrix.
+  camera.position.x = NaN
+  camera.updateMatrixWorld(true)
+  assert.equal(drawn(), true)
+  assert.equal(drawn(), true, 'NaN never compares equal to itself')
 })
 
 /** A uniforms read copied at once: the work buffer is shared between two calls. */

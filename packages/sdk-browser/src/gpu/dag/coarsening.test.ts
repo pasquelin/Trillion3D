@@ -3,7 +3,14 @@
 // each failed try doubles — whatever the law the cut follows —; a grown list releases it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { coarsenAfter, coarsenTick, createCoarsening, type Coarsening } from './coarsening.ts'
+import { COARSEN_FLOOR_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
+import {
+  coarsenAfter,
+  coarsenTick,
+  coarsenedThreshold,
+  createCoarsening,
+  type Coarsening,
+} from './coarsening.ts'
 
 const CAP = 1000
 
@@ -132,4 +139,10 @@ test('a narrow overflow whose coarse ask jitters tries its own threshold at the 
     assert.equal(coarsenAfter(c, 1.01 * CAP, CAP, true), true, 'its own cut still overflows')
   }
   assert.deepEqual(tries, [64, 64 + 128, 64 + 128 + 256])
+})
+
+test('a coarsened cut never scales a 0 px threshold: it starts from the floor', () => {
+  assert.equal(coarsenedThreshold(0, 1), 0, 'its own threshold below the list')
+  assert.equal(coarsenedThreshold(0, 4), 4 * COARSEN_FLOOR_PIXEL_ERROR)
+  assert.equal(coarsenedThreshold(3, 4), 12, 'a threshold above the floor scales as it is')
 })

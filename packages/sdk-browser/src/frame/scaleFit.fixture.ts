@@ -5,12 +5,10 @@ export const HZ120 = 1000 / 120
 export const HZ60 = 1000 / 60
 
 /** What a frame costs at scale `s`, frame `f`: `gpu` ms on the GPU, `other` ms outside its timer
- *  (compositing, the CPU); `still`: the image is a still one; `timed`: GPU times arrive, `lag`
- *  frames late. */
+ *  (compositing, the CPU); `timed`: GPU times arrive, `lag` frames late. */
 export interface Device {
   gpu: (s: number, f: number) => number
   other?: (f: number) => number
-  still?: (f: number) => boolean
   timed?: boolean
   lag?: number
   /** What the timer reports for a GPU time (`null`: a sample without a time); itself by default. */
@@ -46,9 +44,8 @@ export function simulate(
     const f = clock.frame,
       s = control.wanted(),
       ms = device.gpu(s, f),
-      still = device.still?.(f) ?? false,
       n = Math.max(1, Math.ceil((ms + (device.other?.(f) ?? 0)) / refresh - 1e-9))
-    control.drew(s, true, still)
+    control.drew(s, true)
     clock.now += n * refresh
     if (timed) {
       queue.push({ ms, s })

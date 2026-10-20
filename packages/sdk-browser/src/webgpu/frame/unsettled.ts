@@ -1,6 +1,6 @@
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { shadowsUnsettled } from '../pages/state/lights.ts'
-import { reflectionsSettled } from '../../reflections/gpu.ts'
+import { reflectionsPending } from '../../reflections/gpu.ts'
 
 /** What can still change the frame, one bit each; `unsettledReasons` names them. */
 const REASONS = [
@@ -56,13 +56,7 @@ function loadMask(rt: WebgpuPagesRuntime) {
   let mask = 0
   if (!services.bootstrapState.ready) mask |= BIT.bootstrap
   if (services.residency.busy) mask |= BIT.residencyBusy
-  if (
-    rows.rowsChanged ||
-    rows.dirtyCount > 0 ||
-    rows.rowsEpoch !== rows.tableEpoch ||
-    rows.rowsDenied
-  )
-    mask |= BIT.rowsDirty
+  if (rowsDirty(rows)) mask |= BIT.rowsDirty
   // Pending tiles must render on arrival, and settle must read what the pose requests.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending
   // A shadow page stale and read, a request report on its way, a representation change held
@@ -86,19 +80,18 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
 /**
  * Pending work that can change the frame. Read without allocation by hold and the barrier; the
  * hold names the `frame` it is about to draw, whose update then reuses what was read. The
- * reflections' own bit is the last: while anything else is pending the image about to be drawn is
- * drawn for it, and the reflections can settle only on images after it (`reflectionsSettled`,
- * `RadianceSettle`).
+ * reflections hold no state of their own to settle — they trace and accumulate every image
+ * drawn —: their bit says only that the view's radiance pyramid holds no image yet
+ * (`reflectionsPending`).
  */
 export function unsettledMask(rt: WebgpuPagesRuntime, frame?: number) {
-  const other = runMask(rt) | loadMask(rt) | historyMask(rt, frame),
-    settle = rt.gpu.reflection?.settle,
-    { reflection } = rt.gpu
-  if (other) settle?.busy()
-  return reflectionsSettled(reflection, !!rt.gpu.temporal?.frame.active)
-    ? other
-    : other | BIT.reflections
+  const other = runMask(rt) | loadMask(rt) | historyMask(rt, frame)
+  return reflectionsPending(rt.gpu.reflection) ? other | BIT.reflections : other
 }
 /** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
 export const unsettledReasons = (mask: number) =>
   REASONS.filter((reason) => (mask & BIT[reason]) !== 0)
+
+/** Whether the row table still moves: rows changed, dirty, owed or refused. */
+const rowsDirty = (rows: WebgpuPagesRuntime['layout']['rows']) =>
+  rows.rowsChanged || rows.dirtyCount > 0 || rows.rowsEpoch !== rows.tableEpoch || !!rows.rowsDenied

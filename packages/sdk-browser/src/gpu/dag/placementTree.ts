@@ -96,8 +96,8 @@ function treeLevels(capacity: number) {
 }
 
 /** The members a tree over `roots` holds: every placement but the world DAG's (`world`). */
-const membersOf = (roots: readonly unknown[], world: number) =>
-  Array.from({ length: roots.length }, (_, w) => w).filter((w) => w !== world)
+const membersOf = (roots: readonly unknown[], world: ReadonlySet<number>) =>
+  Array.from({ length: roots.length }, (_, w) => w).filter((w) => !world.has(w))
 
 /**
  * The tree over every placement of `roots` but the world DAG's (`world`), laid out for `capacity`
@@ -105,7 +105,7 @@ const membersOf = (roots: readonly unknown[], world: number) =>
  */
 export function placementTreeShape(
   roots: readonly Ordered[],
-  world: number,
+  world: ReadonlySet<number>,
   capacity: { members: number; worlds: number },
   cellBase: number,
 ): PlacementTree | undefined {
@@ -143,3 +143,9 @@ export const drawnAlways = (mark: number) =>
  *  leaf's reach, or whether it is drawn whatever the view. */
 export const treeMarkMoved = (before: number, mark: number) =>
   before >>> 16 !== mark >>> 16 || drawnAlways(before) !== drawnAlways(mark)
+
+/** Whether a mark moving from `before` to `mark` withdraws pages a cut in hand chose: its low
+ *  sixteen bits, which park, cull or draw the placement. The reach above them only grows its
+ *  bounds — a deformed root's, every frame it moves —: the cut in hand is a frame late, as one
+ *  under a pose that moved, and stays adoptable. */
+export const markWithdraws = (before: number, mark: number) => ((before ^ mark) & 0xffff) !== 0

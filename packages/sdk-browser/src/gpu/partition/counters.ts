@@ -22,6 +22,8 @@ import {
 export type PartitionCountsFrame = {
   frame: number
   occluders: number
+  /** Boxes tested, those rejected, and their triangles: of the rows the cut draws alone
+   *  (`classifyRows`), each verdict final. */
   tested: number
   rejected: number
   oversized: number

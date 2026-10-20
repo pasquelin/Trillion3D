@@ -39,7 +39,8 @@ export function frameBufferSizes(layout: VsmLayout): Record<keyof VsmFrameBuffer
     pageMarks: layout.markWordCount * 4,
     receiverCover: layout.coverWords * 4,
     pageRequests: layout.pageTableWords * 4,
-    staleRects: layout.pageRectCount * 16,
+    // Two a (map, mip): its dynamic layer's, then its static layer's (`vsmStaleRectIndex`).
+    staleRects: layout.pageRectCount * 32,
     mappedRects: layout.pageRectCount * 16,
     projectionData: layout.mapSlots * VSM_PROJECTION_RECORD_BYTES,
   }

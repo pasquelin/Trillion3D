@@ -92,7 +92,8 @@ async function build(materials: readonly TableMaterial[], rank: number, slot: Sl
   }
   if (entry.kind === 'physical') {
     params.transmission = entry.transmission
-    params.ior = entry.ior
+    // Only a declared `KHR_materials_ior` refracts (`refracts`, `../../page/surfaceRecord.ts`).
+    if (entry.hasIor) params.ior = entry.ior
     params.thickness = entry.thickness
     params.attenuationDistance = entry.attenuationDistance || Infinity
     params.attenuationColor = new Color(entry.attenuationColor)
@@ -101,6 +102,8 @@ async function build(materials: readonly TableMaterial[], rank: number, slot: Sl
   // the second one of a surface written for vertex tangents (`../../page/surfaceRecord.ts`).
   params.forVertexTangents = !entry.derivativeTangents
   if (entry.doubleSided) params.side = 'double'
+  if (entry.temporalAntialiasing !== undefined)
+    params.temporalAntialiasing = entry.temporalAntialiasing
   Object.assign(
     params,
     alphaModeFields(entry.alphaMode.toLowerCase() as AlphaMode, entry.alphaTest),

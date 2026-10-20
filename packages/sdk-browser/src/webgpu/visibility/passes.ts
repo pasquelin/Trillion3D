@@ -41,9 +41,12 @@ function encodeHizMidFrame(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: G
   rt.run.hizPyramidFresh = true
   // The test reads each row's Hi-Z slot in the page table: without one, no row was drawn.
   // Its rejects are counted on the partition's counting frame, into the partition's counters.
-  const counting = prepared(vis, 'gpuPartition').counting
+  const partition = prepared(vis, 'gpuPartition')
   if (vis.pageTable) {
-    gpuHiz.encodeTest(device, pass, rows.packedCount, vis.pageTable, counting)
+    // An image that draws a frozen cut's kept verdicts again tests nothing
+    // (`../pages/render/cutFreeze.ts`).
+    if (!partition.held)
+      gpuHiz.encodeTest(device, pass, rows.packedCount, vis.pageTable, partition.counting)
     // The verdict exists now: the tested half is compacted without the rejected rows, in their
     // order, before the second pass launches their vertices. They placed no pixel: the image does
     // not move.
@@ -53,8 +56,7 @@ function encodeHizMidFrame(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: G
 }
 
 /**
- * The visibility buffer, in this order: the primary hardware pass and the impostor
- * cards, the occluder half of the compute raster blended into it, the pyramid's farthest layer and
+ * The visibility buffer, in this order: the primary hardware pass, the occluder half of the compute raster blended into it, the pyramid's farthest layer and
  * its test, the secondary pass, the tested half of compute, then its identifiers. Without
  * `compute` — no compute raster — hardware alone produces the same attachments, and each compute
  * step is simply absent.
@@ -92,20 +94,23 @@ export function encodeWebgpuVisibilityPasses(
       },
     ]
   }
-  const visPass = encoder.beginRenderPass({
-    label: VISIBILITY_PRIMARY_PASS,
-    colorAttachments: visColors('clear'),
-    depthStencilAttachment: {
-      view: depthTarget,
-      depthClearValue: DEPTH_CLEAR,
-      depthLoadOp: 'clear',
-      depthStoreOp: 'store',
-    },
-  })
-  visPass.setViewport(0, 0, width, height, 0, 1)
+  // A pass on the visibility targets: cleared by the primary pass, loaded by every later one.
+  const visibilityPass = (label: string, loadOp: 'clear' | 'load') => {
+    const pass = encoder.beginRenderPass({
+      label,
+      colorAttachments: visColors(loadOp),
+      depthStencilAttachment: {
+        view: depthTarget,
+        depthClearValue: DEPTH_CLEAR,
+        depthLoadOp: loadOp,
+        depthStoreOp: 'store',
+      },
+    })
+    pass.setViewport(0, 0, width, height, 0, 1)
+    return pass
+  }
+  const visPass = visibilityPass(VISIBILITY_PRIMARY_PASS, 'clear')
   drawVis(rt, device, visPass, false)
-  // The impostor cards occlude as their meshes would: in the depth and the pyramid built next.
-  rt.gpu.impostorCode?.drawImpostorVisibility(rt, device, visPass, true)
   visPass.end()
   compute?.occluders(encoder)
   rt.run.hizPyramidFresh = false
@@ -116,15 +121,12 @@ export function encodeWebgpuVisibilityPasses(
     gpuHiz.encodePyramid(hizPass.begin(encoder))
     hizPass.end()
   }
+  // A frozen cut's first image keeps the verdicts it just tested (`GpuPartition.keepVerdicts`).
+  prepared(vis, 'gpuPartition').keepVerdicts(encoder)
   // The only diagnostic variant that touches encoded commands: it leaves the tested half out of
   // the image to weigh the occluders alone, and therefore yields an incomplete image.
   if (twoPass && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
-    const restPass = encoder.beginRenderPass({
-      label: VISIBILITY_SECONDARY_PASS,
-      colorAttachments: visColors('load'),
-      depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
-    })
-    restPass.setViewport(0, 0, width, height, 0, 1)
+    const restPass = visibilityPass(VISIBILITY_SECONDARY_PASS, 'load')
     drawVis(rt, device, restPass, true)
     restPass.end()
     compute?.rest(encoder)

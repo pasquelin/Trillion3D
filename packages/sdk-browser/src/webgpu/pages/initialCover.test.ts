@@ -10,6 +10,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { DAG, dagRoots, exactPrimitive } from '../../engine/pagesEngine.fixture.ts'
 import { camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals()
@@ -62,7 +64,7 @@ test('the initial cover also protects regions first discovered after a camera ju
   const metadata = {
     errorModel: DAG.errorModel,
     clusterStrategy: DAG.clusterStrategy,
-    schema: 1,
+    formatVersion: 1,
     status: 'ready',
     key: 'k',
     scope: 'full' as const,
@@ -78,6 +80,7 @@ test('the initial cover also protects regions first discovered after a camera ju
     ['2', new Uint32Array([4, 5, 6])],
   ])
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source,
     metadata,
     indices,

@@ -1,23 +1,19 @@
-// The served world and a scene whose one mesh wears its primitive, the cut's world root built over
-// it: what the world root's tests read (`worldRoot.test.ts`, `worldRootCover.test.ts`).
+// The served world and a scene of one mesh, the world's one actor wearing a surface of it, the cut's
+// world root built over it: what the world root's tests read (`worldRoot.test.ts`,
+// `worldRootCover.test.ts`).
 import type { TestContext } from 'node:test'
 import type { ClusterManifest, Primitive } from '../../../../../sdk-core/src/contracts/geometry.ts'
 import { worldRootsDag } from '../../../scene/worldRootsPages.fixture.ts'
-import { inCullingOrder } from '../../../scene/worldCulling.fixture.ts'
 import { opened, served } from '../../../scene/worldRoots.fixture.ts'
-import { worldOrGeometryReader } from '../../../scene/worldRoots.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { createPlacementRows } from '../../../placement/rows.ts'
-import { standAlone } from '../../../scene/worldSuperRoots.fixture.ts'
 import type { EngineContext } from '../../../engine/types.ts'
 import { drawSourceOf } from '../../../page/selection/drawSource.ts'
+import { sourceSurface } from '../../../page/surface.ts'
 
-/** The served world, opened, and a scene whose one mesh wears its primitive; with `alone`, one
- *  lone object past its cells, its copies in bundle 1, which cell 0 holds. */
-export async function scene(t: TestContext, alone = false) {
-  const cooked = worldRootsDag()
-  if (alone) inCullingOrder((standAlone(cooked, cooked.leaves, 1), cooked))
-  const { clusters, groups, culling } = cooked
+/** The served world, opened, its actor wearing a surface, and a scene of one mesh. */
+export async function scene(t: TestContext) {
+  const { clusters, groups, culling } = worldRootsDag()
   const { manifest, bin, table } = served(t, { dag: { clusters, groups, culling } })
   const metadata = {
     ...manifest,
@@ -27,18 +23,18 @@ export async function scene(t: TestContext, alone = false) {
     source = G.mesh()
   source.add(mesh)
   const opaque = drawSourceOf(mesh, { meshes: 0, primitives: 0 })
-  const reads: string[] = []
   // Opened as a session's load opens it: its bundles read through the session's queue.
-  const { roots: hold } = await opened(t, metadata)
-  const host = async (url: string) => (reads.push(url), new Uint8Array(4))
+  const { roots: hold, queue } = await opened(t, metadata)
+  hold.wear([sourceSurface(opaque)])
   const context = {
     metadata,
     source,
     draws: [opaque],
     worldRoots: hold,
-    readGeometryPage: worldOrGeometryReader([hold], host, new AbortController().signal),
+    readGeometryPage: (url: string, own?: AbortSignal, priority?: number) =>
+      queue.readBytes(url, own ?? queue.signal, priority),
   } as unknown as EngineContext
-  return { context, hold, bin, table, opaque, reads }
+  return { context, hold, bin, table, opaque }
 }
 
 /** A placement's root: one opaque page of `mesh`, at row 0 of `rows`. */

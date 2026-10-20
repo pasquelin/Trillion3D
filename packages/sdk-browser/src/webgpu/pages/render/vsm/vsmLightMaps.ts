@@ -1,11 +1,14 @@
 // The maps the frame's casting lights take (`engineVsm.ts`): a clipmap's levels a sun, six faces a
 // point light, one a spot; the full maps a set is first made for, the mask's lights, the raster's
 // views, and the set's options for them.
-import { alignUp } from '../../../../../../math/src/scalar/integers.ts'
+import { alignUp, nextPow2 } from '../../../../../../math/src/scalar/integers.ts'
+import { VSM_POOL_PAGES } from '../../../../vsm/constants.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { vsmShadowed } from '../../../../vsm/seenLights.ts'
 import { VSM_TABLES_PER_ROW, type VsmResourceOptions } from '../../../../vsm/layout.ts'
 import { vsmMapsOf, vsmRenderViewBound } from '../../../../vsm/mapViews.ts'
+import { vsmViewPoolPages } from '../../../../vsm/poolDraw.ts'
+import type { WebgpuPagesRuntime } from '../../runtime.ts'
 
 /** Directional clipmap levels a sun takes (`vsmMapsOf`). */
 const CLIPMAP_LEVELS = vsmMapsOf('directional')
@@ -47,6 +50,19 @@ export function directionalCount(lights: readonly VsmFrameLight[]) {
   let count = 0
   for (const entry of lights) if (vsmShadowed(entry) && entry.light.kind === 'directional') count++
   return Math.max(1, count)
+}
+
+/**
+ * The physical pages the views' sets ask: those their drawing buffers start at
+ * (`vsmViewPoolPages`) — every view the world draws keeps its pages in the one pool —, or more
+ * once a set's fill asked them (`vsmPoolDemand`, `vsmRegrow.ts`). A smaller view holds a smaller
+ * pool, never one sized for another view; never past `VSM_POOL_PAGES`, the window a forward reader
+ * binds, and a power of two of pages.
+ */
+export function vsmPoolAsked({ lights, views }: WebgpuPagesRuntime) {
+  let pages = vsmViewPoolPages(views.main.viewport[0], views.main.viewport[1])
+  for (const { viewport } of views.persistent) pages += vsmViewPoolPages(viewport[0], viewport[1])
+  return Math.min(VSM_POOL_PAGES, Math.max(lights.vsmPoolDemand, nextPow2(pages)))
 }
 
 /** The set's options for `fullMapCapacity` maps and `directional` suns, at `poolPages`:

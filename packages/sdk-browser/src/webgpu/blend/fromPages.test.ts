@@ -1,6 +1,5 @@
-// A paged transparent item reads every attribute from its quantized geometry pages, as the opaque
-// rows do, not from host buffers built out of `source.bin`; only the meshes the cut never sees —
-// shared-blend and transmissive — keep buffers of their own.
+// A transparent item reads every attribute from its quantized geometry pages, as the opaque rows
+// do, never from host buffers built out of `source.bin` — a transmissive surface too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -13,6 +12,8 @@ import { ensurePageTable } from '../pages/render/pageTable.ts'
 import { disposeWebgpuPages } from '../pages/io/metrics.ts'
 import { prepareWebgpuPages } from '../pages/prepare/preparePages.ts'
 import type { PageSurface } from '../../page/surface.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** The quad of two quantized clusters, drawn as `pass` says under `surface`, prepared on the mock
  *  device with its page reader. */
@@ -27,6 +28,7 @@ async function preparedQuad(pass: string, surface: PageSurface) {
   mesh.geometry.setAttribute('tangent', G.floatAttribute(new Array(16).fill(1), 4))
   const mock = fakeDevice(BACKEND)
   const rt = createWebgpuPagesRuntime({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: mock.device,
     maxResidentPages: 4,
@@ -43,18 +45,20 @@ const release = async (rt: Awaited<ReturnType<typeof preparedQuad>>['rt'], fixtu
 }
 
 test('a paged transparent item owns no host buffer and draws each cluster from its page', async () => {
-  const { rt, fixture, mesh, device } = await preparedQuad(
-    'clustered-blend',
-    G.basicSurface({ transparent: true, opacity: 0.5 }),
-  )
+  const cases: [string, PageSurface][] = [
+    ['clustered-blend', G.basicSurface({ transparent: true, opacity: 0.5 })],
+    ['exact-clusters', G.physicalSurface({ transmission: 1 })],
+    // A compiled transmission: the compiler pages it as any blend.
+    ['clustered-blend', G.physicalSurface({ transmission: 1 })],
+  ]
+  for (const [pass, surface] of cases) await pagedItem(pass, surface)
+})
+
+async function pagedItem(pass: string, surface: PageSurface) {
+  const { rt, fixture, mesh, device } = await preparedQuad(pass, surface)
   try {
     const [item] = rt.blendState.blendGpu
-    assert.equal(item.paged, true)
-    assert.deepEqual(
-      [item.position, item.index, item.uv, item.normal],
-      [undefined, undefined, undefined, undefined],
-    )
-    assert.equal(item.geometry.quantized, true, 'the shader decodes its pages')
+    assert.equal(item.geometry.quantized, true, `${pass}: the shader decodes its pages`)
     assert.equal(item.geometry.hasTangent, false, 'a page stores no tangent')
     assert.equal(rt.vis.geometryBlocks.has(mesh.geometry.attributes), false, 'no float geometry')
     // Once resident, each cluster's span is its slot and the corners its page declares.
@@ -69,24 +73,4 @@ test('a paged transparent item owns no host buffer and draws each cluster from i
   } finally {
     await release(rt, fixture)
   }
-})
-
-test('shared-blend and transmissive meshes keep their host buffers', async () => {
-  const cases: [string, PageSurface][] = [
-    ['shared-blend', G.basicSurface({ transparent: true, opacity: 0.5 })],
-    ['exact-clusters', G.physicalSurface({ transmission: 1 })],
-  ]
-  for (const [pass, surface] of cases) {
-    const { rt, fixture } = await preparedQuad(pass, surface)
-    try {
-      const [item] = rt.blendState.blendGpu
-      assert.equal(!!item.paged, false, pass)
-      for (const buffer of [item.position, item.index, item.uv, item.normal])
-        assert.ok(buffer, `${pass} reads its own buffers`)
-      assert.equal(item.geometry.quantized, false)
-      assert.equal(item.geometry.hasTangent, true, 'its tangents are read')
-    } finally {
-      await release(rt, fixture)
-    }
-  }
-})
+}

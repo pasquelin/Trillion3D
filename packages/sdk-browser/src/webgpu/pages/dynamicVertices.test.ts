@@ -19,13 +19,12 @@ import { createFrameGateCore } from '../../frame/gateCore.ts'
 const runtimeOf = (
   vertexPool: VertexPool,
   device: GPUDevice,
-  positionBuffers: Map<HostAttributes, unknown>,
   selectionRoots: unknown[] = [],
   lights = {},
   gate = createFrameGateCore(1),
 ) =>
   ({
-    ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
+    ...{ vis: { vertexPool }, gpu: { device }, lights },
     ...{ run: { lost: false, gate } },
     // No row resident: a root holding a reach finds none to rewrite (`moveRootRows`).
     layout: { selectionRoots, rows: { rowOf: () => -1, blendRowOf: () => -1 } },
@@ -49,7 +48,7 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
   const worldChanged = (min: number[], max: number[], moving: boolean) =>
     void staled.push([[...min, ...max], moving])
   const api = webgpuVertexApi(
-    runtimeOf(pool, device, new Map(), roots, { mobility, changes: { worldChanged } }),
+    runtimeOf(pool, device, roots, { mobility, changes: { worldChanged } }),
   )
   wave.attributes.position.setZ(1, 0.25)
   const box = Float64Array.of(0.5, -0.5, 0, 0.5, -0.5, 0.25)
@@ -84,7 +83,7 @@ test('content mounted after the open grows the pool in place: it is drawn, never
   const sheet = () => geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes
   assert.ok(pool.place(sheet(), true), 'the first block')
   assert.ok(pool.place(sheet(), true), 'a mount after the open, in the room kept')
-  const api = webgpuVertexApi(runtimeOf(pool, device, new Map()))
+  const api = webgpuVertexApi(runtimeOf(pool, device))
   const box = new Float64Array(6),
     range: VertexRange[] = [{ name: 'position', from: 0, count: 1 }]
   assert.ok(api.updateVertices(sheet(), range, box, 0), 'grown in place, not refused')
@@ -95,7 +94,7 @@ test('a block a rewritten mesh holds survives a growth: written at the same plac
   const { device, writes, copies } = fakeDevice()
   const held = geometry.plane(1, 1, 2, 2).attributes as unknown as HostAttributes
   const pool = createVertexPool(device, 9, false, new Map())
-  const api = webgpuVertexApi(runtimeOf(pool, device, new Map()))
+  const api = webgpuVertexApi(runtimeOf(pool, device))
   const box = new Float64Array(6),
     range: VertexRange[] = [{ name: 'position', from: 1, count: 1 }]
   assert.ok(api.updateVertices(held, range, box, 0), 'the dynamic mesh placed and written')
@@ -110,14 +109,14 @@ test('a block a rewritten mesh holds survives a growth: written at the same plac
   assert.ok(copies.length > 0, 'the held vertices copied into it')
 })
 
-test('a rewrite weighs what it sends the GPU: a normal with its tangent, positions twice', () => {
+test('a rewrite weighs what it sends the GPU: a normal with its tangent', () => {
   const { device, writes, textureWrites } = fakeDevice()
   const plane = geometry.plane(1, 1, 1, 1).attributes // its doubles: the world hands floats
   const xyz = new BufferAttribute(Float32Array.from(plane.position.array), 3)
   const attributes = { ...plane, position: xyz } as unknown as HostAttributes
   const pool = createVertexPool(device, 8, false, new Map())
   pool.place(attributes, true)
-  const api = webgpuVertexApi(runtimeOf(pool, device, new Map([[attributes, {}]])))
+  const api = webgpuVertexApi(runtimeOf(pool, device))
   const position = { name: 'position', from: 1, count: 2 } as const
   const ranges: VertexRange[] = [position, { name: 'normal', from: 0, count: 1 }]
   const weighed = api.vertexBytes(attributes, ranges)
@@ -131,7 +130,7 @@ test('a rewrite weighs what it sends the GPU: a normal with its tangent, positio
       0,
     )
   assert.equal(weighed, sent, 'what is weighed is what is sent')
-  assert.equal(weighed, 2 * 12 * 2 + 7 * 4, 'two positions twice, one normal and its tangent')
+  assert.equal(weighed, 2 * 12 + 7 * 4, 'two positions, one normal and its tangent')
 })
 
 test('a rewrite breaks the held image but moves no pose: the next image walks no world', () => {
@@ -141,7 +140,7 @@ test('a rewrite breaks the held image but moves no pose: the next image walks no
   pool.place(attributes, true)
   const gate = createFrameGateCore(1),
     worlds = { walks: 0, refresh: () => void worlds.walks++ }
-  const api = webgpuVertexApi(runtimeOf(pool, device, new Map(), [], {}, gate))
+  const api = webgpuVertexApi(runtimeOf(pool, device, [], {}, gate))
   gate.updateWorlds(worlds as never) // the first image walks them once
   for (let frame = 0; frame < 3; frame++) {
     const scene = gate.revisions.scene

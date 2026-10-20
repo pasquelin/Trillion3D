@@ -24,3 +24,11 @@ export function frameStart(): number {
   const time = globalThis.document?.timeline?.currentTime
   return typeof time === 'number' ? time : cpuNow()
 }
+
+/** A timer that never holds a Node process open on its own; a browser has no such notion. */
+export function later(report: () => void, delayMs: number) {
+  const timer = setTimeout(report, delayMs)
+  const node: { unref?: () => void } = Object(timer)
+  node.unref?.()
+  return timer
+}

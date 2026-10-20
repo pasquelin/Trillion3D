@@ -12,6 +12,8 @@ import { rowBinsSubmitted } from '../../../../vsm/rowBinsGpu.ts'
 export function finishVsmFrame(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const vsm = rt.lights.vsm,
     plan = vsm?.plan
+  // The frame's projection context is this frame's alone.
+  if (vsm?.frameScratch) vsm.frameScratch.projecting = false
   if (!vsm || !plan) return
   vsm.plan = undefined
   const hasData = plan.projectionCount > 0

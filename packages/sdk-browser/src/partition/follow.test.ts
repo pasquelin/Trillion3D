@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { object } from '../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
-import { io, noBudget, opened, world } from './cells.fixture.ts'
+import { between, io, noBudget, opened, world } from './cells.fixture.ts'
 import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'
 import { createTouchedRows, placedMesh } from './rows.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -14,17 +14,17 @@ test("a cell's rows cast as their host mesh says, and follow its castShadow once
   const [plain, ink] = [0, 1].map(() => object.mesh(geometry.box(1, 1, 1)))
   ink.castShadow = false
   const { cells, links, bytes } = world(0, null, [plain, ink])
-  await opened(cells, bytes, 1e5, false)
+  await opened(cells, bytes, false, between)
   const shadowless = () => links.map((link) => [...link.placements!.shadowless.subarray(0, 3)])
   assert.deepEqual(shadowless(), [
     [0, 0, 0],
     [1, 1, 1],
   ])
   const { port, updates } = io(bytes)
-  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  cells.frame(between, port, noBudget)
   assert.equal(updates.length, 0, 'a still flag writes no row')
   ;[plain.castShadow, ink.castShadow] = [false, true]
-  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  cells.frame(between, port, noBudget)
   assert.deepEqual(shadowless(), [
     [1, 1, 1],
     [0, 0, 0],
@@ -43,12 +43,12 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   const { cells, bytes, core } = world(0, null)
   cells.pose(() => frame)
   const frame = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
-  await opened(cells, bytes, 1e5, false)
+  await opened(cells, bytes, false, between)
   const calls: { parent: object; links: number; whole: boolean; world: number[] }[] = []
   const { port, updates } = io(bytes)
   port.compose = (parent, world, given, whole) =>
     void calls.push({ parent, links: given.length, whole, world: Array.from(world) })
-  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  cells.frame(between, port, noBudget)
   assert.deepEqual(
     calls.map(({ links: count, whole }) => [count, whole]).sort(),
     [
@@ -61,7 +61,7 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   const first = calls.length,
     sent = updates.length
   frame[12] = 40
-  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  cells.frame(between, port, noBudget)
   assert.deepEqual(
     calls.slice(first).map(({ links: count, whole, world }) => [count, whole, world[12]]),
     [
@@ -73,7 +73,7 @@ test('the rows under a core parent follow its world on the GPU: the first rows a
   assert.equal(updates.length, sent, 'no row written')
   core.position.set(0, 20, 0)
   const moved = calls.length
-  cells.frame([0, 0, 0], 1e5, port, noBudget)
+  cells.frame(between, port, noBudget)
   assert.equal(calls.length, moved + 2, 'each parent sent its world: the composition decides')
   assert.equal(updates.length, sent, 'no row written')
   assert.deepEqual(

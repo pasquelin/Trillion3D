@@ -9,8 +9,7 @@ import { primePartitions } from '../scene/partitionFrame.ts'
 import type { Inputs } from './prepare.ts'
 
 /** The scene the session draws: the one handed in, or the one the cache prepared, read through
- *  `streamer`, the session's queue (`sceneThrough`), its world tops said. `textureSource` is the
- *  loader's, the baked levels by default. */
+ *  `streamer`, the session's queue (`sceneThrough`), its world tops said. */
 export async function sessionScene(
   session: ExplorerSession,
   inputs: Inputs,
@@ -19,14 +18,7 @@ export async function sessionScene(
 ) {
   const { options, metadata, scope, diagnose } = session
   const { base, resources, progress } = inputs
-  // The baked levels by default; a host that asked for the images is obeyed.
-  const textureSource = options.textureSource ?? 'cache'
   const keep = openingKeeps(resources, opening, (source) => releaseOwned(session, { source }))
-  diagnose('texture-source', 'Texture source of this session', {
-    kind: 'configuration',
-    scope,
-    textureSource,
-  })
   progress(
     'scene',
     0,
@@ -35,7 +27,7 @@ export async function sessionScene(
   )
   const loadedScene = await sceneThrough(streamer, inputs.scene, () =>
     loadPreparedScene(
-      { ...options, textureSource, queue: streamer },
+      { ...options, queue: streamer },
       metadata,
       base,
       scope,
@@ -46,15 +38,6 @@ export async function sessionScene(
   )
   keep(loadedScene.source)
   opening.throwIfAborted()
-  // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
-  for (const { pinned, bytes } of loadedScene.worldRoots)
-    diagnose('world-top', 'World top pinned', {
-      kind: 'preparation',
-      scope,
-      pinnedBundles: pinned.bundles,
-      pinnedBytes: pinned.bytes,
-      heldBytes: bytes() - pinned.bytes,
-    })
   return loadedScene
 }
 

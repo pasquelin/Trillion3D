@@ -1,5 +1,5 @@
 // The diagnostic code, a family on demand (`../host/families.ts`, #1353): the WebGPU feedback A/B
-// measurements, one module so that the CDN bundle makes one chunk of it.
+// measurements and the frame inspection, one module so that the CDN bundle makes one chunk of it.
 export {
   captureFeedbackAb,
   feedbackAbResidency,
@@ -7,3 +7,4 @@ export {
   setFeedbackTargetAb,
 } from '../webgpu/pages/diagnostic/feedbackAb.ts'
 export { feedbackAbSpatial } from '../webgpu/pages/diagnostic/feedbackSpatial.ts'
+export { inspectFrame } from '../webgpu/pages/diagnostic/inspection/read.ts'

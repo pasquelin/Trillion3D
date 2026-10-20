@@ -130,15 +130,13 @@ export function createWebgpuTileAtlas(
     },
     relayout,
     resides: (key) => lanes.of(key.slot).resident.has(tileId(key)),
-    pin(id, pinned) {
+    queued(id) {
       const lane = lanes.of(tileSlotOf(id)),
         index = lane.resident.get(id)
-      if (index !== undefined) lane.pool.pin(index, pinned)
-      return index !== undefined
+      return index !== undefined && lane.pool.rankOf(index) !== undefined
     },
     roomFor(slot) {
-      const { pool } = lanes.of(slot)
-      if (pool.resident < pool.tiles || pool.victims() > 0) return true
+      if (lanes.of(slot).pool.room() > 0) return true
       refused++
       return false
     },

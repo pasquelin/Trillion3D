@@ -73,7 +73,7 @@ test('a load of a resident page reads nothing; one that left by its turn reads i
   const { device } = fakeDevice({ limits: LIMITS })
   const reads: string[] = []
   const read = async (key: string) => (reads.push(key), new Uint8Array([1, 2, 3, 4]))
-  const cache = createGpuPageCache(device, { read }, { pageBytes: 8, slots: 1 })
+  const cache = createGpuPageCache(device, { read }, { pageBytes: 4, slots: 1 })
   await cache.load('a')
   await cache.load('a', undefined, true)
   cache.unpin('a')

@@ -157,7 +157,7 @@ fn nodeStep(src:u32,index:u32,w:u32){
  // unless the subtree is open, holding the nearest resident ancestor of something missing
  // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
- let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=thresholdOf(w);
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=views[vi].pixelError;
  if(tooCoarse(node,e,stretch,focal,t)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w,open);return;}
  if(floorPrunes(open,node.floorSphere,node.errorFloor,e,stretch,focal,t)){descendAhead(src,node,w,open);return;}
  descend(src,node,w);

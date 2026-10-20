@@ -21,7 +21,9 @@ const CLOSED_FORM = 'x>1e-3'
 const LOWER = densityAt('min(eyeY,eyeY+dy)')
 
 /** `fogTransmittance`, then `fogged`: a lit colour at the world point `P` seen from `eye`, mixed
- *  into the fog of the contract buffer (`DirectLights.fog`); no fog leaves it as it is. */
+ *  into the fog of the contract buffer (`DirectLights.fog`); no fog leaves it as it is. `fogOver`:
+ *  that fog apart, for a layer that multiplies what lies behind it — its inscattering, then the
+ *  transmittance from the eye to `P`; no fog adds nothing and keeps everything. */
 export const FOG_WGSL = wgslBlock(
   'FOG_WGSL',
   [],
@@ -37,5 +39,12 @@ fn fogged(rgb:vec3f,P:vec3f,eye:vec3f)->vec3f{
  if(fog[0].w==${FOG_MODE.none}.0){return rgb;}
  let offset=P-eye;
  return mix(fog[0].rgb,rgb,fogTransmittance(fog[1],fog[0].w,length(offset),offset.y,eye.y));
+}
+fn fogOver(P:vec3f,eye:vec3f)->vec4f{
+ let fog=directLights.fog;
+ if(fog[0].w==${FOG_MODE.none}.0){return vec4f(0.0,0.0,0.0,1.0);}
+ let offset=P-eye;
+ let kept=fogTransmittance(fog[1],fog[0].w,length(offset),offset.y,eye.y);
+ return vec4f(fog[0].rgb*(1.0-kept),kept);
 }`,
 )

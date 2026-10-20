@@ -12,10 +12,12 @@ import {
   vsmConsumerResources,
   vsmShadowMask,
   vsmShadowMaskTiles,
+  vsmShadowThrough,
   vsmTransmissionView,
 } from '../render/vsm/vsmConsumers.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
 import { track } from '../../../lighting/deferred/compileLedger.ts'
+import { drawsLit } from '../../../visibility/shader/shadeMode.ts'
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -31,17 +33,16 @@ export function wantsContractLighting(rt: WebgpuPagesRuntime) {
 }
 
 /** Whether the image can hold an as-is pixel: a row showed a surface as-is, or a diagnostic view
- *  writes the flag. Otherwise every share is 0, and TAA and composition read no flags (OMB-11). */
+ *  the resolve paints writes the flag — a view of the lit image writes none (`drawsLit`).
+ *  Otherwise every share is 0, and TAA and composition read no flags (OMB-11). */
 export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
-  vis.asIsShown || run.diagnostic !== 'beauty'
+  vis.asIsShown || !drawsLit(run.diagnostic)
 
 /** Whether the surfaces `pass` lights carry an anisotropic or clear-coat lobe: its programs then
- *  hold the lobe code. The opaque resolve's, a row's that the targets hold the lobes of — a lobed
- *  transmissive item alone makes them full-size, for the water's own (`wantsPhysicalLobes`),
- *  which the resolve never reads —; the blends' and the water's, their items' (`refreshBlendScene`). */
+ *  hold the lobe code. The opaque resolve's, a row's that the targets hold the lobes of; the
+ *  translucent layers', their items' (`refreshBlendScene`). */
 function lobedFor(pass: LitPass, rt: WebgpuPagesRuntime) {
   if (pass === 'blend') return rt.blendState.lobed
-  if (pass === 'water') return rt.blendState.waterLobed
   return lobesHeld(rt) && rowsWearLobes(rt)
 }
 
@@ -59,7 +60,7 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
 })
 
-/** What the blend and water programs are built with (`createWebgpuBlendPipelines`): the session's
+/** What the blend programs are built with (`createWebgpuBlendPipelines`): the session's
  *  context, and the key each pass's first frame asks for, as the lit programs' (`keyFor`); a failed
  *  variant is said, the pass's twin lighting in its place. */
 export const blendContext = (rt: WebgpuPagesRuntime) => {
@@ -69,7 +70,7 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
     onFailure: (error: unknown) =>
       rt.diag.diagnosticFailure('forward-lighting-program-failed', error),
   })
-  return { ...rt.context, lit: lit('blend'), waterLit: lit('water') }
+  return { ...rt.context, lit: lit('blend') }
 }
 
 /**
@@ -113,8 +114,7 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
 
 /**
  * At a frame's entry, the lobe code its lit passes need — the opaque resolve's where a row wears a
- * lobed surface, the blends' and the water's where their items carry a lobe, the water's lobed
- * surface stage —, asked off the frame, the frame held while none can light it (`track`):
+ * lobed surface, the translucent layers' where their items carry a lobe —, asked off the frame, the frame held while none can light it (`track`):
  * never an image of a lobed surface drawn without its lobes (#1483). A pass waits for its program
  * with every code path, which lights any lobed frame (`SERVING`); its own, asked by the frame, then
  * takes over. O(1) once each landed, nothing asked by a scene without a lobe.
@@ -122,13 +122,9 @@ export function litProgramPending(rt: WebgpuPagesRuntime) {
 export function askLobedPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!wantsContractLighting(rt)) return
   const { vis, blendState } = rt,
-    { deferred } = rt.gpu,
-    water = blendState.water
+    { deferred } = rt.gpu
   if (deferred && rowsWearLobes(rt)) track(device, deferred.awaited(FULL_CONTRACT), true)
   if (blendState.lobed) track(device, vis.blendPipelines?.lobedAwaited(), true)
-  if (!blendState.waterLobed || !water) return
-  track(device, water.frame.lobedAwaited(), true)
-  water.lobed.ask()
 }
 
 const contractResources: DirectLightResources = {}
@@ -155,6 +151,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.vsmMask = active ? vsmShadowMask(rt) : undefined
   contractResources.vsmMaskTiles = active ? vsmShadowMaskTiles(rt) : undefined
   contractResources.vsmTransmission = active ? vsmTransmissionView(rt) : undefined
+  contractResources.vsmThrough = active ? vsmShadowThrough(rt) : undefined
   contractResources.vsm = active ? vsmConsumerResources(rt) : undefined
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.

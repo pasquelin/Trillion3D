@@ -7,7 +7,7 @@
  * with its controls, and a mesh copy sharing the geometry and the surface of the mesh it comes
  * from. Nothing else happens here: every number arrives computed.
  */
-import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
+import { Box3, boxFromFlat } from '../../../../sdk-core/src/world/math/box3.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
@@ -27,8 +27,7 @@ export const hostFramingCamera = (
 export const hostPoint = (x: number, y: number, z: number): ControlVector => new Vector3(x, y, z)
 
 /** The world box the explorer publishes, from the six numbers the core computed. */
-export const hostBox = (flat: ArrayLike<number>): HostBox =>
-  new Box3(new Vector3(flat[0], flat[1], flat[2]), new Vector3(flat[3], flat[4], flat[5]))
+export const hostBox = (flat: ArrayLike<number>): HostBox => boxFromFlat(new Box3(), flat)
 
 /** A copy of `mesh` sharing its geometry and its surface, posed by whoever asked for it:
  *  replication copies transforms alone, and a resource is never rebuilt. */

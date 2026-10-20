@@ -1,4 +1,4 @@
-import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
+import { blocksAcross, previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import {
   tailOffset,
   tileSpanEnd,
@@ -14,10 +14,11 @@ import { rgbaBytes } from '../../texture/imageExtent.ts'
  * texels and, around them, the gutter taken from neighbouring texels of the same level — clipped at
  * the image edge, where the shader bounds its read to the half-texel anyway.
  *
- * A cooked level arrives decoded by the browser and is copied by `copyExternalImageToTexture`, the
- * same path full resolution took — same bytes, same conversion. The sidecar queue arrives as RGBA
- * bytes and is written by `writeTexture`. A host texture, with no cooked chain, goes through a
- * working texture whose mips the GPU built, copied level by level into the pool.
+ * A cooked tile for the lossless lane arrives as its record's blocks decoded to RGBA8
+ * (`../../texture/blockDecode.ts`) and is written by `writeTexture`, its rows whole blocks wide; a
+ * block lane's is written as blocks (`writeBlocks.ts`). The sidecar queue arrives as RGBA bytes and
+ * is written by `writeTexture`. A host texture, with no cooked chain, goes through a working
+ * texture whose mips the GPU built, copied level by level into the pool.
  */
 export type TileRegion = {
   /** Origin and dimensions of the rectangle read in the source level. */
@@ -56,7 +57,8 @@ const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.layer,
 ]
 
-/** Writes packed RGBA8 texels at an origin of a texture. */
+/** Writes RGBA8 texels at an origin of a texture: `width` × `height` of them, rows `pitch` texels
+ *  apart — packed by default. */
 export function writeRgba(
   queue: GPUQueue,
   texture: GPUTexture,
@@ -64,28 +66,30 @@ export function writeRgba(
   pixels: Uint8Array,
   width: number,
   height: number,
+  pitch = width,
 ) {
   queue.writeTexture(
     { texture, origin },
     pixels as Uint8Array<ArrayBuffer>,
-    { bytesPerRow: width * 4, rowsPerImage: height },
+    { bytesPerRow: pitch * 4, rowsPerImage: height },
     { width, height },
   )
 }
 
-export function writeTileFromBitmap(
+/** Texels of a `width` wide surface decoded from whole blocks: its rows are whole blocks wide. */
+const decodedPitch = (width: number) => blocksAcross(width) * 4
+
+/** A tile's record decoded to RGBA8 (`../../texture/blockDecode.ts`): its region, to its cell. */
+export function writeTileDecoded(
   queue: GPUQueue,
   pool: GPUTexture,
   place: TilePlace,
-  bitmap: ImageBitmap,
+  texels: Uint8Array,
   region: TileRegion,
 ) {
   const [ox, oy] = cellOrigin(place)
-  queue.copyExternalImageToTexture(
-    { source: bitmap, origin: [region.sx, region.sy] },
-    { texture: pool, origin: [ox + region.dx, oy + region.dy, place.layer] },
-    [region.width, region.height],
-  )
+  const origin = [ox + region.dx, oy + region.dy, place.layer]
+  writeRgba(queue, pool, origin, texels, region.width, region.height, decodedPitch(region.width))
 }
 
 export function copyTileFromTexture(
@@ -136,23 +140,6 @@ export function writeTail(
       tailOrigin(place, rank),
       bytes,
       previewLevelSize(size[0], size[1], tail + rank),
-    ),
-  )
-}
-
-/** Tail levels decoded by the browser — a level files' (`fileTails.ts`) —, from the first, each
- *  copied whole at its place in the tile, by the path a streamed tile of theirs takes. */
-export function writeTailFromBitmaps(
-  queue: GPUQueue,
-  pool: GPUTexture,
-  place: TilePlace,
-  levels: readonly ImageBitmap[],
-) {
-  levels.forEach((bitmap, rank) =>
-    queue.copyExternalImageToTexture(
-      { source: bitmap },
-      { texture: pool, origin: tailOrigin(place, rank) },
-      [bitmap.width, bitmap.height],
     ),
   )
 }

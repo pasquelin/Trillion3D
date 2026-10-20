@@ -37,7 +37,7 @@ const contractBufferSlots = (buffer: GPUBuffer) => (buffer.size - ITEMS_BYTES) /
 /**
  * Pushes the store to the GPU if and only if its revision has changed since the last image. A
  * store grown past the buffer's slots gets a new buffer first, the old one released: its holders
- * — the tile pass, the resolve, the blend and water passes, bounce — compare the buffer they
+ * — the tile pass, the resolve, the blend pass, bounce — compare the buffer they
  * bound with `lights.buffer` and bind the new one.
  */
 export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {

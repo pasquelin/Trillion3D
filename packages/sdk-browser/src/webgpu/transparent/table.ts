@@ -7,6 +7,7 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { resized } from '../../../../math/src/sequence/resized.ts'
+import { rootBlends } from '../../page/selection/collectBlend.ts'
 
 /** Entries one counting group of the compaction covers, a lane each of one workgroup. Item ranges
  *  are aligned on it, so a group never spans two items and the per-item prefix is a walk over whole
@@ -63,8 +64,7 @@ function itemOrders(
    *  their root: a paged item and the root of its placement read the same one. */
   const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>()
   for (const root of roots) {
-    const first = root.pages[0]
-    if (first?.transparent) rootOfPlacement.set(root.world, { base, root })
+    if (rootBlends(root)) rootOfPlacement.set(root.world, { base, root })
     base += root.pages.length
   }
   const orders: number[][] = []
@@ -74,7 +74,11 @@ function itemOrders(
     const order: number[] = []
     if (owner) {
       const visited = visitOrder(owner.root)
-      const local = owner.root.pages.map((_, index) => index)
+      // The pages the item wears: a blended root's all, a mixed root's blended ones of its surface.
+      const { pages, mixed } = owner.root
+      const local = pages.flatMap((page, index) =>
+        !mixed || (page.transparent && page.material === item.surface) ? [index] : [],
+      )
       // Source rank first, the cut's own walk to separate the clusters that share one.
       local.sort(
         (a, b) =>
@@ -136,25 +140,24 @@ function transparentTable(recordOf: (packed: number) => PageRec | undefined) {
     /** Vertices one instance draws: the longest index run any transparent cluster holds. */
     maxVertexWords: 0,
     /**
-     * The paged items of `items` join the table behind those it holds, their pages ranked from
-     * packed rank `base` on in `roots`: O(entries added), and the rows of a table that fills are
-     * copied once into one twice as long.
+     * `items` join the table behind those it holds, their pages ranked from packed rank `base` on
+     * in `roots`: O(entries added), and the rows of a table that fills are copied once into one
+     * twice as long.
      */
     append(
       roots: ReadonlyArray<ClusterRoot<PageRec>>,
       base: number,
       items: readonly BlendGpuItem[],
     ): void {
-      const paged = items.filter((item) => item.paged)
-      const { orders, length } = itemOrders(roots, paged, base)
+      const { orders, length } = itemOrders(roots, items, base)
       growEntries(table, table.length + length)
-      growItems(table, table.pagedItems.length + paged.length)
+      growItems(table, table.pagedItems.length + items.length)
       let at = table.length
-      for (let item = 0; item < paged.length; item++) {
+      for (let item = 0; item < items.length; item++) {
         const order = orders[item],
           rank = table.pagedItems.length
-        paged[item].pagedIndex = rank
-        table.pagedItems.push(paged[item])
+        items[item].pagedIndex = rank
+        table.pagedItems.push(items[item])
         table.itemRanges[rank * 2] = at
         table.itemRanges[rank * 2 + 1] = order.length
         for (let i = 0; i < order.length; i++) {

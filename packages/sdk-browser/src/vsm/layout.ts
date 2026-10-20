@@ -40,8 +40,6 @@ export interface VsmLayout {
   staticSlice: number
   fullMapCapacity: number
   mapSlots: number
-  pageTableRowShift: number
-  pageTableRowMask: number
   pageTableRows: number
   /** Level-0 texel size of page table / page marks / request flags. */
   pageTableSize: [number, number]
@@ -133,8 +131,6 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     staticSlice: cacheEnabled ? 1 : 0,
     fullMapCapacity: maxFull,
     mapSlots,
-    pageTableRowShift: floorLog2(VSM_TABLES_PER_ROW),
-    pageTableRowMask: VSM_TABLES_PER_ROW - 1,
     pageTableRows,
     pageTableSize,
     pageTableWords: pageTableSize[0] * pageTableSize[1],

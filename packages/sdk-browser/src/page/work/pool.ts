@@ -29,12 +29,22 @@ export function createPageWorkPool(size: number) {
     get workers() {
       return pool.workers
     },
-    submit: (op: PageTaskRequest['op'], source: ArrayBuffer, name?: string) =>
+    submit: (
+      op: PageTaskRequest['op'],
+      source: ArrayBuffer,
+      name?: string,
+      blocks?: PageTaskRequest['blocks'],
+    ) =>
       pool.submit(
-        { protocol: PAGE_TASK_PROTOCOL, op, source, ...(name === undefined ? {} : { name }) },
+        {
+          protocol: PAGE_TASK_PROTOCOL,
+          op,
+          source,
+          ...(name === undefined ? {} : { name }),
+          ...(blocks === undefined ? {} : { blocks }),
+        },
         [source],
       ),
     retire: pool.retire,
   }
 }
-export type PageWorkPool = ReturnType<typeof createPageWorkPool>

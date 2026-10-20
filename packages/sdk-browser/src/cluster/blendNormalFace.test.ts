@@ -8,16 +8,23 @@ import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 /**
  * The two shaders and how each tests the two material bits: blend reads its flat flags word per
  * pixel, opaque reads the class overrides its pipeline was compiled with
- * (`../visibility/shader/materialClass.ts`). Same rule checked on both sides.
+ * (`../visibility/shader/materialClass.ts`); `frameFlip`, the flip each gives its normal-map bend.
+ * Same rule checked on both sides.
  */
 const SHADERS = [
   {
     nom: 'blend',
     wgsl: BLEND_SHADER,
     vertexNormal: `(flags&${FLAG_HAS_NORMAL}u)!=0u`,
-    double: `(flags&${FLAG_DOUBLE}u)!=0u`,
+    frameFlip: `let flip=select(1.0,face,(flags&${FLAG_DOUBLE | FLAG_HAS_NORMAL}u)==${FLAG_DOUBLE | FLAG_HAS_NORMAL}u);`,
   },
-  { nom: 'opaque', wgsl: SHADE_SHADER, vertexNormal: 'HAS_VERTEX_NORMAL', double: 'DOUBLE_SIDED' },
+  {
+    nom: 'opaque',
+    wgsl: SHADE_SHADER,
+    vertexNormal: 'HAS_VERTEX_NORMAL',
+    // One flip for the normal and its two neighbours one pixel over (`Nx`, `Ny`).
+    frameFlip: 'let flip=select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL);',
+  },
 ]
 
 /** Body of the vertex-normal branch, the one that follows the geometric normal. */
@@ -40,7 +47,7 @@ test('only a vertex normal flips on the back of a two-sided material', () => {
   // put back right-side-out by `screenFace` for opaque. Flipping it would send it opposite the
   // light, and a two-sided pane seen from behind would render exactly zero. The flip therefore
   // lives in the vertex-normal branch, and nowhere else, on both sides.
-  for (const { nom, wgsl, vertexNormal, double } of SHADERS) {
+  for (const { nom, wgsl, vertexNormal, frameFlip } of SHADERS) {
     assert.match(
       vertexNormalBranch(wgsl, vertexNormal),
       /N\*=face;/,
@@ -51,10 +58,8 @@ test('only a vertex normal flips on the back of a two-sided material', () => {
       1,
       `${nom}: a single normal flip in the whole shader`,
     )
-    // The tangent frame follows the same rule: it flips only with the normal that orients it.
-    assert.ok(
-      wgsl.includes(`if(${double}&&${vertexNormal}){T*=face;B*=face;}`),
-      `${nom}: the tangent frame flips only with a normal`,
-    )
+    // The tangent frame follows the same rule: it flips only with the normal that orients it, the
+    // flip `bendNormal` takes (`cotangentFrameWgsl.ts`) the face on a two-sided surface with one.
+    assert.ok(wgsl.includes(frameFlip), `${nom}: the tangent frame flips only with a normal`)
   }
 })

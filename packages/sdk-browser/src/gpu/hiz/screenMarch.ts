@@ -9,10 +9,10 @@ import { hizDepthWgsl } from './pyramidTexture.ts'
 const SCREEN_MARCH_NUDGE = 2 ** -8
 
 /**
- * THE ENGINE'S ONE SCREEN MARCH (`screenMarch`): where a ray crosses the depth the image drew, by a
- * hierarchical traversal of the depth pyramid (`hizDepthWgsl`, bound at `group`, `binding`). The
- * reflection's screen answer and the virtual shadow maps' contact ray are both this march, each
- * with its own reach and its own thickness; nothing else walks the depth.
+ * THE ENGINE'S SCREEN MARCH (`screenMarch`): where a ray crosses the depth the image drew, by a
+ * hierarchical traversal of the depth pyramid (`hizDepthWgsl`, bound at `group`, `binding`): the
+ * reflection's screen answer, with its reach and its thickness. The virtual shadow maps' contact
+ * ray is not a march: four samples of level 0 (`vsmScreenRayFrom`), a contact ray being short.
  *
  * The ray is `o + d·t`, `o` in pixels and reversed depth, `t` from 0 to `end` (`screenMarchEnd`:
  * the image's edge, or the ray's far end). A surface is a slab: at level 0 the pixel's plane —

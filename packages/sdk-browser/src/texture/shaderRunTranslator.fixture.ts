@@ -4,30 +4,19 @@ import { assigned } from './shaderRunBuiltins.fixture.ts'
 import { zeroOf } from './shaderRunStructs.fixture.ts'
 
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/
-/** A token, or what it skips: blanks and `//` comments. */
-const TOKEN =
-  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%|&^]=|->|[-+*/%<>=!&|^~(){}[\];,.:@])/giy
-const JS_RESERVED = new Set(['in', 'new', 'this', 'class', 'delete', 'typeof', 'void', 'with'])
 /** Each binary operator's precedence, the loosest first. */
 const BINARY: Record<string, number> = Object.fromEntries(
   ['||', '&&', '|', '^', '&', '== !=', '< > <= >=', '<< >>', '+ -', '* / %'].flatMap((ops, i) =>
     ops.split(' ').map((op) => [op, i + 1]),
   ),
 )
-/** `text`'s tokens, a JavaScript reserved word renamed. */
-export function tokens(text: string) {
-  const out: string[] = []
-  TOKEN.lastIndex = 0
-  for (let match; TOKEN.lastIndex < text.length;) {
-    if (!(match = TOKEN.exec(text))) throw new Error(`WGSL token at ${text.slice(TOKEN.lastIndex)}`)
-    if (match[1]) out.push(JS_RESERVED.has(match[1]) ? `$${match[1]}` : match[1])
-  }
-  return out
-}
 
 /** WGSL tokens to JavaScript text: every operator a call of `$b`, every swizzle one of `$sw`. */
 export class Translator {
   at = 0
+  /** The scalar integer type the function being translated returns, if any: its value truncated
+   *  and wrapped to it, as a WGSL integer division or a `u32` below zero, run in doubles, is. */
+  private integer = ''
   private readonly t: string[]
   constructor(t: string[]) {
     this.t = t
@@ -57,7 +46,9 @@ export class Translator {
         depth += ({ '<': 1, '>': -1, '>>': -2 } as Record<string, number>)[this.next()] ?? 0
       if (this.peek() === ',') this.next()
     }
-    while (this.peek() !== '{') this.next()
+    let returned = ''
+    while (this.peek() !== '{') returned = this.next()
+    this.integer = returned === 'u32' ? '>>>0' : returned === 'i32' ? '|0' : ''
     return `function ${name}(${params}){${this.block().slice(1)}`
   }
   block(): string {
@@ -74,7 +65,7 @@ export class Translator {
       this.next()
       const value = this.peek() === ';' ? '' : this.expression()
       this.eat(';')
-      return `return ${value};`
+      return `return ${value && this.integer ? `(${value})${this.integer}` : value};`
     }
     if (token === 'if') {
       this.next()
@@ -85,6 +76,7 @@ export class Translator {
       }
       return text
     }
+    if (token === 'switch') return this.switchText()
     if (token === 'while') return (this.next(), `while(${this.expression()})${this.block()}`)
     if (token === 'for') {
       this.next()
@@ -95,6 +87,29 @@ export class Translator {
       return `for(${init};${test};${this.simple(')')})${this.block()}`
     }
     return `${this.simple(';')};`
+  }
+  /** `switch v { case a, b: {…} default: {…} }` as a JavaScript `switch(true)` over `v` held once:
+   *  each clause its selectors' compares — `default` where it stands, JavaScript taking it last as
+   *  WGSL does —, its body ended by a `break`, WGSL having no fallthrough; a `break` inside leaves
+   *  the switch in both. */
+  switchText() {
+    this.next()
+    const value = `$s${this.at}`
+    let text = `{const ${value}=${this.expression()};switch(true){`
+    this.eat('{')
+    while (this.peek() !== '}') {
+      if (this.peek() !== 'default') this.eat('case')
+      // The selectors, a trailing comma allowed: `default` among them where it stands.
+      for (let more = true; more;) {
+        const selector = this.peek() === 'default' ? (this.next(), '') : this.expression()
+        text += selector ? `case $b("==",${value},${selector}):` : 'default:'
+        more = this.peek() === ',' && (this.next(), this.peek() !== ':' && this.peek() !== '{')
+      }
+      if (this.peek() === ':') this.next()
+      text += `${this.block()}break;`
+    }
+    this.next()
+    return `${text}}}`
   }
   /** A declaration, an assignment, an increment or a call, up to `end`, which it consumes. */
   simple(end: string) {
@@ -150,6 +165,8 @@ export class Translator {
     }
     if (/^0x/i.test(token)) return String(Number(token.replace(/u$/i, '')))
     if (/^[\d.]/.test(token)) return String(Number(token.replace(/[uif]$/i, '')))
+    // A typed array's constructor, `array<vec2f,5>(…)`: its template skipped, its values an array.
+    if (token === 'array' && this.peek() === '<') while (this.next() !== '>');
     if (this.peek() !== '(') return token
     this.next()
     const args: string[] = []

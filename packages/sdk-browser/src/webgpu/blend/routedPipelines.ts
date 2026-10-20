@@ -2,7 +2,7 @@ import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { displayMaskLayout, MASK_FORMAT } from './displayFilter.ts'
 import { displayRoute, filtersDisplay } from './equations.ts'
-import { pipelinesByMode, stageDescriptors } from './stagePipelines.ts'
+import { pipelinesByMode, reflectedGroups, stageDescriptors } from './stagePipelines.ts'
 import { blendingOf, cullOf } from './planCull.ts'
 import { feedbackConstants } from '../tile/requestWgsl.ts'
 
@@ -32,7 +32,7 @@ export function createRoutedPipelines(
         constants: { ...constants, DISPLAY_ROUTE: displayRoute(mode) },
       },
       false,
-      displayMaskLayout(device),
+      reflectedGroups(device, displayMaskLayout(device)),
     ),
   )
   // The tint's slot: the request's location stays, its target left empty without the feedback.
@@ -48,13 +48,17 @@ export function createRoutedPipelines(
       targets: [...Array(slot).fill(null), { format: MASK_FORMAT }],
     },
     false,
+    reflectedGroups(device),
   ).map((stage) => preparedPipeline(device, stage))
   return {
     filtered,
     mask: {
       slot,
       at: (rank: number) => culls[cullOf(rank)].get(),
-      skips: (rank: number) => !filtersDisplay(blendingOf(rank)),
+      skips: (rank: number) => {
+        const mode = blendingOf(rank)
+        return !mode || !filtersDisplay(mode)
+      },
     },
     async precompile(modes: readonly Blending[]) {
       await Promise.all([filtered.precompile(modes), ...culls.map((cull) => cull.prepare())])

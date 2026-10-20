@@ -3,7 +3,11 @@ import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts'
 import { GUIDE_UNIFORM_FLOATS, GUIDE_WGSL, writeGuideView } from './guideShaders.ts'
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { GUIDE_PASS } from '../stage/passLabels.ts'
-import { sequentialEntries, computeTextureEntry } from '../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeTextureEntry,
+  sequentialEntries,
+} from '../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { heldBuffers } from '../gpu/core/heldBuffers.ts'
 
@@ -26,11 +30,7 @@ export function createWebgpuGuidePass(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
     label: GUIDE_PASS,
     entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform' },
-      },
+      computeBufferEntry(0, 'uniform', GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT),
       computeTextureEntry(1, 'depth', '2d', GPUShaderStage.FRAGMENT),
     ],
   })

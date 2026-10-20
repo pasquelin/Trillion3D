@@ -48,8 +48,8 @@ test('the shipped reads multiply by the exact inverse of the level scale', () =>
     functionsOf(code, ['vsmReadClipmapPage']),
     /r\.depth=vsmClipmapTexelDepth\(t,vsmPoolDepth\(t\.poolTexel\)\);/,
   )
-  // `vsmLevelToLevelOf` is called with the same positive offset.
-  assert.match(texel, /vsmLevelToLevelOf\(h,i32\(levelGap\)\)/)
+  // `vsmLevelToLevelOf` is called with the same positive offset, once for the texels of a page.
+  assert.match(functionsOf(code, ['vsmClipmapPage']), /vsmLevelToLevelOf\(h,i32\(levelGap\)\)/)
 })
 
 test('in f32, (raw − bias) / 2^-k is (raw − bias) · 2^k, and (raw − 0) / 1 is raw', () => {

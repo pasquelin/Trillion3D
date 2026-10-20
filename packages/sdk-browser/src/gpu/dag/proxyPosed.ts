@@ -1,5 +1,5 @@
 /**
- * THE POSED COPIES OF THE PROXY (`proxyInstances.ts`): a placement — or a blended copy — whose mesh
+ * THE POSED COPIES OF THE PROXY (`proxyInstances.ts`): a placement whose mesh
  * deforms stands at a copy of its mesh's proxy of its own in the arena (`proxyArena.ts`), its rest
  * shape to begin with, which the pose moves where the deformation put it (`proxyPose.ts`). Each is
  * taken when the placement first wears the mesh and given back when it stands at the rest shape
@@ -15,15 +15,13 @@ import type { PoseHost } from './proxyInstances.ts'
 /** The copy of a mesh's proxy a deformed placement owns, which the pose moves. */
 type Posed = { cut: RuntimeCutProxy; placed: Placed; node: number; triangle: number }
 
-/** The posed copies of `packed`'s `slots` placements, then of the blended copies `copies` holds,
- *  in `arena`, their columns taken among the meshes' (`columns`). */
+/** The posed copies of `packed`'s placements in `arena`, their columns taken among the meshes'
+ *  (`columns`). */
 export function createPosedCopies(
   device: GPUDevice,
   arena: ProxyArena,
   columns: ProxyColumns,
   packed: Pick<PackedDag, 'worldSources'>,
-  slots: number,
-  copies: () => readonly { matrix: { readonly elements: ArrayLike<number> } }[],
 ) {
   const posed = new Map<number, Posed>()
   const pose = createProxyPose(device)
@@ -67,10 +65,6 @@ export function createPosedCopies(
       return copy
     },
     drop,
-    /** The copies of members past `count`, given back. */
-    dropPast(count: number) {
-      for (const w of [...posed.keys()]) if (w >= count) drop(w)
-    },
     /**
      * The copies posed, in `encoder`, before the first program of the image that traces them: when
      * the deformation's records moved (`host.revision`) or a copy is new, and once the pose's
@@ -96,10 +90,8 @@ export function createPosedCopies(
         }
       }
       for (let k = 0; k < entries.length; k++) {
-        // A placement's record is found by its root's world, a blended copy's by its matrix.
-        const w = keys[k],
-          world =
-            w < slots ? (packed.worldSources[w] as DagRoot).world : copies()[w - slots]?.matrix
+        // A placement's record is found by its root's world.
+        const world = (packed.worldSources[keys[k]] as DagRoot | undefined)?.world
         entries[k].record = world ? host.recordOf(world) : 0
       }
       if (!pose.run(encoder, buffer, host.pool, entries, layoutKey())) return

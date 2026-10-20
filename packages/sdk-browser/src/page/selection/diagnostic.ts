@@ -1,28 +1,26 @@
-import { maxStretch } from '../../../../math/src/projection/projectionOracles.ts'
-import { multiplyMatrix4, copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
-import { projectedClusterError } from './math.ts'
 import type { PageRec } from './types.ts'
+import { HLOD_INDEX, packDiagnosticWord, proxiedHlod } from '../../diagnostic/colors.ts'
+import { levelDiagnostic } from '../../visibility/pageInfo.ts'
 
-import type { MatrixElements } from '../../host/matrixElements.ts'
-import { focalPixels } from '../../../../math/src/projection/camera.ts'
-import type { EngineCamera } from '../../camera/engineCamera.ts'
+/**
+ * The HLOD coloration index of a drawn page (`HLOD_INDEX`), one per primitive: an HLOD actor's
+ * index is `level0 + its layer`, so a world page is `level0 + its layer` (`PageRec.hlodLayer`,
+ * 1 to 3) — its layer, never a level of the mesh inside it —, and a placement drawn as its cell's
+ * HLOD 0 actor (`proxy`, the source meshes instanced) is `level0`. A placement drawn as itself is
+ * `none`: under the cell partition no primitive has an HLOD parent of its own, the cell switch
+ * alone picks what draws, so no child index exists to show.
+ */
+function hlodIndex(rec: Pick<PageRec, 'hlodLayer'>, proxy: boolean) {
+  if (rec.hlodLayer !== undefined) return HLOD_INDEX.level0 + rec.hlodLayer
+  return proxiedHlod(HLOD_INDEX.none, proxy)
+}
 
-const diagnosticErrorView = new Float64Array(16)
-/** Host pose copied: the core product only reads `Float64Array`. */
-const diagnosticWorld = new Float64Array(16)
-
-/** Use the cut's screen-error projection for a displayed page. */
-export function projectedPageError(
-  rec: Pick<PageRec, 'lodError' | 'sphere'>,
-  world: MatrixElements,
-  cam: EngineCamera,
-  viewport: readonly [number, number],
+/** A page's diagnostic word (`DIAGNOSTIC_WORD`): its level, its HLOD index — `proxy`, its
+ *  placement drawn as its cell's HLOD 0 actor — and its error, written with its row, never per
+ *  image: a placement switching rewrites its rows (`../../webgpu/pages/prepare/worldRoot.ts`). */
+export function pageDiagnosticWord(
+  rec: Pick<PageRec, 'level' | 'role' | 'lodError' | 'hlodLayer'>,
+  proxy = false,
 ) {
-  if ((rec.lodError ?? 0) === 0) return 0
-  copyMatrix4(diagnosticWorld, world.elements)
-  const view = multiplyMatrix4(diagnosticErrorView, cam.view, diagnosticWorld)
-  const stretch = maxStretch(world.elements) * maxStretch(cam.view)
-  const focal = focalPixels(cam.projection, viewport[0], viewport[1])
-  const { near, perspective } = cam
-  return projectedClusterError(rec.lodError, rec.sphere, 0, view, stretch, focal, near, perspective)
+  return packDiagnosticWord(levelDiagnostic(rec), hlodIndex(rec, proxy), rec.lodError ?? 0)
 }

@@ -49,8 +49,6 @@ function start(
     engine: {
       measureFrame: () => false,
       skipsFrame: () => false,
-      landings: () => 0,
-      arriving: () => false,
     },
   }
   const invalidate = startInteractiveExplorer(
@@ -125,7 +123,7 @@ test('a canvas whose box grows after start is resized and scheduled a frame', (t
   assert.equal(frames.size, 1, 'the grown box schedules a frame')
 })
 
-test('a capture, colour or surface, asks the idle loop for the view it put back', async () => {
+test('a capture, colour or surface, leaves the loop drawing a frame every tick', async () => {
   const frames = frameQueue()
   let taken: Promise<Uint8Array> = Promise.resolve(new Uint8Array(4))
   const explorer = {
@@ -137,18 +135,18 @@ test('a capture, colour or surface, asks the idle loop for the view it put back'
   start(explorer, queued(frames))
   assert.ok(frames.run())
   await new Promise((wake) => setImmediate(wake))
-  assert.equal(frames.size, 0, 'the loop is idle')
+  assert.equal(frames.size, 1, 'the loop never idles')
   await explorer.captureView()
-  assert.equal(frames.size, 1, 'a colour capture asks a frame')
+  assert.equal(frames.size, 1, 'a colour capture leaves one frame asked')
   assert.ok(frames.run())
   await new Promise((wake) => setImmediate(wake))
   await explorer.captureSurfaceView()
-  assert.equal(frames.size, 1, 'a surface capture asks a frame')
+  assert.equal(frames.size, 1, 'a surface capture leaves one frame asked')
   assert.ok(frames.run())
   await new Promise((wake) => setImmediate(wake))
   taken = Promise.reject(new Error('CAPTURE_NOT_READY'))
   await assert.rejects(explorer.captureView(), /CAPTURE_NOT_READY/)
-  assert.equal(frames.size, 1, 'a failed capture put the view back too')
+  assert.equal(frames.size, 1, 'a failed capture too')
 })
 
 test('the frame a capture asks waits while the next capture draws', async (t) => {
@@ -181,15 +179,16 @@ test('the frame a capture asks waits while the next capture draws', async (t) =>
   const first = explorer.captureView()
   finish()
   await first
-  assert.equal(frames.size, 1, 'the first capture asks the view back')
+  assert.equal(frames.size, 1, 'the loop draws on after the first capture')
   const second = explorer.captureSurfaceView()
+  const during = drawn
   assert.ok(frames.run())
   await turn()
   assert.equal(logged.mock.callCount(), 0, 'the loop still runs')
-  assert.equal(frames.size, 0, 'no frame is spent while the capture draws')
+  assert.equal(drawn, during, 'nothing is drawn while the capture draws')
   finish()
   await second
-  assert.equal(frames.size, 1, 'the second capture asks the view back')
+  assert.equal(frames.size, 1, 'the next tick is asked')
   const before = drawn
   assert.ok(frames.run())
   assert.equal(drawn, before + 1, 'the view is drawn again')

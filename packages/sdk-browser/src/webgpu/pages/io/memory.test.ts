@@ -76,7 +76,6 @@ test('a setting above the scene is brought back to its pages, and the cache resi
         resize: async (n: number) => (resized.push(n), ['p']),
         stats: () => ({ residentPages: 3 }),
       },
-      vertexBytes: 0,
     },
     vis: {},
     run: { lost: false, gate: { resourcesChanged: () => resources++ } },
@@ -144,7 +143,6 @@ test('a geometry pool the device refuses mid-session shrinks, and the session go
     gpu: {
       device: gpu.device,
       cache: { resize: async (n: number) => (resized.push(n), []), stats: () => ({}) },
-      vertexBytes: 0,
     },
     vis: {},
     run,

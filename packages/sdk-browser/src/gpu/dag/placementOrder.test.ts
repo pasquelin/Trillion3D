@@ -54,7 +54,7 @@ test('a partition’s rows lie by their cell', () => {
   // Each placement a row of its cell: cells of 64 rows, ranks spread across the list.
   roots.forEach((root, w) => {
     const cell = Math.floor(((w * 37) % roots.length) / 64)
-    setRowCell(rows, w, { cell, node: w })
+    setRowCell(rows, w, { cell, node: w, instance: 0, hlod: cell, proxy: false })
     roots[w] = { ...root, placement: { rows, index: w } }
   })
   const tree = packDagSelection(roots).placementTree!

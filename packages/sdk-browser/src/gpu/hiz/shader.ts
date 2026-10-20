@@ -1,4 +1,4 @@
-import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS } from './uniforms.ts'
+import { HIZ_BUILD_SIDE, HIZ_PASS_LEVELS, HIZ_UNI } from './uniforms.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { surfaceSlopeOf } from '../../../../math/src/wgsl/sampling.ts'
 import { HIZ_TEST_WGSL } from './testWgsl.ts'
@@ -15,6 +15,10 @@ import {
 
 /** The override that makes `buildHiz` the build of the nearest layer (`createHizPipelines`). */
 export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
+/** The pixels a plane's slopes reach on each side (`surfaceSlopeOf`: two neighbours), and the side
+ *  of the nearest build's depth tile: a workgroup's pixels and that border. */
+const HIZ_PLANE_REACH = 2
+const HIZ_DEPTH_TILE = 2 * HIZ_BUILD_SIDE + 2 * HIZ_PLANE_REACH
 
 /**
  * THE DEPTH PYRAMID: the engine's one hierarchy of the image's depth, in one texture of three layers
@@ -46,7 +50,8 @@ export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
  *    pyramid holds every surface a ray can meet.
  *
  * Per image of N pixels: the culling build reads level 0 once and writes 4N/3 words, the nearest
- * reads nine texels of level 0 a pixel — its plane's neighbours, cached — and writes 4N/3 words
+ * reads level 0 once — each workgroup its pixels and their border of `HIZ_PLANE_REACH` into
+ * workgroup memory, where each plane reads its nine texels — and writes 4N/3 words
  * of its layer and N/3 of the finished depth's farthest; the texture holds 3N words, padded to a
  * whole row of `HIZ_ROW`.
  *
@@ -68,7 +73,7 @@ export const HIZ_NEAREST_BUILD = 'HIZ_NEAREST_BUILD'
  */
 export const HIZ_SHADER = wgslProgram(
   `override ${HIZ_NEAREST_BUILD}:bool=false;
-struct Uni{a:u32,b:u32,c:u32,d:u32,upper:u32,counting:u32,front:u32,pad:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
+${HIZ_UNI.wgsl}
 ${TESTED_BOX.wgsl}
 @group(0) @binding(0) var hizPyramid:texture_storage_2d_array<${HIZ_FORMAT},read_write>;
 @group(0) @binding(1) var level0:texture_2d_array<f32>;
@@ -77,6 +82,11 @@ ${TESTED_BOX.wgsl}
 @group(0) @binding(4) var<storage, read_write> flags:array<u32>;
 @group(0) @binding(5) var<storage, read_write> state:array<atomic<u32>>;
 var<workgroup> hizTile:array<vec2f,${HIZ_BUILD_SIDE ** 2}>;
+/** The folded depth of the nearest build's first pass over the workgroup's pixels and the border of
+ *  two its planes reach (\`hizPlaneCorners\`), each texel loaded once; \`hizDepthOrigin\` the pixel
+ *  of its first texel. */
+var<workgroup> hizDepthTile:array<f32,${HIZ_DEPTH_TILE ** 2}>;
+var<private> hizDepthOrigin:vec2i;
 /** The index in \`layer\`'s bound of the cell at the index \`i\` the passes name (the culling layer's
  *  routing, \`hizRoute\`): a coarser level's cells lie after those of the layers before it. */
 fn hizIn(i:u32,layer:u32)->u32{return select(i,i+layer*uni.upper,(i&HIZ_UPPER)!=0u);}
@@ -103,9 +113,20 @@ fn hizPutBound(i:u32,bound:vec2f){
 fn hizFrontAt(q:vec2i)->f32{
  return hizFold(level0,q,uni.front!=0u);
 }
-/** The depth at \`q\` of level 0, clamped to the drawn size. */
+/** Loads the folded depth of the workgroup \`wg\`'s tile, clamped to the drawn size, each thread a
+ *  share of its texels: the nine texels a plane reads, of four pixels a thread, come from it. */
+fn hizLoadDepthTile(wg:vec2u,thread:u32){
+ hizDepthOrigin=vec2i(wg*${2 * HIZ_BUILD_SIDE}u)-vec2i(${HIZ_PLANE_REACH});
+ let last=vec2i(vec2u(uni.b,uni.c))-vec2i(1);
+ for(var k=thread;k<${HIZ_DEPTH_TILE ** 2}u;k+=${HIZ_BUILD_SIDE ** 2}u){
+  let q=hizDepthOrigin+vec2i(i32(k%${HIZ_DEPTH_TILE}u),i32(k/${HIZ_DEPTH_TILE}u));
+  hizDepthTile[k]=hizFrontAt(clamp(q,vec2i(0),last));
+ }
+}
+/** The depth at \`q\` of level 0, clamped to the drawn size: the tile's texel. */
 fn hizDepthAt(q:vec2i)->f32{
- return hizFrontAt(clamp(q,vec2i(0),vec2i(vec2u(uni.b,uni.c))-vec2i(1)));
+ let t=q-hizDepthOrigin;
+ return hizDepthTile[t.y*${HIZ_DEPTH_TILE}+t.x];
 }
 /** The nearest and the farthest corner of the plane of the pixel \`q\` of depth \`z\`, its slopes
  *  written at \`i\` of the nearest layer: relative to its depth, two halves; the corners from the
@@ -130,7 +151,7 @@ fn hizSource(at:u32,x:u32,y:u32)->vec2f{
  let i=at+y*uni.b+x;
  if(uni.a!=0u){return hizLoadBound(i);}
  let q=vec2i(i32(x),i32(y));
- if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizFrontAt(q));}
+ if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizDepthAt(q));}
  let depth=textureLoad(level0,q,${HIZ_OPAQUE_LAYER},0).r;
  hizPut(i,${HIZ_CULL_FARTHEST}u,bitcast<u32>(depth));
  return vec2f(depth);
@@ -158,6 +179,10 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
  // texels of the coarser levels of one bound (\`hizIn\`).
  let at=uni.a;
  let x=wg.x*${HIZ_BUILD_SIDE}u+lid.x;let y=wg.y*${HIZ_BUILD_SIDE}u+lid.y;let x0=x*2u;let y0=y*2u;
+ if(${HIZ_NEAREST_BUILD}&&at==0u){
+  hizLoadDepthTile(wg.xy,lid.y*${HIZ_BUILD_SIDE}u+lid.x);
+  workgroupBarrier();
+ }
  var bound=vec2f(0.0);
  if(x0<uni.b&&y0<uni.c){
   let dx=select(0u,1u,x0+1u<uni.b);let dy=select(0u,1u,y0+1u<uni.c);

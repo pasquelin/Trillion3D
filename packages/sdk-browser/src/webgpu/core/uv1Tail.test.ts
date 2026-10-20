@@ -8,11 +8,9 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { createFloatAtlas } from './floatAtlas.ts'
-import { uv1TailAt, writeUv1Tail } from './uv1Tail.ts'
+import { writeUv1Tail } from './uv1Tail.ts'
 import { createVertexPool } from './geometryPool.ts'
 import type { HostAttributes } from '../../host/resources.ts'
-import { ensureBlendNormalAtlas } from '../blend/buffers.ts'
-import type { WebgpuGpuState } from '../pages/state/gpu.ts'
 
 /** The floats of an atlas of `texels` after the device's texel writes, one row. */
 function replay(writes: ReturnType<typeof fakeDevice>['textureWrites'], texels: number) {
@@ -29,7 +27,6 @@ function replay(writes: ReturnType<typeof fakeDevice>['textureWrites'], texels: 
 test('vertex k of the tail is at float T − 2(k + 1), the pairs kept whole', () => {
   const { device, textureWrites } = fakeDevice()
   const atlas = createFloatAtlas(device, 'proof', 20)
-  assert.equal(uv1TailAt(atlas, 3, 2), 10)
   writeUv1Tail(device.queue, atlas, 3, Float32Array.of(1, 2, 3, 4), 2)
   const floats = replay(textureWrites, 20)
   assert.deepEqual([...floats.subarray(20 - 2 * 4, 20 - 2 * 3)], [1, 2], 'vertex 3')
@@ -81,14 +78,4 @@ test('the pool writes a second UV set at its atlas tail, and is laid out wider f
   assert.equal(without.place(attributes)?.hasUv1, true, 'a pool without a second set takes one')
   assert.deepEqual(told, [3], 'the owners are told once, at the pool’s size')
   assert.ok(lastAtlasTexels(textures) >= 3 * 9, 'its atlas holds the normals and the tail')
-})
-
-test("a transparent's own atlas is written once, its second set at the tail", () => {
-  const { device, textureWrites, textures } = fakeDevice()
-  const attributes = secondSet()
-  const gpu = { blendNormalBuffers: new Map(), vertexBytes: 0 } as unknown as WebgpuGpuState
-  ensureBlendNormalAtlas(device, attributes, gpu)
-  const texels = lastAtlasTexels(textures)
-  assert.equal(textureWrites.length, 1, 'one write, in the atlas order')
-  assertSecondSetAtTail(textureWrites, texels)
 })

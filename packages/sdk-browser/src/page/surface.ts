@@ -1,8 +1,8 @@
 /**
- * The surface record a mesh wears: everything the engine path reads of a material, in the
- * engine's own words — one record per material, written by its owner (`surfaceRecord.ts`) and read
- * IN PLACE by every reader on the way to the image: the cut's normal cones, the row writer, the
- * coplanar layer batches, the frame audit, the transparent items, the witness that draws the same
+ * The surface record a mesh wears: everything the engine path reads of a material, in the engine's
+ * own words — one record per material, written by its owner (`surfaceRecord.ts`) and read IN PLACE
+ * by every reader on the way to the image: the cut's normal cones, the row writer, the coplanar
+ * layer batches, the frame's cost snapshot, the transparent items, the witness that draws the same
  * scene. Comparing two surfaces is comparing two references; a write is journaled
  * (`surfaceWrites.ts`) and moves the record's version, which the memos keyed on it compare.
  *
@@ -16,14 +16,23 @@ import { saturate } from '../../../math/src/scalar/reals.ts'
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
 import type { Releasable } from '../../../sdk-core/src/runtime/releasable.ts'
-import { isAssignment, type AlphaChange } from '../placement/engineSceneUpdates.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
 import { declareSurface } from './surfaceRecord.ts'
 
 /** The families a surface is declared in: a scene's unlit, standard and physical ones, and the
- *  others a world draws. The surface model reads the family (`../scene/surfaceModel.ts`). */
+ *  others a world draws — the shadow catcher among them. The surface model reads the family
+ *  (`../scene/surfaceModel.ts`). */
 export type SurfaceFamily =
-  'basic' | 'standard' | 'physical' | 'lambert' | 'phong' | 'toon' | 'normal' | 'matcap' | 'depth'
+  | 'basic'
+  | 'standard'
+  | 'physical'
+  | 'lambert'
+  | 'phong'
+  | 'toon'
+  | 'normal'
+  | 'matcap'
+  | 'depth'
+  | 'shadow'
 
 /** The raster facts declared beside the shaded fields, and what a family keeps as declared. */
 export type SurfaceFacts = {
@@ -86,15 +95,6 @@ export const recordsOfMeshes = <T extends { drawSource?: object }>(
   records: readonly T[],
   meshes: ReadonlyMap<object, unknown>,
 ) => records.filter((rec) => !!rec.drawSource && meshes.has(rec.drawSource))
-
-/** Why neither engine gives an assigned mesh another surface: none of its records is a page's,
- *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
-export function unpagedRefusal(records: readonly { drawSource?: object }[], alpha: AlphaChange) {
-  if (!isAssignment(alpha)) return
-  const unpaged = new Set(alpha.meshes.keys())
-  for (const rec of records) if (rec.drawSource) unpaged.delete(rec.drawSource)
-  if (unpaged.size) return 'the drawable is drawn as a forward copy laid out when the session opens'
-}
 
 /** A record wears `declaration` from now on: its surface record. */
 export function wearDeclaration(rec: { material: PageSurface }, declaration: HostMaterials) {

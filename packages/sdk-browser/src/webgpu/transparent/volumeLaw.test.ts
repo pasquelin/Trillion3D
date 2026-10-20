@@ -12,8 +12,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { functionsOf } from '../../texture/shaderRule.fixture.ts'
-import { waterCompositeShader } from '../water/compositeWgsl.ts'
 import { VOLUME_LAW_WGSL, volumeAttenuation } from './volumeLaw.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
@@ -119,25 +117,4 @@ test('one law for the water and its shadow: a black volume transmits nothing pas
     c.forEach((v, j) => (worst = Math.max(worst, Math.abs(shipped[j] - v ** (x / d)))))
   }
   assert.ok(worst < 1e-5, `${worst}`)
-})
-
-test('the composite reads the per-volume terms and the shadow its law', () => {
-  const composite = waterCompositeShader()
-  assert.match(
-    composite,
-    /struct Volume\{transmission:f32,eta:f32,thickness:f32,f0:f32,attenuation:vec4f,item:u32,\}/,
-  )
-  assert.match(composite, /refract\(-V,N,vol\.eta\)/)
-  assert.match(composite, /sample\.rgb\*volumeTransmittance\(vol\.attenuation\.rgb,path\)/)
-  // Fresnel on the volume's reflectance through the engine's one fifth-power term.
-  assert.match(
-    functionsOf(composite, ['waterColor']),
-    /let F=fresnelScalar\(vol\.f0,max\(dot\(Nv,V\),0\.0\)\);/,
-  )
-  assert.match(
-    functionsOf(composite, ['fresnelScalar']),
-    /let x=clamp\(1\.0-cosine,0\.0,1\.0\);let x2=x\*x;return f0\+\(1\.0-f0\)\*\(x2\*x2\*x\);/,
-  )
-  for (const name of ['waterColor', 'transmittedBackdrop', 'fresnelScalar'])
-    assert.doesNotMatch(functionsOf(composite, [name]), /pow\(|log\(|exp\(|\/max\(vol/)
 })

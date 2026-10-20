@@ -1,9 +1,9 @@
 import { composeStandIn } from './composeStandIn.fixture.ts'
-import { readCellPage, type TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'
+import { readCellPage } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { cellRows, decodeCellFile } from './cellDecode.ts'
 import { createPartitionCells, type PartitionCells } from './cells.ts'
-import { paged } from './paged.fixture.ts'
+import { paged, type CellRecord } from './paged.fixture.ts'
 import { placedMesh, type RowLink } from './rows.ts'
 import type { PlacementRows } from '../placement/rows.ts'
 import type { StreamPage } from '../streaming/types.ts'
@@ -18,13 +18,20 @@ const LADDER = {
   rows: (_: number, total: number, rung: number) => (24 * 2 ** (rung / 2) >= 4990 ? total : 2),
 }
 
+/** The grids' loading ranges of `world`: the main and HLOD 0 grids within 2.8 km, so an eye between
+ *  the two cells places both, and one at either cell that cell alone, its walk short of the other
+ *  (`placedReach`). */
+const WORLD_RANGES = [2800, 2800, 5600]
+
 /** Two cells of one mesh, one near the origin and one 5 km away, each in a region page of its
  *  own; each hangs under a core node standing 10 m up, or under the scene root when its `far` or
- *  `near` is null. `drawn` are the host meshes of its two primitives. */
+ *  `near` is null. `drawn` are the host meshes of its two primitives; `ranges` the grids' loading
+ *  ranges. */
 export function world(
   far: number | null = 0,
   near: number | null = null,
   drawn: readonly Object3D[] = [],
+  ranges: readonly number[] = WORLD_RANGES,
 ) {
   const node = (x: number, parent: number | null) => ({
     parent,
@@ -38,7 +45,7 @@ export function world(
     'near.json': { version: 2, nodes: [node(1, near), node(3, near)] },
     'far.json': { version: 2, nodes: [node(5000, far)] },
   }
-  const cell = (url: string, rank: number | null, x: number, nodes: number): TableCell => ({
+  const cell = (url: string, rank: number | null, x: number, nodes: number): CellRecord => ({
     url,
     sha256: '',
     bytes: 1,
@@ -49,9 +56,9 @@ export function world(
   })
   const table = [cell('near.json', near, 0, 2), cell('far.json', far, 5000, 1)]
   // Declared where the core node stands at open: 10 m up.
-  const up = ({ parents: [[rank, box]] }: TableCell) =>
+  const up = ({ parents: [[rank, box]] }: CellRecord) =>
     rank === null ? box : [box[0], box[1] + 10, box[2], box[3], box[4] + 10, box[5]]
-  const { partition, files } = paged(table, 1, up, LADDER)
+  const { partition, files } = paged(table, 1, up, LADDER, ranges)
   const root = new Group()
   const core = new Object3D()
   core.position.set(0, 10, 0)
@@ -78,18 +85,16 @@ export function world(
 export const decodeHere = async (bytes: Uint8Array, url?: string) =>
   cellRows(decodeCellFile(bytes.slice().buffer as ArrayBuffer, url))
 
-/** Opens `cells` as a session does before its first frame, for a camera at `eye` of `reach`,
- *  reading every file through `bytes` on this thread; the bytes read. */
+/** Opens `cells` as a session does before its first frame, for a camera at `eye`, reading every
+ *  file through `bytes` on this thread; the bytes read. */
 export const opened = (
   cells: PartitionCells,
   bytes: (url: string) => Uint8Array,
-  reach: number,
   owned = true,
   eye: ArrayLike<number> = [0, 0, 0],
 ) =>
   cells.prime(
     eye,
-    reach,
     {
       read: async (url) => bytes(url),
       decode: decodeHere,
@@ -118,11 +123,11 @@ export async function settled(
   }
 }
 
-type PartitionIo = Parameters<PartitionCells['frame']>[2]
+type PartitionIo = Parameters<PartitionCells['frame']>[1]
 
 /** `partition` opened with rows for every node, its first camera reaching nothing. */
 export async function sizedWhole(partition: ReturnType<typeof world>) {
-  await opened(partition.cells, partition.bytes, 100, false, [1e9, 0, 0])
+  await opened(partition.cells, partition.bytes, false, [1e9, 0, 0])
   return partition
 }
 
@@ -161,8 +166,8 @@ export function io(bytes: (url: string) => Uint8Array) {
   }
 }
 
-/** A reach past both cells. */
-export const everywhere = 1e5
+/** An eye within the grids' range of both cells (`WORLD_RANGES`), nearer the far one. */
+export const between = [2600, 0, 0]
 /** No arrival budget: what a test places never depends on the time the machine takes. */
 export const noBudget = { admits: () => true, spend() {} }
 /** The address of the cell file `name`. */

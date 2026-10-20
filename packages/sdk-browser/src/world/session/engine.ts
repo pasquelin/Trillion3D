@@ -1,10 +1,10 @@
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { worldOrGeometryReader, type WorldRootsHold } from '../../scene/worldRoots.ts'
+import type { WorldRootsHold } from '../../scene/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from '../../engine/common.ts'
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import { dagWarningsDiagnostic } from '../../../../sdk-core/src/contracts/dagWarnings.ts'
 import { createSceneProxyReader } from '../../scene/proxyLoad.ts'
-import { createTextureLevelReader } from '../../texture/levelReader.ts'
+import { createTextureCaches, type TextureCache } from '../../texture/textureCaches.ts'
 import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
@@ -12,13 +12,12 @@ import type { EngineFactory } from '../../engine/factory.ts'
 import type { ExplorerPageSources } from './pageSources.ts'
 import type { ExplorerSession } from './session.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 
 type Inputs = {
   source: Object3D
-  sceneLightingSource?: Object3D
   draws: EngineContext['draws']
-  textureIndices: Map<Texture, number>
+  /** The caches the scene's textures come from: its own, or each model of a world. */
+  textureCaches: readonly TextureCache[]
   pageSources: ExplorerPageSources
   gpuDevice?: GPUDevice
   /** What builds the session's engine: the WebGPU page raster's factory. */
@@ -64,13 +63,14 @@ function optionContext(session: ExplorerSession) {
   const { options, diagnosticChannel } = session
   return {
     maxResidentPages: options.maxResidentPages,
-    pixelError: options.pixelError ?? 0,
+    pixelError: options.pixelError,
     lodAdaptive: options.lodAdaptive,
     pixelRatio: () => pixelRatioOf(options),
     maxTextureTransferBytesPerFrame: options.maxTextureTransferBytesPerFrame,
     maxTextureUploadMsPerFrame: options.maxTextureUploadMsPerFrame,
     temporalAntialiasing: options.temporalAntialiasing,
     renderScale: options.renderScale,
+    maxFrameRate: options.maxFrameRate,
     effects: options.effects,
     geometryPoolBytes: options.geometryPoolBytes,
     admitGpuMemory: options.admitGpuMemory,
@@ -99,11 +99,15 @@ function engineContext(
 ): EngineContext {
   const { canvas, metadata, signal, diagnosticChannel, diagnose } = session
   const { indices, streamer, pageCache } = inputs.pageSources
-  // The world roots the scene's own manifest opened ride the context; their pages are read through
-  // the one geometry reader, built here once.
-  // The cut draws one world DAG: the first a model of the scene holds, drawn (`WorldRootsHold.drawn`);
-  // its table names its primitives as the scene ranks them (`WorldRootsHold.rank`).
-  const worldRoots = inputs.worldRoots.find((hold) => hold.drawn)
+  // The world roots the scene's own manifest opened ride the context; their pages, as every
+  // geometry page, are slices of bundles the session's one reader serves
+  // (`../../scene/worldRuns.ts`). The cut draws one world DAG: the first a model of the scene
+  // holds, drawn (`WorldRootsHold.dag`).
+  const worldRoots = inputs.worldRoots.find((hold) => hold.dag)
+  // The caches the scene's textures come from, their levels held among the pages the streamer
+  // reads, in their page cache.
+  const textureCaches = createTextureCaches(pageCache, signal)
+  textureCaches.add(...inputs.textureCaches)
   return {
     ...optionContext(session),
     source: inputs.source,
@@ -113,11 +117,11 @@ function engineContext(
     readPage: (url) => streamer.read(url, streamer.signal),
     admitPages: (pages) => streamer.admit(pages),
     onContentRefused: session.options.onContentRefused,
-    readGeometryPage: worldOrGeometryReader(inputs.worldRoots, streamer.readBytes, streamer.signal),
+    readGeometryPage: (url, own, priority) =>
+      streamer.readBytes(url, own ?? streamer.signal, priority),
     worldRoots,
     pageRoundTripMs: streamer.roundTripMs,
     draws: inputs.draws,
-    textureIndices: inputs.textureIndices,
     signal,
     onDiagnostic: diagnosticChannel.enabled ? diagnosticChannel.emit : undefined,
     preparationStep: (step) => diagnose('engine-preparation-step', step, { kind: 'preparation' }),
@@ -125,12 +129,8 @@ function engineContext(
     viewport: [canvas.width, canvas.height],
     gpuDevice: inputs.gpuDevice,
     gpuCanvas: canvas,
-    sceneLighting: inputs.sceneLightingSource,
     readSceneProxy: createSceneProxyReader(metadata.proxy, inputs.base, pageCache, signal),
-    // The reader exists as soon as the cache declares texture chains, whatever the loader read:
-    // the engine reads the levels the compiler baked and regenerates none it could have read
-    // instead. Its levels are held among the pages the streamer reads, in their page cache.
-    readTextureLevel: createTextureLevelReader(metadata, inputs.base, pageCache, signal),
+    textureCaches,
     ...lights,
     frameBudget: inputs.frameBudget,
   }

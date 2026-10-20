@@ -18,14 +18,12 @@ export type ProxyResources = {
  * the record tables the culling reads — the nodes, the placements' frame words and records, the
  * placement tree —, bound at its bindings whatever the world's size (`shader/bindings.ts`,
  * `dagReadEntries`); the tree's top, node 0, `NO_INDEX` without a tree (a node's worth of table
- * then, which no walk reads), the placements the packing holds live, and the world DAG's placement,
- * `NO_INDEX` without one.
+ * then, which no walk reads), and the placements the packing holds live.
  */
 export type CutTables = {
   views: DagReadTables
   treeRoot: number
   placements: number
-  worldPlacement: number
   /** Each placement's first page and group links, its record shift, and the records the packing
    *  holds room for: what names a page's shared record (`layout.ts`, `recordOf`). */
   cutLinks: readonly DagCutLinks[]
@@ -44,7 +42,6 @@ const cutTablesOf = ({ cutTables, frames, treeTable, packed }: DagResources): Cu
   },
   treeRoot: packed.placementTree ? 0 : NO_INDEX,
   placements: packed.live?.worlds ?? packed.worldCount,
-  worldPlacement: packed.world?.root ?? NO_INDEX,
   cutLinks: packed.cutLinks,
   recordShift: packed.recordShift,
   recordCount: packed.recordCount,

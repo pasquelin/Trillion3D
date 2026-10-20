@@ -5,8 +5,9 @@ import { createEngineCamera, writeEngineCamera } from '../../../../camera/engine
 import { taaRenderMatrix, taaRenderProjection } from '../../../../taa/frame.ts'
 import { createTaaFrameState } from '../../../../taa/frameState.ts'
 import { jitterViewProjection, taaJitter } from '../../../../taa/jitter.ts'
-import { encodeVirtualShadowProjection } from '../../../../vsm/projectionPass.ts'
+import { writeVsmProjectionFrame } from '../../../../vsm/projectionPass.ts'
 import { createVsmResources } from '../../../../vsm/resources.ts'
+import { VSM_PROJECTION_HEADER_WORDS } from '../../../../vsm/projectionView.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { HALTON_SWEEP, haltonSpan } from '../../../../../../math/src/sequence/sweep.fixture.ts'
 import { halton } from '../../../../../../math/src/sequence/halton.ts'
@@ -57,9 +58,7 @@ export function camera(i: number, active = true) {
 }
 
 const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } }),
-  res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 }),
-  texture = {} as GPUTextureView,
-  encoder = device.createCommandEncoder()
+  res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
 
 /** The f32 view header the projection pass uploads for `projection` (`VsmProjectionView`):
  *  shiftedToClip at word 0, shiftedToView 16, viewToClip 32, clipToShifted 48, the screen's
@@ -67,24 +66,19 @@ const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1
 function header(projection: Float64Array, width: number, height: number) {
   writes.length = 0
   const camera = { view: cam.view, projection, perspective: cam.perspective === 1 }
-  const inputs = {
+  writeVsmProjectionFrame(res, {
     device,
     hizDepth: fakeHizDepth,
-    depth: texture,
-    normalRough: texture,
-    flags: texture,
-    mask: texture,
-  }
-  encodeVirtualShadowProjection(
-    encoder,
-    res,
-    { ...inputs, maskTiles: texture, receiver: texture, width, height, frameIndex: 0, camera },
-    [],
-  )
+    width,
+    height,
+    frameIndex: 0,
+    camera,
+    lights: [],
+  })
   const bytes = writes.find(
     (w) => (w.buffer as { label?: string }).label === 'vsm.projection.view',
   )!.data as Uint8Array
-  return new Float32Array(bytes.buffer, bytes.byteOffset, 104).slice()
+  return new Float32Array(bytes.buffer, bytes.byteOffset, VSM_PROJECTION_HEADER_WORDS).slice()
 }
 
 /** `m · (x, y, z, w)` as the shader multiplies it, in f32: each product and sum rounded. */

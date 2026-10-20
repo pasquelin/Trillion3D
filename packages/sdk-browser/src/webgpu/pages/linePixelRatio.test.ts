@@ -9,7 +9,10 @@ import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { FLAG_MASK, MATERIAL_RANK_MASK } from '../../visibility/types.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../material/materialLayout.ts'
 import { BLEND_ITEM_SHIPPED } from '../blend/itemLayout.fixture.ts'
+import { VIEW } from '../blend/viewLayout.ts'
 import { materialRecordsSent } from '../material/materialRecordsSent.fixture.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** The words of the buffer `label` names, after the frames of a line surface 2.5 CSS pixels wide
  *  at a pixel ratio of 2, and the record of rank `rank` (`MATERIAL_RECORD`) as the material table
@@ -23,6 +26,7 @@ async function frameWords(transparent = false, dashed = false) {
   if (transparent) Object.assign(scene.material, { transparent: true, opacity: 0.5 })
   const { device, buffers, textureWrites } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,
@@ -64,7 +68,8 @@ test('the rasters, the resolve and the blend pass read the host pixel ratio', as
   assert.equal(words('Trillion3D visibility uniforms')[24], 2, 'Uniforms.pixelRatio')
   assert.equal(words('Trillion3D resolve uniform')[18], 2, 'ShadeUni.pixelRatio')
   const blend = await frameWords(true)
-  assert.equal(blend.words('Trillion3D blend view uniform')[31], 2, 'BlendView.pixelRatio')
+  const view = blend.words('Trillion3D blend view uniform')
+  assert.equal(view[VIEW.pixelRatio], 2, 'BlendView.pixelRatio')
   const item = blend.record('Trillion3D blend item records', BLEND_ITEM_SHIPPED.at.material)
   assert.equal(item[MATERIAL_RECORD.at.lineWidth], 2.5, "the item's record: Material.lineWidth")
 })

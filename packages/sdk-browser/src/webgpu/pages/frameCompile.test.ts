@@ -17,6 +17,8 @@ import { families } from '../../host/families.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
 import { gateCompiles } from '../../lighting/deferred/gatedDevice.fixture.ts'
 import { surfaceWritten } from '../../page/surfaceWrites.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** The executing device, whose compiles land off the thread a task after they are asked, and which
  *  counts each synchronous compile made inside `frame`. */
@@ -47,9 +49,11 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
   const { gpu, counted, frame } = offThreadGpu()
   const fixture = quadScene()
   const material = G.standardSurface({ roughness: 0.5 })
-  ;(fixture.source.children[0] as HostMesh).material = material
+  const mesh = fixture.source.children[0] as HostMesh
+  mesh.material = material
   const guides = createGuideSet()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,

@@ -1,7 +1,8 @@
 // The pool's floor is the root cover and the pages its groups replace, admitted first.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { admissionLevel, rootChildren } from './minimumCapacity.ts'
+import { rootChildren } from './minimumCapacity.ts'
+import { admissionLevel } from '../webgpu/residency/sets.fixture.ts'
 import { structureIndex } from '../page/selection/structure.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 

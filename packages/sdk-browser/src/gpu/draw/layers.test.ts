@@ -56,7 +56,7 @@ test('drawShader(k) opens exactly BASE_SLOTS*k slots for several k', () => {
     const shader = drawShader(k)
     const slots = slotCount(k)
     assert.equal(slots, BASE_SLOTS * k)
-    assert.match(shader, new RegExp(`groupCounts\\[group\\*${slots}u\\+slot\\]`))
+    assert.match(shader, new RegExp(`\\{return group\\*${slots}u\\+slot;\\}`))
     assert.match(shader, new RegExp(`slot<${slots}u`))
   }
 })

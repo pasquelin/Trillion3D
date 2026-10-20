@@ -35,11 +35,9 @@ const VIEW_FIELDS = [
   ['ahead', 'u32'],
   ['admitByLevel', 'u32'],
   ['swapRegions', 'u32'],
-  ['worldRoot', 'u32'],
   ['treeTop', 'u32'],
   ['cellBase', 'u32'],
   ['worldLinks', 'u32'],
-  ['worldScale', 'f32'],
   // The open counts placements hold of their own (\`heldOpen.ts\`): the first word of their table in
   // \`out.pages\`, and its slots less one.
   ['heldBase', 'u32'],

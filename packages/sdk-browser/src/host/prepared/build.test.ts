@@ -1,10 +1,10 @@
 /**
  * The proof that the prepared scene built from the cache tables is the scene the host loader built
  * from the compiled document: on every cache the repository compiles, the drawn document
- * (`source.gltf`) is walked on both sides and must agree on every object, pose, name, geometry byte, bound,
- * surface field, sampler and light the engine or a host renderer reads. The prepared scene is the
- * engine's own graph: it is compared twice — field by field on what the engine reads of it, and
- * whole through the host-library copy of the graph.
+ * (`source.gltf`) is walked on both sides and must agree on every object, pose, name, geometry
+ * byte, bound, surface field and sampler the engine or a host renderer reads — lamps aside, which
+ * `lights.json` carries. The prepared scene is the engine's own graph: it is compared twice — field
+ * by field on what the engine reads of it, and whole through the host-library copy of the graph.
  *
  * The loader is the witness here and only here, to prove it has nothing left to read. Images are
  * decoded by a stand-in answering the size of the bytes given, so both sides compare the same files.
@@ -21,7 +21,7 @@ import { buildPreparedScene } from './build.ts'
 import { SCENE_FILE } from '../../scene/tables.ts'
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { loadHostVertices, meshes } from '../../scene/meshes.ts'
+import { meshes } from '../../scene/meshes.ts'
 import {
   caches,
   describe,
@@ -30,8 +30,17 @@ import {
   type Ranks,
 } from '../../../../../bench/witnesses/three/parity/browser/host/prepared/scenes.fixture.ts'
 
+/** The document without its lamps: the prepared scene hangs none, `lights.json` alone carries
+ *  them (`lighting/importedLights.ts`), so the loader is asked for the same graph without them. */
+function withoutLamps(text: string) {
+  const document = JSON.parse(text)
+  delete document.extensions?.KHR_lights_punctual
+  for (const node of document.nodes ?? []) delete node.extensions?.KHR_lights_punctual
+  return JSON.stringify(document)
+}
+
 async function witness(folder: URL) {
-  const text = await readFile(new URL(SCENE_FILE, folder), 'utf8')
+  const text = withoutLamps(await readFile(new URL(SCENE_FILE, folder), 'utf8'))
   const gltf = await new GLTFLoader().parseAsync(text, folder.href)
   // The engine's mesh casts unless it says otherwise (#456); the loader's keeps `false`.
   gltf.scene.traverse((node) => {
@@ -52,16 +61,17 @@ async function prepared(folder: URL, written?: unknown) {
     metadata: { primitives: [] } as unknown as ClusterManifest,
     base: folder.href,
     readRange: fileRanges,
-    skipBaked: false,
     signal: undefined,
     track: (_resource, read) => read,
   })
   const drawn = built.associations as Map<object, ReturnType<Ranks>>
-  const textures = built.textureIndices as Map<object, number>
+  const textures = built.ranks as Map<object, number>
   const ranks: Ranks = (object) =>
     textures.has(object) ? { textures: textures.get(object) } : drawn.get(object)
   const source = built.source as unknown as Object3D
-  await loadHostVertices(meshes(source))
+  // Its host vertices, each geometry once (`Geometry.loadVertices`), which no session fetches.
+  const geometries = new Set(meshes(source).map((mesh) => mesh.geometry))
+  await Promise.all(Array.from(geometries, (geometry) => geometry.loadVertices()))
   return {
     shape: describeShape(source, ranks),
     whole: describe(threeGraph(source), () => undefined),

@@ -1,5 +1,9 @@
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import { DEFAULT_EXPOSURE } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { joined } from '../../../../sdk-core/src/runtime/joined.ts'
+import {
+  DEFAULT_EXPOSURE,
+  DEFAULT_SHARPNESS,
+} from '../../../../sdk-core/src/scene/core/environment.ts'
 import { cameraAdopter } from './worldLink.ts'
 import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts'
 import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts'
@@ -23,6 +27,7 @@ import { noVehicle } from './worldControlTargets.ts'
 import { worldSwitches } from './worldSwitches.ts'
 import { worldMaterialMethods } from './worldMaterialMethods.ts'
 import { worldMixerView } from './worldMixerView.ts'
+import { createWorldViews, type ViewOptions } from './worldViews.ts'
 /** Creates a world: the scene, camera, engine and loop of one view, on its own WebGPU device.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
  * @param options - How the world draws and listens; saying nothing is the normal case.
@@ -32,25 +37,24 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   if (options.controls === 'vehicle') throw noVehicle()
   const parts = worldParts(target, options)
   const { canvas, frames, diagnostic, runtime, switches } = parts
-  const world = joined(worldView(parts), worldSettings(parts), worldMethods(parts))
+  const world = joined(
+    worldView(parts),
+    worldSettings(parts),
+    worldMethods(parts),
+    worldViewMethods(parts),
+  )
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices))
   registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held)
   return world
 }
 
-/** `a` given the members of `b` and `c`, each accessor kept as an accessor: a spread would read
- *  it once and keep the value. */
-function joined<A extends object, B extends object, C extends object>(a: A, b: B, c: C) {
-  for (const part of [b, c]) Object.defineProperties(a, Object.getOwnPropertyDescriptors(part))
-  return a as A & B & C
-}
-
-/** What a world shows of itself and its page sets: its camera, curve and exposure, and whether
- *  it is gone. */
+/** What a world shows of itself and its page sets: its camera, curve, exposure and sharpening,
+ *  and whether it is gone. */
 type WorldState = {
   camera: Camera
   toneMapping: ToneMapping
   exposure: number
+  sharpness: number
   /** A clip still plays: the frame drawn asks for the next. */
   animating: boolean
   disposed: boolean
@@ -66,6 +70,7 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
     camera: new Camera('perspective'),
     toneMapping: 'aces',
     exposure: DEFAULT_EXPOSURE,
+    sharpness: DEFAULT_SHARPNESS,
     animating: false,
     disposed: false,
   }
@@ -75,13 +80,21 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
     options.signal,
     pools.pageCache,
     () => runtime.holdsSession,
+    // A model's manifest naming its scene's temporal anti-aliasing level: the `scene` setting, the
+    // first such model deciding.
+    (model) => {
+      const level = model.metadata.temporalAntialiasing
+      if (level !== undefined) switches.sceneTemporalAntialiasing(level)
+    },
   )
   const scene = new Scene(loader)
   const invalidate = () => runtime.invalidate()
-  const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug)
+  const views = createWorldViews({ canvas, pixelRatio: options.pixelRatio, invalidate })
+  const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug, invalidate)
   const switches = worldSwitches(options, () => runtime, frames)
   const runtime = worldRuntimeOf({
     ...{ canvas, options, device, scene, state, frames, switches, pools, diagnostic, invalidate },
+    views,
     loading: loader.loading,
     step: () => ahead(controls),
   })
@@ -98,7 +111,18 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
     return runtime.explorer
   }
   return {
-    ...{ canvas, releaseCanvas, frames, pools, state, device, scene, invalidate, diagnostic },
+    ...{
+      canvas,
+      releaseCanvas,
+      frames,
+      pools,
+      state,
+      device,
+      scene,
+      invalidate,
+      diagnostic,
+      views,
+    },
     ...{ switches, runtime, physics, adopt, controls, ahead, live },
   }
 }
@@ -116,6 +140,7 @@ type RuntimeNeeds = {
   pools: ReturnType<typeof worldPools>
   diagnostic: ReturnType<typeof worldDiagnostic>
   invalidate: () => void
+  views: ReturnType<typeof createWorldViews>
   /** The loads the first session waits for: its models, not in the scene yet. */
   loading: () => Promise<unknown> | undefined
   /** Moves what the frame steps ahead of the draw: controls, clips, physics. */
@@ -124,7 +149,8 @@ type RuntimeNeeds = {
 
 /** The session runtime of a world (`worldRuntime.ts`), opened with its options of the moment. */
 function worldRuntimeOf(parts: RuntimeNeeds) {
-  const { canvas, options, device, scene, state, frames, switches, pools, diagnostic } = parts
+  const { canvas, options, device, scene, state, frames, switches, pools, diagnostic, views } =
+    parts
   const runtime = createWorldRuntime({
     canvas,
     // The device granted, and the models asked for meanwhile in the scene (`worldLoader.ts`).
@@ -141,11 +167,19 @@ function worldRuntimeOf(parts: RuntimeNeeds) {
         ...sessionPools(pools),
         // The session's own loop runs the world's frame: its prologue and epilogue, as `render`.
         beforeFrame: () => runtime.beforeFrame(parts.step),
+        drawViews: views.draw,
         onFrame: (metrics) => runtime.afterDraw(metrics),
       }),
-    opened: (explorer) => diagnostic.apply(explorer),
+    opened: (explorer, given) => {
+      switches.apply(explorer, given)
+      diagnostic.apply(explorer)
+      views.attach(explorer)
+    },
     frame: (metrics) => {
+      // The frame's metrics carry the views it drew; their hooks run after the world's.
+      views.drawnIn(metrics)
       frames.dispatch(metrics)
+      views.dispatch()
       // A clip still playing asks for the next; the last pauses.
       if (state.animating) parts.invalidate()
     },
@@ -153,6 +187,7 @@ function worldRuntimeOf(parts: RuntimeNeeds) {
     display: () => ({
       exposure: state.exposure,
       toneMapping: state.toneMapping,
+      sharpness: state.sharpness,
       fog: sceneFogOf(scene.fog),
     }),
     diagnostic,
@@ -160,7 +195,8 @@ function worldRuntimeOf(parts: RuntimeNeeds) {
   return runtime
 }
 
-/** What a world shows of its view: its canvas, device, scene, controls, camera, curve, exposure. */
+/** What a world shows of its view: its canvas, device, scene, controls, camera, curve, exposure,
+ *  sharpening. */
 function worldView(parts: WorldParts) {
   const { canvas, device, scene, controls, state, adopt, invalidate, runtime } = parts
   return {
@@ -192,6 +228,15 @@ function worldView(parts: WorldParts) {
       state.exposure = value
       runtime.displayChanged()
     },
+    /** The tonemapper's sharpening, before the curve, so it sharpens linear light: 0 none,
+     *  up to 1 (`SceneEnvironment.sharpness`). */
+    get sharpness() {
+      return state.sharpness
+    },
+    set sharpness(value: number) {
+      state.sharpness = value
+      runtime.displayChanged()
+    },
   }
 }
 
@@ -216,14 +261,18 @@ function worldSettings({ switches, live }: WorldParts) {
     set bounce(on: boolean) {
       switches.bounce = on
     },
-    /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it
-     *  takes effect at the next frame, history dropped, no session reopened. Read, it is what the
-     *  image carries: false while the program compiles after it was turned on. */
-    get temporalAntialiasing() {
+    /** Temporal antialiasing: sub-pixel jitter accumulated over frames, at a quality level —
+     *  `'off'`, `'low'`, `'medium'`, `'high'`, `'max'` (the default) —, `true` the default level
+     *  and `false` off. Written, it takes effect at the next frame, history dropped, no session
+     *  reopened, over the quality preset and the scene's level. Read, it is the level the image
+     *  carries: `'off'` while the program compiles after it was turned on. */
+    get temporalAntialiasing(): import('../../../../sdk-core/src/contracts/compilerAbi.ts').TemporalAntialiasingLevel {
       return switches.temporalAntialiasing
     },
-    set temporalAntialiasing(on: boolean) {
-      switches.temporalAntialiasing = on
+    set temporalAntialiasing(
+      option: import('../../../../sdk-core/src/contracts/materialOptions.ts').TemporalAntialiasingOption,
+    ) {
+      switches.temporalAntialiasing = option
     },
     /** The fraction of the display per axis the image is drawn at (`WorldOptions.renderScale`),
      *  from the next frame. Read, the scale of the last image drawn. */
@@ -233,7 +282,34 @@ function worldSettings({ switches, live }: WorldParts) {
     set renderScale(scale: import('../../frame/renderScaleOption.ts').RenderScale) {
       switches.renderScale = scale
     },
+    /** The most frames a second the world draws, even while its scene moves
+     *  (`WorldOptions.maxFrameRate`), from the next frame; Infinity, the display's rate. */
+    get maxFrameRate(): number {
+      return switches.maxFrameRate
+    },
+    set maxFrameRate(rate: number) {
+      switches.maxFrameRate = rate
+    },
     /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
+  }
+}
+
+/** The world's views beside its main one: one scene, several cameras (`worldViews.ts`). */
+function worldViewMethods({ views, live }: WorldParts) {
+  return {
+    /** Adds a view of the world's scene: its own camera, drawn into a canvas of its own or over a
+     *  rectangle of the world's, each frame after the main image, on the world's one budget.
+     *  Everything a camera does not change is the world's and shared: pages, shadows, materials,
+     *  physics, clips. @param options - Where it draws, and how (`ViewOptions`).
+     *  @example const side = world.addView({ canvas: 'side', camera: camera.perspective() }); */
+    addView(options: ViewOptions) {
+      live()
+      return views.addView(options)
+    },
+    /** The views added, in their order; the main one is the world itself. */
+    get views() {
+      return views.list
+    },
   }
 }
 
@@ -284,7 +360,7 @@ function worldMethods(parts: WorldParts) {
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (state.disposed) return
       state.disposed = true
-      for (const part of [controls, physics, runtime]) part.dispose()
+      for (const part of [parts.views, controls, physics, runtime]) part.dispose()
       pools.pageCache.clear()
       diagnostic.close()
       frames.clear()

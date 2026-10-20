@@ -12,6 +12,7 @@ import { blendSceneOf } from './plan.fixture.ts'
 import { BLEND_ITEM_WORDS } from './items.ts'
 import { refreshBlendScene } from './sceneRefresh.ts'
 import { refreshWebgpuMaterials } from '../pages/io/refreshMaterials.ts'
+import { createMaterialTable } from '../material/materialTable.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -40,7 +41,7 @@ function scene() {
   const gpu = fakeDevice()
   const rt = {
     blendState,
-    vis: { mapLayer: new Map(), dataLayer: new Map() },
+    vis: { mapLayer: new Map(), dataLayer: new Map(), materialTable: createMaterialTable() },
     gpu: {},
     layout: { rows: { tableEpoch: 0 } },
     run: { gate: { movedInPlace() {} } },

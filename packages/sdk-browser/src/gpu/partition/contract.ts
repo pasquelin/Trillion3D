@@ -38,11 +38,15 @@ export const FLAG_CLIP = 1,
   FLAG_HISTORY = 4,
   /** The row's rectangle and depth were written by a projection: a row never projected — a new
    *  rank, a fresh buffer — carries nothing the previous image's pyramid could judge. */
-  FLAG_PROJECTED = 8,
-  /** Kept by the occlusion test while the view stood still: the row stays an occluder until the
-   *  view moves, instead of leaving the occluders under one antialiasing jitter and coming back
-   *  under the next. */
-  FLAG_KEPT = 16
+  FLAG_PROJECTED = 8
+
+/** A row's unclipped screen rectangle, its first four `rowData` words read as signed integers. */
+export const ROW_RECT_WGSL = wgslBlock(
+  'ROW_RECT_WGSL',
+  [],
+  `fn rowRect(base:u32)->vec4i{return vec4i(bitcast<i32>(rowData[base]),bitcast<i32>(rowData[base+1u]),
+ bitcast<i32>(rowData[base+2u]),bitcast<i32>(rowData[base+3u]));}`,
+)
 
 /**
  * A tested box, the one table the partition writes it from (`classifyRows`) and the Hi-Z test
@@ -125,6 +129,7 @@ export const PARTITION_BINDING = {
   uniforms: 7,
   pyramid: 8,
   hizLevels: 9,
+  selectionMask: 10,
 } as const
 /** What each kernel binds: each layout names only the resources its entry point reads or
  *  writes. */
@@ -149,6 +154,7 @@ export const PARTITION_KERNEL_BINDINGS = {
     'state',
     'uniforms',
     'hizLevels',
+    'selectionMask',
   ],
 } as const satisfies Record<string, readonly (keyof typeof PARTITION_BINDING)[]>
 
@@ -169,6 +175,7 @@ export const PARTITION_UNI = fieldLayout('Uni', [
   ['height', 'u32'],
   ['layerTop', 'u32'],
   ['hasRest', 'u32'],
-  ['viewMoved', 'u32'],
   ['counting', 'u32'],
+  ['selectionEnabled', 'u32'],
+  ['selectionOffset', 'u32'],
 ] as const)

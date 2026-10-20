@@ -10,7 +10,7 @@ import { VSM_COVER_GATHER_WGSL } from './pageGatherWgsl.ts'
 import type { VsmBindingSpec } from './resources.ts'
 import { type VsmPmKernel, vsmPmKernel } from './physicalPagesWgsl.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
-import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_STALE_RECT_INDEX_WGSL } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import type { VsmLayout } from './layout.ts'
@@ -62,6 +62,7 @@ function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
     [
       VSM_MIP_MASK_WGSL,
       VSM_CONSTANTS_WGSL,
+      VSM_STALE_RECT_INDEX_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
       VSM_TABLE_ORIGIN_WGSL,
@@ -93,12 +94,14 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
  atomicMin(&vsmMappedRects[b+1u],pageAddress.y);
  atomicMax(&vsmMappedRects[b+2u],pageAddress.x);
  atomicMax(&vsmMappedRects[b+3u],pageAddress.y);
- // Rendering rect: only pages with something uncached.
- if((flag&VSM_PAGE_ANY_STALE)!=0u){
-  atomicMin(&vsmStaleRects[b+0u],pageAddress.x);
-  atomicMin(&vsmStaleRects[b+1u],pageAddress.y);
-  atomicMax(&vsmStaleRects[b+2u],pageAddress.x);
-  atomicMax(&vsmStaleRects[b+3u],pageAddress.y);
+ // Rendering rects: only pages with something uncached, a rect a layer.
+ for(var layer=0u;layer<2u;layer++){
+  if((flag&select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,layer==1u))==0u){continue;}
+  let s=vsmStaleRectIndex(handle.id,mipLevel,layer==1u)*4u;
+  atomicMin(&vsmStaleRects[s+0u],pageAddress.x);
+  atomicMin(&vsmStaleRects[s+1u],pageAddress.y);
+  atomicMax(&vsmStaleRects[s+2u],pageAddress.x);
+  atomicMax(&vsmStaleRects[s+3u],pageAddress.y);
  }
  // H levels over each page-table mip; level 0 of this hierarchy is the page-table mip itself.
  // Up to the first level that already held the flag: another page carries it on from there.

@@ -10,8 +10,6 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { written, type FakeWrite } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { prepareWebgpuGeometry } from './geometryPrepare.ts'
 import { VERTEX_COLOR_WGSL } from './vertexColors.ts'
-import { ensureBlendUvBuffer } from '../blend/buffers.ts'
-import { createWebgpuGpuState } from '../pages/state/gpu.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import type { GeometryBlock } from '../row/pageRowMaterial.ts'
 import type { HostAttributes } from '../../host/resources.ts'
@@ -19,6 +17,8 @@ import { surfaceOf } from '../../page/surface.ts'
 import { FLAG_HAS_COLOR } from '../../visibility/types.ts'
 import { prepareWebgpuBlend } from '../blend/prepare.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
+import { createMaterialTable } from '../material/materialTable.ts'
+import { rowFlags } from '../row/surfaceRow.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
@@ -72,23 +72,7 @@ test('a scene without vertex colours uploads the UV buffer it always did', () =>
   assert.deepEqual(Array.from(floats(writes[1])), [0.25, 0.5, 1, 0, 0, 1])
 })
 
-test('a transparent geometry carries its colours, alpha included, even without UVs', () => {
-  const { device, writes } = fakeDevice()
-  const gpu = createWebgpuGpuState([1, 1])
-  ensureBlendUvBuffer(device, triangle([1, 0, 0, 0.25, 0, 1, 0, 1, 0, 0, 1, 0.5], 4), gpu)
-  const uvs = floats(writes[0])
-  assert.equal(uvs.length, 3 * 6)
-  assert.deepEqual(vertColor(uvs, 0), [1, 0, 0, 0.25])
-  assert.deepEqual(vertColor(uvs, 2), [0, 0, 1, 0.5])
-  ensureBlendUvBuffer(device, triangle([1, 1, 0, 1, 1, 0, 1, 1, 0], 3, false), gpu)
-  assert.deepEqual(vertColor(floats(writes[1]), 1), [1, 1, 0, 1])
-  ensureBlendUvBuffer(device, triangle(), gpu)
-  assert.equal(floats(writes[2]).length, 3 * 2, 'no colour, no tail')
-})
-
 test('a transparent item multiplies its colour by the vertex colour when its material asks', () => {
-  const { device } = fakeDevice()
-  const gpu = createWebgpuGpuState([1, 1])
   const blendState = createWebgpuBlendState()
   const copy = (vertexColors: boolean, colour?: number[]) => {
     const material = G.standardSurface({ transparent: true, opacity: 0.5, vertexColors })
@@ -97,8 +81,14 @@ test('a transparent item multiplies its colour by the vertex colour when its mat
   }
   const red = [1, 0, 0, 1, 0, 0, 1, 0, 0]
   const copies = [copy(true, red), copy(false, red), copy(true)]
-  prepareWebgpuBlend(device, copies, gpu, blendState, new Scene())
-  const coloured = blendState.blendGpu.map((item) => (item.flags & FLAG_HAS_COLOR) !== 0)
+  prepareWebgpuBlend(copies, blendState, new Scene())
+  // An item's flags are its page row's, as its record writer derives them (`rowFlags`): the
+  // material's ask over the colours its geometry carries.
+  const tables = { mapLayer: new Map(), dataLayer: new Map(), materialTable: createMaterialTable() }
+  const coloured = blendState.blendGpu.map((item) => {
+    const { row } = tables.materialTable.surface(item.surface, tables)
+    return (rowFlags(row, item.geometry, undefined).flags & FLAG_HAS_COLOR) !== 0
+  })
   assert.deepEqual(coloured, [true, false, false])
   // The vertex stage multiplies the item colour, alpha included, at the vertex it fetched.
   const stage = BLEND_SHADER.slice(BLEND_SHADER.indexOf('@vertex fn vs'))

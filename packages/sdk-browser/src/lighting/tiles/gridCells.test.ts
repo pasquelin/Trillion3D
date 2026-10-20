@@ -110,7 +110,8 @@ test("the pass runs the oracle's constants and the resolve its slice", () => {
   const W = wgslConstants(wgslModule(GRID_BOUNDS_WGSL))
   assert.equal(W.NEWTON_STEPS, NEWTON_STEPS)
   assert.deepEqual([W.RUN_FRONT, W.RUN_BACK].map(Math.fround), RUN_MARGIN)
-  assert.ok(GRID_BOUNDS_WGSL.text.includes('let r=radius*1.001;'))
+  // The view's runs widen the range as the oracle does (`RUN_REACH`), by no world cell's side.
+  assert.ok(GRID_BOUNDS_WGSL.text.includes('let r=runReach(radius,0.0);'))
   const { gridSlice: shipped } = shaderFunctions<{ gridSlice: (z: number) => number }>(
     DIRECT_LIGHTING_WGSL,
     ['gridSlice'],

@@ -16,6 +16,7 @@ import { createTileStreamer } from '../tiles.ts'
 import { createPhysicsView } from '../view.ts'
 import { createCharacterPort, createPhysicsCharacter } from '../physicsCharacter.ts'
 import { createStepClock, physicsStep } from '../stepClock.ts'
+import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -44,7 +45,7 @@ export function createPhysicsSession(
   )
   const worker = startPhysicsWorker(budget, step)
   const link = createWorkerLink(s, worker, writer, clock, step)
-  let onReady = () => {}
+  const ready = createDeferred<void>()
   const parts: SessionParts = {
     root,
     budget,
@@ -69,8 +70,8 @@ export function createPhysicsSession(
     casts: new Map(),
     character: createCharacterPort(link.send, link.at),
     retire,
-    started: new Promise<void>((resolve) => (onReady = resolve)),
-    onReady: () => onReady(),
+    started: ready.promise,
+    onReady: () => ready.resolve(),
   }
   listenToWorker(parts)
   return {

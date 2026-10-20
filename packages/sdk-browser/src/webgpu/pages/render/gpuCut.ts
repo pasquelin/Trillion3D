@@ -8,6 +8,7 @@ import { encodeDraws, followRows } from './encodeDraws.ts'
 import { admitGpuCut } from './gpuCutAdmission.ts'
 import { dispatchCut, dispatchWaitingSelection, streamCutResidency } from './gpuCutStream.ts'
 import { keepWebgpuFrame } from '../../frame/hold.ts'
+import { adoptPendingFreeze, cullStep } from './cutFreeze.ts'
 import { recordGpuCutTiming, traceGpuCutFrame, traceGpuCutWaiting } from './gpuCutTrace.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -77,7 +78,10 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
   // The host's threshold, and no other: residency coarsens, one DAG level where a page is missing
   // (`../../../page/cut/rule.ts`).
   const uniforms = run.selectionUniforms
-  cameraSelectionUniforms(cam, pixelError, viewport, uniforms, cutMotion(rt))
+  // A frozen cut keeps the uniforms of the camera it froze at (`./cutFreeze.ts`).
+  if (cullStep(rt) !== 'held')
+    cameraSelectionUniforms(cam, pixelError, viewport, uniforms, cutMotion(rt))
+  adoptPendingFreeze(rt)
   // A pool short of the views' cuts has the GPU rank the requests by admission (`request.ts`).
   uniforms.admitByLevel = services.residency.short()
   // The clock every view's cut of this frame stamps what it uses with (`../../../gpu/dag/evict.ts`).
@@ -99,7 +103,7 @@ function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamer
   let cut: boolean
   try {
     const encoder = openFrameEncoder(rt, gpuDevice)
-    followRows(rt, gpuDevice, cam)
+    followRows(rt, gpuDevice)
     rt.vis.deformationCode?.encodeDeformation(rt, encoder)
     cut = dispatchCut(rt, encoder)
   } catch (error) {
@@ -131,10 +135,8 @@ function encodeImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCa
     abandonFrameEncoder(rt)
   }
   marks.cpuEnd = cpuNow()
-  // The cut's own triangles came back with the readback; the meshes outside the DAG are counted
-  // where they are drawn.
-  if (run.gpuMetricsReady)
-    run.submittedTriangles = run.selectedTriangles + run.blendUnpagedTriangles
+  // The cut's own triangles came back with the readback, every transparent cluster among them.
+  if (run.gpuMetricsReady) run.submittedTriangles = run.selectedTriangles
   recordGpuCutTiming(rt)
   traceGpuCutFrame(rt, cam)
   // The image was encoded and submitted in full: it alone allows a hold, and only if the previous

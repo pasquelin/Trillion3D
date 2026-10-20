@@ -38,10 +38,18 @@ export type PlacementRows = {
    *  world times the mesh's world within the model's graph, whose bones stand in that graph's
    *  frame, never in the world's: a palette is read there (`DeformedMesh.frame`). */
   local?: true
-  /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell and its rank
-   *  among the cell's nodes; a column of its own, absent until a cell places one. */
-  cells?: ({ cell: number; node: number } | undefined)[]
-  /** The rows whose cell moved since a backend last linked them to the world object they draw
+  /** A blend item reads its rows (`../webgpu/blend/prepare.ts`): composed for that reader too
+   *  (`composeReaders.ts`), never left to a root. Kept by a growth. */
+  blended?: true
+  /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell, its rank
+   *  among the cell's nodes, the placement of its model whose cells placed it (`instance`, 0 the
+   *  first), its cell's HLOD 0 cell, and whether it draws as that cell's HLOD 0 actor — its cell
+   *  past the main grid's loading range — rather than as the source mesh; a column of its own,
+   *  absent until a cell places one. */
+  cells?: (
+    { cell: number; node: number; instance: number; hlod: number; proxy: boolean } | undefined
+  )[]
+  /** The rows whose cell moved since a backend last linked them to the HLOD 0 cell they lie in
    *  (`../partition/rowCells.ts`, `takeCellsMoved`): one changed list, kept by a growth. */
   cellsMoved?: ChangedRuns
 }
@@ -63,6 +71,8 @@ export function growPlacementRows(before: PlacementRows | null, needed: number) 
   if (before) {
     rows.sources = before.sources
     rows.sourceModels = before.sourceModels
+    if (before.local) rows.local = true
+    if (before.blended) rows.blended = true
     rows.matrices.set(before.matrices)
     rows.live.set(before.live)
     rows.shadowless.set(before.shadowless)
@@ -102,9 +112,3 @@ export const rowParked = (placement: PlacementOf | undefined) =>
 /** True when `placement` names a row whose mesh casts no shadow. */
 export const rowShadowless = (placement: PlacementOf) =>
   placement.rows.shadowless[placement.index] === 1
-
-/** True when one of `placed` — blended copies, blend items — is posed by a row of `rows`. */
-export const placedBy = (
-  placed: readonly { readonly placement?: PlacementOf }[],
-  rows: PlacementRows,
-) => placed.some((entry) => entry.placement?.rows === rows)

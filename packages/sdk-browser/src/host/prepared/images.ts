@@ -11,7 +11,7 @@ import type { PreparedBinary } from './accessors.ts'
  * cannot be read or decoded is no image — its textures are left empty — as the loader left them.
  */
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
-import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts'
+import { BAKED_IMAGE } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
 import { decodeRaw, fetchDecoded } from '../../texture/decode.ts'
 import type { ByteMeter } from '../../cluster/byteMeter.ts'
 import { log } from '../../diagnostic/log.ts'
@@ -48,8 +48,7 @@ type Inputs = {
 export function preparedImages(inputs: Inputs) {
   const { document, documentUrl, binary, skipped, signal, track, meter } = inputs
   const read = async (rank: number): Promise<unknown> => {
-    if (skipped.has(rank))
-      return track(PLACEHOLDER_IMAGE, fetchDecoded(PLACEHOLDER_IMAGE, signal, meter))
+    if (skipped.has(rank)) return track(BAKED_IMAGE, fetchDecoded(BAKED_IMAGE, signal, meter))
     const image = document.images[rank]
     if (image.uri !== null) {
       const url = new URL(image.uri, documentUrl).href

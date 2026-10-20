@@ -14,7 +14,7 @@ export const frameWaits = (held: Held) => familiesArriving(frameFamilies(held))
 /**
  * The families a session opening on `options` loads with its scene (`prepare.ts`): those its
  * first frame draws with, and the measurement's provenance when a diagnostic channel listens or
- * debug mode (the frame audit among its tools) is on. Started at once, awaited before the session opens.
+ * debug mode is on. Started at once, awaited before the session opens.
  */
 export function sessionFamilies(options: MeasuredWorldOptions, listened: boolean) {
   const names = [...frameFamilies(options)]

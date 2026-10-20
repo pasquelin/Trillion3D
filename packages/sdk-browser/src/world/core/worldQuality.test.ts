@@ -12,14 +12,14 @@ import { createWorldSettings } from './worldSettings.ts'
 
 const WORLD_SETTINGS = createWorldSettings().table
 
-/** The engine's table, with the shadows' and the view distance's levels written as a level of
- *  S35 would: the mechanism is proven on values it can see. */
+/** The engine's table, with the edge smoothing's and the view distance's levels written as a level
+ *  of S35 would: the mechanism is proven on values it can see. */
 const LEVELS: QualityLevels = {
   ...QUALITY_LEVELS,
-  shadows: {
-    smooth: { shadowPages: 256 },
-    balanced: { shadowPages: 512 },
-    fine: { shadowPages: 1024 },
+  edgeSmoothing: {
+    smooth: { antialiasing: 'off' },
+    balanced: {},
+    fine: {},
     max: {},
   },
   viewDistance: {
@@ -54,23 +54,23 @@ test('by default the preset reads max and every setting resolves to its default'
 test('a group the page set holds through every preset change', () => {
   const { settings, quality: q } = quality()
   q.preset = 'balanced'
-  assert.equal(settings.get('shadowPages'), 512)
-  q.set('shadows', 'fine')
+  assert.equal(settings.get('pixelError'), 4)
+  q.set('viewDistance', 'fine')
   q.preset = 'smooth'
-  assert.equal(q.get('shadows'), 'fine')
-  assert.equal(settings.get('shadowPages'), 1024, 'the page level, over the preset')
-  assert.equal(settings.get('pixelError'), 8, 'the other groups follow the preset')
+  assert.equal(q.get('viewDistance'), 'fine')
+  assert.equal(settings.get('pixelError'), 1, 'the page level, over the preset')
+  assert.equal(settings.get('antialiasing'), 'off', 'the other groups follow the preset')
   assert.equal(q.preset, 'custom')
-  q.set('shadows', 'preset')
-  assert.equal(q.get('shadows'), 'smooth')
-  assert.equal(settings.get('shadowPages'), 256, 'given back, the group follows the preset')
+  q.set('viewDistance', 'preset')
+  assert.equal(q.get('viewDistance'), 'smooth')
+  assert.equal(settings.get('pixelError'), 8, 'given back, the group follows the preset')
   assert.equal(q.preset, 'smooth')
 })
 
 test('a page level of max writes the defaults over a coarser preset', () => {
-  const { settings, quality: q } = quality({ preset: 'smooth', groups: { shadows: 'max' } })
-  assert.equal(settings.get('shadowPages'), WORLD_SETTINGS.shadowPages.default)
-  assert.equal(settings.get('pixelError'), 8)
+  const { settings, quality: q } = quality({ preset: 'smooth', groups: { viewDistance: 'max' } })
+  assert.equal(settings.get('pixelError'), WORLD_SETTINGS.pixelError.default)
+  assert.equal(settings.get('antialiasing'), 'off')
   q.preset = 'max'
   assert.equal(q.preset, 'max', 'the page level is the preset level: not custom')
 })
@@ -86,7 +86,7 @@ test('a value the page set by hand is not overwritten by a preset', () => {
 test('the resolution goes through the render scale: a mode fixed, or dynamic below it', () => {
   const { quality: q } = quality()
   q.resolution = { mode: 'fast' }
-  assert.deepEqual(renderScaleBounds(renderScaleOf({ mode: 'fast' })), {
+  assert.deepEqual(renderScaleBounds(renderScaleOf({ mode: 'fast' }), 3840 * 2160), {
     auto: false,
     min: 0.5,
     max: 0.5,
@@ -105,8 +105,8 @@ test('levels() lists every group and level with the values they resolve to', () 
   const { quality: q } = quality()
   const table = q.levels()
   assert.deepEqual(table.presets, ['smooth', 'balanced', 'fine', 'max'])
-  assert.equal(table.groups.shadows.fine.shadowPages, 1024)
-  assert.equal(table.groups.shadows.max.shadowPages, WORLD_SETTINGS.shadowPages.default)
+  assert.equal(table.groups.viewDistance.fine.pixelError, 1)
+  assert.equal(table.groups.viewDistance.max.pixelError, WORLD_SETTINGS.pixelError.default)
   assert.equal(table.groups.indirectLight.max.bounce, false)
   assert.equal(table.resolution.fast, 0.5)
 })

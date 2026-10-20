@@ -12,6 +12,7 @@ import {
   writeChangedSlots,
 } from './writeChanged.ts'
 import { uniformSlots } from '../../residency/pools.ts'
+import { WRITE_CAP } from '../../webgpu/residency/ranges.ts'
 
 /** A buffer copied from and into, written by the queue. */
 const copies = () => GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
@@ -26,13 +27,15 @@ test('only the changed words go up, the buffer holding the image; the hole is ne
   })
   const held = new Uint32Array(words)
   const image = new Uint32Array(words)
-  // 40 records far apart below 8192 words, then one past the 8192-id hole.
-  for (let k = 0; k < 40; k++) image[k * 128] = k + 1
+  // More records far apart below 8192 words than the cap holds writes, then one past the 8192-id
+  // hole: the narrowest steps join, the widest — the hole — never.
+  const far = WRITE_CAP + 16
+  for (let k = 0; k < far; k++) image[k * 128] = k + 1
   image[8192 * 4 + 1] = 7
   writeChanged(device, buffer, image, 0, words)
-  assert.ok(writes.length <= 32, `${writes.length} writes`)
+  assert.ok(writes.length <= WRITE_CAP, `${writes.length} writes`)
   const sent = writes.reduce((sum, w) => sum + (w.size ?? 0), 0)
-  assert.ok(sent < 40 * 128 + 64, `${sent} words sent, not the hole`)
+  assert.ok(sent < far * 128 + 64, `${sent} words sent, not the hole`)
   replayWrites(held.buffer, writes)
   assert.deepEqual(held, image)
   // A still image sends nothing; one word changed sends one word.

@@ -1,36 +1,27 @@
-import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
-import { projectedPageError } from '../../page/selection/diagnostic.ts'
-import { rootOf, rootOfPacked, type PlacementIndex } from '../../page/selection/placements.ts'
-import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
-import { screenErrorRatio } from '../../diagnostic/colors.ts'
+import { pageDiagnosticWord } from '../../page/selection/diagnostic.ts'
 import { clusterHash } from '../../visibility/math.ts'
+import { diagnosticReads } from '../../visibility/shader/shadeMode.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import type { WebgpuBlendState } from './state.ts'
 
 /**
- * The cluster identity every transparent instance colours itself with, one word per catalogue entry.
- *
- * It is a property of the cluster, not of the cut: the hash and the level never move, and only
- * `screen-error` depends on the camera. So the table is written whole when the mode changes and
- * re-written per image only for that one mode — and never at all in beauty.
+ * The cluster word every transparent instance colours itself with, one per catalogue entry: the
+ * cluster's hash, or its diagnostic word (`pageDiagnosticWord`), as the view drawn reads
+ * (`diagnosticReads`). Both are properties of the cluster, not of the camera: the shader derives
+ * the rest (`diagnosticColor`), the screen error included. So the table is written whole when the
+ * mode changes, never per image, and never at all in beauty or a view that reads neither.
  */
 export function writeBlendDiagnostic(
   blendState: WebgpuBlendState,
   packedPages: PageList,
-  roots: readonly ClusterRoot<PageRec>[],
-  placement: PlacementIndex,
   diagnostic: DiagnosticMode,
-  cam: EngineCamera | undefined,
-  viewport: readonly [number, number],
-  diagnosticPixelError: number,
 ) {
   const { table, compaction } = blendState
   if (!table || !compaction) return
-  // The accessor is built after the guards: a beauty image, which reads no diagnostic, allocates
-  // nothing here.
-  if (diagnostic !== 'clusters' && diagnostic !== 'lod' && diagnostic !== 'screen-error') return
-  if (blendState.diagnosticMode === diagnostic && diagnostic !== 'screen-error') return
+  const reads = diagnosticReads(diagnostic)
+  if (!reads || blendState.diagnosticMode === diagnostic) return
+  // The accessor is built after the guards: an image that reads no cluster word allocates nothing.
   const { recordOf } = createPageCatalogue(packedPages)
   blendState.diagnosticMode = diagnostic
   if (blendState.clusterIdentity.length < table.capacity)
@@ -42,23 +33,8 @@ export function writeBlendDiagnostic(
       identity[entry] = 0
       continue
     }
-    const rec = recordOf(page)!,
-      hash = clusterHash(rec.clusterId) & 0x00ffffff
-    const ratio =
-      diagnostic === 'screen-error' && cam
-        ? Math.round(
-            screenErrorRatio(
-              projectedPageError(
-                rec,
-                rootOf(roots, rootOfPacked(placement, page)).world,
-                cam,
-                viewport,
-              ),
-              diagnosticPixelError,
-            ) * 127,
-          )
-        : 0
-    identity[entry] = (hash | (ratio << 24) | (rec.role === 'coarse' ? 0x80000000 : 0)) >>> 0
+    const rec = recordOf(page)!
+    identity[entry] = reads === 'hash' ? clusterHash(rec.clusterId) : pageDiagnosticWord(rec)
   }
   compaction.uploadDiagnostic(identity.subarray(0, table.capacity))
 }

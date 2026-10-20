@@ -1,12 +1,7 @@
-// The run-time proxy's buffer as the tests lay it (`runtimeLayout.ts`): the arena — the blended copies'
-// worlds, the surfaces, then a cut's columns — and the header's fields before it. The one writer of that
-// layout the tests share: the run-time scene (`runtimeScene.fixture.ts`) and the reflection rig's faces.
-import {
-  RUNTIME_HEADER,
-  RUNTIME_HEADER_WORDS,
-  RUNTIME_WORLD_WORDS,
-  SURFACE_WORDS,
-} from './runtimeLayout.ts'
+// The run-time proxy's buffer as the tests lay it (`runtimeLayout.ts`): the arena — the surfaces,
+// then a cut's columns — and the header's fields before it. The one writer of that layout the tests
+// share: the run-time scene (`runtimeScene.fixture.ts`) and the reflection rig's faces.
+import { RUNTIME_HEADER, RUNTIME_HEADER_WORDS, SURFACE_WORDS } from './runtimeLayout.ts'
 import type { ArenaColumns } from './runtimeOracle.fixture.ts'
 import { f32Bits } from '../../../math/src/float/bits.ts'
 
@@ -17,21 +12,14 @@ type ProxyHeader = Record<keyof typeof RUNTIME_HEADER, number>
 const wordsOf = (values: Float32Array) =>
   new Uint32Array(values.buffer, values.byteOffset, values.length)
 
-/** The arena over `columns`, after the copies' worlds (`copyWorlds`, sixteen floats each) and the
- *  surfaces (seven floats — tint, opacity, emission —, then a flags word each), and the word each
- *  region starts at, by the header's names. */
-export function proxyArena(
-  columns: ArenaColumns,
-  surfaces: readonly (readonly number[])[],
-  copyWorlds = new Float32Array(0),
-) {
-  const copyWorldsWord = 0,
-    surfacesWord = copyWorldsWord + copyWorlds.length,
+/** The arena over `columns`, after the surfaces (seven floats — tint, opacity, emission —, then a
+ *  flags word each), and the word each region starts at, by the header's names. */
+export function proxyArena(columns: ArenaColumns, surfaces: readonly (readonly number[])[]) {
+  const surfacesWord = 0,
     trianglesWord = surfacesWord + surfaces.length * SURFACE_WORDS,
     boundsWord = trianglesWord + columns.triangles.length,
     childrenWord = boundsWord + columns.nodeBounds.length
   const words = new Uint32Array(childrenWord + columns.nodeChildren.length)
-  words.set(wordsOf(copyWorlds), copyWorldsWord)
   surfaces.forEach((surface, k) => {
     const at = surfacesWord + k * SURFACE_WORDS
     new Float32Array(words.buffer, at * 4, 7).set(surface.slice(0, 7))
@@ -42,17 +30,16 @@ export function proxyArena(
   words.set(columns.nodeChildren, childrenWord)
   return {
     words,
-    regions: { copyWorldsWord, surfacesWord, trianglesWord, boundsWord, childrenWord },
-    copies: copyWorlds.length / RUNTIME_WORLD_WORDS,
+    regions: { surfacesWord, trianglesWord, boundsWord, childrenWord },
   }
 }
 
-/** The header over `arena` (`proxyArena`): its regions and copies, the placements' count, the
- *  placement tree's root and members, no error. */
+/** The header over `arena` (`proxyArena`): its regions, the placements' count, the placement
+ *  tree's root and members, no error. */
 export const proxyHeader = (
   arena: ReturnType<typeof proxyArena>,
   fields: { instances: number; treeRoot: number; members: number },
-): ProxyHeader => ({ ...fields, ...arena.regions, error: 0, copies: arena.copies })
+): ProxyHeader => ({ ...fields, ...arena.regions, error: 0 })
 
 /** The proxy's buffer: the header's fields at their words, `error` as an `f32`'s bits, then `arena`,
  *  and one word past it. */

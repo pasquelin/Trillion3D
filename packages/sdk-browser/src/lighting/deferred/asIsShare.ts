@@ -17,9 +17,9 @@ export const SHARE_TARGET: GPUColorTargetState = {
   blend: BLEND_EQUATIONS.normal,
 }
 
-/** The reactive value's target as a particle and the water composite write it
- *  (`../../webgpu/particles/webgpuParticleDraw.ts`, `../../webgpu/water/pipelines.ts`): the same, green
- *  alone (`GPUColorWrite.GREEN`). */
+/** The reactive value's target as a particle and a transmissive layer write it
+ *  (`../../webgpu/particles/webgpuParticleDraw.ts`, `../../webgpu/blend/transmission/pipelines.ts`): the same,
+ *  green alone (`GPUColorWrite.GREEN`). */
 export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 }
 
 /** The seed's program, once a device, compiled off the thread from the first frame entry of a scene
@@ -50,8 +50,8 @@ export const askAsIsSeed = (device: GPUDevice) => void seedProgram(device).pipel
 
 /**
  * The current image's debug-view share, seeded from opaque flags before transparents blend it, and
- * beside it the reactive value, seeded 0: each blend, particle and the water composite writes 1 at
- * its coverage over it (`../../webgpu/water/compositeWgsl.ts`), so a pixel behind transparents holds
+ * beside it the reactive value, seeded 0: each blend, particle and transmissive layer writes 1 at
+ * its coverage over it (`../../webgpu/blend/transmission/transmitWgsl.ts`), so a pixel behind transparents holds
  * their accumulated opacity. The temporal pass shortens a moving pixel's history by it
  * (`../../taa/historyWgsl.ts`).
  */

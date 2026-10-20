@@ -63,17 +63,6 @@ export const SPRITE_UNCULLED = 2
 /** The bits of a root that casts no shadow: what the shadow raster's rows test
  *  (`../../webgpu/shadow/bounds.ts`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT
-/** The root mark's bit on a root the camera draws as its impostor card: every camera cut
- *  leaves its clusters to the card (`drawsCard`), the shadow raster still draws them, so the card's
- *  object casts its whole mesh's shadow. */
-export const CARD_ROOT = 8
-/** Sets or clears `root`'s card bit; true when its mark changed. */
-export function markCard(root: { mark?: number }, card: boolean) {
-  const before = root.mark ?? 0,
-    mark = card ? before | CARD_ROOT : before & ~CARD_ROOT
-  root.mark = mark || undefined
-  return mark !== before
-}
 /** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
 export const withShadowless = (mark: number, shadowless: boolean) =>
   shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT

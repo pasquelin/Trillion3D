@@ -34,6 +34,7 @@ function runtime(traceEnabled: boolean) {
     timing: {},
     blendState: { blendGpu: [], visibleBlend: [] },
     capture: { capturing: true },
+    views: { main: {}, active: {} },
     context: {},
     gpu: {},
     vis: {},

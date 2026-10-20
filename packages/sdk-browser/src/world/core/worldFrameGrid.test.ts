@@ -75,7 +75,7 @@ test('a variable-refresh display presenting off the grid advances by its own int
   }
 })
 
-test('a pause advances two periods once, and no frame after it catches up', (t) => {
+test('a pause advances one running interval once, and no frame after it catches up', (t) => {
   const { frame, told } = world(t)
   let at = 1000
   const deltas: number[] = []
@@ -83,9 +83,10 @@ test('a pause advances two periods once, and no frame after it catches up', (t) 
   const one = deltas.at(-1)!
   assert.ok(Object.is(deltas.at(-2), one))
   const before = told.at(-1)!.time
-  // Five seconds of a hidden tab, or of a still scene the loop slept through.
+  // Five seconds of a hidden tab, or of a still scene the loop slept through: the frame after it
+  // one ordinary frame (`../../frame/loopPace.ts`).
   at += 5000
-  assert.ok(Object.is(frame(at, P120), 2 * one), 'the pause spans two periods')
+  assert.ok(Object.is(frame(at, P120), one), 'the pause spans one running interval')
   assert.ok(Math.abs(told.at(-1)!.time - before - 5) < 1e-9, "the world's time is the wall's")
   const after: number[] = []
   for (let f = 0; f < 20; f++) after.push(frame((at += P120 + 0.1 * noise()), P120))

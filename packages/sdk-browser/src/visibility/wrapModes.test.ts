@@ -6,19 +6,15 @@
 import type { Texture, WrapMode } from '../../../sdk-core/src/texture/contract.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  WRAP_S_MIRROR,
-  WRAP_S_REPEAT,
-  WRAP_T_MIRROR,
-  WRAP_T_REPEAT,
-  wrapNibble,
-} from './wrapModes.ts'
+import { wrapNibble } from './wrapModes.ts'
 import { SHADE_SHADER } from './shader/shadeWgsl.ts'
 import { maskKeepWgsl } from './shader/pageWgsl.ts'
 import { maskAlphaWgsl } from '../webgpu/tile/wgsl.ts'
 import { MAPS, mixedNibbles } from '../../../../tests/gpu/texture/addressingMaps.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 
+/** The nibble's bits, as the texture header writes them: repeat and mirror of S, then of T. */
+const [WRAP_S_REPEAT, WRAP_S_MIRROR, WRAP_T_REPEAT, WRAP_T_MIRROR] = [1, 2, 4, 8]
 const carte = (wrapS: WrapMode, wrapT: WrapMode) => ({ wrapS, wrapT }) as Texture
 /** Expected nibble of a fixture entry, recomputed from its two declared wrap modes. */
 const expected = (c: (typeof MAPS)[number]) => wrapNibble(carte(c.wrapS, c.wrapT))
@@ -47,11 +43,11 @@ test('each map carries its own nibble in its header, whatever the others', () =>
 // read takes an addressing argument, so none can take another map's (`../texture/sampling.ts`).
 for (const [nom, text] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
   test(`${nom} reads each map with no addressing argument`, () => {
-    // The transparent pass reads its first UV set, `in.uv.xy`: a lobed program carries a second
-    // one in the same varying (`blendSurfaceWgsl`).
+    // Each map at the UV set its record names: the resolve's `mapCoord`, the transparent pass's
+    // `blendUv` (`blendSurfaceWgsl`).
     assert.match(
       text,
-      /colorSample\(m\.mapIndex,uv,ddx,ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,in\.uv\.xy,g\.gradX,g\.gradY,blendSampled\(in\)\)/,
+      /colorSample\(m\.mapIndex,mapCoord\(m,0u\)\.uv,mapCoord\(m,0u\)\.ddx,mapCoord\(m,0u\)\.ddy,HAS_SAMPLING\)|colorSample\(in\.ids\.x,c\.uv,c\.ddx,c\.ddy,blendSampled\(in\)\)/,
     )
     assert.doesNotMatch(text, /wrapOf|wrapModes/, 'no per-material addressing word')
   })

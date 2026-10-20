@@ -8,8 +8,9 @@ import {
 } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import type { TexturePreview } from '../../../../sdk-core/src/texture/previewContracts.ts'
 
-import { previewLevels } from '../../../../../tests/fixtures/manifest/manifestBinary.ts'
-import { previewsByAtlas, tileCatalogue } from './catalogue.ts'
+import { previewLevels } from '../../../../../tests/fixtures/manifest/manifestBinaryLevels.ts'
+import { tileCatalogue } from './catalogue.ts'
+import { previewsByAtlas } from '../../texture/textureCaches.ts'
 import { poolEncoding, WHITE_TAIL } from '../../texture/blockFormats.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 
@@ -37,6 +38,8 @@ const reader = Object.assign(
   },
   { store: createPageCache(), key: 'k' },
 )
+/** `preview` found in a cache read by `reader`. */
+const baked = (preview: TexturePreview) => () => ({ preview, read: reader })
 
 // Behaviour: a tail carries every encoding the sidecar holds, the fill slot the white texel in
 // each, and every texture takes the lane of its chain's layout in the session's family — the
@@ -48,8 +51,7 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
   const bc7 = poolEncoding('bc7')
   const [fill, entry, hosted] = tileCatalogue(
     [map(), map()],
-    (i) => (i === 0 ? chain : undefined),
-    reader,
+    (i) => (i === 0 ? { preview: chain, read: reader } : undefined),
     bc7,
   )
   assert.deepEqual(fill, {
@@ -61,20 +63,20 @@ test('a catalogue routes each texture to the lane of its layout and hosts what h
   assert.equal(entry.lane, 'rgba')
   if (entry.source.kind === 'baked') assert.equal(entry.source.tail, chain)
   assert.deepEqual([hosted.source.kind, hosted.lane], ['host', 'lossless'])
-  const [astcFill, astc] = tileCatalogue([map()], () => chain, reader, poolEncoding('astc'))
+  const [astcFill, astc] = tileCatalogue([map()], baked(chain), poolEncoding('astc'))
   assert.equal(astc.lane, 'two-channel')
   assert.equal(astcFill.lane, 'two-channel', 'the fill opens no RGBA layer of its own')
   const refused = { ...chain, layouts: { bc7: 'lossless', astc: 'rgba', etc2: 'rgba' } as const }
-  const [, lossless] = tileCatalogue([map()], () => refused, reader, bc7)
+  const [, lossless] = tileCatalogue([map()], baked(refused), bc7)
   assert.equal(lossless.lane, 'lossless')
-  const [hostFill, host] = tileCatalogue([map()], () => undefined, reader, bc7)
+  const [hostFill, host] = tileCatalogue([map()], () => undefined, bc7)
   assert.deepEqual(
     [hostFill.lane, host.lane],
     ['lossless', 'lossless'],
     'a host-only scene opens no block layer for the fill alone',
   )
   const raw = poolEncoding(undefined)
-  const [rawFill, small] = tileCatalogue([map()], () => preview(32, 32, 0), reader, raw)
+  const [rawFill, small] = tileCatalogue([map()], baked(preview(32, 32, 0)), raw)
   assert.deepEqual([rawFill.lane, small.source.kind, small.lane], ['lossless', 'bytes', 'lossless'])
 })
 
@@ -87,6 +89,6 @@ test('a coverage chain is filed as the colour entry of its texture and keeps its
   assert.equal(previewAt(3, PREVIEW_ATLAS_COLOR), coverage)
   assert.equal(previewAt(3, PREVIEW_ATLAS_DATA), data)
   assert.equal(previewAt(3, PREVIEW_ATLAS_COVERAGE), undefined, 'filed by atlas, not by word')
-  const [, entry] = tileCatalogue([map()], () => coverage, reader, poolEncoding('bc7'))
+  const [, entry] = tileCatalogue([map()], baked(coverage), poolEncoding('bc7'))
   assert.equal(entry.source.kind === 'baked' && entry.source.atlas, PREVIEW_ATLAS_COVERAGE)
 })

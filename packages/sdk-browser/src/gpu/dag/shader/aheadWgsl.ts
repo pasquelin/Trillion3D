@@ -37,7 +37,7 @@ fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{return outsideFrustum(w,AHEAD
 fn keepsAhead(node:CullNode,w:u32,open:u32)->bool{
  vi=AHEAD_VIEW;
  if(outsideAhead(w,node.minimum,node.maximum)){return false;}
- let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=thresholdOf(w);
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=views[vi].pixelError;
  return !tooCoarse(node,e,stretch,focal,t)&&!floorPrunes(open,node.floorSphere,node.errorFloor,e,stretch,focal,t);
 }
 /** A node the camera rejected for placement \`w\`, tried against the view ahead. */
@@ -54,7 +54,7 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  if(outsideAhead(w,bmin,bmax)){return;}
  let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  let pixels=clusterPixels(cluster,e,stretch,focal);
- if(!selects(pixels,thresholdOf(w))){return;}
+ if(!selects(pixels,views[vi].pixelError)){return;}
  // Asked for, it counts as used a little before now (\`stampAhead\`): kept after the old pages.
  if(emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax))){stampAhead(r);markSeed(ROW_SEED_AHEAD);}
 }

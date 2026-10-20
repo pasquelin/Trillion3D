@@ -11,7 +11,8 @@ import { surfaceOf } from '../../../page/surface.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
-import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/historyTargets.ts'
+import { level0LayerBytes } from '../../../gpu/hiz/pyramid.ts'
+import { taaTargetBytes } from '../../../taa/historyTargets.ts'
 import {
   MEASURE_HEIGHT,
   MEASURE_WIDTH,
@@ -41,13 +42,16 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [3840, 2160],
   ]) {
     const base = frameTargetAllocation(rt, native(width, height))
-    // The frame's targets, and the reflection's target and pyramids (`reflections/gpu.ts`).
-    // A scene with no blend: its front depth is a texel of the reflection's target.
+    // The frame's targets, and the reflection's target and pyramids (`reflections/gpu.ts`), and
+    // the Hi-Z level 0's front layer, made with every pyramid (`level0LayerBytes`). A scene with no
+    // blend: its front depth is a texel of the reflection's target.
     assert.equal(
       base,
-      frameTargetBytes(width, height, true) + reflectionBytes(width, height, false),
+      frameTargetBytes(width, height, true) +
+        reflectionBytes(width, height, false) +
+        level0LayerBytes(width, height),
     )
-    assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL)
+    assert.equal(ensureTaaTargets(rt, native(width, height)), taaTargetBytes(native(width, height)))
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * MIB, '4K exceeds the old ceiling')
   assert.deepEqual(resized, [
@@ -56,14 +60,17 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
   ])
   // Reallocated targets no longer have history.
   assert.equal(temporal.frame.hasHistory, false)
-  assert.equal(temporal.frame.stillFrames, 0)
   assert.throws(() => frameTargetAllocation(rt, native(8193, 16)), /SURFACE_DEVICE_LIMIT/)
 })
 
 test("a surface capture does not touch the view's history targets", () => {
   const { rt, resized } = runtime()
   rt.capture.capturing = true
-  assert.equal(ensureTaaTargets(rt, 64, 64), 0, 'the capture reserve already carries the history')
+  assert.equal(
+    ensureTaaTargets(rt, native(64, 64)),
+    0,
+    'the capture reserve already carries the history',
+  )
   assert.deepEqual(resized, [])
 })
 
@@ -111,6 +118,7 @@ test('the frame targets hold the share only while a debug view reads it', () => 
 })
 
 test('targets that fit ask nothing of the device: the steady frame is free', () => {
+  const scale = createScaleControl(undefined)
   const rt = {
     setup: { viewport: [32, 32] },
     run: {
@@ -118,8 +126,9 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       funding: { refreshing: undefined, cutAsked: 0, pending: Promise.resolve() },
     },
     layout: { rows: { packedCount: 0, packedRecs: [] } },
-    blendState: { blendGpu: [] },
+    blendState: { blendGpu: [], refracts: false, refractGranted: false },
     context: {},
+    capture: { capturing: false },
     gpu: {
       colorTexture: {},
       hdrTexture: {},
@@ -132,7 +141,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       targetGrant: undefined,
     },
     vis: { visTexture: {} },
-    scale: createScaleControl(undefined),
+    views: { active: { scale } },
   } as unknown as WebgpuPagesRuntime
   // A bare device: any creation or error scope would throw.
   assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined)

@@ -17,7 +17,7 @@ function projectedVsm(rt: WebgpuPagesRuntime) {
   return vsm?.plan && vsm.plan.projectionCount > 0 ? vsm : undefined
 }
 
-/** This frame's resources a non-mask read takes (blend, water): the maps, the pool's first slice —
+/** This frame's resources a non-mask read takes (the translucent layers): the maps, the pool's first slice —
  *  its one window (`VSM_FORWARD_LAYOUT`) — and the projection's view and noise its fragments trace
  *  with (`vsmTraceFactor`), or none. */
 export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
@@ -36,6 +36,8 @@ export function vsmConsumerResources(rt: WebgpuPagesRuntime) {
 /** The transmission atlas the shadow reads multiply by, or none. */
 export const vsmTransmissionView = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.transmission?.view
 
+/** The mask's transmission the lighting pass reads (`vsmMaskThrough`), or none this frame. */
+export const vsmShadowThrough = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.throughView
 /** The mask the lighting pass reads, or none this frame. */
 export const vsmShadowMask = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.view
 /** The mask's tile words the lighting pass reads with it (`vsmMaskFactor`), or none this frame. */

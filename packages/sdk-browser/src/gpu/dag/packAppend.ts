@@ -62,7 +62,8 @@ export function appendDagRoots(
       shift = tree?.depth ?? 0
     for (let level = 0; level < sizes.length; level++)
       packed.levelSizes[level + shift] += sizes[level]
-    ;(packed.worldSources as DagRoot[]).push(root)
+    const sources = packed.worldSources as DagRoot[]
+    sources.push(root)
     batch.push(live.worlds - 1)
   }
   packed.rootCount = p.rootClusters
@@ -107,7 +108,7 @@ function recordsOf(root: DagRoot, shared: PackShared) {
 function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShared) {
   // The world DAG's links are laid out over every placement at once (`packWorldLinks`): it is
   // packed with them all, never appended.
-  if (roots.some((root) => root.origins)) return false
+  if (roots.some((root) => root.hlod)) return false
   const live = packed.live!,
     shift = packed.placementTree?.depth ?? 0,
     added = countRoots(

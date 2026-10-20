@@ -4,8 +4,9 @@ import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 
-export const DRAW_INDIRECT_STRIDE = 16
+const DRAW_INDIRECT_STRIDE = 16
 /** Corners an indirect instance launches at most: 32 triangles, three 32-lane vertex groups, the
  *  batch of a vertex-reuse raster: each vertex is shaded once for the triangles that share it. */
 const BATCH_CORNERS = 96
@@ -46,6 +47,24 @@ export const HALF_SLOTS = 2 * CULL_BINS
 export const BASE_SLOTS = 2 * HALF_SLOTS
 export const UNIFORM_BYTES = 32
 /**
+ * The compaction's one `groups` buffer for `slotCap` rows and `slots` slots: two regions of
+ * `entries` words, one per group of `WORKGROUP_THREADS` rows and slot (`group*slots+slot`). Each
+ * group's offset at `[0, entries)`, first, where the raster reads a slot's first instance (group
+ * 0's, `slotOffsets[slot]`); each group's count at `[entries, 2·entries)`. The host sizes the
+ * buffer by `words` and sends `entries` as the kernels' `uni.groupEntries`: one formula, the
+ * regions never drift from the allocation.
+ */
+export function drawGroupWords(slotCap: number, slots: number) {
+  const entries = ceilDiv(slotCap, WORKGROUP_THREADS) * slots
+  return { entries, words: 2 * entries }
+}
+/**
+ * The compaction's `indirect` buffer for `slots` slots: one command per slot, then each slot's
+ * total — between the count and the prefix of a run, zero otherwise — and where the occluder
+ * half's instances end, `slots + 1` words the groups sum at once, the one atomic region.
+ */
+export const drawIndirectBytes = (slots: number) => slots * DRAW_INDIRECT_STRIDE + (slots + 1) * 4
+/**
  * u32 per draw record: the page-table row, its bin (face mode, plus `CULL_BINS` on a cutout
  * row), its page index in the selection
  * catalogue, its coplanar layer, and its triangles. All five are properties of the ROW, never of
@@ -66,8 +85,6 @@ export const DRAW_ITEM_WGSL = wgslBlock(
  * bias, and the clusters of layer 0 keep the order they had.
  */
 export const slotCount = (layerSlots: number) => BASE_SLOTS * Math.max(1, layerSlots)
-/** Slots of the tested half: the `HALF_SLOTS` bins of each layer, after the occluders. */
-export const restSlotCount = (layerSlots: number) => HALF_SLOTS * layerSlots
 /** Slots the compact may have to name: every layer the cache format describes.
  *  Arrays sized once and for all refer to this; it costs a few hundred bytes and avoids
  *  reallocating when a scene carries layers. */
@@ -104,9 +121,14 @@ export type GpuDraw = {
   itemsBuffer: GPUBuffer
   /** The frame's rest bits, one per row: what the GPU partition writes before the pass. */
   restBitsBuffer: GPUBuffer
-  indirectBuffer: GPUBuffer // slots × 16 bytes
+  /** One command per slot, then the slots' totals (`drawIndirectBytes`). */
+  indirectBuffer: GPUBuffer
   instanceBuffer: GPUBuffer // slotCap × perRow u32 instance words (row, batch), ordered
-  slotOffsetsBuffer: GPUBuffer // the per-slot group offsets locate each slot in instanceBuffer
+  /** The `groups` buffer (`drawGroupWords`): the groups' offsets, then their counts. Its first
+   *  `slots` words, group 0's offsets, locate each slot in `instanceBuffer`: the raster reads them
+   *  there (`slotOffsets`). One binding for both keeps each half within the eight storage buffers
+   *  a stage is guaranteed. */
+  groupsBuffer: GPUBuffer
   /** Slots this compaction was built for: `slotCount(layerSlots)`. */
   slots: number
   /** Corners each instance launches, and instances a row takes at most (`drawBatches`). */

@@ -12,6 +12,7 @@
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 import type { PlacementOf, PlacementRows } from './rows.ts'
@@ -40,15 +41,17 @@ const NO_VIEWS: readonly MatrixElements[] = []
 /** What a view composes from: each slot's version and the parents' worlds, read at the read. */
 type Composition = { readonly slotVersions: readonly number[]; readonly worlds: Float64Array }
 
-/** `links` become readers of `slot` (`parent`) — every reader it has when the slot held none, as
- *  a whole link deletes them first. A reader held already takes its new local in place: the views
- *  reading through it follow. A row another slot held leaves it: a row follows one parent, and its
- *  views read through the new slot at the next `readThroughViews`. */
+/** `links` become readers of `slot` (`parent`); `whole` (the views of the items, `readerViews`):
+ *  they are every reader it has, one it held beside them leaving it, its views plain again. A
+ *  reader held already takes its new local in place: the views reading through it follow. A row
+ *  another slot held leaves it: a row follows one parent, and its views read through the new slot
+ *  at the next `readThroughViews`. True when one joined, left or took a new local. */
 export function holdReaders(
   readers: Readers,
   slot: number,
   parent: object,
   links: readonly PlacementLink[],
+  whole?: ReaderViews,
 ) {
   let held = readers.get(slot)
   if (!held) readers.set(slot, (held = []))
@@ -56,20 +59,34 @@ export function holdReaders(
   const at = new Map<PlacementRows, Map<number, number>>()
   const atOf = (rows: PlacementRows) => at.get(rows) ?? at.set(rows, new Map()).get(rows)!
   held.forEach(({ rows, index }, k) => atOf(rows).set(index, k))
-  const joining = new Map<PlacementRows, Set<number>>()
+  const joining = new Map<PlacementRows, Set<number>>(),
+    linked = new Set<RowReader>()
+  let changed = false
   for (const { rows, index, local } of links) {
     const k = atOf(rows).get(index)
     if (k === undefined) {
       const reader = { parent, rows, index, local: Float64Array.from(local) }
       atOf(rows).set(index, held.push(reader) - 1)
-      ;(joining.get(rows) ?? joining.set(rows, new Set()).get(rows)!).add(index)
+      linked.add(reader)
+      const joined = joining.get(rows) ?? new Set<number>()
+      joining.set(rows, joined.add(index))
+      changed = true
       continue
     }
+    linked.add(held[k])
     held[k].parent = parent
+    if (sameElements(held[k].local, local)) continue
     held[k].local.set(local)
+    changed = true
+  }
+  if (whole && linked.size < held.length) {
+    for (const reader of held) if (!linked.has(reader)) releaseViews(reader, whole)
+    readers.set(slot, (held = held.filter((reader) => linked.has(reader))))
+    changed = true
   }
   if (joining.size) leaveOtherSlots(readers, slot, joining)
   if (!held.length) readers.delete(slot)
+  return changed
 }
 
 /** The rows `joining` leave every slot but `slot`: a slot left with none is deleted. */

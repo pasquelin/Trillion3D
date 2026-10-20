@@ -1,4 +1,5 @@
 import { wantsSubsurface } from '../../../scene/subsurface.ts'
+import { forgetCapturedImage } from '../state/capture.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
 import { holds } from '../../../scene/surfaceBuffer.ts'
 import {
@@ -9,7 +10,7 @@ import {
   hdrTargetDescriptor,
 } from '../../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../../scene/surfaceAllocation.ts'
-import { createBackdrop, holdsWater } from '../../transparent/transmission.ts'
+import { createBackdrop, holdsRefraction } from '../../transparent/transmission.ts'
 import { createScreenReflection } from '../../../reflections/gpu.ts'
 import { dropAside, releaseSet } from './targetsSet.ts'
 import { ensureTaaTargets } from '../../../taa/prepare.ts'
@@ -24,8 +25,8 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
   return (
     !!gpu.hdrTexture &&
     !!gpu.colorTexture === makesDisplayColor(rt, size) &&
-    // The water pass's backdrop is full-size while the session holds a transmissive surface.
-    !!gpu.backdrop?.active === holdsWater(rt) &&
+    // The distortion's targets are full-size while the session holds a refracting surface.
+    !!gpu.backdrop?.active === holdsRefraction(rt) &&
     gpu.allocatedSize[0] === size.renderWidth &&
     gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
@@ -50,8 +51,7 @@ export function releaseTargets(rt: WebgpuPagesRuntime, keepHistory = false) {
   const { gpu, vis, capture } = rt
   dropAside(rt)
   releaseSet(gpu, vis)
-  capture.capturedPixels = undefined
-  capture.capturedRevision = -1
+  forgetCapturedImage(capture)
   if (!keepHistory) gpu.temporal?.release()
 }
 
@@ -114,13 +114,15 @@ export const targetAllocationOf = (rt: WebgpuPagesRuntime) => ({
  * Makes the frame targets of `size` in the runtime's groups, which hold none: every pass up to the
  * temporal resolve draws at the render size, the targets' or below it; the history and the display
  * colour are the display's. A new render size at the same display size keeps the temporal history,
- * which is the display's: the image goes on accumulating rather than restarting.
+ * which is the display's: the image goes on accumulating rather than restarting. `aside`: made
+ * beside those in place, the temporal pass's own targets made at the swap (`ensureTaaTargets`).
  */
 export function buildTargets(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   size: FrameSize,
   targetBytes: number,
+  aside = false,
 ) {
   const { gpu, vis } = rt,
     { renderWidth: width, renderHeight: height } = size
@@ -157,22 +159,18 @@ export function buildTargets(
       })
     : gpu.colorTexture!
   gpu.displayView = gpu.displayTexture.createView()
-  // Apart, the water's word alone draws into a display colour: its own below the display's size,
-  // the display's at it — the view shared, never the texture, which would make the targets the
-  // display's (`displayApart`) —, none without water (`makesDisplayColor`).
+  // The display colour's view, the display's own: apart, none is made (`makesDisplayColor`).
   gpu.colorView = gpu.colorTexture
     ? size.apart
       ? gpu.colorTexture.createView()
       : gpu.displayView
-    : holdsWater(rt)
-      ? gpu.displayView
-      : undefined
+    : undefined
   gpu.depthView = gpu.depthTexture.createView()
   gpu.hdrView = hdrAttachmentView(gpu.hdrTexture)
-  gpu.backdrop = createBackdrop(device, width, height, holdsWater(rt))
+  gpu.backdrop = createBackdrop(device, width, height, holdsRefraction(rt))
   gpu.reflection = createScreenReflection(device, width, height, sceneBlends(rt))
-  // Temporal history follows the display size.
-  const allocationBytes = targetBytes + ensureTaaTargets(rt, size.width, size.height)
+  // Temporal history follows the display size, its render-resolution targets the render size.
+  const allocationBytes = targetBytes + ensureTaaTargets(rt, size, aside)
   gpu.targetBytes = allocationBytes
   gpu.allocatedSize = [width, height]
   // Drawn at the targets' whole size until an image's entry says its scale (`drawFrameAt`).

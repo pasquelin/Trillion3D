@@ -10,14 +10,18 @@
  * homes of the new addresses behind the others, a slot widened where a page asks it.
  */
 import type { PageRec, ClusterRoot } from '../../../page/selection/types.ts'
-import { indexPageRequests, pageRequestUrl } from '../../../page/selection/requests.ts'
+import {
+  indexPageRequests,
+  indexPagesByUrl,
+  pageRequestUrl,
+} from '../../../page/selection/requests.ts'
 import {
   describePageSlots,
   pageAddress,
   pageCorners,
   paddedPageBytes,
 } from '../../row/pageSlots.ts'
-import { pageSourceBytes } from '../io/catalogue.ts'
+import { indexSourceBytes } from '../io/catalogue.ts'
 import { KEY_PAGE_MAX } from '../../../gpu/dag/evict.ts'
 import { growCoverKeys } from '../../residency/coverKeys.ts'
 import type { GrownPages } from '../../../gpu/page/resize.ts'
@@ -64,15 +68,9 @@ export function growCatalogue(rt: WebgpuPagesRuntime, brought: Brought) {
   const { tracking } = setup
   tracking.append(allPages)
   growCoverKeys(setup.bootstrapKey, tracking.keyCount)
-  for (const page of allPages) {
-    const request = pageRequestUrl(page)
-    const list = setup.byUrl.get(request)
-    if (list) list.push(page)
-    else setup.byUrl.set(request, [page])
-    const bytes = pageSourceBytes(page)
-    if (bytes) setup.sourceBytes.set(pageAddress(page), bytes)
-    setup.allPages.push(page)
-  }
+  indexPagesByUrl(allPages, setup.byUrl)
+  indexSourceBytes(allPages, setup.sourceBytes)
+  for (const page of allPages) setup.allPages.push(page)
   // What the pool lays out: the pages' widths, the addresses they add.
   const { census } = setup
   const fresh = new Set<string>()

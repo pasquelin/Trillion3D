@@ -12,20 +12,24 @@ import {
   pageTablesReport,
 } from '../prepare/textureCensus.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { textureBytesBeside } from './besidePools.ts'
+import { textureBudgetBeside } from './besidePools.ts'
 import { prepareHostReductions } from '../../../texture/mips.ts'
 import { queueTableGrowth } from '../prepare/growthQueue.ts'
+import {
+  PREVIEW_ATLAS_COLOR,
+  PREVIEW_ATLAS_DATA,
+} from '../../../../../sdk-core/src/texture/previewFormat.ts'
 
 /**
- * A texture taken by a live session's atlas after open, by the path the open ran: its
- * catalogue entry drawn as `prepareWebgpuTextures` draws a host image's, its lane grown under the
- * texture budget, the live textures beside it, only when its tail finds no free place
- * (`poolTaking`), granted under the out-of-memory scope, then its slot appended (`growth.ts`). A
- * refusal (`TEXTURE_BUDGET`) comes before anything moves. The catalogue, the page tables and the
- * pool bytes are published (`material-texture-appended`). Returns the texture's slot, the one it
- * already holds when it has one. Appends run one after the other, in the session's growth queue
- * (`queueTableGrowth`): the next one draws its lane from the pool that one left. Internal: a created
- * material's map goes through here.
+ * A texture taken by a live session's atlas after open, by the path the open ran: its catalogue
+ * entry drawn as `prepareWebgpuTextures` draws each — its cache's whole chain, else its host image
+ * —, its lane grown under the texture budget, the live textures beside it, only when its tail finds
+ * no free place (`poolTaking`), granted under the out-of-memory scope, then its slot appended
+ * (`growth.ts`). A refusal (`TEXTURE_BUDGET`) comes before anything moves. The catalogue, the page
+ * tables and the pool bytes are published (`material-texture-appended`). Returns the texture's
+ * slot, the one it already holds when it has one. Appends run one after the other, in the session's
+ * growth queue (`queueTableGrowth`): the next one draws its lane from the pool that one left.
+ * Internal: a created material's map goes through here.
  */
 export function appendWebgpuTexture(
   rt: WebgpuPagesRuntime,
@@ -52,7 +56,10 @@ async function appendNow(
     throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'no texture atlas is open to take it', {})
   const { encoding } = pools,
     coverage = kind === 'color' ? pools.coverage : undefined
-  const [, entry] = tileCatalogue([texture], () => undefined, undefined, encoding, coverage)
+  // Its chain, in the cache whose scene built it — a joined model's own —: the levels it baked.
+  const atlasRank = kind === 'color' ? PREVIEW_ATLAS_COLOR : PREVIEW_ATLAS_DATA
+  const chain = () => rt.context.textureCaches.chainOf(texture, atlasRank)
+  const [, entry] = tileCatalogue([texture], chain, encoding, coverage)
   const atlas = streamer[kind],
     taken = [...atlas.textures, entry]
   // What each lane takes, by the open's own rule, the new texture counted.
@@ -101,7 +108,7 @@ async function growLane(rt: WebgpuPagesRuntime, a: Append) {
     { kind, lane, resident, tails: tails[lane], streams: demand[lane] > tails[lane] },
     poolLayerBytes(encoding.texelBytes(lane)),
     {
-      budgetBytes: grants.budgetBeside(setup.texturePoolBudget, textureBytesBeside(rt)).bytes,
+      budgetBytes: textureBudgetBeside(rt, setup.texturePoolBudget).bytes,
       maxLayers: poolLayerLimit(device.limits),
     },
   )

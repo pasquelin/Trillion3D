@@ -31,7 +31,7 @@ test('120 redrawn pictures keep one entry, blended or shared, and no value is co
     )
   }
   assert.equal(table.counts.duplicates, 1, 'only the first fold')
-  // A value written on a blended surface is still copied on write.
+  // A value written on an entry two materials share is still copied on write.
   glass.opacity = 0.25
   assert.notEqual(table.entryOf(glass), entry)
 })

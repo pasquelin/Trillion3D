@@ -13,6 +13,8 @@ type Inputs = {
   engine: Engine
   /** The CPU bytes the engine's host tables and the world roots hold now. */
   hostBytes: () => number
+  /** The views beside the main one, drawn after its image (`world.addView`). */
+  drawViews?: () => void
 }
 
 /**
@@ -22,9 +24,11 @@ type Inputs = {
  * resident budget is refused by name (`PAGE_BUDGET`).
  */
 export function createDrawFrame(inputs: Inputs) {
-  const { camera, streamer, streaming, engine, hostBytes } = inputs
+  const { camera, streamer, streaming, engine, hostBytes, drawViews } = inputs
   return () => {
     engine.render(camera)
+    // Their cuts join the residency's union before the pages the frame lacks are asked.
+    drawViews?.()
     const renderEnd = cpuNow()
     const missing = engine.pendingUrls()
     streaming.queueCached(missing)

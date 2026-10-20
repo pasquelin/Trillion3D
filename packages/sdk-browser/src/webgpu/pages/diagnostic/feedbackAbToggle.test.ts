@@ -7,6 +7,7 @@ import { keepWebgpuFrame } from '../../frame/hold.ts'
 import { setFeedbackTargetAb } from './feedbackAb.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
+import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
 
 test('same-device toggle changes only feedback allocation and selected pipelines', async () => {
   installGpuGlobals()
@@ -56,6 +57,9 @@ test('same-device toggle changes only feedback allocation and selected pipelines
     run: { frameHeld: true },
   } as unknown as WebgpuPagesRuntime
   await setFeedbackTargetAb(rt, false)
+  // The released target is retired, destroyed after the next frame's submit (`frameRetire.ts`).
+  assert.equal(destroyed, 0)
+  destroyRetired(device as unknown as GPUDevice)
   assert.equal(destroyed, 1)
   assert.equal(rt.gpu.feedbackTexture, undefined)
   assert.equal(rt.gpu.targetBytes, 20_000 - 20 * 10 * 4)
@@ -70,10 +74,10 @@ test('same-device toggle changes only feedback allocation and selected pipelines
   assert.equal(rt.vis.blendPipelines, on.blendPipelines)
 })
 
-test('forced full renders replay settled TAA and never replace the held checkpoint', () => {
-  let replayed = 0,
-    kept = 0
+test('forced full renders run the temporal pass and never replace the held frame', () => {
+  let kept = 0
   const frame = createTaaFrameState()
+  const scale = createScaleControl(undefined)
   const rt = {
     feedbackAB: { force: true },
     gpu: {
@@ -81,28 +85,26 @@ test('forced full renders replay settled TAA and never replace the held checkpoi
       targetSize: [20, 10],
       allocatedSize: [20, 10],
       displaySize: [20, 10],
-      temporal: {
-        frame,
-        replay: () => ++replayed > 0,
-      },
+      temporal: { frame },
     },
     capture: { capturing: false },
     vis: {},
-    scale: createScaleControl(undefined),
+    views: { active: { scale } },
     run: {
       diagnostic: 'beauty',
       textureConverging: false,
       gate: {
         hold: { keep: () => void kept++ },
+        revisions: { scene: 0, view: 0, resources: 0 },
       },
     },
+    lights: {},
   } as unknown as WebgpuPagesRuntime
   const camera = {
     viewProjection: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
   } as Parameters<typeof beginTaaFrame>[1]
-  beginTaaFrame(rt, camera, true)
+  beginTaaFrame(rt, camera)
   keepWebgpuFrame(rt)
-  assert.equal(replayed, 1)
   assert.equal(frame.active, true)
   assert.equal(kept, 0)
 })

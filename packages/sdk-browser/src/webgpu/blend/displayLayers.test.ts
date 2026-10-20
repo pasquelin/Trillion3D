@@ -10,9 +10,8 @@ import assert from 'node:assert/strict'
 import { blend, close, display, written, type Rgba } from './blendModel.fixture.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { ACES, displayRoute } from './displayRun.fixture.ts'
-import { ALPHA_BLEND } from './stagePipelines.ts'
 import { BLENDS } from '../../particles/drawWords.ts'
-import { waterCompositeTargets } from '../water/compositeTargets.ts'
+import { overTargets } from './transmission/pipelines.ts'
 import { blendTargets } from './blendTargets.ts'
 import { particleTargets } from '../../particles/particleTargets.ts'
 
@@ -138,7 +137,13 @@ test('particles and water over a multiply surface show the witness', () => {
   assertWitness('fire over multiply', paper, [filter, particle(fire, 'additive')])
   assertWitness('water over multiply', paper, [
     filter,
-    layer(water, waterCompositeTargets(false, true), ALPHA_BLEND),
+    layer(
+      water,
+      overTargets(false, true, false).filter((t): t is GPUColorTargetState => !!t),
+      BLENDS.premultiplied,
+      1,
+      true,
+    ),
   ])
 })
 

@@ -20,7 +20,6 @@ import {
 import { NO_TINT } from '../../bounce/runtimeSurface.ts'
 import type { RecordTexture } from '../core/recordTexture.ts'
 import type { DagRoot, PackedDag } from './types.ts'
-import type { ProxyCopy } from './proxyInstances.ts'
 
 /** A proxy's cell to the distance a ray leaves a surface by: half the cell's diagonal, the codec's
  *  `CELL_ERROR_FACTOR` (`page-codec-wasm/src/proxy/simplify.rs`). */
@@ -36,7 +35,7 @@ export type ProxySource = {
 
 /** The tint a mesh's proxy brings: the compiler's colour of its material, `NO_TINT` for a cut's
  *  white. */
-export const tintOf = (cut: RuntimeCutProxy) => (cut.albedo.length ? cut.albedo[0] : NO_TINT)
+const tintOf = (cut: RuntimeCutProxy) => (cut.albedo.length ? cut.albedo[0] : NO_TINT)
 
 export function createProxyState({ device, packed, frames }: ProxySource) {
   const tree = packed.placementTree
@@ -45,14 +44,11 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
   const held = {
     words: new Uint32Array(slots * INSTANCE_WORDS).fill(NO_INDEX),
     resolved: new Uint32Array(slots * INSTANCE_WORDS).fill(NO_INDEX),
-    copies: [] as readonly ProxyCopy[],
-    copyWorlds: new Float32Array(0),
     error: 0,
     dirty: true,
   }
   // The instances, the `Instance` field of the culling's records (`worldTable.ts`): written whole
-  // with the buffer, then the runs that moved; the table grown when the copies outgrow it, at the
-  // cut's prepare alone (`holdRecords`).
+  // with the buffer, then the runs that moved.
   const records = frames.worlds
   let instancesSent = false
   /** The instances `[first, first + count)` the records hold, to them. */
@@ -63,21 +59,6 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     const at = words.byteOffset + first * INSTANCE_WORDS * 4
     records.write('Instance', first, end - first, words.buffer as ArrayBuffer, at)
   }
-  /**
-   * The records grown to hold every copy's instance, at the cut's prepare (`refresh`, before the
-   * cut encodes): never mid-frame, so the growth's copy, submitted at once (`grownByCopy`), lands
-   * before any GPU write of the frame's encoder to the table. The instances the table could not hold
-   * before go up then; whether it grew, the header's copy count with it.
-   */
-  function holdRecords() {
-    const before = records.capacity,
-      wanted = held.words.length / INSTANCE_WORDS
-    if (wanted <= before || !records.hold(wanted)) return false
-    if (instancesSent) writeInstances(before, wanted - before)
-    return true
-  }
-  /** The copies the records hold: every one, unless the cut refused their growth. */
-  const copiesHeldOnGpu = () => Math.min(held.copies.length, records.capacity - slots)
 
   const head = new Uint32Array(RUNTIME_HEADER_WORDS),
     headFloats = new Float32Array(head.buffer)
@@ -88,14 +69,12 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     head[at.instances] = slots
     head[at.surfacesWord] = layout.surfaces
     head[at.trianglesWord] = layout.triangles
-    head[at.copyWorldsWord] = layout.copyWorlds
     head[at.boundsWord] = layout.bounds
     head[at.childrenWord] = layout.children
     // The tree's top, its node 0 (`placementTree.ts`), read in its record table (`treeTable.ts`).
     head[at.treeRoot] = tree ? 0 : NO_INDEX
     head[at.members] = tree ? tree.count : packed.worldSources.length
     headFloats[at.error] = held.error
-    head[at.copies] = copiesHeldOnGpu()
     return head
   }
 
@@ -106,10 +85,9 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
       instancesSent = true
     },
     header,
-    copyWorlds: () => held.copyWorlds,
   })
   const columns = createProxyColumns(arena)
-  const posed = createPosedCopies(device, arena, columns, packed, slots, () => held.copies)
+  const posed = createPosedCopies(device, arena, columns, packed)
 
   // The placements standing, and their world boxes for the probes' occupancy map (`proxyBoxes.ts`).
   const live = () => packed.live?.worlds ?? packed.worldSources.length
@@ -186,10 +164,8 @@ export function createProxyState({ device, packed, frames }: ProxySource) {
     live,
     write,
     writeInstances,
-    holdRecords,
     header,
     noteError,
     markOf,
   }
 }
-export type ProxyState = ReturnType<typeof createProxyState>

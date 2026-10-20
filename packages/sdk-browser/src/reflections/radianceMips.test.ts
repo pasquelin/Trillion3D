@@ -17,15 +17,13 @@ test("the build reads and writes the levels of the frame's HDR target, mip by mi
       return view
     },
   }
-  const { groups } = recordedBuild(fakePyramid(5, 64, 64, 'previous'), hdr)([64, 64])
+  const { groups } = recordedBuild(fakePyramid(5, 64, 64), hdr)([64, 64])
   const levelsOf = (entries: GPUBindGroupEntry[]) =>
     entries.slice(0, 3).map(({ resource }) => (resource as unknown as { level: number }).level)
   // The first dispatch: level 0, the lit image, read; levels 1 and 2 written. Then 2 → 3, 4.
   assert.deepEqual(levelsOf(groups[0]), [0, 1, 2])
   assert.deepEqual(levelsOf(groups[1]), [2, 3, 4])
   assert.ok(views.every(({ texture }) => texture === 'frame'))
-  // The image before, hashed beside it, is the other target's level 0.
-  assert.equal(groups[0][4].resource, 'previous')
 })
 
 test('the reflection group declares the pyramid as one texture', () => {

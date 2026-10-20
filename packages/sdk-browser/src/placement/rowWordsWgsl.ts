@@ -15,7 +15,8 @@ import { CORNER_VALUES } from '../gpu/partition/contract.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../gpu/shadow/sphereContract.ts'
 import { LOD_BIT, ROW_LOD_FLOATS } from '../webgpu/shadow/rowLodWords.ts'
 import { ROW_WORDS } from '../visibility/types.ts'
-import { dAdd, dMul, splitDouble } from '../../../math/src/wgsl/double.ts'
+import { splitDouble } from '../../../math/src/wgsl/double.ts'
+import { affineRow } from '../../../math/src/wgsl/doubleAffine.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -33,12 +34,11 @@ export const PART_SPHERES = 1,
   PART_LODS = 4,
   PART_CASTS = 8
 
-/** A listed row's word: the row, whether its shadow change is asked (`ROW_EMITS`), and whether its
- *  shadow changed where it stands (`ROW_STALES`): a cutout's colour tile came or went, its surface's
- *  alpha moved — the box of the sphere it holds appended before it is derived (`staleRow`). */
+/** A listed row's word: the row, and whether its shadow changed where it stands (`ROW_STALES`): a
+ *  cutout's colour tile came or went, its surface's alpha moved — the box of the sphere it holds
+ *  appended before it is derived (`staleRow`). */
 export const ROW_NAMED = 0x3fffffff,
-  ROW_STALES = 0x40000000,
-  ROW_EMITS = 0x80000000
+  ROW_STALES = 0x40000000
 
 /**
  * The world sphere of a row, what the shadow cull drops it by, from its root's world and its local
@@ -49,7 +49,7 @@ export const ROW_NAMED = 0x3fffffff,
  */
 const SPHERE_WGSL = wgslBlock(
   'SPHERE_WGSL',
-  [dAdd, dMul, splitDouble, toF32],
+  [affineRow, splitDouble, toF32],
   `
 const SPHERE_GROWTH:f32=${wgslF32(SPHERE_GROWTH)};
 const SPHERE_MARGIN:f32=${wgslF32(SPHERE_MARGIN)};
@@ -61,16 +61,14 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
  var size=0.0;
  var sums=0.0;
  for(var i=0u;i<3u;i++){
-  var centre=dMul(world[i],inputs[at]);
+  let centre=affineRow(world[i],world[4u+i],world[8u+i],world[12u+i],inputs[at],inputs[at+1u],inputs[at+2u]);
   var l1=0.0;
   for(var j=0u;j<3u;j++){
-   if(j>0u){centre=dAdd(centre,dMul(world[j*4u+i],inputs[at+j]));}
    let w=bitcast<f32>(toF32(world[j*4u+i]));
    m[i*3u+j]=w*bitcast<f32>(toF32(inputs[at+3u+j]));
    size+=abs(w)*abs(bitcast<f32>(toF32(inputs[at+j])));
    l1+=abs(m[i*3u+j]);
   }
-  centre=dAdd(centre,world[12u+i]);
   size+=abs(bitcast<f32>(toF32(world[12u+i])));
   let split=splitDouble(centre);
   spheres[s+i]=bitcast<f32>(split.x);
@@ -122,11 +120,16 @@ export const DERIVE_ROWS_ENTRY = 'deriveRows'
  * (`params.parts`), its sphere (`composeSphere`) and its cast state (`castCode`), its corners
  * (`composeCorners`) and its detail (`composeLod`). The row keeps the Hi-Z slot the CPU gave it:
  * its corners describe it. A listed row marked `ROW_STALES` first appends the box of the sphere it
- * holds, the one its shadow pages were drawn from (`staleRow`). A row whose shadow change is asked — every row of the table or of the
- * composed list (`params.emitAll`), or a listed row marked `ROW_EMITS` — appends it (`castRow`).
+ * holds, the one its shadow pages were drawn from (`staleRow`). Every row derived appends its
+ * shadow change (`castRow`), whatever named it — moved, written by the table, made ready, every
+ * row —: a row whose world, sphere or cast state differs from what it held stales the pages it was
+ * drawn into at the pose it held and those it enters; a row the table hands another page, or none,
+ * stales the pages its former page was drawn into, at the pose it was drawn at; a row arriving in a
+ * slot that held no caster stales the pages it enters. Residency's one owner of a caster row's
+ * shadow change: the CPU declares none (`followCasters`).
  */
 export const DERIVE_ROWS_WGSL = wgslProgram(
-  `struct Params{rootCount:u32,parts:u32,listed:u32,all:u32,emitAll:u32,pad0:u32,pad1:u32,pad2:u32,}
+  `struct Params{rootCount:u32,parts:u32,listed:u32,all:u32,}
 @group(0) @binding(0) var<uniform> params:Params;
 @group(0) @binding(1) var<storage,read> rootWorlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> table:array<u32>;
@@ -138,18 +141,17 @@ export const DERIVE_ROWS_WGSL = wgslProgram(
 @group(0) @binding(8) var<storage,read> rowList:array<u32>;
 @group(0) @binding(9) var<storage,read> mobility:array<u32>;
 @group(0) @binding(10) var<storage,read_write> castChanges:array<atomic<u32>>;
-fn deriveRow(row:u32,emit:bool,stale:bool){
+fn deriveRow(row:u32,stale:bool){
  let at=row*${ROW_INPUT_DOUBLES}u;
  let base=row*${ROW_WORDS}u;
  let sphered=(params.parts&${PART_SPHERES}u)!=0u&&(row+1u)*${CLUSTER_SPHERE_FLOATS}u<=arrayLength(&spheres);
  let casts=sphered&&(params.parts&${PART_CASTS}u)!=0u;
  if(stale&&casts){staleRow(row);}
  if(at+${ROW_INPUT_DOUBLES}u>arrayLength(&inputs)||base+${ROW_WORDS}u>arrayLength(&table)){return;}
- let casting=emit&&casts;
  var was:array<f32,${CLUSTER_SPHERE_FLOATS}>;
- if(casting){was=rowSphere(row);}
+ if(casts){was=rowSphere(row);}
  if((inputs[at+${INPUT_FLAGS}u].x&${LOD_BIT.record}u)==0u){
-  if(casting){castRow(row,was,false,false);}
+  if(casts){castRow(row,was,false,false);}
   clearRow(row);
   return;
  }
@@ -167,22 +169,20 @@ fn deriveRow(row:u32,emit:bool,stale:bool){
   composeSphere(row,world);
   if((params.parts&${PART_CASTS}u)!=0u){spheres[row*${CLUSTER_SPHERE_FLOATS}u+7u]=castCode(row);}
  }
- if(casting){castRow(row,was,worldSame,true);}
+ if(casts){castRow(row,was,worldSame,true);}
  if((params.parts&${PART_CORNERS}u)!=0u&&(row+1u)*${CORNER_VALUES}u<=arrayLength(&corners)){composeCorners(row,world);}
  if((params.parts&${PART_LODS}u)!=0u&&(row+1u)*${ROW_LOD_FLOATS}u<=arrayLength(&lods)){composeLod(row,rank,world);}
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn deriveRows(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let j=flatIndex(g,n,WORKGROUP_THREADS);if(j>=params.listed){return;}
  var row=j;
- var emit=params.emitAll!=0u;
  var stale=false;
  if(params.all==0u){
   let named=rowList[j];
   row=named&${ROW_NAMED}u;
-  emit=emit||(named&${ROW_EMITS}u)!=0u;
   stale=(named&${ROW_STALES}u)!=0u;
  }
- deriveRow(row,emit,stale);
+ deriveRow(row,stale);
 }`,
   [
     toF32,

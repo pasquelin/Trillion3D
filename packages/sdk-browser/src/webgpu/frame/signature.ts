@@ -1,22 +1,24 @@
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** Number of values in the frame signature; see `sampleWebgpuFrame`. */
-export const HOLD_SIGNATURE_VALUES = 20
+export const HOLD_SIGNATURE_VALUES = 14
 
 /**
- * Everything a frame produced that can be observed, in twenty numbers.
+ * What decides the pixels of a frame, in fourteen numbers: the row table, the cut — its pages, its
+ * triangles, its level — and the transparent draws it feeds.
  *
- * Two consecutive frames whose three revisions and these twenty numbers match have done
- * exactly the same work: same rows, same occluder/tested partition, same draw calls, same
- * triangles, same occlusion verdicts. That covers states that converge without
- * being written — the occluder history the tested half of the frame feeds, verdicts reread
- * with a delay — without having to keep a list of them.
+ * Two consecutive frames whose three revisions and these numbers match draw the same image: same
+ * rows, same cut, same transparent geometry. That covers states that converge without being
+ * written — a cut read back a few frames late — without having to keep a list of them.
+ *
+ * The culling verdicts are left out: the frustum and occlusion tests, opaque and transparent,
+ * are conservative — a verdict only drops what has no pixel, or moves a row between the two
+ * draw passes — and under the antialiasing jitter they wander from one phase to the next with
+ * the image unchanged. Counting them would call a still image moved and restart its average.
  */
 export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
-  const { run, timing } = rt,
-    { rows } = rt.layout,
-    counts = timing.partitionCounts,
-    hiz = rt.vis.gpuPartition?.counts()
+  const { run } = rt,
+    { rows } = rt.layout
   into[0] = rows.tableEpoch
   into[1] = rows.rowsEpoch
   into[2] = rows.packedCount
@@ -26,15 +28,9 @@ export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   into[6] = run.visible
   into[7] = run.selectedTriangles
   into[8] = run.submittedTriangles
-  into[9] = run.drawnTriangles
-  into[10] = run.frustumRejected
-  into[11] = run.lodLevel
-  into[12] = run.gpuDrawCalls
-  into[13] = run.blendDrawCalls
-  into[14] = run.blendSubmittedTriangles
-  into[15] = run.blendFrustumRejected
-  into[16] = counts.occluders
-  into[17] = counts.tested
-  into[18] = counts.previousOccluders
-  into[19] = hiz ? hiz.rejected : -1
+  into[9] = run.frustumRejected
+  into[10] = run.lodLevel
+  into[11] = run.gpuDrawCalls
+  into[12] = run.blendDrawCalls
+  into[13] = run.blendSubmittedTriangles
 }

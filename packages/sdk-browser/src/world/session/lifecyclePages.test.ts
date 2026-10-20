@@ -48,7 +48,8 @@ async function lackingPages(missing: string[], pinned: string[] = [], resident =
     check() {},
     state: {},
     streamer,
-    streaming: {},
+    // No scene read in flight (`createExplorerStreaming`): the wait goes straight to the pages.
+    streaming: { pending: () => undefined },
     engine: backend,
     camera: G.perspectiveCamera(),
   } as unknown as Inputs

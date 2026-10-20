@@ -17,7 +17,8 @@ import {
 import { grownLength, resized } from '../../../../math/src/sequence/resized.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 
-const HELD = new WeakMap<GPUBuffer, Uint32Array>()
+const HELD = new WeakMap<GPUBuffer, Uint32Array>(),
+  NONE = new Uint32Array(0)
 let changed = new Int32Array(64)
 const rule: RangeRule = { gap: 0, cap: WRITE_CAP, steps: new Int32Array(64) }
 const ranges = new Int32Array(2 * WRITE_CAP)
@@ -29,15 +30,14 @@ export function writeChangedCopy(source: GPUBuffer, target: GPUBuffer) {
   if (held) HELD.set(target, held.slice(0, target.size / 4))
 }
 
-/** The words `buffer` holds, at least its first `to`. */
+/** The words `buffer` holds, at least its first `to`, grown by `grownLength` up to its size. */
 function heldWords(buffer: GPUBuffer, to: number) {
-  let held = HELD.get(buffer)
-  if (!held || held.length < to) {
-    const grown = new Uint32Array(Math.min(grownLength(held?.length ?? 0, to), buffer.size / 4))
-    if (held) grown.set(held)
-    HELD.set(buffer, (held = grown))
-  }
-  return held
+  const held = HELD.get(buffer) ?? NONE
+  if (held.length >= to) return held
+  const grown = new Uint32Array(Math.min(grownLength(held.length, to), buffer.size / 4))
+  grown.set(held)
+  HELD.set(buffer, grown)
+  return grown
 }
 
 /** Word `k` of `image` into `held` when they differ, listed `count`-th in `changed`; the count of

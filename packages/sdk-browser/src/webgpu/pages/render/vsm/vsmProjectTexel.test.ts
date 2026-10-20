@@ -18,7 +18,7 @@ test('of the two headers only the projection matrices differ, the view and scree
   // shiftedToView, the origin shift, the eye, the forward axis, the depth decode (80-83), the
   // screen ray scale and field tangents (84-91) read the same f32 words from either.
   for (const { old, fresh, at } of sweptHeaders())
-    for (let k = 0; k < 104; k++)
+    for (let k = 0; k < old.length; k++)
       if (!fromProjection(k)) assert.ok(Object.is(old[k], fresh[k]), `${at} word ${k}`)
 })
 

@@ -10,7 +10,6 @@ import {
   computeTextureEntry,
 } from '../gpu/core/computeBindings.ts'
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
-import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { RADIANCE_BINDINGS } from './radianceWgsl.ts'
 import {
@@ -21,10 +20,8 @@ import {
   radianceLevels,
 } from '../scene/targetFormats.ts'
 
-/** The radiance pyramid's three layouts (`RADIANCE_SHADER`): a level read through its sampler, the
- *  two levels a dispatch writes, and for the first the image before it (its level 0, which a still
- *  image after a moving one hashes), the lighting's view, whose drawn size it reads, and the
- *  image's hash; for the roll, the hash alone. */
+/** The radiance pyramid's two layouts (`RADIANCE_SHADER`): a level read through its sampler and the
+ *  two levels a dispatch writes, and for the first the lighting's view, whose drawn size it reads. */
 export function radianceLayouts(device: GPUDevice) {
   const B = RADIANCE_BINDINGS
   const levels = [
@@ -33,64 +30,28 @@ export function radianceLayouts(device: GPUDevice) {
     computeStorageTextureEntry(B.coarsest, HDR_FORMAT),
     computeSamplerEntry(B.halves),
   ]
-  const view = computeBufferEntry(B.view, 'uniform')
-  const hash = computeBufferEntry(B.hash, 'storage')
   return {
     firstLayout: device.createBindGroupLayout({
-      entries: [...levels, computeTextureEntry(B.previous, 'float'), view, hash],
+      entries: [...levels, computeBufferEntry(B.view, 'uniform')],
     }),
     downLayout: device.createBindGroupLayout({ entries: levels }),
-    rollLayout: device.createBindGroupLayout({ entries: [hash] }),
   }
 }
 
 /** What the pyramid's build needs of the compiled kernels. */
 export type RadianceStages = ReturnType<typeof radianceLayouts> & {
-  /** The first dispatch: moving, hashing nothing; still, hashing the image; still after a moving
-   *  image, hashing the image and the one before it. */
   firstPipeline: GPUComputePipeline
-  firstHashedPipeline: GPUComputePipeline
-  firstBothPipeline: GPUComputePipeline
   downPipeline: GPUComputePipeline
-  rollPipeline: GPUComputePipeline
 }
 
-/** What a view's radiance pyramid holds: whether it holds an image of this view, the
+/** What a view's radiance pyramid holds: whether it holds an image of this view, and the
  *  view-projection and drawn size that image was drawn with — the next image reprojects its hits
- *  with them —, the camera's own view-projection, without the temporal accumulation's jitter
- *  (`pose`), whether the image before it was drawn with the same view-projection and size: an
- *  image traced on it reads the view it is drawn from (`reflectionsSettled`) — (`still`); its build
- *  hashed it then, unless the view was settled (`RadiancePyramid.hashed`). */
+ *  with them. */
 export type HeldImage = {
   valid: boolean
   viewProjection: Float64Array
-  pose: Float64Array
   size: [number, number]
-  still: boolean
 }
-
-/** A held image of `fields`, by default none: not valid, no view-projection, no size, not still. */
-export const heldImage = (fields: Partial<HeldImage> = {}): HeldImage => ({
-  valid: false,
-  viewProjection: new Float64Array(16),
-  pose: new Float64Array(16),
-  size: [0, 0],
-  still: false,
-  ...fields,
-})
-
-/** Whether an image drawn at `size` through `matrix` is drawn from where `held` was, `matrix` read
- *  against the held one of its kind (`kept`): its view-projection, which the hash reads — the lit
- *  image repeats only under the same one —, or its pose, which the quiet count reads — a jitter of the
- *  temporal accumulation moves no camera. The one rule, taken once an image
- *  (`stageReflectionImage`); a resize, whatever its matrices, is a move. */
-export const drawnFromHeld = (
-  held: HeldImage,
-  size: readonly [number, number],
-  matrix: ArrayLike<number>,
-  kept: ArrayLike<number> = held.viewProjection,
-) =>
-  held.valid && held.size[0] === size[0] && held.size[1] === size[1] && sameElements(kept, matrix)
 
 /** Bytes of the pyramid of a view at `width × height`: the other HDR target whole, and the levels
  *  past level 0 of the frame's, whose level 0 the frame's targets count (`frameTargetBytes`). */
@@ -117,8 +78,6 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
     /** The pyramid was built this image from the frame's HDR target, which is to become its
      *  level 0 once the image is encoded (`adoptRadianceImage`). */
     fresh: false,
-    /** Whether the last build hashed its image (`encodeRadiancePyramid`). */
-    hashed: false,
     levels,
     sampler: device.createSampler({
       label: 'Trillion3D reflection radiance',
@@ -126,12 +85,17 @@ export function createRadiancePyramid(device: GPUDevice, width: number, height: 
       minFilter: 'linear',
       mipmapFilter: 'linear',
     }),
-    held: heldImage(),
+    // None held yet: not valid, no view-projection, no size.
+    held: {
+      valid: false,
+      viewProjection: new Float64Array(16),
+      size: [0, 0],
+    } as HeldImage,
     /** The build's groups (`buildGroups`) for each of the HDR targets it was made over, by the
      *  slot of their identity: the two take turns, each finds its groups held. */
     build: {
       identity: createWebgpuBindIdentity(2),
-      slots: [] as ({ groups: GPUBindGroup[]; roll: GPUBindGroup } | undefined)[],
+      slots: [] as (GPUBindGroup[] | undefined)[],
     },
   }
 }

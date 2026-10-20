@@ -2,38 +2,25 @@
  * THE PROXY KEPT TO THE PLACEMENTS IT TRACES: what a ray can meet of the scene beyond the visible
  * cut (`bounce/runtimeSceneWgsl.ts`) — the meshes the compiler built a proxy for (`proxy.bin`) and
  * the cuts the world made at run time, one structure. Its instances — four words a placement,
- * written next to the culling's own rows, the same `w`, then one for each blended copy the forward
- * family draws (the members after the placements: they are no member of the culling's tree) — are
- * the `Instance` field of the culling's records (`worldTable.ts`), beside each placement's world:
- * the table grows for the copies (`RecordTexture.hold`). The rest lies in one buffer its arena lays
- * out and grows (`proxyArena.ts`): the copies' worlds (`proxyCopies.ts`), the surfaces and the
- * meshes' proxies, which take their spans there (`proxyColumns.ts`). The placements' worlds and the
- * placement tree are the culling's, read where they lie: nothing of them is copied.
+ * written next to the culling's own rows, the same `w` — are the `Instance` field of the culling's
+ * records (`worldTable.ts`), beside each placement's world; a blended mesh is a placement as any,
+ * its pages a root's. The rest lies in one buffer its arena lays out and grows (`proxyArena.ts`):
+ * the surfaces and the meshes' proxies, which take their spans there (`proxyColumns.ts`). The
+ * placements' worlds and the placement tree are the culling's, read where they lie: nothing of them
+ * is copied.
  *
  * A mesh's proxy reaches a placement through its primitive (`RootProxy.primitive`): a cut's at its
  * making, a compiled mesh's when the cache object arrives (`arrived`), which writes every instance
  * again.
  *
  * A member of the run (`runtime.ts`): its operations tell it what moved — roots appended, a
- * placement parked or marked — and each cut refreshes the surfaces a host edited and the copies
- * that moved since. Without a placement or a copy that wears a proxy, no buffer is made and
- * `buffer()` answers none: the trace reads its empty stand-ins.
+ * placement parked or marked — and each cut refreshes the surfaces a host edited since. Without a
+ * placement that wears a proxy, no buffer is made and `buffer()` answers none: the trace reads its
+ * empty stand-ins.
  */
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { INSTANCE, INSTANCE_WORDS } from '../../bounce/runtimeLayout.ts'
-import { createProxyCopies } from './proxyCopies.ts'
-import type { RootProxy } from '../../page/selection/types.ts'
-import type { PlacementOf } from '../../placement/rows.ts'
 import { createProxyState, type ProxySource } from './proxyState.ts'
-
-/** A blended copy as the proxy reads it: its cut and surface, the pose it aliases and whether it is
- *  drawn (`BlendCopy`). */
-export type ProxyCopy = {
-  proxy?: RootProxy
-  matrix: { readonly elements: ArrayLike<number> }
-  hidden?: boolean
-  placement?: PlacementOf
-}
 
 /** What the pose reads of the deformation (`deformation/session.ts`): the float pool its records
  *  lie in, each placement's record in it (the first float plus one, zero for none) and the revision
@@ -46,8 +33,7 @@ export type PoseHost = {
 
 export function createProxyInstances(resources: ProxySource) {
   const state = createProxyState(resources),
-    { slots, held, arena, posed, boxes, write, writeInstances, header, markOf } = state,
-    copies = createProxyCopies(state)
+    { slots, held, arena, posed, boxes, write, writeInstances, header, markOf } = state
   /** Row `w` of the culling's world table was written: its box is made again at the next
    *  `worldBoxes`. */
   function worldWritten(w: number) {
@@ -82,9 +68,6 @@ export function createProxyInstances(resources: ProxySource) {
     appended(from: number, to: number) {
       write(from, to)
     },
-    /** The blended copies the forward family draws, members of this proxy after the placements:
-     *  their poses are the host's (`BlendCopy.matrix`), read again at each cut. */
-    setCopies: copies.set,
     /** Placement `w` parked, or taken back. */
     park(w: number, parked: boolean) {
       if (w >= slots) return
@@ -106,30 +89,20 @@ export function createProxyInstances(resources: ProxySource) {
       held.words[at] = kept
       writeInstances(w, 1)
     },
-    /** The surfaces a host edited and the copies that moved since the last cut, written again,
-     *  the records grown first for the copies taken since (`holdRecords`). */
+    /** The surfaces a host edited since the last cut, written again. */
     refresh() {
-      if (held.copies.length !== copies.held()) copies.set(held.copies)
-      if (state.holdRecords()) held.dirty = true
-      if (!arena.buffer && !held.copies.length) return
+      if (!arena.buffer) return
       arena.refreshSurfaces()
-      copies.sync()
-      if (arena.buffer && held.dirty) {
+      if (held.dirty) {
         arena.send(arena.buffer, 0, header())
         held.dirty = false
       }
     },
     /** Bytes the CPU keeps for the proxy: the instance words as written and as resolved, the
-     *  surface and copy words and the world boxes (the cuts' columns are the primitives', counted
+     *  surface words and the world boxes (the cuts' columns are the primitives', counted
      *  with the scene proxy's cache object). What the streamer's reservation counts. */
     get hostBytes() {
-      return (
-        held.words.byteLength +
-        held.resolved.byteLength +
-        arena.hostBytes +
-        held.copyWorlds.byteLength +
-        boxes.hostBytes
-      )
+      return held.words.byteLength + held.resolved.byteLength + arena.hostBytes + boxes.hostBytes
     },
     /** Bytes of the buffer: what the cut's memory budget counts; the instances are the records',
      *  the cut's own. */

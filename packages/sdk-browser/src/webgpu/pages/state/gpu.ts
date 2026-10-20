@@ -1,4 +1,3 @@
-import type { HostAttribute, HostAttributes } from '../../../host/resources.ts'
 import type { ScreenReflection } from '../../../reflections/gpu.ts'
 import type { GpuPageCache } from '../../../gpu/page/pages.ts'
 import type { createGpuPresenter } from '../../../gpu/core/presentation.ts'
@@ -7,13 +6,13 @@ import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts'
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts'
 import type { DisplayFilter } from '../../blend/displayFilter.ts'
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts'
+import type { TaaRunningLevel } from '../../../taa/levels.ts'
+import { DEFAULT_TEMPORAL_AA_LEVEL } from '../../../../../sdk-core/src/contracts/compilerAbi.ts'
 import type { WebgpuEffects } from '../../effects/webgpuEffects.ts'
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts'
 import type { WebgpuParticles } from '../../particles/webgpuParticles.ts'
 import type { TargetGrant } from '../prepare/targetsSet.ts'
-import type { FloatAtlas } from '../../core/floatAtlas.ts'
-import type { WebgpuImpostors } from '../../impostor/frame.ts'
-import type * as ImpostorCode from '../../../impostor/impostorCode.ts'
+import type { FrameDifference } from '../render/frameDifference.ts'
 
 /** GPU resources of the image: page cache, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -36,9 +35,9 @@ export interface WebgpuGpuState {
    *  stage write, which would cost early-z reject. */
   feedbackTexture: GPUTexture | undefined
   feedbackView: GPUTextureView | undefined
-  /** Frozen backdrop the water pass rereads: a copy of the HDR target taken after opaques and
-   *  blends, and the depth its surfaces write. A 1×1 texel while the scene carries no transmissive
-   *  surface — the binding then exists without costing anything. */
+  /** The distortion's targets: the copy of the opaque scene it rereads and the offsets it
+   *  accumulates. A 1×1 texel while the scene carries no transmissive surface — the binding then
+   *  exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined
   /** The view's reflection: the opaque trace's target and the radiance pyramid of its last lit
    *  image (`../../../reflections/gpu.ts`). */
@@ -62,19 +61,6 @@ export interface WebgpuGpuState {
   /** The frame targets asked of the device (`targetGrant.ts`): in flight, or settled when refused
    *  at that size; gone once granted — once swapped in, made aside. */
   targetGrant: TargetGrant | undefined
-  positionBuffers: Map<HostAttributes, GPUBuffer>
-  /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
-   *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says
-   *  "this geometry does not have this attribute", and is distinct from a missing entry. */
-  blendIndexBuffers: Map<HostAttribute, GPUBuffer>
-  blendUvBuffers: Map<HostAttributes, GPUBuffer | undefined>
-  /** Each transparent geometry's normal atlas (`../../blend/buffers.ts`). */
-  blendNormalBuffers: Map<HostAttributes, FloatAtlas | undefined>
-  /** Vertex bytes held through allocations: position buffers, then indices, UVs and normals of
-   *  transparent meshes. The sample reads them instead of resuming them per image. */
-  vertexBytes: number
-  /** glTF volume of each transmissive item, read by water rank in the composite. */
-  volumeBuffer: GPUBuffer | undefined
   zeroUv: GPUBuffer | undefined
   presenter: ReturnType<typeof createGpuPresenter> | undefined
   deferred: Awaited<ReturnType<typeof createDeferredLighting>> | undefined
@@ -83,6 +69,9 @@ export interface WebgpuGpuState {
   temporal: TemporalAntialiasing | undefined
   /** Whether the host wants the pass: set at preparation, then by `setTemporalAntialiasing`. */
   temporalWanted: boolean
+  /** The level the pass runs at while wanted (`../../../taa/levels.ts`), set with it: the last
+   *  level other than off. */
+  temporalLevel: TaaRunningLevel
   /** The effect chain's targets and programs, made at the first frame with a pass. */
   effects: WebgpuEffects | undefined
   /** Revision of the chain the last encoded image drew, -1 while its programs compile: another
@@ -94,19 +83,18 @@ export interface WebgpuGpuState {
   guideRevision: number
   /** The particle step, made by the first image with a pool (`../../particles/`). */
   particles: WebgpuParticles | undefined
-  /** The impostor cards and their atlases, made by the first image of a baked cache. */
-  impostors: WebgpuImpostors | undefined
-  /** The impostor draw's code, awaited by the prepare of a baked cache (`../../../impostor/code.ts`). */
-  impostorCode: typeof ImpostorCode | undefined
+  /** The frame-difference view's previous image and pass, made while that view is chosen alone
+   *  (`../render/frameDifference.ts`). */
+  frameDifference?: FrameDifference
 }
 
-/** The frozen colour the water composite rereads and the depth its surface stage tests and
- *  writes, with their views (`../../transparent/transmission.ts`). */
+/** The copy of the opaque scene the distortion rereads and the offsets it accumulates, with their
+ *  views (`../../transparent/transmission.ts`). */
 export interface TransmissionBackdrop {
   color: GPUTexture
   colorView: GPUTextureView
-  waterDepth: GPUTexture
-  waterDepthView: GPUTextureView
+  distortion: GPUTexture
+  distortionView: GPUTextureView
   /** True when the copies are at the target size and the copy is worth it. */
   active: boolean
 }
@@ -135,24 +123,18 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     displaySize: [viewport[0] ?? 1, viewport[1] ?? 1],
     targetBytes: 0,
     targetGrant: undefined,
-    positionBuffers: new Map(),
-    blendIndexBuffers: new Map(),
-    blendUvBuffers: new Map(),
-    blendNormalBuffers: new Map(),
-    vertexBytes: 0,
-    volumeBuffer: undefined,
     zeroUv: undefined,
     presenter: undefined,
     deferred: undefined,
     temporal: undefined,
     temporalWanted: true,
+    temporalLevel: DEFAULT_TEMPORAL_AA_LEVEL,
     effects: undefined,
     effectsRevision: 0,
     guides: undefined,
     guideRevision: 0,
     particles: undefined,
-    impostors: undefined,
-    impostorCode: undefined,
+    frameDifference: undefined,
   }
 }
 
@@ -160,3 +142,18 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
  *  aside hold none — the frames draw into those in place meanwhile. */
 export const heldTargetGrant = (gpu: Pick<WebgpuGpuState, 'targetGrant'>) =>
   gpu.targetGrant?.mode === 'held' ? gpu.targetGrant : undefined
+
+/** `gpu`'s surfaces `old` replaced by `next`, one target of theirs remade: its frame-target bytes
+ *  follow. */
+export function swapSurfaces(
+  gpu: Pick<WebgpuGpuState, 'surfaces' | 'targetBytes'>,
+  old: SurfaceBuffer,
+  next: SurfaceBuffer,
+) {
+  gpu.surfaces = next
+  gpu.targetBytes += next.allocationBytes - old.allocationBytes
+}
+
+/** Bytes of a view's frame targets: those it made, and its effect chain's. */
+export const viewTargetBytes = (gpu: Pick<WebgpuGpuState, 'targetBytes' | 'effects'>) =>
+  gpu.targetBytes + (gpu.effects?.bytes ?? 0)

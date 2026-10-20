@@ -30,7 +30,7 @@ const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity:
 type Result = { shadowFactor: number; rayCount: number }
 const { vsmMaskCode } = shaderRun<{ vsmMaskCode: (r: Result) => number }>(CODE, ['vsmMaskCode'], {})
 const { vsmMaskDecode } = shaderRun<{ vsmMaskDecode: (c: number) => number }>(
-  wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
+  wgslModule(directShadowWgsl(25, { pass: 'mask', resolveTransmission: 14 })),
   ['vsmMaskDecode'],
   {},
 )
@@ -47,8 +47,12 @@ test('a lane holds four bits of rays: every ray count the traces use fits', () =
   assert.ok(K.VSM_TRACE_RAYS <= 15)
 })
 
-test('the decode computes a factor by the very expression the traces store, as a half float', () => {
-  assert.equal(CODE.match(/shadowFactor=f32\(missCount\)\/f32\(rayCount\);/g)?.length, 2)
+test('the decode computes a factor by the very expression the trace stores, as a half float', () => {
+  // The one trace every light's map runs.
+  assert.equal(
+    CODE.match(/shadowFactor=f32\(countOneBits\(missed\)\)\/f32\(rayCount\);/g)?.length,
+    1,
+  )
 })
 
 test('every factor a trace stores codes to one byte the table turns back into it, as the half float the mask held', () => {
@@ -71,7 +75,7 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   const word = lanes.reduce((w, code, k) => (w | (code << (8 * k))) >>> 0, 0)
   let loads = 0,
     tileLoads = 0
-  const resolve = wgslModule(directShadowWgsl(25, { resolveTransmission: 14 }))
+  const resolve = wgslModule(directShadowWgsl(25, { pass: 'mask', resolveTransmission: 14 }))
   const K = wgslConstants(resolve)
   const scope = {
     ...K,
@@ -81,7 +85,7 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
     textureLoad: (texture: string) =>
       texture === 'tiles' ? (tileLoads++, [0b1, 0, 0, 0]) : (loads++, [word, 0, 0, 0]),
     vsmMaskPixel: [0, 0],
-    vsmMaskLayer: 0xffffffff,
+    vsmMaskLayer: K.VSM_MASK_NO_LAYER,
     vsmMaskWord: 0,
     // As the pixel's setup leaves it (\`vsmMaskAt\`): the word unread.
     vsmMaskTile: K.VSM_MASK_TILE_UNREAD,
@@ -107,9 +111,9 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   assert.match(resolve, /var<private> vsmMaskTile:u32=0u;/)
   assert.match(
     resolve,
-    /fn vsmMaskAt\(coord:vec2i\)\{\n vsmMaskPixel=coord;vsmMaskLayer=0xffffffffu;vsmMaskTile=VSM_MASK_TILE_UNREAD;\n\}/,
+    /fn vsmMaskAt\(coord:vec2i\)\{\n vsmMaskPixel=coord;vsmMaskLayer=VSM_MASK_NO_LAYER;vsmMaskTile=VSM_MASK_TILE_UNREAD;\n\}/,
   )
-  assert.ok(resolve.includes('textureLoad(vsmShadowMaskTiles,vsmMaskPixel>>vec2u(3u),0).r'))
+  assert.ok(resolve.includes('textureLoad(vsmShadowMaskTiles,vsmMaskPixel>>vec2u(3u)).r'))
   assert.doesNotMatch(resolve, /textureNumLayers\(vsmShadowMask\)/)
   assert.match(resolve, /var vsmShadowMask:texture_2d_array<u32>;/)
 })

@@ -1,7 +1,7 @@
 /**
  * A PARENT'S MOVE FOLLOWED (`gpuCompose.ts`): its world held, its rows' draw bins made again when
- * its winding turned, the tree groups, the impostor cards and the transparent entries of its roots
- * told, its move told to the shadow mobility.
+ * its winding turned, the tree groups and the transparent entries of its roots told, its move told
+ * to the shadow mobility.
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { matrixWindingCw } from '../../../math/src/matrix/orientation.ts'
@@ -10,6 +10,7 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { moveRootRows, poseEntries } from '../webgpu/pages/render/movedRoot.ts'
 import { slotRanks, type ComposeState } from './gpuComposeState.ts'
 import { worldMoved } from '../page/selection/rootWorld.ts'
+import { noteMoved } from './rootMoves.ts'
 
 /** The draw bins of the rows of `slot`'s roots are made again, from the world the GPU composes:
  *  a mirror changes which face each row's bin culls (`pipelineFor.ts`). Called when the parent's
@@ -72,17 +73,20 @@ export function settleSlot(
   state.worlds.set(world, slot * MATRIX_VALUES)
   // The slot's composition moves only with its world or a link: a still parent sent again, and
   // every other slot, keep their composed worlds and every memo keyed by their roots' world
-  // versions (`worldMoved`); its readers' views read the slot's version.
+  // versions (`worldMoved`); its readers' views read the slot's version. A parent's move composes
+  // its roots again on the GPU (`ComposeState.composed`); a link, the roots it linked alone
+  // (`linkRanks`).
   if (moved || relinked || p === undefined) {
     state.slotVersions[slot] = ++state.version
-    for (const rank of slotRanks(state, slot)) worldMoved(rt.layout.selectionRoots[rank])
+    const ranks = slotRanks(state, slot)
+    for (const rank of ranks) worldMoved(rt.layout.selectionRoots[rank])
+    if (moved) noteMoved(state.composed, ranks)
   }
   if (turned) remakeBins(rt, state, slot)
   if (!moved && !relinked) return moved
-  // The impostor cards of its roots are written again from the composed worlds they read, and so
-  // are the corners of its blended roots' transparent entries, from the worlds the GPU composes.
+  // The corners of its blended roots' transparent entries are written again, from the worlds the
+  // GPU composes.
   const ranks = slotRanks(state, slot)
-  rt.gpu.impostors?.worldsMoved(ranks)
   for (const rank of ranks) poseEntries(rt, rt.layout.selectionRoots[rank])
   moveGroups(rt, state, slot)
   return moved

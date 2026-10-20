@@ -2,7 +2,12 @@ import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { FLAG } from '../../../sdk-core/src/physics/layout.ts'
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/options.ts'
 import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/softLayout.ts'
-import { softBodyOf, type SoftBodyOptions } from '../../../sdk-core/src/physics/soft.ts'
+import {
+  softBodyOf,
+  SOFT_AREAL_DENSITY,
+  SOFT_FOOTPRINT,
+  type SoftBodyOptions,
+} from '../../../sdk-core/src/physics/soft.ts'
 import { writeSoft, type SoftBodyRecord } from '../../../sdk-core/src/physics/softCommands.ts'
 import { softSettings } from '../../../sdk-core/src/physics/softSettings.ts'
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts'
@@ -99,6 +104,11 @@ export function settle(
   record.map.forEach((v, i) => out.set(last!.subarray(v * 3, v * 3 + 3), i * 3))
   return out
 }
+
+/** The gas a volume held at rest when the reference modules recorded their scenes: its default,
+ *  `4·m·g / (share·area)` (`softBodyOf`), with g = 9.81 then. Declared, the scenes compared with
+ *  those records keep it whatever gravity the default is now reckoned with. */
+export const REFERENCE_PRESSURE = (4 * SOFT_AREAL_DENSITY * 9.81) / SOFT_FOOTPRINT
 
 /** A rope of `count` points along x from the origin, `length` long. */
 export const ropeLine = (count: number, length: number) =>

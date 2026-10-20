@@ -82,16 +82,22 @@ export function snapshot(node: Object3D): NodeState {
   }
 }
 
+/** Copies each number of `next` that `===` finds other than `kept`'s over it — `-0` is `0`, `NaN`
+ *  always moves —; whether none was (`hooks.ts` too). */
+export function keepEqual(kept: Float64Array, next: ArrayLike<number>) {
+  let moved = false
+  for (let i = 0; i < kept.length; i++)
+    if (kept[i] !== next[i]) {
+      kept[i] = next[i]
+      moved = true
+    }
+  return !moved
+}
+
 function scanLight(light: Light, held: Float64Array): boolean {
   // A colour replaced as a whole is read through the new object: its numbers are what count.
   lightValues(light, scratch)
-  let moved = false
-  for (let k = 0; k < LIGHT_VALUES; k++)
-    if (held[k] !== scratch[k]) {
-      held[k] = scratch[k]
-      moved = true
-    }
-  return moved
+  return !keepEqual(held, scratch)
 }
 
 /** Compares the node to its state and takes what moved (`SCAN_*` bits): what the host's walk

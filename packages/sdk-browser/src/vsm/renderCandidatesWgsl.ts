@@ -4,7 +4,8 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
-import { FLAG_BLEND_CASTER, FLAG_DOUBLE, FLAG_SPRITE } from '../visibility/types.ts'
+import { FLAG_BACK, FLAG_BLEND_CASTER, FLAG_DOUBLE, FLAG_SPRITE } from '../visibility/types.ts'
+import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslConst } from '../../../math/src/wgsl/decl.ts'
 import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
@@ -24,7 +25,13 @@ const VSM_INF = wgslConst('INF', [FLOAT32_MAX], 'const INF:f32=FLOAT32_MAX;')
  */
 export const VSM_RENDER_ROWS_WGSL = wgslBlock(
   'VSM_RENDER_ROWS_WGSL',
-  [PAGE_INFO_STRUCT_WGSL, VSM_RENDER_PARAMS_WGSL, projectedBoundWgsl(VSM_INF), CUT_RULE_WGSL],
+  [
+    PAGE_INFO_STRUCT_WGSL,
+    VSM_RENDER_PARAMS_WGSL,
+    projectedBoundWgsl(VSM_INF),
+    CUT_RULE_WGSL,
+    matrixWindingCw,
+  ],
   `
 struct VsmRenderSphere{c:vec4f,l:vec4f,}
 struct VsmRenderRowLod{own:vec4f,parent:vec4f,ownLow:vec4f,parentLow:vec4f,radii:vec4f,}
@@ -59,14 +66,16 @@ fn vsmRenderCasterSkipped(page:PageInfo,row:u32,blend:bool)->bool{
 }
 /** Appends the row's candidate when the main view's level of detail, residency folded, selects it,
  *  with the corners it draws: \`corners\` (its indices, twice for a two-sided row of the opaque raster,
- *  \`vsmRenderVs\`). */
+ *  \`vsmRenderVs\`), and whether its faces turn: a mirroring placement (the main raster's
+ *  \`windingCw\`) against a back-side row, which keeps its back faces (\`vsmRenderSwapped\`). */
 fn vsmRenderAppendCandidate(row:u32,page:PageInfo,corners:u32){
  let lod=lods[row];
  let parentPixels=vsmRenderMainPixels(lod.parent,lod.parentLow,lod.radii.y);
  let ownPixels=vsmRenderMainPixels(lod.own,lod.ownLow,lod.radii.x);
  if(!drawsCluster(true,parentPixels,ownPixels,true,params.threshold)){return;}
  let s=spheres[row];
- let flags=vsmRenderCandidateFlags(mobility[row],page.deformOutput);
+ let flipped=matrixWindingCw(page.world)!=((page.flags&${FLAG_BACK}u)!=0u);
+ let flags=vsmRenderCandidateFlags(mobility[row],page.deformOutput)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped);
  let at=atomicAdd(&counts[0],1u);
  candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,corners,flags);
 }`,

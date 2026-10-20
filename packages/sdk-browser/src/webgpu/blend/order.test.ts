@@ -112,9 +112,9 @@ test('a frame without an eye resumes ranking when the eye returns', () => {
 
 test('a frame without an eye draws no slot, the next frame with one draws them all again', () => {
   const { blendState, eye } = rankedScene()
-  const slots = [...blendState.runCount]
+  const slots = blendState.runCount
   orderBlendPasses(blendState, undefined)
-  assert.deepEqual(blendState.runCount, [0, 0], 'no paint order, nothing drawn')
+  assert.equal(blendState.runCount, 0, 'no paint order, nothing drawn')
   orderBlendPasses(blendState, eye)
-  assert.deepEqual(blendState.runCount, slots, 'the transparents are drawn again')
+  assert.equal(blendState.runCount, slots, 'the transparents are drawn again')
 })

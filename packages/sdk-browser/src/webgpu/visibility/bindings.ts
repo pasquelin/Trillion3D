@@ -17,8 +17,9 @@ export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -
       textures: () => rt.vis.textures,
       sampler: () => rt.vis.mapsSampler,
       instances: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.instanceBuffer),
-      slotOffsets: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.slotOffsetsBuffer),
+      slotOffsets: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.groupsBuffer),
       material: () => rt.vis.materialTable.view,
+      normals: () => rt.vis.concatNrm,
     }),
   )
 }

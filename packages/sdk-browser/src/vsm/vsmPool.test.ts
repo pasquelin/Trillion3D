@@ -9,7 +9,8 @@ import { createVsmResources } from './resources.ts'
 import { createVsmTransmission } from './transmissionMade.ts'
 import { vsmLayout, type VsmResourceOptions } from './layout.ts'
 import { vsmResourceBytes } from './layoutBytes.ts'
-import { vsmPoolWithin } from './poolDraw.ts'
+import { vsmDemandPages, vsmPoolWithin, vsmViewPoolPages } from './poolDraw.ts'
+import { VSM_POOL_PAGES } from './constants.ts'
 import { vsmTransmissionBytes, vsmTransmissionFirstCaps } from './transmissionLayout.ts'
 
 const BINDING = 1 << 27
@@ -83,4 +84,21 @@ test('vsmTransmissionBytes is every byte the ledger counts of a transmission', (
       trans.destroy()
       assert.equal(ledger.bytes, 0, 'destroy frees every byte')
     }
+})
+
+// Every world reserved the 2048-page pool whatever its canvas: six small feeds held 2 GB of
+// shadows.
+test('the pool a view starts at follows its pixels, between the eighth and the full pool', () => {
+  assert.equal(vsmViewPoolPages(1920, 1080), VSM_POOL_PAGES, 'the reference view: the full pool')
+  assert.equal(vsmViewPoolPages(3000, 1800), VSM_POOL_PAGES, 'past it: never more')
+  assert.equal(vsmViewPoolPages(990, 888), 512, 'a share of the pixels, a power of two down')
+  assert.equal(vsmViewPoolPages(320, 240), VSM_POOL_PAGES / 8, 'never under the eighth')
+})
+
+test('a fill past the pressure load asks the pool that holds it, the full pool at most', () => {
+  assert.equal(vsmDemandPages(512, 300, 0), 0, 'within the load: nothing asked')
+  assert.equal(vsmDemandPages(512, 0, 0), 1024, 'full: the power of two that holds it at the load')
+  assert.equal(vsmDemandPages(256, -100, 0), 512, 'overflowing: what it wanted')
+  assert.equal(vsmDemandPages(256, 0, 1), 2048, 'a level coarser hid four times the pages')
+  assert.equal(vsmDemandPages(2048, -5000, 2), VSM_POOL_PAGES)
 })

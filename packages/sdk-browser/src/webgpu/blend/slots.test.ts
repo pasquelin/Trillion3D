@@ -10,37 +10,28 @@ import {
   orderBlendPlanCpu,
   refreshEyeKeys,
 } from './expandCpu.fixture.ts'
-import { planItem, planPipeline } from './plan.ts'
-import { PLAN_SHARED_BIT } from './planEntry.ts'
+import { planPipeline } from './plan.ts'
 import { RUN_WORDS } from './planLayout.ts'
 import type { WebgpuBlendState } from './state.ts'
 import { transparentScene } from './orderKernel.fixture.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { referenceOrder } from './plan.fixture.ts'
 
-const planShared = (entry: number) => (entry & PLAN_SHARED_BIT) !== 0
-
-/** Runs as the CPU sliced them before the GPU ordered the plan: a stretch of shared entries of one
- *  pipeline is one draw, any other entry a draw of its own. */
+/** Runs as the CPU sliced them before the GPU ordered the plan: a stretch of entries of one
+ *  pipeline is one draw — every entry reads the one shared group. */
 function slicedRuns(order: number[]) {
   const runs: number[] = []
   for (let first = 0; first < order.length;) {
     let end = first + 1
-    if (planShared(order[first]))
-      while (
-        end < order.length &&
-        planShared(order[end]) &&
-        planPipeline(order[end]) === planPipeline(order[first])
-      )
-        end++
+    while (end < order.length && planPipeline(order[end]) === planPipeline(order[first])) end++
     runs.push(first, end - first)
     first = end
   }
   return runs
 }
 
-/** Every instance the draws paint, in paint order, with the pipeline, the buffers and the vertex
- *  count of the draw that paints it: two lists equal here paint the same image. */
+/** Every instance the draws paint, in paint order, with the pipeline and the vertex count of the
+ *  draw that paints it: two lists equal here paint the same image. */
 function painted(blendState: WebgpuBlendState, keep: Uint32Array, order: number[], runs: number[]) {
   const expanded = new Uint32Array(blendState.instanceCapacity * 2),
     args = new Uint32Array(runs.length * 2 + 4)
@@ -65,14 +56,10 @@ function painted(blendState: WebgpuBlendState, keep: Uint32Array, order: number[
     const [first, entries] = [runs[run * 2], runs[run * 2 + 1]]
     const [vertices, instances, start] = [args[run * 4], args[run * 4 + 1], args[run * 4 + 2]]
     if (!entries) continue
-    const entry = order[first],
-      item = blendState.blendGpu[planItem(entry)]
-    const buffers = item.paged ? 'paged' : `own ${planItem(entry)}`
+    const entry = order[first]
     for (let k = 0; k < instances; k++) {
       const at = (start >> blendState.vertexShift) + k
-      out.push(
-        `${planPipeline(entry)} ${buffers} ${vertices} ${expanded[at * 2]} ${expanded[at * 2 + 1]}`,
-      )
+      out.push(`${planPipeline(entry)} ${vertices} ${expanded[at * 2]} ${expanded[at * 2 + 1]}`)
     }
   }
   return out
@@ -93,23 +80,21 @@ test('the slots paint the instances the runs painted, in their order, with their
       for (let w = 0; w < keep.length; w++) keep[w] = Math.floor(next() * 2 ** 32)
       orderBlendPasses(blendState, eye)
       refreshEyeKeys(blendState, eye)
-      for (let pass = 0; pass < 2; pass++) {
-        const seeds = blendState.seeds[pass]
-        if (!seeds.length) continue
-        // Before: the whole pass ranked by `precedes`, then sliced.
-        const before = referenceOrder(seeds, blendState.orderKeys)
-        const after = Array.from(orderBlendPlanCpu(blendState, pass))
-        assert.deepEqual(after, before, `${count} items, frame ${frame}, pass ${pass}: order`)
-        const runs = cpuModel(blendState).runs[pass],
-          slots = Array.from(runs.subarray(0, blendState.slotCounts[pass] * 2))
-        const instances = painted(blendState, keep, before, slicedRuns(before))
-        assert.ok(instances.length > seeds.length / 4, 'most entries paint')
-        assert.deepEqual(
-          painted(blendState, keep, after, slots),
-          instances,
-          `${count} items, frame ${frame}, pass ${pass}: painted`,
-        )
-      }
+      const seeds = blendState.seeds
+      if (!seeds.length) continue
+      // Before: the whole pass ranked by `precedes`, then sliced.
+      const before = referenceOrder(seeds, blendState.orderKeys, blendState.orderPriorities)
+      const after = Array.from(orderBlendPlanCpu(blendState))
+      assert.deepEqual(after, before, `${count} items, frame ${frame}: order`)
+      const runs = cpuModel(blendState).runs,
+        slots = Array.from(runs.subarray(0, blendState.slotCount * 2))
+      const instances = painted(blendState, keep, before, slicedRuns(before))
+      assert.ok(instances.length > seeds.length / 4, 'most entries paint')
+      assert.deepEqual(
+        painted(blendState, keep, after, slots),
+        instances,
+        `${count} items, frame ${frame}: painted`,
+      )
     }
   }
 })

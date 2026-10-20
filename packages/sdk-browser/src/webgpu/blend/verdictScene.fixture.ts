@@ -8,7 +8,6 @@ import { surfaceOf } from '../../page/surface.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
 import { orderBlendPasses } from './order.ts'
 import { blendSceneOf } from './plan.fixture.ts'
-import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import type { BlendGpuItem } from './state.ts'
 
 /** The sides a surface declares: front-only, back-only and double-sided items, each planned as
@@ -51,19 +50,19 @@ function planes(into: Float64Array, next: () => number, edges: boolean, eye: num
     into[Math.floor(next() * 24)] = EDGES[Math.floor(next() * EDGES.length)]
 }
 
-/** A scene of `count` items around `eye`, its paged ranks and their counts as the compaction left
+/** A scene of `count` items around `eye`, its table ranks and their counts as the compaction left
  *  them. */
 export function verdictScene(count: number, next: () => number, edges: boolean, eye = [0, 0, 0]) {
   const items: BlendGpuItem[] = []
-  let water = 0
+  let transmits = 0
   for (let i = 0; i < count; i++) {
     const transmissive = next() < 0.25
+    if (transmissive) transmits++
     items.push({
       surface: surfaceOf(G.basicSurface({ side: SIDES[Math.floor(next() * 3)] })),
       matrix: new Matrix4().makeTranslation(next() * 50, 0, next() * 50),
-      count: 3,
       transmissive,
-      flags: transmissive ? ++water << WATER_RANK_SHIFT : 0,
+      flags: 0,
       hidden: next() < 0.1,
       bounds: next() < 0.9 ? box(next, edges, eye) : undefined,
       placement: {
@@ -73,9 +72,9 @@ export function verdictScene(count: number, next: () => number, edges: boolean, 
     } as unknown as BlendGpuItem)
   }
   const blendState = blendSceneOf(items)
-  blendState.transmissive = water
+  blendState.transmissive = transmits
   planes(blendState.blendPlanes, next, edges, eye)
-  // Paged items read the compaction's count at their paged rank: some the cut emptied.
+  // Listed items read the compaction's count at their table rank: some the cut emptied.
   const counts: number[] = []
   items.forEach((_, i) => {
     if (next() >= 0.5) return
@@ -87,7 +86,8 @@ export function verdictScene(count: number, next: () => number, edges: boolean, 
 }
 
 /** Items of boxes `boxes` inside six axis planes 10 from `centre`, the first `x ≤ centre.x + 10`:
- *  every item drawn, unpaged, opaque to the water and unflagged, ordered from `eye`. */
+ *  every item drawn, transmissive — its box judged for the distortion —,
+ *  listed nowhere, ordered from `eye`. */
 export function axisScene(
   next: () => number,
   boxes: Float64Array[],
@@ -102,10 +102,11 @@ export function axisScene(
     blendState.blendPlanes.set([n[0], n[1], n[2], d], p * 4)
   }
   blendState.drawsPacked.fill(NO_INDEX)
+  blendState.transmissive = boxes.length
   blendState.blendGpu.forEach((item, i) =>
     Object.assign(item, {
       hidden: false,
-      transmissive: false,
+      transmissive: true,
       flags: 0,
       placement: { rows: { live: new Uint8Array([1]) }, index: 0 },
       bounds: boxes[i],

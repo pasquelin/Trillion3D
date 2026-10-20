@@ -11,26 +11,7 @@ import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
 import { TILE_POOL_WGSL } from './wgsl.ts'
 import { tileKindWgsl } from './kindWgsl.ts'
 import { samplingReadWgsl } from './atlasReadWgsl.ts'
-import { type WgslDecl, wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-
-/**
- * The feedback rank of the tile of atlas `k` a read of texture `s` at `uv` and `level` takes, plus
- * one, or zero: none in the tail; when `missing`, none either for a tile the table holds at its
- * level. The one rule of every pass that asks tiles, at the level its read chose — a surface's
- * footprint (`tileRequestIndexWgsl`), an impostor card's own (`cardReads.ts`) —, on `pool`.
- */
-export const tileRequestAtWgsl = (k: string, pool: WgslDecl) =>
-  wgslFn(
-    `${k}RequestAt`,
-    [pool, tileKindWgsl(k, pool)],
-    `fn ${k}RequestAt(s:TileSlot,uv:vec2f,level:u32,missing:bool)->u32{
- if(level>=s.tail){return 0u;}
- let entry=${k}Entry(s,uv,level);
- let word=${k}Pages[entry];
- if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
- return entry-${k}Pages[2]+${k}Pages[0]+1u;
-}`,
-  )
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
@@ -44,7 +25,9 @@ export const tileRequestAtWgsl = (k: string, pool: WgslDecl) =>
  * cutout (`maskAlpha`) —, which is then the level asked. `missing` names the tile only when the
  * table does not hold it at that level — the pool's own word, whose level is the finest resident
  * ancestor's —: what a convergence looks for (`everyPick`). On the camera's pool
- * (`TILE_POOL_WGSL`), whose level offset the request shares with the read.
+ * (`TILE_POOL_WGSL`), whose level offset the request shares with the read. `${k}RequestAt` is the
+ * feedback rank of the tile a read of texture `s` at `uv` and `level` takes, plus one, or zero:
+ * none in the tail; when `missing`, none either for a tile the table holds at its level.
  */
 const tileRequestIndexWgsl = (k: string) =>
   wgslBlock(
@@ -54,9 +37,15 @@ const tileRequestIndexWgsl = (k: string) =>
       TILE_READ_WGSL,
       tileKindWgsl(k, TILE_POOL_WGSL),
       samplingReadWgsl(k, TILE_POOL_WGSL),
-      tileRequestAtWgsl(k, TILE_POOL_WGSL),
     ],
-    `fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
+    `fn ${k}RequestAt(s:TileSlot,uv:vec2f,level:u32,missing:bool)->u32{
+ if(level>=s.tail){return 0u;}
+ let entry=${k}Entry(s,uv,level);
+ let word=${k}Pages[entry];
+ if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
+ return entry-${k}Pages[2]+${k}Pages[0]+1u;
+}
+fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
  let s=${k}Slot(slot);
  if(s.tail==0u){return 0u;}
  var at=uv;var lod=0.0;
@@ -120,10 +109,10 @@ fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.
 )
 
 /** The pipeline constants of a fragment stage writing the feedback target or not (`FEEDBACK`): the
- *  one switch of every pass that asks tiles — opaque resolve, blends, water surfaces, cards. */
+ *  one switch of every pass that asks tiles — opaque resolve, blends, transmissive layers. */
 export const feedbackConstants = (feedback: boolean) => ({ FEEDBACK: feedback ? 1 : 0 })
 
-/** What a surface's request loop is made of (`requestLoopWgsl`): its function's head, the pixel
+/** What a surface's request loop is made of (`requestLoopFn`): its function's head, the pixel
  *  position and feedback word it speaks by, the lines a surface runs before its phase (`before`) and those a
  *  speaking pixel needs (`setup`), its count of picks, and its pick's call on a pick and `missing`. */
 type RequestLoop = {
@@ -142,7 +131,7 @@ type RequestLoop = {
  * missing (`everyPick`, `PICK_TURNS` per choice); else its own pick (`requestPick`). Each surface
  * brings only its choices and its pick; the loop is this one text.
  */
-export const requestLoopWgsl = ({ head, pos, word, before, setup, choices, pick }: RequestLoop) =>
+export const requestLoopFn = ({ head, pos, word, before, setup, choices, pick }: RequestLoop) =>
   `${head}{
  if(!FEEDBACK){return 0u;}
 ${before ? ` ${before}\n` : ''} if(!feedbackPhase(${pos},${word})){return 0u;}
@@ -168,24 +157,30 @@ const m = WRAP_MAP
  * of them. The image's pick turn shifts that position (`PICK_CYCLE`), and a convergence image
  * names every pick of every pixel (`everyPick`). The camera cutout reads the
  * base map as the shading does (`maskAlphaWgsl`), so a masked base map asks one level too. The
- * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
+ * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapPick`). Hosts build their slots from the page row or the transparent item.
  */
 export const TILE_REQUEST_WGSL = wgslBlock(
   'TILE_REQUEST_WGSL',
   [tileRequestIndexWgsl('color'), tileRequestIndexWgsl('data'), FEEDBACK_RULE_WGSL],
   `const MAP_CHOICES:u32=${MAP_CHOICES}u;
-/** \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
-fn mapRequest(p:RequestPick,missing:bool,color:vec2u,data:vec4u,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->u32{
- let sel=p.sel;
- var slot=color.x;var isColor=true;
- if(sel==${m.rough}u){slot=data.x;isColor=false;}
- else if(sel==${m.metal}u){slot=data.y;isColor=false;}
- else if(sel==${m.normal}u){slot=data.z;isColor=false;}
- else if(sel==${m.ao}u){slot=data.w;isColor=false;}
- else if(sel==${m.emissive}u){slot=color.y;}
- if(slot==0u){slot=color.x;isColor=true;}
- if(slot==0u){return 0u;}
- if(isColor){return colorRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);}
- return dataRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);
+/** The map a pick \`sel\` names: its slot — the base's where that map is absent, zero for none —,
+ *  whether it is a colour map, and its rank (\`WRAP_MAP\`), which names its UV set.
+ *  \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
+struct MapPick{slot:u32,isColor:bool,map:u32,}
+fn mapPick(sel:u32,color:vec2u,data:vec4u)->MapPick{
+ var k=MapPick(color.x,true,${m.base}u);
+ if(sel==${m.rough}u){k=MapPick(data.x,false,sel);}
+ else if(sel==${m.metal}u){k=MapPick(data.y,false,sel);}
+ else if(sel==${m.normal}u){k=MapPick(data.z,false,sel);}
+ else if(sel==${m.ao}u){k=MapPick(data.w,false,sel);}
+ else if(sel==${m.emissive}u){k=MapPick(color.y,true,sel);}
+ if(k.slot==0u){k=MapPick(color.x,true,${m.base}u);}
+ return k;
+}
+/** The tile map \`k\` asks at \`uv\`, plus one, or zero without a map. */
+fn pickRequest(p:RequestPick,missing:bool,k:MapPick,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->u32{
+ if(k.slot==0u){return 0u;}
+ if(k.isColor){return colorRequestIndex(k.slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);}
+ return dataRequestIndex(k.slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);
 }`,
 )

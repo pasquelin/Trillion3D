@@ -12,6 +12,7 @@ import {
   KIND_SKIN,
   KIND_WAVE,
   KIND_SOFT,
+  keepPrevious,
   recordLayout,
   RECORD_WORD,
   type RecordShape,
@@ -198,7 +199,7 @@ function writeRecord(
     palette = at + layout.palette,
     weights = at + layout.weights
   r.skins.keep(i, palette, joints)
-  block.copyWithin(weights + shape.targets, weights, weights + shape.targets)
+  keepPrevious(block, weights, shape.targets)
   words[at + RECORD_WORD.previousKinds] = words[at]
   let kinds = 0,
     most = 0,

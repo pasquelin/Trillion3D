@@ -12,9 +12,15 @@ import {
 } from '../gpu/dag/nodeLayout.ts'
 import { TREE_GROUP, type PlacementTree } from '../gpu/dag/placementTree.ts'
 import { RAY_TREE_STEPS, RAY_WORK } from './runtimeLayout.ts'
-import { TREE_DEPTH, WALK_LIST } from '../gpu/dag/treeWalkWgsl.ts'
+import { PLACEMENT_TREE_WALK_WGSL } from '../gpu/dag/treeWalkWgsl.ts'
 import { boxEntry, spent, type Hit, type Spent } from './runtimeOracle.fixture.ts'
 import type { Vec3 } from '../../../math/src/vector/vectorTuple.ts'
+
+/** A constant of the walk, as the shader holds it (`PLACEMENT_TREE_WALK_WGSL`). */
+const walkConst = (name: string) =>
+  Number(new RegExp(`const ${name}:u32=(\\d+)u;`).exec(PLACEMENT_TREE_WALK_WGSL.text)![1])
+const TREE_DEPTH = walkConst('WALK_DEPTH'),
+  WALK_LIST = walkConst('WALK_LIST')
 
 /** The nearest hit from `hit` over `tree`'s members, each ordered by where the ray enters its box (`entry`)
  *  and entered by `enter`, the walk's units spent in `s`. */

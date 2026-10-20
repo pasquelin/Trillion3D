@@ -3,7 +3,7 @@ import { FLAG, GENERATION_SHIFT } from '../../../sdk-core/src/physics/layout.ts'
 import { axisAngleQuaternion } from '../../../math/src/quaternion/quaternion.ts'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'
-import { ropeLine, writeSoftBody } from './soft.fixture.ts'
+import { REFERENCE_PRESSURE, ropeLine, writeSoftBody } from './soft.fixture.ts'
 import { FLAT, body, id } from './records.fixture.ts'
 
 /** The steps whose soft words `writebackScene` keeps: after each change of its list. */
@@ -37,7 +37,13 @@ export function writebackScene(jolt: Pick<JoltModule, 'step' | 'soft'>) {
     turn(0, 0, 1, 0.7),
     { scale: [1.5, 1.5, 1.5] },
   )
-  writeSoftBody(writer, id(3), sphere(0.3, 8, 6), { type: 'volume' }, [-3, 21.5, 0])
+  writeSoftBody(
+    writer,
+    id(3),
+    sphere(0.3, 8, 6),
+    { type: 'volume', pressure: REFERENCE_PRESSURE },
+    [-3, 21.5, 0],
+  )
   const pins = [20, 21, 22, 23, 24]
   writeSoftBody(
     writer,

@@ -35,7 +35,6 @@ export const peekOnly = (peek: () => GpuCut | null) =>
 /** Triangle totals of a readback header, as `dagMask` ships them: all zero unless given. */
 export const fixtureTotals = (totals: Partial<GpuCut['result']> = {}) => ({
   selectedTriangles: 0,
-  drawnTriangles: 0,
   transparentTriangles: 0,
   ...totals,
 })

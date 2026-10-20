@@ -63,8 +63,9 @@ import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
  * at the bindings `../core/bindEntries.ts` publishes.
  *
  * `mipBias` is the WGSL expression every level choice adds to its LOD (`atlasLodWgsl`), the read's
- * and the request's alike: a frame drawn below the display adds `log2(render / display)`, so a
- * texture keeps the texel density it has at native size (`../../taa/jitter.ts`, `upscaleMipBias`).
+ * and the request's alike: a frame the temporal pass upscales adds `log2(render / display)` and
+ * the −0.3 sharpening offset, so a texture keeps the display's texel density (`../../taa/jitter.ts`,
+ * `upscaleMipBias`).
  * The pool provides the footprint rule at that level (`samplingFootprintWgsl`). The reads take the
  * pool as a provider (`tileKindWgsl`, `atlasReadWgsl`); its variants share one name, so a program
  * holding two biases is refused when it is written.
@@ -115,8 +116,7 @@ fn tileEntry(texel:vec2f,lsize:vec2f)->u32{return u32(texel.y/TEXEL_TILE)*u32(ce
 /** The pool of the camera's passes — visibility, compute raster, surfaces, transparents —, whose
  *  uniform `uni` carries the frame's texture level offset. */
 export const TILE_POOL_WGSL = tilePoolWgsl('uni.mipBias')
-/** The pool read at no level offset: the shadow passes', and the impostor cards', which read at
- *  their card's own level (`cardReads.ts`). */
+/** The pool read at no level offset: the shadow passes'. */
 export const SHADOW_TILE_POOL_WGSL = tilePoolWgsl('0.0')
 
 /** The camera's footprint (anisotropic taps) and a shadow texel's (one tap at the isotropic level,
@@ -142,20 +142,21 @@ export const COLOR_SAMPLE_WGSL = colorSampleWgsl(TILE_POOL_WGSL)
 
 /**
  * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy, sampled)`, the base-map alpha at the
- * derivatives of the pass that reads. The camera raster (`finest` false) reads it as the colour
- * reads — same transform, filter, anisotropic taps and mix, `colorSample`'s own `.w` —: the
- * silhouette the raster cuts is the one its hardware sampler reads, and the resolve that
- * shades the kept pixel reads the same taps. The shadow pass (`finest` true) gives the one
+ * derivatives of the pass that reads. The camera raster (`finest` false) reads it with the colour's
+ * taps but at the render pixel's own footprint: `exp2(-uni.mipBias)` on the derivatives cancels the
+ * pool's upscale offset, which sharpens a colour the accumulation averages but, under a hard
+ * threshold, turns sub-pixel detail into a 0/1 that flips with every jitter. The shadow pass (`finest` true) gives the one
  * sampling its own footprint (`atlasSampleWgsl`): one tap at the isotropic level, under its
  * fallback rule, which a shadow texel's footprint asks. On the textures of
  * `pool`, the camera's unless given.
  */
 export const maskAlphaWgsl = (finest: boolean, pool: WgslDecl = TILE_POOL_WGSL) => {
   const read = atlasSampleWgsl('color', pool, finest)
+  const scale = finest ? '' : '*exp2(-uni.mipBias)'
   return wgslBlock(
     `maskAlphaWgsl(${finest})`,
     [read.decl],
-    `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read.name}(slot,uv,ddx,ddy,sampled).w;}`,
+    `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read.name}(slot,uv,ddx${scale},ddy${scale},sampled).w;}`,
   )
 }
 

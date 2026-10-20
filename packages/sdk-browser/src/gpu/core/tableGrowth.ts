@@ -67,15 +67,13 @@ export function grownByCopy(
   for (const resource of held) if (resource) retire(device, resource)
 }
 
+/** The bytes `buffers` hold together. */
+export const bytesOfBuffers = (buffers: readonly Pick<GPUBuffer, 'size'>[]) =>
+  buffers.reduce((total, buffer) => total + buffer.size, 0)
+
 /** The growth of `buffers`: `adopt` installs them and returns those they replace, then retired. */
 export const pendingBuffers = (
   device: GPUDevice,
   buffers: readonly GPUBuffer[],
   adopt: () => readonly Freed[],
-) =>
-  pendingMade(
-    device,
-    buffers,
-    buffers.reduce((total, buffer) => total + buffer.size, 0),
-    adopt,
-  )
+) => pendingMade(device, buffers, bytesOfBuffers(buffers), adopt)

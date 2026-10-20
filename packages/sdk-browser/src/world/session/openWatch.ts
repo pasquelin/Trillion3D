@@ -1,3 +1,5 @@
+import { later } from '../../frame/scheduling.ts'
+
 /**
  * How long a session may prepare in silence. Not a limit on the work, which goes on, and not a
  * value any scene tuned: the moment a page left with an empty canvas is told where the opening
@@ -5,13 +7,6 @@
  * few seconds to a minute says the same thing, only sooner or later.
  */
 const OPENING_REPORT_MS = 10_000
-
-/** A timer that never holds a Node process open on its own; a browser has no such notion. */
-function later(report: () => void, delayMs: number) {
-  const timer = setTimeout(report, delayMs)
-  ;(timer as { unref?: () => void }).unref?.()
-  return timer
-}
 
 /**
  * Watches one session's opening: `note` records each step it reports, and if `done` has not been

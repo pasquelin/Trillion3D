@@ -24,12 +24,13 @@ test('every texture level, read or asked, adds the frame offset: zero at native 
   const lodAt = (bias: number) =>
     shaderFunctions<Lod>(atlasLodWgsl('bias'), ['atlasLod'], { dot, log2: Math.log2, bias })
       .atlasLod
-  // A footprint of four texels per render pixel: level 2 at native size.
+  // A footprint of four texels per render pixel: level 2 without a temporal resolve, at any size.
   const px = { x: 4, y: 0 },
     py = { x: 0, y: 4 }
-  assert.equal(lodAt(upscaleMipBias(3456, 3456))(px, py), 2)
-  // Drawn at half the display, a render pixel covers two display pixels: one level finer.
-  assert.equal(lodAt(upscaleMipBias(1728, 3456))(px, py), 1)
+  assert.equal(lodAt(upscaleMipBias(3456, 3456, false))(px, py), 2)
+  assert.equal(lodAt(upscaleMipBias(1728, 3456, false))(px, py), 2)
+  // Under the temporal upscale, drawn at half the display: −1 − 0.3, one level finer.
+  assert.equal(lodAt(upscaleMipBias(1728, 3456))(px, py), 2 - 1.296875)
   // The one rule: the read's level (`tileRead`) and the request's (`slotLod`, or the read's own
   // footprint) both come from `atlasLod`, so the tiles asked are the tiles read.
   assert.match(body(TILE_POOL_WGSL, 'slotLod'), /atlasLod\(/)

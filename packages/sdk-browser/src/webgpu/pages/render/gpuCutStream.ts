@@ -1,4 +1,5 @@
 import { cpuNow } from '../../../diagnostic/stopwatch.ts'
+import { pumpResidentTiles } from '../prepare/lightResources.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { followCutRows } from '../prepare/growTables.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -47,6 +48,13 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
     run.gpuMetricsReady = false
   rows.clearResidencyChanges()
   marks.residencyUploadEnd = cpuNow()
+  // What the previous image's feedback requested of the textures becomes resident, on what the
+  // rows left of the frame's clock: a page without its row draws a coarser ancestor — a hole where
+  // a window was —, a tile not in yet only a coarser level. The pass times itself on its budget
+  // clock, the one bound the textures stage reads. A tile served is a resource change.
+  if (pumpResidentTiles(rt.vis.textures, run.frame, run.textureConverging))
+    run.gate.resourcesChanged()
+  marks.tilesEnd = cpuNow()
 }
 
 /**
@@ -59,9 +67,6 @@ export function dispatchCut(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
   const { run, views, timing } = rt,
     cut = cutOf(rt)
   if (!cut) return true
-  // The blended copies the reflections' proxy traces, taken before the cut's prepare grows the
-  // tables they need (`syncTables`): nothing of the proxy grows once the frame's encoder writes.
-  if (rt.gpu.reflection) run.gpuSelection?.proxyCopies(rt.setup.blendCopies)
   timing.frameSelection = cut.dispatch(run.selectionUniforms, encoder)
   return views.active === views.main || !!timing.frameSelection
 }

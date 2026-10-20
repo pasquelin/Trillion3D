@@ -43,10 +43,6 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * last page.
      */
     progress: () => (q.running ? q.landing.next(q.pending) : q.pending),
-    /** Camera pages made resident so far, every job counted: the view still arriving. */
-    get landings() {
-      return q.landing.landings
-    },
     /** True while an upload is in flight or queued: residency can still change. */
     get busy() {
       return q.running || q.scheduled

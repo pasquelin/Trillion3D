@@ -18,8 +18,8 @@ export const PHYSICAL_SURFACE_FLAG = 64
  *  halves each), the anisotropy strength and the coat factor (two unsigned halves), the coat
  *  roughness (a float's bits). */
 export const PHYSICAL_LOBES_FORMAT: GPUTextureFormat = 'rgba32uint'
-/** The lighting's read of the lobes target, by load alone: the opaque resolve's and the water
- *  composite's (`../lighting/direct/lobesWgsl.ts`); its bytes, one texel per pixel when wanted, a
+/** The lighting's read of the lobes target, by load alone: the opaque resolve's
+ *  (`../lighting/direct/lobesWgsl.ts`); its bytes, one texel per pixel when wanted, a
  *  1×1 placeholder otherwise (`bytes`). */
 export const PHYSICAL_LOBES_TARGET = loadOnlyTarget(
   DEFERRED_BINDINGS.lobes,

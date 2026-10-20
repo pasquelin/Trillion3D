@@ -112,21 +112,3 @@ test('a pose a call named sends its world alone, every other left as the cut hol
   assert.equal(worlds[0 * 16 + 12] + worlds[2 * 16 + 12], 0, 'no other read')
   assert.equal(rt.layout.rows.tableEpoch, 1, 'the table stands')
 })
-
-test('a host walk hands the impostor cards the poses its send moved, never every root', () => {
-  const told: number[][] = []
-  const rt = image(true, { updateWorlds: () => Int32Array.of(2) })
-  const at = (x: number) => ({
-    world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1] },
-    pages: [],
-  })
-  Object.assign(rt.layout, {
-    selectionRoots: [at(1), at(2), at(3)],
-    worldUpdates: new Float32Array(48),
-  })
-  Object.assign(rt, {
-    gpu: { impostors: { worldsMoved: (ranks: Int32Array) => told.push([...ranks]) } },
-  })
-  uploadWorlds(rt)
-  assert.deepEqual(told, [[2]], 'the one the cut says moved')
-})

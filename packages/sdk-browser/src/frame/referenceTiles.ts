@@ -91,7 +91,7 @@ export function referenceTilePlan(
  *  (`shadowResolutionBias` above 0, `vsmStats.ts`): a pool the GPU budget shrank, or a full one
  *  whose fill raised the maps' resolution bias. Such an image never passes for the reference.
  *  Null — no shadow map ran — and 0 pass. */
-export function assertFullShadowPool(bias: number | null | undefined) {
+function assertFullShadowPool(bias: number | null | undefined) {
   if (bias)
     throw new EngineError(
       'REFERENCE_SHADOWS_REDUCED',

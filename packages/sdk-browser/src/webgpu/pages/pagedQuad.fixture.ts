@@ -8,6 +8,8 @@ import { webgpuPagesEngine } from './pages.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0])
 /** The two triangles of the quad, as the corner lists a compiler would cluster them into. */
@@ -91,6 +93,7 @@ export function pagedQuadBackend(
 ) {
   const gpu = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: fixture.metadata.primitives[0].pages.length,

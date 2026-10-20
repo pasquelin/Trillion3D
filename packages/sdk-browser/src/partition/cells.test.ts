@@ -4,7 +4,7 @@ import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { pose } from '../host/prepared/nodes.ts'
 import { chainWorld } from '../../../../tests/kit/assert/chainWorld.ts'
 import type { PlacementRows } from '../placement/rows.ts'
-import { cellUrl, everywhere, io, noBudget, opened, settled, world } from './cells.fixture.ts'
+import { between, cellUrl, io, noBudget, opened, settled, world } from './cells.fixture.ts'
 import { sizedWhole } from './cells.fixture.ts'
 
 const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at * 16, at * 16 + 16)]
@@ -12,11 +12,11 @@ const row = (rows: PlacementRows, at: number) => [...rows.matrices.subarray(at *
 test('the cells a camera needs are asked nearest first, then placed on rows once read', async () => {
   const { cells, links, bytes } = await sizedWhole(world())
   const { port, asked, updates, held } = io(bytes)
-  await settled(cells, [6000, 0, 0], everywhere, port, noBudget)
+  await settled(cells, between, port, noBudget)
   assert.deepEqual([...new Set(asked)], [cellUrl('far.json'), cellUrl('near.json')])
   assert.deepEqual(cells.stats(), { pages: 3, cells: 2, held: 0, waiting: 0, rows: 3 })
   asked.forEach((url) => held.add(url))
-  await settled(cells, [6000, 0, 0], everywhere, port, noBudget)
+  await settled(cells, between, port, noBudget)
   assert.equal(cells.stats().held, 2)
   for (const link of links) assert.deepEqual([...link.placements!.live.subarray(0, 3)], [1, 1, 1])
   assert.ok(updates.length >= 2, 'the session is told which rows were written')
@@ -26,7 +26,7 @@ test('a row holds the world matrix the engine composes for the same node under i
   const { cells, links, core, bytes, node } = await sizedWhole(world())
   const { port, held } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
-  await settled(cells, [0, 0, 0], everywhere, port, noBudget)
+  await settled(cells, between, port, noBudget)
   const child = new Object3D()
   pose(child, node(5000, 0))
   core.add(child)
@@ -36,17 +36,17 @@ test('a row holds the world matrix the engine composes for the same node under i
   assert.deepEqual(row(rows, at), expected, 'the same bits as a host node there')
   // The parent moves: the rows under it follow before the next frame.
   core.position.set(0, 20, 0)
-  cells.frame([0, 0, 0], everywhere, port, noBudget)
+  cells.frame(between, port, noBudget)
   assert.deepEqual(row(rows, at), [...chainWorld(child)])
 })
 
-test('a cell past its reach gives its rows back, parked, for the next cell to take', async () => {
+test('a cell past its range gives its rows back, parked, for the next cell to take', async () => {
   const { cells, links, bytes } = await sizedWhole(world())
   const { port, held, updates } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
-  await settled(cells, [0, 0, 0], everywhere, port, noBudget)
+  await settled(cells, between, port, noBudget)
   updates.length = 0
-  cells.frame([0, 0, 0], 100, port, noBudget)
+  cells.frame([0, 0, 0], port, noBudget)
   assert.equal(cells.stats().held, 1, 'the far cell left')
   const live = links[0].placements!.live
   assert.equal(
@@ -59,9 +59,10 @@ test('a cell past its reach gives its rows back, parked, for the next cell to ta
 test('the first frame draws what the first camera reaches: its pages and cells read at open', async () => {
   const { cells, links, bytes } = world(null)
   const urls: string[] = []
-  const read = await opened(cells, (url) => (urls.push(url), bytes(url)), 100)
+  const read = await opened(cells, (url) => (urls.push(url), bytes(url)))
   // The top index page and the near region page on its way, and the near cell: not the far one.
-  assert.deepEqual(cells.stats(), { pages: 2, cells: 1, held: 1, waiting: 0, rows: 2 })
+  // The rows hold what the grids' ranges can place: both cells' nodes.
+  assert.deepEqual(cells.stats(), { pages: 2, cells: 1, held: 1, waiting: 0, rows: 3 })
   assert.deepEqual(
     urls.filter((url) => !url.includes('/scene-page-')),
     [cellUrl('near.json')],
@@ -71,32 +72,16 @@ test('the first frame draws what the first camera reaches: its pages and cells r
     read,
     urls.reduce((sum, url) => sum + bytes(url).byteLength, 0),
   )
-  assert.deepEqual([...links[0].placements!.live], [1, 1])
-})
-
-test('the rows are sized at open for the view, and a reach past them tells the owner once', async () => {
-  const { cells, links, bytes } = world(null)
-  const { port, held, outgrown } = io(bytes)
-  held.add(cellUrl('near.json'))
-  await opened(cells, bytes, 100)
-  // Only the near cell's two nodes can be held within 100 m: the far one is 5 km off.
-  assert.equal(links[0].placements!.capacity, 2)
-  cells.frame([0, 0, 0], everywhere, port, noBudget)
-  cells.frame([0, 0, 0], everywhere, port, noBudget)
-  assert.equal(outgrown.count, 1, 'asked once for a session opened again')
-  // Opened again, the rows are sized for the view the frames asked, the held rows kept.
-  await opened(cells, bytes, 100)
-  held.add(cellUrl('far.json'))
-  await settled(cells, [0, 0, 0], everywhere, port, noBudget)
-  assert.deepEqual(cells.stats(), { pages: 3, cells: 2, held: 2, waiting: 0, rows: 4 })
+  assert.deepEqual([...links[0].placements!.live].sort(), [0, 1, 1])
 })
 
 test('a parent scaled down grows the rows in place, on an engine that takes it, and reopens nothing', async () => {
   // Shrunk a thousand times, the core node both cells hang under brings the one 5 km off to 5 m:
-  // both are within 100 m, three nodes on rows sized for the near cell's two. An engine that grows
-  // no buffer, or refuses this growth, is left with its rows as they were and asks for a reopen.
+  // both are within the grids' 100 m, three nodes on rows sized for the near cell's two. An engine
+  // that grows no buffer, or refuses this growth, is left with its rows as they were and asks for
+  // a reopen.
   for (const grows of [true, false, undefined]) {
-    const { cells, links, core, bytes } = world(0, 0)
+    const { cells, links, core, bytes } = world(0, 0, [], [100, 100, 100])
     const { port, held, outgrown, updates, rebind } = io(bytes)
     let grownAt: number | undefined
     const grown: [PlacementRows, PlacementRows][] = [],
@@ -111,10 +96,10 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
         ),
       }
     ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
-    await opened(cells, bytes, 100)
+    await opened(cells, bytes)
     const before = links.map((link) => link.placements!)
     core.scale.set(1e-3, 1e-3, 1e-3)
-    await settled(cells, [0, 0, 0], 100, port, noBudget)
+    await settled(cells, [0, 0, 0], port, noBudget)
     const { held: placed, waiting } = cells.stats()
     assert.deepEqual([placed, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1])
     if (grows !== undefined) assert.deepEqual(asked, [[2, 4]], 'both buffers asked at once')
@@ -122,7 +107,7 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
       assert.deepEqual(grown, [], 'no buffer replaced: the session reads the ones it holds')
       assert.ok(links.every((link, at) => link.placements === before[at]))
       // The session opened again sizes the rows for the view and places the far cell.
-      await opened(cells, bytes, 100)
+      await opened(cells, bytes)
       assert.deepEqual([cells.stats().held, cells.stats().rows], [2, 4])
       continue
     }
@@ -141,9 +126,9 @@ test('rows that hold every cell never ask for a reopen: sized so, or with no own
   for (const owned of [true, false]) {
     const { cells, bytes } = world()
     const { port, held, outgrown } = io(bytes)
-    await opened(cells, bytes, owned ? 1e4 : 100, owned)
+    await opened(cells, bytes, owned, between)
     ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
-    await settled(cells, [0, 0, 0], 1e7, port, noBudget)
+    await settled(cells, between, port, noBudget)
     assert.deepEqual([cells.stats().held, cells.stats().waiting, outgrown.count], [2, 0, 0])
   }
 })
@@ -155,6 +140,6 @@ test('a world that poses the scene root reads the cells its camera sees there', 
   root.position.set(-500, 0, 0)
   root.scale.set(0.1, 0.1, 0.1)
   const { port, asked } = io(bytes)
-  await settled(cells, [2, 0, 0], 100, port, noBudget)
+  await settled(cells, [2, 0, 0], port, noBudget)
   assert.deepEqual([...new Set(asked)], [cellUrl('far.json')])
 })

@@ -7,7 +7,6 @@ import { prepareWebgpuBlend } from '../../blend/prepare.ts'
 import { createTransparentTable } from '../../transparent/table.ts'
 import { prepareBlendResources } from '../../blend/resources.ts'
 import { createTransparentCompaction } from '../../transparent/compact.ts'
-import { VOLUME, createVolumeBuffer } from '../../transparent/transmission.ts'
 import { prepareGpuCut } from './cut.ts'
 import { grantFrameTargets } from './targetGrant.ts'
 import { throwIfStopped } from '../io/lost.ts'
@@ -18,7 +17,6 @@ import { prepareWebgpuVisibility } from './visibility.ts'
 import { prepareDirectLights, prepareShadowPipelines } from './lights.ts'
 import { grantWebgpuPagesCache } from './cache.ts'
 import { type WebgpuPagesRuntime } from '../runtime.ts'
-import type { loadImpostorCode } from '../../../impostor/code.ts'
 import { pipelinesSettled } from '../../../lighting/deferred/compileLedger.ts'
 import { askFramePipelines } from '../../frame/framePipelines.ts'
 import { createShadeCensus } from '../../visibility/shadeCensus.ts'
@@ -38,7 +36,7 @@ export async function prepareGeometryAndBlend(
     { packedPages, selectionRoots, rows } = rt.layout
   // Only a cluster no quantized page covers reads its primitive's vertices, from the float vertex
   // pool (`../../core/geometryPool.ts`): they are loaded, and rank sync starts over from them.
-  await loadUnpaged(allPages, blendCopies)
+  await loadUnpaged(allPages)
   rows.rowsRevision++
   // 16 bytes: it also stands in for the cluster spans (`array<vec4u>`) of a scene without them.
   gpu.zeroUv = gpuDevice.createBuffer({
@@ -47,9 +45,7 @@ export async function prepareGeometryAndBlend(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
   gpuDevice.queue.writeBuffer(gpu.zeroUv, 0, new Float32Array([0, 0, 0, 0]))
-  blendState.transmissive = prepareWebgpuBlend(gpuDevice, blendCopies, gpu, blendState, scene)
-  blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME.words)
-  gpu.volumeBuffer = createVolumeBuffer(gpuDevice, blendState.transmissive)
+  blendState.transmissive = prepareWebgpuBlend(blendCopies, blendState, scene)
   // The transparent draw order is the scene's, settled here once: an image only picks survivors.
   const table = createTransparentTable(selectionRoots, packedPages, blendState.blendGpu)
   blendState.table = table
@@ -71,13 +67,12 @@ export async function prepareGeometryAndBlend(
   })
 }
 
-/** The deformation geometry, the cards, the cache, the targets and the material programs: a
+/** The deformation geometry, the cache, the targets and the material programs: a
  *  material step refused fails the image, said once. */
 export async function prepareMaterials(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
   step: PrepareStep,
-  started: { impostorCode: ReturnType<typeof loadImpostorCode> },
 ) {
   const { gpu, vis, diag, blendState } = rt,
     { allPages } = rt.setup
@@ -87,11 +82,6 @@ export async function prepareMaterials(
     () => undefined,
     (error: unknown) => ({ error }),
   )
-  // Card pipelines the device refuses are told once: no code then, every root keeps its clusters.
-  const cards = await started.impostorCode
-  gpu.impostorCode = (await cards?.prepareImpostorPipelines(gpuDevice, diag.diagnosticFailure))
-    ? cards
-    : undefined
   await grantWebgpuPagesCache(rt, gpuDevice)
   // The textures the scene wears, counted before its targets: one that wears none makes no feedback
   // target, and its pipelines write none (`feedbackVariant.ts`).

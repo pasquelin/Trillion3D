@@ -1,92 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { collectClusterPages } from '../page/selection/collect.ts'
 import { createPrimitiveTemplates } from '../page/selection/template.ts'
-import {
-  dropBlendBuffers,
-  ensureBlendIndexBuffer,
-  ensureBlendNormalAtlas,
-  ensureBlendUvBuffer,
-} from '../webgpu/blend/buffers.ts'
-import { createWebgpuGpuState } from '../webgpu/pages/state/gpu.ts'
 import type { ClusterManifest, Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { graphDraws } from '../page/selection/drawSource.ts'
 import { rootWorldBox } from '../page/selection/rootWorld.ts'
-
-function blendGeometry(withUv: boolean) {
-  const geometry = new Geometry()
-  geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
-  geometry.setAttribute('normal', G.floatAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3))
-  if (withUv) geometry.setAttribute('uv', G.floatAttribute([0, 0, 1, 0, 0, 1], 2))
-  geometry.setIndex(G.indices([0, 1, 2]))
-  return geometry
-}
-
-// Behaviour: a transparent's index, UV and normal buffers belong to the geometry. Two placements
-// of the same geometry share them, each is written only once and counted only once in
-// `vertexBytes`.
-test('two placements of the same transparent geometry share indices, UVs and normals', () => {
-  const { device, buffers: created, textures, writes, textureWrites, destroyed } = fakeDevice()
-  const gpu = createWebgpuGpuState([1, 1])
-  const shared = blendGeometry(true),
-    other = blendGeometry(true)
-  const index = shared.getIndex()!
-  const first = {
-    index: ensureBlendIndexBuffer(device, index, gpu),
-    uv: ensureBlendUvBuffer(device, shared.attributes, gpu),
-    normal: ensureBlendNormalAtlas(device, shared.attributes, gpu),
-  }
-  const second = {
-    index: ensureBlendIndexBuffer(device, index, gpu),
-    uv: ensureBlendUvBuffer(device, shared.attributes, gpu),
-    normal: ensureBlendNormalAtlas(device, shared.attributes, gpu),
-  }
-  assert.equal(second.index, first.index)
-  assert.equal(second.uv, first.uv)
-  assert.equal(second.normal, first.normal)
-  // Indices and UVs in two buffers, the normals in a float atlas, each written once.
-  assert.deepEqual([created.length, textures.length], [2, 1])
-  for (const entry of created)
-    assert.equal(writes.filter((write) => write.buffer === (entry as object)).length, 1)
-  assert.equal(
-    textureWrites.filter((write) => (write.destination.texture as object) === textures[0]).length,
-    1,
-  )
-  const bytesOnce = gpu.vertexBytes
-  assert.equal(
-    bytesOnce,
-    created.reduce((total, entry) => total + entry.size, 0) + first.normal!.bytes,
-  )
-  assert.equal(first.normal!.bytes, 3 * 7 * 4, 'the atlas weighs its floats, no padding')
-  // Another geometry keeps its own.
-  ensureBlendIndexBuffer(device, other.getIndex()!, gpu)
-  ensureBlendUvBuffer(device, other.attributes, gpu)
-  ensureBlendNormalAtlas(device, other.attributes, gpu)
-  assert.deepEqual([created.length, textures.length], [4, 2])
-  assert.ok(gpu.vertexBytes > bytesOnce)
-  dropBlendBuffers(gpu)
-  for (const entry of [...created, ...textures])
-    assert.equal(destroyed.filter((resource) => resource === entry).length, 1)
-  assert.equal(gpu.blendIndexBuffers.size, 0)
-  assert.equal(gpu.blendUvBuffers.size, 0)
-  assert.equal(gpu.blendNormalBuffers.size, 0)
-})
-
-// Behaviour: a geometry without UVs never fabricates any, and the absence is remembered — the
-// second placement does not restart the search and allocates nothing.
-test('a transparent geometry without UVs yields `undefined`, once', () => {
-  const { device, buffers: created } = fakeDevice()
-  const gpu = createWebgpuGpuState([1, 1])
-  const geometry = blendGeometry(false)
-  assert.equal(ensureBlendUvBuffer(device, geometry.attributes, gpu), undefined)
-  assert.equal(ensureBlendUvBuffer(device, geometry.attributes, gpu), undefined)
-  assert.equal(created.length, 0)
-  assert.equal(gpu.blendUvBuffers.size, 1)
-})
 
 /** The same primitive, given a one-leaf-node culling hierarchy. */
 function primitiveWithCulling(metadata: ClusterManifest) {

@@ -6,16 +6,13 @@ import { createDecodes, takeDecoded } from './decodes.ts'
 test('a frame says when a cell within reach is left for a later one, read or decoded', async () => {
   const { cells, bytes } = await sizedWhole(world())
   const { port, held } = io(bytes)
-  await settled(cells, [0, 0, 0], 100, port, noBudget) // the pages of the index it reaches
-  const unread = cells.frame([0, 0, 0], 100, port, noBudget)
+  await settled(cells, [0, 0, 0], port, noBudget) // the pages of the index it reaches
+  const unread = cells.frame([0, 0, 0], port, noBudget)
   held.add(cellUrl('near.json'))
-  const decoding = cells.frame([0, 0, 0], 100, port, noBudget)
+  const decoding = cells.frame([0, 0, 0], port, noBudget)
   assert.equal(cells.stats().held, 0, 'nothing is placed before its decode lands')
   await Promise.all(cells.decodes())
-  assert.deepEqual(
-    [unread, decoding, cells.frame([0, 0, 0], 100, port, noBudget)],
-    [true, true, false],
-  )
+  assert.deepEqual([unread, decoding, cells.frame([0, 0, 0], port, noBudget)], [true, true, false])
 })
 
 test('a cell file is never parsed by the frame: its bytes go to the decode, its rows are placed', async () => {
@@ -24,14 +21,14 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
   const decoded: Uint8Array[] = []
   // The decode runs later, as the pool answers: whatever it parses is not the frame's.
   port.decode = (read) => (decoded.push(read), Promise.resolve().then(() => decodeHere(read)))
-  await settled(cells, [0, 0, 0], 100, port, noBudget)
+  await settled(cells, [0, 0, 0], port, noBudget)
   held.add(cellUrl('near.json'))
   const parse = JSON.parse
   let parsed = 0
   const frame = () => {
     JSON.parse = (...args: Parameters<typeof parse>) => (parsed++, parse(...args))
     try {
-      cells.frame([0, 0, 0], 100, port, noBudget)
+      cells.frame([0, 0, 0], port, noBudget)
     } finally {
       JSON.parse = parse
     }
@@ -46,7 +43,7 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
   other.held.add(cellUrl('far.json'))
   other.port.decode = () => Promise.reject(new Error('INVALID_SCENE_TABLES'))
   await assert.rejects(
-    settled(refused.cells, [5000, 0, 0], 100, other.port, noBudget),
+    settled(refused.cells, [5000, 0, 0], other.port, noBudget),
     /INVALID_SCENE_TABLES/,
   )
 })
@@ -54,13 +51,13 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
 test('a cell file refused for good is never asked again, and leaves no frame waiting on it', async () => {
   const { cells, bytes } = await sizedWhole(world())
   const { port, asked } = io(bytes)
-  await settled(cells, [0, 0, 0], 100, port, noBudget) // the pages of the index it reaches
+  await settled(cells, [0, 0, 0], port, noBudget) // the pages of the index it reaches
   const refused = new Set(asked.filter((url) => url.endsWith('.json')))
   assert.ok(refused.size > 0, 'the cells within reach were asked')
   const frame = { ...port, failed: (url: string) => refused.has(url) }
   asked.length = 0
   for (let i = 0; i < 3; i++)
-    assert.equal(cells.frame([0, 0, 0], 100, frame, noBudget), false, 'no frame waits on it')
+    assert.equal(cells.frame([0, 0, 0], frame, noBudget), false, 'no frame waits on it')
   assert.deepEqual(
     asked.filter((url) => refused.has(url)),
     [],
@@ -77,7 +74,7 @@ test('a cell within reach whose read is on its way is asked again: its frame wai
     loading: () => true,
     request: (urls: readonly string[]) => void asked.push(...urls),
   }
-  const at = { io: port, budget: noBudget, ahead: false }
+  const at = { io: port, budget: noBudget }
   const later = takeDecoded(
     [7],
     at,

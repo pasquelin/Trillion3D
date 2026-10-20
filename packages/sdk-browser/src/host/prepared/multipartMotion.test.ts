@@ -17,7 +17,6 @@ const node = (name: string): TableNode => ({
   name,
   children: [],
   mesh: 0,
-  light: null,
   camera: null,
   skin: null,
   weights: null,

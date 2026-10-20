@@ -2,8 +2,6 @@ import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { sourceSurface, type PageSurface } from '../surface.ts'
 import { spriteMark, withShadowless } from '../../visibility/shader/spriteWgsl.ts'
-import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
-import { createBlendCopyRecord } from '../../cluster/blendCopyRecord.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
 import { createPageRecords } from './collectRecords.ts'
@@ -15,14 +13,7 @@ import { placementsOf, type Placed } from '../../placement/roots.ts'
 import type { DrawSource } from './drawSource.ts'
 import { rowShadowless } from '../../placement/rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import {
-  blendOf,
-  drawsCopies,
-  noteCollected,
-  pagesBlend,
-  reassignBlend,
-  wears,
-} from './collectBlend.ts'
+import { blendOf, noteCollected, pagesBlend, wears } from './collectBlend.ts'
 /** One primitive drawn by pages: its source mesh, the surface it wears, its records and shape —
  *  shared by every placement. */
 type Drawn = {
@@ -31,28 +22,6 @@ type Drawn = {
   surface: PageSurface
   pages: PageRec[]
   shape: ReturnType<ReturnType<typeof createPrimitiveTemplates>['shapeOf']>
-}
-
-/** One blended draw per placement, sharing the mesh's geometry and surface: each is ordered by its
- *  own depth, and a row's copy is skipped while the row is parked. */
-function blendCopiesOf(
-  {
-    source,
-    primitive,
-    surface,
-  }: { source: DrawSource; primitive: Primitive; surface: PageSurface },
-  placed: readonly Placed[],
-  order: number,
-  copies: BlendCopy[],
-) {
-  for (const { world, placement } of placed) {
-    copies.push(
-      createBlendCopyRecord(source, order, world, surface, placement, {
-        deformation: primitive.deformation,
-        proxy: { primitive, surface },
-      }),
-    )
-  }
 }
 
 /** One root per placement of a primitive drawn by pages: its world and box, the primitive's
@@ -90,18 +59,16 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
   }
 }
 
-/** What a collection fills: the roots, the records and the forward copies. The root cover is the
- *  roots' own (`rootCoverage`, `selection.ts`). */
+/** What a collection fills: the roots and the records; the forward copies are the blended roots'
+ *  (`pagedBlendCopiesOf`). The root cover is the roots' own (`rootCoverage`, `selection.ts`). */
 export type Collected = {
   roots: ClusterRoot<PageRec>[]
   allPages: PageRec[]
-  blendCopies: BlendCopy[]
 }
 /** An empty collection. */
 export const collectedSink = (): Collected => ({
   roots: [],
   allPages: [],
-  blendCopies: [],
 })
 
 /**
@@ -139,10 +106,6 @@ export function createCollector(
     const placed = placementsOf({ placements: draw.rows ?? undefined }, () => worlds.of(draw.node!))
     // The surface record the source wears: this collection and everything it feeds hold it.
     const surface = sourceSurface(draw)
-    if (drawsCopies(primitive, surface)) {
-      blendCopiesOf({ source: draw, primitive, surface }, placed, order++, into.blendCopies)
-      return primitive
-    }
     const template = templates.pagesOf(primitive)
     noteCollected(draw)
     const transparent = pagesBlend(primitive, surface)
@@ -171,11 +134,11 @@ export function collectClusterPages(
 ) {
   const collector = createCollector(source, metadata, indices, options)
   const into = collectedSink()
-  const { roots, allPages, blendCopies } = into
+  const { roots, allPages } = into
   for (const draw of draws) collector.add(draw, into)
   const { worlds } = collector
   return {
-    ...{ roots, allPages, worlds, blendCopies, blendOf, wears, reassignBlend },
+    ...{ roots, allPages, worlds, blendOf, wears },
     collector,
     requests: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),

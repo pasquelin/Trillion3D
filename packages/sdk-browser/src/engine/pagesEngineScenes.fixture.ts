@@ -16,7 +16,7 @@ export function triangleGeometry(positions = [-1, -1, 0, 1, -1, 0, 0, 1, 0]) {
 /** The quad's manifest without its primitives: a ready slice of two triangles over the DAG model. */
 export const QUAD_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
   ...DAG,
-  schema: 1,
+  formatVersion: 1,
   status: 'ready',
   key: 'quad',
   scope: 'slice',

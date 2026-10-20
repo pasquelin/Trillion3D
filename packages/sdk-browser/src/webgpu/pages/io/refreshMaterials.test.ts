@@ -24,15 +24,17 @@ import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../../page/surfaceWrites.ts'
 import { ROW_NAMED, ROW_STALES } from '../../../placement/rowWordsWgsl.ts'
 import { targetsTaken } from '../../../placement/rowTargets.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 test('a blended surface rewritten in place reaches its record at the values refresh', async () => {
   installGpuGlobals()
   const fixture = quadScene(),
     { device, writes, textureWrites } = fakeDevice(BACKEND)
-  fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -74,6 +76,7 @@ test('an opaque colour rewritten in place writes its one record and no row', asy
   const fixture = quadScene(),
     { device, writes, textureWrites } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
@@ -108,6 +111,7 @@ test('an opaque surface turned masked cuts every row of its material', async () 
   const fixture = quadScene(),
     { device, buffers } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,

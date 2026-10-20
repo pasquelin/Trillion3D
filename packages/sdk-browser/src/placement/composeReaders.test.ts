@@ -41,6 +41,7 @@ test('a row no root reads is composed for its readers, and a root a growth bring
   // A blended item reads row 1 of `extra` through its view, as the blend pass reads its copies.
   const item = { placement: { rows: extra, index: 1 }, matrix: placementWorld(extra, 1) }
   rt.blendState.blendGpu.push(item as never)
+  extra.blended = true
   const links = [
     { rows, index: 0, local: turn(0) },
     { rows: extra, index: 1, local: local(5) },
@@ -81,6 +82,7 @@ test("a parent's move composes no reader's row: the product waits for a read, on
     parent = {}
   const item = { placement: { rows: extra, index: 2 }, matrix: placementWorld(extra, 2) }
   rt.blendState.blendGpu.push(item as never)
+  extra.blended = true
   composeWebgpuPlacements(rt, parent, turn(0.1), [{ rows: extra, index: 2, local: local(1) }], true)
   const row = () => Array.from(extra.matrices.subarray(32, 48))
   const read = row()
@@ -98,6 +100,7 @@ test('a reader row linked to a new parent follows it alone, whatever the old par
     b = {}
   const item = { placement: { rows: extra, index: 0 }, matrix: placementWorld(extra, 0) }
   rt.blendState.blendGpu.push(item as never)
+  extra.blended = true
   composeWebgpuPlacements(rt, a, turn(0.2), [{ rows: extra, index: 0, local: local(3) }], true)
   assert.deepEqual(Array.from(item.matrix.elements), product(turn(0.2), local(3)))
   // The host links the row to B first, then frees A: the row follows B, never A.
@@ -137,6 +140,7 @@ test('a blended item made after its row was linked follows the parent from its f
   composeWebgpuPlacements(rt, parent, turn(0.2), [{ rows: extra, index: 1, local: local(6) }], true)
   const item = { placement: { rows: extra, index: 1 }, matrix: placementWorld(extra, 1) }
   rt.blendState.blendGpu.push(item as never)
+  extra.blended = true
   // The item is made (`growBlend`): it reads its row through the composition at once.
   composeItems(rt, [item as never])
   composeWebgpuPlacements(rt, parent, turn(0.5), [], false)
@@ -149,6 +153,7 @@ test('a composition dropped with its root list leaves its readers plain, at thei
     parent = {}
   const item = { placement: { rows: extra, index: 0 }, matrix: placementWorld(extra, 0) }
   rt.blendState.blendGpu.push(item as never)
+  extra.blended = true
   composeWebgpuPlacements(rt, parent, turn(0.3), [{ rows: extra, index: 0, local: local(2) }], true)
   const roots = rt.layout.selectionRoots as unknown as object[]
   roots.pop()

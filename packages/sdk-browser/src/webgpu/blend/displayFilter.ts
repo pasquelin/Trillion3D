@@ -14,7 +14,7 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
  * The display layers: the reference display multiplies and subtracts on a canvas of
  * display values, after the tone curve, which mixes the channels. In an image whose blends hold
  * such a surface, a mask pass marks the pixels it covers (`MASK_FORMAT`); there every transparent
- * layer — blends, particles, water — maps the tint `t` and the added value `a` instead of the lit
+ * layer — blends, particles, transmissive layers — maps the tint `t` and the added value `a` instead of the lit
  * target (`TINT_EQUATIONS`, `ADD_EQUATIONS`), and the image shows `c·t + a` over the composed `c`.
  * Elsewhere `t = 1`, `a = 0`. Any other image allocates, binds and draws none of it.
  */
@@ -51,8 +51,7 @@ fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32
 }`,
 )
 
-/** The mask's bind group in the blend runs and the water composite: after their group 0 and the
- *  reflection group. */
+/** The mask's bind group in the blend runs: after their group 0 and the reflection group. */
 export const DISPLAY_MASK_GROUP = 2
 
 /** The mask, read at a fragment's pixel, in bind group `group`. */
@@ -110,7 +109,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     active: false,
     /** A blend pass of this image wrote the layers: before one does, they are `(1, 0)`. */
     written: false,
-    /** The mask pass of this image ran: particles and water route through it. */
+    /** The mask pass of this image ran: particles route through it. */
     masked: false,
     open() {
       this.active = true
@@ -189,6 +188,6 @@ export type DisplayFilter = ReturnType<typeof createDisplayFilter>
 export const writtenFilter = (filter: DisplayFilter | undefined) =>
   filter?.active && filter.written ? filter.views : undefined
 
-/** The open image's layers where its mask pass ran: what particles and water route through. */
+/** The open image's layers where its mask pass ran: what particles route through. */
 export const routedFilter = (filter: DisplayFilter | undefined) =>
   filter?.active && filter.masked ? filter : undefined

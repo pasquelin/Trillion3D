@@ -1,5 +1,4 @@
 import { DEG2RAD } from '../../../math/src/constants.ts'
-import { TAA_STILL_DRAWS } from '../taa/jitter.ts'
 
 /**
  * The constants of the reflection's shaders, by the name they read, one table: the WGSL block is
@@ -39,9 +38,22 @@ export const REFLECTION_CONSTANTS = {
   /** The least N·V the same-surface test (`reflectionSameSurface`) divides by: a surface seen this
    *  close to edge-on spans ⌈1/8⌉ = eight pixels' depth across a pixel, a steeper one no more. */
   REFLECTION_GRAZING: 1 / 8,
-  /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the fresh texels around
-   *  a texel: a history further from their mean than this is pulled back to it. */
-  REFLECTION_CLAMP: 1.25,
+  /** The temporal clamp's width (`temporalWgsl.ts`), in standard deviations of the resolved pixels
+   *  around a pixel, or of the history's own images where wider: a history further from their mean
+   *  than this is pulled back to it — one deviation keeps a moving reflection from ghosting and still
+   *  lets a noisy one average. */
+  REFLECTION_CLAMP: 1,
+  /** The relative depth past which a history texel is another surface than the pixel reprojected onto
+   *  it (`temporalWgsl.ts`): 3 %, past a depth buffer's and a reprojection's error, under a modelled
+   *  step's; jittered by half of it either way, so the cut is no hard line, and widened as the surface
+   *  turns edge-on, where one pixel spans more depth. */
+  REFLECTION_HISTORY_DISTANCE: 0.03,
+  /** The least extent of that window the clamp's move is measured against (`temporalPixel`), in
+   *  the display's white (the view's exposure applied): the window's extent, held at 0.1 at least,
+   *  a tenth of the display's white. A window of near-equal texels — a smooth glass reflecting a
+   *  smooth sky — has a width near zero, against which any history moved across the whole window and
+   *  counted for a quarter of its images, image after image. */
+  REFLECTION_CLAMP_FLOOR: 0.1,
   /** The share of the visible normals' cap, nearest the horizon, a sampled ray is never drawn from
    *  (`sampleWgsl.ts`): the grazing microfacets, whose rays leave nearly along the surface, are rarely
    *  seen, dim and the noisiest of a lobe; a tenth of the cap's height left out removes their flicker
@@ -53,7 +65,8 @@ export const REFLECTION_CONSTANTS = {
    *  its neighbours weighs ten. */
   REFLECTION_DENOISER_RANGE: 10,
   /** The roughness past which a lobe casts no ray (`reach.ts`), the probes' field answering it whole:
-   *  the reference engine's bar for a dedicated reflection ray. */
+   *  past it a traced reflection is too blurred to beat the probes' field, so no ray is spent. A pixel no
+   *  lobe of which traces is never in a traced tile's grid (`tiles.ts`): it reads the field alone. */
   REFLECTION_TRACE_ROUGHNESS: 0.4,
   /** The roughness band under `REFLECTION_TRACE_ROUGHNESS` over which a lobe's ray gives way to the
    *  field (`reflectionTraceShare`): whole under 0.3. */
@@ -64,34 +77,42 @@ export const REFLECTION_CONSTANTS = {
    *  off the reflection, a neighbour's faint weight, a slab at a far depth —, where 1e-20 would
    *  shorten the normalised vector or scale the weighted mean down instead of normalising it. */
   REFLECTION_FLOOR: 1e-30,
+  /** The images a history counts under which the last pass's spatial filter runs, boosted the more
+   *  the fewer (`bilateralWgsl.ts`, its disocclusion): two, past which the history's own average is
+   *  less noisy than the filter's blur. */
+  REFLECTION_DISOCCLUSION_FRAMES: 2,
+  /** The spatial filter's radius at a roughness of ⅛ and over, in pixels (`bilateralWgsl.ts`): as
+   *  wide as the widest spatial reuse (`REFLECTION_REUSE_RADIUS`), the blur a disoccluded pixel takes
+   *  for the images it lacks. */
+  REFLECTION_FILTER_RADIUS: 8,
 } as const
 
 /**
  * The integer constants of the reflection's shaders, one table, printed as `u32` (`REFLECTION_COUNTS_WGSL`).
  */
 export const REFLECTION_COUNTS = {
-  /** The images a texel's history averages at most while anything changes (`temporalWgsl.ts`): a
-   *  dozen images of a ray and its reused neighbours each, about a hundred samples of a lobe, the window
-   *  an exponential mean then keeps; a history held far by the clamp counts for fewer. */
+  /** The images a pixel's history averages at most (`temporalWgsl.ts`), on every image, whatever moves
+   *  elsewhere in the scene: 12 — a dozen images of a ray and its reused neighbours each, about a
+   *  hundred samples of a lobe, the window an exponential mean then keeps; a history held far by the
+   *  clamp counts for fewer (`historyCount`, not rounded). */
   REFLECTION_HISTORY: 12,
-  /** The images a still view's history averages, and the count it freezes at (`temporalWgsl.ts`): the
-   *  temporal accumulation's own still average (`TAA_STILL_DRAWS`), sixteen images — a glossy lobe read by one sample a texel an image needs that many, with its neighbours',
-   *  for its mean to fall within a quarter of the lobe's radiance where a bright body fills a tenth of
-   *  it. Six bits of the history's word (its count less one). */
-  REFLECTION_STILL: TAA_STILL_DRAWS,
-  /** The widest spatial reuse, in pixels (`spatialWgsl.ts`): the lobe's own reach bounds it below
-   *  this, which a ray that met the far scene through a wide lobe reaches. */
+  /** The widest spatial reuse, in pixels (`resolveWgsl.ts`): the lobe's own reach bounds it below this,
+   *  which a ray that met the far scene through a wide lobe reaches. */
   REFLECTION_REUSE_RADIUS: 8,
-  /** The neighbours the spatial reuse reads at most (`spatialWgsl.ts`), on a disc of its radius: with
-   *  the pixel's own ray and a history of `REFLECTION_HISTORY` images, about a hundred samples of a lobe
-   *  while anything changes. */
-  REFLECTION_REUSE_TAPS: 8,
-  /** The side of the blocks of pixels the reflections trace one ray of each image (`trace.ts`): a
-   *  reflecting pixel of each 2 × 2 block traces, the block's reflecting pixels taking turns image
-   *  after image (`reflectionTracedPixel`), every pixel's answer widened from the grid last
-   *  (`bilateralWgsl.ts`) — the reference engine's reflections at its high quality, a quarter of the
-   *  rays. A still view traces every reflecting pixel within four images, within its history's
-   *  sixteen. */
+  /** The neighbours the resolve's reconstruction reads at most (`resolveWgsl.ts`), on a disc of its
+   *  radius: five — with the pixel's own ray and a history of `REFLECTION_HISTORY` images, about
+   *  seventy samples of a lobe. */
+  REFLECTION_REUSE_TAPS: 5,
+  /** The neighbours the last pass's spatial filter reads (`bilateralWgsl.ts`), twice as many at a full
+   *  disocclusion: few, since it runs only where the history is short. */
+  REFLECTION_FILTER_TAPS: 4,
+  /** The side of the blocks of pixels the reflections trace one ray of each image (`trace.ts`),
+   *  two — one ray a pixel is the full rate, past two a block's pixels share too little of its ray —, a
+   *  quarter of the rays for the same image: the pixel of each 2 × 2 block the tile jitter picks
+   *  (`reflectionJitter`, `reflectionTracedPixel`) casts the block's ray where its lobe traces, the
+   *  four rooks taking turns image after image, and every pixel resolves its own answer from the rays
+   *  around it (`resolveWgsl.ts`). A still view traces every traced pixel within four
+   *  images, within its history's twelve. */
   REFLECTION_TRACE_BLOCK: 2,
   /** The iterations a reflection's screen march takes at most (`screenMarch`'s `cap`), whatever the
    *  screen distance: a ray in front of the surfaces climbs a level an iteration, so a dozen cross a
@@ -112,7 +133,7 @@ export const REFLECTION_COUNTS = {
   REFLECTION_PROXY_WORK: 64,
 } as const
 
-/** The period of the per-image sample sequence (`sampleWgsl.ts`, `spatialWgsl.ts`): the turn wraps
+/** The period of the per-image sample sequence (`sampleWgsl.ts`, `viewWrite.ts`): the turn wraps
  *  on it once, on the CPU (`stageReflectionImage`), so the word the shaders read stays below it and
  *  exact in an `f32`. */
 export const REFLECTION_SEQUENCE = 4096

@@ -1,5 +1,5 @@
 // A page drawn from the float pool reads its results from its geometry's block in that pool, which
-// one row deforms for every page (`outputs.ts`, `wholePool.ts`), where it read a tail of its own
+// one row deforms for every page (`outputs.ts`, `pooledRows.ts`), where it read a tail of its own
 // slot: the shipped stage and reader, run on both, give every page the same bits, two images on.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -31,7 +31,6 @@ function stage(positions: Float32Array, indices: Uint32Array, normals: Float32Ar
       'pageDeformed',
       'pageHeader',
       'pageHeaderFor',
-      'deformWholeCopy',
     ],
     {
       positions,
@@ -74,7 +73,7 @@ test("a float page's block in the float pool holds what its slot's tail held, bi
   const own = REST + 2 + VERTICES * DEFORM_VERTEX_WORDS + 2
   const tail = { ...row, pageOffset: 0, deformCount: VERTICES, deformOutput: own + 1 }
   // Now: the block after the vertices, two table rows deforming it from vertex 0 and from vertex
-  // 3 on (`wholePool.ts`, one pass of the group a row), the page's row reading it.
+  // 3 on (`pooledRows.ts`, one pass of the group a row), the page's row reading it.
   const pool = { attributes: {} as HostAttributes },
     word = deformOutputWord({ from: REST + 2, count: VERTICES, pool })
   const pass = (first: number, count: number) => ({

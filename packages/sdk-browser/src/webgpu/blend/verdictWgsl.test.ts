@@ -1,8 +1,8 @@
 // The GPU frustum verdict (`verdictWgsl.ts`), its shipped text run in JavaScript (`shaderRun`),
 // against its contract on adversarial scenes (`verdictScene.fixture.ts`), an eye far from the
-// world's origin among them: it keeps every item the exact double test keeps
-// (`verdict.fixture.ts`, the float64 oracle), and differs from it only on boxes within its rounding
-// margin of a plane, a margin measured from the eye.
+// world's origin among them: it keeps every item the exact double test keeps and sees in view every
+// transmissive item it sees (`verdict.fixture.ts`, the float64 oracle), and differs from it only on boxes
+// within its rounding margin of a plane, a margin measured from the eye.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { hasBit } from '../../../../math/src/scalar/bits.ts'
@@ -50,9 +50,6 @@ function check(count: number, seed: number, edges: boolean, eye = [0, 0, 0]) {
   })
   assert.ok(gpu.rejected <= exact.rejected, `${at}: no more rejected`)
   assert.ok(gpu.inView >= exact.inView, `${at}: no less in view`)
-  exact.waterDraws.forEach((draws, rank) =>
-    assert.ok(gpu.waterDraws[rank] >= draws, `${at}: water rank ${rank} drawn`),
-  )
   // Words past the scene's are written by none: the keep words cover the items exactly.
   assert.equal(gpu.keep.length, exact.keep.length)
 }
@@ -74,42 +71,33 @@ test('empty groups and the word edges', () => {
   for (const count of [1, 31, 32, 33, 63, 64, 65, 97]) check(count, 300 + count, true)
 })
 
-test('a box a rounding outside a plane is kept; one a unit outside is rejected', () => {
-  // Six axis planes around the origin, the first `x ≤ 10`; no item paged.
-  const near = axisScene(
-    lcgRandom(7),
-    [10 + 2 ** -30, 11].map((x) => new Float64Array([x, 0, 0, x + 1, 1, 1])),
-  )
-  const gpu = gpuVerdict(near, [])
-  assert.ok(hasBit(gpu.keep, 0), 'a box single precision cannot tell from the plane stays')
-  assert.ok(!hasBit(gpu.keep, 1), 'a box well outside goes')
-  assert.equal(gpu.rejected, 1)
+/** Whether the verdict sees in view the transmissive item of `box`, alone inside the axis planes
+ *  around `centre`, judged from `eye` (`axisScene`). */
+const inView = (seed: number, box: Float64Array, centre?: number[], eye?: number[]) =>
+  gpuVerdict(axisScene(lcgRandom(seed), [box], centre, eye), []).inView === 1
+
+test('a box a rounding outside a plane is in view; one a unit outside is not', () => {
+  // Six axis planes around the origin, the first `x ≤ 10`.
+  const [near, out] = [10 + 2 ** -30, 11].map((x) => new Float64Array([x, 0, 0, x + 1, 1, 1]))
+  assert.ok(inView(7, near), 'a box single precision cannot tell from the plane stays')
+  assert.ok(!inView(7, out), 'a box well outside goes')
 })
 
-test('beside an eye a million metres out, a box a millimetre outside a plane is rejected', () => {
+test('beside an eye a million metres out, a box a millimetre outside a plane is not in view', () => {
   // Measured from the world's origin, the margin would reach metres there and keep it.
   const eye = [2 ** 20, 0, 2 ** 20]
-  const far = axisScene(
-    lcgRandom(9),
-    [eye[0] + 10 + 2 ** -20, eye[0] + 10 + 2 ** -10].map(
-      (x) => new Float64Array([x, 0, eye[2], x + 1, 1, eye[2] + 1]),
-    ),
-    eye,
+  const [micro, milli] = [eye[0] + 10 + 2 ** -20, eye[0] + 10 + 2 ** -10].map(
+    (x) => new Float64Array([x, 0, eye[2], x + 1, 1, eye[2] + 1]),
   )
-  const gpu = gpuVerdict(far, [])
-  assert.ok(hasBit(gpu.keep, 0), 'a micrometre out, within the rounding from the eye: kept')
-  assert.ok(!hasBit(gpu.keep, 1), 'a millimetre out: rejected')
-  assert.equal(gpu.rejected, 1)
+  assert.ok(inView(9, micro, eye, eye), 'a micrometre out, within the rounding from the eye')
+  assert.ok(!inView(9, milli, eye, eye), 'a millimetre out')
 })
 
-test('an eye past the bound, infinite or NaN: no plane rejects, every drawn box is kept', () => {
+test('an eye past the bound, infinite or NaN: no plane rejects, every drawn box is in view', () => {
   for (const x of [2 ** 61, Infinity, NaN]) {
-    // The boxes lie a unit outside `x ≤ 10`: an eye at the origin rejects both.
-    const box = () => new Float64Array([11, 0, 0, 12, 1, 1])
-    const scene = axisScene(lcgRandom(11), [box(), box()], [0, 0, 0], [x, 0, 0])
-    const gpu = gpuVerdict(scene, [])
-    assert.ok(hasBit(gpu.keep, 0) && hasBit(gpu.keep, 1), `eye x = ${x}: both kept`)
-    assert.equal(gpu.rejected, 0)
+    // The box lies a unit outside `x ≤ 10`: an eye at the origin rejects it.
+    const box = new Float64Array([11, 0, 0, 12, 1, 1])
+    assert.ok(inView(11, box, [0, 0, 0], [x, 0, 0]), `eye x = ${x}: in view`)
   }
 })
 

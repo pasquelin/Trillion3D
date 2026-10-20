@@ -4,6 +4,7 @@ import {
   type ObservedComponents,
 } from '../../../../sdk-core/src/world/observed.ts'
 import { bump, type Hook, type WriteRevision } from './hookCore.ts'
+import { keepEqual } from './scan.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 const hooks = new WeakMap<object, Hook>()
@@ -18,14 +19,7 @@ const hooks = new WeakMap<object, Hook>()
 function hookValue(hook: Hook, value: ObservedComponents, ...faces: Observed[]) {
   const seen = Float64Array.from(value.elements)
   const note = () => {
-    const now = value.elements
-    let moved = false
-    for (let i = 0; i < seen.length; i++)
-      if (now[i] !== seen[i]) {
-        seen[i] = now[i]
-        moved = true
-      }
-    if (moved) bump(hook)
+    if (!keepEqual(seen, value.elements)) bump(hook)
   }
   for (const face of [value, ...faces]) listen(face, note)
 }

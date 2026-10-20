@@ -4,11 +4,14 @@ import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
 import { rootedUnder } from '../host/world/rooted.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
-/** A see-through draw — a blend item — as visibility reads it:
- *  hidden with its source node, parked with its row. */
+/** A see-through draw — a blend item — as visibility reads it: hidden with its source node, or
+ *  parked with its row. Whether its row's HLOD 0 cell draws its placements is read on the GPU, from
+ *  the very state word the descent gates an opaque placement by (`../webgpu/blend/verdictWgsl.ts`):
+ *  every primitive of a source shows and hides with its cell, a blended one too. */
 export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 
-/** True when `entry` is not drawn: its source node is hidden, or its row parked. */
+/** True when `entry` is not drawn as the host sees it: its source node is hidden or its row
+ *  parked. */
 export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement)
 
 /** The scene node a root draws, the one resolver of it: its first page's mesh, or, for a root an

@@ -58,25 +58,25 @@ async function readTables({ options, base, signal }: SceneLoad) {
 }
 
 /** The scene the tables build and the world roots it opens, the top pinned when no partition
- *  places it. Images whose chain is baked are not read under `textureSource: 'cache'`: a white
- *  pixel stands in their place, and the engine reads their levels from the cache. */
+ *  places it. Images whose chain is baked whole are not read: a white pixel stands in their place,
+ *  and the engine reads their levels from the cache. */
 async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
   const { options, metadata, base, scope, signal, diagnose } = load
-  const skipBaked = options.textureSource !== 'host'
   const [built, worldRoots] = await Promise.all([
     buildPreparedScene({
       tables,
       metadata,
       base,
-      skipBaked,
       signal,
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
       readRange: options.queue.readRange,
     }),
-    openWorldRoots(metadata, base, options.queue, { signal, whole: !tables.partition }),
+    openWorldRoots(metadata, base, options.queue, { signal }),
   ])
-  if (skipBaked && metadata.textures)
+  // The world's HLOD actors wear their flattened materials, surfaces of this scene.
+  if (worldRoots) worldRoots.wear(await built.hlodSurfaces())
+  if (metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
       kind: 'preparation',
       phase: 'resources',
@@ -178,19 +178,17 @@ export async function loadPreparedScene(
   const mathBatch = mathBatchModule()
   mathBatch.catch(() => {})
   // The scene is built from the cache alone: its tables, the binary of the document it draws and
-  // the images they locate. `textureSource` reads `'host'` for a model after a world's first
-  // (`worldLoader.ts`).
+  // the images they locate.
   const read = await readTables(load)
   const { tables } = read
   const scene = await buildScene(load, tables)
   const { built, worldRoots } = scene
-  const { associations, textureIndices } = built
+  const { associations, ranks } = built
   const replicas = options.replicaCount ?? 1
   const partitions = partitionsOf(tables, scene, base, replicas)
-  reportPrepared(load, read, textureIndices.size)
+  reportPrepared(load, read, ranks.size)
   registerSource(built.source)
   assertFinitePoses(built.source)
-  const sceneLightingSource = options.sceneLighting ?? built.source
   signal?.throwIfAborted()
   await mathBatch
   const source = await replicated(built.source, associations, replicas)
@@ -200,15 +198,13 @@ export async function loadPreparedScene(
   return {
     /** The root of the scene's nodes, replicated as the options ask. */
     source,
-    /** The node whose lights and environment the scene is lit by: `options.sceneLighting`, else the
-     *  scene's own root before any replication. */
-    sceneLightingSource,
     /** The meshes and primitives each node of the scene stands for, by node. */
     associations,
     /** What the scene draws, one source for each drawn node in the graph's order. */
     draws: graphDraws(source, associations),
-    /** The rank of each texture of the scene in the table the shaders index. */
-    textureIndices,
+    /** The cache the scene's textures come from: the glTF rank of each, the manifest naming
+     *  their chains and the folder its levels are read against (`texture/textureCaches.ts`). */
+    textureCaches: [{ ranks, metadata, base }],
     /** The lot the camera framing takes the scene's bounds in, `null` when no node is bounded;
      *  the caller returns it. */
     framingLot,

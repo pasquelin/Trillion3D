@@ -2,17 +2,13 @@ import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 
 /** A light loop's sum, run as JavaScript: one colour. */
 export type Sum = (...args: unknown[]) => number[]
-/** A light loop's pair of sums, run as JavaScript: the lit colour and the specular one. */
-export type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
-/** Whether two sums are the same numbers, bit for bit (a zero's sign included). */
-export const same = (a: number[], b: number[]) => a.every((v, i) => Object.is(v, b[i]))
 
 /**
  * The random half of a light-loop test's scope, drawn in one fixed order: a surface normal, each
  * lamp's shadow shade, the cell's list, the thin subsurface and the surface model of `round`. The
  * callers add their own shadow transmission, the one their shader reads.
  */
-export function shadedLightScope(
+function shadedLightScope(
   r: () => number,
   u: (lo: number, hi: number) => number,
   K: object,

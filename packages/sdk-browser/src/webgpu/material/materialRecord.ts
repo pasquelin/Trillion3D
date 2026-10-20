@@ -1,5 +1,9 @@
 import type { SurfaceFacts } from '../../page/surface.ts'
-import type { VisMaterial } from '../../visibility/materialType.ts'
+import {
+  SURFACE_MAP_FIELDS,
+  type PHYSICAL_MAP_FIELDS,
+  type VisMaterial,
+} from '../../visibility/materialType.ts'
 import { FOG_FREE_MODEL_BIT } from '../../scene/surfaceModel.ts'
 import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
@@ -44,18 +48,16 @@ function factors(mat: MaterialSurface) {
 }
 
 /**
- * The volume of `mat` into `out` from word `at`, seven words: its share let through, its refraction
- * ratio `1 / ior`, its thickness, Fresnel's `f0 = ((ior − 1) / (ior + 1))²` and the law's constant
+ * The volume of `mat` into the record: its share let through, its refraction ratio `1 / ior` — one
+ * where it declares no ior (`refracts`): it bends nothing —, its thickness and the law's constant
  * `k` (`volumeAttenuation`), each computed here once in f64 — the record's (`transmission` to
- * `attenuation`) and the water composite's volume (`../transparent/transmission.ts`), one writer.
+ * `attenuation`), which a transmissive layer reads (`../blend/transmission/transmitWgsl.ts`).
  */
-export function writeVolumeTerms(out: Float32Array, at: number, mat: MaterialSurface) {
-  const reflectance = (mat.ior - 1) / (mat.ior + 1)
-  out[at] = mat.transmission
-  out[at + 1] = 1 / Math.max(mat.ior, 1e-3)
-  out[at + 2] = mat.thickness
-  out[at + 3] = reflectance * reflectance
-  out.set(volumeAttenuation(mat.attenuationColor, mat.attenuationDistance, k), at + 4)
+function writeVolumeTerms(out: Float32Array, mat: MaterialSurface) {
+  out[F.transmission] = mat.transmission
+  out[F.invIor] = mat.refracts ? 1 / Math.max(mat.ior, 1e-3) : 1
+  out[F.thickness] = mat.thickness
+  out.set(volumeAttenuation(mat.attenuationColor, mat.attenuationDistance, k), F.attenuation)
 }
 
 /**
@@ -79,9 +81,20 @@ export function writeMaterialRecord(
   scratchInts[F.aoIndex] = layerSlot(dataLayer, mat.aoMap)
   scratchInts[F.subsurfaceMap] = layerSlot(mapLayer, mat.subsurfaceMap)
   scratchInts[F.lobes] = lobes
-  writeVolumeTerms(scratch, F.transmission, mat)
-  scratchInts[F.pad] = 0
+  writeVolumeTerms(scratch, mat)
+  scratchInts[F.channels] = channelsOf(mat, SURFACE_MAP_FIELDS)
   return copyChanged(ints, at, scratchInts)
+}
+
+/** The UV channels word of `mat`'s maps `fields`: bit `i` set where map `i` reads the second UV
+ *  set (glTF's `texCoord` 1, `Texture.channel`). */
+export function channelsOf(
+  mat: VisMaterial,
+  fields: readonly ((typeof SURFACE_MAP_FIELDS)[number] | (typeof PHYSICAL_MAP_FIELDS)[number])[],
+) {
+  let channels = 0
+  for (let i = 0; i < fields.length; i++) if (mat[fields[i]]?.channel === 1) channels |= 1 << i
+  return channels
 }
 
 /** `from` copied into `ints` at `at`: whether a word changed. */

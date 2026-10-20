@@ -9,6 +9,8 @@ import { webgpuPagesEngine } from '../pages.ts'
 import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 import type { MemoryBudgetsReport } from '../../../residency/pools.ts'
 import { refusing } from './refusing.fixture.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 /** The pools a test answers: the geometry pool's buffer, or the texture pools. */
 const GEOMETRY = ['createBuffer', 'geometry page cache'] as const
@@ -35,6 +37,7 @@ function granting(
   const events: EngineDiagnostic[] = []
   const fixture = deepQuadScene()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: gpu.device,
     viewport: [32, 32],

@@ -9,7 +9,7 @@ import {
 } from '../../../scene/surfaceBuffer.ts'
 import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
 import { wantsAsIsShare } from './asIsShareTarget.ts'
-import { backdropBytes, holdsWater } from '../../transparent/transmission.ts'
+import { backdropBytes } from '../../transparent/transmission.ts'
 import { reflectionBytes } from '../../../reflections/gpu.ts'
 import { level0LayerBytes } from '../../../gpu/hiz/pyramid.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -21,7 +21,7 @@ import { DISPLAY_FORMAT } from '../../../scene/targetFormats.ts'
 const DISPLAY_BYTES = texelBytesOf(DISPLAY_FORMAT)
 
 /**
- * Whether the scene has blends — water included —, which the front pass draws into the transparents'
+ * Whether the scene has blends — transmissive ones included —, which the front pass draws into the transparents'
  * front layer (`createFrontLayer`'s `blends`): laid out when the session opens, none enters or leaves it
  * (`webgpuMaterialClassRefusal`). Any other scene keeps a texel of its target and nothing else, and
  * draws what it drew before.
@@ -32,13 +32,9 @@ export const sceneBlends = (rt: Pick<WebgpuPagesRuntime, 'blendState'>) =>
 /**
  * Whether a frame of `size` makes a display colour of its own at the render size (`Trillion3D
  * display color`): drawn at the display's size, it is the display. Apart, the composition writes
- * the display and nothing visible reads that colour but the water's word, which borrows it: a
- * scene without water makes none, and one drawn at the display's size borrows the display itself
- * (`buildTargets`).
+ * the display and nothing reads that colour: none is made (`buildTargets`).
  */
-export const makesDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
-  !size.apart ||
-  (holdsWater(rt) && (size.renderWidth !== size.width || size.renderHeight !== size.height))
+export const makesDisplayColor = (_rt: WebgpuPagesRuntime, size: FrameSize) => !size.apart
 
 /** Proposed image targets, passed to the existing global memory admission before allocation.
  * Device dimensions remain hard limits; streamable pools retain their coverage/tail minima.
@@ -77,7 +73,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
 
 /** What a frame of `size` asks of the budget beside its targets (`frameTargetAllocation`'s
  *  `additional`, `requestFrameTargets`): the capture's reserve while one is under way, and the
- *  transmission's backdrop at the render size. */
+ *  distortion's targets at the render size. */
 export const frameExtraBytes = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   (rt.capture.surfaceCapture ? 0 : rt.capture.captureAllocationBytes) +
   backdropBytes(rt, size.renderWidth, size.renderHeight)

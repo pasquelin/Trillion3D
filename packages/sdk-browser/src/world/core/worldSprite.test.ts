@@ -109,7 +109,7 @@ test('a transparent sprite is drawn in one pass: one plan entry, with no cull', 
         }) as unknown as BlendGpuItem,
     ),
   )
-  assert.deepEqual([...blendState.seeds[0]].map(planCull), [0, 0, 0])
+  assert.deepEqual([...blendState.seeds].map(planCull), [0, 0, 0])
 })
 
 test("a sprite's row keeps its position and axis lengths, never its turn", () => {

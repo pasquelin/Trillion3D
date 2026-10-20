@@ -93,6 +93,8 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
       visBindGroupLayout: {},
       concatPos: {},
       concatUv: {},
+      // The float pool's normal atlas, which every slot's group binds (`VIS_BINDINGS.normals`).
+      concatNrm: {},
       pageTable: {},
       visUniform: {},
       textures: { color: { views: [{}, {}, {}], pages: { buffer: {} } } },
@@ -100,7 +102,7 @@ test("drawVis draws each coplanar layer's slots by their own indirect command", 
       zeroFlags: {},
       gpuHiz: undefined,
       visSlotGroups: new Array(MAX_DRAW_SLOTS).fill(undefined),
-      gpuDraw: { indirectBuffer: {}, instanceBuffer: {}, slotOffsetsBuffer: {} },
+      gpuDraw: { indirectBuffer: {}, instanceBuffer: {}, groupsBuffer: {} },
       visBundles,
       // The surfaces' records a slot's group binds (`../material/materialTable.ts`).
       materialTable,
@@ -141,7 +143,7 @@ test('createWebgpuVisibilityShaders sizes the visibility uniform buffer for the 
 })
 
 // pipelines.ts
-test('createWebgpuCoplanarLayerPipelines builds three cull pipelines per half and extra layer, each biased, and none for layerSlots = 1', async () => {
+test('createWebgpuCoplanarLayerPipelines builds three cull pipelines per extra layer, both halves drawing with them, each biased, and none for layerSlots = 1', async () => {
   const { device, renderPipelines } = fakeDevice()
   const visModule = {} as GPUShaderModule
   const bindGroupLayout = {} as GPUBindGroupLayout
@@ -150,10 +152,10 @@ test('createWebgpuCoplanarLayerPipelines builds three cull pipelines per half an
   assert.deepEqual(none, [], 'a scene with no stacked coplanar surface creates no layer pipeline')
 
   const two = await createWebgpuCoplanarLayerPipelines(device, visModule, bindGroupLayout, 2)
-  assert.equal(two.length, 6, 'three cull modes, occluder and tested, for the one extra layer')
+  assert.equal(two.length, 3, 'three cull modes for the one extra layer, shared by both halves')
   assert.ok(
     renderPipelines
-      .slice(-6)
+      .slice(-3)
       .every((entry) => entry.depthStencil?.depthBias === depthLayerUnits(1)),
     'every pipeline of layer 1 carries that layer’s depth bias',
   )

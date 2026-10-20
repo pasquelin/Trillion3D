@@ -3,9 +3,7 @@ import assert from 'node:assert/strict'
 import { FACING_DROP, FACING_WGSL } from './facing.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { Mat } from '../../texture/shaderRunMatrix.fixture.ts'
-import { waterSurfaceWgsl } from '../water/surfaceWgsl.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Corner = readonly [x: number, y: number, z: number, w: number]
@@ -122,11 +120,6 @@ test('every triangle is drawn by exactly one side, whatever its shape', () => {
 
 test('the blend module runs the facing test and discards on front_facing', () => {
   assert.match(BLEND_SHADER, /fn vertexFacing\(/)
-  assert.match(BLEND_SHADER, /facingDiscarded\(in\.water>>16u,front\)/)
+  assert.match(BLEND_SHADER, /facingDiscarded\(in\.material>>30u,front\)/)
   assert.doesNotMatch(BLEND_SHADER, /fn vertexCulled\(/, 'one facing test, not two')
-  assert.match(
-    wgslModule(waterSurfaceWgsl(true)),
-    /\(in\.water&65535u\)/,
-    'the water rank stored without the mode',
-  )
 })

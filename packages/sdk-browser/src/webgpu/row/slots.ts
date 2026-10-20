@@ -1,5 +1,5 @@
 import { createWebgpuRowWriters } from './writers.ts'
-import { createWebgpuRowClaims } from './claims.ts'
+import { createMarkedList } from '../../../../math/src/sequence/markedList.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { createPageCatalogue, type PageList } from '../../page/selection/catalogue.ts'
 import { rowHasGeometry } from './pageRow.ts'
@@ -10,13 +10,14 @@ import { createRowUseWords } from './rowWords.ts'
 import { createRowOrder } from './rowOrder.ts'
 import { createRowDemand } from './rowDemand.ts'
 import type { InstanceClosure } from './rowDemandState.ts'
-import { placeRow, releaseRow, type RowSlots } from './slotOps.ts'
+import { leadsRows, placeRow, releaseRow, type RowSlots } from './slotOps.ts'
 import { closeFreeRows, followArrivals, rebuildRows, rewriteRows } from './rowPasses.ts'
 /**
  * Ranks of the row table: a CACHE of what the GPU cut draws (#1483), sized by the view, never by
  * the placements (#1232). An instance is resident for the cut once its bytes are AND it holds a row
  * written at its place; the cut draws a nearest ready ancestor for the others. An arrival takes a
- * free row while the table has one; the cut's demand (`rowDemand.ts`) is served first, in the GPU's
+ * free row while the table has one, the world DAG's pages ahead of every other (`leadsRows`): they
+ * stand for the whole world afar; the cut's demand (`rowDemand.ts`) is served first, in the GPU's
  * order, taking back the row of the next page the GPU's queue gives up (`rowOrder.ts`) when none is
  * free; a request the table cannot serve while the GPU has nothing more to give is counted
  * (`rowsDenied`) and the table grows by it.
@@ -51,12 +52,13 @@ export function createWebgpuRowSlots(
     packedPages,
     recordOf,
     drawsRow,
+    leads: (page) => leadsRows(recordOf(page)),
     onResidenceChange,
     words,
     order: createRowOrder(rows.rowOf, words, askOrder),
     frame,
     free: { rows: new Int32Array(0), count: 0 },
-    claims: createWebgpuRowClaims(),
+    claims: createMarkedList(),
     demand: createRowDemand(rows, drawsRow, closure),
     writers: createWebgpuRowWriters(rows, packedPages, writePageRow),
     count: 0,

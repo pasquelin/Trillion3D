@@ -8,8 +8,7 @@ import { spheresMadeAnew } from './castChanges.ts'
 
 /** Bytes a shadow row buffer of `words` 4-byte words per row takes at `casterSlots` rows: never
  *  empty, a binding holds at least a row. */
-export const rowBufferBytes = (casterSlots: number, words: number) =>
-  Math.max(1, casterSlots) * words * 4
+const rowBufferBytes = (casterSlots: number, words: number) => Math.max(1, casterSlots) * words * 4
 
 /** GPU bytes the caster rows' shadow data takes at `casterSlots` rows — the world spheres, the
  *  mobility words, the detail — as their buffers are sized: what the first frame a light casts

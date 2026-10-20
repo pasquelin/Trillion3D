@@ -31,7 +31,7 @@ function rowRoots<T>(roots: readonly ClusterRoot<T>[], rows: PlacementRows) {
     }
     indexes.set(roots, index)
   }
-  // Rows no root reads are those of a blended surface: its copies read them (`placedBy`).
+  // Rows no root reads are those of a blended surface: its copies read them (`PlacementRows.blended`).
   return (index.get(rows) ?? NO_ROOTS) as RowRoot<T>[]
 }
 

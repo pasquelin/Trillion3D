@@ -2,6 +2,7 @@ import { prepareExplorerEngine } from './engine.ts'
 import type { EngineContext, Engine } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { ExplorerSession } from './session.ts'
+import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 
 type PageSources = Parameters<typeof prepareExplorerEngine>[1]['pageSources']
 
@@ -19,12 +20,15 @@ export async function probeEngineContext(
     session = {},
     base = 'http://localhost/cache/',
     worldRoots = [],
+    ranks = new Map(),
   }: {
     options?: object
     probe?: Partial<Engine>
     session?: Partial<ExplorerSession>
     base?: string
     worldRoots?: Parameters<typeof prepareExplorerEngine>[1]['worldRoots']
+    /** The glTF rank of each texture of the scene, its cache's. */
+    ranks?: Map<Texture, number>
   } = {},
 ) {
   let seen: EngineContext | undefined
@@ -48,7 +52,7 @@ export async function probeEngineContext(
   await prepareExplorerEngine(opened, {
     source: {} as never,
     draws: [],
-    textureIndices: new Map(),
+    textureCaches: [{ ranks, metadata, base }],
     pageSources,
     factory: (context) => {
       seen = context

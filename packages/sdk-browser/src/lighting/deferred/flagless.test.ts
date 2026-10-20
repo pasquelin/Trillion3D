@@ -22,6 +22,8 @@ function composed(source: string, value: object, read: object, view: object) {
     asIs,
     view,
     textureLoad: (texture: object) => (texture === hdr ? value : read),
+    // The source at the display's size: its pixel as it is (`sourceValue`).
+    sourceValue: () => value,
     bloomed: (image: object) => image,
     vec2i: (xy: unknown) => xy,
     vec4f: (...parts: unknown[]) => parts,
@@ -30,7 +32,9 @@ function composed(source: string, value: object, read: object, view: object) {
     toneMap: (c: number, curve: number) => (curve ? c / (1 + c) : Math.min(c, 1)),
     displayValue: (c: number, curve: number) => scope.linearToSrgb(scope.toneMap(c, curve)),
   }
-  return shaderFunctions<Compose>(source, ['composeColor'], scope).composeColor({ xy: 0 })
+  return shaderFunctions<Compose>(source, ['composeAt', 'composeColor'], scope).composeColor({
+    xy: 0,
+  })
 }
 
 const channels = [0, -0, 1e-7, 0.002, 0.5, 1, 7.5, 65504, Infinity, NaN]
@@ -54,7 +58,14 @@ test('the flagless composition gives the flag-reading one at every share of 0 (O
             [0, 0.3, 4],
             [1, 1, 0],
           ]) {
-            const view = { background, viewport: { z }, lightParams: { w }, display: { x } }
+            const view = {
+              background,
+              // No sharpening (`view.viewport.w`): the display pixel composed once.
+              viewport: { z, w: 0 },
+              lightParams: { w },
+              display: { x },
+              source: { xy: 1 },
+            }
             const value = { rgb, a },
               flagless = composed(sources.flagless, value, {}, view)
             for (const flag of flags)

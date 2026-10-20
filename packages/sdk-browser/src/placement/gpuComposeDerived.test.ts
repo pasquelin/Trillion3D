@@ -60,7 +60,6 @@ const boxes = shaderRun<{ composeRoot(rank: number, world: Pair[]): Pair }>(
     ...[
       'toF32',
       'fromF32',
-      'affineAxis',
       'dLess',
       'dIsZero',
       'dIsFinite',

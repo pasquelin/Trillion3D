@@ -7,7 +7,7 @@ import {
   type StageProfileEntry,
 } from '../../../sdk-core/src/runtime/stageProfile.ts'
 import type { StageAdd } from './profiler.ts'
-import { createRings } from './stageRings.ts'
+import { createRings } from '../../../math/src/sequence/rings.ts'
 
 /**
  * The per-stage profile: a ring of durations per stage, CPU side and GPU side, separate and never

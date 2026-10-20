@@ -1,5 +1,5 @@
 import { computeStorageTextureEntry } from './computeBindings.ts'
-import { texelBytesOf } from './textureBytes.ts'
+import { texelBytesOf, wantedTargetBytes } from './textureBytes.ts'
 
 /**
  * A target a fragment stage reads by load alone — the subsurface, the lobes —, bound as a read-only storage texture: `textureLoad` returns the stored values
@@ -18,7 +18,7 @@ export function loadOnlyTarget(binding: number, format: GPUTextureFormat, name: 
     /** Bytes of the target of a `width` × `height` frame: a texel per pixel when `wanted`, a 1×1
      *  placeholder otherwise. */
     bytes: (width: number, height: number, wanted: boolean) =>
-      (wanted ? width * height : 1) * texelBytes,
+      wantedTargetBytes(width, height, wanted, texelBytes),
     wgsl: `@group(0) @binding(${binding}) var ${name}:texture_storage_2d<${format},read>;`,
     /** Its layout entry, made when a layout is: the stage constants exist then. */
     layoutEntry: (): GPUBindGroupLayoutEntry =>

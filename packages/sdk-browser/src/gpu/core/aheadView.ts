@@ -1,11 +1,6 @@
-import {
-  FAR_PLANE_SLOT,
-  FRUSTUM_PLANE_VALUES,
-  frustumFarPlane,
-  frustumPlanesFromMatrix,
-} from '../../../../math/src/geometry/frustum/frustum.ts'
+import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
-import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { rotationMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { PREFETCH_HORIZON_MS } from '../../engine/common.ts'
@@ -13,7 +8,11 @@ import type { CameraMotion } from '../../camera/motion.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { dotVector3Xyz } from '../../../../math/src/vector/vector.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
-import { focalScale, halfAngleOfFocalScale } from '../../../../math/src/projection/camera.ts'
+import {
+  focalScale,
+  halfAngleOfFocalScale,
+  viewFrustum,
+} from '../../../../math/src/projection/camera.ts'
 
 /**
  * The VIEW AHEAD of a moving camera, in its render frame (`./selection.ts`): what the cut also
@@ -42,8 +41,6 @@ const projection = new Float64Array(16),
   turned = new Float64Array(16),
   rotation = new Float64Array(16),
   quaternion = new Float64Array(4)
-const ORIGIN = [0, 0, 0],
-  UNIT = [1, 1, 1]
 
 /** A projection scale `cot(half field)` opened by `turn` radians; a field past the half turn takes
  *  zero, and its side planes keep only what is in front of the eye. */
@@ -73,9 +70,7 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
     projection[0] = opened(projection[0], turn)
     projection[5] = opened(projection[5], turn)
   }
-  multiplyMatrix4(clip, projection, view)
-  frustumPlanesFromMatrix(planes, clip)
-  frustumFarPlane(planes, FAR_PLANE_SLOT * 4, view, cam.far, true)
+  viewFrustum(clip, planes, projection, view, cam.far)
   for (let i = 0; i < 6; i++) {
     const toward = -dotVector3Xyz(planes, dx, dy, dz, i * 4)
     if (toward > 0) planes[i * 4 + 3] += toward
@@ -85,7 +80,7 @@ export function aheadViewOf(cam: EngineCamera, motion: CameraMotion, into?: Ahea
   turned.set(view)
   if (turn > 0 && motion.axis) {
     axisAngleQuaternion(quaternion, motion.axis, -turn)
-    composeMatrix4(rotation, ORIGIN, quaternion, UNIT)
+    rotationMatrix4(rotation, quaternion)
     multiplyMatrix4(turned, view, rotation)
   }
   back[0] = -dx

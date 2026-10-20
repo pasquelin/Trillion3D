@@ -24,7 +24,7 @@ import { createWebgpuRunState } from './state/runState.ts'
 import type { WebgpuRunState } from './state/run.ts'
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts'
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts'
-import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts'
+import { createScaleControl } from '../../frame/scaleControl.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { createWebgpuTimingState, type WebgpuTimingState } from './state/timing.ts'
 import { WEBGPU_STAGES } from '../../stage/passDeclaration.ts'
@@ -74,8 +74,6 @@ export interface WebgpuPagesRuntime {
   /** Every camera-bound field above belongs to `views.active`; `./state/viewSwitch.ts` switches. */
   views: WebgpuViews
   timing: WebgpuTimingState
-  /** The render scale the page asked, its controller, and the scale of the image drawn. */
-  scale: ScaleControl
   capabilities: EngineCapabilities
   blendState: WebgpuBlendState
   /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
@@ -142,6 +140,11 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
       'direct WebGPU present',
     ],
   }
+  const timing = createWebgpuTimingState(
+      explorerSwitch(context, 'stageProfile') ? WEBGPU_STAGES : undefined,
+      () => layout.selectionRoots.length,
+    ),
+    scale = createScaleControl(context.renderScale, context.maxFrameRate)
   const core: WebgpuPagesCore = {
     context,
     clock: context.frameBudget ?? createFrameBudget(Infinity),
@@ -159,12 +162,8 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
     ),
     run,
     capture: createWebgpuCaptureState(),
-    views: createWebgpuViews({ run, gpu, vis, setup }),
-    timing: createWebgpuTimingState(
-      explorerSwitch(context, 'stageProfile') ? WEBGPU_STAGES : undefined,
-      () => layout.selectionRoots.length,
-    ),
-    scale: createScaleControl(context.renderScale),
+    views: createWebgpuViews({ run, gpu, vis, setup, timing }, scale),
+    timing,
     capabilities,
     blendState,
     watchedSources: () => [

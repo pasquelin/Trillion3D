@@ -20,6 +20,8 @@ import { addWebgpuPlacements } from './webgpuAppend.ts'
 import { startGrownCut } from './grownCutStart.ts'
 import { adoptGrownCut } from './webgpuGrownCut.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
+import { createTextureCaches } from '../texture/textureCaches.ts'
+import { createPageCache } from '../streaming/pageCache.ts'
 
 const structure = { version: 1, roots: [0], groups: [] }
 /** A primitive of one page, `layer` coplanar layers deep. */
@@ -68,6 +70,7 @@ export async function session(placements: number) {
     limits: { maxBufferSize: 1 << 30, maxStorageBufferBindingSize: 1 << 30 },
   })
   const rt = createWebgpuPagesRuntime({
+    textureCaches: createTextureCaches(createPageCache()),
     ...{ source, metadata, indices, associations, gpuDevice: gpu.device },
     draws: graphDraws(source, associations),
     maxResidentPages: 4096,

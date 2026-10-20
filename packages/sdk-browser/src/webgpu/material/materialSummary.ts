@@ -24,7 +24,7 @@ function factsOf(mat: MaterialSurface) {
   return facts
 }
 
-/** Whether a surface is drawn blended or transmits: its items' lobes and sampled flag, its water
+/** Whether a surface is drawn blended or transmits: its items' lobes and sampled flag, its
  *  volume and its casters' shadow read its values themselves, so any of them moving takes the
  *  whole path a summary's does (`../row/blendCasters.ts`, `../blend/sceneRefresh.ts`). */
 const blendedSurface = (mat: MaterialSurface) => mat.transparent || mat.transmission > 0

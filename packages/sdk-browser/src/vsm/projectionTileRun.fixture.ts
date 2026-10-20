@@ -46,14 +46,21 @@ export function shipped(pixels: Pixel[], lights: Light[], oneLight: boolean, kin
     vsmTileRead: [0, 0, 0],
     vsmShadowMask: 'mask',
     vsmShadowMaskTiles: 'tiles',
+    // No translucent caster: the mask's transmission is neither traced nor stored.
+    vsmShadowThrough: 'through',
+    vsmTranslucentCasters: () => false,
+    textureDimensions: () => [1, 1],
+    vsmEmptyTrace: () => ({ shadowFactor: 1, rayCount: 0, through: [1, 1, 1] }),
     vsmLaneInit() {},
     workgroupBarrier() {},
     workgroupUniformLoad: (p: { get: () => unknown }) => p.get(),
     vsmPixelOf: () => pixels[lane],
-    vsmProjectLight: (k: number, _pixel: Pixel, participating: boolean) => (
-      calls.push(`${lane}:${k}:${participating}`),
-      traced(lane, k, participating)
-    ),
+    vsmReceiverOf: () => ({}),
+    vsmTraceLight: (light: Light, _pixel: Pixel, _receiver: object, participating: boolean) => {
+      const k = lights.indexOf(light)
+      calls.push(`${lane}:${k}:${participating}`)
+      return traced(lane, k, participating)
+    },
     textureStore: (texture: string, at: number[], ...rest: unknown[]) => {
       if (texture === 'tiles') tileLayers = (rest[0] as number[])[0]
       else stores.set(`${at}:${rest[0]}`, (rest[1] as number[])[0])

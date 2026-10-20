@@ -23,16 +23,27 @@ export interface WorldOptions {
   /** Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only
    *  then. @defaultValue false */
   physics?: boolean | WorldPhysicsOptions
-  /** Temporal antialiasing: sub-pixel jitter accumulated over frames. `false` draws
-   *  each pixel at its centre, with no history, what a pixel-exact capture asks; switched later
-   *  by `world.temporalAntialiasing`. @defaultValue true */
-  temporalAntialiasing?: boolean
+  /** Temporal antialiasing: sub-pixel jitter accumulated over frames, at a quality level —
+   *  `'off'`, `'low'`, `'medium'`, `'high'`, `'max'` —, `true` the default level. `false` or
+   *  `'off'` draws each pixel at its centre, with no history, what a pixel-exact capture asks.
+   *  Named here, it holds over the quality preset and a scene's level; switched later by
+   *  `world.temporalAntialiasing`. @defaultValue none: the preset's level, else the first loaded
+   *  scene's, else `'max'` */
+  temporalAntialiasing?: import('../../../../sdk-core/src/contracts/materialOptions.ts').TemporalAntialiasingOption
   /** The fraction of the display per axis the image is drawn at, before temporal antialiasing
    *  rebuilds it to the display: `'auto'` lets the frame budget choose it between `min` and `max`
-   *  (`{ min, max }`, 0.5 and 1 by default), a number fixes it. A still image is drawn at that
+   *  (`{ min, max }`, 0.5 and the display's default by default — 0.5 on a 3840×2160
+   *  drawing buffer, 1 on a 720-tall one, `displayResolutionFraction`), a number fixes it, 1 the
+   *  display's own size. A still image is drawn at that
    *  scale too, the budget's, and held once whole cycles of its jitter phases are averaged.
    *  Changed later by `world.renderScale`. @defaultValue 'auto' */
   renderScale?: RenderScale
+  /** The most frames a second the world draws, even while its scene moves: a frame is drawn on a
+   *  whole number of display refreshes, the fastest such rate at or under it (12 on a 60 Hz
+   *  display: one refresh in five), each image shown for the same time; the ticks between draw
+   *  and count nothing. A page of several worlds caps those out of focus. Changed later by
+   *  `world.maxFrameRate`. @defaultValue Infinity, the display's rate */
+  maxFrameRate?: number
   /** The quality: a preset, groups at levels of their own, the resolution (`world.quality`).
    *  @defaultValue every group at `'max'`, today's defaults; the native resolution, dynamic */
   quality?: WorldQualityOptions

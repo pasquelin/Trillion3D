@@ -1,39 +1,77 @@
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
+import { REFLECTION_LIGHT_VIEW_BINDING } from '../../reflections/viewLayout.ts'
 import type { FrontOutputs } from '../../reflections/frontLayer.ts'
-import { DEPTH_COMPARE } from '../../camera/depthConvention.ts'
+import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
 import {
-  TRANSPARENT_DEPTH_LAYER,
-  depthLayerUnits,
-} from '../../../../sdk-core/src/lod/depthLayer.ts'
-import {
-  buildRenderPipeline,
   preparedPipeline,
   started,
+  type PreparedPipeline,
 } from '../../lighting/deferred/fullscreen.ts'
-import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts'
+import { BLEND_MODES } from '../../scene/materialBlending.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 import { CULL_MODES } from './planCull.ts'
+import type { DualPasses } from './pipelines.ts'
 
-/** Source alpha over what the target holds: the normal mode, and the blend of the water surfaces
- *  and of their composite over the frozen backdrop. */
-export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal
-
-/** The pipelines a plan entry picks by cull rank (`plan.ts`), one per `CULL_MODES`. */
-export type BlendPipelines = PerCullMode<typeof CULL_MODES>
-/** One pipeline for each entry of a cull-mode table: a tuple of its length. */
-type PerCullMode<T extends readonly unknown[]> = { readonly [K in keyof T]: GPURenderPipeline }
-
-/** Pipelines a transparent pass picks by plan rank (`draw.ts`): the water surfaces' three, or the
- *  blend pass's modes, `filtered` in an image with display layers (`displayFilter.ts`); a rank
- *  the pass `skips` is not drawn (the display mask draws the filtering modes alone); `share`,
- *  those that write the as-is share of a debug view (`blendTargets`). */
+/** Pipelines a transparent pass picks by plan rank (`draw.ts`): the blend pass's modes and
+ *  transmissive culls, `filtered` in an image with display layers (`displayFilter.ts`); a rank
+ *  the pass `skips` is not drawn (the display mask draws the filtering modes alone, the distortion
+ *  the transmissive items alone); `share`, those that write the as-is share of a debug view
+ *  (`blendTargets`). */
 export type RankedPipelines = {
   at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline | undefined
   skips?(rank: number): boolean
 }
+
+/** Ranked pipelines that make the one a rank asks for (`RankedPipelines`). */
+type MadePipelines = Omit<RankedPipelines, 'at'> & {
+  at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline
+}
+
+/**
+ * What a blend program draws its transmissive items with (`./transmission/pipelines.ts`), each set picked
+ * by a plan rank's cull past the blend modes' (`TRANSMIT_BASE`): the layer under the single-source
+ * fallback on the blend pass's targets (`over`), under its dual blend on the HDR target alone (`dual`, none
+ * on a device without `dual-source-blending`), the companion pass of the dual blend (`coverage`:
+ * the request and the reactive value), the distortion's accumulation — of the refracting ranks
+ * alone (`distortion`), or of every transmissive rank with the companion pass's outputs
+ * (`distortionCoverage`), each on the blend group and its own (`distortionGroup`) — and its
+ * full-screen application (`apply`, on an empty group 0, `applyEmpty`, and its own, `applyGroup`);
+ * then the compile of what the scene reaches (`precompile`).
+ */
+export interface TransmitPipelines {
+  readonly over: MadePipelines
+  readonly dual?: MadePipelines
+  readonly coverage: MadePipelines
+  readonly distortion: MadePipelines
+  readonly distortionCoverage: MadePipelines
+  readonly apply: PreparedPipeline<GPURenderPipeline>
+  readonly applyEmpty: GPUBindGroup
+  distortionGroup(view: GPUBuffer, depth: GPUTextureView): GPUBindGroup
+  applyGroup(view: GPUBuffer, offsets: GPUTextureView, scene: GPUTextureView): GPUBindGroup
+  precompile(reached: { shares: ReadonlySet<boolean>; filtered: boolean }): Promise<unknown>
+}
+
+/** The distortion's bind group, after the blend's (`TransmitPipelines.distortion`, `.apply`), and
+ *  its bindings: the deferred view on the reflection group's number, which the blend module declares
+ *  (`reflectionLightViewWgsl`), then on numbers the reflection group leaves free the opaque depth,
+ *  which the accumulation reads, and the offsets, the scene copy and its bilinear sampler, which the
+ *  application reads. */
+export const DISTORTION_GROUP = 1
+export const DISTORTION_BINDINGS = {
+  view: REFLECTION_LIGHT_VIEW_BINDING,
+  depth: 11,
+  offsets: 12,
+  scene: 13,
+  sampler: 14,
+} as const
+
+/** Whether `device` was granted dual-source blending (`requestExplorerDevice`): a transmissive
+ *  layer then blends dual, add and multiply in one pass (`fsTransmitDual`). */
+export const dualSource = (device: GPUDevice) =>
+  device.features?.has('dual-source-blending') === true
 
 /** The front stage's pipelines of what a front pass writes (`frontStage.ts`): its three culls, picked by
  *  a plan rank's cull, whether they are compiled, and their compile asked. */
@@ -79,8 +117,8 @@ export function pipelinesByMode(
   }
 }
 
-/** Normal as soon as a transparent item exists — a transmissive one draws in it —, then every mode a
- *  blend item declares: what both transparent paths compile up front. A scene of plain glass
+/** Normal as soon as a transparent item exists — a transmissive one draws in it under a diagnostic
+ *  variant —, then every mode a blend item declares: what the transparent pass compiles up front. A scene of plain glass
  *  compiles normal alone; one with no transparent item compiles no blend program, a mode
  *  asked later compiles at its first draw (`at`). */
 export const declaredBlendModes = (
@@ -92,14 +130,21 @@ export const declaredBlendModes = (
       items.some((item) => !item.transmissive && item.surface.blending === mode),
   )
 
-/** The blend pass's pipelines by plan rank — mode rank × 3 + cull rank (`plan.ts`), read from its
- *  `ModePipelines`, each mode's three culls. */
+/** The blend pass's pipelines by plan rank — mode rank × 3 + cull rank, then the transmissive
+ *  items' three (`plan.ts`) —, read from its `ModePipelines`, each mode's three culls, and its
+ *  `TransmitPipelines`. */
 export interface BlendModePipelines extends RankedPipelines {
   /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
   readonly mask: RankedPipelines & { slot: number }
   /** The front stage's of what a front pass writes (`FrontOutputs`), one set each, every program's
    *  the same (`frontPass.ts`). */
   front(outputs: FrontOutputs): FrontStagePipelines
+  /** What the program draws its transmissive items with, none in a scene that transmits nothing
+   *  or under a diagnostic variant (`TransmitPipelines`). */
+  readonly transmission?: TransmitPipelines
+  /** The colour and companion passes under the dual blend, where the transmissive items blend dual
+   *  (`createDualPasses`). */
+  readonly dualPasses?: DualPasses
   /** The pipelines of the program a frame of the lights' key `key` is lit with, its items `lobed`
    *  or not (`createForwardVariants`). */
   lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines
@@ -111,46 +156,29 @@ export interface BlendModePipelines extends RankedPipelines {
   at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline
 }
 
-/**
- * The three cull modes of one fragment stage of the blend module, on the blend bind group layout:
- * the forward blend, which writes no depth, and the water surface stage, which writes it so the
- * nearest surface of a pixel is the one composed. Same vertex stage, same rank picks the same side.
- */
-export async function blendStagePipelines(
-  device: GPUDevice,
-  module: GPUShaderModule,
-  layout: GPUBindGroupLayout,
-  fragment: GPUFragmentState,
-  depthWrite: boolean,
-  mask?: GPUBindGroupLayout,
-): Promise<BlendPipelines> {
-  return (await Promise.all(
-    stageDescriptors(device, module, layout, fragment, depthWrite, mask).map((stage) =>
-      buildRenderPipeline(device, stage),
-    ),
-  )) as unknown as BlendPipelines
-}
+/** The groups after the blend's of a stage that reads the reflection (`REFLECTION_GROUP`), the
+ *  display mask's last where `mask` is given: what `stageDescriptors` is handed by every stage but
+ *  the front's and those with groups of their own. */
+export const reflectedGroups = (device: GPUDevice, mask?: GPUBindGroupLayout) =>
+  mask ? [reflectionLayout(device), mask] : [reflectionLayout(device)]
 
-/** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
- *  display mask's layout of a filtered image's pipelines; without `reflected`, the blend group alone —
- *  a stage that reads no reflection, the front stage (`frontStage.ts`). Each draws one coplanar layer over the
- *  opaque depth (`TRANSPARENT_DEPTH_LAYER`): a glass lying on its base covers it, as the opaque
- *  layers and the lines cover the faces they lie on. */
+/** The three cull modes of one fragment stage of the blend module, on the blend bind group layout
+ *  then `groups` — the reflection's and the mask's (`reflectedGroups`), a stage's own, or none for
+ *  the front stage (`frontStage.ts`) —, `depthWrite` or not, one descriptor per cull mode: what a
+ *  blend mode compiles. Same vertex stage, same rank picks the same side. Every stage takes one
+ *  translucent depth state — tested near or equal, no bias, the distortion's and the front layer
+ *  pass's alike —, so the depth the front stage stores is the one a forward fragment's position
+ *  carries, which the front test compares within `FRONT_DEPTH_THRESHOLD` units
+ *  (`frontDepthMatches`). */
 export function stageDescriptors(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
-  mask?: GPUBindGroupLayout,
-  reflected = true,
+  groups: readonly GPUBindGroupLayout[],
 ): GPURenderPipelineDescriptor[] {
-  // The reflection's group (`REFLECTION_GROUP`) behind the blend's, the display mask's last.
-  const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: reflected
-      ? [layout, reflectionLayout(device), ...(mask ? [mask] : [])]
-      : [layout],
-  })
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout, ...groups] })
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,
     vertex: { module, entryPoint: 'vs' },
@@ -159,9 +187,7 @@ export function stageDescriptors(
     depthStencil: {
       format: DEPTH_FORMAT,
       depthWriteEnabled: depthWrite,
-      depthCompare: DEPTH_COMPARE,
-      // Reversed depth: moving closer to the eye ADDS units.
-      depthBias: depthLayerUnits(TRANSPARENT_DEPTH_LAYER),
+      depthCompare: DEPTH_COMPARE_OR_EQUAL,
     },
   }))
 }

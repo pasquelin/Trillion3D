@@ -10,9 +10,8 @@ const used: FamilyName[] = []
 /**
  * The optional families (`../../host/families.ts`) the next frame of a session draws with: the
  * particles of its pools, the passes of its effect chain, its guides once one is shown. Those the
- * scene's surfaces use — transmission, deformation, impostors — are its engine's, awaited where it
- * prepares them; the engine paints its diagnostic views itself. Read every frame: nothing is
- * allocated.
+ * scene's surfaces use — transmission, deformation — are its engine's, awaited where it prepares
+ * them; the engine paints its diagnostic views itself. Read every frame: nothing is allocated.
  */
 export function frameFamilies(held: Held): readonly FamilyName[] {
   used.length = 0

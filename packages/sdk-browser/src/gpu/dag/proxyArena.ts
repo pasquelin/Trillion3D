@@ -1,10 +1,10 @@
 /**
  * THE PROXY'S ARENA (`proxyInstances.ts`): one buffer (`bounce/runtimeLayout.ts`) that holds, past
- * its header, the blended copies' worlds, a surface a drawn material and the arena of the meshes'
- * proxies — triangles, bounds, children, deformation corners —, bounded by the meshes, not by the
- * placements. The meshes' columns take their spans in it (`proxyColumns.ts`); a surface's words go
- * up each time its record moves on (`surfaceSlot`). A table full lays the buffer out again
- * (`relayout`): a new one made, the columns carried over on the GPU, the old one retired.
+ * its header, a surface a drawn material and the arena of the meshes' proxies — triangles, bounds,
+ * children, deformation corners —, bounded by the meshes, not by the placements. The meshes'
+ * columns take their spans in it (`proxyColumns.ts`); a surface's words go up each time its record
+ * moves on (`surfaceSlot`). A table full lays the buffer out again (`relayout`): a new one made,
+ * the columns carried over on the GPU, the old one retired.
  */
 import {
   PROXY_NODE_FLOATS,
@@ -16,11 +16,7 @@ import { constructGpuResources } from '../core/errorScope.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import { createSpans } from '../../bounce/spans.ts'
 import { grownByCopy } from '../core/tableGrowth.ts'
-import {
-  RUNTIME_HEADER_WORDS,
-  RUNTIME_WORLD_WORDS,
-  SURFACE_WORDS,
-} from '../../bounce/runtimeLayout.ts'
+import { RUNTIME_HEADER_WORDS, SURFACE_WORDS } from '../../bounce/runtimeLayout.ts'
 import { writeSurface } from '../../bounce/runtimeSurface.ts'
 
 /** Surfaces, triangles, nodes and corners a first buffer is laid out for: doubled as needed. */
@@ -35,11 +31,10 @@ type WriteArgs =
 type Held = { slot: number; version: number; at: number }
 
 /** What the arena asks of the proxy that owns it: its instances on the GPU before the buffer is
- *  made (`ready`), and the header and the copies' worlds a buffer made is written with. */
+ *  made (`ready`), and the header a buffer made is written with. */
 type ArenaOwner = {
   ready(): void
   header(): Uint32Array<ArrayBuffer>
-  copyWorlds(): Float32Array<ArrayBuffer>
 }
 
 export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
@@ -50,20 +45,17 @@ export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
   let surfaceCount = 0,
     surfaceCapacity = START.surfaces,
     surfaceWords = new Uint32Array(surfaceCapacity * SURFACE_WORDS),
-    copies = 0,
     buffer: GPUBuffer | undefined,
     revision = 0,
     layout = layoutOf()
 
   function layoutOf() {
-    const surfacesAt = copies * RUNTIME_WORLD_WORDS,
-      trianglesAt = surfacesAt + surfaceCapacity * SURFACE_WORDS,
+    const trianglesAt = surfaceCapacity * SURFACE_WORDS,
       boundsAt = trianglesAt + triangles.capacity * PROXY_TRIANGLE_FLOATS,
       childrenAt = boundsAt + nodes.capacity * PROXY_NODE_FLOATS,
       deformAt = childrenAt + nodes.capacity * PROXY_NODE_WORDS
     return {
-      copyWorlds: 0,
-      surfaces: surfacesAt,
+      surfaces: 0,
       triangles: trianglesAt,
       bounds: boundsAt,
       children: childrenAt,
@@ -93,21 +85,18 @@ export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
     )
     buffer = next
     send(next, 0, owner.header())
-    const worlds = owner.copyWorlds()
-    if (worlds.length) send(next, byteAt(layout.copyWorlds), worlds)
     send(next, byteAt(layout.surfaces), surfaceWords, 0, surfaceCapacity * SURFACE_WORDS)
     return next
   }
 
-  /** The tables laid out again — `want` more triangles, nodes, surfaces, corners, or `copies`
-   *  copies —: the buffer replaced by one the new layout fits, the columns it held carried over. */
+  /** The tables laid out again — `want` more triangles, nodes, surfaces or corners —: the buffer
+   *  replaced by one the new layout fits, the columns it held carried over. */
   function relayout(
     want: {
       triangles?: number
       nodes?: number
       surfaces?: number
       corners?: number
-      copies?: number
     } = {},
   ) {
     triangles.grown(want.triangles ?? 0)
@@ -116,7 +105,6 @@ export function createProxyArena(device: GPUDevice, owner: ArenaOwner) {
     const before = layout
     surfaceCapacity = Math.max(surfaceCapacity, want.surfaces ?? 0)
     surfaceWords = resized(surfaceWords, surfaceCapacity * SURFACE_WORDS)
-    copies = want.copies ?? copies
     layout = layoutOf()
     revision++
     const old = buffer

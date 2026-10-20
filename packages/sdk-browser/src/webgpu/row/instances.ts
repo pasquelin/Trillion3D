@@ -2,6 +2,7 @@ import type { PageRec } from '../../page/selection/types.ts'
 import { postPackedBases, type PlacementIndex } from '../../page/selection/placements.ts'
 import { pageAddress } from './pageSlots.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
+import { countBy } from '../../../../math/src/sequence/counts.ts'
 
 type Root = { readonly pages: readonly PageRec[] }
 /** One page of a primitive: the root ranks of the primitive's placements, shared by all its pages,
@@ -24,26 +25,43 @@ export function createPackedInstances(roots: readonly Root[], placement: Placeme
     blended: PrimitivePage[] = []
   let indexed = 0,
     entries = 0
-  const instances = {
-    /** Indexes the roots ranked from the last call on: those a growth appended. */
-    add() {
-      for (; indexed < roots.length; indexed++) {
-        const { pages } = roots[indexed]
-        let placements = placementsOf.get(pages)
-        if (!placements) {
-          placementsOf.set(pages, (placements = []))
-          for (let offset = 0; offset < pages.length; offset++) {
-            const address = pageAddress(pages[offset]),
-              page = { placements, offset },
-              list = byAddress.get(address)
-            if (list) list.push(page)
-            else byAddress.set(address, [page])
-            if (pages[offset].transparent) blended.push(page)
-            entries++
-          }
-        }
-        placements.push(indexed)
+  /** How many packed ranks each address holds: the rows its pool slot feeds. */
+  const counts = new Map<string, number>()
+  /** Root `rank` joins its primitive's placements, the primitive's pages indexed at its first. */
+  const indexRoot = (rank: number) => {
+    const { pages } = roots[rank]
+    let placements = placementsOf.get(pages)
+    if (!placements) {
+      placementsOf.set(pages, (placements = []))
+      for (let offset = 0; offset < pages.length; offset++) {
+        const address = pageAddress(pages[offset]),
+          page = { placements, offset },
+          list = byAddress.get(address)
+        if (list) list.push(page)
+        else byAddress.set(address, [page])
+        if (pages[offset].transparent) blended.push(page)
+        entries++
       }
+    }
+    placements.push(rank)
+    return pages
+  }
+  const instances = {
+    /** The most packed ranks one address holds, 1 at least: what the page table sizes by. */
+    copiesMax: 1,
+    /** Indexes the roots ranked from the last call on: those a growth appended. Each primitive
+     *  that took placements counts each of its pages once, by those placements (#1235). */
+    add() {
+      const grown = new Map<readonly PageRec[], number>()
+      for (; indexed < roots.length; indexed++) {
+        const pages = indexRoot(indexed)
+        countBy(grown, pages, 1)
+      }
+      for (const [pages, by] of grown)
+        for (const page of pages) {
+          const n = countBy(counts, pageAddress(page), by)
+          instances.copiesMax = Math.max(instances.copiesMax, n)
+        }
     },
     /** Hands `visit` every packed rank at `address`; false when the address holds none. */
     each(address: string, visit: (packed: number) => void) {

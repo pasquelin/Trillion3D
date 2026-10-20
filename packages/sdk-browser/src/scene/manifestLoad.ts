@@ -12,6 +12,7 @@ import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.t
 import { fetchVerified } from '../cluster/pages.ts'
 import { checked } from '../cluster/checked.ts'
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
+import { readVoxelLevels, type VoxelLevels } from './voxelLevels.ts'
 
 async function jsonResource(
   url: string,
@@ -92,6 +93,8 @@ export interface LoadedManifest {
   /** The length the manifest's `files` declare, by address: where a load's byte plan looks up
    *  the files it reads. Empty for a cache that declares none. */
   declared: ReadonlyMap<string, number>
+  /** The voxel levels read into its primitives (`readVoxelLevels`); none for a cache without. */
+  voxelLevels?: VoxelLevels
   timing: ManifestTiming
 }
 
@@ -151,11 +154,13 @@ export async function loadClusterManifest(
   const metadata = await readPagedManifest(value, read)
   located(() => assertCacheReady(metadata, scope), metadataResource.details)
   assertCacheIdentity(metadata)
+  const voxelLevels = await readVoxelLevels(metadata, metadataUrl, signal, meter)
   return {
     pointer,
     metadata,
     metadataUrl,
     base,
+    voxelLevels,
     declared: declaredFiles(metadata as unknown as Record<string, unknown>, metadataUrl),
     timing: {
       jsonBytes: metadataResource.bytes,

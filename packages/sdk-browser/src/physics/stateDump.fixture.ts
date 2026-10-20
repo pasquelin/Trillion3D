@@ -3,7 +3,7 @@ import { CommandWriter } from '../../../sdk-core/src/physics/commands.ts'
 import { EVENT_WORDS, FLAG } from '../../../sdk-core/src/physics/layout.ts'
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts'
 import type { JoltModule } from './joltModule.ts'
-import { ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts'
+import { REFERENCE_PRESSURE, ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts'
 import { FLAT, body, id } from './records.fixture.ts'
 
 /** Writes `geometry` as a soft body in slot `slot`, at `position` turned by `quaternion`. */
@@ -61,7 +61,13 @@ export function stateDump(
   }
   soft(writer, 7, plane(1, 1, 8, 8), { type: 'cloth' }, [0, 3.5, 0], FLAT)
   soft(writer, 8, ropeLine(21, 2), { type: 'rope', pins: [0] }, [2, 3, 0])
-  soft(writer, 9, sphere(0.3, 12, 8), { type: 'volume' }, [-2, 1.5, 0])
+  soft(
+    writer,
+    9,
+    sphere(0.3, 12, 8),
+    { type: 'volume', pressure: REFERENCE_PRESSURE },
+    [-2, 1.5, 0],
+  )
   const pins = Array.from({ length: 9 }, (_, i) => 72 + i)
   soft(writer, 10, plane(1, 1, 8, 8), { type: 'cloth', pins, stretch: 0.01 }, [0, 3, 3], FLAT)
   writer.flags(7, FLAG.events)

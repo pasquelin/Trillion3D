@@ -1,6 +1,6 @@
 import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import { CPU_STEP } from './cpuStepTable.ts'
-import { gpuFrameCostSnapshot, logFrameCostAudit } from '../../../frame/costAudit.ts'
+import { gpuFrameCostSnapshot } from '../../../frame/costAudit.ts'
 import type { HostCpuStep } from '../../../host/cpuProfile.ts'
 import { debugMode } from '../../../host/debugMode.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -84,7 +84,6 @@ function publishCpuProfile(rt: WebgpuPagesRuntime) {
     audit: gpuFrameCostSnapshot(rt),
   }
   diag.engineDiagnostic('cpu-timing', 'CPU timings measured in the engine', details)
-  logFrameCostAudit({ kind: 'cpu-profile', ...details })
 }
 
 /** Deposits the duration of a host-sampled step: arrivals, wait, retain, submit. */
@@ -97,7 +96,7 @@ export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: numbe
  * that just drew, so the row is filed only here. An image that has not filled a row — an image
  * waiting for coverage — deposits nothing rather than a row of zeros. Nor does an image no one
  * profiles: the windows are filed in debug mode, for the stage profile, or for a listened
- * channel or the frame audit, which publish them.
+ * channel, which publishes them.
  */
 export function endCpuFrame(rt: WebgpuPagesRuntime) {
   const { timing, run } = rt

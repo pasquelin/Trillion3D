@@ -4,20 +4,28 @@ import {
   EFFECT_KINDS,
   effectPassTargets,
   effectTargetBytes,
-  type EffectPassOf,
 } from '../../effects/targets.ts'
-import { type FusedBlend, type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts'
+import {
+  type FusedBlend,
+  type Kinds,
+  type OverlayFrame,
+  type WebgpuEffectKind,
+  type WebgpuOverlayKind,
+  HDR_KINDS,
+  OVERLAY_KINDS,
+  WEBGPU_KINDS,
+} from './webgpuKinds.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 
 /**
- * The WebGPU side of `world.effects`: the passes that run before tone mapping, between the
- * temporal resolve and the composition that tone-maps. Each pass writes a full-size
- * `rgba16float` target the next one reads, two in turn at most; each kind keeps its own resources.
- * Nothing exists before the first frame with a pass: the targets are made then, at the image's
- * size, and follow it — one fewer, as the composition takes the last pass's blend over;
- * a kind's programs compile in the background at its first pass, and until
- * every kind of the chain is ready the image is drawn without the chain (`loading`), which its
- * caller draws again once they arrive (`settled`) rather than hold. `fail` is called when one
+ * The WebGPU side of `world.effects`: the passes that run before tone mapping, between the temporal
+ * resolve and the composition that tone-maps, and those drawn over the display image it made
+ * (`overlay`). Each pass writes a full-size `rgba16float` target the next one reads, two in turn at
+ * most; each kind keeps its own resources. Nothing exists before the first frame with a pass: the
+ * targets are made then, at the image's size, and follow it — one fewer, as the composition takes
+ * the last pass's blend over; a kind's programs compile in the background at its first pass, and
+ * until every kind of the chain is ready the image is drawn without the chain (`loading`), which
+ * its caller draws again once they arrive (`settled`) rather than hold. `fail` is called when one
  * cannot be made, and the image stays without the chain.
  */
 export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) => void) {
@@ -35,7 +43,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     views: GPUTextureView[] = []
   const load = <K extends EffectKind>(kind: K) => {
     if (failed || pending.has(kind)) return
-    const loaded = WEBGPU_KINDS[kind](device).then(
+    const loaded = WEBGPU_KINDS[kind].create(device).then(
       (implementation) => {
         // Arrived after the chain was disposed (a closed session, a lost device): freed, unsaid.
         if (disposed) return implementation.dispose()
@@ -51,18 +59,28 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     )
     pending.set(kind, loaded)
   }
+  /** The implementation of a pass's kind at its stage, compiled (`readyFor`): the chain holds
+   *  built-ins only (`EffectKind`), each drawn at the stage its table entry says. */
+  const before = (kind: EffectKind) => made[kind] as WebgpuEffectKind<EffectPass>
+  const after = (kind: EffectKind) => made[kind] as WebgpuOverlayKind<EffectPass>
   /** Draws `pass` with its kind's implementation; the chain holds built-ins only (`EffectKind`). */
-  const encodePass = <K extends EffectKind>(
+  const encodePass = (
     encoder: GPUCommandEncoder,
-    pass: EffectPassOf<K>,
+    pass: EffectPass,
     input: GPUTextureView,
     output: GPUTextureView | undefined,
-  ) => made[pass.kind as K]!.encode(encoder, pass, nth[pass.kind]++, input, output)
+  ) => before(pass.kind).encode(encoder, pass, nth[pass.kind]++, input, output)
+  /** Frees the pass targets and what the kinds before tone mapping hold; the overlays keep
+   *  theirs. */
   const release = () => {
     for (const target of targets) target.destroy()
     targets.length = views.length = 0
-    for (const kind of EFFECT_KINDS) made[kind]?.resize(0, 0, 0)
+    for (const kind of HDR_KINDS) made[kind]?.resize(0, 0, 0)
     width = height = 0
+  }
+  /** Frees what the overlays hold. */
+  const releaseOverlays = () => {
+    for (const kind of OVERLAY_KINDS) made[kind]?.resize(0, 0, 0)
   }
   const ensure = (count: number, w: number, h: number) => {
     if (w !== width || h !== height) release()
@@ -80,7 +98,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
       targets.push(target)
       views.push(target.createView())
     }
-    for (const kind of EFFECT_KINDS) made[kind]?.resize(w, h, counts[kind])
+    for (const kind of HDR_KINDS) made[kind]?.resize(w, h, counts[kind])
   }
   /** Counts the passes of each kind; false while a kind they need is not compiled. */
   const readyFor = (passes: readonly EffectPass[]) => {
@@ -137,26 +155,46 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
         return input
       }
       if (!readyFor(passes)) return input
-      const fuses = 'blend' in made[passes[passes.length - 1].kind]!
+      const fuses = 'blend' in before(passes[passes.length - 1].kind)
       const last = passes.length - (fuses ? 1 : 0)
       ensure(effectPassTargets(last), w, h)
       let view = input,
         written = 0
       for (let index = 0; index < passes.length; index++) {
-        const pass = passes[index] as EffectPassOf<EffectKind>,
+        const pass = passes[index],
           output = index < last ? views[written % 2] : undefined,
           drawn = encodePass(encoder, pass, view, output)
         if (!drawn) continue
         draws += drawn
-        if (!output) blend = made[pass.kind]!.blend
+        if (!output) blend = before(pass.kind).blend
         else view = output
         written++
       }
       return view
     },
+    /** Draws `passes`, the chain's after tone mapping, over `frame`'s display image, in order, an
+     *  idle one passed by; returns the render passes encoded, none while a kind they need compiles
+     *  (`loading`). With no pass to draw, what the overlays hold is freed: nothing is allocated for
+     *  an idle pass. */
+    overlay(encoder: GPUCommandEncoder, passes: readonly EffectPass[], frame: OverlayFrame) {
+      let drawn = 0
+      if (!readyFor(passes)) return drawn
+      let any = false
+      for (const kind of OVERLAY_KINDS) {
+        made[kind]?.resize(frame.size[0], frame.size[1], counts[kind])
+        any ||= counts[kind] > 0
+      }
+      if (!any) return drawn
+      for (const pass of passes)
+        if (!pass.idle) drawn += after(pass.kind).overlay(encoder, pass, nth[pass.kind]++, frame)
+      return drawn
+    },
+    /** Frees what the overlays hold: the chain draws none. */
+    releaseOverlays,
     dispose() {
       disposed = true
       release()
+      releaseOverlays()
       for (const kind of EFFECT_KINDS) made[kind]?.dispose()
     },
   }

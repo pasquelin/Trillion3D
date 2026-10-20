@@ -10,6 +10,8 @@ import { BACKEND, writtenBytes } from '../../../../../tests/kit/gpu/fakeRecords.
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
   installGpuGlobals()
@@ -44,6 +46,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     ]),
   })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     draws: graphDraws(fixture.source, fixture.associations),
     indices: new Map(),
@@ -91,7 +94,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   legacy.material.transparent = true
   G.sided(legacy.material, G.DOUBLE_SIDE)
   legacy.metadata.primitives[0].mesh = 1
-  legacy.metadata.primitives[0].pass = 'shared-blend'
+  legacy.metadata.primitives[0].pass = 'clustered-blend'
   fixture.source.add(legacyMesh)
   fixture.metadata.primitives.push(legacy.metadata.primitives[0])
   fixture.associations.set(legacyMesh, { meshes: 1, primitives: 0 })
@@ -110,6 +113,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.associations.set(otherMesh, { meshes: 2, primitives: 0 })
   for (const [url, array] of other.indices) fixture.indices.set(`other-${url}`, array)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     draws: graphDraws(fixture.source, fixture.associations),
     gpuDevice: device,
@@ -135,43 +139,41 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   try {
     await backend.prepare()
     await image()
-    // Two paged meshes of two triangles, once each; a whole mesh outside the DAG by both faces.
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 8)
+    // Three paged meshes of two triangles, once each.
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 6)
     assert.equal(dessines(), 12, 'three meshes, two faces each')
     const uploads = writes.length
     otherMesh.position.x = 100
     await image()
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      6,
+      4,
       'another paged mesh can disappear without changing this mesh cut',
     )
     assert.equal(dessines(), 8)
-    // The frustum of a NON-paged item goes through the GPU: its call stays encoded, with a zero
-    // instance count. The submitted count, itself, no longer describes anything but what encoding set.
     legacyMesh.position.x = 100
     await image()
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 6)
-    assert.equal(dessines(), 4, 'legacy bounds update while the paged cut stays unchanged')
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 2)
+    assert.equal(dessines(), 4, 'a third leaves while the first cut stays unchanged')
     mesh.position.x = 100
     await image()
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 4)
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 0)
     assert.equal(dessines(), 0)
     mesh.position.x = 0
     await image()
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
-      6,
+      2,
       'cached pages become visible again',
     )
     assert.equal(dessines(), 4)
     legacyMesh.position.x = 0
     await image()
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 6)
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 4)
     assert.equal(dessines(), 8)
     otherMesh.position.x = 0
     await image()
-    assert.equal(backend.metrics().transparentSubmittedTriangles, 8)
+    assert.equal(backend.metrics().transparentSubmittedTriangles, 6)
     assert.equal(dessines(), 12)
     // Read by content, not by size: the GPU cut, which draws every image (#1483), writes other
     // 24-byte words when a placement moves, none of them an index.

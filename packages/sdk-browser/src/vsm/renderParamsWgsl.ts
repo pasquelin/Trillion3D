@@ -8,17 +8,31 @@ import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 /** THE NON-CLUSTER RASTER'S PARAMETERS AND INDIRECT ARGUMENTS (`renderCullWgsl.ts`): its chunk's
  *  uniform, its counters and the one-thread kernels that arm each next stage. */
 
-/** Words per chunk in the indirect argument buffer: cull dispatch 3, expand dispatch 3, draw 4, pad 2. */
-export const VSM_RENDER_ARGS_STRIDE_WORDS = 12
+/** The raster's corner tiers: tier t draws `VSM_RENDER_TIER_CORNERS << t` corners a pair, a row
+ *  taking the least tier that holds its corners (`vsmRenderTierOf`) — at most 256 triangles a
+ *  row, twice for a two-sided row: 1536 corners, the last tier's. */
+export const VSM_RENDER_TIERS = 5
+export const VSM_RENDER_TIER_CORNERS = 96
+/** Words per chunk in the indirect argument buffer, by dispatch: the cull's 3; a workgroup a command
+ *  3 (the transmission's page list); the bin's 3, a thread a command (`vsmRenderBin`); then 3 a
+ *  tier's expand, a workgroup a command of the tier; then a draw of 4 a tier. */
 export const VSM_RENDER_ARGS_CULL = 0
 export const VSM_RENDER_ARGS_EXPAND = 3
-export const VSM_RENDER_ARGS_DRAW = 6
-/** Counter words: [0] candidates, [1] the views the GPU listed (`renderViewsWgsl.ts`), then 4 per
- *  chunk from word 4: commands, pairs, max corners, pad. */
+export const VSM_RENDER_ARGS_BIN = 6
+export const VSM_RENDER_ARGS_TIER_EXPAND = 9
+export const VSM_RENDER_ARGS_DRAW = VSM_RENDER_ARGS_TIER_EXPAND + 3 * VSM_RENDER_TIERS
+export const VSM_RENDER_ARGS_STRIDE_WORDS = VSM_RENDER_ARGS_DRAW + 4 * VSM_RENDER_TIERS
+/** Counter words: [0] candidates, [1] the views the GPU listed (`renderViewsWgsl.ts`), then
+ *  `VSM_RENDER_CHUNK_COUNTS` per chunk from word 4: commands, then each tier's pairs, commands
+ *  and bin cursor (`VSM_RENDER_TIER_PAIRS`, `_CMDS`, `_CURSOR` + tier). */
 export const VSM_RENDER_COUNTS_HEAD = 4
-export const VSM_RENDER_COUNT_VIEWS = 1
+export const VSM_RENDER_TIER_PAIRS = 1
+export const VSM_RENDER_TIER_CMDS = VSM_RENDER_TIER_PAIRS + VSM_RENDER_TIERS
+const VSM_RENDER_TIER_CURSOR = VSM_RENDER_TIER_CMDS + VSM_RENDER_TIERS
+export const VSM_RENDER_CHUNK_COUNTS = VSM_RENDER_TIER_CURSOR + VSM_RENDER_TIERS
+const VSM_RENDER_COUNT_VIEWS = 1
 /** Map view flag: directional (clipmap level, 1 mip, clamp to near plane — the near-plane clamp). */
-export const VSM_RENDER_VIEW_DIRECTIONAL = 1
+const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
 /**
  * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
@@ -60,12 +74,26 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
 struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,corners:u32,flags:u32,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
+/** Bit 2: the row's triangles face the light clockwise in world space — a mirroring placement
+ *  or a back-side row (\`FLAG_BACK\`), not both (\`vsmRenderAppendCandidate\`). */
+const VSM_RENDER_CAND_FLIPPED:u32=4u;
 ${wgslConsts({
   VSM_RENDER_VIEW_DIRECTIONAL,
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_COUNT_VIEWS,
+  VSM_RENDER_CHUNK_COUNTS,
+  VSM_RENDER_TIER_PAIRS,
+  VSM_RENDER_TIER_CMDS,
+  VSM_RENDER_TIER_CURSOR,
+  VSM_RENDER_TIERS,
+  VSM_RENDER_TIER_CORNERS,
 })}
-fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*4u+k;}
+fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*VSM_RENDER_CHUNK_COUNTS+k;}
+/** The least tier whose pairs draw \`corners\` corners: \`VSM_RENDER_TIER_CORNERS << tier\` ≥ corners. */
+fn vsmRenderTierOf(corners:u32)->u32{
+ let q=max((corners+VSM_RENDER_TIER_CORNERS-1u)/VSM_RENDER_TIER_CORNERS,1u);
+ return min(select(firstLeadingBit(q-1u)+1u,0u,q==1u),VSM_RENDER_TIERS-1u);
+}
 `,
 )
 
@@ -91,19 +119,40 @@ fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRID
   args[at+2u]=1u;
  }
 }
-/** Expand dispatch of this chunk: one workgroup per command. */
-@compute @workgroup_size(1) fn vsmRenderArgsExpand(){
- let n=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
- let g=groupGrid(n);
- let at=vsmRenderArgsAt(params.chunk,${VSM_RENDER_ARGS_EXPAND}u);
+fn vsmRenderArgsGrid(word:u32,groups:u32){
+ let g=groupGrid(groups);
+ let at=vsmRenderArgsAt(params.chunk,word);
  args[at]=g.x;args[at+1u]=g.y;args[at+2u]=1u;
 }
-/** Draw of this chunk: max corners vertices, one instance per pair. */
+/** The dispatches over this chunk's commands: a workgroup a command, the bin's thread a command,
+ *  and each tier's expand, a workgroup a command of the tier — the tier's commands from its first
+ *  in the bin's order (the lower tiers' counts summed, here once), where its cursor starts. */
+@compute @workgroup_size(1) fn vsmRenderArgsExpand(){
+ let n=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
+ vsmRenderArgsGrid(${VSM_RENDER_ARGS_EXPAND}u,n);
+ vsmRenderArgsGrid(${VSM_RENDER_ARGS_BIN}u,ceilDiv(n,WORKGROUP_THREADS));
+ var first=0u;
+ for(var t=0u;t<VSM_RENDER_TIERS;t++){
+  let tierCmds=atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,VSM_RENDER_TIER_CMDS+t)]);
+  atomicStore(&counts[vsmRenderChunkCounter(params.chunk,VSM_RENDER_TIER_CURSOR+t)],first);
+  vsmRenderArgsGrid(${VSM_RENDER_ARGS_TIER_EXPAND}u+3u*t,tierCmds);
+  first+=tierCmds;
+ }
+}
+/** The draws of this chunk, one a tier: its pairs lie after the lower tiers' in the list
+ *  (\`vsmRenderExpand\`), each drawn by its tier's corners — vertex k of pair p is vertex
+ *  p · corners + k of one instance, so a draw starts at its first pair by its first vertex. */
 @compute @workgroup_size(1) fn vsmRenderArgsDraw(){
- let n=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,1u)]),params.pairCapacity);
- let at=vsmRenderArgsAt(params.chunk,${VSM_RENDER_ARGS_DRAW}u);
- args[at]=atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,2u)]);
- args[at+1u]=n;args[at+2u]=0u;args[at+3u]=0u;
+ var first=0u;
+ for(var t=0u;t<VSM_RENDER_TIERS;t++){
+  let next=first+atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,VSM_RENDER_TIER_PAIRS+t)]);
+  let start=min(first,params.pairCapacity);
+  let end=min(next,params.pairCapacity);
+  let corners=VSM_RENDER_TIER_CORNERS<<t;
+  let at=vsmRenderArgsAt(params.chunk,${VSM_RENDER_ARGS_DRAW}u+4u*t);
+  args[at]=(end-start)*corners;args[at+1u]=1u;args[at+2u]=start*corners;args[at+3u]=0u;
+  first=next;
+ }
 }
 `,
   [VSM_RENDER_PARAMS_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL, ceilDivWgsl],

@@ -1,35 +1,35 @@
 /**
- * THE ONE READ OF A HELD LEVEL: the cooked levels, level files and block tile records a session
- * cuts its tiles from — an impostor map's among them (`webgpu/tile/cardMaps.ts`) —, read through
- * its level reader and held among the page cache's entries under the reader's cook
- * (`TextureLevelReader.store`, `streaming/pageCache.ts`), within its one budget, the least
+ * THE ONE READ OF A HELD LEVEL: the cooked levels and block tile records a session cuts its tiles
+ * from, read through its level reader and held among the page cache's entries under the reader's
+ * cook (`TextureLevelReader.store`, `streaming/pageCache.ts`), within its one budget, the least
  * recently read leaving first. That is the chain's only host memory, and it does not depend on
  * the scene.
  *
- * A lossless level is read whole, decoded by the browser: a PNG is not cut by bytes. A block tile
- * is read alone, its record by one HTTP Range (`levelReader.ts`, `tileRecords.ts`), its length
- * checked. A read is asked only when it fits in what eviction can free beside the reads in flight
- * (`PageCache.roomBytes`); one that cannot fit at all is refused, its tile served by its coarse
- * level until room comes back. An in-flight read is never doubled.
+ * A tile is read alone, its record by one HTTP Range (`levelReader.ts`, `tileRecords.ts`) — as
+ * blocks, or decoded to RGBA8 for the lossless lane —, its length checked. A read is asked only
+ * when it fits in what eviction can free beside the reads in flight (`PageCache.roomBytes`); one
+ * that cannot fit at all is refused, its tile served by its coarse level until room comes back. An
+ * in-flight read is never doubled.
  *
- * A read that fails is reported to the asker that launched it, and what it read — a lossless
- * level's file, a block level's record, each apart — is held back by the one failure policy
- * (`streaming/failures.ts`), which says when it is asked again, if ever; a record answered short or
- * foreign is refused for good. Its tile stays served by its coarse level meanwhile. The failures
- * live with the reader, one per level or record asked at most.
+ * A read that fails is reported to the asker that launched it, and the record it read is held back
+ * by the one failure policy (`streaming/failures.ts`), which says when it is asked again, if ever;
+ * a record answered short or foreign is refused for good. Its tile stays served by its coarse level
+ * meanwhile. The failures live with the reader, one per record asked at most.
+ *
+ * The reads in flight and the room they hold are the store's, every reader's (`flightOf`): a
+ * session drawing the textures of several caches reads them all through its one page cache, within
+ * one bound of reads and one room, however many cooks it reads.
  */
 import {
+  tileLevelBytes,
   type TextureLevel,
   type TextureLevelAddress,
   type TextureLevelReader,
-  type TextureLevelRequest,
+  type TextureLevelStore,
 } from './levelReader.ts'
 import { createReadFailures } from '../streaming/failures.ts'
-import { createListeners } from '../../../sdk-core/src/runtime/listeners.ts'
 import { retriableError } from '../cluster/checked.ts'
 import { tileRecord } from './tileRecords.ts'
-import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/texture/previewFormat.ts'
-import { rgbaBytes } from './imageExtent.ts'
 
 /** Block bytes that are not the whole blocks their dimensions imply: a tile's record answered
  *  short or foreign, or a tail level (`webgpu/tile/writeBlocks.ts`). */
@@ -46,62 +46,71 @@ export type LevelFailed = (address: TextureLevelAddress, error: unknown) => void
 const MAX_LEVEL_READS = 6
 const always = () => true
 
-/** What `address` is held under for the cook `cook`, one string a tile asks: the whole level when
- *  `lossless` — its file —, else the tile `tx`, `ty`'s record. The format is in it: a session that
- *  changes family mid-life reads the other file. */
-function levelId(
-  cook: string,
-  { sha256, atlas, level, format }: TextureLevelAddress,
-  lossless: boolean,
-  tx: number,
-  ty: number,
-) {
-  const file = `${cook}/${sha256}/${atlas}/${level}/${format}`
-  return lossless ? file : `${file}/${tx},${ty}`
+/** What the level `address` names is read under for the cook `cook`: the format and the decoding
+ *  are in it — a session that changes family mid-life reads the other file, or the same decoded. */
+const levelKey = (cook: string, { sha256, atlas, level, format, rgba }: TextureLevelAddress) =>
+  `${cook}/${sha256}/${atlas}/${level}/${format}${rgba ? '/rgba' : ''}`
+/** What tile `tx`, `ty` of a level is held under, one string a tile asks. */
+const tileKey = (level: string, tx: number, ty: number) => `${level}/${tx},${ty}`
+
+/** The reads in flight of one store, every reader's, and the bytes they will hold once landed. */
+type Flight = { pending: Map<string, Promise<void>>; reading: number }
+const flights = new WeakMap<TextureLevelStore, Flight>()
+/** The one flight of `store`: made on first use, gone with the store. */
+function flightOf(store: TextureLevelStore) {
+  let flight = flights.get(store)
+  if (!flight) flights.set(store, (flight = { pending: new Map(), reading: 0 }))
+  return flight
 }
 
 function createHeldLevels(read: TextureLevelReader) {
   const { store, key } = read,
-    pending = new Map<string, Promise<void>>(),
+    flight = flightOf(store),
+    { pending } = flight,
     failures = createReadFailures({
       retriable: (error) => !(error instanceof LevelBytesError) && retriableError(error),
-    }),
-    /** Who hears each level land. */
-    watchers = createListeners()
-  /** Bytes the reads in flight will hold once landed. */
-  let reading = 0,
-    fetched = 0
-  /** Reads `request`, `bytes` once landed, and holds it under `id`; a failure told `failed`. */
+    })
+  let fetched = 0
+  /** Each level's key under this reader's cook (`levelKey`), by its address: made once a level
+   *  whose address is kept (`webgpu/tile/serveTile.ts`). */
+  const levelIds = new WeakMap<TextureLevelAddress, string>()
+  const levelIdOf = (address: TextureLevelAddress) => {
+    let id = levelIds.get(address)
+    if (id === undefined) levelIds.set(address, (id = levelKey(key, address)))
+    return id
+  }
+  /** Runs `land`, a read that holds what it brings, under `id`, `bytes` once landed; a failure told
+   *  `failed` about `address`. */
   const launch = (
     id: string,
-    request: TextureLevelRequest,
-    size: Size,
+    address: TextureLevelAddress,
     bytes: number,
     failed: LevelFailed,
+    land: () => Promise<void>,
   ) => {
-    reading += bytes
-    const landing = read(request)
-      .then((level) => {
-        if (level instanceof Uint8Array && level.byteLength !== request.range?.bytes)
-          throw new LevelBytesError(size, level.byteLength)
+    flight.reading += bytes
+    const landing = land()
+      .then(() => {
         failures.passed(id)
         fetched++
-        store.keepLevel(id, level)
-        watchers.emit()
       })
       .catch((error: unknown) => {
         failures.record(id, error)
-        failed(request, error)
+        failed(address, error)
       })
       .finally(() => {
         pending.delete(id)
-        reading -= bytes
+        flight.reading -= bytes
       })
     pending.set(id, landing)
   }
-  /** `read`, `id` the level's: what it is held under. */
-  const readId = (
-    id: string,
+  /** Holds `level` under `id` once its length is the `bytes` its record implies. */
+  const keep = (id: string, level: TextureLevel, bytes: number, size: Size) => {
+    if (level.byteLength !== bytes) throw new LevelBytesError(size, level.byteLength)
+    store.keepLevel(id, level)
+  }
+  /** `read` of tile `tx`, `ty`: its record alone. */
+  const readTile = (
     address: TextureLevelAddress,
     size: Size,
     failed: LevelFailed,
@@ -109,31 +118,30 @@ function createHeldLevels(read: TextureLevelReader) {
     ty: number,
     roomFor: () => boolean,
   ): TextureLevel | 'waiting' | 'refused' => {
+    const id = tileKey(levelIdOf(address), tx, ty)
     const held = store.level(id)
     if (held) return held
     if (!roomFor()) return 'refused'
     if (pending.has(id) || failures.blocked(id) || pending.size >= MAX_LEVEL_READS) return 'waiting'
     // The record is reckoned where it is needed: a waiting tile asks every frame.
-    const range =
-        address.format === PREVIEW_LOSSLESS_FORMAT
-          ? undefined
-          : tileRecord(size[0], size[1], tx, ty),
-      bytes = range?.bytes ?? rgbaBytes(size[0], size[1]),
+    const bytes = tileLevelBytes(tileRecord(...size, tx, ty).bytes, address.rgba),
       room = store.roomBytes
     if (bytes > room) return 'refused'
     // The reads in flight hold their room: one that fits only once they have landed waits for
     // them, rather than landing to evict a level read for a tile not cut yet.
-    if (reading + bytes > room) return 'waiting'
-    launch(id, range ? { ...address, range } : address, size, bytes, failed)
+    if (flight.reading + bytes > room) return 'waiting'
+    launch(id, address, bytes, failed, async () =>
+      keep(id, await read({ ...address, size, tx, ty }), bytes, size),
+    )
     return 'waiting'
   }
   return {
     /**
-     * What a tile is cut from — the lossless level `address` names, or the block tile `tx`, `ty`'s
-     * record — marked read, the level `size` texels wide and high; otherwise `waiting` while its
-     * read is asked — launched here when none is in flight or held back, its failure told
-     * `failed` — and `refused` when `roomFor` says the caller has no place for it, or it cannot
-     * fit at all: nothing will come until room comes back, and nothing was read.
+     * What a tile is cut from — the block tile `tx`, `ty`'s record of the level `address` names,
+     * as blocks or decoded — marked read, the level `size` texels wide and high; otherwise
+     * `waiting` while its read is asked — launched here when none is in flight or held back, its
+     * failure told `failed` — and `refused` when `roomFor` says the caller has no place for it, or
+     * it cannot fit at all: nothing will come until room comes back, and nothing was read.
      */
     read(
       address: TextureLevelAddress,
@@ -143,11 +151,9 @@ function createHeldLevels(read: TextureLevelReader) {
       ty = 0,
       roomFor: () => boolean = always,
     ) {
-      const id = levelId(key, address, address.format === PREVIEW_LOSSLESS_FORMAT, tx, ty)
-      return readId(id, address, size, failed, tx, ty, roomFor)
+      return readTile(address, size, failed, tx, ty, roomFor)
     },
-    /** Tells `landed` each level that lands from now on; returns what stops it. */
-    watch: watchers.subscribe,
+    /** Reads in flight in its store, every reader's. */
     get inFlight() {
       return pending.size
     },
@@ -158,7 +164,7 @@ function createHeldLevels(read: TextureLevelReader) {
     get bytes() {
       return store.levelBytes
     },
-    /** Held when every in-flight read has succeeded or failed. */
+    /** Held when every read in flight in its store has succeeded or failed. */
     settled: () => Promise.all(pending.values()).then(() => undefined),
   }
 }
@@ -167,8 +173,7 @@ export type HeldLevels = ReturnType<typeof createHeldLevels>
 
 const made = new WeakMap<TextureLevelReader, HeldLevels>()
 
-/** The one held-level read of `read`, every tile's, an impostor map's included: made on first
- *  use, gone with its reader. */
+/** The one held-level read of `read`, every tile's: made on first use, gone with its reader. */
 export function heldLevelsOf(read: TextureLevelReader) {
   let levels = made.get(read)
   if (!levels) made.set(read, (levels = createHeldLevels(read)))

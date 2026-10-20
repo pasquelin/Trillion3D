@@ -38,3 +38,35 @@ test('a list marked with its repeated records skipped leaves the deltas marked o
     assert.deepEqual(listed(marked.finish()), listed(oneByOne.finish()), `image ${image}`)
   }
 })
+
+test('the retained cut carries the bundles it is installed after, each placement of a page once', () => {
+  const ranked = (requestIndex: number, dependencies?: { requestIndex: number }[]) => ({
+    requestIndex,
+    dependencies,
+  })
+  // `a` follows `r` and `m`, which follows `z`: `m` is marked first as a bundle of `a`, then as a
+  // page of the cut, which brings its own bundle.
+  const r = ranked(0),
+    z = ranked(5),
+    m = ranked(1, [z]),
+    a = ranked(2, [r, m]),
+    q = ranked(3),
+    b = ranked(4, [q])
+  const byNumber = (x: number, y: number) => x - y
+  const delta = createHostRankDelta(URLS.length, URLS)
+  delta.begin()
+  // Three placements of `a` and `b`, then `m` itself.
+  delta.markClosed([a, b, a, b, a, m])
+  assert.deepEqual(listed(delta.finish()).held.sort(byNumber), [0, 1, 2, 3, 4, 5])
+  // The next image keeps `b` alone: its bundle stays, the others leave.
+  delta.begin()
+  delta.markClosed([b, b])
+  const { exited, held } = listed(delta.finish())
+  assert.deepEqual(
+    [held.sort(byNumber), exited.sort(byNumber)],
+    [
+      [3, 4],
+      [0, 1, 2, 5],
+    ],
+  )
+})

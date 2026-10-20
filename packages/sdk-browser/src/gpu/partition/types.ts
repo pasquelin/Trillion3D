@@ -1,4 +1,5 @@
 import type { PartitionFrame } from './uniform.ts'
+import type { CullStep } from '../core/heldCopy.ts'
 import type { PartitionCountsFrame } from './counters.ts'
 import type { PendingGrowth } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
@@ -63,6 +64,14 @@ export type GpuPartition = {
    * encoder commands, which no open pass allows —, the uniform written.
    */
   beginFrame(encoder: GPUCommandEncoder, frame: PartitionFrame): void
+  /** What the last frame does with its occlusion (`PartitionFrame.cull`). */
+  readonly cull: CullStep
+  /** The last frame draws again the verdicts a frozen cut kept: nothing is tested, by the
+   *  partition, the Hi-Z test or the transparents' test, which all read this. */
+  readonly held: boolean
+  /** On the first image of a frozen cut, the verdicts and rest bits it tested kept aside, after its
+   *  occlusion test: what its next images draw again. Nothing on any other image. */
+  keepVerdicts(encoder: GPUCommandEncoder): void
   /** The frame `beginFrame` prepared, as dispatches of the frame's compute pass: what it counts
    *  cleared, then each row projected, then classified. None on a frame without a pyramid. */
   encode(open: OpenPass): void

@@ -2,25 +2,25 @@
  * The host scene graph of the prepared scene, assembled from the node table under the rules the
  * host loader applied, since the scene the engine draws is proven by being the same scene:
  *
- * - a node carrying one thing IS that thing (a mesh, a camera, a light), one carrying several is a group of
- *   them, one carrying nothing is a bare node; its children follow what it carries;
+ * - a node carrying one thing IS that thing (a mesh, a camera), one carrying several is a group of
+ *   them, one carrying nothing is a bare node; its children follow what it carries. A lamp is not
+ *   carried: the source's lamps are read once, from `lights.json` (`lighting/importedLights.ts`);
  * - a mesh of one primitive is one host mesh, a mesh of several a group of one host mesh each;
- * - a mesh, a camera or a light several nodes name is copied per node, the copies sharing geometry and
+ * - a mesh or a camera several nodes name is copied per node, the copies sharing geometry and
  *   surface, and named `_instance_<n>` in turn;
- * - names are made unique in the order the loader reserved them: scene, then each node, its
- *   camera and its light depth first, then each mesh as its surfaces are ready — in the order
+ * - names are made unique in the order the loader reserved them: scene, then each node and its
+ *   camera depth first, then each mesh as its surfaces are ready — in the order
  *   they are first named when they are ready together, in the order their images land when not;
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
 import { readPreparedSourceRank } from './sourceRanks.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
-import { camera, light, pose, uniqueNames, weigh } from './nodes.ts'
+import { camera, pose, uniqueNames, weigh } from './nodes.ts'
 import { buildMeshes, type MeshInputs } from './meshes.ts'
 import { isDrawnNode } from '../graph/kinds.ts'
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import { placedMeshes } from './placed.ts'
 import { bindSkins, clipsOf, movedNodes } from './motion.ts'
 import type { RowLink } from '../../partition/rows.ts'
@@ -54,13 +54,13 @@ type Unique = ReturnType<typeof uniqueNames>
 
 /** The object a node names, or its copy when several nodes name it. */
 function referencer(tables: PreparedSceneTables, unique: Unique, ranks: Map<Object3D, MeshRanks>) {
-  const refs = (field: 'mesh' | 'light' | 'camera') => {
+  const refs = (field: 'mesh' | 'camera') => {
     const counts = new Map<number, number>()
     for (const node of tables.nodes)
       if (node[field] !== null) counts.set(node[field], (counts.get(node[field]) ?? 0) + 1)
     return counts
   }
-  const counts = { mesh: refs('mesh'), light: refs('light'), camera: refs('camera') }
+  const counts = { mesh: refs('mesh'), camera: refs('camera') }
   const uses = new Map<string, number>()
   return (kind: keyof typeof counts, rank: number, made: Object3D) => {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made
@@ -80,11 +80,10 @@ function referencer(tables: PreparedSceneTables, unique: Unique, ranks: Map<Obje
   }
 }
 
-/** Names first, depth first: node, then its camera, then its light; each camera and each light
- *  is built at its first use. `order` lists the meshes in the order they were first named. */
+/** Names first, depth first: node, then its camera; each camera is built at its first use.
+ *  `order` lists the meshes in the order they were first named. */
 function reserveNames(tables: PreparedSceneTables, unique: Unique) {
   const cameras = new Map<number, Camera>()
-  const lights = new Map<number, Light>()
   const nodeNames = new Map<number, string>()
   const order: number[] = []
   const named = new Set<number>()
@@ -104,10 +103,6 @@ function reserveNames(tables: PreparedSceneTables, unique: Unique) {
       if (declared.name) made.name = unique(declared.name)
       cameras.set(node.camera, made)
     }
-    if (node.light !== null && !lights.has(node.light)) {
-      const declared = tables.lights[node.light]
-      lights.set(node.light, light(declared, unique(declared.name || `light_${node.light}`)))
-    }
     for (const child of node.children) reserve(child)
   }
   for (const root of tables.scene.nodes) reserve(root)
@@ -117,14 +112,14 @@ function reserveNames(tables: PreparedSceneTables, unique: Unique) {
       named.add(rank)
       order.push(rank)
     }
-  return { cameras, lights, nodeNames, order }
+  return { cameras, nodeNames, order }
 }
 
 /** Builds a node and its subtree as the host loader did; `nodes` holds the host node of each
  *  rank, which a cell's node may hang under. */
 function assembler(
   tables: PreparedSceneTables,
-  { cameras, lights, nodeNames }: ReturnType<typeof reserveNames>,
+  { cameras, nodeNames }: ReturnType<typeof reserveNames>,
   built: ReadonlyMap<number, Object3D>,
   reference: ReturnType<typeof referencer>,
 ) {
@@ -141,8 +136,6 @@ function assembler(
     }
     if (declared.camera !== null)
       carried.push(reference('camera', declared.camera, cameras.get(declared.camera)!))
-    if (declared.light !== null)
-      carried.push(reference('light', declared.light, lights.get(declared.light)!))
     const node =
       carried.length === 1
         ? carried[0]

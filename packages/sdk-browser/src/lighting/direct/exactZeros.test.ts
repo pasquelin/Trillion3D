@@ -1,12 +1,12 @@
 // Two terms a light's loop skips where develop added an exact zero, which leaves every sum as it
-// is: a thin transmission on a surface that has none (`declaredLightWgsl`, develop's `0 · x`, a zero
-// of either sign), and the standard lobes of a light the surface faces away from
-// (`surfaceLight`, N·L = 0: finite D, Vis and F times direct = light.w · 0). The shipped loop runs
-// in f32 (`shaderRun`, `shaderRunF32.fixture.ts`) against develop's — the same text with the skip
-// undone —, in the four programs (shadow code or not, rectangle code or not) and the three surface
-// models, on random lamp sets around a random normal (half of them behind it), with no thin
-// transmission, a signed-zero one and a real one lit from behind: the sums are the same numbers,
-// bit for bit, each skip alone and both.
+// is: a thin transmission on a surface that has none (`declaredLightWgsl`, develop's `0 · x`, a
+// zero of either sign), and the standard lobes of a light the surface faces away from
+// (`surfaceLight`, N·L = 0 and no coat facing it: finite D, Vis and F times direct = light.w · 0).
+// The shipped loop runs in f32 (`shaderRun`, `shaderRunF32.fixture.ts`) against develop's — the
+// same text with the skip undone —, in the four programs (shadow code or not, rectangle code or
+// not) and the three surface models, on random lamp sets around a random normal (half of them
+// behind it), with no thin transmission, a signed-zero one and a real one lit from behind: the sums
+// are the same numbers, bit for bit, each skip alone and both.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -22,7 +22,7 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
   /var transmitted=vec3f\(0\.0\);\n if\(thinSurface\(\)\)\{transmitted=(lambertDiffuse\(thinSubsurface,[^;]*\));\}/
-const EARLY = /\n if\(NdotL==0\.0\)\{return vec3f\(0\.0\);\}/
+const EARLY = /\n if\(NdotL==0\.0&&coatNdotL==0\.0\)\{return vec3f\(0\.0\);\}/
 /** Develop's text: the thin skip, the early zero, or both undone. */
 const UNDO = {
   thin: (text: string) => text.replace(GUARDED, 'let transmitted=$1;'),

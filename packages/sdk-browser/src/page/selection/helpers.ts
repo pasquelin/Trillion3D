@@ -3,7 +3,6 @@ import {
   CULL_CHILD_COUNT,
   CULL_FIRST_CHILD,
   CULL_FIRST_PAGE,
-  CULL_MAX,
   CULL_MIN,
   CULL_PAGE_COUNT,
   CULL_STRIDE,
@@ -17,6 +16,7 @@ import {
   type StreamCatalogue,
 } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { PageRec } from './types.ts'
+import { boxGrow } from '../../../../math/src/geometry/box.ts'
 
 /**
  * The largest distance the primitive's grid moved one of its source positions, in object units
@@ -53,10 +53,7 @@ export function cullingNodes(
     // -1 says the subtree holds a cluster nothing replaces; a bound is raised, a sentinel is not.
     if (nodes[base + CULL_CEIL] >= 0) nodes[base + CULL_CEIL] += quantizationError
     // A node encloses the boxes of its clusters, which the grid moved by the same length.
-    for (let axis = 0; axis < 3; axis++) {
-      nodes[base + CULL_MIN + axis] -= quantizationError
-      nodes[base + CULL_MAX + axis] += quantizationError
-    }
+    boxGrow(nodes, base + CULL_MIN, nodes, base + CULL_MIN, quantizationError)
     if (children > 0) {
       if (nodes[base + CULL_FIRST_CHILD] + children > culling.count)
         throw new Error('Inconsistent culling hierarchy')
@@ -137,7 +134,8 @@ export function streamPlacement(
     if (typeof page.stream !== 'number' || typeof page.streamOffset !== 'number') return undefined
     const bundle = streams.pages[page.stream]
     if (!bundle) throw new Error(`Page ${page.id} outside streaming bundles`)
-    if (page.streamOffset + page.count * 4 > bundle.bytes)
+    // A page reads its geometry page from the bundle, or its indices where it has none.
+    if (page.streamOffset + (page.geometry?.bytes ?? page.count * 4) > bundle.bytes)
       throw new Error(`Page ${page.id} exceeds its bundle`)
     return { url: bundle.url, offset: page.streamOffset }
   })

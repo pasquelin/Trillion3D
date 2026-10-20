@@ -173,7 +173,10 @@ function post() {
 async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   // The module's threads run in workers of this same script (`thread` messages below); until
   // each has loaded, `jolt` stays unset: nothing steps, the page's messages wait in `inbox`.
-  ;({ jolt, tuner, results } = await startPhysics(message, scope, buffers, fail))
+  const started = await startPhysics(message, scope, buffers, fail)
+  jolt = started.jolt
+  tuner = started.tuner
+  results = started.results
   step = message.step
   buffers.push(...message.buffers)
   scope.postMessage({ type: 'ready' })

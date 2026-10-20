@@ -27,7 +27,7 @@ type Reference = ReturnType<typeof referenceOptions>['reference']
  *  `__trillion3d.profiler.printReport()`, `.startAutoLog(2)`. */
 function exposeProfiler(profiler: EngineProfiler) {
   if (typeof window === 'undefined') return
-  ;(window as unknown as { __trillion3d: unknown }).__trillion3d = { profiler }
+  Object.assign(window, { __trillion3d: { profiler } })
 }
 
 /** The public session over its runtime: the API, its own loop when interactive, and the captures

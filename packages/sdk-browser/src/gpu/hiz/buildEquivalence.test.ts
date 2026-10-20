@@ -102,7 +102,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
     'if(uni.a!=0u){return hizLoadBound(i);}',
-    `if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizFrontAt(q));}`,
+    `if(${HIZ_NEAREST_BUILD}){return hizPlaneCorners(i,q,hizDepthAt(q));}`,
     'if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}',
     `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
     `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${HIZ_BUILD_SIDE}u],hizTile[i+dy*${HIZ_BUILD_SIDE}u+dx],dx,dy);`,
@@ -110,7 +110,11 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
     `if(${HIZ_NEAREST_BUILD}){return vec2f(max(a.x,b.x),min(a.y,b.y));}`,
   ])
     assert.ok(build.includes(line), line)
-  assert.equal(build.match(/workgroupBarrier\(\);/g)?.length, 2, 'read, barrier, write, barrier')
+  assert.equal(
+    build.match(/workgroupBarrier\(\);/g)?.length,
+    3,
+    'depth tile, barrier; read, barrier, write, barrier',
+  )
   // The culling layer is the opaque depth alone: a transparent surface in front must never hide
   // what lies behind it from the occlusion test, the partition's cull or the transparent test.
   assert.match(
@@ -119,7 +123,7 @@ test('the shipped build is one kernel over workgroup memory, with no copy kernel
   )
   assert.equal(
     HIZ_SHADER.match(/hizFrontAt\(/g)?.length,
-    3,
-    'its definition, the nearest build and the plane neighbours it reads: no other',
+    2,
+    'its definition and the depth tile, each texel loaded once: no other',
   )
 })

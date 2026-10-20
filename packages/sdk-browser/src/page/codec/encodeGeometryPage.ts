@@ -1,6 +1,8 @@
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
-import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
+import type { NormalCone } from '../cone/cone.ts'
+import { takeHeld, withArena } from '../../wasm/wasmArena.ts'
 import { META, META_WORDS, REQUEST, REQUEST_WORDS } from '../../wasm/encodeAbi.ts'
+import { pageQuantizationError, refused } from './geometryPage.ts'
 import { UV_EXPONENT } from '../../../../sdk-core/src/page/format.ts'
 import { isSkinJoint } from '../../../../sdk-core/src/page/pageInput.ts'
 import type {
@@ -13,15 +15,13 @@ import type {
  * The `WGP3` page encoder of the SDK module (`packages/page-codec-wasm/src/encode.rs`), the one the
  * native compiler writes every cooked page with: the run-time cut calls it through `encode_page`
  * (`wasm_encode.rs`) and gets the page the compiler would write for the same triangles and grids.
- * Source indices and `{ array, itemSize }` attributes (`POSITION` required) go in; the bytes and the
- * counts a manifest records come out. Corners are renumbered by first use, vertices on the same
+ * Source indices and `{ array, itemSize }` attributes (`POSITION` required) go in; the bytes, the
+ * counts a manifest records and the normal cone of the faces the page decodes to (`normal_cone.rs`,
+ * the compiler's one builder) come out. Corners are renumbered by first use, vertices on the same
  * cells kept once, positions once each when that is smaller; texture coordinates sit on
  * `2 ** uvExponent`, positions on `2 ** positionExponent`, which the header carries for every
  * decoder. A page the encoder refuses throws its code (`INVALID_PAGE`, `PAGE_ATTRIBUTE_RANGE`...).
  */
-
-/** The page's SDK module memory is shared by all callers; a refusal to reserve it is an error. */
-const memoryRefused = () => new Error('PAGE_ENCODER_MEMORY')
 
 /** The skin of `attributes`, every `JOINTS_n` rank side by side per vertex, or null. */
 function skinOf(attributes: PageAttributes, vertices: number) {
@@ -55,7 +55,7 @@ function skinOf(attributes: PageAttributes, vertices: number) {
   return { joints, weights, influences: width }
 }
 
-/** Encodes one page: `module` is the SDK WebAssembly module (`prepareSdkWasm`). */
+/** Encodes one page: `module` is the SDK WebAssembly module (`requireSdkWasm`). */
 export function encodeGeometryPage(
   module: SdkWasm,
   sourceIndices: ArrayLike<number>,
@@ -107,13 +107,12 @@ export function encodeGeometryPage(
       ...(target.NORMAL ? [{ type: 'f32' as const, array: target.NORMAL.array }] : []),
     ]),
   ]
-  const arena = reserveArena(module, [
-    { type: 'u32', length: REQUEST_WORDS + META_WORDS },
-    { type: 'u32', length: targets.length * 2 },
+  const requests = [
+    { type: 'u32' as const, length: REQUEST_WORDS + META_WORDS },
+    { type: 'u32' as const, length: targets.length * 2 },
     ...sources.map(({ type, array }) => ({ type, length: array.length })),
-  ])
-  if (!arena) throw memoryRefused()
-  try {
+  ]
+  return withArena(module, requests, 'PAGE_ENCODER_MEMORY', (arena) => {
     const [head, table, ...blocks] = arena.blocks()
     const words = head.view as Uint32Array
     const request = words.subarray(0, REQUEST_WORDS)
@@ -136,24 +135,18 @@ export function encodeGeometryPage(
     // The encoder allocates: its memory may have grown and detached the views taken above.
     const answer = arena.blocks()[0].view as Uint32Array
     const meta = answer.subarray(REQUEST_WORDS, REQUEST_WORDS + META_WORDS)
-    if (status !== 0) {
-      const bytes = new Uint8Array(meta.buffer, meta.byteOffset + 4, meta[0])
-      throw new Error(new TextDecoder().decode(bytes))
-    }
-    const quantizationError = new Float32Array(
-      meta.buffer,
-      meta.byteOffset + META.QUANTIZATION_ERROR * 4,
-      1,
-    )[0]
+    if (status !== 0) refused(meta)
+    const quantizationError = pageQuantizationError(meta)
+    // Four float64 from `META.CONE`, low word first: copied out, the block need not be aligned.
+    const [x, y, z, angle] = new Float64Array(meta.slice(META.CONE, META.CONE + 8).buffer)
     const result = {
       vertexCount: meta[META.VERTEX_COUNT],
       indexCount: meta[META.INDEX_COUNT],
       flags: meta[META.FLAGS],
       uncompressedBytes: meta[META.DECODED_BYTES],
       quantizationError,
+      cone: { axis: [x, y, z], angle } as NormalCone,
     }
     return { ...result, data: new Uint8Array(takeHeld(module)[0]) }
-  } finally {
-    arena.freed()
-  }
+  })
 }

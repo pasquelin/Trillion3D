@@ -126,7 +126,8 @@ test('every pass bounds its tile: the box, then the candidates', () => {
   const entry = functionsOf(PROJECTION_CODE, ['vsmProjection'])
   assert.match(
     entry,
-    / vsmTileBound\(pixel\.info\.valid,pixel\.shifted\);\n workgroupBarrier\(\);\n vsmTileCandidate\(groupIndex,lightCount\);/,
+    / if\(VSM_TRACE_KINDS!=\d+u\)\{\n {2}vsmTileBound\(pixel\.info\.valid,pixel\.shifted\);\n {2}workgroupBarrier\(\);\n {2}vsmTileCandidate\(groupIndex,lightCount\);/,
+    'a pass of suns alone builds no box: every light below the count is a candidate',
   )
   const { vsmLightsBelow } = shaderRun<{ vsmLightsBelow: (count: number) => number[] }>(
     PROJECTION_CODE,

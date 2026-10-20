@@ -1,4 +1,4 @@
-import { validationScope } from '../core/errorScope.ts'
+import { validated } from '../core/errorScope.ts'
 import { behind } from '../core/behind.ts'
 import { pendingMade } from '../core/tableGrowth.ts'
 import { JOURNAL_SECTION, flagSectionStart, type FlagShape } from './flagSections.ts'
@@ -38,17 +38,12 @@ async function growDagFlags(resources: DagResources, shape: FlagShape, disposed:
   const admission = admitBeside<GPUTexture>(resources, old.bytes)
   const make = (descriptor: GPUTextureDescriptor, bytes: number) =>
     admission.admit({ label: descriptor.label, bytes }, () => device.createTexture(descriptor))
-  let flags: ReturnType<typeof createFlagTable> | undefined
-  try {
-    const { value, error } = await validationScope(
-      device,
-      () => createFlagTable(device, shape, resources.pageCount, make),
-      'out-of-memory',
-    )
-    if (!error) flags = value
-  } catch {
-    /* A creation the device throws on is a refusal too. */
-  }
+  // A creation the device throws on is a refusal too.
+  const flags = await validated(
+    device,
+    () => createFlagTable(device, shape, resources.pageCount, make),
+    'out-of-memory',
+  ).catch(() => undefined)
   const { made } = admission
   const growth = pendingMade(
     device,

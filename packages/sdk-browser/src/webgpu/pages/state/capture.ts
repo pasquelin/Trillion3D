@@ -15,6 +15,12 @@ export interface WebgpuCaptureState {
   captureDeferralLogged: boolean
 }
 
+/** The main image read back is forgotten: the targets it was read from are gone. */
+export function forgetCapturedImage(capture: WebgpuCaptureState) {
+  capture.capturedPixels = undefined
+  capture.capturedRevision = -1
+}
+
 export function createWebgpuCaptureState(): WebgpuCaptureState {
   return {
     captureAllocationBytes: 0,

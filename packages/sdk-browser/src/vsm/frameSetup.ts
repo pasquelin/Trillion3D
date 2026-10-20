@@ -111,7 +111,7 @@ export function planVirtualShadowFrame(
   const { cache, resources, device } = state
   let layout = resources.layout
   state.frameStamp++
-  cache.frameStamp = state.frameStamp
+  cache.beginFrame(state.frameStamp, camera.viewId)
   cache.poolPages = layout.poolPages
   dropRemovedLights(state, lights)
   const casting = castingScratch

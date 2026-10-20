@@ -123,7 +123,8 @@ test('a moving glass derives its own entries again and sends no input', () => {
   image()
   inputs()
   const before = held()
-  ;(roots[0].world.elements as Float64Array)[12] = 9
+  const first = roots[0].world.elements as Float64Array
+  first[12] = 9
   assert.equal(moveRootRows(rt, roots[0], 0), 0, 'no row written')
   assert.equal(rt.blendState.occlusionEpoch, 3, 'the table keeps its age')
   sendWorlds()
@@ -138,14 +139,15 @@ test('a moving glass derives its own entries again and sends no input', () => {
 
 test('before the roots have worlds, the inputs are sent once and every entry waits for them', () => {
   const { rt, held, oracle, image, inputs, unculled } = runtime()
-  const worlds = rt.rootWorlds
-  ;(rt as { rootWorlds?: unknown }).rootWorlds = undefined
+  const host: { rootWorlds?: unknown } = rt
+  const worlds = host.rootWorlds
+  host.rootWorlds = undefined
   assert.equal(image(), 0, 'no worlds, no pass')
   assert.deepEqual(inputs(), [[0, ENTRIES]])
   assert.equal(image(), 0)
   assert.deepEqual(inputs(), [], 'the inputs are not sent again each image')
   assert.equal(unculled(), 1)
-  ;(rt as { rootWorlds?: unknown }).rootWorlds = worlds
+  host.rootWorlds = worlds
   assert.equal(image(), 1, 'the worlds made: one pass over every entry')
   assert.deepEqual(inputs(), [])
   assert.deepEqual(held(), oracle())

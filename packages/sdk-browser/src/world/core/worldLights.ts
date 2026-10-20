@@ -1,4 +1,4 @@
-import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
+import { Box3, boxToFlat } from '../../../../sdk-core/src/world/math/box3.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import { addLightIrradiance, lampRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts'
@@ -7,7 +7,7 @@ import { isLightNode } from '../../host/graph/kinds.ts'
 import { emptyIrradiance } from '../../../../sdk-core/src/scene/core/environment.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts'
-import { length3 } from '../../../../math/src/vector/vector.ts'
+import { boxPointReach } from '../../../../math/src/geometry/boxDistance.ts'
 
 /** The light calls of a session (`world/api/lightApi.ts`) the world writes its lights through. */
 type LightApi = {
@@ -109,16 +109,15 @@ type LightsState = {
   surrounding: boolean
 }
 
+/** `reach`'s scratch: the scene's bounds, flat. */
+const boundsFlat = new Float64Array(6)
+
 /** How far a lamp the page left unbounded reaches from `at`: the farthest corner of the scene. */
 function reach(state: LightsState, at: Vector3) {
   const { bounds } = state
   if (state.boundsStale) bounds.setFromObject(state.scene)
   state.boundsStale = false
-  const { min, max } = bounds
-  const dx = Math.max(Math.abs(min.x - at.x), Math.abs(max.x - at.x)),
-    dy = Math.max(Math.abs(min.y - at.y), Math.abs(max.y - at.y)),
-    dz = Math.max(Math.abs(min.z - at.z), Math.abs(max.z - at.z))
-  const far = length3(dx, dy, dz)
+  const far = boxPointReach(boxToFlat(bounds, boundsFlat), 0, at.x, at.y, at.z)
   return Number.isFinite(far) && far > 0 ? far : 1
 }
 

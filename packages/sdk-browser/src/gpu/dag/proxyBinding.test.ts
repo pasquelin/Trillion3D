@@ -49,9 +49,9 @@ test('a world past one storage binding holds its proxy: the worlds are read in t
   proxies.worldWritten(12)
   assert.equal(writes(gpu).length, sent, 'no world is sent')
   assert.equal(
-    region(gpu, 'copyWorldsWord'),
+    region(gpu, 'surfacesWord'),
     0,
-    'the copies’ worlds first: no instance, no placement’s world, no exact translation',
+    'the surfaces first: no instance, no placement’s world, no exact translation',
   )
   proxies.dispose()
 })

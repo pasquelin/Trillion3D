@@ -37,8 +37,8 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 }
   const textures = createWebgpuTileStreamer({
     device,
-    color: tileCatalogue([map], () => undefined, undefined, encoding, readers),
-    data: tileCatalogue([], () => undefined, undefined, encoding),
+    color: tileCatalogue([map], () => undefined, encoding, readers),
+    data: tileCatalogue([], () => undefined, encoding),
     layers: { color: lossless, data: lossless },
     encoding,
     budgetBytes: Number.MAX_SAFE_INTEGER,
@@ -82,7 +82,7 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   // Append must not acknowledge a neighbour's pending image/filter change as already uploaded.
   const extra = G.dataTexture(new Uint8Array(16), 2, 2)
   const extraMap = extra
-  const [, entry] = tileCatalogue([extraMap], () => undefined, undefined, encoding, readers)
+  const [, entry] = tileCatalogue([extraMap], () => undefined, encoding, readers)
   const beforeAppend = scratches().length,
     uploadedBeforeAppend = textureWrites.length
   host.needsUpdate = true

@@ -1,5 +1,4 @@
 import { createCutReadiness, type CutReadiness } from '../../page/cut/readiness.ts'
-import type { PageRec } from '../../page/selection/types.ts'
 import { rootOfPacked } from '../../page/selection/placements.ts'
 import type { CutTables } from '../../gpu/dag/cutReaders.ts'
 import { FLAG_CLUSTER_PAGE } from '../../visibility/types.ts'
@@ -12,9 +11,11 @@ import { createChangedRuns } from '../residency/ranges.ts'
  *  first vertex of its float geometry, and its corners. */
 export const RECORD_WORDS = 4
 /** A record's flags beside `FLAG_CLUSTER_PAGE`: a ray tests it — the finest the pool holds of its
- *  surface —; it has no area — a line, a point, a sprite —, never met. */
+ *  surface —; it has no area a ray meets — a sprite —; its quads are line segments, met where the
+ *  ray passes within its reach of one (`rayPageWgsl.ts`). */
 export const RECORD_DRAWABLE = 1,
-  RECORD_NO_AREA = 2
+  RECORD_NO_AREA = 2,
+  RECORD_LINE = 4
 
 /** One primitive's records: their first, its pages' records, the readiness the pool decides, and
  *  which of its clusters a finer group produced (`ClusterStructureIndex.sources`). */
@@ -66,7 +67,8 @@ export function createRayRecords(rt: WebgpuPagesCore) {
     words[at + 1] =
       (geo?.quantized ? FLAG_CLUSTER_PAGE : 0) |
       (geo && slot >= 0 && ready ? RECORD_DRAWABLE : 0) |
-      (noArea(rec) ? RECORD_NO_AREA : 0)
+      (rec.material.sprite ? RECORD_NO_AREA : 0) |
+      ((rec.material.lineWidth ?? 0) > 0 ? RECORD_LINE : 0)
     words[at + 2] = geo?.vertexBase ?? 0
     words[at + 3] = rowIndexCount(rec)
     dirty.mark(r)
@@ -139,6 +141,3 @@ export function createRayRecords(rt: WebgpuPagesCore) {
   }
 }
 export type RayRecords = ReturnType<typeof createRayRecords>
-
-/** Whether a record's surface has no area a ray meets: a line, a point, a sprite. */
-const noArea = ({ material }: PageRec) => (material.lineWidth ?? 0) > 0 || !!material.sprite

@@ -44,6 +44,9 @@ export type PageRec = {
   role?: 'exact' | 'coarse'
   /** Flat DAG cut, copied from the page. Absent on caches without a per-cluster error. */
   level?: number
+  /** The HLOD layer a world page belongs to (`scene/worldRecords.ts`): 1 for `HLODLayer_Merged`;
+   *  absent on a primitive's page, which draws itself. */
+  hlodLayer?: number
   lodError?: number
   sphere?: number[]
   parentError?: number | null
@@ -120,9 +123,7 @@ export type ClusterRoot<T> = {
    *  its packed rank, and its root is the one the layout ranked here. Posted by the layout, read
    *  by the cut (`page/cut/take.ts`) to publish the instances as packed ranks. */
   packedBase?: number
-  /** Compiled mesh number of its primitive (`Primitive.mesh`), the key the compiler bakes each
-   *  `impostors` entry under: the runtime impostor switch looks the mesh up by exactly this number
-   *  (#1239), never through a table of its own. */
+  /** Compiled mesh number of its primitive (`Primitive.mesh`). */
   mesh?: number
   /** `bounds`: per-node bounds derived from the nodes and the pages, once at prepare time.
    *  `links`: parent of each node and leaf node of each cluster, the same shared prepare. */
@@ -151,6 +152,11 @@ export type ClusterRoot<T> = {
    *  builds a page without a box declares nothing: that is the only contract that makes the
    *  omission visible. */
   boxes?: boolean
+  /** True on a root whose pages are opaque and blended both — the world DAG, whose merged
+   *  layers' sections wear their sources' materials (`../../scene/worldRecords.ts`): an opaque
+   *  root, its blended pages drawn by the transparent pass, one item per blended surface
+   *  (`rootBlends`, `collectBlend.ts`). */
+  mixed?: boolean
   /** True while the row this root was collected from is parked, or its source node hidden: every
    *  cut skips the root, and its tables stay as they are, ready to be taken back
    *  (`placement/rows.ts`, `placement/hidden.ts`). */

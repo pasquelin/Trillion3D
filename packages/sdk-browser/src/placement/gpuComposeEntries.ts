@@ -9,7 +9,7 @@ import type { ComposeGpu } from './gpuComposeGpu.ts'
 import { ROOTS_CUT_WORLDS_BINDING } from './gpuComposeWgsl.ts'
 
 /** The roots pass's entries (`COMPOSE_ROOTS_WGSL`), read live: its parameters, the roots' double
- *  worlds, the parents' indices, the cut's worlds and the roots' list. */
+ *  worlds, the parents' indices, the cut's worlds and the frame's composed roots. */
 export const rootEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) => [
   ...sequentialEntries([
     liveBuffer(() => gpu.params.buffer),
@@ -17,25 +17,25 @@ export const rootEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) => [
     liveBuffer(() => gpu.parentOf),
   ]),
   resourceEntry(ROOTS_CUT_WORLDS_BINDING, () => gpu.frame.worlds),
-  ...sequentialEntries([liveBuffer(() => gpu.rankList)], ROOTS_CUT_WORLDS_BINDING + 1),
+  ...sequentialEntries([liveBuffer(() => gpu.frameList)], ROOTS_CUT_WORLDS_BINDING + 1),
 ]
 
-/** The motion pass's entries (`COMPOSE_MOTION_WGSL`), read live: the passes' one parameters, the
+/** The motion pass's entries (`COMPOSE_MOTION_WGSL`), read live: its parameters, the
  *  roots' double worlds, the parents' indices, the motion the roots pass bound and its mode, the
- *  previous worlds and the roots' list. */
+ *  previous worlds and the motion's roots. */
 export const motionEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
   sequentialEntries([
-    liveBuffer(() => gpu.params.buffer),
+    liveBuffer(() => gpu.motionParams.buffer),
     liveBuffer(() => rt.rootWorlds?.worlds),
     liveBuffer(() => gpu.parentOf),
     liveBuffer(() => rt.compose?.motionBound),
     liveBuffer(() => gpu.motionMode),
     liveBuffer(() => gpu.previous),
-    liveBuffer(() => gpu.rankList),
+    liveBuffer(() => gpu.motionList),
   ])
 
 /** The worlds pass's entries (`COMPOSE_WORLDS_WGSL`), read live: its parameters, the links, the
- *  parents' indices, the parents, the roots' double worlds and the roots' list. */
+ *  parents' indices, the parents, the roots' double worlds and the frame's composed roots. */
 export const worldEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
   sequentialEntries([
     liveBuffer(() => gpu.params.buffer),
@@ -43,5 +43,5 @@ export const worldEntries = (rt: WebgpuPagesRuntime, gpu: ComposeGpu) =>
     liveBuffer(() => gpu.parentOf),
     liveBuffer(() => gpu.parents),
     liveBuffer(() => rt.rootWorlds?.worlds),
-    liveBuffer(() => gpu.rankList),
+    liveBuffer(() => gpu.frameList),
   ])

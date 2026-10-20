@@ -57,6 +57,10 @@ export function dispatchRows(
 export const groupWidth = (limits?: { maxComputeWorkgroupsPerDimension?: number }) =>
   limits?.maxComputeWorkgroupsPerDimension ?? DEFAULT_GROUP_WIDTH
 
+/** The pipeline constants of a dispatch `width`: none at WebGPU's default, else `GROUP_WIDTH`. */
+export const groupWidthConstants = (width: number) =>
+  width !== DEFAULT_GROUP_WIDTH ? { GROUP_WIDTH: width } : undefined
+
 /** The flat rank in a dispatch in rows of one-dimensional workgroups of `lanes`: a thread's from
  *  `global_invocation_id`, or a workgroup's from `workgroup_id` with `lanes` of 1. */
 export const FLAT_INDEX_WGSL = wgslBlock(

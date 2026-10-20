@@ -1,6 +1,6 @@
 import { KEYED_WGSL } from './keyLayout.ts'
 import { FRAME_HEAD_WGSL } from './frameHead.ts'
-import { dAdd, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
+import { dAdd, dDot3, dMul, dSub } from '../../../../math/src/wgsl/double.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -10,7 +10,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const ORDER_KEY_WGSL = wgslBlock(
   'ORDER_KEY_WGSL',
-  [dAdd, dSub, dMul, KEYED_WGSL, FRAME_HEAD_WGSL],
+  [dAdd, dSub, dMul, dDot3, KEYED_WGSL, FRAME_HEAD_WGSL],
   `/** One axis of the eye-to-box-centre gap: each bound brought to the eye, then the two averaged. */
 fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),vec2u(0x3fe00000u,0u));}
 /**
@@ -35,13 +35,17 @@ fn itemKey(item:u32)->vec2u{
   y=dSub(keyedDouble(at+2u),ey);
   z=dSub(keyedDouble(at+4u),ez);
  }
- return dAdd(dAdd(dMul(x,x),dMul(y,y)),dMul(z,z));
+ return dDot3(x,x,y,y,z,z);
 }
-/** Whether \`a\` paints before \`b\`: the farther key, then the lower seed. */
+/** An item's biased sort priority (\`PRIORITY_BIAS\`): the lower paints first. */
+fn itemPriority(item:u32)->u32{return keyed[item*KEY_RECORD_WORDS+KEY_PRIORITY];}
+/** Whether \`a\` paints before \`b\`, each priority, key, seed: the lower priority, then the
+ *  farther key, then the lower seed — \`precedes\` on the CPU (\`paintOrder.ts\`). */
 fn goesFirst(a:vec4u,b:vec4u)->bool{
- if(a.x!=b.x){return a.x>b.x;}
+ if(a.x!=b.x){return a.x<b.x;}
  if(a.y!=b.y){return a.y>b.y;}
- return a.z<b.z;
+ if(a.z!=b.z){return a.z>b.z;}
+ return a.w<b.w;
 }
 `,
 )

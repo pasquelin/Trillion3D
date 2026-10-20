@@ -4,15 +4,13 @@ import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
-import { cellReach, lensSlope } from '../../partition/plan.ts'
-import { createSelectionUniforms } from '../../gpu/core/selection.ts'
 import { placedMesh } from '../../partition/rows.ts'
 import { paged } from '../../partition/paged.fixture.ts'
-import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
+import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
 import { budget, packsNoWorld, recording, streamer } from './partitionFrame.fixture.ts'
 
-test('a frame reads the cells within the far plane of its camera, visible first then ahead', () => {
+test('a frame hands the plan its camera’s eye, and reads what it asks', () => {
   const { cells, seen } = recording()
   const { port, asked } = streamer()
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 500)
@@ -25,24 +23,18 @@ test('a frame reads the cells within the far plane of its camera, visible first 
     budget,
   })()
   assert.deepEqual(seen[0].eye, [3, 4, 5])
-  assert.equal(seen[0].reach, cellReach(camera))
-  assert.equal(seen[0].io.lens, undefined, 'no cut packs the world DAG: no far cell')
-  assert.deepEqual(asked, [
-    [['near.json'], PRIORITY_VISIBLE],
-    [['ahead.json'], PRIORITY_PREFETCH],
-  ])
+  assert.equal(seen[0].io.world, undefined, 'no cut packs the world DAG: no HLOD cell')
+  assert.deepEqual(asked, [[['near.json'], PRIORITY_VISIBLE]])
 })
 
-test('a cut that packs the world DAG lends the plan its lens, on the frustum diagonal', () => {
+test('a cut that packs the world DAG lends the plan its world cells', () => {
   const { cells, seen } = recording()
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 500)
-  const uniforms = createSelectionUniforms(),
-    worldCut = () => uniforms
+  const world = {},
+    worldCells = () => world
   const frame = { partitions: [cells], streamer: streamer().port, camera, budget }
-  createPartitionFrame({ ...frame, engine: { worldCut } as unknown as Engine })()
-  assert.deepEqual(seen[0].io.lens, { ...uniforms, slope: lensSlope(camera) })
-  const diagonal = Math.tan(Math.PI / 6) * Math.hypot(1, 16 / 9)
-  assert.ok(Math.abs(lensSlope(camera) - diagonal) < 1e-12, 'the half diagonal of the field')
+  createPartitionFrame({ ...frame, engine: { worldCells } as unknown as Engine })()
+  assert.equal(seen[0].io.world, world)
 })
 
 /** What the frames from `camera` ask of one cell of one node, boxed by `bounds` under the root,
@@ -78,27 +70,13 @@ async function asks(
   return [...new Map(asked.map((entry) => [JSON.stringify(entry), entry])).values()]
 }
 
-test('a pebble far below any error target is read while the far plane lets it be drawn', async () => {
-  // Nothing coarser stands for an unread cell: a small object within the far plane is
-  // read whatever it projects to, or it would be missing from the image for good.
+test('a pebble far below any error target is read while its grid cell is in range', async () => {
+  // A small object within the main grid's loading range is read whatever it projects to: a cell's
+  // actors load by its range alone, never by their size on screen.
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
   assert.deepEqual(await asks('pebble.json', [200, 0, 0, 200.01, 0.01, 0.01], camera), [
     [['https://cache.test/key/pebble.json'], PRIORITY_VISIBLE],
   ])
-})
-
-test('a camera zoomed out, or scaled up, reads the cells its wider frustum sees', async () => {
-  // At zoom 0.5 the frustum is twice as wide, scaled twice it draws twice as far: a pebble 560 m
-  // aside, 290 m ahead, is within either's reach, past the read-ahead of the camera at zoom 1.
-  const bounds = [560, 0, -290, 560.01, 0.01, -289.99]
-  const seen = [['https://cache.test/key/aside.json'], PRIORITY_VISIBLE]
-  const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
-  assert.deepEqual(await asks('aside.json', bounds, camera), [])
-  camera.zoom = 0.5
-  assert.deepEqual(await asks('aside.json', bounds, camera), [seen])
-  camera.zoom = 1
-  ;(camera as unknown as Group).scale.set(2, 2, 2)
-  assert.deepEqual(await asks('aside.json', bounds, camera), [seen])
 })
 
 test('a view past the rows sized at open asks the owner to open the session again', () => {

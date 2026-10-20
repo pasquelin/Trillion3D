@@ -7,6 +7,14 @@ export function invalidateOccluderHistory(run: WebgpuRunState) {
   run.noOccluderHistory = true
 }
 
+/** The diagnostic compute raster dropped, made again at its next image over what grew; no
+ *  occluder history describes the new rows. */
+export function dropRaster(rt: Pick<WebgpuPagesRuntime, 'vis' | 'run'>) {
+  rt.vis.gpuRaster?.dispose()
+  rt.vis.gpuRaster = undefined
+  invalidateOccluderHistory(rt.run)
+}
+
 /** A capability now served: it leaves the list of what the backend declares unsupported. */
 export function grantCapability(capabilities: WebgpuPagesRuntime['capabilities'], item: string) {
   capabilities.unsupported = capabilities.unsupported.filter((entry) => entry !== item)
@@ -71,10 +79,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   vis.mapsSampler = undefined
   vis.blendBindGroupLayout = undefined
   vis.blendPipelines = undefined
-  rt.blendState.water?.frame.dispose()
-  rt.blendState.water = undefined
   // The feedback variant compiling or compiled aside goes with the pipelines it was to replace.
-  vis.feedbackAside?.set?.water?.frame.dispose()
   vis.feedbackAside = undefined
   rt.blendState.overdraw?.dispose()
   rt.blendState.overdraw = undefined

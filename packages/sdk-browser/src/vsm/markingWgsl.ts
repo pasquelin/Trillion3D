@@ -240,7 +240,8 @@ export const vsmPageRectInitWgsl = (layout: VsmLayout) =>
  let index=flatIndex(id,n,256u);
  if(index<vsmMarking.rectsToClear){
   let empty=vec4u(VSM_LEVEL0_PAGES,VSM_LEVEL0_PAGES,0u,0u);
-  vsmStaleRects[index]=empty;
+  vsmStaleRects[2u*index]=empty;
+  vsmStaleRects[2u*index+1u]=empty;
   vsmMappedRects[index]=empty;
  }
 }

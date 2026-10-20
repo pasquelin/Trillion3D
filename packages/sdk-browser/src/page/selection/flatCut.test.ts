@@ -1,14 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages } from './collect.ts'
 import { rootCoverage } from './selection.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
-import { dagFixture, wideCamera, urls } from './dag.fixture.ts'
+import { collectFixture, dagFixture, wideCamera, urls } from './dag.fixture.ts'
 import { assertOneRepresentationPerGroup } from './helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'
-import { graphDraws } from './drawSource.ts'
 
 test('a flat cluster cut selects exactly one level per chain and covers the surface once', () => {
   const fixture = dagFixture()
@@ -36,12 +34,7 @@ test('a flat cluster cut selects exactly one level per chain and covers the surf
 
 test('a flat cluster cut keeps the frustum cut and reports the root cover', () => {
   const fixture = dagFixture()
-  const { roots } = collectClusterPages(
-    fixture.source,
-    graphDraws(fixture.source, fixture.associations),
-    fixture.metadata,
-    fixture.indices,
-  )
+  const { roots } = collectFixture(fixture)
   assert.deepEqual(
     rootCoverage(roots).map((page) => page.url),
     ['root'],
@@ -64,13 +57,7 @@ test('a flat cluster cut keeps the frustum cut and reports the root cover', () =
 function cutWithout(...missing: string[]) {
   const fixture = dagFixture()
   for (const url of missing) fixture.indices.delete(url)
-  const { roots } = collectClusterPages(
-    fixture.source,
-    graphDraws(fixture.source, fixture.associations),
-    fixture.metadata,
-    fixture.indices,
-    { allowMissing: true },
-  )
+  const { roots } = collectFixture(fixture, { allowMissing: true })
   const selected = selectVisiblePages(roots, engineCamera(wideCamera()), {
     pixelError: 0,
     viewport: [1280, 720],
@@ -115,13 +102,7 @@ test('the cut rule covers the surface once for every residency pattern', () => {
     const fixture = dagFixture()
     for (let bit = 0; bit < urlsByBit.length; bit++)
       if (mask & (1 << bit)) fixture.indices.delete(urlsByBit[bit])
-    const { roots } = collectClusterPages(
-      fixture.source,
-      graphDraws(fixture.source, fixture.associations),
-      fixture.metadata,
-      fixture.indices,
-      { allowMissing: true },
-    )
+    const { roots } = collectFixture(fixture, { allowMissing: true })
     for (const pixelError of [0, 4, 20]) {
       const selected = selectVisiblePages(roots, engineCamera(wideCamera()), {
         pixelError,

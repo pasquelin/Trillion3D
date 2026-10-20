@@ -20,20 +20,13 @@ const FRONT = 'front' as unknown as GPURenderPipeline,
   BACK = 'back' as unknown as GPURenderPipeline,
   TEXTURED = 'textured' as unknown as GPURenderPipeline
 
-/** An already-bound blend item: only the pipeline sequence is observed here. */
-const item = (side: Side, negatif = false, paged = false) => {
+/** An already-bound blend item: only the pipeline sequence is observed here. Every item reads the
+ *  one shared group, its clusters from the page cache: items of one pipeline share draws. */
+const item = (side: Side, negatif = false) => {
   const matrix = new Matrix4()
   if (negatif) matrix.makeScale(-1, 1, 1)
-  return {
-    surface: surfaceOf(G.basicSurface({ side })),
-    matrix,
-    count: 3,
-    group: {} as GPUBindGroup,
-    paged,
-  }
+  return { surface: surfaceOf(G.basicSurface({ side })), matrix }
 }
-/** The same item, but paged: it reads concatenated geometry, so it shares draws. */
-const pagee = (side: Side) => item(side, false, true)
 
 function joue(items: ReturnType<typeof item>[]) {
   const gpu = fakeDevice()
@@ -80,7 +73,6 @@ function joue(items: ReturnType<typeof item>[]) {
       depthView: {},
       asIsShare: { view: {} },
       targetSize: [8, 8],
-      volumeBuffer: {},
       backdrop: { colorView: {}, depthView: {}, active: false },
       cache: { buffer: {} },
       zeroUv: {},
@@ -95,7 +87,6 @@ function joue(items: ReturnType<typeof item>[]) {
     run: {
       gpuDrawCalls: 0,
       blendDrawCalls: 0,
-      blendUnpagedTriangles: 0,
       blendPagedTriangles: 0,
       blendSubmittedTriangles: 0,
     },
@@ -112,74 +103,32 @@ function joue(items: ReturnType<typeof item>[]) {
   return { pipelines, draws, calls: rt.run.blendDrawCalls }
 }
 
-test('an unpaged item keeps its draw: it carries its own buffers', () => {
-  // Five items that are not paged: each reads its indices, positions and UVs, so each keeps its
-  // bind group and its draw — one run per entry.
-  const suite = joue([
-    item(G.FRONT_SIDE),
-    item(G.FRONT_SIDE),
-    item(G.FRONT_SIDE),
-    item(G.BACK_SIDE),
-    item(G.BACK_SIDE),
-  ])
-  assert.equal(suite.calls, 5, 'one draw per unpaged item')
-  assert.deepEqual(suite.draws, [0, 1, 2, 3, 4], 'each draw rereads the argument of ITS run')
-  assert.deepEqual(suite.pipelines, [BACK, FRONT], 'one pipeline per change, in order')
-})
-
-test('paged items that set the same pipeline fit in ONE draw', () => {
-  // That is the whole lot: five paged items in a row, one draw order. They all read the same
-  // concatenated geometry and the same page cache, and their instances follow each other in the
-  // expanded list, farthest to nearest.
+test('items that set the same pipeline fit in ONE draw', () => {
+  // That is the whole lot: five items in a row, one draw order. They all read the same page
+  // cache, and their instances follow each other in the expanded list, farthest to nearest.
   const fondu = joue([
-    pagee(G.FRONT_SIDE),
-    pagee(G.FRONT_SIDE),
-    pagee(G.FRONT_SIDE),
-    pagee(G.FRONT_SIDE),
-    pagee(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
+    item(G.FRONT_SIDE),
   ])
   assert.equal(fondu.calls, 1, 'five items, one draw')
   assert.deepEqual(fondu.draws, [0])
   assert.deepEqual(fondu.pipelines, [BACK])
 
   // Pipeline remains the only break: two faces requested, two runs, and not one more.
-  const deuxFaces = joue([pagee(G.FRONT_SIDE), pagee(G.BACK_SIDE), pagee(G.FRONT_SIDE)])
+  const deuxFaces = joue([item(G.FRONT_SIDE), item(G.BACK_SIDE), item(G.FRONT_SIDE)])
   assert.equal(deuxFaces.calls, 3, 'the pipeline changes twice, hence three runs')
   assert.deepEqual(deuxFaces.pipelines, [BACK, FRONT, BACK])
 })
 
-test('an unpaged item cuts the run of its paged neighbours', () => {
-  // It cannot share their bind group: the run stops on it and restarts after.
-  const melange = joue([
-    pagee(G.FRONT_SIDE),
-    pagee(G.FRONT_SIDE),
-    item(G.FRONT_SIDE),
-    pagee(G.FRONT_SIDE),
-  ])
-  assert.equal(melange.calls, 3, 'paged, the isolated one, paged')
-  assert.deepEqual(melange.draws, [0, 1, 2])
-  assert.deepEqual(melange.pipelines, [BACK], 'one pipeline for the three')
-})
-
-test('a two-sided unpaged item does set its two pipelines, in blend order', () => {
-  const deux = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE)])
-  assert.equal(deux.calls, 4, 'two draws per two-sided item')
-  // The second item picks up where the first stopped: its first face changes, the second too.
-  assert.deepEqual(deux.pipelines, [FRONT, BACK, FRONT, BACK])
-
-  // A negative determinant swaps the item's two faces: it therefore starts with the one the
-  // previous had just set, and only what changes is reset — four draws, three pipelines.
-  const renverse = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE, true)])
-  assert.equal(renverse.calls, 4)
-  assert.deepEqual(renverse.pipelines, [FRONT, BACK, FRONT])
-})
-
-test('two-sided paged items draw back and face in ONE draw, on the pipeline that culls nothing', () => {
+test('two-sided items draw back and face in ONE draw, on the pipeline that culls nothing', () => {
   // The vertex stage culls for them (plan.ts, VERTEX CULL): a mirrored matrix swaps their cull
   // modes, not their pipeline, and the whole row still fits in one draw.
-  const pages = joue([pagee(G.DOUBLE_SIDE), pagee(G.DOUBLE_SIDE), pagee(G.DOUBLE_SIDE)])
+  const pages = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE)])
   assert.equal(pages.calls, 1, 'six entries, one draw')
   assert.deepEqual(pages.pipelines, [TEXTURED])
-  const renverse = joue([pagee(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE, true, true)])
+  const renverse = joue([item(G.DOUBLE_SIDE), item(G.DOUBLE_SIDE, true)])
   assert.equal(renverse.calls, 1)
 })

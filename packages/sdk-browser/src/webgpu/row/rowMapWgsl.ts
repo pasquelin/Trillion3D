@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { mixWord } from '../../../../math/src/wgsl/sampling.ts'
 import { NO_INDEX } from '../../../../math/src/wgsl/constants.ts'
-import { openProbeWgsl } from '../../gpu/dag/shader/probeWgsl.ts'
+import { openProbeStatement } from '../../gpu/dag/shader/probeWgsl.ts'
 
 /** Words ahead of the map's keys in its buffer: its slot count (`rowMapGpu.ts`). */
 export const ROW_MAP_HEAD = 1
@@ -23,7 +23,7 @@ fn rowOfPage(page:u32)->u32{
  let slots=rowMap[0u];
  if(slots==0u){return NO_INDEX;}
  let mask=slots-1u;
-${openProbeWgsl({
+${openProbeStatement({
   home: 'mixWord(page)&mask',
   mask: 'mask',
   slotWord: (s) => `${ROW_MAP_HEAD}u+${s}`,

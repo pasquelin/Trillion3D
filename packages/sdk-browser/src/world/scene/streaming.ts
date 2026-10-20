@@ -1,7 +1,6 @@
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { ARRIVAL_QUEUE_BATCH, ARRIVAL_QUEUE_BYTES } from '../../engine/common.ts'
-import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createViewAsks } from './viewAsks.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { SessionState } from '../render/sessionState.ts'
@@ -110,7 +109,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     /** The frame's asks: `urls`, the head of what the engine lacks that no read holds or failed
      *  for good; what the last frame asked and this one does not is let go. */
     ask(urls: readonly string[]) {
-      reads = asks.ask(urls, PRIORITY_VISIBLE, heard)
+      reads = asks.ask(urls, heard)
       asks.end()
     },
     /** Settles once the reads the last frame asked have, either way; none when it asked none. */

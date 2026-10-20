@@ -1,4 +1,5 @@
 import { DIAGNOSTICS } from '../../../../sdk-core/src/runtime/diagnostics.ts'
+import { releaseAll } from '../../../../sdk-core/src/runtime/releasable.ts'
 import type { ExplorerProbe } from '../session/capabilityProbe.ts'
 import type { ExplorerSource } from '../session/prepare.ts'
 import type { SessionRuntime } from '../render/sessionRuntime.ts'
@@ -64,7 +65,7 @@ export function createExplorerApi(inputs: Inputs) {
     /** The WebGPU device the session draws on: a world reopening keeps it. */
     gpuDevice: inputs.gpuDevice,
     dispose() {
-      materialReleases.splice(0).forEach((release) => release())
+      releaseAll(materialReleases)
       inputs.dispose()
     },
     ...{ setPose: inputs.setPose, awaitPages: inputs.awaitPages, flush: inputs.flush },

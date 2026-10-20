@@ -69,7 +69,6 @@ test('progress resolves at each page landed, heard or not, while the job runs, a
   await new Promise(setImmediate)
   assert.deepEqual(heard, ['progress', 'landed unheard', 'pending', 'next'])
   assert.equal(queue.progress(), queue.pending, 'no job running: its end is all there is to wait')
-  assert.equal(queue.landings, 2, 'the loop counts both landings')
 })
 
 test('a failed job rejects the frame waiting on it with its error, and the wait after', async () => {

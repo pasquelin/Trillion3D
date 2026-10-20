@@ -1,4 +1,5 @@
 import { checkGeometryPage } from '../../page/codec/geometryPage.ts'
+import { checkVoxelPage, isVoxelPage } from '../../../../sdk-core/src/page/voxelPage.ts'
 import { requireSdkWasm } from '../../wasm/sdkWasm.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 
@@ -11,8 +12,8 @@ import type { WebgpuPagesCore } from './runtime.ts'
 export function createPageSource(rt: WebgpuPagesCore) {
   const { context, setup } = rt,
     { sourceBytes, geometryUrls } = setup
-  // A world super-root's page is read through the world's own source, inside this one reader
-  // (`../../scene/worldRoots.ts`, `worldOrGeometryReader`).
+  // Every geometry page — a primitive's or a world HLOD actor's — is a slice of a bundle the
+  // session's one reader serves (`../../streaming/pageStreamer.ts`).
   const readGeometry = (url: string, signal?: AbortSignal, priority?: number) =>
     context.readGeometryPage
       ? context.readGeometryPage(url, signal, priority)
@@ -26,7 +27,9 @@ export function createPageSource(rt: WebgpuPagesCore) {
     // downstream would ever notice a forged or truncated page. The format's own gate is read
     // here, once per admission: magic, version, grids, and counts that measure exactly this many
     // bytes. A page that fails it is refused through the loader's error path, never uploaded.
-    checkGeometryPage(await requireSdkWasm(), bytes)
+    // A voxel brick has its own gate (`checkVoxelPage`): its head and its count measure it.
+    if (isVoxelPage(bytes)) checkVoxelPage(bytes)
+    else checkGeometryPage(await requireSdkWasm(), bytes)
     return bytes
   }
   return { read }

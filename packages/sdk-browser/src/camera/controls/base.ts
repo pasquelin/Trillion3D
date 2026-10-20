@@ -1,5 +1,6 @@
 import type { CameraControlBase } from './types.ts'
 import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
+import { releaseAll } from '../../../../sdk-core/src/runtime/releasable.ts'
 
 /**
  * The socle every camera controller is built on: the `change` emitter the host listens to,
@@ -69,7 +70,7 @@ export function createControlBase(): ControlBase {
       dispose() {
         if (gone) return
         gone = true
-        for (const remove of removals.splice(0)) remove()
+        releaseAll(removals)
         changes.clear()
       },
     },

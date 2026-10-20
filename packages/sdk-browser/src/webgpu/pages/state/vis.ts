@@ -32,7 +32,7 @@ export interface WebgpuVisState {
   /** Deformation's code, loaded by a session that deforms (`../../../deformation/prepare.ts`). */
   deformationCode?: typeof DeformationCode
   deformationCompute?: DeformationCompute
-  wholeDeformation?: { table: GPUBuffer; count: number }
+  pooledDeformation?: { table: GPUBuffer; count: number }
   /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRowWriter.ts`). */
   asIsShown: boolean
   visTexture: GPUTexture | undefined
@@ -53,7 +53,7 @@ export interface WebgpuVisState {
   materialTiles: MaterialTiles | undefined
   /** What the frame composes once for the resolve (`../../visibility/shadeCache.ts`). */
   shadeCache: ShadeCache | undefined
-  /** Whether the resolve, blend and water pipelines in place write the texture feedback: the drawn
+  /** Whether the resolve and blend pipelines in place write the texture feedback: the drawn
    *  view then has its target (`../prepare/feedbackVariant.ts`). */
   writesFeedback: boolean
   /** The other variant, while it compiles for a scene whose textures came or went. */

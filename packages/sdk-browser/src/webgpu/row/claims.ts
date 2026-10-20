@@ -1,59 +1,6 @@
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
-import { resized } from '../../../../math/src/sequence/resized.ts'
+import type { createMarkedList } from '../../../../math/src/sequence/markedList.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
-
-/**
- * Pages that claim the write of a row record and have not yet received it.
- *
- * Writing a row costs a material, a hash, wrap modes, a shadow sphere, eight corners and five row
- * words: a burst of arrivals pays that many times, on the main thread, in the same image. This list
- * is what remains to do, and the rank allocator spends only what the frame's one integration budget
- * has left — the rest waits for the next image, in the same order.
- *
- * A page enrols only once: per-page marking is what guarantees it, so a page claimed twice before it
- * is served does not double the work. The list is sorted before it is served, because the residency
- * journal writes ranges only while the indices it is given increase.
- */
-export function createWebgpuRowClaims() {
-  // A mark a page up to the largest one claimed, read with no probe as the serve passes; the list
-  // follows the pages waiting.
-  let marks = new Uint8Array(0)
-  let pages = new Int32Array(8)
-  let count = 0
-  return {
-    get pages() {
-      return pages
-    },
-    get count() {
-      return count
-    },
-    /** Enrols a page, unless it is already waiting its turn. */
-    add(page: number) {
-      if (page >= marks.length) marks = resized(marks, page + 1)
-      if (marks[page]) return
-      if (count === pages.length) pages = resized(pages, count + 1)
-      marks[page] = 1
-      pages[count++] = page
-    },
-    /** Sorts the list by increasing page index, the order the residency journal requires. */
-    sort() {
-      sortPages(pages, count)
-    },
-    /** Drops the first `served` pages, already served, and keeps the rest in its order. */
-    consume(served: number) {
-      for (let i = 0; i < served; i++) marks[pages[i]] = 0
-      if (served < count) pages.copyWithin(0, served, count)
-      count -= served
-    },
-    /** Nothing waits any more: the table has just been rebuilt as a block. */
-    clear() {
-      for (let i = 0; i < count; i++) marks[pages[i]] = 0
-      count = 0
-    },
-  }
-}
-
-type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>
 
 /**
  * THE ONE SERVE LOOP of the row writers: `pages[from, to)` in their order within `budget`, the
@@ -101,21 +48,37 @@ export function serveInOrder(
   return at
 }
 
+/** `pages[0, count)` with the pages `leads` names moved ahead of the others, each side keeping its
+ *  order. */
+export function leadFirst(pages: Int32Array, count: number, leads: (page: number) => boolean) {
+  const behind: number[] = []
+  let at = 0
+  for (let i = 0; i < count; i++) {
+    const page = pages[i]
+    if (leads(page)) pages[at++] = page
+    else behind.push(page)
+  }
+  pages.set(behind, at)
+}
+
 /**
- * Serves the queue in increasing page order within `budget` (`serveInOrder`), the rest waiting for
- * the next image in the same order. A page no rank is left for leaves the queue too, handed to
- * `refused`.
+ * Serves the claims — pages that claim the write of a row record, each listed once
+ * (`createMarkedList`) — in increasing page order within `budget` (`serveInOrder`), those `leads`
+ * names first, the rest waiting for the next image in the same order. A page no rank is left for
+ * leaves the queue too, handed to `refused`.
  */
 export function serveClaims(
-  claims: WebgpuRowClaims,
+  claims: ReturnType<typeof createMarkedList>,
   release: (page: number) => boolean,
   place: (page: number) => boolean,
   budget?: FrameClock,
   refused?: (page: number) => void,
+  leads?: (page: number) => boolean,
 ) {
   if (!claims.count) return
-  claims.sort()
-  const served = serveInOrder(claims.pages, 0, claims.count, release, place, budget, (page) => {
+  sortPages(claims.list, claims.count)
+  if (leads) leadFirst(claims.list, claims.count, leads)
+  const served = serveInOrder(claims.list, 0, claims.count, release, place, budget, (page) => {
     refused?.(page)
     return false
   })

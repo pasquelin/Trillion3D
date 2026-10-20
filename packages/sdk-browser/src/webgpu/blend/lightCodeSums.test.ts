@@ -1,7 +1,6 @@
-// The blend and water programs of a scene with no shadowed light, or no rectangle light, are
-// compiled without that code, as the opaque resolve's (`createForwardVariants`). The
-// shipped light loops of the blend pass (`sliceLighting`) and of the water composite
-// (`sliceLightingPair`) run in f32 (`shaderRun`, `F32_SCOPE`), each variant against the program with
+// The blend programs — every translucent layer's — of a scene with no shadowed light, or no
+// rectangle light, are compiled without that code, as the opaque resolve's
+// (`createForwardVariants`). The shipped light loop of the blend pass (`sliceLighting`) runs in f32 (`shaderRun`, `F32_SCOPE`), each variant against the program with
 // every code path, on random lamp sets the variant's key admits — points, spots and suns, in range
 // and past it, shadowed or not where the key keeps the shadow code, standard, diffuse and toon,
 // thin or not, on a cell's list and on every lamp —: the sums are the same numbers, bit for bit.
@@ -14,12 +13,11 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { blendShader } from './shader.ts'
-import { randomLampScope } from './shadedLightScope.fixture.ts'
-import { waterCompositeShader } from '../water/compositeWgsl.ts'
+import { randomLampScope, type Sum } from './shadedLightScope.fixture.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 
-type Sum = (...args: unknown[]) => number[] | { lit: number[]; specular: number[] }
 /** What the shadow read does for a light with no slot: no transmission, a factor of one. */
 const NO_SLOT =
   /fn shadowFactor\([^)]*\)->f32\{\n shadowTransmission=vec3f\(1\.0\);\n if\(slice<0\)\{return 1\.0;\}/
@@ -31,13 +29,16 @@ const PASSES = {
     text: (key: Partial<ContractKey>) => blendShader({ ...key, lobeless: true }),
     loop: ['sliceLighting', 'declaredLight'],
   },
-  water: {
-    // The same, the lobed pair summing as it does (`../water/lobedPair.test.ts`).
-    text: (key: Partial<ContractKey>) => waterCompositeShader({ ...key, lobeless: true }),
-    loop: ['sliceLightingPair', 'declaredLightPair'],
-  },
 }
 /** The keys a scene can have: each cut alone, and together where they can be (`contractKey`). */
+/** A key whose one cut is the local lights' shadow code, which a translucent program holds only
+ *  under `translucentLocalShadows` (`directShadowWgsl`): without it, nothing is left to cut. */
+const cutsNothing = (key: Partial<ContractKey>) =>
+  !LIGHT_SETTINGS.translucentLocalShadows &&
+  !!key.localless &&
+  !key.rectless &&
+  !key.unshadowed &&
+  !key.sunless
 const KEYS: Partial<ContractKey>[] = [
   { rectless: true },
   { unshadowed: true },
@@ -47,7 +48,6 @@ const KEYS: Partial<ContractKey>[] = [
   { sunless: true, rectless: true },
   { localless: true, rectless: true },
 ]
-const flat = (sum: ReturnType<Sum>) => (Array.isArray(sum) ? sum : [...sum.lit, ...sum.specular])
 
 test('each forward variant sums what the program with every code path sums, bit for bit, in f32', () => {
   const r = lcgRandom(1832),
@@ -60,7 +60,8 @@ test('each forward variant sums what the program with every code path sums, bit 
     const K = wgslConstants(full)
     for (const key of KEYS) {
       const variant = pass.text(key)
-      assert.notEqual(variant, full)
+      if (cutsNothing(key)) assert.equal(variant, full, `${JSON.stringify(key)}: no code to cut`)
+      else assert.notEqual(variant, full, JSON.stringify(key))
       for (let round = 0; round < 120; round++) {
         const kept = (kind: number) =>
           !key.unshadowed && !(kind === K.KIND_SUN ? key.sunless : key.localless)
@@ -77,9 +78,7 @@ test('each forward variant sums what the program with every code path sums, bit 
         }
         const surface = [[u(0, 1), u(0, 1), u(0, 1)], u(0, 1), u(0.06, 1), N, [0.6, 0.8, 0], P, 1]
         const sum = (text: string, slice: number[]) =>
-          flat(
-            shaderRun<Record<string, Sum>>(text, pass.loop, scope)[pass.loop[0]](...surface, slice),
-          )
+          shaderRun<Record<string, Sum>>(text, pass.loop, scope)[pass.loop[0]](...surface, slice)
         for (const slice of [
           [2, scope.tileLights.length - 2],
           [K.TILE_NO_SLICE, count],

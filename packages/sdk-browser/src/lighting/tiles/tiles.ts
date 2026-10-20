@@ -20,7 +20,7 @@ export type GpuLightTiles = Awaited<ReturnType<typeof createGpuLightTiles>>
  * The light grid's passes (`./shader.ts`) over ONE buffer every reader of a list binds: the view's
  * grid — its cells the view's, its records then the pool of their lists (`./pool.ts`) — then the
  * bounce's world grid over the last cascade level's lattice (`ensureWorld`), its records then its
- * pool. The grids are laid out again only when a grid changes columns or its pool grows — the
+ * pool. The grids are laid out again only when a grid needs more columns or its pool grows — the
  * buffer grown by the engine's one rule, the old one retired; then the world grid's lists are
  * listed again (`revision`) —; each grid's group follows the light buffer,
  * which grows with the scene; encoding allocates nothing. The passes read no depth.
@@ -68,16 +68,20 @@ function lightTiles(device: GPUDevice, layout: GPUBindGroupLayout, view: Grid, w
   const ensure = (grid: Grid, [x, y]: [number, number], lights: GPUBuffer, count: number) => {
     const other = grid === view ? world : view,
       others = recordsOf(other) + other.poolWords
-    const records = x * y * grid.slices * TILE_STRIDE_WORDS
+    // Fewer columns than laid out keep the layout: views of other shapes drawn in turn share it.
+    const fits = !!state.tiles && x * y <= grid.columns
+    const columns = fits ? grid.columns : x * y
+    const records = columns * grid.slices * TILE_STRIDE_WORDS
     // The pool never takes the buffer past what the device binds: a cell with no room walks all.
     const room = Math.floor(storageBufferCap(device.limits) / 4) - records - others
-    const wantedPool = clampLowWins(grid.pool.words(x * y, count, grid.slices), 0, room)
-    if (!state.tiles || x !== grid.tilesX || y !== grid.tilesY || wantedPool > grid.poolWords) {
+    const wantedPool = clampLowWins(grid.pool.words(columns, count, grid.slices), 0, room)
+    grid.tilesX = x
+    grid.tilesY = y
+    if (!fits || wantedPool > grid.poolWords) {
       // The same columns with more pool words: the pool grew, to what an overflowing frame asked
       // or to more lights.
-      if (grid.poolWords && x === grid.tilesX && y === grid.tilesY) grid.growths++
-      grid.tilesX = x
-      grid.tilesY = y
+      if (grid.poolWords && fits) grid.growths++
+      grid.columns = columns
       grid.poolWords = wantedPool
       reallocate()
     }

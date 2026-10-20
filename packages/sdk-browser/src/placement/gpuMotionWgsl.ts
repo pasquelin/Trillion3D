@@ -1,6 +1,8 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { dAdd, dDiv, dMul, dSub } from '../../../math/src/wgsl/double.ts'
 import { dIsZero } from '../../../math/src/wgsl/doubleWords.ts'
+import { D_ONE } from '../../../math/src/wgsl/doubleConstants.ts'
+import { affineRow } from '../../../math/src/wgsl/doubleAffine.ts'
 import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 /**
  * The temporal motion of a linked placement, on the GPU, word for word the CPU's
@@ -60,7 +62,7 @@ const PRODUCTS = ['yz', 'xz', 'xy'].flatMap((rows) =>
 /** `m⁻¹` as `invertMatrix4` computes it: the zero matrix for an exactly zero determinant. */
 const INVERSE_WGSL = wgslBlock(
   'INVERSE_WGSL',
-  [dAdd, dSub, dIsZero, dMul, dDiv],
+  [dAdd, dSub, dIsZero, dMul, dDiv, D_ONE],
   `
 fn inverse4(m:array<vec2u,16>)->array<vec2u,16>{
 ${[0, 1, 2, 3].map((c) => ['x', 'y', 'z', 'w'].map((r, i) => `let ${r}${c}=m[${c * 4 + i}];`).join('')).join('\n')}
@@ -74,7 +76,7 @@ ${Object.entries(COFACTORS)
   for(var k=0u;k<16u;k++){out[k]=vec2u(0u,0u);}
   return out;
  }
- let r=dDiv(vec2u(0x3ff00000u,0u),determinant);
+ let r=dDiv(D_ONE,determinant);
 ${ENTRIES.map((entry, k) => `out[${k}]=dMul(${entry.length === 2 ? entry : sumText(entry)},r);`).join('\n')}
  return out;
 }`,
@@ -87,7 +89,7 @@ ${ENTRIES.map((entry, k) => `out[${k}]=dMul(${entry.length === 2 ? entry : sumTe
  */
 export const MOTION_WGSL = wgslBlock(
   'MOTION_WGSL',
-  [dAdd, dSub, dMul, fromF32, toF32, INVERSE_WGSL],
+  [dAdd, dSub, dMul, fromF32, toF32, affineRow, INVERSE_WGSL],
   `fn motionWords(previous:array<u32,16>,current:array<u32,16>,eye:array<vec2u,3>)->array<u32,16>{
  var held:array<vec2u,16>;
  var now:array<vec2u,16>;
@@ -107,7 +109,7 @@ export const MOTION_WGSL = wgslBlock(
  var out:array<u32,16>;
  for(var k=0u;k<16u;k++){out[k]=toF32(m[k]);}
  for(var j=0u;j<3u;j++){
-  let t=dAdd(dAdd(dAdd(dMul(m[j],eye[0]),dMul(m[4u+j],eye[1])),dMul(m[8u+j],eye[2])),m[12u+j]);
+  let t=affineRow(m[j],m[4u+j],m[8u+j],m[12u+j],eye[0],eye[1],eye[2]);
   out[12u+j]=toF32(dSub(t,eye[j]));
  }
  return out;

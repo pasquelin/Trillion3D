@@ -25,11 +25,11 @@ test('a pixel is marked for the one class its page holds', () => {
   const classSlots = new Uint32Array(8192).fill(MATERIAL_TILE_SLOTS)
   classSlots[4] = 0
   classSlots[8] = 1
-  const { pixelSlot, materialClassOf } = shaderFunctions<Record<string, Fn>>(
+  // The shipped text run whole: the background's id 0 is row 2^32 - 1 in u32, past every row.
+  const { pixelSlot, materialClassOf } = shaderRun<Record<string, Fn>>(
     MATERIAL_TILES_SHADER,
-    ['materialClassOf', 'pixelSlot', 'visPageIndex'],
+    ['materialClassOf', 'pixelSlot'],
     {
-      ...wgslConstants(MATERIAL_TILES_SHADER),
       uni: { pageCount: 3 },
       pages: [
         { materialClass: 4 },

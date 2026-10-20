@@ -5,9 +5,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts'
-import { taaWindow } from '../../taa/filterWeights.ts'
-import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
+import { taaWindow } from '../../taa/filterWeights.fixture.ts'
 import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
+
+/** Still images accumulated: six whole jitter cycles. */
+const STILL_IMAGES = 6 * TAA_SAMPLES
 
 const SIDE = 24,
   THRESHOLD = 0.5,
@@ -50,7 +52,7 @@ function resolve(current: Float64Array, history: Float64Array, frame: number, w:
   return out
 }
 
-/** The held image of `TAA_STILL_FRAMES` still images, each pixel drawn by `pixel` at its
+/** The image after `STILL_IMAGES` still images, each pixel drawn by `pixel` at its
  *  jittered sample — the sample is at `(−jx, +jy)` from the centre. */
 function held(pixel: (px: number, py: number) => number) {
   const jitter = new Float64Array(2)
@@ -64,7 +66,7 @@ function held(pixel: (px: number, py: number) => number) {
     return current
   })
   let image = new Float64Array(SIDE * SIDE)
-  for (let frame = 1; frame <= TAA_STILL_FRAMES; frame++) {
+  for (let frame = 1; frame <= STILL_IMAGES; frame++) {
     const sample = (frame - 1) % TAA_SAMPLES
     image = resolve(images[sample]!, image, frame, weights[sample]!)
   }

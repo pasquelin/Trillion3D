@@ -1,4 +1,9 @@
-import { BODY_INDEX, GENERATION_SHIFT, GENERATIONS } from '../../../sdk-core/src/physics/layout.ts'
+import {
+  BODY_INDEX,
+  engineId,
+  GENERATION_SHIFT,
+  GENERATIONS,
+} from '../../../sdk-core/src/physics/layout.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { hasBody } from './bodied.ts'
 import type { createPhysicsBodies } from './bodies.ts'
@@ -9,7 +14,7 @@ export function engineIdOf(bodies: ReturnType<typeof createPhysicsBodies>, node:
   if (!node) return NO_INDEX
   const index = hasBody(node) ? node.physics._index : -1
   if (index < 0) return -1
-  const id = index | (bodies.generation[index] << GENERATION_SHIFT)
+  const id = engineId(index, bodies.generation[index])
   return bodies.meshOf(id) === node ? id : -1
 }
 
@@ -31,7 +36,7 @@ export function createSimulatedIds<T, G extends number[] | Uint8Array = number[]
     take(item: T) {
       const index = free.pop() ?? slots.push(null) - 1
       slots[index] = item
-      return index | (next(index) << GENERATION_SHIFT)
+      return engineId(index, next(index))
     },
     /** Frees an id: no id of its slot names anything until the slot is taken again. */
     release(id: number) {

@@ -14,6 +14,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { webgpuPagesEngine } from '../pages/pages.ts'
 import { SHADOW_LIMITS, mixedBinScene } from '../pages/testScenes.fixture.ts'
 import type { DrawAssociations } from '../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** The backend over the floor and the caster, lit by `light`, with whatever `options` add, the
  *  caster placed by the rows of `placements` when given; prepared. */
@@ -36,6 +38,7 @@ export async function floorCasterBackend(
   const lights = createSceneLightStore()
   lights.add(light)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 4,

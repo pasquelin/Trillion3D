@@ -1,7 +1,14 @@
 import { tradeCamera, tradeView } from '../../../frame/viewTrade.ts'
 import { releaseTargets } from '../prepare/targets.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, type WebgpuView } from './view.ts'
+import {
+  VIEW_GPU_KEYS,
+  VIEW_RUN_KEYS,
+  VIEW_TIMING_KEYS,
+  VIEW_VIS_KEYS,
+  viewGpu,
+  type WebgpuView,
+} from './view.ts'
 
 /**
  * The one place a view is switched: every reader goes through the runtime groups, and they hold
@@ -11,12 +18,13 @@ import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, type WebgpuView } from './
  * described another view's cut.
  */
 export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
-  const { views, run, gpu, vis, setup } = rt,
+  const { views, run, gpu, vis, setup, timing } = rt,
     from = views.active
   if (from === view) return
   tradeView(run, from.run, view.run, VIEW_RUN_KEYS)
   tradeView(gpu, from.gpu, view.gpu, VIEW_GPU_KEYS)
   tradeView(vis, from.vis, view.vis, VIEW_VIS_KEYS)
+  tradeView(timing, from.timing, view.timing, VIEW_TIMING_KEYS)
   // The arrays are traded, never copied: the host's, which its resizes write, stays the main
   // view's, and a resize during a capture is not undone when the main view comes back.
   from.viewport = setup.viewport
@@ -31,21 +39,28 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   run.pendingHeld.cut = run.ranksHeld.cut = -1
 }
 
-/** Runs `work` with `view` drawn — a late answer of the device lands on the view that asked for
- *  it — then draws again the view that was. */
-export function onView<T>(rt: WebgpuPagesRuntime, view: WebgpuView, work: () => T) {
+/** Runs `work` on `arg` with `view` drawn — a late answer of the device lands on the view that
+ *  asked for it — then draws again the view that was. A `work` made once, handed what it reads,
+ *  costs a frame no closure. */
+export function onView<T, A = undefined>(
+  rt: WebgpuPagesRuntime,
+  view: WebgpuView,
+  work: (rt: WebgpuPagesRuntime, arg: A) => T,
+  arg?: A,
+) {
   const back = rt.views.active
   useWebgpuView(rt, view)
   try {
-    return work()
+    return work(rt, arg as A)
   } finally {
     useWebgpuView(rt, back)
   }
 }
 
 /** Releases the targets of `view`, which is not the main one, its own pyramid, history, effect
- *  chain and cut, and takes its cut out of what the residency holds; the view drawn before is drawn
- *  again — the main one when it was `view` —, so a capture under way keeps its own. */
+ *  chain, cut, timer and canvas, and takes its cut out of what the residency holds; the view drawn
+ *  before is drawn again — the main one when it was `view` —, so a capture under way keeps its
+ *  own. */
 export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   const back = rt.views.active === view ? rt.views.main : rt.views.active
   useWebgpuView(rt, view)
@@ -56,6 +71,12 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.gpu.temporal?.dispose()
   view.gpu.effects?.dispose()
   view.gpu.temporal = view.gpu.effects = undefined
+  // A canvas of its own is withdrawn; the main view's, which a view placed on it presents into,
+  // stays.
+  if (view.gpu.presenter !== viewGpu(rt, rt.views.main).presenter) view.gpu.presenter?.dispose()
+  view.gpu.presenter = undefined
+  view.timing.gpuTiming?.dispose()
+  view.timing.gpuTiming = undefined
   // Its cut's readback slots go with it (`../../../gpu/dag/aside.ts`).
   view.run.asideCut?.dispose()
   view.run.asideCut = undefined

@@ -1,21 +1,21 @@
-import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { ALL_SHADOW_KINDS, shadowKindsLabel, type ShadowKinds } from './shadowKinds.ts'
 import {
-  CONTRACT_TRACE_BINDINGS,
-  CONTRACT_VSM_BINDINGS,
   vsmBindingsLabel,
   vsmTraceBindingsLabel,
   type VsmConsumerBindings,
   type VsmTraceBindings,
 } from './shadowBindings.ts'
 import { vsmConsumerWgsl } from './vsmConsumerWgsl.ts'
+import { BLEND_TRACE_BINDINGS, BLEND_VSM_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import {
-  VSM_TRANSMISSION_AT_WGSL,
+  VSM_NO_PIXEL_WGSL,
+  vsmFragmentSampleWgsl,
   vsmFragmentTraceWgsl,
   vsmMaskWgsl,
-  vsmTraceViewWgsl,
 } from './shadowTraceWgsl.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { VSM_BIAS_NORMAL_WGSL } from '../../vsm/receiverTraceWgsl.ts'
+import { VSM_TRACE_KINDS_BOTH, VSM_TRACE_KINDS_SUN } from '../../vsm/traceWgsl.ts'
 
 /**
  * The shadow read of every lit surface, through the virtual shadow maps (`../../vsm/`): one
@@ -23,60 +23,69 @@ import {
  * `firstVsmId · 64 + channel`, −1 without a shadow (`vsmEncode.ts`), its channel the light's rank in
  * the frame's projection (`vsmView.lights`). The opaque resolve reads the trace the projection pass
  * stored in the frame's mask (`encodeVirtualShadowProjection`) at its own pixel (`vsmMaskPixel`,
- * set by its shadow setup). A blended surface and the water, which the mask cannot hold, trace
- * their own fragment (`vsmTraceFactor`) on the same view, noise and maps. Every pass then reads the
- * located sample (`vsmTransmissionRead`) for the translucent casters' transmission alone.
+ * set by its shadow setup), and what the translucent casters let through along the same rays from
+ * the mask's transmission (`vsmMaskThrough`). A translucent surface, which no mask holds, reads its
+ * own fragment on the same view and maps, lit forward: by default one sample of the light's map
+ * (`vsmSampleFactor`), its local lights unshadowed (`LIGHT_SETTINGS.translucentShadowQuality`,
+ * `translucentLocalShadows`); at quality 1 the projection's full trace (`vsmTraceFactor`), its rays
+ * multiplying the panes they cross as the projection's do.
  *
  * The resolve reads a shadow only in a cell its shadow setup set the mask pixel of
  * (`cellShadowed`, `shadowSetup`): a cell whose list holds a light with a shadow slot, or — no room
  * for its list — that walks every light, where a light of no list of the cell gives its points
  * exactly zero before any shadow read (`declaredLight`, `incidence.w`), as the lists rest on.
  *
- * `resolveTransmission` is the opaque resolve's binding of the translucent casters' transmission
- * (`DEFERRED_BINDINGS.transmissionResolve`), null in a blend or water pass; `maskBinding` the resolve's
- * mask array, and in the other passes, which declare no mask, their transmission. `trace`, the
- * bindings a blend or water pass traces with (the water's, `CONTRACT_TRACE_BINDINGS`, unless given),
- * and the resolve's projection view, on the same number. The names the passes write (receiver
+ * `pass` names the read: `'mask'` for the opaque resolve, with `resolveTransmission` the binding of
+ * the mask's transmission (`DEFERRED_BINDINGS.transmissionResolve`); `'blend'` (the default) for a
+ * blend pass, which samples or traces its fragment (`quality`). `maskBinding` is the mask array, and in a blend pass, which
+ * declares no mask, the translucent casters' memory its rays read. `trace`, the bindings a blend
+ * pass traces with (`BLEND_TRACE_BINDINGS` unless given). The names the passes write (receiver
  * offset and plane, eye) are kept, so their bodies need no change. The block lists what it calls,
  * the maths library's declarations included.
  */
-export const directShadowWgsl = (
-  maskBinding: number,
-  {
-    resolveTransmission = null,
-    vsm = CONTRACT_VSM_BINDINGS,
-    kinds = ALL_SHADOW_KINDS,
-    trace = CONTRACT_TRACE_BINDINGS,
-  }: DirectShadowOptions = {},
-) => {
-  const label = `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${vsmBindingsLabel(vsm)}, ${shadowKindsLabel(kinds)}, ${vsmTraceBindingsLabel(trace)})`
-  if (resolveTransmission === null)
+export const directShadowWgsl = (maskBinding: number, options: DirectShadowOptions = {}) => {
+  if (options.pass !== 'mask') {
+    const {
+      vsm = BLEND_VSM_BINDINGS,
+      trace = BLEND_TRACE_BINDINGS,
+      quality = LIGHT_SETTINGS.translucentShadowQuality,
+      localShadows = LIGHT_SETTINGS.translucentLocalShadows,
+    } = options
+    // Without local shadows (`translucentLocalShadows` off), the sun's code alone is compiled, and
+    // a shadowed local light is lit whole before any read; a program of no sun reads none.
+    const kinds =
+      (options.kinds ?? VSM_TRACE_KINDS_BOTH) &
+      (localShadows ? VSM_TRACE_KINDS_BOTH : VSM_TRACE_KINDS_SUN)
+    const label = `directShadowWgsl(${maskBinding}, ${vsmBindingsLabel(vsm)}, ${vsmTraceBindingsLabel(trace)}, ${kinds}, ${quality}, ${localShadows})`
+    if (!kinds) {
+      const unshadowed = shadowFactorWgsl('\n return 1.0;')
+      return wgslBlock(label, [VSM_NO_PIXEL_WGSL, VSM_BIAS_NORMAL_WGSL], unshadowed)
+    }
+    const local = localShadows
+      ? ''
+      : `
+ if(vsmView.lights[channel].kind!=LIGHT_KIND_DIRECTIONAL){return 1.0;}`
     return wgslBlock(
       label,
       [
-        SHADOW_VIEW_WGSL,
-        vsmConsumerWgsl(vsm, { transmission: maskBinding, pool: true, kinds }),
-        VSM_TRANSMISSION_AT_WGSL,
-        vsmFragmentTraceWgsl(vsm, trace),
+        vsmConsumerWgsl(vsm),
+        quality === 0
+          ? vsmFragmentSampleWgsl(vsm.pool, trace.view, kinds)
+          : vsmFragmentTraceWgsl(vsm.pool, trace, maskBinding, kinds),
       ],
       shadowFactorWgsl(`
- let factor=vsmTraceFactor(u32(slice)&63u,P,N);
- if(factor>0.0&&vsmTranslucentCasters()){vsmTransmissionRead(u32(slice)>>6u,isSun(light),P,N);}
- return factor;`),
+ let channel=u32(slice)&63u;${local}
+ return ${quality === 0 ? 'vsmSampleFactor(channel,P)' : 'vsmTraceFactor(channel,P,N)'};`),
     )
+  }
+  const through = options.resolveTransmission
   return wgslBlock(
-    label,
-    [
-      SHADOW_VIEW_WGSL,
-      vsmTraceViewWgsl(trace.view),
-      vsmConsumerWgsl(vsm, { transmission: resolveTransmission, pool: false, kinds }),
-      VSM_TRANSMISSION_AT_WGSL,
-      vsmMaskWgsl(maskBinding),
-    ],
+    `directShadowWgsl(${maskBinding}, ${through})`,
+    [vsmMaskWgsl(maskBinding, through), VSM_BIAS_NORMAL_WGSL],
     shadowFactorWgsl(`
- let mask=vsmMaskFactor(u32(slice)&63u);
- // The traced mask is opaque only: the translucent casters' colour from the page-table lookup.
- if(mask>0.0&&vsmTranslucentCasters()){vsmTransmissionRead(u32(slice)>>6u,isSun(light),P,N);}
+ let channel=u32(slice)&63u;
+ let mask=vsmMaskFactor(channel);
+ if(mask>0.0){shadowTransmission=vsmMaskThrough(channel);}
  return mask;`),
   )
 }
@@ -93,12 +102,19 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,facing:bool)->f32{
  if(!facing){return 0.0;}${read}
 }`
 
-/** What a shadow read takes past its mask's binding (`directShadowWgsl`): the opaque resolve's
- *  binding of the translucent casters' transmission (none in a blend or water pass), the virtual
- *  shadow maps' bindings, the light kinds read, and a blend or water pass's trace bindings. */
-export type DirectShadowOptions = {
-  resolveTransmission?: number | null
-  vsm?: VsmConsumerBindings
-  kinds?: ShadowKinds
-  trace?: VsmTraceBindings
-}
+/** What a shadow read takes past its mask's binding (`directShadowWgsl`): the pass kind — a mask
+ *  read with the binding of the mask's transmission beside it, or a blend pass's trace with the
+ *  virtual shadow maps' bindings, its trace bindings and the kinds it traces. */
+type DirectShadowOptions =
+  | {
+      pass?: 'blend'
+      vsm?: VsmConsumerBindings
+      trace?: VsmTraceBindings
+      /** The light kinds the fragments trace (`vsmTraceKindsOf`), both unless given. */
+      kinds?: number
+      /** One sample (0) or the full trace (1): `LIGHT_SETTINGS.translucentShadowQuality` unless given. */
+      quality?: 0 | 1
+      /** Whether local lights shadow: `LIGHT_SETTINGS.translucentLocalShadows` unless given. */
+      localShadows?: boolean
+    }
+  | { pass: 'mask'; resolveTransmission: number }

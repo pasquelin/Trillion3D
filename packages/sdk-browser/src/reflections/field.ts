@@ -1,6 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { lobeRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
-import { probeFieldWgsl } from '../bounce/gridWgsl.ts'
+import { PROBE_IRRADIANCE, probeFieldWgsl } from '../bounce/gridWgsl.ts'
 import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 import { SQRT2 } from '../../../math/src/wgsl/constants.ts'
 import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
@@ -110,6 +110,10 @@ export const REFLECTION_ENVIRONMENT_WGSL = wgslBlock(
   `fn reflectionEnvironment()->vec3f{return reflectionView.surroundings.rgb;}`,
 )
 
+/** A probe's radiance through the lobe named `lobe`, never negative. */
+const probeThrough = (lobe: string) =>
+  `max(vec3f(0.0),${lobeRadianceShader((k) => `probeAt(probe,${k}u).xyz`, lobe)})`
+
 /**
  * The bounce probes' radiance through a lobe, at a point of normal `N`
  * (`reflectionProbesGathered`): the cascades' field (`probeFieldWgsl`), each probe's coefficients
@@ -124,8 +128,50 @@ export const REFLECTION_PROBES_WGSL = wgslBlock(
       'reflectionProbes',
       'reflectionProbeLevel',
       ',lobe:ReflectionLobe',
-      `max(vec3f(0.0),${lobeRadianceShader((k) => `probeAt(probe,${k}u).xyz`, 'lobe')})`,
+      probeThrough('lobe'),
     ),
+  ],
+  '',
+)
+
+/** The same through two lobes at once (`reflectionProbesPairGathered`): one gather of the probes, a
+ *  column each — the trace's alone. */
+export const REFLECTION_PROBES_PAIR_WGSL = wgslBlock(
+  'REFLECTION_PROBES_PAIR_WGSL',
+  [
+    REFLECTION_LOBE_WGSL,
+    probeFieldWgsl(
+      'reflectionProbesPair',
+      'reflectionProbePairLevel',
+      ',lobe:ReflectionLobe,other:ReflectionLobe',
+      [probeThrough('lobe'), probeThrough('other')],
+    ),
+  ],
+  '',
+)
+
+/** What the probes add of a gather through a lobe (`reflectionProbesShare`, its mean and share as
+ *  `reflectionProbesGathered` answers them): the mean, as far as they answer — beyond the
+ *  surroundings, which the field adds (`reflectionFieldOver`). */
+export const REFLECTION_PROBES_SHARE_WGSL = wgslBlock(
+  'REFLECTION_PROBES_SHARE_WGSL',
+  [],
+  `fn reflectionProbesShare(gathered:vec4f)->vec3f{return min(gathered.w,1.0)*gathered.xyz;}`,
+)
+
+/** A surface's irradiance and the bounce probes' radiance through its lobe at once
+ *  (`surfaceProbesGathered`): one gather of the probes, the irradiance the diffuse reads
+ *  (`sampleBounce`'s) in the first column, the radiance through the lobe (`reflectionProbesGathered`'s)
+ *  in the second, each the very sum it takes alone — what a surface whose reflection is the field reads
+ *  of the probes (`weight.ts`). */
+export const SURFACE_PROBES_WGSL = wgslBlock(
+  'SURFACE_PROBES_WGSL',
+  [
+    REFLECTION_LOBE_WGSL,
+    probeFieldWgsl('surfaceProbes', 'surfaceProbeLevel', ',lobe:ReflectionLobe', [
+      PROBE_IRRADIANCE,
+      probeThrough('lobe'),
+    ]),
   ],
   '',
 )

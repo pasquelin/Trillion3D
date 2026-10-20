@@ -13,7 +13,7 @@ import { standardSurface } from '../graph/graph.fixture.ts'
 import { preparedGraph } from './graph.ts'
 
 const node = (fields: Partial<TableNode>): TableNode => ({
-  ...{ name: '', children: [], mesh: null, light: null, camera: null, skin: null },
+  ...{ name: '', children: [], mesh: null, camera: null, skin: null },
   ...{ weights: null, matrix: null, translation: null, rotation: null, scale: null },
   visible: true,
   ...fields,

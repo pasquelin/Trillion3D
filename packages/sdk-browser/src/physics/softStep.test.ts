@@ -24,8 +24,10 @@ function digest({ jolt, record }: { jolt: Module; record: { map: Uint32Array } }
  *  taken again, the module before that change and the one after giving the same. */
 const COMPILED_STEP = {
   thrown: {
-    // Re-pinned once the rollback chain left the module (its calm moved the thrown cloth).
-    soft: '47a34bde79c4f2a32dc58338be36ced831c5e882ee11bd198fcc825374e5e847',
+    // Re-pinned once the rollback chain left the module (its calm moved the thrown cloth), then
+    // once a soft body started just off its rest shape (`SOFT_IMPERFECTION`, `soft.cpp`;
+    // `5c31a026…` before, which the module built with no imperfection still gives).
+    soft: '7fb56212b875c3b4769bc64ad5f28bc7d948e98ef7360266738ebfd0c6b590db',
   },
 }
 

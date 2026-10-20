@@ -15,16 +15,16 @@ import type { MainCut } from './dispatch.ts'
 export const readFor = (state: DagRuntimeState, next: SelectionUniforms) =>
   stampMatches(state.readback, next, state)
 
-/** What a main readback was copied from: the cut `serial` under `captured` and the factor
- *  `coarsen` (`listCap.ts`), and — stamped at its submit (`readMain`) — the poses and the
- *  residency in place; `cut`, the main view's it lands in. */
+/** What a main readback was copied from: the cut `serial` under `captured` and the factor `coarsen`
+ *  (`listCap.ts`), and — stamped at its submit (`readMain`) — the poses and the withdrawals in
+ *  place (`DagRuntimeState.withdrawnRevision`); `cut`, the main view's it lands in. */
 export type MainCopy = {
   cut: MainCut
   captured: SelectionUniforms
   serial: number
   coarsen: number
   world: number
-  residency: number
+  withdrawn: number
 }
 
 /** A copy taken: the ring's buffer (`resources.readbacks`) and what it is copied from. */
@@ -34,16 +34,16 @@ export type Copy = { buffer: GPUBuffer; tag: MainCopy }
  *  and the factor in place; none when the ring has none. */
 export function takeCopy(cut: MainCut, captured: SelectionUniforms, serial = -1): Copy | undefined {
   const { resources, state } = cut,
-    tag: MainCopy = { cut, captured, serial, coarsen: state.coarse.factor, world: 0, residency: 0 }
+    tag: MainCopy = { cut, captured, serial, coarsen: state.coarse.factor, world: 0, withdrawn: 0 }
   const buffer = resources.readbacks.take(tag, resources.readbackBytes)
   return buffer && { buffer, tag }
 }
 
 /** The copy into `buffer` under `tag`, its encoder submitted: stamped with the poses and the
- *  residency in place, and mapped behind the reads in flight (`chainMain`). */
+ *  withdrawals in place, and mapped behind the reads in flight (`chainMain`). */
 export function readMain(cut: MainCut, { buffer, tag }: Copy) {
   tag.world = cut.state.worldRevision
-  tag.residency = cut.state.residencyRevision
+  tag.withdrawn = cut.state.withdrawnRevision
   cut.resources.readbacks.submitted(buffer)
 }
 
@@ -84,9 +84,9 @@ export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy
       cutFactor: read.coarsen,
       flags: { shape: resources.flagShape, entryCount: packed.entryCount, full: state.flagsFull },
     },
-    // Every copy lands in the chain, adoptable or not: the next is taken against it. A residency
-    // that moved since makes the mask a lie; a pose that moved only makes the cut a frame late, as
-    // a camera's.
+    // Every copy lands in the chain, adoptable or not: the next is taken against it. A page
+    // withdrawn since makes the mask a lie; pages that arrived, or a pose that moved, only make the
+    // cut a frame late, as a camera's.
     (words, parsed, retried) =>
       parsed?.drawablePageIds &&
       chain.land(
@@ -94,7 +94,7 @@ export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy
         listCap,
         parsed.pageIds.length,
         parsed.drawablePageIds.length,
-        !retried && read.residency === state.residencyRevision,
+        !retried && read.withdrawn === state.withdrawnRevision,
       ),
   )
   // A cut past the list: the list grows, or past the device the cut coarsens, and the next
@@ -115,7 +115,7 @@ export function landMain(range: ArrayBuffer, _staging: GPUBuffer, read: MainCopy
   // A cut that dropped work was not drawn: its queues or lists grow, and it is never adopted.
   if (grownFlags) state.growFlags = widerFlagShape(state.growFlags, grownFlags)
   if (retried) return
-  if (parsed && read.residency === state.residencyRevision) {
+  if (parsed && read.withdrawn === state.withdrawnRevision) {
     state.last = { uniforms: read.captured, result: parsed, worldRevision: read.world }
     if (!parsed.truncated) noteWhole(resources.swap, MAIN_VIEW, read.serial)
   } else if (!parsed) state.readback = undefined

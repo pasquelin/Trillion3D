@@ -1,7 +1,7 @@
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Seat } from './worldBatches.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import { placementIndex, type LoadedModel } from './loadedModel.ts'
 import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { NONE, touchRows, type PoseFrame, type PoseState } from './worldPoseState.ts'
 import { writeSeat } from './worldPoseSeat.ts'
@@ -27,25 +27,28 @@ export function writeModel(
   // The rows the model's pose writes, each linked at the mesh's own world within its graph once the
   // graph is current: a session is given no matrix (`WorldModels.pose`); without one the rows are
   // written, the pose it opens on.
+  // Each placement of a record writes its own row of each source and of the world DAG's poses
+  // (`WorldModels.place`).
   let accepted = false
+  const row = placementIndex(model)
   const draws = models.pose(
     model,
     shown,
     composer &&
-      ((rowed) => {
+      ((rowed, index) => {
         const links = rowed.rowed.map((source) => ({
           rows: source.rows,
-          index: 0,
+          index,
           local: source.local,
         }))
-        if (rowed.world) links.push({ rows: rowed.world.rows, index: 0, local: IDENTITY_MATRIX4 })
+        if (rowed.world) links.push({ rows: rowed.world.rows, index, local: IDENTITY_MATRIX4 })
         if (!links.length) return
         composer.link(model, model.matrixWorld.elements, links, true)
         accepted = true
       }),
   )
-  for (const source of draws?.rowed ?? []) touchRows(state, source, 0, 0)
-  if (draws?.world) touchRows(state, draws.world, 0, 0)
+  for (const source of draws?.rowed ?? []) touchRows(state, source, row, row)
+  if (draws?.world) touchRows(state, draws.world, row, row)
   if (accepted) state.composed.set(model, shown)
   else if (state.composed.delete(model)) state.dropped.add(model)
 }

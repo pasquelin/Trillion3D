@@ -19,8 +19,8 @@ export function frontStageOf(items: readonly { surface: PageSurface }[]): FrontO
 /**
  * The front stages of a device's blend layout, one set of three culls for each `FrontOutputs`, its
  * module of its own (`blendFrontShader`): what every blend program's front pass draws with, whatever its
- * lights' key. Their depth is tested and written as the water surface stage's is — the nearest fragment
- * that covers or reflects is the one kept —, on the blend group alone. Nothing is described nor compiled
+ * lights' key. Their depth is tested near or equal and written unbiased (`stageDescriptors`) — the
+ * nearest fragment that covers or reflects is the one kept —, on the blend group alone. Nothing is described nor compiled
  * before its first ask: prepare's, for what the scene's transparents reach (`prepare`), or a frame's that
  * reaches another (`ask`), off the frame, the frames held until it lands. A scene without a transparent
  * never asks one. A rank of any blending mode draws its cull's.
@@ -40,15 +40,9 @@ export function createFrontStages(device: GPUDevice, layout: GPUBindGroupLayout)
         entryPoint: 'fsFront',
         targets: fragmentTargets(FRONT_OUTPUTS[outputs]),
       }
-      return (culls = stageDescriptors(
-        device,
-        module,
-        layout,
-        fragment,
-        true,
-        undefined,
-        false,
-      ).map((descriptor) => preparedPipeline(device, descriptor)))
+      return (culls = stageDescriptors(device, module, layout, fragment, true, []).map(
+        (descriptor) => preparedPipeline(device, descriptor),
+      ))
     }
     return {
       get ready() {

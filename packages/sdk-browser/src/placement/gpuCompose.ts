@@ -28,10 +28,10 @@
  * is: the root boxes pass writes its world box and the primitive stretch every cut projects its
  * errors through (`rootBoxes.ts`); the rows pass each row's sphere, Hi-Z corners and
  * world-dependent levels of detail (`gpuComposeDerivedWgsl.ts`); the tree's leaves pass the leaf
- * boxes the placement tree is refitted over (`treeLeaves.ts`). The CPU readers — impostor cards, transparent depth, the winding —
- * read the lazy world of the root once a frame, as waves, a soft body and a skeleton do. A link is
- * never refused for what reads its row: the rows no root reads — a blended surface's, or a row
- * whose root is not built yet — are composed for their readers (`composeReaders.ts`).
+ * boxes the placement tree is refitted over (`treeLeaves.ts`). The CPU readers — transparent depth,
+ * the winding — read the lazy world of the root once a frame, as waves, a soft body and a skeleton
+ * do. A link is never refused for what reads its row: the rows no root reads — a blended surface's,
+ * or a row whose root is not built yet — are composed for their readers (`composeReaders.ts`).
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -43,7 +43,6 @@ import {
   holdReaders,
   readerViews,
   readThroughViews,
-  releaseReaderViews,
   type ReaderViews,
 } from './composeReaders.ts'
 import { composeState, linkedRanks, linkRanks, takeSlot, unlinkHeld } from './gpuComposeLinks.ts'
@@ -71,27 +70,32 @@ export function composeWebgpuPlacements(
   const state = composeState(rt)
   const p = state.parentIds.get(parent)
   if (p === undefined && !links.length) return
+  // A world alone — every slot, every frame (`partition/follow.ts`) —: no link read, nothing made.
+  if (p !== undefined && !links.length && !whole) {
+    if (settleSlot(rt, state, { slot: p, p, world, relinked: false }))
+      rt.run.gate.engineMovedInPlace()
+    return
+  }
   const { ranks, rooted, readers } = linkedRanks(rt, links)
   const slot = takeSlot(state, parent, p)
   let views: ReaderViews | undefined
   const viewsOf = () => (views ??= readerViews(rt.blendState.blendGpu))
-  if (whole) {
-    unlinkHeld(rt, state, slot, ranks)
-    if (state.readers.has(slot)) releaseReaderViews(state.readers, slot, viewsOf())
-    state.readers.delete(slot)
-  }
-  if (readers.length) holdReaders(state.readers, slot, parent, readers)
+  let relinked = whole && unlinkHeld(rt, state, slot, ranks)
+  // A reader's new local moves the slot's version too: its views read that version alone.
+  if (readers.length || (whole && state.readers.has(slot)))
+    relinked =
+      holdReaders(state.readers, slot, parent, readers, whole ? viewsOf() : undefined) || relinked
   if (!ranks.length && !readers.length && whole) {
     state.parentIds.delete(parent)
     state.freeSlots.push(slot)
     return
   }
-  linkRanks(rt, state, { slot, ranks, links: rooted, whole })
-  // A reader's new local moves the slot's version too: its views read that version alone.
-  const relinked = ranks.length > 0 || readers.length > 0 || whole
+  // A set linked again as it stands — a still parent's, every frame — relinks nothing.
+  relinked = linkRanks(rt, state, { slot, ranks, links: rooted, whole }) || relinked
   const moved = settleSlot(rt, state, { slot, p, world, relinked })
-  // Its readers' views read their rows composed: a move composes none until one is read.
-  if (readers.length || whole)
+  // Its readers' views read their rows composed: a move composes none until one is read, and a
+  // set linked again as it stands keeps them.
+  if (relinked && readers.length)
     readThroughViews(state.readers, slot, viewsOf(), state, rt.layout.selectionRoots)
   // Poses moved and no node entered or left: the frame hears it as any engine pose write. A still
   // world sent again — every slot a frame sends (`partition/follow.ts`) — moves nothing.

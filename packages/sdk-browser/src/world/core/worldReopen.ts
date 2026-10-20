@@ -1,6 +1,7 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { keepCanvasImage, releaseCanvasImage } from '../../gpu/core/canvasHandover.ts'
 import type { WorldNotices } from '../diagnostic/worldNotices.ts'
+import { createDeferred } from '../../../../sdk-core/src/runtime/deferred.ts'
 
 /** Why a world's session opens again: a lost device, or an option the engine cannot take in place
  *  (a budget split, a scope). Content never does: every mesh, material, model and partition joins
@@ -33,8 +34,7 @@ export function worldReopens(
   const endOf = (session: object) => {
     let known = ends.get(session)
     if (!known) {
-      let end = () => {}
-      const promise = new Promise<void>((done) => (end = done))
+      const { promise, resolve: end } = createDeferred<void>()
       ends.set(session, (known = { promise, end }))
     }
     return known

@@ -110,11 +110,11 @@ export function dagLevel<T extends Cluster>(
   }
 }
 
-export const DAG = { errorModel: 'dag-group-qem-v3', clusterStrategy: 'dag-groups' as const }
+export const DAG = { errorModel: 'dag-group-qem-v4', clusterStrategy: 'dag-groups' as const }
 
 /** The identity fields a cluster manifest carries, filled once for every engine test. */
 export const MANIFEST_IDENTITY = {
-  schema: CLUSTERED_BLEND_FORMAT_VERSION,
+  formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
   status: 'ready' as const,
   key: 'k',
   scope: 'full' as const,

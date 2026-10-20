@@ -16,5 +16,11 @@ export function createExplorerDiagnosticApi(inputs: Inputs) {
       engine.setDiagnostic(mode)
       setMode(mode)
     },
+    /** Holds the main view's cut — levels, HLOD, frustum, occlusion — at the camera it has now, or
+     *  follows the camera again. */
+    freezeCut(frozen: boolean) {
+      check()
+      engine.freezeCut(frozen)
+    },
   }
 }

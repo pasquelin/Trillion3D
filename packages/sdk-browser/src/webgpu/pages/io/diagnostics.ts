@@ -2,6 +2,8 @@ import type { EngineDiagnostic } from '../../../diagnostic/types.ts'
 import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts'
 import { isCancelled } from '../../../engine/common.ts'
 import { log } from '../../../diagnostic/log.ts'
+import { microtaskOnce } from '../../../../../sdk-core/src/runtime/microtaskOnce.ts'
+import { countBy } from '../../../../../math/src/sequence/counts.ts'
 
 /** The backend's diagnostic channel (`createWebgpuDiagnostics`). */
 export type WebgpuDiagnosticChannel = ReturnType<typeof createWebgpuDiagnostics>
@@ -19,7 +21,11 @@ export function createWebgpuDiagnostics(
 ) {
   const t: TraceQueue = {
     ...{ onDiagnostic, traceEnabled, queue: [] },
-    ...{ dropped: 0, lossPending: 0, scheduled: false },
+    ...{ dropped: 0, lossPending: 0 },
+    turn: microtaskOnce(() => {
+      drain(t)
+      flush(t)
+    }),
   }
   const traceDiagnostic = (
     phase: string,
@@ -49,7 +55,8 @@ type TraceQueue = {
   queue: TraceDiagnostic[]
   dropped: number
   lossPending: number
-  scheduled: boolean
+  /** The drain's microtask, asked again while the queue holds traces. */
+  turn: ReturnType<typeof microtaskOnce>
 }
 type Failures = {
   signal: AbortSignal | undefined
@@ -90,13 +97,7 @@ function drain(t: TraceQueue) {
 }
 
 function flush(t: TraceQueue) {
-  if (t.scheduled || !t.queue.length) return
-  t.scheduled = true
-  queueMicrotask(() => {
-    t.scheduled = false
-    drain(t)
-    if (t.queue.length) flush(t)
-  })
+  if (t.queue.length) t.turn.schedule()
 }
 
 function trace(
@@ -134,8 +135,7 @@ function failure(f: Failures, phase: string, error: unknown) {
   const details = {
     error: objectError?.message !== undefined ? String(objectError.message) : String(error),
   }
-  const occurrence = (f.occurrences.get(phase) ?? 0) + 1
-  f.occurrences.set(phase, occurrence)
+  const occurrence = countBy(f.occurrences, phase, 1)
   // A failed path is said on the console too, once per kind: with no diagnostic channel open —
   // the default — it would otherwise leave a blank or degraded image and nothing to read.
   if (occurrence === 1) log.warn(`WebGPU ${phase}: ${details.error}`)

@@ -3,7 +3,6 @@ import {
   wantsContractLighting,
 } from '../webgpu/pages/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
-import type { EngineCamera } from '../camera/engineCamera.ts'
 import { frontStamp } from './frontLayer.ts'
 import type { ScreenReflection } from './gpu.ts'
 import { reflectionGroup, reflectionLightView, reflectionProxy } from './group.ts'
@@ -15,18 +14,11 @@ import {
 } from '../../../sdk-core/src/scene/core/environment.ts'
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
- *  programs read: `traced`, whether the trace runs this image; `pose`, the camera's view-projection,
- *  the jitter aside; unchanged, nothing is sent. */
-function writeFrame(
-  rt: WebgpuPagesRuntime,
-  reflection: ScreenReflection,
-  traced: boolean,
-  pose: ArrayLike<number>,
-) {
+ *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
+function writeFrame(rt: WebgpuPagesRuntime, reflection: ScreenReflection, traced: boolean) {
   const { gpu, run } = rt,
     { frame } = reflection
   frame.size = gpu.targetSize
-  frame.pose = pose
   frame.depthDrawn = run.depthDrawn
   const { environment } = rt.lights.store
   frame.surroundings = reflection.surroundings(
@@ -36,7 +28,7 @@ function writeFrame(
   )
   // The transparents' front surface, answered where this very image's pass wrote it (`encodeFrontPass`).
   frame.front = traced && reflection.front.reflected === frontStamp(run.frame)
-  stageReflectionImage(reflection, frame, rt.lights.store.epoch)
+  stageReflectionImage(reflection, frame)
 }
 
 /**
@@ -67,14 +59,10 @@ export function encodeDepthPyramid(rt: WebgpuPagesRuntime, encoder: GPUCommandEn
  * resolve reads and the front radiance the forward fragments read, when the image is lit, its field
  * read from the bounce cascades and its proxy from the scene's proxy. What the lighting's view holds of the image — its
  * inverse view-projection, the eye, the exposure, the display curve, the background — the trace
- * reads there (`gpu.deferred.update`, written before the image is submitted); where the camera `cam`
- * stands, the jitter aside, decides whether the image is drawn for a change.
+ * reads there (`gpu.deferred.update`, written before the image is submitted). Every image traces and
+ * accumulates, still or moving: a still view is how the history fills, a moving one how it follows.
  */
-export function encodeReflections(
-  rt: WebgpuPagesRuntime,
-  encoder: GPUCommandEncoder,
-  cam: EngineCamera,
-) {
+export function encodeReflections(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis, lights } = rt,
     reflection = gpu.reflection,
     stages = vis.reflectionPipelines,
@@ -85,14 +73,9 @@ export function encodeReflections(
   const surfaces = gpu.surfaces,
     deferred = gpu.deferred,
     traced = wantsContractLighting(rt) && !!surfaces && !!lights.buffer && !!deferred
-  // Every image whose radiance is built is staged, its move decided: the build reads that decision.
-  writeFrame(rt, reflection, traced, cam.viewProjection)
+  // Every image whose radiance is built is staged.
+  writeFrame(rt, reflection, traced)
   if (!hiz || !depth) return
-  // A frozen view is drawn from what no longer moves — its pose, its lights, its content, its history,
-  // its pyramid —: the targets the last image wrote are this one's, and nothing is traced. A jitter of
-  // the temporal accumulation is no move (`stageReflectionImage`): the reflections hold the phase they
-  // froze on, as the history does.
-  if (reflection.settle.frozen) return
   if (traced) {
     const views = surfaces.views()
     // The cascades the resolve reads, else its empty ones: the field a miss reads is the diffuse's.
@@ -122,8 +105,7 @@ export function encodeReflections(
 
 /** The radiance pyramid of the image's lit colour, once every surface drew into it and before
  *  the temporal resolve reads it: what the next image's reflections reproject their hits into, the
- *  lit image itself its level 0 once the image is encoded (`adoptRadianceImage`). Its hash is
- *  copied while the view is unsettled (`RadianceSettle`). */
+ *  lit image itself its level 0 once the image is encoded (`adoptRadianceImage`). */
 export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis } = rt,
     reflection = gpu.reflection,
@@ -132,10 +114,5 @@ export function encodeReflectionRadiance(rt: WebgpuPagesRuntime, encoder: GPUCom
   const { radianceInputs } = reflection
   radianceInputs.texture = gpu.hdrTexture
   radianceInputs.view = gpu.deferred.uniform
-  radianceInputs.hash = reflection.settle.hash
   encodeImageRadiance(encoder, reflection, stages, radianceInputs, reflection.frame)
 }
-
-/** The image is submitted: the hash it copied is mapped (`RadianceSettle.submitted`). */
-export const reflectionsSubmitted = ({ gpu }: Pick<WebgpuPagesRuntime, 'gpu'>) =>
-  gpu.reflection?.settle.submitted()

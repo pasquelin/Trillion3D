@@ -51,6 +51,7 @@ export function createTileGrowth(
     append(kind: 'color' | 'data', texture: TileTexture) {
       const atlas = kind === 'color' ? color : data
       const slot = atlas.append(texture)
+      sources.hold(texture)
       try {
         atlas.pinTails(device.queue, (at, place) => sources.tail(atlas, at, place), slot, slot + 1)
         relayout()

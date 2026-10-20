@@ -4,8 +4,8 @@ import { VIEW_BLOCK_WORDS, VIEW_UNIFORM_STRUCT, viewWord, type FieldName } from 
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { writeDagUniforms } from './uniforms.ts'
 
-test('the block holds the hundred and sixteen words the uniform array strides by', () => {
-  assert.equal(VIEW_BLOCK_WORDS, 116)
+test('the block holds the hundred and twelve words the uniform array strides by', () => {
+  assert.equal(VIEW_BLOCK_WORDS, 112)
   // The array is allocated from the same number the kernels index by: one source, no drift.
 })
 
@@ -32,25 +32,24 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['admitByLevel', 56],
     // The swap's two regions, one word (`shader/swapWgsl.ts`).
     ['swapRegions', 57],
-    // The world DAG's placement, the placement tree's two words, the world's link base and scale.
-    // The tree's order and list lie in its own table (`treeTable.ts`): no word names them.
-    ['worldRoot', 58],
-    ['treeTop', 59],
-    ['cellBase', 60],
-    ['worldLinks', 61],
-    ['worldScale', 62],
+    // The placement tree's two words, the world's link base. The tree's order and list
+    // lie in its own table (`treeTable.ts`), the world DAG's placements among its members drawn
+    // whatever the view: no word names them.
+    ['treeTop', 58],
+    ['cellBase', 59],
+    ['worldLinks', 60],
     // The open counts placements hold (`heldOpen.ts`), the lists' entries, the records and keys.
-    ['heldBase', 63],
-    ['heldMask', 64],
-    ['candCap', 65],
-    ['recordCount', 66],
-    ['keyCount', 67],
+    ['heldBase', 61],
+    ['heldMask', 62],
+    ['candCap', 63],
+    ['recordCount', 64],
+    ['keyCount', 65],
     // The keys' groups and their links, then the frame the stamps are made at (`evict.ts`).
-    ['groupCount', 68],
-    ['groupEdges', 69],
-    ['frame', 70],
+    ['groupCount', 66],
+    ['groupEdges', 67],
+    ['frame', 68],
     // The tree's members drawn whatever the view, in the gap: no word behind them moves.
-    ['alwaysCount', 71],
+    ['alwaysCount', 69],
     ['lightOriginHigh', 72],
     ['lightOriginLow', 76],
     ['lightPlanes', 80],
@@ -76,7 +75,7 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,cameraWorld:vec3f,' +
       'cameraStretch:f32,listCap:u32,perspective:f32,' +
       'queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
-      'worldRoot:u32,treeTop:u32,cellBase:u32,worldLinks:u32,worldScale:f32,' +
+      'treeTop:u32,cellBase:u32,worldLinks:u32,' +
       'heldBase:u32,heldMask:u32,candCap:u32,recordCount:u32,keyCount:u32,' +
       'groupCount:u32,groupEdges:u32,frame:u32,alwaysCount:u32,' +
       'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,eye:array<vec4u,2>,}',

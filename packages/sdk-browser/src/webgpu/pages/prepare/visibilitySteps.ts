@@ -19,8 +19,8 @@ import { blendContext } from './contractLight.ts'
 type Shaders = Awaited<ReturnType<typeof createWebgpuVisibilityShaders>>
 type Variant = WebgpuPagesRuntime['context']['diagnosticGpuVariant']
 
-/** The blend pipelines of `items` and the water pass they bring, on `layout` when the session has
- *  one; a refusal is said and builds none. */
+/** The blend pipelines of `items`, the transmissive stages among them, on `layout` when the
+ *  session has one; a refusal is said and builds none. */
 export async function buildBlendPipelines(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
@@ -29,7 +29,7 @@ export async function buildBlendPipelines(
 ) {
   const { vis, diag } = rt
   try {
-    const built = await createWebgpuBlendPipelines(
+    return await createWebgpuBlendPipelines(
       gpuDevice,
       items,
       rt.context.diagnosticGpuVariant,
@@ -38,9 +38,6 @@ export async function buildBlendPipelines(
       blendWritesShare(rt),
       blendContext(rt),
     )
-    // A refused water pass leaves blends in place and reports the reason.
-    if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused)
-    return built
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error)
     return undefined
@@ -53,7 +50,6 @@ export async function prepareBlendPipelines(rt: WebgpuPagesRuntime, gpuDevice: G
   const built = await buildBlendPipelines(rt, gpuDevice, blendState.blendGpu)
   vis.blendBindGroupLayout = built?.blendBindGroupLayout
   vis.blendPipelines = built?.blendPipelines
-  blendState.water = built?.water
 }
 
 /** The visibility raster's pipelines, refused by name. */

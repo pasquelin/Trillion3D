@@ -133,3 +133,12 @@ function addRowPages(state: RowState, packedPages: PageList, first: number) {
 }
 
 type RowState = ReturnType<typeof createWebgpuRowState>
+
+/** The row packed page `index` draws from while it is still this page's, -1 none: a blended
+ *  cluster's caster row, its own (`blendCasters.ts`); an opaque row only while the table names
+ *  this page there, since a row the cache gave back may name another page since. */
+export function ownPageRow(rows: WebgpuRowState, index: number, transparent: boolean) {
+  const row = transparent ? rows.blendRowOf(index) : rows.rowOf(index)
+  if (row < 0 || transparent) return row
+  return row >= rows.packedCount || rows.packedPageIndex[row] !== index ? -1 : row
+}

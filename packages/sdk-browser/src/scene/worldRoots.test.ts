@@ -1,34 +1,37 @@
-// The runtime reads the world roots and pins their top alone; a placed cell holds the
-// bundles past it that its objects' roots depend on, and lets them go when it leaves.
+// The runtime reads the world's HLOD and pins nothing; an HLOD 0 cell holds the bundles of its
+// HLOD 1 roots while its HLOD 1 actor is loaded, and lets them go when it leaves.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from '../streaming/eventually.fixture.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { worldRootsDag, worldRootsFixture } from './worldRootsPages.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
-import { cellSuperRoots } from '../partition/superRoots.ts'
 import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
-import { heldBy, modelOpened, opened, rangeOf, served } from './worldRoots.fixture.ts'
+import { heldBy, modelOpened, opened, pageOf, served } from './worldRoots.fixture.ts'
 import { createPageStreamer } from '../streaming/pageStreamer.ts'
 import { createPageCache } from '../streaming/pageCache.ts'
 
-test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
-  const { table, manifest, ranges } = served(t)
-  const { roots } = await opened(t, manifest)
-  const top = table.pinnedTopBytes
-  assert.deepEqual([roots.pinned.bundles, roots.pinned.bytes, roots.bytes()], [1, top, top])
-  const pinned = decodeGeometryPage(roots.pinned.pages[0].bytes).attributes.position
-  assert.deepEqual([...pinned], [0, 0, 0, 1, 0, 0, 0, 1, 0])
-  assert.deepEqual(ranges, [`bytes=0-${top - 1}`], 'the top alone, in one range')
-  assert.deepEqual(heldBy(roots), [], 'no object root and no cell bundle is pinned')
+/** The bytes the Range headers `ranges` ask, in all. */
+const asked = (ranges: readonly string[]) =>
+  ranges.reduce((sum, range) => {
+    const [from, to] = range.slice('bytes='.length).split('-').map(Number)
+    return sum + to - from + 1
+  }, 0)
+
+test('nothing is pinned; a held HLOD 0 cell holds the bundles of its HLOD 1 roots', async (t) => {
+  const { table, manifest, ranges, bin } = served(t)
+  const { roots, queue } = await opened(t, manifest)
+  assert.deepEqual([ranges, roots.bytes(), heldBy(roots)], [[], 0, []], 'nothing read at open')
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
-  assert.deepEqual(heldBy(roots), [1, 2, 3], 'each bundle the placed cells need, read once')
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 4)], 'end to end in the binary: one range')
+  assert.deepEqual(heldBy(roots), [0, 1, 2, 3], 'each bundle the held cells need')
+  assert.equal(asked(ranges), bin.byteLength, 'each read once')
+  const read = await queue.readBytes(pageOf(table, 0), queue.signal)
+  assert.deepEqual([...decodeGeometryPage(read).attributes.position], [0, 0, 0, 1, 0, 0, 0, 1, 0])
   roots.release(0)
-  assert.deepEqual(heldBy(roots), [2, 3], 'a bundle another placed cell needs stays')
+  assert.deepEqual(heldBy(roots), [0, 2, 3], 'a bundle another held cell needs stays')
   roots.release(1)
   roots.release(2)
-  assert.deepEqual([heldBy(roots), roots.bytes()], [[], top], 'the pinned top alone is left')
+  assert.deepEqual([heldBy(roots), roots.bytes()], [[], 0], 'nothing left')
 })
 
 test('a bundle whose bytes are not those its table names waits its turn, its hold on its way, wanted till released', async (t) => {
@@ -46,7 +49,7 @@ test('a bundle whose bytes are not those its table names waits its turn, its hol
   assert.deepEqual(heldBy(roots), [], 'released, it holds nothing')
 })
 
-test('the top read at open and a bundle a cell holds are refused alike, naming the bundle that differs', async (t) => {
+test('a bundle a cell holds whose bytes differ is refused, naming it', async (t) => {
   const { bin } = worldRootsFixture()
   const world = served(t, { bin }),
     at = (bundle: number) => world.table.bundles[bundle].offset
@@ -59,48 +62,40 @@ test('the top read at open and a bundle a cell holds are refused alike, naming t
   })
   t.after(() => queue.dispose())
   const roots = (await openWorldRoots(world.manifest, 'http://world/', queue))!
-  bin[at(3)] ^= 1
-  const leaving = new AbortController()
-  roots.hold(0, { signal: leaving.signal }).catch(() => {})
-  await eventually(() => refusals.length > 0)
-  assert.ok(refusals[0].includes(`${expected(3)} announced`), 'a cell bundle, through the queue')
-  leaving.abort()
-  bin[at(3)] ^= 1
   bin[at(0)] ^= 1
-  const load = new AbortController()
-  const opening = openWorldRoots(world.manifest, 'http://world/', queue, { signal: load.signal })
-  await eventually(() => refusals.length > 1)
-  assert.ok(refusals[1].includes(`${expected(0)} announced`), 'the top, through the same queue')
-  load.abort()
-  await assert.rejects(opening, { name: 'AbortError' })
+  const leaving = new AbortController()
+  roots.hold(2, { signal: leaving.signal }).catch(() => {})
+  await eventually(() => refusals.length > 0)
+  assert.ok(refusals[0].includes(`${expected(0)} announced`), 'a cell bundle, through the queue')
+  leaving.abort()
 })
 
 test("a server that ignores the Range is read whole once through the page cache: by a world's load and its sessions alike", async (t) => {
-  const { manifest, ranges, bin } = served(t, { ignoresRange: true })
+  const { manifest, ranges, bin, table } = served(t, { ignoresRange: true })
   const cache = createPageCache()
   // A world's model loads before any session, through a queue of its own over its page cache.
-  const roots = (await modelOpened(manifest, { whole: true }, cache))!
-  // Its top and cell 0's bundles 1 and 3 copied out, the binary is kept whole, one entry: the
-  // table, read for its decode, is never one.
-  assert.equal(cache.bytes, bin.byteLength, 'counted once')
-  for (const cell of [1, 2]) {
+  const roots = (await modelOpened(manifest, {}, cache))!
+  // The binary answered whole is one entry, and each bundle read from it one more: the table,
+  // read for its decode, is never one.
+  const kept = (held: number[]) =>
+    bin.byteLength + held.reduce((sum, at) => sum + table.bundles[at].bytes, 0)
+  for (const cell of [0, 1, 2]) {
     const session = createPageStreamer([], 'http://world/', { cache })
     roots.bind(session)
     await roots.hold(cell)
     session.dispose() // the device is lost: the next session reads on
   }
-  assert.deepEqual(heldBy(roots), [1, 2, 3])
-  assert.equal(cache.bytes, bin.byteLength, 'kept whole, counted once, till the budget evicts it')
+  assert.deepEqual(heldBy(roots), [0, 1, 2, 3])
+  assert.equal(cache.bytes, kept([0, 1, 2, 3]), 'each counted once, till the budget evicts it')
   assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
   const bundles = heldBy(roots).reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0)
-  assert.equal(roots.bytes(), roots.pinned.bytes + bundles, 'never counted twice')
+  assert.equal(roots.bytes(), bundles, 'never counted twice')
 })
 
 test('the world DAG names its pages through the one source, from what is held', async (t) => {
   const { clusters, groups, culling } = worldRootsDag()
   const { manifest, ranges, whole } = served(t, { dag: { clusters, groups, culling } })
   const { roots, queue } = await opened(t, manifest)
-  // A partitioned world — three cells — reads its DAG at load: the cut packs it.
   assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once, at load')
   const files = ['table', 'dag'].map((file) => `http://world/world-roots.${file}`)
   assert.deepEqual(
@@ -108,57 +103,24 @@ test('the world DAG names its pages through the one source, from what is held', 
     [false, false, false, false],
     'decoded, neither is kept in the page cache nor stays catalogued',
   )
-  const stream = await roots.stream()
-  assert.equal(stream, roots.drawn, 'the stream the cut draws from')
-  assert.equal(stream, await roots.stream(), 'opened once')
-  assert.deepEqual(whole, ['table', 'dag'], 'an opened stream reads its DAG no more')
-  assert.equal(stream.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank')
-  await roots.hold(0) // cell 0 holds bundles 1 and 3, the top is pinned
-  const asked = ranges.length
-  const addressed = stream.dag!.pages.filter((page) => page.url)
-  const pages = await Promise.all(addressed.map((page) => stream.source.page(page.url)))
+  const dag = roots.dag!
+  assert.equal(dag.pages.length, clusters.length, 'the cook\u2019s clusters, in rank')
+  await roots.hold(0) // cell 0 holds bundles 1 and 3
+  const before = ranges.length
+  const pages = await Promise.all(dag.pages.map((page) => queue.readBytes(page.url, queue.signal)))
   assert.deepEqual(
-    pages.map((page) => decodeGeometryPage(page.bytes).attributes.position[0]),
-    [1, 2, 3, 0],
-    'each super-root reads the page at its bundle, the world top last',
+    pages.map((page) => decodeGeometryPage(page).attributes.position[0]),
+    clusters.map(({ level, hlod }) => (level ? (hlod + 1) % 3 : 3 + hlod)),
+    'each cluster reads the page at its bundle and offset',
   )
-  assert.equal(ranges.length, asked + 1, 'only bundle 2, neither pinned nor held, is read')
+  assert.ok(ranges.length > before, 'bundles 0 and 2, not held, are read')
   assert.deepEqual(roots.held(), [1, 3], 'a page read is not a cell hold')
-  // A bundle read in flight is counted in the CPU budget, and let go once served.
-  const before = roots.bytes(),
-    far = addressed[1].url // bundle 2's super-root
-  const reading = stream.source.read(far)
-  assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the read bundle is counted')
-  await reading
-  assert.equal(roots.bytes(), before, 'served, it is let go')
 })
 
-test('a cache without its DAG file opens a stream with no DAG', async (t) => {
+test('a cache without its DAG file opens with no DAG', async (t) => {
   const { manifest } = served(t)
   const roots = (await modelOpened(manifest))!
-  const stream = await roots.stream()
-  assert.deepEqual([stream.dag, stream.superRoots], [undefined, undefined])
-})
-
-test("the stream bounds each cell's super-roots, an object root in its object's cell", async (t) => {
-  // The table lists one object in cell 0, two in cell 1, one in cell 2: an object root's `origin`
-  // is its object's rank there, as the cook writes it.
-  const { clusters, groups, culling } = worldRootsDag()
-  const cellOf = (origin: number) => Math.floor(origin / 4)
-  const ranked = clusters.map((c) =>
-    c.origin === null ? c : { ...c, origin: [0, 1, 3][cellOf(c.origin)] },
-  )
-  const { manifest } = served(t, { dag: { clusters: ranked, groups, culling } })
-  const roots = (await modelOpened(manifest))!
-  const { superRoots } = await roots.stream()
-  assert.deepEqual(superRoots, cellSuperRoots(clusters, cellOf, 3))
-})
-
-test('a scene not partitioned holds its one cell from its open, read with the top', async (t) => {
-  const { manifest, ranges, table } = served(t)
-  const roots = (await modelOpened(manifest, { whole: true }))!
-  assert.deepEqual(heldBy(roots), [1, 3], 'cell 0, before any session binds its queue')
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)])
+  assert.equal(roots.dag, undefined)
 })
 
 test('a cache that publishes no world roots pins nothing', async () => {

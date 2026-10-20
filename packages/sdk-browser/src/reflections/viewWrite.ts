@@ -3,26 +3,20 @@ import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { screenSlab } from '../gpu/hiz/screenSlab.ts'
 import type { HeldImage } from './radiance.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
+import { gridSide } from './grids.ts'
 
 /** What an image tells its reflection view (`createReflectionViewWriter`). */
 export type ReflectionFrame = {
   /** The render view-projection the depth was drawn with, jitter included. */
   viewProjection: ArrayLike<number>
-  /** The camera's view-projection, without the temporal accumulation's jitter: where the view
-   *  stands; the render one where absent. */
-  pose?: ArrayLike<number>
   /** The drawn size. */
   size: readonly [number, number]
   /** Whether the depth pyramid holds this image's whole depth. */
   depthDrawn: boolean
   /** Whether this image's trace answers the transparents' front surface (`frontLayer.ts`). */
   front?: boolean
-  /** The reflections' turn and the images drawn since the last change (`ReflectionView.temporal`). */
+  /** The reflections' turn (`ReflectionView.temporal`). */
   turn?: number
-  quiet?: number
-  /** Whether the image is drawn from where the held one was — its size and view-projection —,
-   *  decided by its staging (`stageReflectionImage`), read by its radiance build. */
-  still?: boolean
   /** The radiance a ray that leaves the scene reaches (`createSurroundings`): zero when absent. */
   surroundings?: ArrayLike<number>
 }
@@ -34,9 +28,8 @@ export type ReflectionFrame = {
  * pixel at a unit clip `w` — 2 /
  * (height · |row y of the view-projection|), the projection's vertical scale —, whether the screen
  * is traced, whether the trace answers the transparents' front
- * surface, the reflections' turn and quiet images, and the surroundings. The words that differ from
- * those it sent go up (`writeChanged`): a frozen view writes nothing — its turn held, its quiet count
- * capped —, transparents or not. Nothing is allocated by a call.
+ * surface, the reflections' turn, the grid's extent, and the surroundings. The words
+ * that differ from those it sent go up (`writeChanged`). Nothing is allocated by a call.
  */
 export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer) {
   const staged = new Float32Array(REFLECTION_VIEW_WORDS)
@@ -44,6 +37,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
   const traced = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.traced * 4, 4)
   const front = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.front * 4, 4)
   const temporal = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.temporal * 4, 4)
+  const grid = new Uint32Array(staged.buffer, REFLECTION_VIEW_AT.grid * 4, 4)
   return (frame: ReflectionFrame, held: HeldImage, levels: number) => {
     const m = frame.viewProjection
     copyMatrix4(staged, m, REFLECTION_VIEW_AT.viewProj)
@@ -56,7 +50,8 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     traced[0] = frame.depthDrawn && held.valid ? 1 : 0
     front[0] = frame.front ? 1 : 0
     temporal[0] = frame.turn ?? 0
-    temporal[1] = frame.quiet ?? 0
+    grid[0] = gridSide(frame.size[0])
+    grid[1] = gridSide(frame.size[1])
     if (frame.surroundings) staged.set(frame.surroundings, REFLECTION_VIEW_AT.surroundings)
     else staged.fill(0, REFLECTION_VIEW_AT.surroundings, REFLECTION_VIEW_AT.surroundings + 4)
     writeChanged(device, buffer, words, 0, REFLECTION_VIEW_WORDS)

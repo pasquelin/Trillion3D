@@ -9,23 +9,25 @@
  * (`frameMsReason`); and once, first, the device's `subgroups` feature and its sizes.
  * Nothing is timed for it: without the flag it reads nothing and writes nothing.
  */
+import { adapterSubgroupSizes } from '../../../gpu/core/subgroups.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { addressFlag } from '../../../host/addressFlag.ts'
 import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
 import { VSM_PROJECTION_PASS } from '../../../vsm/projectionPipelines.ts'
-import { VSM_PROJECTION_GROUP_SIZE } from '../../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_GROUP_SIZE } from '../../../vsm/constants.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import { passOwnMs } from '../../../stage/mapping.ts'
+import { passTotals } from '../../../stage/mapping.ts'
 
 const EVERY_FRAMES = 60
 const asked = addressFlag((params) => params.get('trillion3dGpuLog') === '1')
 const ms = (value: number | null | undefined) => (value == null ? '-' : value.toFixed(2))
+/** Each pass its own group: its name. */
+const byName = (name: string) => name
 
-/** The device's line, written once: its subgroups (the projection votes by workgroup counters on
- *  every device). */
+/** The device's line, written once: its subgroups (the projection's halves vote over theirs where
+ *  every subgroup holds 32 lanes, by workgroup counters elsewhere). */
 function deviceLine(device: GPUDevice) {
-  const info = (device as { adapterInfo?: { subgroupMinSize?: number; subgroupMaxSize?: number } })
-    .adapterInfo
+  const info = adapterSubgroupSizes(device)
   const subgroups = device.features.has('subgroups')
   return (
     `[T3D-GPU] subgroups ${subgroups ? 'yes' : 'no'}` +
@@ -48,12 +50,7 @@ export function createGpuLog(device: GPUDevice) {
     if (next < 0) console.log(deviceLine(device))
     next = sample.frame + EVERY_FRAMES
     // Each pass's own share, its instances summed; '-' where one went untimed.
-    const own = new Map<string, number | null>()
-    for (const pass of sample.passes) {
-      const value = passOwnMs(pass),
-        sum = own.get(pass.name)
-      own.set(pass.name, value == null || sum === null ? null : (sum ?? 0) + value)
-    }
+    const own = passTotals(sample.passes, byName)
     // The projection's groups over the size drawn now (`encodeVsmFrame`), the timed image's scale
     // beside it: a sample describes an image a few frames past.
     const cpu = images ? ` cpu ${ms(cpuSum / images)} ms` : '',

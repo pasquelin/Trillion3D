@@ -2,8 +2,8 @@ import type { HostAttributes } from '../../host/resources.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import { slotSampled } from '../tile/samplingHeaders.ts'
-import { PHYSICAL_MAP_FIELDS, type VisMaterial } from '../../visibility/materialType.ts'
 import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
+import { GEOMETRY_VOXEL } from '../../../../sdk-core/src/page/voxelPage.ts'
 import { FLAG_SAMPLED } from '../../visibility/types.ts'
 
 export type GeometryBlock = {
@@ -23,6 +23,8 @@ export type GeometryBlock = {
   quantized?: boolean
   /** A world's dynamic geometry, rewritten in place: its rows carry `FLAG_DYNAMIC`. */
   dynamic?: boolean
+  /** A voxel brick (`GEOMETRY_VOXEL`): its rows carry `FLAG_VOXEL` and wear its voxels' surface. */
+  voxel?: boolean
 }
 
 /**
@@ -43,6 +45,14 @@ export function rowGeometry(
   if (!page) return geometryBlocks.get(rec.attributes)
   into.vertexBase = 0
   into.count = page.vertexCount
+  // A voxel brick is no `WGP3` page: its corners carry a normal, nothing else.
+  into.voxel = (page.flags & GEOMETRY_VOXEL) !== 0
+  if (into.voxel) {
+    Object.assign(into, { hasUv: false, hasNormal: true, hasTangent: false, hasColor: false })
+    into.hasUv1 = false
+    into.quantized = false
+    return into
+  }
   into.hasUv = (page.flags & FLAG_UV) !== 0
   into.hasNormal = (page.flags & FLAG_NORMAL) !== 0
   into.hasTangent = false
@@ -62,6 +72,7 @@ export const emptyGeometryBlock = (): GeometryBlock => ({
   hasColor: false,
   hasUv1: false,
   quantized: false,
+  voxel: false,
 })
 /** An atlas as a material reads it: its page table, whose headers say which slots take their
  *  filter rule (`slotSampled`). */
@@ -80,21 +91,6 @@ export type MaterialLayers = {
 /** A texture's slot in an atlas table; 0, the fill texel, for none or one the atlas lacks. */
 export const layerSlot = (layers: ReadonlyMap<Texture, number>, texture?: Texture) =>
   texture ? (layers.get(texture) ?? 0) : 0
-
-/** `FLAG_SAMPLED` when one of the anisotropic and clear-coat maps of a surface that carries a lobe
- *  takes its filter rule: what an opaque row and a blend item add to their own maps' flag. */
-export function physicalSampledFlag(mat: VisMaterial, { dataLayer, textures }: MaterialLayers) {
-  const [a, c, r, n] = PHYSICAL_MAP_FIELDS
-  return sampledFlag(
-    textures,
-    0,
-    0,
-    layerSlot(dataLayer, mat[a]),
-    layerSlot(dataLayer, mat[c]),
-    layerSlot(dataLayer, mat[r]),
-    layerSlot(dataLayer, mat[n]),
-  )
-}
 
 /** `FLAG_SAMPLED` when one of a material's maps, by its atlas slots, takes its filter rule: the
  *  flag that compiles or skips the filtered read, per page and per transparent item. */

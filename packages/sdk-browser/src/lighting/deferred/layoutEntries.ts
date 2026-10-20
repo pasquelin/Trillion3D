@@ -2,23 +2,18 @@ import { DEFERRED_BINDINGS } from './bindings.ts'
 import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { receiverLayoutEntry } from '../../webgpu/visibility/receiver.ts'
-import {
-  CONTRACT_SHADOW_BINDINGS,
-  CONTRACT_TRACE_BINDINGS,
-  CONTRACT_VSM_BINDINGS,
-} from '../direct/shadowBindings.ts'
+import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
+import { MASK_TILES_TARGET } from '../direct/shadowTraceWgsl.ts'
 import { REFLECTION_TARGET } from '../../reflections/weight.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 
 /**
  * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform; the contract
- * program adds the declared lights, their per-tile lists and the virtual shadow maps they read; the
+ * program adds the declared lights, their per-tile lists and the shadow mask the projection traced; the
  * bounce one adds the probe grid. None of the three reads a light written in the scene: there is
- * none left. The water composite extends the full list with its own bindings, so a surface lit
- * there is read on the same numbers; without `resolve`, it takes the pool in place of the opaque
- * resolve's own entries.
+ * none left.
  */
-export function deferredLayoutEntries(direct: boolean, bounce = false, resolve = true) {
+export function deferredLayoutEntries(direct: boolean, bounce = false) {
   const fragment = GPUShaderStage.FRAGMENT
   const entries: GPUBindGroupLayoutEntry[] = [
     computeTextureEntry(DEFERRED_BINDINGS.baseMetal, 'unfilterable-float', '2d', fragment),
@@ -28,16 +23,12 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
     computeTextureEntry(DEFERRED_BINDINGS.depth, 'depth', '2d', fragment),
     computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
   ]
-  if (direct) entries.push(...contractLayoutEntries(fragment))
-  // The pool a non-mask read samples and the noise its fragments trace with (`vsmTraceFactor`):
-  // the water composite's alone, the resolve reading the mask (`directShadowWgsl`), so it holds
-  // the eight storage buffers with the receiver's three.
-  if (direct && !resolve)
+  if (direct)
     entries.push(
-      computeBufferEntry(CONTRACT_VSM_BINDINGS.pool, 'read-only-storage', fragment),
-      computeTextureEntry(CONTRACT_TRACE_BINDINGS.noise, 'unfilterable-float', '2d', fragment),
+      ...contractLayoutEntries(fragment),
+      ...maskLayoutEntries(fragment),
+      ...resolveLayoutEntries(fragment),
     )
-  if (direct && resolve) entries.push(...resolveLayoutEntries(fragment))
   // Probe grid and their coefficients: bound only by the bounce program, so a session without
   // bounce keeps exactly the previous layout. The coefficients are an atlas (`atlas.ts`): no
   // storage buffer of the eight.
@@ -49,30 +40,35 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
   return entries
 }
 
-/** What a contract program adds to the deferred layout: the declared lights, their per-tile lists,
- *  the virtual shadow maps they read and the shadow mask. */
+/** What a contract program adds to the deferred layout: the declared lights, their per-tile lists
+ *  and the shadow mask. */
 function contractLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
     computeBufferEntry(DEFERRED_BINDINGS.lights, 'read-only-storage', fragment),
     computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
-    // The virtual shadow maps a non-mask read samples: page table, projection data, uniforms; the
-    // pool is the water composite's alone (`deferredLayoutEntries`).
-    computeBufferEntry(CONTRACT_VSM_BINDINGS.pageTable, 'read-only-storage', fragment),
-    computeBufferEntry(CONTRACT_VSM_BINDINGS.projectionData, 'read-only-storage', fragment),
-    computeBufferEntry(CONTRACT_VSM_BINDINGS.uniforms, 'uniform', fragment),
-    // The projection's view: the normal bias every shadow read takes (`vsmNormalOffset`).
-    computeBufferEntry(CONTRACT_TRACE_BINDINGS.view, 'uniform', fragment),
-    // The opaque resolve's compact shadow mask (`vsmMaskFactor`); the water composite's
-    // translucent casters' transmission on the same number: both words.
+    // The shadow mask (`vsmMaskFactor`): the opaque resolve's.
     computeTextureEntry(CONTRACT_SHADOW_BINDINGS.transmittance, 'uint', '2d-array', fragment),
   ]
 }
 
+/** What a mask read takes beside the mask, the opaque resolve's: the mask's transmission and its
+ *  tile words (a read-only storage texture). */
+function maskLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
+  return [
+    computeTextureEntry(
+      DEFERRED_BINDINGS.transmissionResolve,
+      'unfilterable-float',
+      '2d-array',
+      fragment,
+    ),
+    MASK_TILES_TARGET.layoutEntry(),
+  ]
+}
+
 /**
- * The receiver target, subsurface, lobes, the mask's transmission, table and tiles: only
- * the opaque resolve. The subsurface, the lobes and the mask's table, three targets read by load
- * alone, are read-only storage textures: the widest program, with bounce, stays within the sixteen
- * sampled textures WebGPU guarantees a stage.
+ * The receiver target, subsurface, lobes and the reflection: only the opaque resolve. The
+ * subsurface and the lobes, targets read by load alone, are read-only storage textures: the widest
+ * program, with bounce, stays within the sixteen sampled textures WebGPU guarantees a stage.
  */
 function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
   return [
@@ -80,10 +76,7 @@ function resolveLayoutEntries(fragment: number): GPUBindGroupLayoutEntry[] {
     SUBSURFACE_TARGET.layoutEntry(),
     // The anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.layoutEntry(),
-    // The translucent casters' transmission (the mask holds the transmittance's number).
-    computeTextureEntry(DEFERRED_BINDINGS.transmissionResolve, 'uint', '2d-array', fragment),
     // The share of the radiance the reflection trace wrote (`../../reflections/trace.ts`).
     REFLECTION_TARGET.layoutEntry(),
-    computeTextureEntry(DEFERRED_BINDINGS.maskTiles, 'uint', '2d', fragment),
   ]
 }

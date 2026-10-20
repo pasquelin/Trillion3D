@@ -153,8 +153,10 @@ test('the trace reads the culling’s worlds and tree: a moved placement sends n
     'and the cut’s tree, in its own table',
   )
   const sent = writes(gpu).length
-  ;(roots[5].world.elements as Float64Array)[12] += 40
-  ;(roots[6].world.elements as Float64Array)[0] = 2
+  const fifth = roots[5].world.elements as Float64Array
+  const sixth = roots[6].world.elements as Float64Array
+  fifth[12] += 40
+  sixth[0] = 2
   selection.updateWorlds(Float32Array.from(packed.worlds))
   selection.worldsMovedOnGpu([3, 4])
   assert.equal(writes(gpu).length, sent, 'no write')

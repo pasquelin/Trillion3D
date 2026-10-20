@@ -19,10 +19,11 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
  * the sorted entries where the expansion kernel reads them and where each seed landed;
  * `placeBlendSlots` then gives each draw slot its run (`runs.ts`).
  *
- * The order is the one `precedes` defines (`paintOrder.ts`): decreasing key, then increasing seed —
- * the seeds are in source order, back before face, so that is the CPU's rank rule. A key is
- * compared as its unsigned 64-bit pattern: keys are never negative, and a NaN, all ones, lies above
- * +∞. The padding past the pass's entries sorts after every entry: key zero, the largest seed.
+ * The order is the one `precedes` defines (`paintOrder.ts`): increasing priority, then decreasing
+ * key, then increasing seed — the seeds are in source order, back before face, so that is the CPU's
+ * rank rule. A key is compared as its unsigned 64-bit pattern: keys are never negative, and a NaN,
+ * all ones, lies above +∞. The padding past the pass's entries sorts after every entry: a priority
+ * above any biased one, key zero, the largest seed.
  *
  * Why a bitonic network: its steps are fixed by the padded size alone, which the CPU knows from the
  * plan, so it encodes them without asking the GPU anything; it sorts in place, with no atomic and no
@@ -88,21 +89,22 @@ fn writeRun(slot:u32,first:u32,entries:u32){
  plan[uni.runsBase+slot*${RUN_WORDS}u]=first;
  plan[uni.runsBase+slot*${RUN_WORDS}u+1u]=entries;
 }
-/** Position \`p\` of the pass — key, seed, entry — from its seed on the first dispatch, else as the
- *  last left it. */
+/** Position \`p\` of the pass — priority, key, seed — from its seed on the first dispatch, else as
+ *  the last left it. */
 fn sortLoad(p:u32)->vec4u{
  if(uni.fresh==0u){return sorted[p];}
- if(p>=uni.entryCount){return vec4u(0u,0u,NO_INDEX,0u);}
- let entry=plan[uni.seedBase+p];
- let key=itemKey(entry>>${PLAN_SHIFT}u);
- return vec4u(key.x,key.y,p,entry);
+ if(p>=uni.entryCount){return vec4u(NO_INDEX,0u,0u,NO_INDEX);}
+ let item=plan[uni.seedBase+p]>>${PLAN_SHIFT}u;
+ let key=itemKey(item);
+ return vec4u(itemPriority(item),key.x,key.y,p);
 }
-/** Position \`p\` back; on the last dispatch, its entry where the expansion reads it, and its place. */
+/** Position \`p\` back; on the last dispatch, its seed's entry where the expansion reads it, and
+ *  its place. */
 fn sortStore(p:u32,v:vec4u){
  sorted[p]=v;
  if(uni.last==0u||p>=uni.entryCount){return;}
- plan[uni.orderBase+p]=v.w;
- placed[v.z]=p;
+ plan[uni.orderBase+p]=plan[uni.seedBase+v.w];
+ placed[v.w]=p;
 }
 /** The first of the pair compare-exchange \`t\` handles at step \`j\`, a power of two. */
 fn pairOf(t:u32,j:u32)->u32{return ((t&~(j-1u))<<1u)|(t&(j-1u));}

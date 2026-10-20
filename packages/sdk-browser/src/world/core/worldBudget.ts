@@ -1,4 +1,5 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { microtaskOnce } from '../../../../sdk-core/src/runtime/microtaskOnce.ts'
 import type { PhysicsBudget } from '../../../../sdk-core/src/physics/options.ts'
 import type { ActiveGpuMemory } from '../../residency/activeMemory.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
@@ -107,18 +108,13 @@ export function worldBudget(
   frames: { readonly last: FrameMetrics | null },
   physics: PhysicsBudget,
 ) {
-  let pending = false
-  const rebalance = () => {
-    if (pending) return
-    pending = true
-    queueMicrotask(() => {
-      pending = false
+  const { schedule: rebalance } = microtaskOnce(
+    () =>
       void session.explorer?.setMemoryBudgets({
         geometryPoolBytes: pools.geometryPool,
         texturePoolBytes: pools.texturePool,
-      })
-    })
-  }
+      }),
+  )
   // What the last frame published, `null` or `undefined` when it held no such pool.
   const held = (key: 'geometryPoolBytes' | 'texturePoolBytes') => frames.last?.[key]
   const split = () => splitOf(pools)

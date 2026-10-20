@@ -34,8 +34,8 @@ export function cutHeldSlots(limits: Limits, pageCount: number, rows: number) {
  * THE CAP A TRUNCATED READOUT GROWS TO. The list is sized for a wide cut, not for every cut: a
  * view that keeps more asks `needed` ranks — the camera's own: the view ahead has its own counter
  * and never grows the list (`shader/snapshotWgsl.ts`) —, and the list grows by the one growth rule
- * (`grownLength`: those ranks, twice its cap at least), within the catalogue and what one binding
- * holds.
+ * to twice those ranks (`grownLength`, twice its cap at least): a list grown to what one view asked
+ * would truncate again at the next rank. Within the catalogue and what one binding holds.
  * `undefined` when even that cannot hold the cut: the cut coarsens instead (`coarsening.ts`); the GPU
  * cut is the engine's one.
  */
@@ -46,7 +46,7 @@ export function grownListCap(
   needed: number,
   heldSlots = 0,
 ) {
-  const next = Math.min(pageCount, deviceListCap(limits, heldSlots), grownLength(cap, needed))
+  const next = Math.min(pageCount, deviceListCap(limits, heldSlots), grownLength(cap, 2 * needed))
   return next > cap && next >= Math.min(needed, pageCount) ? next : undefined
 }
 

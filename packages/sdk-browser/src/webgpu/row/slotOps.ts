@@ -1,5 +1,5 @@
 import type { createWebgpuRowWriters } from './writers.ts'
-import type { createWebgpuRowClaims } from './claims.ts'
+import type { createMarkedList } from '../../../../math/src/sequence/markedList.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 import type { PageList } from '../../page/selection/catalogue.ts'
 import { awaitsPageBytes } from './pageSlots.ts'
@@ -15,11 +15,13 @@ export type RowSlots = {
   packedPages: PageList
   recordOf: (page: number) => PageRec | undefined
   drawsRow: (page: number) => boolean
+  /** Whether `page` takes a row ahead of the others (`leadsRows`). */
+  leads: (page: number) => boolean
   onResidenceChange: (rec: PageRec, page: number) => void
   /** Ranks this pass gave back, waiting for a taker or a fill: never more than the table holds. */
   free: { rows: Int32Array; count: number }
   /** Arrivals that claim a record and wait their turn, from one image to the next. */
-  claims: ReturnType<typeof createWebgpuRowClaims>
+  claims: ReturnType<typeof createMarkedList>
   /** The rows' use words the GPU stamps (`rowWords.ts`), its queues (`rowOrder.ts`), its clock. */
   words: RowUseWords
   order: RowOrder
@@ -33,6 +35,11 @@ export type RowSlots = {
   release: (page: number) => boolean
   place: (page: number) => boolean
 }
+
+/** Whether `rec` takes a row ahead of every other page: a world DAG's cluster
+ *  (`../../scene/worldRecords.ts`, its `hlodLayer`), which stands for the whole world afar — the
+ *  chain's top drawn from the first image, ready or not (`../../gpu/dag/worldFollow.ts`). */
+export const leadsRows = (rec: PageRec | undefined) => rec?.hlodLayer !== undefined
 
 /** True when a page's rank really carries its current place in the cache. */
 function rowWritten({ rows }: RowSlots, page: number) {
@@ -73,15 +80,28 @@ function followPlace(s: RowSlots, page: number) {
   s.onResidenceChange(s.recordOf(page)!, page)
 }
 
+/**
+ * THE ONE RESIDENCY RULE, for an opaque page and a blended one alike: the cut reads `page` resident
+ * once its bytes are in its pool slot AND what draws it from there is written. An opaque page draws
+ * from its visibility row: the row, written at its place (`rowWritten`). A blended page draws from
+ * its slot itself, its transparent entry's span written with the slot (`../transparent/spans.ts`):
+ * nothing more is owed. That a blended section never leads the opaque one beside it is not this
+ * rule's: it is the readiness of the group they share (`../../scene/worldHlod.ts`,
+ * `cellTopGroups`), which the cut reads (`../../page/cut/readiness.ts`).
+ */
+function drawReady(s: RowSlots, page: number, inSlot: boolean, wantsRow: boolean) {
+  return inSlot && (!wantsRow || rowWritten(s, page))
+}
+
 /** Re-reads what the cache did with a page and takes back the rank it no longer deserves; true
  *  when it claims a record write: resident, drawing from a row, its rank not yet its place. */
 export function releaseRow(s: RowSlots, page: number) {
   const { rows, free } = s
   const rec = s.recordOf(page)!
-  const resident = rows.offsetOf(page) >= 0 && !awaitsPageBytes(rec)
-  const wantsRow = resident && s.drawsRow(page)
+  const inSlot = rows.offsetOf(page) >= 0 && !awaitsPageBytes(rec)
+  const wantsRow = inSlot && s.drawsRow(page)
   if (wantsRow) followPlace(s, page)
-  setResident(s, page, resident && (!wantsRow || rowWritten(s, page)))
+  setResident(s, page, drawReady(s, page, inSlot, wantsRow))
   if (wantsRow) return !rows.residentFlag(page)
   const row = rows.rowOf(page)
   if (row < 0) return false

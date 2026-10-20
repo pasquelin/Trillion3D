@@ -13,7 +13,8 @@ test('the light tiles grow by the one rule, retired after the submit, held when 
   const tiles = await createGpuLightTiles(fake.device)
   const lights = fake.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE })
   tiles.ensure(64, 64, lights, 4)
-  const small = tiles.buffer!
+  const small = tiles.buffer!,
+    columns = [tiles.tilesX, tiles.tilesY]
   const revision = tiles.revision
   tiles.ensure(640, 640, lights, 4)
   const grown = tiles.buffer!
@@ -24,8 +25,9 @@ test('the light tiles grow by the one rule, retired after the submit, held when 
   assert.equal(fake.destroyed.includes(small), false, 'not destroyed while the image may name it')
   destroyRetired(fake.device)
   assert.equal(fake.destroyed.includes(small), true)
-  // Fewer columns: laid out again in the buffer held.
+  // Fewer columns — another view drawn in turn —: the layout held, the world lists untouched.
   tiles.ensure(64, 64, lights, 4)
   assert.equal(tiles.buffer, grown)
-  assert.equal(tiles.revision, revision + 2)
+  assert.equal(tiles.revision, revision + 1)
+  assert.deepEqual([tiles.tilesX, tiles.tilesY], columns, 'the drawn view’s own columns')
 })

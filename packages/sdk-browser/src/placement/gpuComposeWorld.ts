@@ -16,8 +16,8 @@ import { composeOnRead, plainAgain } from './composeOnRead.ts'
  * the root's row view the first time it is read since its world version moved (`worldMoved`: its
  * parent or a link of its slot moved, `gpuComposeSlot.ts`), never otherwise. The roots a parent
  * composes carry this as the `elements` of their world, so every CPU reader of a world — the
- * impostor cards, the winding of a row's draw bin, a row written again — reads the world the GPU
- * draws, and nothing writes it between two reads.
+ * winding of a row's draw bin, a row written again — reads the world the GPU draws, and nothing
+ * writes it between two reads.
  */
 function composedWorld(state: ComposeState, rank: number, view: Float64Array) {
   const slot = state.parentOf[rank]

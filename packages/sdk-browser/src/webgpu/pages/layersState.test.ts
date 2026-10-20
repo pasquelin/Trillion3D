@@ -12,6 +12,8 @@ import { createWebgpuPagesLayout } from './prepare/layout.ts'
 import type { WebgpuPagesSetup } from './prepare/setup.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { visSlotPipeline } from './prepare/pipelineFor.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 // The coplanar-layer lot was reapplied in eleven WebGPU modules; each test below exercises the
 // layer in a module that `../row/pageRowDepthBias.test.ts` (`writePageRow` bias) does not cover.
@@ -46,7 +48,7 @@ test('createWebgpuPagesLayout holds the draw words per drawable row, and no CPU 
 
 // prepare/pipelineFor.ts
 test('visSlotPipeline routes a coplanar-layer slot to its own pipeline set, not the layer-0 one', () => {
-  const pipelines = Array.from({ length: 6 }, (_, i) => ({
+  const pipelines = Array.from({ length: 3 }, (_, i) => ({
     id: i,
   })) as unknown as GPURenderPipeline[]
   const rt = {
@@ -54,7 +56,9 @@ test('visSlotPipeline routes a coplanar-layer slot to its own pipeline set, not 
     layout: { selectionRoots: [{ world: new Matrix4() }] },
   } as unknown as WebgpuPagesCore
   assert.equal(visSlotPipeline(rt, BASE_SLOTS), pipelines[0], 'layer 1, occluder, back cull')
-  assert.equal(visSlotPipeline(rt, BASE_SLOTS + HALF_SLOTS), pipelines[3], 'its tested back cull')
+  assert.equal(visSlotPipeline(rt, BASE_SLOTS + 1), pipelines[1], 'layer 1, occluder, no cull')
+  // The tested half draws with the occluder half's pipelines (`GpuDraw.encodeTested`).
+  assert.equal(visSlotPipeline(rt, BASE_SLOTS + HALF_SLOTS), pipelines[0], 'its tested back cull')
 })
 
 // prepare/visibility.ts (orchestration: drawLayerSlots and the layer pipelines it builds)
@@ -65,6 +69,7 @@ test('a page marked with a coplanar depth layer makes prepare() build that layer
   const { device } = fakeDevice(BACKEND)
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,

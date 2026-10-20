@@ -1,5 +1,6 @@
 import type { PageQueue } from '../../streaming/types.ts'
 import { createFrameKept } from '../../streaming/frameKept.ts'
+import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 
 /** Who hears a read the view asks land or fail, once, as it settles. */
 export type AskHeard = { land(url: string, bytes: Uint8Array): void; fail(error: unknown): void }
@@ -7,19 +8,13 @@ export type AskHeard = { land(url: string, bytes: Uint8Array): void; fail(error:
 /** What the asker reads with and holds by: the streamer's read and its counted pin. */
 type Io = Pick<PageQueue, 'readBytes'> & { pin(url: string): void; unpin(url: string): void }
 
-/** A read the view asks: what lets it go, its priority, its landing, and whether it settled. */
-type Ask = {
-  url: string
-  stop: AbortController
-  priority: number
-  read: Promise<void>
-  settled: boolean
-}
+/** A read the view asks: what lets it go, its landing, and whether it settled. */
+type Ask = { url: string; stop: AbortController; read: Promise<void>; settled: boolean }
 
 /**
- * The reads the frames' view asks of `io`, one asker a url, each with a signal of its own and one
- * pin in the cache: a url the next frame asks again keeps its read and its page — lifted once it
- * turns visible —, one it no longer asks is let go and unpinned, so the queue drops it while it
+ * The reads the frames' view asks of `io` at the visible priority, one asker a url, each with a
+ * signal of its own and one pin in the cache: a url the next frame asks again keeps its read and its
+ * page, one it no longer asks is let go and unpinned, so the queue drops it while it
  * waits, its failure's wait included. A page landed therefore waits in the cache, whatever the
  * cache holds, for the frame that takes it. A frame waits on the reads it asks, whether they are new
  * or on their way since an earlier frame. One asked again after its read settled is read again.
@@ -37,17 +32,17 @@ export function createViewAsks(io: Io) {
     io.unpin(own.url)
   })
   return {
-    /** Asks `urls` at `priority` in the frame under way: their landings, settled either way;
-     *  `heard` hears each read made now land or fail. */
-    ask(urls: readonly string[], priority: number, heard?: AskHeard) {
+    /** Asks `urls` in the frame under way: their landings, settled either way; `heard` hears each
+     *  read made now land or fail. */
+    ask(urls: readonly string[], heard?: AskHeard) {
       const reads: Promise<void>[] = []
       for (const url of urls) {
         let own = asks.touch(url)
-        if (!own || own.settled || priority < own.priority) {
+        if (!own || own.settled) {
           const stop = new AbortController()
-          const ask: Ask = { url, stop, priority, read: Promise.resolve(), settled: false }
+          const ask: Ask = { url, stop, read: Promise.resolve(), settled: false }
           const settle = () => void (ask.settled = true)
-          ask.read = io.readBytes(url, stop.signal, priority).then(
+          ask.read = io.readBytes(url, stop.signal, PRIORITY_VISIBLE).then(
             (bytes) => {
               settle()
               if (!stop.signal.aborted) heard?.land(url, bytes)
@@ -57,10 +52,8 @@ export function createViewAsks(io: Io) {
               if (!stop.signal.aborted) heard?.fail(error)
             },
           )
-          // The more urgent asker joins before the other leaves: the read is lifted, never
-          // dropped, and the page keeps its one pin.
-          if (own) own.stop.abort()
-          else io.pin(url)
+          // Read again once settled, the page keeps its one pin.
+          if (!own) io.pin(url)
           asks.set(url, (own = ask))
         }
         reads.push(own.read)

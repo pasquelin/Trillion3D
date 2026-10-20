@@ -1,197 +1,192 @@
 /**
- * WHICH CELLS OF A PARTITIONED SCENE ARE READ, derived from the camera, never from the scene.
+ * WHICH CELLS OF A PARTITIONED SCENE ARE PLACED, AND WHICH HLOD 0 CELLS ARE WISHED: the
+ * partition's streaming policy, one loading range per grid around the camera.
  *
- * A cell is read while the camera can draw any of it: until its box is past the frustum's farthest
- * corner — for a perspective camera `far·√(1 + tan²θ)`, `θ` the half diagonal of the field its
- * zoom narrows or widens (`lensSlope`), the same off-axis majorant the certified cluster
- * error takes (`screenErrorBound.ts`); for an orthographic one the far corner of its zoomed box
- * (`orthographicView`). Nothing coarser stands for a cell that is not read (it has no merged
- * proxy), so its objects are drawn wherever the far plane lets them be, however small they
- * project: dropping one below the error target would leave it out of the image for good, not
- * replace it by a coarser one.
+ * Each grid streams its cells within its loading range of the camera — the main grid's, then each
+ * HLOD layer's, twice the one below (`TablePartition.hlod.ranges`, `compiler_tables/partition/
+ * grid.rs`) —: a cell is wished while its streaming bounds meet the sphere of that range around the
+ * eye, tested in 2D, its up axis dropped, as a 2D grid's spatial index tests it — height never
+ * keeps a cell out (glTF's up is `+Y`). An HLOD 0 cell
+ * is wished within the HLOD 0 grid's range of its streaming bounds, or while it stands for an actor
+ * it cannot draw (`../gpu/dag/worldFollow.ts`): its cells are then placed — the source meshes within
+ * the main grid's range, its HLOD 0 actor past it, the same meshes instanced. It is placed whole once every cell of it is placed and no
+ * page of the index that could list one of its cells waits to be opened — one refused for good
+ * waits for nothing. What draws each HLOD cell
+ * is its visibility (`hlodCells.ts`, `../gpu/dag/worldFollow.ts`). The camera's far plane plays no
+ * part.
  *
- * A frame asks for the cells within the reach first, then — at the prefetch priority — those
- * within `AHEAD` of it past it, and a read cell leaves once its box is `KEEP` of the reach past it,
- * so one that hovers on a border is not read again at every step. Both margins are fractions of
- * the reach, never of the cell: a cell the compiler cut wider than the view (its split counts
- * bytes, not metres) is kept only while its box meets that sphere. The pages of the cell index
- * are read and kept by the same spheres (`cellIndex.ts`).
- *
- * The rows are sized when the session opens for every node that keep sphere can hold, wherever
- * the page moves the cells' parents (`sizing.ts`).
+ * A placed cell leaves once its HLOD 0 cell is neither wished nor visible: a cell is unloaded
+ * only once it is made invisible, never while it still draws. The pages of the cell index are walked within the farthest
+ * a placed cell lies (`placedReach`) and closed past its keep sphere (`cellIndex.ts`).
  */
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
-import { transformAffinePoint, length2, length3 } from '../../../math/src/vector/vector.ts'
-import { boxPointDistance } from '../../../math/src/geometry/boxDistance.ts'
-import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
-import { drawnView, perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
-import type { CameraOptics } from '../camera/engineCamera.ts'
+import {
+  keepNumbers,
+  transformAffinePoint,
+  transformDirectionVector3,
+} from '../../../math/src/vector/vector.ts'
+import { boxGroundDistance } from '../../../math/src/geometry/boxDistance.ts'
+import { BOX_VALUES, boxesOverlap } from '../../../math/src/geometry/box.ts'
 import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
 
-import { AHEAD } from './aheadShare.ts'
-import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
-
+/** The root's world the inverse and least stretch were last made from: made again only once it
+ *  moved. */
 const inverse = new Float64Array(MATRIX_VALUES),
-  view = new Float64Array(4)
-/** How far past the reach, as a fraction of it, a read cell is kept: past `AHEAD`, so a cell read
- *  ahead is not dropped by the next step. */
-export const KEEP = 0.5
-/** The keep sphere's radius for a frame of `reach`: a held cell past it leaves. */
+  inverted = new Float64Array(MATRIX_VALUES).fill(NaN)
+let least = 0
+/** How far past the walk's radius, as a fraction of it, a page of the index is kept open. */
+const KEEP = 0.5
+/** The keep sphere's radius for a walk of `reach`: an index page past it with no cell placed is
+ *  closed. */
 export const keepRadius = (reach: number) => reach * (1 + KEEP)
 
-/** What the reach reads of a camera: the optics its projection is composed from. */
-export type PartitionOptics = Pick<
-  CameraOptics,
-  'fov' | 'aspect' | 'near' | 'far' | 'zoom' | 'orthographic'
->
-
-/** The slope of the frustum's diagonal `optics` sees — how far off its axis, per unit ahead, a
- *  corner of its picture lies —; 0 for an orthographic camera, which projects no depth. Read once
- *  a frame: the reach (`cellReach`) and the super-roots' lens (`superRoots.ts`) both take it. */
-export function lensSlope(optics: PartitionOptics) {
-  if (optics.orthographic) return 0
-  return perspectiveDiagonalSlope(optics.fov, optics.aspect, optics.zoom || 1)
-}
-
-/** The distance past which nothing `optics` sees is drawn: the frustum's farthest corner, for a
- *  perspective camera `far·length2(1, slope)` on its diagonal of `slope` (`lensSlope`). */
-export function cellReach(optics: PartitionOptics, slope = lensSlope(optics)) {
-  const { far, orthographic } = optics,
-    zoom = optics.zoom || 1 // a zoom of 0 draws nothing: read as 1, never as an empty reach
-  if (orthographic) {
-    const [x, y, width, height] = drawnView(orthographic, optics.aspect, zoom, view)
-    // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
-    // to left, or top to bottom, is as wide.
-    const depth = Math.max(Math.abs(far), Math.abs(optics.near))
-    return length3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height))
-  }
-  return far * length2(1, slope)
-}
+/** The farthest a placed cell's content lies from the eye, from the grids' `ranges`: an HLOD 0
+ *  cell is wished within its range, and its cells lie within its side's diagonal of it, its side
+ *  half its range (cell size = loading range / 2) — what the rows
+ *  are sized by (`sizing.ts`). */
+export const placedReach = (ranges: readonly number[]) => ranges[1] * (1 + Math.SQRT1_2)
 
 /**
- * `eye` and `reach` in the frame the cells' boxes are written in — the scene root's, whose world
- * matrix `world` a world may pose, turn, scale and shear. A world distance is at least the root's
- * least stretch (`stretchOf`: its smallest singular value, not its shortest column, which a shear
- * lengthens) times the distance there: what this reach reads holds every cell the world's reach
- * needs; a flattened root, which stretches some distance by 0, reads every cell.
+ * `eye`, `reach` and the unit view `axis` in the frame the cells' boxes are written in — the scene
+ * root's, whose world matrix `world` a world may pose, turn, scale and shear. A world distance is
+ * at least the root's least stretch (`stretchOf`: its smallest singular value, not its shortest
+ * column, which a shear lengthens) times the distance there: what this reach reads holds every
+ * cell the world's reach needs; a flattened root, which stretches some distance by 0, reads every
+ * cell. The inverse and the stretch are kept while the root's world stands.
  */
-export function inCellFrame(world: ArrayLike<number>, eye: ArrayLike<number>, reach: number) {
-  const [least] = stretchOf(world, invertMatrix4(inverse, world))
-  if (!least) return { eye: [0, 0, 0], reach: Infinity } // flattened: no eye there, every cell
+export function inCellFrame(
+  world: ArrayLike<number>,
+  eye: ArrayLike<number>,
+  reach: number,
+  axis: ArrayLike<number> = [0, 0, 0],
+) {
+  if (!keepNumbers(inverted, world)) least = stretchOf(world, invertMatrix4(inverse, world))[0]
+  // Flattened: no eye there, every cell.
+  if (!least) return { eye: [0, 0, 0], reach: Infinity, axis: [0, 0, 0] }
   const local = transformAffinePoint([0, 0, 0], inverse, eye[0], eye[1], eye[2])
-  return { eye: local, reach: reach / least }
+  // `transformDirectionVector3` normalises what the inverse stretched.
+  const along = transformDirectionVector3([0, 0, 0], inverse, axis[0], axis[1], axis[2])
+  return { eye: local, reach: reach / least, axis: along }
 }
 
-/** Distance from `eye` to the nearest box `[minX, minY, minZ, maxX, maxY, maxZ]` of `bounds`,
- *  six values each; 0 inside one. */
+/** 2D distance from `eye` to the nearest box `[minX, minY, minZ, maxX, maxY, maxZ]` of `bounds`,
+ *  six values each, the up axis dropped as a 2D grid drops it; 0 over one. */
 export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
   let nearest = Infinity
-  for (let at = 0; at < bounds.length; at += BOX_VALUES)
-    nearest = Math.min(nearest, boxPointDistance(bounds, at, eye[0], eye[1], eye[2]))
+  for (let at = 0; at < bounds.length; at += BOX_VALUES) {
+    nearest = Math.min(nearest, boxGroundDistance(bounds, at, eye[0], eye[2]))
+  }
   return nearest
 }
 
-/** The read priority of what a cell at `distance` holds in a frame of `reach` (`cellHolds.ts`):
- *  strictly after the view's own pages, read at the band's own value, in the visible priority's
- *  band — the prefetch one's when `ahead` —, nearer first within each. */
-export function holdPriority(distance: number, reach: number, ahead: boolean) {
-  const band = ahead ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
-  return band + (1 + (distance / (distance + reach) || 0)) / 2
+/** What a world DAG says of an HLOD 0 cell: whether it keeps it visible, and whether it stands for
+ *  an actor it cannot draw (`hlodCells.ts`). */
+type LeafHolds = { visible(leaf: number): boolean; stands(leaf: number): boolean }
+
+/** An HLOD 0 cell met this frame: whether it is wished, and whether it is placed whole. */
+export type LeafWish = { readonly wished: boolean; readonly placed: boolean }
+/** An HLOD 0 cell met: its cells met, its streaming bounds and the frame it was last met. */
+type Leaf = {
+  wished: boolean
+  placed: boolean
+  cells: number[]
+  bounds: ArrayLike<number>
+  frame: number
 }
 
 /**
- * How a plan reads the world super-roots: the cells whose objects are placed, and the error
- * the cut projects for a cell's super-roots (`cellSuperRootError`) against its pixel target. A
- * cell is then held one of two ways — placed, its objects read and drawn, or drawn by its
- * super-roots alone, its world bundles held and its object pages unread.
+ * The plan of the frames of `index`, its lists kept from frame to frame: a frame from `eye`, the
+ * grids' loading `ranges`, the cells `placed` holds, whether a page's read is refused for good
+ * (`failed`) and what a world DAG says of each HLOD 0 cell (`LeafHolds`, none without one) gives the
+ * cells to read and place, nearest first
+ * (`visible`), the placed cells that leave (`leave`), the index pages to open within the walk,
+ * nearest first (`pages`), each HLOD 0 cell met (`leaves`), and each placed cell's distance
+ * (`distances`), which tells its source meshes from its HLOD 0 actor.
  */
-export type SuperRootPlan = {
-  placed: { has(cell: number): boolean }
-  target: number
-  projected(cell: number): number
-}
-
-/**
- * The cells `held` does not hold that a frame needs — `visible`, within `reach` — and those it
- * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first, found through the cell
- * index (`cellIndex.ts`); the held cells past `reach·(1 + KEEP)`, which leave; and the pages of the
- * index within those spheres not yet opened (`pages`), nearest first, the index closing those past
- * the keep sphere; and the hold priority of each cell it reads, holds far or demotes (`priority`,
- * `holdPriority`), from the distance its walk found. `reach` is the frame camera's (`cellReach`).
- *
- * Given `superRoots`, `held` holds both kinds of cell and the near/far choice is the cut's: a cell
- * found is `far` — held, drawn by its super-roots, its objects unread — until its super-roots'
- * error projects past the target, when its objects are `visible` (within the reach) or `ahead`
- * (past `target/(1 + AHEAD)`); a placed cell is `demoted` to its super-roots once that error is
- * within `target/(1 + KEEP)`, so one hovering on the border is not read again at every step, as
- * World Partition's loading range keeps a cell's actors until past its own margin.
- */
-export function planCells(
-  index: Pick<CellIndex, 'near' | 'distance'>,
-  eye: ArrayLike<number>,
-  reach: number,
-  held: { has(cell: number): boolean; keys(): Iterable<number> },
-  superRoots?: SuperRootPlan,
-) {
-  type Found<T> = { item: T; distance: number }
-  const visible: Found<number>[] = [],
-    ahead: Found<number>[] = [],
-    far: Found<number>[] = [],
-    pages: Found<IndexPage>[] = []
-  const keep = keepRadius(reach)
-  const placed = superRoots?.placed ?? held
-  /** `cell`'s super-roots' projected error over the target: the cut needs its objects past 1, and
-   *  without super-roots always. */
-  const need = (cell: number) =>
-    superRoots ? superRoots.projected(cell) / superRoots.target : Infinity
-  index.near(
-    eye,
-    reach * (1 + AHEAD),
-    keep,
-    held,
-    (item, distance) => {
-      if (placed.has(item)) return
-      if (superRoots && !held.has(item)) far.push({ item, distance })
-      // Past the reach, or its objects wanted only within the prefetch margin: read ahead.
-      const ratio = need(item)
-      if (distance <= reach && ratio > 1) visible.push({ item, distance })
-      else if (ratio * (1 + AHEAD) > 1) ahead.push({ item, distance })
-    },
-    (item, distance) => void pages.push({ item, distance }),
-  )
-  const priority = new Map<number, number>()
-  /** The items of `list`, nearest first, each read `early` or not given its priority. */
-  const nearest = (list: Found<number>[], early?: boolean) =>
-    list
-      .sort((a, b) => a.distance - b.distance)
-      .map(({ item, distance }) => {
-        priority.set(item, holdPriority(distance, reach, early ?? distance > reach))
-        return item
-      })
-  const leave: number[] = [],
-    demoted: Found<number>[] = []
-  for (const cell of held.keys()) {
-    const distance = index.distance(cell, eye)
-    if (distance > keep) leave.push(cell)
-    else if (superRoots && placed.has(cell) && need(cell) * (1 + KEEP) <= 1)
-      demoted.push({ item: cell, distance })
+export function createCellPlan(index: Pick<CellIndex, 'near' | 'cell'>) {
+  const leaves = new Map<number, Leaf>(),
+    distances = new Map<number, number>(),
+    pageDistances = new Map<IndexPage, number>()
+  const out = {
+    visible: [] as number[],
+    leave: [] as number[],
+    pages: [] as IndexPage[],
+    leaves,
+    distances,
   }
-  /** The pages within the reach, or past it when `past`, nearest first. */
-  const pagesNearest = (past: boolean) =>
-    pages
-      .filter(({ distance }) => distance > reach === past)
-      .sort((a, b) => a.distance - b.distance)
-      .map(({ item }) => item)
-  // A cell found far and wanted for its objects is held far first: its far priority is the last.
-  return {
-    visible: nearest(visible, false),
-    ahead: nearest(ahead, true),
-    leave,
-    far: nearest(far),
-    demoted: nearest(demoted),
-    pages: { visible: pagesNearest(false), ahead: pagesNearest(true) },
-    priority,
+  let frame = 0,
+    leafRange = 0
+  const nearest = (a: number, b: number) => distances.get(a)! - distances.get(b)!
+  const nearestPage = (a: IndexPage, b: IndexPage) => pageDistances.get(a)! - pageDistances.get(b)!
+  const visit = (
+    cell: number,
+    own: number,
+    leaf: number,
+    h: number,
+    leafBox: ArrayLike<number>,
+  ) => {
+    distances.set(cell, own)
+    let met = leaves.get(h)
+    if (!met)
+      leaves.set(h, (met = { wished: false, placed: false, cells: [], bounds: [], frame: -1 }))
+    if (met.frame !== frame) {
+      met.frame = frame
+      met.cells.length = 0
+      met.wished = leaf <= leafRange || !!holding?.stands(h)
+      met.bounds = leafBox
+    }
+    met.cells.push(cell)
+  }
+  const unread = (page: IndexPage, distance: number) => {
+    out.pages.push(page)
+    pageDistances.set(page, distance)
+  }
+  /** Whether a page of the index the frame waits on could list a cell of `leaf`: its box holds
+   *  the streaming bounds of every cell it lists (`partition.rs`). */
+  let refused: ((page: IndexPage) => boolean) | undefined, holding: LeafHolds | undefined
+  const awaited = (leaf: Leaf) => {
+    for (const page of out.pages)
+      if (!refused?.(page) && boxesOverlap(page.box, 0, leaf.bounds, 0)) return true
+    return false
+  }
+  return function plan(
+    eye: ArrayLike<number>,
+    ranges: readonly number[],
+    placed: ReadonlyMap<number, unknown>,
+    failed?: (page: IndexPage) => boolean,
+    world?: LeafHolds,
+  ) {
+    frame++
+    refused = failed
+    holding = world
+    leafRange = ranges[1]
+    out.visible.length = out.leave.length = out.pages.length = 0
+    distances.clear()
+    pageDistances.clear()
+    const reach = placedReach(ranges)
+    index.near(eye, reach, keepRadius(reach), placed, visit, unread)
+    for (const [h, leaf] of leaves) {
+      if (leaf.frame !== frame) {
+        leaves.delete(h)
+        continue
+      }
+      let whole = true
+      for (const cell of leaf.cells) {
+        if (placed.has(cell)) continue
+        whole = false
+        if (leaf.wished) out.visible.push(cell)
+      }
+      leaf.placed = whole && !awaited(leaf)
+    }
+    out.visible.sort(nearest)
+    out.pages.sort(nearestPage)
+    // A placed cell leaves once its HLOD 0 cell is neither wished nor visible.
+    for (const cell of placed.keys()) {
+      const h = index.cell(cell).hlod[0]
+      if (!leaves.get(h)?.wished && !world?.visible(h)) out.leave.push(cell)
+    }
+    return out
   }
 }

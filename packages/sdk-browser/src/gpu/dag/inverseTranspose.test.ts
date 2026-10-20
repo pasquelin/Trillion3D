@@ -13,6 +13,7 @@ import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { DIVISOR_FLOOR } from '../../../../math/src/matrix/singular.ts'
 import { DIVISOR_FLOOR as DIVISOR_FLOOR_DECL } from '../../../../math/src/wgsl/constants.ts'
 import { isFiniteScale } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { cofactor3 } from '../../../../math/src/wgsl/matrix.ts'
 import { inverseTransposeShipped, unit } from '../../../../../tests/gpu/math/inverseTransposeF32.ts'
 
 type Vec = [number, number, number]
@@ -64,7 +65,11 @@ test('a null column: the adjoint carries the plane normal, not the local axis', 
 test('the shipped shader no longer carries an absolute threshold on the raw determinant', () => {
   const corps = DAG_SELECTION_SHADER.split('fn invTranspose3Prep')[1].split('\n}')[0]
   assert.doesNotMatch(corps, /abs\(det\)<1e-20/, 'absolute threshold on the raw determinant')
-  assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente')
+  assert.match(
+    corps,
+    /let a=m\[0\]\/t;\n let C=cofactor3\(a,m\[1\]\/t,m\[2\]\/t\);/,
+    'normalisation absente',
+  )
   // And this number is not written in the shader: it is the declaration of the constant shared
   // with the CPU (`packages/math/src/matrix/singular.ts`), its f32 written once. A threshold
   // changed on one side only is impossible.
@@ -89,7 +94,12 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   )
   assert.match(
     corps,
-    /select\(z,cross\(b,c\),finite\),select\(z,cross\(c,a\),finite\),select\(z,cross\(a,b\),finite\)/,
+    /select\(z,C\[0\],finite\),select\(z,C\[1\],finite\),select\(z,C\[2\],finite\)/,
     'a non-finite sum must zero the adjoint: `m/t` is then worthless',
+  )
+  assert.match(
+    cofactor3.text,
+    /mat3x3f\(cross\(b,c\),cross\(c,a\),cross\(a,b\)\)/,
+    'the adjoint is the cofactors of the normalised columns',
   )
 })

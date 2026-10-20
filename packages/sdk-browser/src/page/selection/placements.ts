@@ -2,7 +2,7 @@
 // row and its winding are those of its root. One record serves every placement of its primitive, so
 // an instance — a (placement, page) pair — is named by its packed rank, never by the record alone.
 import type { MatrixElements } from '../../host/matrixElements.ts'
-import { lastTrue } from '../../../../math/src/scalar/search.ts'
+import { lastAtMost } from '../../../../math/src/scalar/search.ts'
 
 /** What a reader takes of the roots, by rank: their worlds. */
 export type Placements = readonly { readonly world: MatrixElements; readonly reach?: number }[]
@@ -39,7 +39,7 @@ export function rootOfPacked(index: PlacementIndex, packed: number) {
   if (!(packed >= 0 && packed < index.packedCount) || !baseOfRoot.length) return -1
   for (let rank = index.last ?? 0, k = 0; k < 2 && rank < baseOfRoot.length; k++, rank++)
     if (holds(baseOfRoot, rank, packed)) return (index.last = rank)
-  return (index.last = lastTrue(0, baseOfRoot.length - 1, (rank) => baseOfRoot[rank] <= packed))
+  return (index.last = lastAtMost(baseOfRoot, packed))
 }
 
 /** Whether root `rank` is the last whose first rank is not past `packed`. */

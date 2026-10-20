@@ -1,3 +1,4 @@
+import type { CullView } from '../render/cutFreeze.ts'
 import type { CameraMotion } from '../../../camera/motion.ts'
 import type { HostCamera } from '../../../camera/world.ts'
 import type { DiagnosticMode } from '../../../../../sdk-core/src/runtime/diagnostics.ts'
@@ -28,9 +29,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   imageRevision: number
   diagnostic: DiagnosticMode
   diagnosticPixelError: number
-  /** The rows hold their screen-error ratio: the first image after that view gives them their
-   *  level back (`../render/rowDiagnostic.ts`). */
-  diagnosticErrorShown: boolean
   lastCamera: HostCamera | undefined
   gpuSelection: GpuSelection | undefined
   /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
@@ -42,13 +40,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   deferredDrops: Set<string>
   /** Triangles of the transparent clusters the cut holds, counted once whatever the pass count. */
   blendPagedTriangles: number
-  /** Triangles of the transparent meshes outside the cluster DAG, counted per draw. */
-  blendUnpagedTriangles: number
   blendSubmittedTriangles: number
   blendDrawCalls: number
-  /** Cut triangles the current image puts back to draw: the published cut minus clusters without a
-   *  residency row. Counted without waiting for the GPU, held from one image to the next like the cut. */
-  drawnTriangles: number
   blendFrustumRejected: number
   gpuDrawCalls: number
   /** Compute dispatches of the image: the opaque raster is not a draw call. */
@@ -57,12 +50,18 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   renderPathLogged: boolean
   outputDiagnosticLogged: boolean
   noOccluderHistory: boolean
-  /** The view moved since the last image: every row may leave the occluders again. */
-  occluderViewMoved: boolean
   rowsSyncedFrame: number
   motion: CameraMotion
   /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */
   selectionUniforms: SelectionUniforms
+  /** The main view's cull view while its cut is frozen, none while it follows the camera
+   *  (`../render/cutFreeze.ts`). */
+  cullView?: CullView
+  /** A freeze asked before the first image, put on it (`../render/cutFreeze.ts`). */
+  cullPending?: boolean
+  /** A frame inspection asked (`../diagnostic/inspection/read.ts`): run once, right after the main
+   *  view's next image is submitted. */
+  inspect?: () => void
   /** A view drawn beside the main one cuts there (`../../../gpu/dag/aside.ts`), from its first
    *  image; the main view has none. */
   asideCut: AsideCut | undefined
@@ -104,6 +103,9 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** True when the current image was held and nothing more will be drawn unasked: no CPU step
    *  was executed, and no device answer in flight asks another — targets refused included. */
   frameHeld: boolean
+  /** Images submitted whose GPU work the device has not finished: the loop draws no further one
+   *  past `DAG_READBACK_SLOTS` of them (`../../frame/interactiveFrame.ts`, `skipsWebgpuFrame`). */
+  gpuFramesInFlight: number
   /** A barrier converges the textures: every pixel publishes its image feedback. */
   textureConverging: boolean
   /** A pass of the image — opaque or blend — wrote the feedback target: something to reduce. */

@@ -157,7 +157,7 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
     return files.get(name) ?? new TextEncoder().encode(body(Number(name.split('.')[0])))
   }
   const { port, held } = io(bytes)
-  await opened(cells, bytes, 100, false, [1e9, 0, 0]) // rows for every node, nothing read
+  await opened(cells, bytes, false, [1e9, 0, 0]) // rows for every node, nothing read
   port.decode = async (bytes: Uint8Array) => {
     const rows = await decodeHere(bytes)
     return {
@@ -170,9 +170,9 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   }
   // The page of the index is opened, then every cell handed to the decode, none placed.
   const free = { admits: () => true, spend() {} }
-  await settled(cells, [0, 0.5, 0.5], 100, port, free)
+  await settled(cells, [0, 0.5, 0.5], port, free)
   records.forEach(({ url }) => held.add(`https://cache.test/key/${url}`))
-  cells.frame([0, 0.5, 0.5], 100, port, free)
+  cells.frame([0, 0.5, 0.5], port, free)
   await Promise.all(cells.decodes())
   const accepted: string[] = []
   const receiver = { acceptPage: (url: string) => void (accepted.push(url), (now += 1)) }
@@ -181,7 +181,7 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   for (const url of ['p0', 'p1']) queue.queue(receiver, url, new Uint32Array(1))
   const frame = () => {
     budget.open()
-    cells.frame([0, 0.5, 0.5], 100, port, budget)
+    cells.frame([0, 0.5, 0.5], port, budget)
     queue.drain()
     return [cells.stats().held, accepted.length]
   }

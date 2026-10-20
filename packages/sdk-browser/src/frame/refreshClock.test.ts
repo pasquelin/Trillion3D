@@ -1,8 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRefreshClock } from './refreshClock.ts'
-
-const near = (value: number, expected: number) => Math.abs(value - expected) < 0.01
+import { nearly } from '../../../math/src/float/near.fixture.ts'
 
 test('the refresh interval is the period several intervals share, pauses aside', () => {
   const clock = createRefreshClock(1000 / 60)
@@ -10,7 +9,7 @@ test('the refresh interval is the period several intervals share, pauses aside',
   let now = 0
   for (const gap of [0, 8.4, 16.7, 8.3, 500, 8.3]) clock.tick((now += gap))
   // The period that fits them all: 41.7 ms over five refreshes.
-  assert.ok(near(clock.display, 8.34), `${clock.display}`)
+  assert.ok(nearly(clock.display, 8.34, 0.01), `${clock.display}`)
 })
 
 /** The refresh measured from frames drawn every `frameMs` on a display refreshing every `vsyncMs`:
@@ -24,9 +23,9 @@ function measured(vsyncMs: number, frameMs: number) {
 
 // The budget follows the display, no fixed cap; slow frames never pass for a slow display.
 test('the refresh budget follows the display, a device that misses its cadence included', () => {
-  assert.ok(near(measured(1000 / 120, 1000 / 120), 8.33), '120 Hz: 8.3 ms')
-  assert.ok(near(measured(1000 / 60, 1000 / 60), 16.67), '60 Hz: 16.7 ms')
-  assert.ok(near(measured(1000 / 120, 1000 / 16), 8.33), '16 fps at 120 Hz: 8.3 ms')
+  assert.ok(nearly(measured(1000 / 120, 1000 / 120), 8.33, 0.01), '120 Hz: 8.3 ms')
+  assert.ok(nearly(measured(1000 / 60, 1000 / 60), 16.67, 0.01), '60 Hz: 16.7 ms')
+  assert.ok(nearly(measured(1000 / 120, 1000 / 16), 8.33, 0.01), '16 fps at 120 Hz: 8.3 ms')
 })
 
 // The shortest interval was the period, so one late frame set a 2.5 ms budget.
@@ -34,7 +33,7 @@ test('one late frame sets no period', () => {
   const clock = createRefreshClock(1000 / 60)
   let now = 0
   for (let frame = 0; frame < 60; frame++) clock.tick((now += 1000 / 120) + (frame === 30 ? 6 : 0))
-  assert.ok(near(clock.display, 8.33), `${clock.display}`)
+  assert.ok(nearly(clock.display, 8.33, 0.01), `${clock.display}`)
 })
 
 // A period held while each interval stayed on its grid never rose. The cadence of
@@ -44,15 +43,15 @@ test('the cadence rises once the display slows, the refresh holds, and a reset f
   let now = 0
   for (let frame = 0; frame < 120; frame++) clock.tick((now += 1000 / 120))
   for (let frame = 0; frame < 30; frame++) clock.tick((now += 1000 / 60))
-  assert.ok(near(clock.cadence, 8.33), 'a second holds the old cadence')
+  assert.ok(nearly(clock.cadence, 8.33, 0.01), 'a second holds the old cadence')
   for (let frame = 0; frame < 40; frame++) clock.tick((now += 1000 / 60))
-  assert.ok(near(clock.cadence, 16.67), `then the new one: ${clock.cadence}`)
-  assert.ok(near(clock.display, 8.33), `the refresh holds: ${clock.display}`)
+  assert.ok(nearly(clock.cadence, 16.67, 0.01), `then the new one: ${clock.cadence}`)
+  assert.ok(nearly(clock.display, 8.33, 0.01), `the refresh holds: ${clock.display}`)
   clock.reset()
   assert.equal(clock.settled, false)
   assert.ok(Number.isNaN(clock.cadence))
   for (let frame = 0; frame < 4; frame++) clock.tick((now += 1000 / 30))
-  assert.ok(near(clock.display, 33.33) && clock.settled, 'a reset measures anew at once')
+  assert.ok(nearly(clock.display, 33.33, 0.01) && clock.settled, 'a reset measures anew at once')
 })
 
 // The refresh is at most the shortest period the display held; intervals are whole numbers
@@ -61,9 +60,15 @@ test('a shorter cadence lowers the refresh at once; a 60 Hz display never reads 
   const clock = createRefreshClock(1000 / 60)
   let now = 0
   for (let frame = 0; frame < 60; frame++) clock.tick((now += 1000 / 60))
-  assert.ok(near(clock.display, 16.67), 'two refreshes of 120 Hz from the first read as 60 Hz')
+  assert.ok(
+    nearly(clock.display, 16.67, 0.01),
+    'two refreshes of 120 Hz from the first read as 60 Hz',
+  )
   for (let frame = 0; frame < 3; frame++) clock.tick((now += 1000 / 120))
-  assert.ok(near(clock.display, 8.33), `three at one refresh prove 120 Hz: ${clock.display}`)
+  assert.ok(
+    nearly(clock.display, 8.33, 0.01),
+    `three at one refresh prove 120 Hz: ${clock.display}`,
+  )
   const sixty = createRefreshClock(1000 / 120)
   now = 0
   for (let frame = 0; frame < 600; frame++) {
@@ -80,5 +85,22 @@ test('a shorter cadence lowers the refresh at once; a 60 Hz display never reads 
 test('a timer rounded to the millisecond still measures 120 Hz', () => {
   const clock = createRefreshClock(1000 / 60)
   for (let frame = 0; frame < 120; frame++) clock.tick(Math.round((frame * 1000) / 120))
-  assert.ok(clock.settled && near(clock.display, 8.33), `${clock.display}`)
+  assert.ok(clock.settled && nearly(clock.display, 8.33, 0.01), `${clock.display}`)
+})
+
+// A variable-refresh display presents a frame once ready, between two refreshes: a 120 Hz
+// ProMotion display, the frames held to measure it, then a world's drawn frames (a-wall-of-cameras,
+// recorded). A 2.08 ms grid held those few off-grid intervals better than 8.33: the refresh fell
+// to it. Once intervals of one refresh were seen, no finer grid is sought.
+test('a variable-refresh display presenting off its grid never reads a finer refresh', () => {
+  const clock = createRefreshClock(1000 / 60)
+  let now = 0
+  for (let frame = 0; frame < 10; frame++) clock.tick((now += 1000 / 120))
+  for (const gap of [
+    49.92, 19.02, 39.78, 49.03, 16.92, 66.04, 34.02, 32.94, 33.01, 41.99, 42.07, 50.06, 33.17,
+    41.83, 32.92, 33.76, 33.34, 83.26, 16.67, 24.1, 34.32, 24.95, 33.22, 33.49,
+  ]) {
+    clock.tick((now += gap))
+    assert.ok(nearly(clock.display, 8.33, 0.02), `after ${gap} ms: ${clock.display}`)
+  }
 })

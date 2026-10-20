@@ -1,4 +1,3 @@
-import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/world/texture/texture.ts'
 import type { HostMesh } from '../host/resources.ts'
@@ -14,14 +13,6 @@ export function meshes(node: Object3D) {
   })
   return found
 }
-/** Reads the vertices of every geometry `meshes` wear, each once (`Geometry.loadVertices`): what a
- *  path awaits before it reads host vertices, which no session fetches up front. */
-export const loadHostVertices = (meshes: Iterable<{ geometry: Geometry }>) =>
-  Promise.all(
-    Array.from(new Set(Array.from(meshes, (mesh) => mesh.geometry)), (geometry) =>
-      geometry.loadVertices(),
-    ),
-  )
 /** The textures a surface carries, whatever their slot: what its renderer samples. */
 export function* materialTextures(material: PageSurface): Generator<Texture> {
   for (const value of Object.values(material))

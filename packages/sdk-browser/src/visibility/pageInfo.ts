@@ -28,10 +28,9 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   // the verdict draws unjudged (`HIZ_REJECTED_WGSL`, `rowVerdict`).
   ['hizSlot', 'u32'],
   ['selectionIndex', 'u32'],
-  // The row's diagnostic word: one on a coarse row (`levelDiagnostic`), which the level-of-detail
-  // view reads, or its screen-error ratio while that view is drawn
-  // (`../webgpu/pages/render/rowDiagnostic.ts`).
-  ['diagnosticWord', 'f32'],
+  // The row's diagnostic word (`DIAGNOSTIC_WORD`, `../diagnostic/colors.ts`): its level, HLOD
+  // index and error, written with the row, which every diagnostic view reads in the shader.
+  ['diagnosticWord', 'u32'],
   ['depthBias', 'u32'],
   // The line's placement, and the resolve class key (`shader/materialClass.ts`).
   ['placement', 'u32'],
@@ -46,6 +45,9 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   ['material', 'u32'],
 ] as const)
 
-/** A row's diagnostic word (`PAGE_INFO.at.diagnosticWord`) outside the screen-error view: one on a coarse
- *  row (`PageRec.role`), which the level-of-detail view reads. */
-export const levelDiagnostic = (rec: { role?: string }) => (rec.role === 'coarse' ? 1 : 0)
+/** The level a row's diagnostic word holds (`pageDiagnosticWord`), a transparent instance's as an
+ *  opaque row's: the DAG level the cut drew it at (`PageRec.level`, zero the full detail), which the level-of-detail view paints in its
+ *  colour (`diagnosticLevel`); a record without one, from a cache with no DAG, counts by its role, a
+ *  coarse one as level one. */
+export const levelDiagnostic = (rec: { role?: string; level?: number }) =>
+  rec.level ?? (rec.role === 'coarse' ? 1 : 0)

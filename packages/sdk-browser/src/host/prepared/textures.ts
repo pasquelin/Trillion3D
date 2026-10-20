@@ -5,6 +5,7 @@
  *
  * - one texture per image AND sampler rank: two table ranks naming both alike share it, and
  *   the rank it answers to is the first of them (the preview the sidecar bakes is found by it);
+ *   an image is its address, or its view, save a `data:` address, which is its record's alone;
  * - one image decoded per image rank: a second texture of the same image is a copy sharing it;
  * - a slot reading another coordinate set, or declaring a transform, is a copy of its texture —
  *   the transform composed from what the slot declares — and only a copy on the
@@ -27,7 +28,7 @@ export function preparedTextures(
   document: TableDocument,
   images: (rank: number) => Promise<unknown>,
   /** The rank each built texture answers to, keyed by the texture: what the engine finds the
-   *  baked preview of a texture by (`textureIndices`). */
+   *  baked chain of a texture by in its cache (`texture/textureCaches.ts`). */
   ranks: Map<Texture, number>,
 ) {
   const sources = new Map<number, Promise<Texture | null>>()
@@ -51,7 +52,10 @@ export function preparedTextures(
     const declared = tables.textures[rank]
     const image = declared?.image == null ? undefined : document.images[declared.image]
     if (!image) return Promise.resolve(null)
-    const key = `${image.uri || image.view}:${declared.sampler ?? undefined}`
+    // A `data:` address is its record's own: the stand-in every image the cache bakes whole may
+    // name (`texture/skip.ts`) is as many images as records.
+    const origin = image.uri?.startsWith('data:') ? `#${declared.image}` : image.uri || image.view
+    const key = `${origin}:${declared.sampler ?? undefined}`
     let texture = folded.get(key)
     if (!texture) {
       texture = source(declared.image!).then((built) => {

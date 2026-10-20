@@ -255,22 +255,21 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
     if(!wantedNow||projection.lightUnseen){
      // Not drawn this frame: the page keeps its words, stale bits included, marked unseen.
      nextMeta=prevMeta|VSM_META_UNSEEN;
-     // Wanted alone: the invalidation finds it, the raster does not draw it.
-     vsmPageMarksStore(flagsIndex,VSM_PAGE_WANTED);
+     // Wanted, fine as it was drawn: the invalidation finds it — a fine caster's box too —, the
+     // raster does not draw it.
+     vsmPageMarksStore(flagsIndex,VSM_PAGE_WANTED|(prevMeta&VSM_PAGE_FINE));
     }else{
      var nextMarks=VSM_PAGE_WANTED;
      let requestFine=requestWord&VSM_PAGE_FINE;
      let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u;
-     let keepDynamic=requestFine==0u&&projection.coarseDynamicCached&&!staticStale;
-     // A coarse page of a map whose coarse pages keep their dynamic layer is not redrawn for a
-     // stale bit.
-     if(!keepDynamic){
-      if((prevMeta&VSM_META_ANY_STALE)!=0u){
-       if((prevMeta&VSM_META_STATIC_STALE)==0u){
-        nextMarks|=VSM_PAGE_DYNAMIC_STALE;
-       }else{
-        nextMarks|=VSM_PAGE_ANY_STALE;
-       }
+     // A coarse page of a map whose coarse pages keep their dynamic layer is drawn again for its
+     // static layer alone, both layers then.
+     let keepDynamic=requestFine==0u&&projection.coarseDynamicCached;
+     if(staticStale){
+      nextMarks|=VSM_PAGE_ANY_STALE;
+     }else if(!keepDynamic){
+      if((prevMeta&VSM_META_DYNAMIC_STALE)!=0u){
+       nextMarks|=VSM_PAGE_DYNAMIC_STALE;
       }
       // A page drawn for the covered receivers alone may miss a caster: its dynamic layer is
       // drawn again each frame.

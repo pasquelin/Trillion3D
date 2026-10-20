@@ -1,5 +1,6 @@
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { vsmTraceKindsOf } from '../../vsm/traceWgsl.ts'
 import { directLightWgsl } from './lightWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
@@ -7,18 +8,16 @@ import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
-  CONTRACT_VSM_BINDINGS,
   type VsmConsumerBindings,
   type VsmTraceBindings,
   vsmBindingsLabel,
   vsmTraceBindingsLabel,
 } from './shadowBindings.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
-import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
-import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { FOG_WGSL } from '../fogShader.ts'
+import { reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
   LOBELESS_RECT_WGSL,
@@ -69,11 +68,11 @@ fn pixelCell(pixel:vec2f,z:f32)->u32{return gridCell(pixel,z,vec2u(view.lightPar
 fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell==TILE_NO_SLICE||(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`,
   )
 /**
- * The **ranks** of the bindings a lighting program reads, which the layouts number differently:
- * the translucent casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
- * opaque resolve reads its mask and, at `resolveTransmission`, the translucent casters'
- * transmission; the blend and water passes, without it, read the transmission alone, and trace
- * their fragments with `trace` (`directShadowWgsl`).
+ * The **ranks** of the bindings a lighting program reads, which the layouts number differently.
+ * The opaque resolve reads a mask at `transmittance` and, at `resolveTransmission`, its
+ * transmission; the blend pass, without it, traces its fragments over the virtual shadow maps
+ * `vsm` with `trace`, its rays reading the translucent casters' memory at `transmittance`
+ * (`directShadowWgsl`'s unless given).
  */
 export type LightingBindings = {
   transmittance: number
@@ -85,11 +84,11 @@ export type LightingBindings = {
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
 export const bindingsLabel = ({
   transmittance,
-  vsm = CONTRACT_VSM_BINDINGS,
+  vsm,
   resolveTransmission,
   trace,
 }: LightingBindings) =>
-  `${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}`
+  `${transmittance}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${resolveTransmission ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}`
 
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
@@ -101,10 +100,10 @@ export const bindingsLabel = ({
 export const lightingBase = (
   bindings: LightingBindings,
   key: Partial<ContractKey>,
-  { narrow = false, pair = false } = {},
+  { narrow = false } = {},
 ) =>
   wgslBlock(
-    `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}, ${pair})`,
+    `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow})`,
     [
       SURFACE_MODEL_LIGHT_WGSL,
       ...(key.lobeless ? [LOBELESS_LIGHTING_WGSL] : [LOBES_LIGHTING_WGSL]),
@@ -112,16 +111,16 @@ export const lightingBase = (
       ...(key.rectless ? [] : [key.lobeless ? LOBELESS_RECT_WGSL : LOBES_RECT_WGSL]),
       lambertDiffuse,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
-      directShadowWgsl(bindings.transmittance, {
-        resolveTransmission: bindings.resolveTransmission ?? null,
-        vsm: bindings.vsm ?? CONTRACT_VSM_BINDINGS,
-        kinds: shadowKindsOf(key),
-        trace: bindings.trace,
-      }),
+      directShadowWgsl(
+        bindings.transmittance,
+        bindings.resolveTransmission === undefined
+          ? { vsm: bindings.vsm, trace: bindings.trace, kinds: vsmTraceKindsOf(key) }
+          : { pass: 'mask', resolveTransmission: bindings.resolveTransmission },
+      ),
       FOG_WGSL,
-      declaredLightWgsl(key, { pair }),
+      declaredLightWgsl(key),
       TILE_SLICE_WGSL,
-      sliceLightingWgsl(pair),
+      sliceLightingWgsl(),
     ],
     `
 var<private> thinSubsurface:vec3f=vec3f(0.0);
@@ -142,8 +141,8 @@ fn thinBack(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!thinSurface()){return vec3f(0.0);}
  return lambertDiffuse(thinSubsurface,0.0,sampleBounce(P,-N)+environmentIrradiance(-N),ao);
 }
-/** The lit surface, one sum for every pass that lights one (the opaque resolve, the blended
- *  surfaces, the water): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
+/** The lit surface, one sum for every pass that lights one (the opaque resolve, the translucent
+ *  surfaces): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
  *  (\`lobeThrough\`), the \`reflection\` and what it \`emissive\`ly gives, added in this order, then a
  *  thin two-sided surface's back (\`thinBack\`) at the point \`P\` of normal \`N\`. A pass with no
  *  bounce gives zero. */
@@ -188,6 +187,8 @@ export const directLightingWgsl = (key: Partial<ContractKey> = LOBELESS_KEY) =>
     [
       lightingBase(DIRECT_BINDINGS, key, { narrow: !!key.narrow }),
       key.lobeless ? LOBELESS_TARGET_WGSL : LOBES_TARGET_WGSL,
+      // The lobe the bounce program reads the probes' field through (`resolvedIndirect`).
+      reflectionLobeWgsl(!key.lobeless),
       pixelCellWgsl(!key.unshadowed),
     ],
     `

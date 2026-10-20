@@ -39,10 +39,12 @@ function assertWriteback(actual: Uint32Array, expected: Uint32Array, label: stri
 test('soft bodies scaled, turned, removed, hidden, remade and teleported write back as on develop', async () => {
   // The reference module, which writes back one vertex chain per body rather than one composed
   // matrix, ran `writebackScene` and wrote these words: its scene made 20 m up, no floor
-  // contact in the kept steps, every teleport under 3 m. To record them again, run
-  // `writebackScene(await startModule())` on that reference module (`module.fixture.ts`,
-  // `softWriteback.fixture.ts`) and write `[steps.length, ...steps.flatMap((s) => [s.length,
-  // ...s])]` as a `Uint32Array` to `soft-writeback-develop.bin`.
+  // contact in the kept steps, every teleport under 3 m. A soft body starting just off its rest
+  // shape (`SOFT_IMPERFECTION`, `soft.cpp`) moves the simulation, not the write-back: the module
+  // built with no imperfection matched the reference's words within the bound, and this one's were
+  // recorded then. To record them again, run `writebackScene(await startModule())`
+  // (`module.fixture.ts`, `softWriteback.fixture.ts`) and write `[steps.length,
+  // ...steps.flatMap((s) => [s.length, ...s])]` as a `Uint32Array` to `soft-writeback-develop.bin`.
   const url = new URL(
     '../../../../tests/fixtures/physics/soft-writeback-develop.bin',
     import.meta.url,

@@ -126,6 +126,8 @@ export function banc(panne?: 'envoi') {
     context: {},
     // No light cut ran: the lower residency tier receives nothing.
     lights: {},
+    // No texture streams: the residency stream pumps no tile.
+    vis: {},
     layout: { rows, drawSlots: 4, selectionRoots: [] },
     setup: { viewport: VIEWPORT, slots: 10 },
     timing: { marks: {} },

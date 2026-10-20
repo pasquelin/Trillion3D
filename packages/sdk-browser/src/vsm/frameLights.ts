@@ -122,7 +122,7 @@ function allocateLightIds(state: VsmFrameState) {
   for (let i = 0; i < suns.length; i++) {
     const entry = clipmaps[i].cacheEntry
     if (!ids.fits(entry.mapCaches.length)) {
-      state.cache.entries.delete(entry.lightId)
+      state.cache.entries.delete(entry.key)
       continue
     }
     entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
@@ -132,7 +132,7 @@ function allocateLightIds(state: VsmFrameState) {
     const setup = setups[i],
       entry = setup.cacheEntry
     if (!ids.fits(entry.mapCaches.length)) {
-      state.cache.entries.delete(entry.lightId)
+      state.cache.entries.delete(entry.key)
       continue
     }
     entry.moveToMapId(ids.allocateLocal(entry.mapCaches.length))

@@ -4,21 +4,20 @@ import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
- * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, the worlds of the blended
- * copies, a surface per drawn material, then the arena of the meshes' own proxies — the columns of a
- * `proxy.bin` (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —:
+ * THE PROXY'S BUFFER: one storage binding holding, in this order, the header, a surface per drawn
+ * material, then the arena of the meshes' own proxies — the columns of a `proxy.bin`
+ * (`page-codec-wasm/src/proxy.rs`), one mesh's after another, in the mesh's own space —:
  * what grows with the meshes, never with the placements. What grows with them lies in record tables a
  * program binds beside this buffer, sampled textures, no storage binding — the culling's own, never a
  * copy —: the culling's, read where they
  * lie — the placements' records, each world and each instance (`gpu/dag/worldTable.ts`), and the tree
  * above them (`gpu/dag/treeTable.ts`).
  *
- * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are both drawn
- * from (`fieldLayout`): the placements the instances hold (the blended copies' follow them), then the word
- * rank of each region — the copies' worlds a region of their own —, the tree's root node, within the tree
- * (`NO_INDEX` for a packing without a tree: the placements are then its few members), the live members,
- * the greatest world error of a proxy, in metres, as an `f32`'s bits: the distance a ray leaves a surface
- * off its normal, and the blended copies.
+ * Header words, one table the writer's words and the shader's struct (`RUNTIME_PROXY_WGSL`) are
+ * both drawn from (`fieldLayout`): the placements the instances hold, then the word rank of each
+ * region, the tree's root node, within the tree (`NO_INDEX` for a packing without a tree: the
+ * placements are then its few members), the live members, and the greatest world error of a proxy,
+ * in metres, as an `f32`'s bits: the distance a ray leaves a surface off its normal.
  */
 const HEADER = fieldLayout(
   'RuntimeProxy',
@@ -26,13 +25,11 @@ const HEADER = fieldLayout(
     ['instances', 'u32'],
     ['surfacesWord', 'u32'],
     ['trianglesWord', 'u32'],
-    ['copyWorldsWord', 'u32'],
     ['boundsWord', 'u32'],
     ['childrenWord', 'u32'],
     ['treeRoot', 'u32'],
     ['members', 'u32'],
     ['error', 'f32'],
-    ['copies', 'u32'],
   ] as const,
   'words:array<u32>,',
 )
@@ -40,9 +37,6 @@ export const RUNTIME_HEADER = HEADER.at
 export const RUNTIME_HEADER_WORDS = HEADER.words
 /** The proxy's buffer as the shaders read it: the header's fields, then every word past them. */
 export const RUNTIME_PROXY_WGSL = wgslBlock('RUNTIME_PROXY_WGSL', [], HEADER.wgsl)
-
-/** Words of one blended copy's world, the proxy's own: its matrix. */
-export const RUNTIME_WORLD_WORDS = 16
 
 /** One placement's instance, the `Instance` texel of its record (`gpu/dag/worldTable.ts`): its
  *  cut's first node and first triangle in the arena (`NO_INDEX` where it draws no proxy), the

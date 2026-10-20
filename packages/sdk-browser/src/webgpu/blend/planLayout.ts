@@ -1,18 +1,15 @@
 import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
-import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 /**
  * WHERE THE BLEND PLAN AND ITS RUNS SIT IN THE SCENE'S WORDS.
  *
- * The plan's own layout — its entry bits, its runs, what each pass occupies — is read by the plan
+ * The plan's own layout — its entry bits, its runs, what the one pass of every translucent item
+ * occupies — is read by the plan
  * that fills it, the order kernel that sorts it and places its slots, the expansion kernel and the
  * draw that read a run, and the resources that size the buffers. The words here describe the
  * buffer, not the walk: the walk is `order.ts` (which entries, in which order) and `runs.ts`
  * (which stretch of entries one draw paints).
  */
-
-/** The two passes: blend, then transmission over the frozen background. */
-export const EXPAND_PASSES = 2
 
 /**
  * TWO words per run: its first entry and their count, and nothing more.
@@ -22,12 +19,12 @@ export const EXPAND_PASSES = 2
  */
 export const RUN_WORDS = 2
 
-/** Draw slots a pass of `entries` plan entries can need: one per entry that draws its own, and one
+/** Draw slots the pass of `entries` plan entries can need: one per entry that draws its own, and one
  *  around each of them for the pass's main class (`runs.ts`). */
 export const slotCapacity = (entries: number) => 2 * entries + 1
 
-/** Words of the plan array per entry a pass can hold: its seed, its sorted place, and the two words
- *  of each of its two slots, plus the one slot left over. Local: `planRegions` reads it. */
+/** Words of the plan array per entry the pass can hold: its seed, its sorted place, and the two
+ *  words of each of its two slots, plus the one slot left over. Local: `planRegion` reads it. */
 const PLAN_ENTRY_WORDS = 2 + 2 * RUN_WORDS
 
 /**
@@ -45,28 +42,16 @@ export const blendVertexShift = (maxVertexWords: number) => {
   return shift
 }
 
-/** Vertices an instance of an UNPAGED primitive draws: the largest multiple of three the
- *  addressing stride lets through, and never more than the primitive carries. */
-export const blendChunkWords = (shift: number, indexCount: number) =>
-  clampLowWins(3 * Math.floor((1 << shift) / 3), 3, indexCount)
-
-/** What each pass occupies: its seeded entries, their sorted order and its runs in the plan, its
- *  indirect arguments. */
-export function planRegions(maxEntries: number) {
-  const regions = [],
-    passWords = maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS
-  for (let pass = 0; pass < EXPAND_PASSES; pass++)
-    regions.push({
-      seeds: pass * passWords,
-      order: pass * passWords + maxEntries,
-      runs: pass * passWords + 2 * maxEntries,
-      args: pass * slotCapacity(maxEntries) * 4,
-    })
-  return regions
-}
+/** What the pass occupies: its seeded entries, their sorted order and its runs in the plan, its
+ *  indirect arguments from the first. */
+export const planRegion = (maxEntries: number) => ({
+  seeds: 0,
+  order: maxEntries,
+  runs: 2 * maxEntries,
+  args: 0,
+})
 
 /** Words the plan and the kernel scratch occupy for the whole scene. */
-export const planWords = (maxEntries: number) =>
-  (maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS) * EXPAND_PASSES
+export const planWords = (maxEntries: number) => maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS
 export const scratchWords = (maxEntries: number) =>
   maxEntries + ceilDiv(maxEntries, WORKGROUP_THREADS)

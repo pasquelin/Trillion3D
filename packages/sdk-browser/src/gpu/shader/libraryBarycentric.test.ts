@@ -11,6 +11,7 @@ import {
 } from '../../../../math/src/wgsl/barycentric.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
+import { take } from './libraryGeometry.fixture.ts'
 
 type V = number[]
 type F = (...args: unknown[]) => V
@@ -21,7 +22,6 @@ const run = shaderRun<Record<string, F>>(
 )
 const edge = run.edgeFunction as unknown as (a: V, b: V, p: V) => number
 /** `n` draws of the seeded sequence, in [-1, 1). */
-const take = (rand: () => number, n: number) => Array.from({ length: n }, () => 2 * rand() - 1)
 const weigh = (w: V, corners: V[]) =>
   corners[0].map((_, k) => w[0] * corners[0][k] + w[1] * corners[1][k] + w[2] * corners[2][k])
 

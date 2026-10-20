@@ -4,21 +4,20 @@ import type { Engine } from '../../engine/types.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 
-export type Io = Parameters<PartitionCells['frame']>[2]
+export type Io = Parameters<PartitionCells['frame']>[1]
 /** No arrival budget: what a test places never depends on the time the machine takes. */
 export const budget = { admits: () => true, spend() {} }
 /** An engine stand-in whose cut packs no world DAG. */
-export const packsNoWorld = () => ({ worldCut: () => undefined }) as unknown as Engine
+export const packsNoWorld = () => ({ worldCells: () => undefined }) as unknown as Engine
 
-/** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
+/** Cells that record what a frame hands them, and ask for one cell. */
 export function recording() {
-  const seen: { eye: number[]; reach: number; io: Io }[] = []
+  const seen: { eye: number[]; io: Io }[] = []
   const closed: PartitionCells[] = []
   const cells = {
-    frame(eye: number[], reach: number, io: Io) {
-      seen.push({ eye: [...eye], reach, io })
-      io.request(['near.json'], false)
-      io.request(['ahead.json'], true)
+    frame(eye: number[], io: Io) {
+      seen.push({ eye: [...eye], io })
+      io.request(['near.json'])
     },
     decodes: () => [],
     reads: () => [],

@@ -3,6 +3,7 @@ import { buildComputeStage } from './computeStages.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { retire } from './frameRetire.ts'
+import { createHeldCopy, type CullStep, type HeldCopy } from './heldCopy.ts'
 import { computeBufferEntry, computeTextureEntry, sequentialEntries } from './computeBindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../dispatch/grid.ts'
@@ -49,6 +50,7 @@ export async function createTransparentOcclusion(
     o = {
       ...{ device, entryCount, sources, ...buffers, ...made },
       ...{ bound: createWebgpuBindIdentity(), bindGroup: undefined, disposed: false },
+      held: createHeldCopy(device, 'Trillion3D held transparent verdicts'),
       // A thread an entry.
       groups: workgroupCount(entryCount, WORKGROUP_THREADS),
     }
@@ -85,10 +87,11 @@ export async function createTransparentOcclusion(
        * Writes each entry's verdict for this frame. Without a fresh pyramid there is nothing to
        * walk: the buffer goes back to zero, and the compact keeps all its entries.
        */
-      encode: (encoder: GPUCommandEncoder, pyramidFresh: boolean) =>
-        encodeOcclusion(o, encoder, pyramidFresh),
+      encode: (encoder: GPUCommandEncoder, pyramidFresh: boolean, cull: OcclusionCull) =>
+        encodeOcclusion(o, encoder, pyramidFresh, cull),
       dispose() {
         o.disposed = true
+        o.held.drop()
         freed(o)
       },
     }
@@ -112,7 +115,13 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   bindGroup: GPUBindGroup | undefined
   disposed: boolean
   groups: number
+  /** The verdicts a frozen cut tested, kept aside (`./heldCopy.ts`). */
+  held: HeldCopy
 }
+
+/** What the image's cull tells the test: the partition's step and whether it held its verdicts
+ *  (`GpuPartition.cull`, `GpuPartition.held`). */
+type OcclusionCull = { readonly cull: CullStep; readonly held: boolean }
 
 /** The test's own buffers freed at once: none was ever named by a submitted command. */
 function freed(buffers: { corners: GPUBuffer; unculled: GPUBuffer }) {
@@ -155,15 +164,41 @@ async function occlusionPipeline(device: GPUDevice) {
   return { layout, pipeline }
 }
 
-function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh: boolean) {
+/**
+ * The image's verdicts, as its cull says (`CullStep`, `../partition/types.ts`): an image that draws a
+ * frozen cut's kept verdicts again puts back the transparents' too, or keeps every entry where it
+ * cannot — its test would read a partition uniform the held image did not write; the first image of
+ * a frozen cut tests and keeps its verdicts; an image that follows the camera drops them.
+ */
+function encodeOcclusion(
+  o: Occlusion,
+  encoder: GPUCommandEncoder,
+  pyramidFresh: boolean,
+  cull: OcclusionCull,
+) {
   if (o.disposed) return
+  const occluded = o.sources.occluded()
+  if (cull.held) {
+    if (o.held.restore(encoder, occluded)) return
+    encoder.clearBuffer(occluded, 0, o.entryCount * 4)
+  } else testOcclusion(o, encoder, pyramidFresh, occluded)
+  if (cull.cull === 'held') o.held.keep(encoder, occluded)
+  else if (cull.cull === 'follow') o.held.drop()
+}
+
+/** Each entry's verdict on this image's pyramid; all kept without a fresh one. */
+function testOcclusion(
+  o: Occlusion,
+  encoder: GPUCommandEncoder,
+  pyramidFresh: boolean,
+  occluded: GPUBuffer,
+) {
   const { sources } = o
   const pyramid = pyramidFresh ? sources.pyramid() : undefined
   if (!pyramid) {
-    encoder.clearBuffer(sources.occluded(), 0, o.entryCount * 4)
+    encoder.clearBuffer(occluded, 0, o.entryCount * 4)
     return
   }
-  const occluded = sources.occluded()
   const { next } = o.bound
   next[0] = pyramid
   next[1] = occluded

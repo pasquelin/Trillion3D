@@ -1,9 +1,10 @@
 import { oncePerDevice } from './oncePerDevice.ts'
 import { sizedBuffer } from './sizedBuffer.ts'
+import { later } from '../../frame/scheduling.ts'
 
 /** How long a hold keeps what no use took: a burst of uses (an A/B proof, rounds until a cut
  *  lands) shares one; a use now and then holds nothing between. Every idle hold's time. */
-export const HOLD_IDLE_MS = 1000
+const HOLD_IDLE_MS = 1000
 
 /** THE idle timer of every hold: `restart(onIdle)` runs `onIdle` once nothing restarted it for
  *  `ms`; `stop()` cancels it. A host process never waits on it. */
@@ -12,8 +13,7 @@ export function holdIdle(ms = HOLD_IDLE_MS) {
   return {
     restart(onIdle: () => void) {
       clearTimeout(timer)
-      timer = setTimeout(onIdle, ms)
-      ;(timer as { unref?: () => void }).unref?.()
+      timer = later(onIdle, ms)
     },
     stop: () => clearTimeout(timer),
   }

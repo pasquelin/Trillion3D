@@ -12,7 +12,7 @@ import {
   CULL_BINS,
   HALF_SLOTS,
   DRAW_ITEM_U32,
-  DRAW_INDIRECT_STRIDE,
+  drawIndirectBytes,
 } from './contract.ts'
 import { createGpuDraw } from './factory.ts'
 
@@ -68,7 +68,6 @@ test('compact rest pass occupies the second half of the slots with exclusive-sca
   const expectedRestFront = packDrawIndirect(768, 1)
   expectedRestFront[3] = 4
   assert.deepEqual([...restFront], [...expectedRestFront])
-  assert.equal(DRAW_INDIRECT_STRIDE, 16)
   assert.equal(BIN_NONE, 1)
 })
 
@@ -84,15 +83,21 @@ test('draw shader counts, prefixes and scatters page groups in parallel with sta
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(WORKGROUP_THREADS\)\s*fn scatterGroups/)
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(WORKGROUP_THREADS\)\s*fn prefixGroups/)
   assert.match(DRAW_SHADER, /workgroupBarrier\(\);/)
-  // The only atomics tally a group's slots in workgroup memory: no global counter decides where
-  // an item lands, so the order stays that of the items.
-  assert.deepEqual(DRAW_SHADER.match(/atomicAdd\(&\w+/g), ['atomicAdd(&slotTally'])
-  assert.ok(DRAW_SHADER.includes(`restAt(i)*${HALF_SLOTS}u+item.bin`))
+  // The atomic adds tally a group's slots in workgroup memory and sum each slot's total, whatever
+  // the groups' order: no global counter decides where an item lands — the prefix does —, so the
+  // order stays that of the items.
+  assert.deepEqual(DRAW_SHADER.match(/atomicAdd\(&\w+(\[\w+)?/g), [
+    'atomicAdd(&slotTally[s',
+    'atomicAdd(&indirect[slotTotalAt',
+  ])
+  // A half's run keeps its own rows, each in its slot of that half.
+  assert.ok(DRAW_SHADER.includes('restAt(i)!=0u'))
+  assert.ok(DRAW_SHADER.includes(`rest*${HALF_SLOTS}u+item.bin`))
   assert.match(
     DRAW_SHADER,
     /fn restAt\(i:u32\)->u32\{return bitAt\(restBits\[bitWord\(i\)\],i\);\}/,
   )
-  assert.match(DRAW_SHADER, /indirect\[o\+3u\]=0u/)
+  assert.ok(DRAW_SHADER.includes('atomicStore(&indirect[o+3u],0u)'))
 })
 
 test('draw consumers zero firstInstance while compact records slot starts', () => {
@@ -127,7 +132,7 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
   const { device, buffers, writes } = fakeDevice(BACKEND)
   const gpu = await createGpuDraw(device, 8, 1, 768)
   assert.ok(gpu)
-  assert.equal(gpu.indirectBuffer.size, BASE_SLOTS * DRAW_INDIRECT_STRIDE)
+  assert.equal(gpu.indirectBuffer.size, drawIndirectBytes(BASE_SLOTS))
   assert.equal(
     gpu.indirectBuffer.usage &
       (GPUBufferUsage.INDIRECT |
@@ -182,7 +187,7 @@ test('GPU draw uploads each item once without a CPU compact and exposes GPU slot
     instances.data.byteLength / 4,
   )
   assert.deepEqual([...ids.subarray(0, 3)], [4, 7, 1])
-  const offsets = gpu.slotOffsetsBuffer as unknown as { data: Uint8Array }
+  const offsets = gpu.groupsBuffer as unknown as { data: Uint8Array }
   assert.deepEqual(
     [...new Uint32Array(offsets.data.buffer).subarray(0, BASE_SLOTS)],
     [0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3],

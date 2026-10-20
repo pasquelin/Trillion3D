@@ -7,6 +7,7 @@ import {
   normalizeVector3,
 } from '../../../math/src/vector/vector.ts'
 import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts'
+import { lerp } from '../../../math/src/scalar/reals.ts'
 
 /** Last eye position and way back, kept from frame to frame to derive the eye's velocity (world
  *  units per second) and the rate it turns at (radians per second). `ahead` is the velocity the
@@ -49,9 +50,7 @@ function smoothAhead(
     keep = Math.exp(-elapsedMs / AHEAD_SMOOTHING_MS)
   // A clock that went back or reads NaN keeps nothing either: the velocity is taken as it is.
   if (cut || !(movesFinitely(velocity) && movesFinitely(ahead) && keep <= 1)) ahead.set(velocity)
-  else
-    for (let axis = 0; axis < 3; axis++)
-      ahead[axis] = velocity[axis] + keep * (ahead[axis] - velocity[axis])
+  else for (let axis = 0; axis < 3; axis++) ahead[axis] = lerp(velocity[axis], ahead[axis], keep)
 }
 
 /**

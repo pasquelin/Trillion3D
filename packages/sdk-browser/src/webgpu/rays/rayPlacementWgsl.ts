@@ -21,6 +21,7 @@ import {
 import { RAY_PAGE_WGSL } from './rayPageWgsl.ts'
 import { FILTER_INCLUDE } from './rayRecord.ts'
 import { rayQueryBindingsWgsl } from './deformIndexWgsl.ts'
+import { WORLD_ROOT_MARK } from '../../gpu/dag/worldLinks.ts'
 
 /** Visits a placement's hierarchy may make, and the nodes its stack holds: a balanced hierarchy of
  *  any width stacks a few of each level it descends. */
@@ -70,10 +71,11 @@ fn rqChild(n:u32,slot:u32,reach:f32,pageBase:u32)->ProxyChild{
  * THE RAY AGAINST ONE PLACEMENT: its hierarchy walked by the engine's one wide traversal
  * (`wideTraversal`), nearest child first, in the placement's own space — the ray taken there by the
  * inverse of its world at the ray's origin, as every ray walking the placement tree takes it
- * (`placementRay`, `../../gpu/dag/placementRayWgsl.ts`) — each leaf's pages tested as the rasters draw them
- * (`rqPage`). A placement the ray's filter passes by, the world DAG's, one parked or hidden (its root
- * none) or a singular world holds nothing a ray meets. A stack or a walk past its bound marks the
- * ray cut short (`rqCut`).
+ * (`placementRay`, `../../gpu/dag/placementRayWgsl.ts`) — each leaf's pages tested as the rasters
+ * draw them (`rqPage`), each box grown by how near a line the ray meets it (`lineReach`, taken to
+ * the placement's space by the length its direction takes there). A placement the ray's filter
+ * passes by, the world DAG's, one parked or hidden (its root none) or a singular world holds
+ * nothing a ray meets. A stack or a walk past its bound marks the ray cut short (`rqCut`).
  */
 export const RAY_PLACEMENT_WGSL = wgslBlock(
   'RAY_PLACEMENT_WGSL',
@@ -90,6 +92,7 @@ export const RAY_PLACEMENT_WGSL = wgslBlock(
     RQ_ROOT_WORD: ROOT_WORD,
     RQ_SHIFT_WORD: RECORD_SHIFT_WORD,
     RQ_MARK_WORD: MARK_WORD,
+    RQ_WORLD_ROOT: WORLD_ROOT_MARK,
     RQ_PAGE_BASE_WORD: PAGE_BASE_WORD,
     RQ_FILTER_INCLUDE: FILTER_INCLUDE,
     RQ_FILTER_COUNT: FILTER_INCLUDE - 1,
@@ -97,23 +100,23 @@ export const RAY_PLACEMENT_WGSL = wgslBlock(
   })}
 /** Whether the walk of a ray was cut short by a bound. */
 var<private> rqCut:bool;
-struct RqRay{eyeXY:vec4u,eyeZ:vec2u,filterFirst:u32,filterWord:u32,direction:vec3f,reach:f32,}
+struct RqRay{eyeXY:vec4u,eyeZ:vec2u,filterFirst:u32,filterWord:u32,direction:vec3f,reach:f32,lineReach:f32,}
 ${wideTraversal({
   name: 'rqDag',
-  params: ',root:u32,pageBase:u32,shift:u32,reach:f32,w:u32',
+  params: ',root:u32,pageBase:u32,shift:u32,reach:f32,lineReach:f32,w:u32',
   returns: 'RqHit',
   start: 'var best=RqHit(limit,0u,0u,0u,vec3f(0.0),false);',
   empty: '',
   root: 'root',
   steps: 'RQ_DAG_STEPS',
-  box: 'rqBox(node,reach)',
-  child: 'rqChild(node,slot,reach,pageBase)',
+  box: 'rqBox(node,reach+lineReach)',
+  child: 'rqChild(node,slot,reach+lineReach,pageBase)',
   children: 'nodesWord(node,RQ_CHILD_COUNT)',
   leaf: 'child.count',
   stack: DAG_STACK,
   visit: '',
   stop: '',
-  test: 'best=rqPage(origin,direction,index,index+shift,w,best);',
+  test: 'best=rqPage(origin,direction,lineReach,index,index+shift,w,best);',
   overflow: 'rqCut=true;',
   answer: 'best',
 })}
@@ -130,9 +133,10 @@ fn rqAdmits(w:u32,first:u32,word:u32)->bool{
  let listed=low<count&&query[params.filterWord+first+low]==w;
  return listed==((word&RQ_FILTER_INCLUDE)!=0u);
 }
-/** The nearer of \`best\` and what the ray meets of placement \`w\`. */
+/** The nearer of \`best\` and what the ray meets of placement \`w\`: none of the world DAG's
+ *  (\`WORLD_ROOT_MARK\`), whose objects their own placements hold. */
 fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
- if(w==params.worldPlacement||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
+ if((framesWord(w,RQ_MARK_WORD)&RQ_WORLD_ROOT)!=0u||!rqAdmits(w,ray.filterFirst,ray.filterWord)){return best;}
  let root=framesWord(w,RQ_ROOT_WORD);
  if(root==NO_INDEX){return best;}
  let m=worldsWorldAtEye(w,ray.eyeXY,vec4u(ray.eyeZ,0u,0u));
@@ -140,13 +144,15 @@ fn rqEnter(w:u32,ray:RqRay,best:RqHit)->RqHit{
  let placed=placementRay(worldMatrix3(m),-m[3].xyz,ray.direction);
  if(!placed.regular){return best;}
  let reach=unpack2x16float(framesWord(w,RQ_MARK_WORD)).y;
+ // A world length in the placement's space: the unit world direction's length there.
+ let lineReach=ray.lineReach*length(placed.direction);
  let pageBase=framesWord(w,RQ_PAGE_BASE_WORD);
  let shift=framesWord(w,RQ_SHIFT_WORD);
  var hit=RqHit(best.distance,0u,0u,0u,vec3f(0.0),false);
- if(nodesWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(placed.origin,placed.direction,best.distance,root,pageBase,shift,reach,w);}
+ if(nodesWord(root,RQ_CHILD_COUNT)!=0u){hit=rqDag(placed.origin,placed.direction,best.distance,root,pageBase,shift,reach,lineReach,w);}
  else{
   let first=pageBase+nodesWord(root,RQ_FIRST_PAGE);
-  for(var k=0u;k<nodesWord(root,RQ_PAGE_COUNT);k++){hit=rqPage(placed.origin,placed.direction,first+k,first+k+shift,w,hit);}
+  for(var k=0u;k<nodesWord(root,RQ_PAGE_COUNT);k++){hit=rqPage(placed.origin,placed.direction,lineReach,first+k,first+k+shift,w,hit);}
  }
  if(hit.found&&hit.distance<best.distance){return hit;}
  return best;

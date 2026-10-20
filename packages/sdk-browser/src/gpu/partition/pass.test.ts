@@ -21,11 +21,11 @@ test('the frame clears nothing from the encoder: its first dispatch zeroes what 
   partition.beginFrame(quiet, frame(4000))
   assert.deepEqual(clears, [], 'no counter, rest bit or slot count is cleared outside the pass')
   partition.encode({ pass: device.createCommandEncoder().beginComputePass() })
-  // 300 slot words outnumber the 125 rest-bit words and the 16 counters: five groups of 64.
+  // The 125 rest-bit words outnumber the 16 counters: two groups of 64 (no slot count is kept).
   assert.deepEqual(
     dispatches.map(({ entryPoint, direct }) => [entryPoint, direct]),
     [
-      ['clearRows', 5],
+      ['clearRows', 2],
       ['projectRows', 63],
       ['classifyRows', 63],
     ],

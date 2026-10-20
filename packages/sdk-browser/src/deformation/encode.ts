@@ -19,6 +19,6 @@ export function encodeDeformation(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
     buffers,
     rt.layout.rows.casterSlots,
     rt.run.frame,
-    vis.wholeDeformation,
+    vis.pooledDeformation,
   )
 }

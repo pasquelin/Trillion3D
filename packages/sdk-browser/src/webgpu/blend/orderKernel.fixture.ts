@@ -20,9 +20,7 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 /** The GPU buffers of one scene as plain arrays, and the kernel's functions over them. */
 export function gpuOf(blendState: WebgpuBlendState) {
   const plan = new Array<number>(planWords(blendState.maxPlanEntries)).fill(0)
-  blendState.seeds.forEach((seeds, pass) => {
-    seeds.forEach((entry, seed) => (plan[blendState.planRegions[pass].seeds + seed] = entry))
-  })
+  blendState.seeds.forEach((entry, seed) => (plan[blendState.planRegion.seeds + seed] = entry))
   const scope = {
     uni: {} as Record<string, number>,
     plan,
@@ -35,20 +33,20 @@ export function gpuOf(blendState: WebgpuBlendState) {
   return { scope, kernel: orderKernelOf(scope) }
 }
 
-/** Replays the dispatches of one pass's order, each at the workgroups its step encodes. */
-function runOrder(blendState: WebgpuBlendState, pass: number, gpu: ReturnType<typeof gpuOf>) {
+/** Replays the dispatches of the pass's order, each at the workgroups its step encodes. */
+function runOrder(blendState: WebgpuBlendState, gpu: ReturnType<typeof gpuOf>) {
   const { scope, kernel } = gpu,
     words = blendState.orderStepWords
-  for (const step of blendState.orderSteps[pass]) {
+  for (const step of blendState.orderSteps) {
     for (const [name, rank] of Object.entries(ORDER_UNI))
       scope.uni[name] = words[(step.uniform * blendState.uniformStride) / 4 + rank]
     runOrderDispatch(kernel, scope, step.entry, step.groups)
   }
-  const region = blendState.planRegions[pass],
-    entries = blendState.seeds[pass].length
+  const region = blendState.planRegion,
+    entries = blendState.seeds.length
   return {
     order: scope.plan.slice(region.order, region.order + entries),
-    runs: scope.plan.slice(region.runs, region.runs + blendState.slotCounts[pass] * RUN_WORDS),
+    runs: scope.plan.slice(region.runs, region.runs + blendState.slotCount * RUN_WORDS),
   }
 }
 
@@ -57,9 +55,10 @@ const MODES = ['normal', 'normal', 'normal', 'additive', 'multiply'] as const
 const SIDES = ['front', 'back', 'double'] as const
 
 /**
- * A scene on a coarse grid — equal keys are common — of paged and unpaged items, single and
- * double-sided, mirrored or not, in several blend modes, some transmissive, a few without a box
- * or with a non-finite bound; paged items have their clusters in a table.
+ * A scene on a coarse grid — equal keys are common — of items single and double-sided, mirrored or
+ * not, in several blend modes, some transmissive, a few of another sort priority, a few without a
+ * box or with a non-finite bound;
+ * most have their clusters in the table, the others none there yet.
  */
 export function transparentScene(count: number, seed: number) {
   const next = lcgRandom(seed)
@@ -75,18 +74,18 @@ export function transparentScene(count: number, seed: number) {
     const matrix = new Matrix4().makeTranslation(x, y, z)
     // A mirrored placement flips which face each pipeline culls (`matrixWindingCw`).
     if (next() < 0.2) matrix.elements[0] = -1
-    const paged = next() < 0.75
+    const held = next() < 0.75
     const transmissive = next() < 0.15
     const blending = transmissive ? 'normal' : MODES[pick(MODES.length)]
     const item = {
       surface: surfaceOf(G.basicSurface({ side: SIDES[pick(3)], transparent: true, blending })),
       matrix,
-      count: paged ? 0 : 3 * (1 + pick(4)),
-      paged,
       transmissive,
       bounds: next() < 0.9 ? bounds : undefined,
+      // A few items of another sort priority, painted before or after the others.
+      priority: next() < 0.1 ? pick(3) - 1 : 0,
     } as unknown as BlendGpuItem
-    if (paged) {
+    if (held) {
       item.pagedIndex = ranges.length / 2
       ranges.push(ranges.length * 4, 1 + pick(3))
     }
@@ -105,20 +104,18 @@ export function transparentScene(count: number, seed: number) {
   return { blendState, next }
 }
 
-/** One frame ranked from `eye`: the kernel's order and slots of each pass against the model's. */
+/** One frame ranked from `eye`: the kernel's order and slots against the model's. */
 export function checkKernel(blendState: WebgpuBlendState, eye: number[], what: string) {
   orderBlendPasses(blendState, eye)
   const gpu = gpuOf(blendState)
   refreshEyeKeys(blendState, eye)
-  for (let pass = 0; pass < 2; pass++) {
-    if (!blendState.seeds[pass].length) continue
-    const got = runOrder(blendState, pass, gpu)
-    const model = Array.from(orderBlendPlanCpu(blendState, pass))
-    assert.deepEqual(got.order, model, `${what}, pass ${pass}: order`)
-    assert.deepEqual(
-      got.runs,
-      Array.from(cpuModel(blendState).runs[pass].subarray(0, got.runs.length)),
-      `${what}, pass ${pass}: slots`,
-    )
-  }
+  if (!blendState.seeds.length) return
+  const got = runOrder(blendState, gpu)
+  const model = Array.from(orderBlendPlanCpu(blendState))
+  assert.deepEqual(got.order, model, `${what}: order`)
+  assert.deepEqual(
+    got.runs,
+    Array.from(cpuModel(blendState).runs.subarray(0, got.runs.length)),
+    `${what}: slots`,
+  )
 }

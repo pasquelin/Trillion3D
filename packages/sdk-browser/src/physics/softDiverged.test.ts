@@ -13,11 +13,17 @@ import { stateDump } from './stateDump.fixture.ts'
  *  gives the reference's own, `d54edc7d…` (motion) and `014b9452…` (whole), so the thickness alone
  *  moves it. A contact's impulse takes its bodies' turn and bounce: with every event's impulse
  *  word zeroed, the modules with and without the turn and bounce give the same two hashes
- *  (`167f1388…` and `6bd49e2d…`), so only the impulses move. */
-const DEVELOP_MOTION = '308bb20ef804ca2a490e90baeea7180d13f75878210c9854a8f3d0e99d4e44c9'
+ *  (`167f1388…` and `6bd49e2d…`), so only the impulses move. The one impulse estimate of rigid and
+ *  soft touches moved them again (`308bb20e…` and `d5cc715a…` before): with every impulse zeroed
+ *  and each step's events sorted, the module before it and this one give the same two hashes
+ *  (`167f1388…` and `65b9a780…`), so only the impulses and the event order move. Its volume
+ *  declares the gas the reference's default gave it (`REFERENCE_PRESSURE`). A soft body starts
+ *  just off its rest shape (`SOFT_IMPERFECTION`, `soft.cpp`), which moved them again (`61d4ead1…`
+ *  and `18b54d36…` before, which the same module built with no imperfection still gives). */
+const DEVELOP_MOTION = 'a271ae3d19453587e238ef72c9d7498e9d52db3277db74cfc153362bc994df05'
 /** `stateDump` whole, vertices bit for bit, as the write-back of one matrix per body gives it, the
  *  events in the order the engine sent them (see `stateDump`), not the module's callback order. */
-const FULL_DUMP = 'd5cc715a70b4c1b33da212a274cff7973116a4651951e7c0f42b78f51f7d7ec2'
+const FULL_DUMP = '1909ce77cedd270df95023134ef3255d018190c724f96bcb7f7b700c0b96b4a6'
 
 test('a finite scene steps exactly as before, but for pinned cloths that never stretch and the thickness of soft bodies', async () => {
   assert.deepEqual(stateDump(await startModule()), { motion: DEVELOP_MOTION, full: FULL_DUMP })

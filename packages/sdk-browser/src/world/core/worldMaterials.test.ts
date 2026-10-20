@@ -25,7 +25,7 @@ test('600 frames of a live emissive intensity repaint one entry in place', () =>
   assert.deepEqual(entry.material.color.toArray(), lamp.color.toArray())
 })
 
-test('a shared, blended or restructured entry is copied on write, never repainted', () => {
+test('a shared or restructured entry is copied on write, a blended one alone repainted', () => {
   const table = createWorldMaterials()
   const a = material.meshStandard(),
     b = material.meshStandard()
@@ -39,16 +39,23 @@ test('a shared, blended or restructured entry is copied on write, never repainte
   assert.equal(table.entryOf(a), own, 'alone now, the entry is repainted')
   a.side = 'double'
   assert.notEqual(table.entryOf(a), own, 'a raster field is not a value')
+  table.takeRepainted()
+  // A blended pass reads its values from the surface's record, as an opaque one does.
   const glass = material.meshStandard({ transparent: true, opacity: 0.5 })
   const pane = table.entryOf(glass)
+  glass.opacity = 0.25
   glass.color.set(0xff0000)
-  assert.notEqual(table.entryOf(glass), pane, 'a blended surface is laid out at opening')
-  assert.equal(table.takeRepainted().length, 1)
+  assert.equal(table.entryOf(glass), pane, 'a blended surface alone is repainted')
+  assert.equal(pane.material.opacity, 0.25)
+  assert.deepEqual(table.takeRepainted(), [{ entry: pane, values: true }])
+  glass.transparent = false
+  assert.notEqual(table.entryOf(glass), pane, 'leaving the blended pass is not a value')
 })
 
 // The blending mode decides the pass and the pipeline, so writing it opens the session again
-// on a new entry; an additive surface is blended even when `transparent` is left false.
-test('a blending written at runtime is a new entry, and an additive one is never repainted', () => {
+// on a new entry; an additive surface is blended even when `transparent` is left false, and its
+// values are repainted as any blended surface's.
+test('a blending written at runtime is a new entry, and an additive one is repainted', () => {
   const table = createWorldMaterials()
   const spark = material.meshBasic({ color: 0xff8800 })
   const plain = table.entryOf(spark)
@@ -57,8 +64,8 @@ test('a blending written at runtime is a new entry, and an additive one is never
   assert.notEqual(glow, plain, 'the mode is not a value: copied on write')
   assert.equal(glow.material.blending, 'additive')
   spark.color.set(0x00ff00)
-  assert.notEqual(table.entryOf(spark), glow, 'an additive surface is laid out at opening')
-  assert.deepEqual(table.takeRepainted(), [])
+  assert.equal(table.entryOf(spark), glow, 'its colour is a value')
+  assert.deepEqual(table.takeRepainted(), [{ entry: glow, values: true }])
 })
 
 // A replaced vector kept its listener, so a write to it still repainted the texture.
@@ -141,7 +148,7 @@ test('one material worn with and without colours gets one surface per case, both
     true,
   )
   assert.deepEqual(refreshed, [true], 'the session reads them again once')
-  ;[a, b].forEach((surface: PageSurface, i) => assert.ok(surface.version > versions[i]!))
+  for (const [i, surface] of [a, b].entries()) assert.ok(surface.version > versions[i]!)
 })
 
 test('the surfaces of an entry the table drops are given back', () => {
@@ -156,4 +163,15 @@ test('the surfaces of an entry the table drops are given back', () => {
   assert.equal(given, 2, 'the plain surface and its variant')
   assert.equal(kept.surfaces.length > 0, true)
   assert.equal(dropped.surfaces.length, 0)
+})
+
+// An entry's surfaces are kept by reading rank: a line's leaves the faces' ranks empty, and the
+// world's end gives back what it holds all the same.
+test('a world that drew lines gives their surfaces back at its end', () => {
+  const table = createWorldMaterials()
+  const entry = table.entryOf(material.line({ color: 0x3c8ce0 }))
+  let given = 0
+  table.surfaceOf(entry, { ...triangle(false), lines: true }, false).released.add(() => given++)
+  table.dispose()
+  assert.equal(given, 1)
 })

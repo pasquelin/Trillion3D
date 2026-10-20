@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createDeformationCompute } from './compute.ts'
 
-test('cluster and whole-copy deformation dispatch in one pass and reuse stable bindings', async () => {
+test('cluster and float-pool deformation dispatch in one pass and reuse stable bindings', async () => {
   const gpu = fakeDevice()
   const compute = await createDeformationCompute(gpu.device)
   const buffer = () => gpu.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE })
@@ -12,9 +12,9 @@ test('cluster and whole-copy deformation dispatch in one pass and reuse stable b
     .createTexture({ size: [1, 1, 1], format: 'r32float', usage: GPUTextureUsage.TEXTURE_BINDING })
     .createView({ dimension: '2d-array' })
   const buffers = Array.from({ length: 5 }, (_, at) => (at === 2 ? normals : buffer()))
-  const whole = { table: buffer(), count: 2 }
+  const pooled = { table: buffer(), count: 2 }
   const encoder = gpu.device.createCommandEncoder()
-  compute.encode(encoder, buffers, 3, 1, whole)
+  compute.encode(encoder, buffers, 3, 1, pooled)
   // One pass: its two dispatches, then its end.
   assert.equal(gpu.computePasses.length, 1)
   assert.deepEqual(
@@ -24,10 +24,10 @@ test('cluster and whole-copy deformation dispatch in one pass and reuse stable b
     ['3:1', '2:1', 'end'],
   )
   const count = gpu.bindGroups.length
-  compute.encode(encoder, buffers, 3, 2, whole)
+  compute.encode(encoder, buffers, 3, 2, pooled)
   assert.equal(gpu.bindGroups.length, count)
-  whole.table = buffer()
-  compute.encode(encoder, buffers, 3, 3, whole)
+  pooled.table = buffer()
+  compute.encode(encoder, buffers, 3, 3, pooled)
   assert.equal(gpu.bindGroups.length, count + 1)
   compute.dispose()
 })

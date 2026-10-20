@@ -25,7 +25,11 @@ export const CLASS_FEATURE = {
   HAS_SAMPLING: 2048,
   /** The base colour is multiplied by the vertex colour (`FLAG_HAS_COLOR`). */
   HAS_VERTEX_COLOR: 4096,
-  /** The physical material's anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`):
-   *  only this class reads their record and maps (`physicalWgsl.ts`). */
+  /** The physical material's anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`), or
+   *  a map on the geometry's second UV set: only this class reads their record and maps, and
+   *  decodes that set (`physicalWgsl.ts`). */
   HAS_PHYSICAL: 8192,
+  /** A voxel brick's row (`FLAG_VOXEL`): its colour, roughness, metalness and occlusion are its
+   *  voxel's, the roughness widened by the spread of its normals (`toksvigVariance`, `roughnessWidened`). */
+  VOXEL: 16384,
 } as const

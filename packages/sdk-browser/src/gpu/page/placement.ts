@@ -1,5 +1,6 @@
-import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { alignDown, alignUp, ceilDiv, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import type { ResidentPage } from './types.ts'
+import { lastAtMost } from '../../../../math/src/scalar/search.ts'
 import type { PageHomes } from './homes.ts'
 import type { Eviction, NoVictim } from './eviction.ts'
 
@@ -12,8 +13,42 @@ export type Place = { offset: number; victims: readonly ResidentPage[] }
 export const poolBytes = (pageBytes: number, slots: number, homes?: PageHomes) =>
   homes && homes.bytes <= pageBytes * slots ? homes.bytes : pageBytes * slots
 
+/** The grain a page of `bytes` takes in a pool whose widest page is `widest`: the widest halved
+ *  while whole words still hold the page (`createPlacement`). */
+function grainOf(widest: number, bytes: number) {
+  let grain = widest
+  while (grain % 8 === 0 && grain / 2 >= bytes) grain /= 2
+  return Math.max(grain, alignUp(bytes, 4))
+}
+
+/**
+ * The most pages a pool of `slots` slots of `widest` bytes holds at once (`createPlacement`): the
+ * whole catalogue where it holds its bytes (`poolBytes`), else its narrowest pages first, each at
+ * its grain — more than `slots` where pages are narrower than the widest. What the tables sized by
+ * resident page ask (`../../webgpu/pages/prepare/layout.ts`, `askedTableRows`). O(pages) once, the
+ * grains being the widest's halvings.
+ */
+export function pagesHeld(widest: number, slots: number, homes?: PageHomes) {
+  const bytes = widest * slots
+  if (!homes) return slots
+  if (homes.bytes <= bytes) return homes.homes.size
+  const count = new Map<number, number>()
+  for (const home of homes.homes.values()) {
+    const grain = grainOf(widest, home.bytes)
+    count.set(grain, (count.get(grain) ?? 0) + 1)
+  }
+  let room = bytes,
+    pages = 0
+  for (const grain of [...count.keys()].sort((a, b) => a - b)) {
+    const fit = Math.min(count.get(grain)!, Math.floor(room / grain))
+    pages += fit
+    room -= fit * grain
+  }
+  return pages
+}
+
 /** A free span's size class: spans of `[4·2^c, 4·2^(c+1))` bytes in class `c`. */
-const classOf = (bytes: number) => 31 - Math.clz32(Math.max(1, bytes >>> 2))
+const classOf = (bytes: number) => floorLog2(Math.max(1, bytes >>> 2))
 
 /**
  * THE POOL'S ONE ALLOCATOR: byte spans of the pool buffer, held in an array sorted by offset, free
@@ -54,16 +89,7 @@ export function createPlacement(o: {
   const unfree = (i: number) => (bucket(sizes[i]).delete(starts[i]), (freeBytes -= sizes[i]))
   refree(0)
   /** The span holding byte `offset`. */
-  const indexOf = (offset: number) => {
-    let low = 0,
-      high = starts.length - 1
-    while (low < high) {
-      const mid = (low + high + 1) >>> 1
-      if (starts[mid] <= offset) low = mid
-      else high = mid - 1
-    }
-    return low
-  }
+  const indexOf = (offset: number) => lastAtMost(starts, offset)
   /** Free span `i` gives `[offset, offset + width)` to `key`; what lies before and after stays free. */
   const carve = (i: number, offset: number, width: number, key: string) => {
     const start = starts[i],
@@ -72,8 +98,11 @@ export function createPlacement(o: {
     const at = offset > start ? [start, offset] : [offset],
       size = offset > start ? [offset - start, width] : [width],
       owner: (string | null)[] = offset > start ? [null, key] : [key]
-    if (offset + width < end)
-      (at.push(offset + width), size.push(end - offset - width), owner.push(null))
+    if (offset + width < end) {
+      at.push(offset + width)
+      size.push(end - offset - width)
+      owner.push(null)
+    }
     starts.splice(i, 1, ...at)
     sizes.splice(i, 1, ...size)
     keys.splice(i, 1, ...owner)
@@ -99,30 +128,26 @@ export function createPlacement(o: {
     for (let c = classOf(width); c < buckets.length; c++)
       for (const start of buckets[c] ?? []) {
         const i = indexOf(start),
-          at = Math.ceil(start / width) * width
+          at = alignUp(start, width)
         if (at + width <= start + sizes[i]) return { i, at }
       }
     return undefined
   }
-  /** The grain `[at, at + width)` holding `page`, when every span it meets is free or evictable. */
+  /** The grain `[at, at + width)` holding `page`, the order's victim, when every other span it
+   *  meets is free or evictable: a grain of the victim alone asks the order nothing more. */
   const windowAt = (page: ResidentPage, width: number, lower?: boolean) => {
-    const at = Math.floor(page.offset / width) * width
+    const at = alignDown(page.offset, width)
     if (at + width > o.bytes) return undefined
     for (let j = indexOf(at); j < keys.length && starts[j] < at + width; j++)
-      if (keys[j] !== null && !eviction.evictable(keys[j]!, lower)) return undefined
+      if (keys[j] !== null && keys[j] !== page.key && !eviction.evictable(keys[j]!, lower))
+        return undefined
     return at
   }
-  /** The grain a page of `bytes` takes: the widest halved while whole words still hold it. */
-  const grainOf = (bytes: number) => {
-    let grain = widest
-    while (grain % 8 === 0 && grain / 2 >= bytes) grain /= 2
-    return Math.max(grain, alignUp(bytes, 4))
-  }
   /** The bytes `key`'s page of `bytes` takes: its home's width while the pool holds the catalogue,
-   *  else its grain. */
+   *  else its grain (`grainOf`). */
   const widthFor = (key: string, bytes: number) => {
     const own = homes?.homes.get(key)?.bytes ?? alignUp(bytes, 4)
-    return held ? own : grainOf(own)
+    return held ? own : grainOf(widest, own)
   }
   return {
     /** The bytes `key`'s page may fill: one past them would write over a neighbour. */
@@ -184,9 +209,10 @@ export function createPlacement(o: {
       if (keys[i] === page.key) release(i)
     },
     /** How many places no page holds: the homes empty while the pool holds the catalogue, else
-     *  the widest grains its free bytes make. */
+     *  the widest grains its free bytes make, a part of one counted whole — a page under the widest
+     *  takes it, and a pool of small pages refuses none while one byte of its grains is free. */
     get free() {
-      return held ? held.homes.size - count : Math.floor(freeBytes / widest)
+      return held ? held.homes.size - count : ceilDiv(freeBytes, widest)
     },
   }
 }

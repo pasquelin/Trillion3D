@@ -7,7 +7,6 @@ import type {
 import type { EngineDiagnostic, DiagnosticDetail } from '../../diagnostic/types.ts'
 import type { EngineFactory } from '../../engine/factory.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /** A named view of a scene a page can jump to. */
 export type PointOfInterest = {
@@ -31,6 +30,8 @@ export interface MeasuredWorldOptions {
    *  step that ends after the hand-over (a cut the device refuses): `what` the content, `reason`
    *  the limit. The session goes on with the cut it runs; the owner says it by name. */
   onContentRefused?: (what: string, reason: string) => void
+  /** Draws the views beside the main one, after each frame's main image (`world.addView`). */
+  drawViews?: () => void
   /** Called after every frame the session draws, with that frame's metrics. */
   onFrame?: (metrics: import('../../../../sdk-core/src/contracts/metrics.ts').FrameMetrics) => void
   replicaCount?: 1 | 4 | 9 | 12
@@ -100,24 +101,21 @@ export interface MeasuredWorldOptions {
   /** Temporal antialiasing of the WebGPU engine, on by default: each
    *  frame is rendered with a fraction-of-a-pixel jitter and accumulated over the previous
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
-   *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
-  temporalAntialiasing?: boolean
+   *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask; `'off'`
+   *  the same. A level (`TEMPORAL_AA_LEVELS`) sets its quality, `true` the default one. */
+  temporalAntialiasing?:
+    boolean | import('../../../../sdk-core/src/contracts/compilerAbi.ts').TemporalAntialiasingLevel
   /** The frame's render scale (`../../frame/renderScaleOption.ts`): the fraction of the display
    *  per axis it is drawn at, reconstructed to it by temporal antialiasing, fixed or `'auto'`, chosen by the frame budget. 1 by default: the frame is drawn at the display. */
   renderScale?: import('../../frame/renderScaleOption.ts').RenderScale
+  /** The loop's frame cap, frames a second (`../../frame/cadence.ts`); none by default. */
+  maxFrameRate?: number
   /** Reference mode (`../../frame/referenceMode.ts`): every approximation it names off, the frame
    *  supersampled and `capture` resolved to the display; what a rendering technique is held to.
    *  Off by default. */
   reference?: boolean
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain
-  /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
-   *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
-   *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
-   *  every source image, what a world asks for each model after its first, whose baked levels
-   *  the session's base does not serve (`worldLoader.ts`). */
-  textureSource?: 'host' | 'cache'
-  sceneLighting?: Object3D
   /** Lines and points drawn over the image, held by the world (`world.guides`). */
   guides?: import('../../guides/guideSet.ts').GuideSet
   /** Particle pools, held by the world (`attachParticles`). */

@@ -21,7 +21,7 @@ test('one layer: the read equals a brute-force cast in 8 bits, and the interior 
   }
 })
 
-test('several layers: only those above the receiver count, three or more in a fixed order', () => {
+test('several layers: only those above the receiver count, three or more the same whatever the order', () => {
   const tri: Tri = [
     [10, 10],
     [100, 12],
@@ -44,7 +44,9 @@ test('several layers: only those above the receiver count, three or more in a fi
     for (const z of [0.5, 1.5, 2.5, 3.5, 4.5]) {
       const got = readAt(read, p, z)
       const want = oracle(casters, p, z)
-      got.forEach((c, i) => assert.ok(Math.abs(c - want[i]) < 1e-12, `z ${z}: ${got} ${want}`))
+      // Up to two layers the product itself; three or more through their logarithms' sum, 2⁻¹⁶ a step.
+      const tolerance = z < 2 ? 2e-4 : 1e-12
+      got.forEach((c, i) => assert.ok(Math.abs(c - want[i]) < tolerance, `z ${z}: ${got} ${want}`))
     }
     // The same bits whatever order the lists hold.
     if (order[0] === 3) {

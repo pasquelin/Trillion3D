@@ -119,7 +119,8 @@ test('a resize, which names no texture, still restarts everything', () => {
 
 test('with no light declared, a tile stales nothing and names no row', () => {
   const { rt, boxes, named } = lightsSpy()
-  ;(rt.lights.store as { count: number }).count = 0
+  const store: { count: number } = rt.lights.store
+  store.count = 0
   shadowsFollowTextures(rt, table(), -1, MAP_LAYER)
   shadowsFollowTextures(rt, table(), new Set([3]), MAP_LAYER)
   assert.equal(boxes.length, 0)

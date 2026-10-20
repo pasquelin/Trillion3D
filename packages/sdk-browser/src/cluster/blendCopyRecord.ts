@@ -3,6 +3,7 @@ import type { BlendCopy } from './blendCopyContract.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { PlacementOf } from '../placement/rows.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
 /**
  * The engine's own draw record for a transparent surface.
@@ -18,33 +19,28 @@ import type { PlacementOf } from '../placement/rows.ts'
  * record reads, like the opaque pages of the same mesh, which carry that same pose. Nothing may
  * write through `matrix`: those sixteen floats are the world buffer of every page of that mesh.
  *
- * What its primitive gives every placement — the deformation, and the proxy a ray meets it by —
- * comes whole in `shared`: one place builds a placement's copy, at the open (`collect.ts`) and at a
- * growth (`../placement/growth.ts`) alike.
+ * One place builds a placement's copy, one per blended root, at the open and at a growth alike
+ * (`pagedBlendCopiesOf`): its pages draw it, its root deforms it and the proxy meets it by.
  *
  * A witness that draws its transparent surfaces with a host renderer needs a host mesh instead,
  * and builds one on its side (`blendCopyMesh.ts`, injected into `collectClusterPages`).
  */
 export function createBlendCopyRecord(
-  source: DrawSource,
+  source: DrawSource | undefined,
   renderOrder: number,
   world: MatrixElements,
   surface: PageSurface,
   placement?: PlacementOf,
-  shared?: Pick<BlendCopy, 'deformation' | 'proxy'>,
 ): BlendCopy {
   const copy: BlendCopy = {
-    geometry: source.geometry,
+    // A copy of no source — a world DAG's section — draws its pages alone: no geometry of its own.
+    geometry: source?.geometry ?? new Geometry(),
     surface,
     matrix: world,
     placement,
-    frustumCulled: source.frustumCulled,
+    frustumCulled: source?.frustumCulled ?? true,
     renderOrder,
     userData: { drawSource: source },
-  }
-  if (shared) {
-    copy.deformation = shared.deformation
-    copy.proxy = shared.proxy
   }
   return copy
 }

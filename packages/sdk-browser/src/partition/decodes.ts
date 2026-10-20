@@ -1,4 +1,5 @@
 import { createFrameKept } from '../streaming/frameKept.ts'
+import type { CellBudget } from './cellsPrime.ts'
 
 /**
  * THE FILES READ AND DECODED, WAITING FOR A FRAME TO TAKE THEM (#575): a cell file, or a page of
@@ -50,16 +51,14 @@ export function createDecodes<Key, Decoded extends object>() {
   }
 }
 
-/** Where `takeDecoded` reads and spends: the frame's io, its budget, and whether its list is read
- *  ahead of need. */
+/** Where `takeDecoded` reads and spends: the frame's io and its budget. */
 type Taking = {
   io: {
     bytes(url: string): Uint8Array | undefined
     failed(url: string): boolean
-    request(urls: readonly string[], ahead: boolean): void
+    request(urls: readonly string[]): void
   }
-  budget: { admits(): boolean; spend(): void }
-  ahead: boolean
+  budget: CellBudget
 }
 
 /** Takes each file of `list` whose decode landed while the budget admits it (`taken`: false while
@@ -68,7 +67,7 @@ type Taking = {
  *  now is left for a later frame. */
 export function takeDecoded<Key, Decoded extends object>(
   list: readonly Key[],
-  { io, budget, ahead }: Taking,
+  { io, budget }: Taking,
   files: ReturnType<typeof createDecodes<Key, Decoded>>,
   url: (key: Key) => string,
   decode: (bytes: Uint8Array, url: string) => Promise<Decoded>,
@@ -87,13 +86,13 @@ export function takeDecoded<Key, Decoded extends object>(
     if (!decoded || !budget.admits()) {
       // Asked again while on its way: the frame waits on its landing, never on nothing.
       if (!files.has(key)) ask.push(address)
-      later ||= !ahead
+      later = true
       continue
     }
     if (!taken(key, decoded)) continue
     files.drop(key)
     budget.spend()
   }
-  if (ask.length) io.request(ask, ahead)
+  if (ask.length) io.request(ask)
   return later
 }

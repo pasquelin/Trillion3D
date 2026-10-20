@@ -1,4 +1,3 @@
-import { WORKGROUP_THREADS } from '../dispatch/grid.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -7,12 +6,13 @@ import { createGpuDrawBuffers } from './buffers.ts'
 import { createGpuDraw } from './factory.ts'
 import {
   BASE_SLOTS,
-  DRAW_INDIRECT_STRIDE,
   DRAW_ITEM_U32,
   UNIFORM_BYTES,
+  drawGroupWords,
+  drawIndirectBytes,
   slotCount,
 } from './contract.ts'
-import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 // Compact buffers depend on the row count (slotCap) and the coplanar-layer count (layerSlots),
 // never on the frame: this file pins their sizes and alignments, including the layerSlots = 1
@@ -27,9 +27,12 @@ test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCa
   assert.equal(buffers.restBuf.size, Math.max(4, bitWords(slotCap) * 4))
   assert.equal(buffers.uniforms.size, UNIFORM_BYTES)
   assert.equal(buffers.instanceBuffer.size, slotCap * 4)
-  assert.equal(buffers.indirectBuffer.size, BASE_SLOTS * DRAW_INDIRECT_STRIDE)
-  assert.equal(buffers.slotTotals.size, (BASE_SLOTS + 1) * 4)
-  assert.equal(buffers.all.length, 8, 'every allocated buffer is disposed through `all`')
+  // A command of 16 B per slot, then each slot's total and the occluders' end.
+  assert.equal(buffers.indirectBuffer.size, BASE_SLOTS * 16 + (BASE_SLOTS + 1) * 4)
+  // One group of eight rows: its offsets, then its counts.
+  assert.equal(buffers.groupEntries, BASE_SLOTS)
+  assert.equal(buffers.groups.size, 2 * BASE_SLOTS * 4)
+  assert.equal(buffers.all.length, 6, 'every allocated buffer is disposed through `all`')
 })
 
 test('the indirect, group and slot-total buffers grow with layerSlots; the item, rest and instance buffers do not', () => {
@@ -49,11 +52,11 @@ test('the indirect, group and slot-total buffers grow with layerSlots; the item,
   assert.equal(one.restBuf.size, three.restBuf.size)
   assert.equal(one.instanceBuffer.size, three.instanceBuffer.size)
   assert.equal(one.uniforms.size, three.uniforms.size)
-  assert.equal(three.indirectBuffer.size, slotCount(3) * DRAW_INDIRECT_STRIDE)
-  assert.equal(three.slotTotals.size, (slotCount(3) + 1) * 4)
-  const groupCount = ceilDiv(slotCap, WORKGROUP_THREADS)
-  assert.equal(three.groupCounts.size, groupCount * slotCount(3) * 4)
-  assert.equal(three.groupOffsets.size, groupCount * slotCount(3) * 4)
+  assert.equal(three.indirectBuffer.size, drawIndirectBytes(slotCount(3)))
+  const { entries, words } = drawGroupWords(slotCap, slotCount(3))
+  assert.equal(words, 2 * slotCount(3), 'twenty rows, one group: offsets, counts')
+  assert.equal(three.groupEntries, entries)
+  assert.equal(three.groups.size, words * 4)
   assert.ok(
     three.indirectBuffer.size > one.indirectBuffer.size,
     'three layers name more indirect commands than one',

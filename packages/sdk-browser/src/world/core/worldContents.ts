@@ -1,7 +1,7 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { createWorldCuts, type Cut } from './worldCuts.ts'
-import { firstMaterial } from '../../scene/materialSide.ts'
+import { firstMaterial } from '../../../../sdk-core/src/contracts/material.ts'
 import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts'
 import { createWorldBatches } from './worldBatches.ts'
 import { createWorldRanks } from './worldRanks.ts'
@@ -55,7 +55,8 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     get seatEpoch() {
       return state.seatEpoch
     },
-    resolve: () => resolve(state),
+    /** Resolves what changed (`resolve`); `landed` hears each mesh ready to seat. */
+    resolve: (landed?: () => void) => resolve(state, landed),
     seat: (session?: ModelSession) => seat(state, session),
     /** A mesh's geometry or material was written: it is read again on the next resolve. */
     stale: (mesh: Mesh) => stale.add(mesh),
@@ -113,28 +114,34 @@ function forget(state: ContentsState, mesh: Mesh) {
   state.batches.unseat(mesh)
 }
 
-/** Resolves the meshes that entered the scene or were written; forgets those that left.
- *  True when a light entered or left with them. */
-async function resolve(state: ContentsState) {
+/** Resolves the meshes that entered the scene or were written; forgets those that left. Each mesh
+ *  is ready to seat as soon as its own resource lands, `landed` told: a mesh cut at once never
+ *  waits for the slowest cut of its burst. True when a light entered or left with them. */
+async function resolve(state: ContentsState, landed?: () => void) {
   const { members, stale, cuts, materials } = state
   const { added, removed, lights } = members.take()
   removed.forEach((mesh) => forget(state, mesh))
   const reading = [...new Set([...added, ...stale])].filter((mesh) => members.meshes.has(mesh))
   stale.clear()
-  // Every resource is read at once; the meshes are then seated in the order they came. A read
-  // that throws leaves them all to the next resolution.
-  const read = await Promise.all(reading.map((mesh) => cuts.of(mesh))).catch((error) => {
-    reading.forEach((mesh) => stale.add(mesh))
-    throw error
-  })
-  reading.forEach((mesh, i) => {
-    const cut = read[i]
+  // A mesh read again is seated by this read alone: the resource its last read found, not seated
+  // yet, may be released by this one (`createWorldCuts.of`) while a frame seats the others.
+  reading.forEach((mesh) => state.unseated.delete(mesh))
+  const waiting = new Set(reading)
+  const land = (mesh: Mesh, cut: Cut | null) => {
+    waiting.delete(mesh)
     if (!members.meshes.has(mesh)) return forget(state, mesh)
     state.resolved.set(
       mesh,
       cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)!) },
     )
     state.unseated.add(mesh)
+    landed?.()
+  }
+  // Every resource is read at once. A read that throws leaves the meshes not landed yet to the
+  // next resolution.
+  await Promise.all(reading.map(async (mesh) => land(mesh, await cuts.of(mesh)))).catch((error) => {
+    waiting.forEach((mesh) => stale.add(mesh))
+    throw error
   })
   // What the tables folded is said once, with the count of the burst that folded it.
   const folded = { geometries: cuts.counts.duplicates, materials: materials.counts.duplicates }

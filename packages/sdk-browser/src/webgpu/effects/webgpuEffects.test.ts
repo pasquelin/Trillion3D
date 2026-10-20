@@ -16,6 +16,7 @@ import {
   viewOf,
 } from './webgpuEffects.fixture.ts'
 import { uniformStride } from '../../residency/pools.ts'
+import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 
 test('an empty chain returns its input and creates, writes and encodes nothing', async () => {
   const { gpu, effects } = await loaded()
@@ -68,6 +69,8 @@ test('a bloom compiles once, then draws its levels; the composition blends it in
   assert.equal(effects.bytes, bloomLevelBytes(128, 64), 'the levels follow the size')
   effects.encode(encoder, [], input, 128, 64)
   assert.equal(effects.bytes, 0, 'an emptied chain gives its targets back')
+  // The image's commands may still name the levels: retired, destroyed after its submit.
+  destroyRetired(gpu.device)
   for (const texture of gpu.textures) assert.ok(gpu.destroyed.includes(texture), texture.label)
 })
 

@@ -1,53 +1,41 @@
 /**
  * THE WORLD DAG AS THE CUT'S PAGE RECORDS.
  *
- * The world DAG (`worldSuperRoots.ts`) is the far field of an open world: a cell's super-roots, the
- * levels that join several cells, up to the world top. Packed as the cut's last root, its pages are
- * records like a primitive's (`../page/selection/collectRecords.ts`), so the one cut chooses them,
- * the one pool holds them and the one raster draws them:
- *
- *  - a super-root is a geometry page in world space (`world-roots.bin`, read through the world
- *    page server, `worldPageServe.ts`), worn in the surface of the primitive its cluster names
- *    (`primitive`): every object of its build wears the same material, so the material's own
- *    textures draw it, at the texture coordinates the cook carried through its simplification;
- *  - a placed object's cluster has no page: its own placement draws it. Its record is never
- *    resident in the pool; its residency is mirrored from that placement (`gpu/dag/residencyMirror.ts`).
- *
- * A super-root whose primitive draws blended, or that no mesh of the scene wears, is a record
- * without a page, as an object's is: it never draws, and the placements of that primitive are
- * linked to no world cluster, so they always draw themselves (`objectOfRoot`).
- *
- * Every band is the cook's, raised by the world's largest quantization displacement, the same for
- * every cluster (`worldRootPages`): a placement's link compares its object's parent band with its
- * group's super-roots' own band (`gpu/dag/worldLinks.ts`), and both stay equal.
+ * The world DAG (`worldHlod.ts`) is the world's HLOD 1 to 3: per HLOD cell, one actor built
+ * into its own DAG. Packed as the cut's last roots — one per placement of its model —, its pages
+ * are records like a primitive's (`../page/selection/collectRecords.ts`), so the one cut chooses
+ * them, the one pool holds them and the one raster draws them: each a geometry page in world space
+ * (`world-roots.bin`, named by `worldRootPages.ts`, read through `worldRuns.ts`), worn in the
+ * flattened material of its actor (`material`): the scene's own surface built from the material
+ * table (`../host/prepared/materials.ts`), its atlas textures streamed as any texture, at the
+ * texture coordinates the cook unwrapped (`compiler_world_roots/flatten`). Each record names its
+ * HLOD layer, which the HLOD view paints (`../page/selection/diagnostic.ts`). No mesh of the scene
+ * draws an actor: its records name no draw source, and none of its pages follows a node's
+ * visibility.
  */
-import { drawsBlended } from '../page/selection/collectBlend.ts'
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
 import type { PageSurface } from '../page/surface.ts'
 import { IDENTITY_WORLD } from '../host/matrixElements.ts'
 import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
-import type { worldRootDag } from './worldSuperRoots.ts'
-import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
-import { primitiveFinder } from './primitiveLookup.ts'
-import { sourceSurface } from '../page/surface.ts'
-import type { DrawSource } from '../page/selection/drawSource.ts'
-import { placementWorld, rowParked, type PlacementRows } from '../placement/rows.ts'
+import type { WorldDagRoot } from './worldHlod.ts'
+import type { PlacementRows } from '../placement/rows.ts'
+import { placementsOf } from '../placement/roots.ts'
+import { surfaceBlends } from '../page/selection/collectBlend.ts'
 
-/** The mesh a world page is worn by, and its surface: none when it draws blended. */
-export type WorldWearer = { drawSource: DrawSource; surface: PageSurface }
+/** A paged record reads its vertices from its page: it holds no host attribute. */
+const PAGED: PageRec['attributes'] = {}
 
-/** The world DAG as the stream reads it (`worldRootDag`). */
-type WorldDagSource = NonNullable<ReturnType<typeof worldRootDag>>
-type WorldPage = WorldDagSource['pages'][number]
+type WorldPage = WorldDagRoot['pages'][number]
 
-/** The record of world cluster `rank`, its page drawn when `wearer` wears it. */
-function worldRecord(page: WorldPage, rank: number, wearer: WorldWearer, order: number): PageRec {
+/** The record of world cluster `rank`, worn in `surface`. */
+function worldRecord(page: WorldPage, rank: number, surface: PageSurface, order: number): PageRec {
   const facts = page.url && page.page
   return {
     id: rank,
     url: facts ? page.url : '',
     clusterId: `world-roots:${rank}`,
-    triangles: page.triangles,
+    // Without a page it draws none.
+    triangles: facts ? page.triangles : 0,
     indexBytes: facts ? facts.bytes : 0,
     ...(facts && {
       geometryPage: {
@@ -64,6 +52,7 @@ function worldRecord(page: WorldPage, rank: number, wearer: WorldWearer, order: 
     max: page.max,
     role: 'coarse',
     level: page.level,
+    hlodLayer: page.layer,
     lodError: page.lodError,
     sphere: page.sphere,
     parentError: page.parentError,
@@ -71,36 +60,38 @@ function worldRecord(page: WorldPage, rank: number, wearer: WorldWearer, order: 
     // A root its cell holds joins the cover with the cell, never at open (`PageRec.holder`).
     ...(page.holder !== undefined && { holder: page.holder }),
     depthLayer: 0,
-    attributes: wearer.drawSource.attributes,
-    material: wearer.surface,
-    transparent: false,
-    drawSource: wearer.drawSource,
+    attributes: PAGED,
+    material: surface,
+    // Blended as the surface it wears is: a merged layer's section wearing a blended or
+    // transmissive material of the scene is drawn by the transparent pass, as any
+    // translucent section (`ClusterRoot.mixed`); a flattened material is opaque. A cutout is tested
+    // as any opaque page's (`webgpu/row/surfaceRow.ts`, `FLAG_MASK`).
+    transparent: surfaceBlends(surface),
     renderOrder: order,
   }
 }
 
 /**
- * The cut's root of the world DAG `dag`: its records worn through `wear` (a primitive's rank to the
- * mesh that draws it opaque, none otherwise), its group structure and culling hierarchy over them,
- * drawn at the identity — or at the world of its model, row 0 of `pose` —, ranked `order` among the
- * draws; `undefined` when no mesh wears any of it.
+ * The cut's roots of the world DAG `dag`: its records worn in `surfaces` (each actor's flattened
+ * material, by the rank its clusters name), its group structure and culling hierarchy over them,
+ * drawn at the identity — or one root per row of `pose`, each placement of its model at its own
+ * world, parked while its row is, as a mesh source's rows place it —, ranked `order` among the
+ * draws; none when no actor has a surface. Every root shares the records, the hierarchy and the
+ * held pages: a placement more adds a root, never a record. Rows a growth adds are cloned from them
+ * (`../placement/growth.ts`).
  */
-export function worldSelectionRoot(
-  dag: WorldDagSource,
-  wear: (primitive: number) => WorldWearer | undefined,
+export function worldSelectionRoots(
+  dag: WorldDagRoot,
+  surfaces: readonly PageSurface[],
   order: number,
   pose?: PlacementRows,
-): (ClusterRoot<PageRec> & WorldHeld) | undefined {
-  // Each cluster's wearer, asked once; the first found dresses those without one.
-  const wearers = dag.pages.map(({ primitive }) =>
-    primitive === null ? undefined : wear(primitive),
-  )
-  const fallback = wearers.find((wearer) => wearer !== undefined)
-  if (!fallback) return undefined
+): (ClusterRoot<PageRec> & WorldHeld)[] {
+  const fallback = surfaces[0]
+  if (!fallback) return []
   const pages = dag.pages.map((page, rank) => {
-    const wearer = wearers[rank]
-    // No wearer: a record without a page, worn as any other only to stay a record.
-    return worldRecord(wearer ? page : { ...page, url: '' }, rank, wearer ?? fallback, order)
+    const surface = surfaces[page.material]
+    // No surface: a record without a page, worn as any other only to stay a record.
+    return worldRecord(surface ? page : { ...page, url: '' }, rank, surface ?? fallback, order)
   })
   // The local box: the root node's of the cook's hierarchy, as a primitive's; its world box its own.
   // The hierarchy, its bounds and links as the DAG made them (`worldRootDag`).
@@ -108,53 +99,33 @@ export function worldSelectionRoot(
   if (!culling) throw new Error('WORLD_CULLING_MISSING')
   const localBox = culling.nodes.slice(0, BOX_VALUES),
     held = new Map<number, PageRec[]>()
-  // The roots each bundle holds for its cell, those with a page alone: a record without one is
-  // not a page, never held nor covered.
+  // The roots each bundle holds for its HLOD cell, those with a page alone: a record without one
+  // is not a page, never held nor covered.
   for (const [bundle, ranks] of dag.held) {
     const own = ranks.map((rank) => pages[rank]).filter((page) => page.url)
     if (own.length) held.set(bundle, own)
   }
-  const placement = pose && { rows: pose, index: 0 }
-  const root = {
-    world: placement ? placementWorld(pose, 0) : IDENTITY_WORLD,
-    ...(placement && { placement, parked: rowParked(placement) }),
+  const shared = {
     pages,
+    // Opaque and blended pages both, when a section wears a blended material (`rootBlends`).
+    ...(pages.some((page) => page.transparent) && { mixed: true }),
     structure: dag.structure,
     culling,
-    worldBox: localBox.slice(),
     localBox,
     boxes: true,
-    origins: dag.origins,
+    hlod: dag.hlod,
     pagesOf: (bundle: number) => held.get(bundle) ?? [],
   }
-  return root
+  return placementsOf(pose && { placements: pose }, () => IDENTITY_WORLD).map((placed) => ({
+    ...shared,
+    ...placed,
+    worldBox: localBox.slice(),
+  }))
 }
 
-/** The world DAG's root as the cut packs it: each placed object's origin, and the pages each
- *  bundle past the pinned top holds for its cell (`pagesOf`), which join the cover with it. */
+/** The world DAG's root as the cut packs it: each rank's HLOD cell, and the pages each bundle
+ *  holds for its cell (`pagesOf`), which join the cover with it. */
 export type WorldHeld = {
-  origins: Int32Array
+  hlod: WorldDagRoot['hlod']
   pagesOf: (bundle: number) => readonly PageRec[]
-}
-
-/**
- * Each primitive rank of `primitives` to the source of `draws` that draws it opaque, and its
- * surface, as a page record wears them (`../page/selection/collect.ts`): none for a primitive no
- * source draws, or one drawn blended, which no world page stands in for.
- */
-export function worldWearers(draws: readonly DrawSource[], primitives: readonly Primitive[]) {
-  // Each manifest primitive to the first source that draws it, found by its ranks.
-  const find = primitiveFinder(primitives),
-    byPrimitive = new Map<Primitive, DrawSource>()
-  for (const draw of draws) {
-    const primitive = find({ meshes: draw.mesh, primitives: draw.primitives })
-    if (primitive && !byPrimitive.has(primitive)) byPrimitive.set(primitive, draw)
-  }
-  return (rank: number): WorldWearer | undefined => {
-    const primitive = primitives[rank],
-      drawSource = primitive && byPrimitive.get(primitive)
-    if (!drawSource) return undefined
-    const surface = sourceSurface(drawSource)
-    return drawsBlended(primitive, surface) ? undefined : { drawSource, surface }
-  }
 }

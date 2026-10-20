@@ -12,7 +12,7 @@ test('an ordinary frame pumps tiles requested by the previous image', () => {
     false,
   )
   assert.deepEqual(pumped, [7])
-  assert.equal(served, 2, 'what it served, which restarts a still average (`restartTaaOnLanding`)')
+  assert.equal(served, 2, 'what it served: a resource changed (`gpuCutStream.ts`)')
 })
 
 test('a pose barrier pumps nothing: the drain admits no new tile', () => {

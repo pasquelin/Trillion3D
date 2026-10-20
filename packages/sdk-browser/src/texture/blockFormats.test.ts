@@ -9,58 +9,58 @@ import type {
 const device = (...names: string[]) => ({ has: (name: string) => names.includes(name) })
 const FAMILIES = ['bc7', 'astc', 'etc2'] as const
 
-/** One chain per family, kept in it alone — RGBA in BC, two channels elsewhere — when `kept`
- *  names it. */
+/** One chain per family, stored in BC as every chain is, and kept in the gated family `kept`
+ *  names — two channels there. */
 const chains = (...kept: TextureBlockFormat[]) =>
   FAMILIES.map((family) => {
     const layouts: Record<TextureBlockFormat, TextureLayout> = {
-      bc7: 'lossless',
+      bc7: 'rgba',
       astc: 'lossless',
       etc2: 'lossless',
     }
-    if (kept.includes(family)) layouts[family] = family === 'bc7' ? 'rgba' : 'two-channel'
+    if (family !== 'bc7' && kept.includes(family)) layouts[family] = 'two-channel'
     return { layouts }
   })
 
-// Behaviour: the family is the first the device samples AND the cache holds kept chains in,
-// under the host's choice — BC7 first, then ASTC, then ETC2; ASTC on a device with BC when the
-// cook wrote ASTC alone; ETC2 on a device that has only it; RGBA8 with a named reason when the
-// device has none of the features, when no chain was kept in a family it has, or on `'none'`; an
-// explicit family the device lacks is refused by name, never swapped in silence.
+// Behaviour: the family is the first the device samples AND the cache holds chains in, under the
+// host's choice — BC7 first, which stores every chain, then ASTC, then ETC2 where kept; ETC2 on a
+// device that has only it; RGBA8 with a named reason when the device has none of the features,
+// when no chain was kept in a gated family it has, or on `'none'`; an explicit family the device
+// lacks is refused by name, never swapped in silence.
 test('the block format is the one the device samples and the cache holds, with its reason', () => {
   const both = device('texture-compression-bc', 'texture-compression-astc')
-  assert.deepEqual(chooseBlockFormat(both, chains('bc7', 'astc')), {
+  assert.deepEqual(chooseBlockFormat(both, chains('astc')), {
     block: 'bc7',
-    reason: 'device has texture-compression-bc, 1 chains kept in it',
+    reason: 'device has texture-compression-bc, every chain stored in it',
   })
-  assert.equal(chooseBlockFormat(both, chains('astc')).block, 'astc')
   assert.equal(chooseBlockFormat(device('texture-compression-astc'), chains('astc')).block, 'astc')
-  assert.equal(chooseBlockFormat(both, chains('bc7', 'astc'), 'astc').block, 'astc')
+  assert.equal(chooseBlockFormat(both, chains('astc'), 'astc').block, 'astc')
   const all = device(
     'texture-compression-bc',
     'texture-compression-astc',
     'texture-compression-etc2',
   )
-  assert.equal(chooseBlockFormat(all, chains('bc7', 'astc', 'etc2')).block, 'bc7')
-  assert.equal(chooseBlockFormat(all, chains('etc2')).block, 'etc2')
+  assert.equal(chooseBlockFormat(all, chains('astc', 'etc2')).block, 'bc7')
+  const mobile = device('texture-compression-astc', 'texture-compression-etc2')
+  assert.equal(chooseBlockFormat(mobile, chains('etc2')).block, 'etc2')
   assert.deepEqual(chooseBlockFormat(device('texture-compression-etc2'), chains('etc2')), {
     block: 'etc2',
     reason: 'device has texture-compression-etc2, 1 chains kept in it',
   })
-  assert.deepEqual(chooseBlockFormat(both, chains()), {
+  assert.deepEqual(chooseBlockFormat(mobile, chains()), {
     block: undefined,
-    reason: 'the cache holds no chain kept in bc7 or astc',
+    reason: 'the cache holds no chain kept in astc or etc2',
   })
-  assert.deepEqual(chooseBlockFormat(device(), chains('bc7'), 'auto'), {
+  assert.deepEqual(chooseBlockFormat(device(), chains(), 'auto'), {
     block: undefined,
     reason:
       'device lacks texture-compression-bc and texture-compression-astc and texture-compression-etc2',
   })
-  assert.deepEqual(chooseBlockFormat(device('texture-compression-astc'), chains('bc7'), 'bc7'), {
+  assert.deepEqual(chooseBlockFormat(device('texture-compression-astc'), chains(), 'bc7'), {
     block: undefined,
     reason: 'device lacks texture-compression-bc',
   })
-  assert.deepEqual(chooseBlockFormat(both, chains('bc7'), 'none'), {
+  assert.deepEqual(chooseBlockFormat(both, chains(), 'none'), {
     block: undefined,
     reason: 'host asked for rgba8',
   })
@@ -68,8 +68,9 @@ test('the block format is the one the device samples and the cache holds, with i
 
 // Behaviour: one encoding carries everything a block choice implies — the lane a chain takes
 // from its layout word in the chosen family, each lane's pool format (the colour one
-// sRGB-decoded, the two-channel one linear), the texel cost, the level file and which tail is
-// pinned; without a family every chain is lossless, RGBA8, and the fill lives there.
+// sRGB-decoded, the two-channel one linear), the texel cost, the level file — the stored BC one,
+// decoded, in the lossless lane — and which tail is pinned; without a family every chain is
+// lossless, RGBA8, and the fill lives there.
 test('the pool encoding routes a chain to its lane and names each lane, RGBA8 without a family', () => {
   const layouts = { bc7: 'rgba', astc: 'two-channel', etc2: 'two-channel' } as const
   const bc7 = poolEncoding('bc7')
@@ -89,8 +90,12 @@ test('the pool encoding routes a chain to its lane and names each lane, RGBA8 wi
     [1, 1, 4],
   )
   assert.deepEqual(
-    [bc7.levelFormat('rgba'), bc7.levelFormat('two-channel'), bc7.levelFormat('lossless')],
-    ['bc7', 'bc5', 'png'],
+    [
+      bc7.levelFormat('rgba', { layouts }),
+      bc7.levelFormat('two-channel', { layouts }),
+      bc7.levelFormat('lossless', { layouts }),
+    ],
+    ['bc7', 'bc5', 'bc7'],
   )
   assert.equal(bc7.fillLane, 'rgba')
   assert.deepEqual([bc7.tapOf('lossless'), bc7.tapOf('rgba'), bc7.tapOf('two-channel')], [0, 1, 2])
@@ -99,7 +104,9 @@ test('the pool encoding routes a chain to its lane and names each lane, RGBA8 wi
   assert.equal(astc.laneOf({ layouts }), 'two-channel')
   assert.equal(astc.formatOf('data', 'two-channel'), 'astc-4x4-unorm')
   assert.equal(astc.formatOf('color', 'rgba'), 'astc-4x4-unorm-srgb')
-  assert.equal(astc.levelFormat('two-channel'), 'astc-la')
+  assert.equal(astc.levelFormat('two-channel', { layouts }), 'astc-la')
+  const normal = { layouts: { ...layouts, bc7: 'two-channel' } } as const
+  assert.equal(astc.levelFormat('lossless', normal), 'bc5', 'a normal map is stored in BC5')
   const etc2 = poolEncoding('etc2')
   assert.equal(etc2.tapOf('two-channel'), 2, 'EAC RG11 holds Y in its second channel')
   assert.equal(etc2.laneOf({ layouts }), 'two-channel')
@@ -111,7 +118,10 @@ test('the pool encoding routes a chain to its lane and names each lane, RGBA8 wi
     ],
     ['etc2-rgba8unorm-srgb', 'etc2-rgba8unorm', 'eac-rg11unorm'],
   )
-  assert.deepEqual([etc2.levelFormat('rgba'), etc2.levelFormat('two-channel')], ['etc2', 'eac-rg'])
+  assert.deepEqual(
+    [etc2.levelFormat('rgba', { layouts }), etc2.levelFormat('two-channel', { layouts })],
+    ['etc2', 'eac-rg'],
+  )
   const rgba = poolEncoding(undefined)
   assert.equal(rgba.laneOf({ layouts }), 'lossless')
   assert.deepEqual(
@@ -122,7 +132,7 @@ test('the pool encoding routes a chain to its lane and names each lane, RGBA8 wi
     ],
     ['rgba8unorm-srgb', 'rgba8unorm', 4],
   )
-  assert.equal(rgba.levelFormat('lossless'), 'png')
+  assert.equal(rgba.levelFormat('lossless', { layouts }), 'bc7')
   assert.equal(rgba.fillLane, 'lossless')
   assert.equal(bc7.tailOf(WHITE_TAIL, 'rgba'), WHITE_TAIL.blocks.bc7)
   assert.equal(bc7.tailOf(WHITE_TAIL, 'lossless'), WHITE_TAIL.levels)

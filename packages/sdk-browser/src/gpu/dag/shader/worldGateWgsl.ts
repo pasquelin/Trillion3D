@@ -1,48 +1,49 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
+import {
+  CELL_DRAW,
+  LINK_HEADER,
+  LINK_WORDS,
+  PLACEMENT_BITS,
+  WORLD_ROOT_MARK,
+} from '../worldLinks.ts'
 
 /**
- * The world DAG's gate in the descent (\`../worldLinks.ts\`): whether the world draws a
- * placement in its place, and the threshold each placement's cut is held to — the frame's, the
- * world DAG's scaled by its fade (\`../worldFade.ts\`). Outside the level text, so a descent of
- * another shape reads the same threshold.
+ * The world's switch in the descent (`../worldLinks.ts`): per HLOD cell and instance, what the host
+ * chose to draw there (`CELL_DRAW`, `../worldFollow.ts`). A placement whose HLOD 0 cell neither
+ * draws nor asks for its placements opens nothing, and one that asks draws none; a world cluster
+ * whose cell does not draw its actor is neither drawn nor asked for. Outside the level text, so a
+ * descent of another shape reads the same words.
  */
 export const DAG_WORLD_GATE_WGSL = wgslBlock(
   'DAG_WORLD_GATE_WGSL',
   [NO_INDEX],
-  `/** The world cluster that stands in for placement \`w\` (\`../worldLinks.ts\`), or none. */
-fn worldLinkOf(w:u32)->u32{return select(NO_INDEX,coldAt(views[0u].worldLinks+w),views[0u].worldLinks!=0u);}
-/** \`view · world\` of the world DAG under the view \`vi\`, as \`viewWorld\` makes a placement's: its
- *  world is the identity, its origin taken to the eye as a placement's is (\`worldPoseWgsl.ts\`). */
-fn worldViewOf()->mat4x4f{
- let o=-views[0u].cameraWorld;
- return views[vi].view*mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,o.x,o.y,o.z,1.0);
+  `/** The word of HLOD cell \`h\` of instance \`k\` (\`CELL_DRAW\`), behind the links' header. */
+fn worldCellState(k:u32,h:u32)->u32{
+ let links=views[0u].worldLinks;
+ return coldAt(coldAt(links-${LINK_HEADER - 1}u)+k*coldAt(links-${LINK_HEADER - 2}u)+h);
 }
-/** Whether every root of the world above world cluster \`c\` is ready (\`../worldStandIns.ts\`): its
- *  word, at the stand-ins' shift from its page, leads to its set's flag. */
-fn worldStandsIn(c:u32)->bool{
- let at=coldAt(views[0u].worldLinks-2u)+c;
- return coldAt(at+coldAt(at))!=0u;
+/** The word of placement \`w\`'s HLOD 0 cell, its placements drawn for one in no cell — a node
+ *  always loaded. Branched, not selected: a cut without a world reads no cold word for it. */
+fn worldStateOf(w:u32)->u32{
+ let links=views[0u].worldLinks;
+ if(links==0u){return ${CELL_DRAW.placements}u;}
+ let link=links+${LINK_WORDS}u*w;
+ let h=coldAt(link);
+ if(h==NO_INDEX){return ${CELL_DRAW.placements}u;}
+ return worldCellState(coldAt(link+1u),h);
 }
-/** Whether the world DAG draws placement \`w\` in its place under the view \`vi\`: its object's world
- *  group is not ready while every root above it is — its super-roots stand in —, or that group's
- *  error projects within the threshold, the comparison its super-roots draw on, same operands,
- *  same frame (\`drawsCluster\`). Leaves \`deformReach\` at the world's: none. */
-fn worldCovers(w:u32)->bool{
- let c=worldLinkOf(w);
- if(c==NO_INDEX){return false;}
- if(!isResident(c)){return worldStandsIn(c);}
- deformReach=0.0;
- // The world DAG's record shift leads its links (\`../worldLinks.ts\`).
- let cluster=clusterAt(c+coldAt(views[0u].worldLinks-1u));
- let pixels=clusterPixels(cluster,worldViewOf(),views[vi].cameraStretch,focalPixels());
- return !(pixels.x>thresholdOf(views[0u].worldRoot));
-}
-/** The screen error placement \`w\`'s cut is held to under the view \`vi\`: the frame's, the world
- *  DAG's — wherever the packing put it (\`worldRoot\`) — scaled by its fade (\`../worldFade.ts\`). */
-fn thresholdOf(w:u32)->f32{
- let world=views[0u].worldLinks!=0u&&w==views[0u].worldRoot;
- return views[vi].pixelError*select(1.0,views[0u].worldScale,world);
+/** Whether placement \`w\` opens nothing: its cell neither draws nor asks for its placements. */
+fn worldCovers(w:u32)->bool{return (worldStateOf(w)&${PLACEMENT_BITS}u)==0u;}
+/** Whether placement \`w\` asks for its pages and draws none. */
+fn worldWaits(w:u32)->bool{return (worldStateOf(w)&${PLACEMENT_BITS}u)==${CELL_DRAW.asking}u;}
+/** Whether page \`i\` of placement \`w\` is a world cluster whose cell does not draw its actor:
+ *  neither drawn nor asked for. */
+fn worldHides(i:u32,w:u32)->bool{
+ let links=views[0u].worldLinks;
+ if(links==0u||(markOf(w)&${WORLD_ROOT_MARK}u)==0u){return false;}
+ let h=coldAt(coldAt(links-${LINK_HEADER}u)+i-pageBaseOf(w));
+ return (worldCellState(coldAt(links+${LINK_WORDS}u*w+1u),h)&${CELL_DRAW.hlod}u)==0u;
 }
 `,
 )

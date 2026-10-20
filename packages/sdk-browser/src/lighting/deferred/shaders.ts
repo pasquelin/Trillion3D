@@ -11,7 +11,8 @@ import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
 import { BLOOM_COMPOSE_WGSL } from '../../webgpu/effects/bloomLevel.ts'
-import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
+import { linearToSrgb, luminance } from '../../../../math/src/wgsl/color.ts'
+import { bilinear4, clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from './worldAtWgsl.ts'
@@ -22,16 +23,15 @@ export const FULLSCREEN_VERTEX = wgslBlock(
   [],
   `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}`,
 )
-/** The surfaces, their depth and the view: bindings 0 to 5 of every pass that lights a surface
- *  buffer — the deferred resolve, and the water composite, its word in the flags' place (`third`). */
-export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') =>
+/** The surfaces, their depth and the view: bindings 0 to 5 of the deferred resolve. */
+export const surfaceBindingsWgsl = () =>
   wgslBlock(
-    `surfaceBindingsWgsl(${third})`,
+    'surfaceBindingsWgsl',
     [VIEW_WGSL],
     `@group(0) @binding(${DEFERRED_BINDINGS.baseMetal}) var baseMetal:texture_2d<f32>;
 @group(0) @binding(${DEFERRED_BINDINGS.normalRough}) var normalRough:texture_2d<f32>;
 @group(0) @binding(${DEFERRED_BINDINGS.emissiveAo}) var emissiveAo:texture_2d<f32>;
-@group(0) @binding(${DEFERRED_BINDINGS.flags}) var ${third};
+@group(0) @binding(${DEFERRED_BINDINGS.flags}) var flags:texture_2d<u32>;
 @group(0) @binding(${DEFERRED_BINDINGS.depth}) var depth:texture_depth_2d;
 @group(0) @binding(${DEFERRED_BINDINGS.view}) var<uniform> view:View;`,
   )
@@ -51,9 +51,8 @@ ${LIGHT_SURFACE_ENTRY}
  return vec4f(textureLoad(baseMetal,coord,0).rgb+surfaceEmissiveAo(coord,flag).rgb,1.0);
 }`,
 )
-/** Contract bindings: declared lights and their per-tile lists. The virtual shadow maps' page
- *  table, projection data, uniforms and pool (8, 9, 10, 19) are declared with the shadow read
- *  (`directShadowWgsl`, `CONTRACT_VSM_BINDINGS`). */
+/** Contract bindings: declared lights and their per-tile lists. The shadow mask, its transmission
+ *  and tile words are declared with the shadow read (`directShadowWgsl`). */
 export const CONTRACT_BINDINGS_WGSL = wgslBlock(
   'CONTRACT_BINDINGS_WGSL',
   [],
@@ -69,12 +68,18 @@ const BOUNCE_SURFACE_WGSL = wgslBlock(
   [BOUNCE_APPLY_WGSL, FULLSCREEN_VERTEX, ...contractSurface(true)],
   '',
 )
-/** The direct program's surface: no bounce, which a thin surface's back samples as zero
- *  (\`thinBack\`). */
+/** No bounced light: what a program without the probes answers where the lighting samples it — a
+ *  thin surface's back (\`thinBack\`) — zero. */
+const NO_BOUNCE_WGSL = wgslBlock(
+  'NO_BOUNCE_WGSL',
+  [],
+  'fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}',
+)
+/** The direct program's surface: no bounce (\`NO_BOUNCE_WGSL\`). */
 const DIRECT_SURFACE_WGSL = wgslBlock(
   'DIRECT_SURFACE_WGSL',
-  [FULLSCREEN_VERTEX, ...contractSurface(false)],
-  'fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}',
+  [NO_BOUNCE_WGSL, FULLSCREEN_VERTEX, ...contractSurface(false)],
+  '',
 )
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
@@ -132,9 +137,44 @@ const asIsMix = (curved: string, share: string) =>
  let color=linearToSrgb(select(curved,curved*(1.0-share)+untouched*share,share>0.0));`
 
 /** What linear radiance goes through before `displayValue`: `exposed`, the radiance with its
- *  exposure applied, the expression of the curve's rank, and whether the pixel's as-is share
- *  (`AS_IS_READ`) weighs it. */
-type Chain = { exposed: string; curve: string; asIs: boolean }
+ *  exposure applied, the expression of the curve's rank, and `lit`, the chain of programs lit by
+ *  declared lights: the pixel's as-is share (`AS_IS_READ`) weighs it and the source is sharpened before
+ *  the curve (`SHARPEN_WGSL`). */
+type Chain = { exposed: string; curve: string; lit: boolean }
+
+/**
+ * The sharpen, in the composition itself, never a pass or a target of its own: the source pixel and
+ * its cross, one source pixel away, read once each (`sourceValue`), before the bloom and the curve;
+ * the pixel pulled away from its cross's sum by the strength over six (`strength / 6`, so a strength
+ * of 1 is a unit-gain Laplacian), the view's sharpness (`view.viewport.w`), masked off where the
+ * exposed luminance steps by one or more against a neighbour (`edge`), so a very bright edge is
+ * never sharpened into a ring. A neighbour past the last column or row reads the last one. At a
+ * strength of 0 — a uniform branch — and in a diagnostic view's raw output the pixel is composed as
+ * it is, bit for bit.
+ */
+const SHARPEN_WGSL = `
+fn sourceNear(at:vec2f,step:vec2f)->vec3f{
+ return sourceValue(clamp(at+step,vec2f(0.0),view.source.zw+0.999)).rgb;
+}
+fn composeColor(pixel:vec4f)->vec4f{
+ let at=pixel.xy*view.source.xy;
+ let value=sourceValue(at);
+ let strength=view.viewport.w;
+ if(strength==0.0||view.viewport.z!=0.0){return composeAt(at,value);}
+ let c1=sourceNear(at,vec2f(-1.0,0.0));let c2=sourceNear(at,vec2f(1.0,0.0));
+ let c3=sourceNear(at,vec2f(0.0,-1.0));let c4=sourceNear(at,vec2f(0.0,1.0));
+ let a0=luminance(value.rgb);
+ let steps=abs(vec4f(a0)-vec4f(luminance(c1),luminance(c2),luminance(c3),luminance(c4)));
+ let edge=saturate(1.0-view.lightParams.w*max(max(steps.x,steps.y),max(steps.z,steps.w)));
+ let delta=(c1+c2+c3+c4)-value.rgb*4.0;
+ return composeAt(at,vec4f(value.rgb+delta*(-edge*strength/6.0),value.a));
+}`
+/** The composition with no sharpening: the display pixel composed once. */
+const UNSHARPENED_WGSL = `
+fn composeColor(pixel:vec4f)->vec4f{
+ let at=pixel.xy*view.source.xy;
+ return composeAt(at,sourceValue(at));
+}`
 /**
  * Composition, one source for two separate programs — never a branch in the shader.
  * `chain` is what linear radiance goes through before sRGB, always `displayValue`. Background, premultiplication and the raw output of diagnostic views are shared,
@@ -142,22 +182,33 @@ type Chain = { exposed: string; curve: string; asIs: boolean }
  * (`AS_IS_READ`), since a normal or depth material is never exposed nor tone mapped. At a
  * share of 0 a lit pixel gets the chain before, bit for bit; the identity chain (curve none) reads no share.
  * With `bloom`, `hdr` is the image the chain's last bloom read, blended here (`BLOOM_COMPOSE_WGSL`).
+ * The source is read where the display pixel falls in it (`view.source`): at its size, its pixel
+ * as it is; drawn below it with no temporal resolve to rebuild it (`../../webgpu/pages/state/
+ * renderScale.ts`), its four nearest pixels blended — the one upscale of such an image —, the as-is
+ * share and the bloom read at the same place.
  */
 const composeSource = (chain: Chain, input: ComposeInput, bloom: boolean) => {
-  const read = chain.asIs && input !== 'flagless' ? AS_IS_READ[input] : undefined
+  const read = chain.lit && input !== 'flagless' ? AS_IS_READ[input] : undefined
   return wgslProgram(
     `
 @group(0) @binding(0) var hdr:texture_2d<f32>;
 @group(0) @binding(1) var<uniform> view:View;
 ${read ? `@group(0) @binding(2) var asIs:${read.texture};` : ''}
-fn composeColor(pixel:vec4f)->vec4f{
- let coord=vec2i(pixel.xy);
- let value=${bloom ? 'bloomed(textureLoad(hdr,coord,0),pixel.xy)' : 'textureLoad(hdr,coord,0)'};
+fn sourceValue(at:vec2f)->vec4f{
+ if(all(view.source.xy==vec2f(1.0))){return textureLoad(hdr,vec2i(at),0);}
+ let t=at-0.5;let i=vec2i(floor(t));let f=t-floor(t);let size=vec2i(view.source.zw)+1;
+ let a=clampToExtent(i,size);let b=clampToExtent(i+1,size);
+ return bilinear4(textureLoad(hdr,a,0),textureLoad(hdr,vec2i(b.x,a.y),0),textureLoad(hdr,vec2i(a.x,b.y),0),textureLoad(hdr,b,0),f);
+}
+fn composeAt(at:vec2f,source:vec4f)->vec4f{
+ let coord=vec2i(at);
+ let value=${bloom ? 'bloomed(source,at)' : 'source'};
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
  ${read ? asIsMix(`toneMap(${chain.exposed},${chain.curve})`, read.share) : `let color=displayValue(${chain.exposed},${chain.curve});`}
  return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
+${chain.lit ? SHARPEN_WGSL : UNSHARPENED_WGSL}
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}
 struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
 @fragment fn composePresent(@builtin(position) pixel:vec4f)->DisplayOutput{
@@ -170,6 +221,9 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
       FULLSCREEN_VERTEX,
       linearToSrgb,
       DISPLAY_VALUE_WGSL,
+      bilinear4,
+      clampToExtent,
+      ...(chain.lit ? [luminance] : []),
     ],
   )
 }
@@ -192,7 +246,7 @@ const compositionsOf = (chain: Chain) => ({
 export const CONTRACT_COMPOSITIONS = compositionsOf({
   exposed: 'value.rgb*view.lightParams.w/max(value.a,1e-6)',
   curve: 'u32(view.display.x)',
-  asIs: true,
+  lit: true,
 })
 /**
  * Unlit-view composition: identity, from linear to sRGB and nothing else. With no declared
@@ -202,5 +256,5 @@ export const CONTRACT_COMPOSITIONS = compositionsOf({
 export const UNLIT_COMPOSITIONS = compositionsOf({
   exposed: 'value.rgb/max(value.a,1e-6)',
   curve: `${TONE_MAPPING_RANK.none}u`,
-  asIs: false,
+  lit: false,
 })

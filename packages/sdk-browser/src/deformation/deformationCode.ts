@@ -1,9 +1,9 @@
-// WebGPU deformation's code, a family on demand (`../host/families.ts`): the compute stage
-// that skins, morphs and moves `mesh.waves` (`compute.ts`, its WGSL), its per-image records
-// (`webgpuFrame.ts`) and encoding, and the whole copies' pool — one module, so that the CDN bundle
-// makes one chunk of it. A session that deforms awaits it at prepare (`prepare.ts`). The records a
-// session keeps (`session.ts`) stay in the core.
+// WebGPU deformation's code, a family on demand (`../host/families.ts`): the compute stage that
+// skins, morphs and moves `mesh.waves` (`compute.ts`, its WGSL), its per-image records
+// (`webgpuFrame.ts`) and encoding, and the float-pool blocks' rows — one module, so that the CDN
+// bundle makes one chunk of it. A session that deforms awaits it at prepare (`prepare.ts`). The
+// records a session keeps (`session.ts`) stay in the core.
 export { createDeformationCompute } from './compute.ts'
 export { updateWebgpuDeformation } from './webgpuFrame.ts'
 export { encodeDeformation } from './encode.ts'
-export { wholeDeformationPool } from './wholePool.ts'
+export { pooledDeformationRows } from './pooledRows.ts'

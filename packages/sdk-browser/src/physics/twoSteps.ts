@@ -56,11 +56,6 @@ export function createTwoSteps(capacity: number) {
     return from
   }
   return {
-    /** The listed keys, `count` of them. */
-    moving: moving as Readonly<Int32Array>,
-    get count() {
-      return count
-    },
     /** Whether `key` is on its way. */
     listed: (key: number) => listed[key] === 1,
     /** A tick of `steps` fixed steps arrived. */
@@ -105,8 +100,16 @@ export function createTwoSteps(capacity: number) {
       }
       count = kept
     },
-    /** Keeps listed the keys `alive` says still are what they were; the rest leave. */
-    keep(alive: (key: number) => boolean) {
+    /** A frame at `t`: the keys `alive` says still are what they were drawn by `drawAll` — the
+     *  rest leave the list —, then whether they are still on their way (and ask for the next
+     *  frame), short of their newest or `waiting` for the next; else the list empties. */
+    apply(
+      t: number,
+      waiting: boolean,
+      alive: (key: number) => boolean,
+      drawAll: (moving: Readonly<Int32Array>, count: number, t: number) => void,
+    ) {
+      if (!count) return false
       let kept = 0
       for (let i = 0; i < count; i++) {
         const key = moving[i]
@@ -114,10 +117,7 @@ export function createTwoSteps(capacity: number) {
         else listed[key] = 0
       }
       count = kept
-    },
-    /** After a frame drew the list at `t`: whether its keys are still on their way (and ask for
-     *  the next frame), short of their newest or `waiting` for the next; else the list empties. */
-    settle(t: number, waiting: boolean) {
+      drawAll(moving, count, t)
       if (t < 1 || waiting) return count > 0
       for (let i = 0; i < count; i++) listed[moving[i]] = 0
       count = 0

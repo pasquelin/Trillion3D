@@ -1,4 +1,5 @@
 import { MIB } from '../../../math/src/constants.ts'
+import { followSignal } from '../../../sdk-core/src/runtime/followSignal.ts'
 import { createStreamingFetcher } from './fetch.ts'
 import { createStreamingQueue } from './queue.ts'
 import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts'
@@ -45,10 +46,7 @@ export function createPageStreamer(
       else if (!catalog.has(url)) failures.leaves(url)
     },
   })
-  if (signal) {
-    if (signal.aborted) abort.abort(signal.reason)
-    else signal.addEventListener('abort', () => abort.abort(signal.reason), { once: true })
-  }
+  followSignal(abort, signal)
   // Closed, every job ends at once, its askers told: one listener, whatever the jobs.
   abort.signal.addEventListener(
     'abort',
@@ -102,9 +100,30 @@ export function createPageStreamer(
   const reads = createStreamingQueue(context, transfer, streaming)
   const { forget, keep } = reads
   const { read, watch } = createReadWatch(reads.subscribe)
-  const readBytes = (url: string, signal: AbortSignal, priority?: number) => {
+  /** `url`'s entry when it is a page of a bundle, whose bytes hold its own — read, kept and
+   *  dropped whole, every page of it served from that one read —; none when its own entry holds
+   *  them. */
+  const inBundle = (url: string) => {
+    const page = catalog.get(url)
+    return page?.bundle && (page as StreamPage & Required<Pick<StreamPage, 'bundle'>>)
+  }
+  type BundlePage = NonNullable<ReturnType<typeof inBundle>>
+  /** `page`'s slice of its bundle's `bytes`. */
+  const sliced = (bytes: Uint8Array, { bundle, bytes: length }: BundlePage) =>
+    bytes.subarray(bundle.offset, bundle.offset + length)
+  /** `url`'s bytes in the cache, touched: its slice of what holds it. */
+  const cachedBytes = (url: string) => {
+    const page = inBundle(url)
+    if (!page) return store.touch(url)
+    const bytes = store.touch(page.bundle.url)
+    return bytes && sliced(bytes, page)
+  }
+  /** The bytes of `url`, read once whatever holds it (`inBundle`). */
+  const readBytes = (url: string, signal: AbortSignal, priority?: number): Promise<Uint8Array> => {
+    const page = inBundle(url)
     state.requested++
-    return read(url, signal, priority)
+    if (!page) return read(url, signal, priority)
+    return read(page.bundle.url, signal, priority).then((bytes) => sliced(bytes, page))
   }
   return {
     admit(more: readonly StreamPage[]) {
@@ -121,11 +140,11 @@ export function createPageStreamer(
     // A page a read holds, queued or in transfer, stays catalogued until that read settles.
     forget: (urls: readonly string[]) => urls.forEach(forget),
     get(url: string) {
-      const array = store.touch(url)
+      const array = cachedBytes(url)
       return array ? asIndices(array) : undefined
     },
-    getBytes: (url: string) => store.touch(url),
-    has: (url: string) => store.page(url) !== undefined,
+    getBytes: cachedBytes,
+    has: (url: string) => store.page(inBundle(url)?.bundle.url ?? url) !== undefined,
     /** Whether the catalogue names `url`: a page `admit` took and `forget` has not let go. */
     catalogued: (url: string) => catalog.has(url),
     loading: (url: string) => jobs.has(url),

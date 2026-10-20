@@ -17,6 +17,8 @@ import { coarseQuadScene } from './coarseQuads.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('detail replaces the complete GPU fallback only after every replacement is uploaded', async () => {
   installGpuGlobals()
@@ -62,6 +64,7 @@ test('a refinement exceeding the GPU budget keeps the floor, not the refused roo
     { device } = fakeDevice(BACKEND),
     events: EngineDiagnostic[] = []
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -94,6 +97,7 @@ test('a failed initial page reader rejects preparation before exposing a partial
   const fixture = quadScene(),
     { device, draws } = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     indices: new Map(),
     readPage: async () => {

@@ -15,14 +15,13 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { webgpuPagesEngine } from '../../webgpu/pages/pages.ts'
 import { quadScene, camera } from '../../webgpu/pages/testScenes.fixture.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../types.ts'
-import { HIZ_REJECTED_WGSL, ST_REJECTED } from '../../gpu/partition/contract.ts'
+import { HIZ_REJECTED_WGSL, ST_REJECTED, VERDICT_KEPT } from '../../gpu/partition/contract.ts'
 import { restampHizSlot } from '../../webgpu/row/pageRow.ts'
 import { HIZ_SHADER } from '../../gpu/hiz/shader.ts'
 import { HIZ_TEST_PAGES_ENTRIES } from '../../gpu/hiz/bindEntries.ts'
 import { transparentOcclusionShader } from '../../gpu/core/transparentOcclusionWgsl.ts'
 import { refreshTransparentCorners } from '../../webgpu/transparent/occlusionHost.ts'
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts'
-import { createWebgpuGpuState } from '../../webgpu/pages/state/gpu.ts'
 import { createWebgpuBlendState } from '../../webgpu/blend/state.ts'
 import { prepareWebgpuBlend } from '../../webgpu/blend/prepare.ts'
 import { refreshBlendPlan } from '../../webgpu/blend/plan.ts'
@@ -34,14 +33,15 @@ import { surfaceOf } from '../../page/surface.ts'
 import { identityRoots } from '../../page/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
-import { hasBit } from '../../../../math/src/scalar/bits.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
 import { createChangedRuns } from '../../webgpu/residency/ranges.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
-  G.basicSurface({ ...parameters, sprite: true, rotation: 0, sizeAttenuation })
+  G.physicalSurface({ ...parameters, sprite: true, rotation: 0, sizeAttenuation })
 
 test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface hides', () => {
   const depth = new Float32Array(48 * 48).fill(0.3)
@@ -70,7 +70,12 @@ async function rowHizSlots(sizeAttenuation?: boolean) {
   if (sizeAttenuation !== undefined)
     Object.assign(scene.material, { sprite: { rotation: 0, sizeAttenuation } })
   const { device, buffers } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({ ...scene, gpuDevice: device, maxResidentPages: 4 })
+  const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    ...scene,
+    gpuDevice: device,
+    maxResidentPages: 4,
+  })
   try {
     await backend.prepare()
     backend.render(camera())
@@ -107,12 +112,14 @@ test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader dr
 })
 
 test('the GPU Hi-Z test counts no reject for a row with no Hi-Z slot, which it keeps', () => {
-  const kernel = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn testHiz'))
+  const kernel = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn testBox'))
   assert.ok(HIZ_SHADER.includes(`const NO_INDEX:u32=0x${NO_INDEX.toString(16)}u;`))
-  const noVerdict = kernel.indexOf('pages[row].hizSlot==NO_INDEX||'),
+  const noVerdict = kernel.indexOf(
+      `if(pages[row].hizSlot==NO_INDEX){flags[row]=${VERDICT_KEPT}u;return;}`,
+    ),
     kept = kernel.indexOf('return;}', noVerdict)
-  // The row's slot sends it down the branch that keeps a row the pyramid cannot judge, before
-  // the verdict and the reject counters.
+  // The row's slot sends it down the branch that keeps a row the pyramid cannot judge, the kept
+  // verdict its own, before the test's verdict and the reject counters.
   assert.ok(noVerdict > 0 && kept > noVerdict)
   assert.ok(kernel.indexOf(`tallyAdd(${ST_REJECTED}u,`) > kept)
   assert.ok(HIZ_SHADER.includes('@group(1) @binding(0) var<storage, read> pages:array<PageInfo>;'))
@@ -159,18 +166,18 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
   assert.ok(kernel.includes('let reject=!open&&box.clips==0u&&'))
 })
 
-test('a constant-size sprite blend item has no box, and the frustum keeps it', () => {
-  const { device } = fakeDevice()
+test('a constant-size sprite blend item has no box, and the frustum keeps it in view', () => {
   const blendState = createWebgpuBlendState()
   const copy = (sizeAttenuation: boolean) => {
-    const material = spriteSurface(sizeAttenuation, { transparent: true })
+    // Transmissive: whether its water is in view is the one verdict a blend item's box takes.
+    const material = spriteSurface(sizeAttenuation, { transparent: true, transmission: 1 })
     const geometry = new Geometry()
     geometry.setAttribute('position', G.floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
     geometry.setIndex(G.indices([0, 1, 2]))
     return Object.assign(G.mesh(geometry, material), { surface: surfaceOf(material) })
   }
   const copies = [copy(false), copy(true)]
-  prepareWebgpuBlend(device, copies, createWebgpuGpuState([1, 1]), blendState, new Scene())
+  prepareWebgpuBlend(copies, blendState, new Scene())
   assert.deepEqual(
     blendState.blendGpu.map((item) => item.bounds === undefined),
     [true, false],
@@ -181,10 +188,5 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   refreshBlendPlan(blendState)
   orderBlendPasses(blendState, [0, 0, 0])
   // The verdict the GPU computes, item by item (`verdict.fixture.ts`, held to the kernel's words).
-  const { keep, rejected } = blendVerdictCpu(blendState)
-  assert.equal(rejected, 1)
-  assert.deepEqual(
-    [0, 1].map((item) => hasBit(keep, item)),
-    [true, false],
-  )
+  assert.equal(blendVerdictCpu(blendState).inView, 1)
 })

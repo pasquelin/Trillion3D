@@ -1,17 +1,11 @@
 /**
- * The host objects a node of the prepared scene carries or is — its light, its camera, its pose —
- * and the loader's rule for naming them, each built as the host loader built it from the same
+ * The host objects a node of the prepared scene carries or is — its camera, its pose — and the
+ * loader's rule for naming them, each built as the host loader built it from the same
  * declaration (`./graph.ts` assembles them).
  */
-import { QUARTER_PI, RAD2DEG } from '../../../../math/src/constants.ts'
-import type {
-  TableCamera,
-  TableLight,
-  TableNode,
-} from '../../../../sdk-core/src/scene/core/tableContracts.ts'
+import { RAD2DEG } from '../../../../math/src/constants.ts'
+import type { TableCamera, TableNode } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import { aimOf } from '../graph/kinds.ts'
-import { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import type { HostMesh } from '../resources.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -31,28 +25,6 @@ export function uniqueNames() {
     used.add(candidate)
     return candidate
   }
-}
-
-export function light(declared: TableLight, name: string) {
-  const made = new Light(declared.type)
-  if (declared.color) made.color.setRGB(declared.color[0], declared.color[1], declared.color[2])
-  if (declared.type === 'spot') {
-    const inner = declared.innerConeAngle ?? 0,
-      outer = declared.outerConeAngle ?? QUARTER_PI
-    made.angle = outer
-    made.penumbra = 1 - inner / outer
-  }
-  if (declared.type !== 'directional') made.distance = declared.range ?? 0
-  // A sun or a spot aims one unit down its own -z, a child of its own, as a scene declares it.
-  const aim = aimOf(made)
-  if (aim) {
-    aim.position.set(0, 0, -1)
-    made.add(aim)
-  }
-  made.position.set(0, 0, 0)
-  if (declared.intensity !== null) made.intensity = declared.intensity
-  made.name = name
-  return made
 }
 
 export function camera(declared: TableCamera) {

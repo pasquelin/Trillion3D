@@ -17,6 +17,8 @@ import { frameTargetsAwaited } from './targetGrant.ts'
 import { installGpuDeviceLedger } from '../../../gpu/core/deviceLedger.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { appendWebgpuTexture } from '../io/appendTexture.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 installGpuGlobals()
 const HDR = 'Trillion3D HDR lighting',
@@ -24,9 +26,10 @@ const HDR = 'Trillion3D HDR lighting',
 const DISPLAY: [number, number] = [3456, 2234],
   ASKED = renderExtent(DISPLAY[0], 0.75)
 
-/** The quad at dynamic resolution on the display, on a device that refuses the `HDR` target
- *  `ASKED` wide `refusals` times, under a ledger whose limit `box` holds; `frames` draws and says,
- *  at each, whether a grant held it. */
+/** The quad at dynamic resolution on the display, its targets first made at the display's size (a
+ *  maximum of 1: the default fraction of so dense a display is about half), on a device that
+ *  refuses the `HDR` target `ASKED` wide `refusals` times, under a ledger whose limit `box` holds;
+ *  `frames` draws and says, at each, whether a grant held it. */
 async function session(refusals = 0) {
   const gpu = refusing(
     'createTexture',
@@ -40,12 +43,13 @@ async function session(refusals = 0) {
     ledger = installGpuDeviceLedger(gpu.device, { limit: () => box.limit })
   const scene = quadScene()
   const rt = createWebgpuPagesRuntime({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     metadata: { ...scene.metadata, ...MANIFEST_IDENTITY },
     gpuDevice: gpu.device,
     maxResidentPages: 2,
     viewport: [...DISPLAY],
-    renderScale: 'auto',
+    renderScale: { max: 1 },
   })
   const frames = async (count: number, seen: (asked: boolean) => void = () => {}) => {
     for (let k = 0; k < count; k++) {
@@ -75,7 +79,7 @@ test('a scale change with targets in place is made aside: never held, old ones f
       temporal = s.rt.gpu.temporal
     assert.equal(old.width, DISPLAY[0])
     assert.ok(history.length > 0)
-    s.rt.scale.set({ min: 0.5, max: 0.75 })
+    s.rt.views.main.scale.set({ min: 0.5, max: 0.75 })
     const asked: boolean[] = [],
       drawnIn: number[] = [],
       modes: (string | undefined)[] = []
@@ -108,7 +112,7 @@ test('a scale change with targets in place is made aside: never held, old ones f
 test('targets refused aside fall back to the held grant, then drawn at the size asked', async () => {
   const s = await session(1)
   try {
-    s.rt.scale.set({ min: 0.5, max: 0.75 })
+    s.rt.views.main.scale.set({ min: 0.5, max: 0.75 })
     const asked: boolean[] = []
     await s.frames(5, (held) => asked.push(held))
     assert.equal(asked[0], false, 'asked aside first')
@@ -125,7 +129,7 @@ test('targets that do not fit beside those in place are asked the held way, thos
   try {
     // Room for a few bytes more than what is held: never for a second set.
     s.box.limit = s.ledger.bytes + 1024
-    s.rt.scale.set({ min: 0.5, max: 0.75 })
+    s.rt.views.main.scale.set({ min: 0.5, max: 0.75 })
     const asked: boolean[] = []
     await s.frames(3, (held) => asked.push(held))
     assert.equal(asked[0], true, 'held at once: nothing is made aside')
@@ -145,7 +149,7 @@ test('targets made aside under the old feedback variant take the target of the o
     assert.equal(s.rt.vis.writesFeedback, false, 'the quad wears no texture')
     const map = G.dataTexture(new Uint8Array(64), 4, 4)
     await appendWebgpuTexture(s.rt, map, 'color')
-    s.rt.scale.set({ min: 0.5, max: 0.75 })
+    s.rt.views.main.scale.set({ min: 0.5, max: 0.75 })
     const followed: boolean[] = []
     const follows = () => followed.push(!!s.rt.gpu.feedbackTexture === s.rt.vis.writesFeedback)
     // Asked aside, and the variant asked; both answered before the next entry.

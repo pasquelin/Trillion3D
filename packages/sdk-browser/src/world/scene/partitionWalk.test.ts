@@ -1,5 +1,5 @@
-// A walk over a partitioned world, as a session runs it: the rows are sized at open for
-// the first camera's view, the pages on its way and the cells it reaches read, and the frames then
+// A walk over a partitioned world, as a session runs it: the rows are sized at open for the grids'
+// ranges, the pages on the first camera's way and the cells in range read, and the frames then
 // follow the camera through the index on an engine that grows no buffer.
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
@@ -10,7 +10,7 @@ import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartiti
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
 import { placedMesh } from '../../partition/rows.ts'
-import { paged } from '../../partition/paged.fixture.ts'
+import { paged, type CellRecord } from '../../partition/paged.fixture.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
 import { createPartitionFrame, primePartitions } from './partitionFrame.ts'
 
@@ -29,7 +29,7 @@ const ladder = {
 
 /** A grid of `side`² cells ten metres wide, each placing four nodes of one of two meshes. */
 function grid(side: number) {
-  const cells: TableCell[] = []
+  const cells: CellRecord[] = []
   const bodies = new Map<string, Uint8Array>()
   for (let x = 0; x < side; x++)
     for (let z = 0; z < side; z++) {
@@ -48,7 +48,7 @@ function grid(side: number) {
       const parents: TableCell['parents'] = [[null, bounds]]
       cells.push({ url, sha256: '', bytes: 1, parents, meshes: [[mesh, 4]], meshPages: [] })
     }
-  const { partition, files } = paged(cells, 8, undefined, ladder)
+  const { partition, files } = paged(cells, 8, undefined, ladder, [30, 30, 30])
   for (const [name, bytes] of files) bodies.set(`https://cache.test/key/${name}`, bytes)
   const meshes = new Map([0, 1].map((rank) => [rank, placedMesh([{ meshes: rank }])]))
   const port = {
@@ -73,8 +73,8 @@ function grid(side: number) {
 }
 
 test('on an engine that grows no buffer, a walk never leaves a cell waiting for rows', async () => {
-  // It cannot grow rows in place, and the reach stays the one the rows were sized for at open:
-  // rows for the view, a part of the world.
+  // It cannot grow rows in place, and the ranges stay the ones the rows were sized for at open:
+  // rows for the ranges, a part of the world.
   const { partitioned, port } = grid(48)
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 30)
   camera.position.set(5, 2, 5)
@@ -87,7 +87,7 @@ test('on an engine that grows no buffer, a walk never leaves a cell waiting for 
     camera,
     // Every engine is handed the rows; this one refuses to grow any in place.
     engine: {
-      worldCut: () => undefined,
+      worldCells: () => undefined,
       updatePlacements() {},
       composePlacements: () => false,
       growPlacements() {},

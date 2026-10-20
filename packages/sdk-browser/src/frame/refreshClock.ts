@@ -6,7 +6,7 @@ const REFRESH_WINDOW = 120
 /** An interval longer than this says nothing of the vsync grid (under 10 fps): any period divides
  *  it within the tolerance by chance, so the clock reads no period from it, and the GPU timeline
  *  publishes no idle across it (`../gpu/timing/timeline.ts`). Not the loop's pause
- *  (`loopPace.ts`): a slow frame of a running loop is still a miss the scale must answer. */
+ *  (`loopPace.ts`). */
 export const PAUSE_MS = 100
 /** Share of the period an interval may stray from a whole number of periods (timer jitter), and
  *  the shortest period sought: no display refreshes faster than 500 Hz. */
@@ -58,28 +58,35 @@ function fit(gaps: Float64Array, length: number, period: number, resolution: num
 
 /** Writes into `into.cadence` the period of the first `length` ascending `gaps`: from the shortest
  *  group of `SUPPORT` intervals within the tolerance of each other, its median over the smallest
- *  divisor whose grid holds the window; the next group where none does. False where no group
- *  gives one. A number written in a field, never returned: a call boxes the number it returns. */
+ *  divisor whose grid holds the window, a divisor no finer than `floor`; the next group where none
+ *  does. Returns that divisor, 0 where no group gives one. The period is written in a field, never
+ *  returned: a call boxes the number it returns.
+ *
+ *  A group's own value was seen; a divisor of it is only inferred, and a finer grid always holds
+ *  the window better — a variable-refresh display presenting a late frame between two refreshes
+ *  puts it on the half or quarter grid. Hence `floor`: the refresh once a group was seen at it. */
 function gridPeriod(
   gaps: Float64Array,
   length: number,
   resolution: number,
+  floor: number,
   into: { cadence: number },
 ) {
-  const shortest = Math.max(SHORTEST_PERIOD_MS, COARSE_PERIODS * resolution)
+  const shortest = Math.max(SHORTEST_PERIOD_MS, COARSE_PERIODS * resolution),
+    finest = Math.max(shortest, floor)
   for (let i = 0, j = 0; i < length; i = j) {
     while (j < length && gaps[j] <= gaps[i] + slack(gaps[i], resolution)) j++
     if (j - i < SUPPORT) continue
     const base = gaps[(i + j - 1) >> 1]
-    for (let k = 1; base / k >= shortest; k++) {
+    for (let k = 1; base / k >= (k === 1 ? shortest : finest); k++) {
       const period = fit(gaps, length, base / k, resolution)
       if (!Number.isNaN(period)) {
         into.cadence = period
-        return true
+        return k
       }
     }
   }
-  return false
+  return 0
 }
 
 /**
@@ -91,13 +98,14 @@ function gridPeriod(
  * display. A lone late frame sets nothing. The whole window is searched again at every frame: that
  * period is the cadence, which rises once the shorter intervals are a second old.
  *
- * The refresh is not the cadence: every interval is a whole number of refreshes, so the
- * refresh is at most the shortest period the display was seen to hold, and a cadence of two
- * refreshes — a page whose frames the GPU holds that long — says nothing of a slower display. The
- * refresh falls at once to a shorter cadence, follows one within the tolerance, and holds above a
- * longer one. A steady cadence of two refreshes from the first frame is read as the display's,
- * there being no shorter period yet: the frames held to measure it draw nothing (`scaleControl.ts`).
- * `fallback` until a period is found.
+ * The refresh is not the cadence: every interval is a whole number of refreshes, so the refresh is
+ * at most the shortest period the display was seen to hold, and a cadence of two refreshes — a page
+ * whose frames the GPU holds that long — says nothing of a slower display. The refresh falls at
+ * once to a shorter cadence, follows one within the tolerance, and holds above a longer one. Once
+ * intervals of one refresh were seen, no grid finer than it is sought: a variable-refresh display's
+ * late frames would hold one (`gridPeriod`). A steady cadence of two refreshes from the first frame
+ * is read as the display's, there being no shorter period yet: the frames held to measure it draw
+ * nothing (`scaleControl.ts`). `fallback` until a period is found.
  *
  * The window is kept sorted as it moves — the intervals past a second or past `REFRESH_WINDOW`
  * taken out, the new one put in its place —, so a frame sorts nothing and allocates nothing. The
@@ -109,8 +117,8 @@ export function createRefreshClock(fallback: number) {
   const gaps = new Float64Array(REFRESH_WINDOW),
     ends = new Float64Array(REFRESH_WINDOW),
     /** The last frame's timestamp and the timer's rounding — whole milliseconds until a
-     *  timestamp shows a fraction —, ms. */
-    at = { last: Number.NaN, resolution: COARSE_MS }
+     *  timestamp shows a fraction —, ms; whether the refresh was seen, intervals of one period. */
+    at = { last: Number.NaN, resolution: COARSE_MS, seen: false }
   let count = 0
   /** What the clock reads, as fields its readers load in place: a number read through a getter
    *  or a return is boxed anew at each read. */
@@ -127,6 +135,7 @@ export function createRefreshClock(fallback: number) {
     /** Another display: the window restarts, the refresh held until a new one is found. */
     reset() {
       at.last = Number.NaN
+      at.seen = false
       count = 0
       clock.cadence = Number.NaN
       clock.settled = false
@@ -161,9 +170,13 @@ export function createRefreshClock(fallback: number) {
       gaps[i] = gap
       ends[i] = now
       count = n + 1
-      if (!gridPeriod(gaps, count, at.resolution, clock)) return
-      if (!clock.settled || clock.cadence <= (1 + GRID_TOLERANCE) * clock.display)
+      const floor = at.seen ? (1 - GRID_TOLERANCE) * clock.display : 0,
+        divisor = gridPeriod(gaps, count, at.resolution, floor, clock)
+      if (divisor === 0) return
+      if (!clock.settled || clock.cadence <= (1 + GRID_TOLERANCE) * clock.display) {
         clock.display = clock.cadence
+        at.seen ||= divisor === 1
+      }
       clock.settled = true
     },
   }

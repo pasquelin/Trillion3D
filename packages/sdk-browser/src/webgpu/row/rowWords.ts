@@ -19,10 +19,10 @@ export const ROW_USE = 0,
  *
  * The host writes a row's words only when its occupant changes or a request takes it, never reads
  * them back, and sends them before the frame's commands: a new occupant is used now when a request
- * took it, at 0 — the first to go — when no cut asked for it; a
- * row moved into a hole (`writers.ts`, `closeHoles`) counts as used now, so a move never shortens
- * its protection. Only the rows written are sent, each run of neighbours once and no row between:
- * the GPU's stamps on the others stand.
+ * took it, at 0 — the first to go — when no cut asked for it; a row moved into a hole
+ * (`writers.ts`, `closeHoles`) counts as used now, so a move never shortens its protection. Only
+ * the rows written
+ * are sent, each run of neighbours once and no row between: the GPU's stamps on the others stand.
  *
  * Each row keeps on the host the pool's arrival count when its occupant came (`generation`), moved
  * with it: a page that took its row after a queue's cut is never that queue's victim

@@ -4,6 +4,7 @@ import type { PageRec } from '../../page/selection/types.ts'
 import type { CutDelta } from './delta.ts'
 import { createHeadUnion } from './headUnion.ts'
 import { copyRanks } from './copyRanks.ts'
+import { copyDrawnFromShown } from '../pages/helpers.ts'
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
@@ -50,8 +51,6 @@ export function createWebgpuCutAdopter(options: {
     ready: false,
     visible: 0,
     selectedTriangles: 0,
-    /** Share of the cut that goes to draw: all of it, since the rule draws what it selects. */
-    drawnTriangles: 0,
     transparentTriangles: 0,
     frustumRejected: 0,
     lodLevel: 0,
@@ -83,7 +82,7 @@ export function createWebgpuCutAdopter(options: {
     // drawn pages it compacted first, plus what the lists held past it (`./headUnion.ts`): the
     // frame's mask draws the whole cut, so nothing exits.
     if (!cut?.result.drawablePageIds) return false
-    const { desired, shown, drawn, delta, drawnDelta } = options
+    const { desired, shown, delta, drawnDelta } = options
     // A new readback offers its requests ahead; a held one only empties them once the camera stops.
     const offer = cut !== lastCut || (!options.uniforms.ahead && !offeredStill)
     if (cut === lastCut) {
@@ -102,15 +101,16 @@ export function createWebgpuCutAdopter(options: {
       drawnDelta.apply(drawnIds, drawnIds.length, claims?.drawn)
       lastCut = cut
     }
-    // The packed ranks of the desired cut, rank by rank beside its records: held or applied,
-    // the difference names the instances it keeps.
-    copyRanks(options.desiredPacked, delta.ids, delta.count)
+    // The packed ranks of the desired cut, rank by rank beside its records, remade only when the
+    // difference moved: a held or unchanged one leaves them as they stand.
+    if (delta.changed) copyRanks(options.desiredPacked, delta.ids, delta.count)
     if (offer) offerAhead(cut)
     if (drawnDelta.changed) drawnSeq++
-    // A difference is applied where it is computed. An image that adopts nothing — no readback has
-    // landed — must not replay the previous one, which would count every page twice.
+    // A difference is applied where it is computed, and only when it moved. An image that adopts
+    // nothing — no readback has landed — must not replay the previous one, which would count every
+    // page twice.
     options.onCutDelta()
-    options.onDrawnDelta()
+    if (drawnDelta.changed) options.onDrawnDelta()
     metrics.listsRewritten = delta.changed || drawnDelta.changed
     // A cut from poses a placement has left since draws and counts as a camera's late cut does —
     // the frame's own mask decides the draw —, but no image is held on it: the next readback,
@@ -128,9 +128,8 @@ export function createWebgpuCutAdopter(options: {
       // The difference has just written these records by reading the sequence once; rereading them a
       // second time in the catalogue, at sparse ranks, would yield exactly the same array.
       copyRanks(shown, options.drawnPages)
-      copyRanks(drawn, shown)
       copyRanks(options.shownPacked, drawnDelta.ids, drawnDelta.count)
-      copyRanks(options.drawnPacked, drawnDelta.ids, drawnDelta.count)
+      copyDrawnFromShown(options)
       options.onDrawnMirrored()
       shownCut = cut
       shownSeq = drawnSeq
@@ -140,7 +139,6 @@ export function createWebgpuCutAdopter(options: {
     // list that reports it, and the CPU sums nothing.
     metrics.ready = true
     metrics.selectedTriangles = cut.result.selectedTriangles
-    metrics.drawnTriangles = cut.result.drawnTriangles
     metrics.transparentTriangles = cut.result.transparentTriangles
     metrics.frustumRejected = cut.result.frustumRejected
     metrics.lodLevel = cut.result.lodLevel

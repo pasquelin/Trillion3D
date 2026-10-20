@@ -54,65 +54,53 @@ export function stubPage(visibility: DocumentVisibilityState) {
 export const decided = () => new Promise(setImmediate)
 
 /** What a fake display runs (`fakeDisplay`): feedbacks settling `late` ticks after they are asked,
- *  a page landing every `every` ticks while `pages` remain, `ticks` refreshes, and the ticks the
- *  engine leaves out of its cadence (`skip`). */
+ *  `ticks` refreshes, and the ticks the engine leaves out (`skip`). */
 export type DisplayRun = {
   late: number
   ticks: number
-  every?: number
-  pages?: number
   skip?: (tick: number) => boolean
 }
 
 /**
  * A display of `ticks` refreshes the test runs: each runs the frame the loop asked, then settles
  * the feedbacks whose lateness is up. It never asks more feedbacks than slots, never draws twice in
- * a tick, and returns what each tick drew, the ticks with no frame asked, the ticks drawn on, the
- * feedbacks each tick asked, the feedbacks and limits counted, the queue and the pages landed.
+ * a tick, and returns what each tick drew, the ticks drawn on, the feedbacks each tick asked, the
+ * feedbacks counted and the queue.
  */
-export async function fakeDisplay({ late, ticks, every = 1, pages = 0, skip }: DisplayRun) {
+export async function fakeDisplay({ late, ticks, skip }: DisplayRun) {
   const frames = frameQueue()
   const open: { due: number; done: () => void }[] = []
   let tick = 0,
-    landed = 0,
     drawnThisTick = 0,
-    asked = 0,
-    limited = 0
+    asked = 0
   const drawn: number[] = [],
     drawnAt: number[] = [],
-    askedAt: number[] = [],
-    idleTicks: number[] = []
+    askedAt: number[] = []
   const run = createExplorerFrameScheduler({
     request: frames.request,
     cancel: frames.cancel,
     render: () => {
       drawnThisTick++
       drawnAt.push(tick)
-      if (landed < pages && tick % every === 0) landed++
     },
     pending: () => {
       assert.ok(open.length < DAG_READBACK_SLOTS, 'a feedback asked with every slot taken')
       asked++
       return new Promise<boolean>((done) => open.push({ due: tick + late, done: () => done(true) }))
     },
-    progress: () => landed,
-    arriving: () => false,
     error: (error) => assert.fail(String(error)),
-    limited: () => void limited++,
     ...(skip && { skip: () => skip(tick) }),
   })
   run.invalidate()
   for (tick = 1; tick <= ticks; tick++) {
     drawnThisTick = 0
-    const had = frames.size > 0,
-      before = asked
+    const before = asked
     frames.run()
     assert.ok(drawnThisTick <= 1, 'drawn twice in one tick')
     drawn.push(drawnThisTick)
     askedAt.push(asked - before)
-    if (!had) idleTicks.push(tick)
     while (open.length && open[0].due <= tick) open.shift()!.done()
     await decided()
   }
-  return { drawn, drawnAt, askedAt, idleTicks, asked, limited, frames, landed }
+  return { drawn, drawnAt, askedAt, asked, frames }
 }

@@ -5,14 +5,16 @@ import { shadowHeldBytes } from '../render/vsm/vsmStats.ts'
 import { setWebgpuMemoryBudgets } from '../io/memory.ts'
 import { textureBytesBeside } from '../io/besidePools.ts'
 import { vertexBytesOf } from '../io/metrics.ts'
-import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/historyTargets.ts'
+import { taaTargetBytes } from '../../../taa/historyTargets.ts'
 import { FILTER_HISTORY_BYTES_PER_PIXEL } from '../../../taa/layers.ts'
 import { DISPLAY_LAYER_BYTES_PER_PIXEL } from '../../blend/displayFilter.ts'
 import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { frameSizeOf, type FrameSize } from '../state/renderScale.ts'
 import { viewGpu, type WebgpuView } from '../state/view.ts'
+import { viewTargetBytes } from '../state/gpu.ts'
 import { cutLedgerBytes } from '../../../gpu/dag/cutBuffers.ts'
+import { keepsBeautyChain } from '../../../visibility/shader/shadeMode.ts'
 
 /** Admit proposed targets before makeTargets creates any resource. Pool floors use
  * the same constructors as normal residency, so root coverage and texture tails
@@ -32,7 +34,8 @@ function refreshTargetFunding(rt: WebgpuPagesRuntime, size: FrameSize) {
 
 /**
  * Bytes a frame of `size` makes once its targets are (`makeTargets`), counted in them after: the
- * temporal history at the display's size, made only while the pass is on (`ensureTaaTargets`), and,
+ * temporal history at the display's size and its render-resolution targets, made only while the
+ * pass is on (`ensureTaaTargets`), and,
  * while a blend filters a beauty image, its layers at the render size (`beginDisplayFilter`) and
  * their history beside the colour's.
  */
@@ -41,12 +44,12 @@ function frameMadeBytes(rt: WebgpuPagesRuntime, size: FrameSize) {
     display = size.width * size.height,
     filters =
       rt.blendState.filtersDisplay &&
-      rt.run.diagnostic === 'beauty' &&
+      keepsBeautyChain(rt.run.diagnostic) &&
       !rt.context.diagnosticGpuVariant
   const history = !!gpu.temporal && gpu.temporalWanted && !rt.capture.capturing
   return (
     (history
-      ? display * (TAA_HISTORY_BYTES_PER_PIXEL + (filters ? FILTER_HISTORY_BYTES_PER_PIXEL : 0))
+      ? taaTargetBytes(size) + (filters ? display * FILTER_HISTORY_BYTES_PER_PIXEL : 0)
       : 0) + (filters ? size.renderWidth * size.renderHeight * DISPLAY_LAYER_BYTES_PER_PIXEL : 0)
   )
 }
@@ -70,8 +73,7 @@ function frameShareBytes(rt: WebgpuPagesRuntime) {
   let bytes = frameTargetAllocation(rt, size, frameExtraBytes(rt, size)) + frameMadeBytes(rt, size)
   const held = (view: WebgpuView) => {
     if (view === views.active) return 0
-    const gpu = viewGpu(rt, view)
-    return gpu.targetBytes + (gpu.effects?.bytes ?? 0)
+    return viewTargetBytes(viewGpu(rt, view))
   }
   bytes += held(views.main)
   for (const view of views.persistent) bytes += held(view)
@@ -87,7 +89,7 @@ export function fundFrameTargets(
   const admit = rt.context.admitGpuMemory
   if (!admit) return
   const { setup, gpu, vis, bounce } = rt
-  const vertexBytes = vertexBytesOf(gpu, vis)
+  const vertexBytes = vertexBytesOf(vis)
   const sourceBytes = textureBytesBeside(rt)
   const geometryMinimum = setup.geometryPoolFor(1).allocatedBytes + vertexBytes
   const textureMinimum = (setup.texturePools?.poolFor(1).allocatedBytes ?? 0) + sourceBytes

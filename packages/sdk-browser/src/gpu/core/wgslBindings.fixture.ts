@@ -68,7 +68,8 @@ export function wgslComputeLayout(shader: string): GPUPipelineLayoutDescriptor {
     else if (type.startsWith('texture_storage')) entry.storageTexture = { format: 'r32uint' }
     else if (type.startsWith('texture_')) entry.texture = {}
     else entry.sampler = {}
-    ;(groups[Number(group)] ??= []).push(entry)
+    const list = (groups[Number(group)] ??= [])
+    list.push(entry)
   }
   return {
     bindGroupLayouts: Array.from(groups, (entries) => ({ entries: entries ?? [] })) as never,

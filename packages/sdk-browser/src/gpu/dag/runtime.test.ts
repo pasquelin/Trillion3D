@@ -96,9 +96,10 @@ test('maxStretch on a subarray view gives the same value as on the equivalent fr
   assert.ok(Object.is(maxStretch(view), maxStretch(copy)))
 })
 
-test('maxStretch rejects a non-finite world matrix the same way whatever the input type', () => {
+test('maxStretch refuses a non-finite world matrix the same way whatever the input type', () => {
   const bad = new Float32Array(16).fill(1)
   bad[0] = Infinity
-  assert.throws(() => maxStretch(bad))
-  assert.throws(() => maxStretch(Array.from(bad)))
+  // NaN, which each caller refuses: never a throw on a frame path.
+  assert.ok(Number.isNaN(maxStretch(bad)))
+  assert.ok(Number.isNaN(maxStretch(Array.from(bad))))
 })

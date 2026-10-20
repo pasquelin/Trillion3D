@@ -24,3 +24,18 @@ export const blendTargets = (
   share ? SHARE_TARGET : null, // every mode covers it at its alpha, green included
   ...(filtered ? displayTargets(mode) : [null, null]),
 ]
+
+/** The companion pass's targets (`drawCompanion`): what its first attachment takes — none, or the
+ *  distortion's offsets —, the request where the pipeline writes feedback, and `shareTarget` — the
+ *  as-is share, or its reactive green alone — where the frame has a share; an empty slot for each
+ *  it leaves out. */
+export const companionTargets = (
+  first: GPUColorTargetState | null,
+  feedback: boolean,
+  share: boolean,
+  shareTarget: GPUColorTargetState = SHARE_TARGET,
+): (GPUColorTargetState | null)[] => [
+  first,
+  feedback ? { format: FEEDBACK_FORMAT } : null,
+  share ? shareTarget : null,
+]

@@ -43,15 +43,13 @@ export function encodeVsmCandidates(
   pass.dispatchWorkgroups(1)
 }
 
-/** The bind groups of one chunk's cull and expand: `cull0` / `expand0` the VSM tables', the
- *  others at the chunk's dynamic offset. */
+/** The bind groups of one chunk's views and cull: `views0` / `cull0` the VSM tables', the others
+ *  at the chunk's dynamic offset. */
 export interface VsmChunkGroups {
   views0: GPUBindGroup
   views1: GPUBindGroup
   cull0: GPUBindGroup
   cull1: GPUBindGroup
-  expand0: GPUBindGroup
-  expand1: GPUBindGroup
   args: GPUBindGroup
 }
 
@@ -103,14 +101,15 @@ export function vsmSceneRowsMoved(
   next[8] = b.cmds
   next[9] = b.pairs
   next[10] = b.args
-  next[11] = own
-  next.length = own ? 12 : 11
+  next[11] = b.order
+  next[12] = own
+  next.length = own ? 13 : 12
   return identity.moved()
 }
 
 /** The groups of a chunk pass over the scene's rows and the lists `b`: the candidates' — `extra`
- *  after its counts —, the cull's, the expand's and the arguments'; with the parameters' window
- *  and the lists the pass's own groups bind. */
+ *  after its counts —, the views', the cull's and the arguments'; with the parameters' window and
+ *  the lists the pass's own groups bind. */
 export function vsmChunkListGroups(
   device: GPUDevice,
   kernels: VsmChunkKernels,
@@ -140,7 +139,6 @@ export function vsmChunkListGroups(
     ]),
     views1: group(kernels.views.groups[1], [params, views, counts]),
     cull1: group(kernels.cull.groups[1], [params, views, candidates, counts, cmds]),
-    expand1: group(kernels.expand.groups[1], [params, cmds, counts, pairs]),
     args: group(kernels.args.cull.groups[0], [params, counts, args]),
   }
 }

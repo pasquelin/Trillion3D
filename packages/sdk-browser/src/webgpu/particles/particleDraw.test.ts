@@ -105,8 +105,9 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
     const { color, alpha } = (fragment!.targets as GPUColorTargetState[])[0].blend!
     return [color.dstFactor, alpha.srcFactor, alpha.dstFactor].join(' ')
   })
-  const over = 'one-minus-src-alpha' // fire keeps the coverage, smoke covers
-  assert.deepEqual(blends, ['one zero one', `${over} one ${over}`])
+  // Fire adds its light, smoke covers it; both lay their coverage over the target's.
+  const over = 'one-minus-src-alpha'
+  assert.deepEqual(blends, [`one one ${over}`, `${over} one ${over}`])
 })
 
 test('WebGPU: the routed draw is asked off the frame, and the image that routes finds it compiled', async () => {

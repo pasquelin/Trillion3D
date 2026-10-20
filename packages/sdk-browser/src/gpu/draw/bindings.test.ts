@@ -3,10 +3,14 @@ import assert from 'node:assert/strict'
 import { drawBindEntries, drawShader } from './shader.ts'
 import { entryBufferBindings, wgslBufferBindings } from '../core/wgslBindings.fixture.ts'
 
-test('the draw compaction layout entries are the bindings its shader declares', () => {
-  for (const layers of [1, 4]) {
-    const declared = wgslBufferBindings(drawShader(layers))
-    assert.equal(declared.length, 9)
-    assert.deepEqual(entryBufferBindings(drawBindEntries()), declared, `${layers} layers`)
-  }
+test('the draw compaction layout entries are the bindings its shader declares, each half', () => {
+  for (const layers of [1, 4])
+    for (const [tested, count] of [
+      [false, 7],
+      [true, 9],
+    ] as const) {
+      const declared = wgslBufferBindings(drawShader(layers, tested))
+      assert.equal(declared.length, count)
+      assert.deepEqual(entryBufferBindings(drawBindEntries(tested)), declared, `${layers} layers`)
+    }
 })

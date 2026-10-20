@@ -12,7 +12,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 /** The curve the routes are run with, the reference display's. */
 export const ACES = TONE_MAPPING_RANK.aces
 
-export type Route = { keep: number; tint: Rgba; add: Rgba }
+type Route = { keep: number; tint: Rgba; add: Rgba }
 type Texel = (at: number[]) => unknown
 
 /** The functions a shader that routes its layers adds to its own. */

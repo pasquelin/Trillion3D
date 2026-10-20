@@ -12,6 +12,8 @@ import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/gpu/globals.ts'
 import { quadScene, camera } from '../pages/testScenes.fixture.ts'
 import { graphDraws } from '../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 test('paged transparent commands disappear outside the view and return with both faces on CPU and GPU cuts', async () => {
   installGpuGlobals()
@@ -31,6 +33,7 @@ test('paged transparent commands disappear outside the view and return with both
     ).roots
     const mock = fakeDevice({ ...BACKEND, packed: gpuCut ? packDagSelection(roots) : undefined })
     const backend = webgpuPagesEngine({
+      textureCaches: createTextureCaches(createPageCache()),
       ...fixture,
       draws: graphDraws(fixture.source, fixture.associations),
       gpuDevice: mock.device,
@@ -79,6 +82,7 @@ test('queued page arrivals are integrated by the next render without a second GP
   const fixture = quadScene(),
     mock = fakeDevice(BACKEND)
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: mock.device,
     maxResidentPages: 4,

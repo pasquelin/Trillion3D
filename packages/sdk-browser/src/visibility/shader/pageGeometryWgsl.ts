@@ -2,14 +2,14 @@ import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import {
   DEFORM_ADDRESS,
-  DEFORM_SOURCE_IN_POOL,
-  DEFORM_NO_HEADER,
   FLAG_CLUSTER_PAGE,
   FLAG_HAS_COLOR,
   FLAG_HAS_UV,
   FLAG_LINE,
   FLAG_MASK,
+  FLAG_VOXEL,
 } from '../types.ts'
+import { VOXEL_WGSL } from './voxelWgsl.ts'
 import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
 import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts'
 import { SPRITE_WGSL } from './spriteWgsl.ts'
@@ -20,6 +20,9 @@ export const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`
 /** The flags under which a vertex hands its UV on: a row that has one AND is masked, the only one
  *  whose `maskKeep` reads it (an unmasked row keeps every fragment before its first read). */
 export const UV_READ = FLAG_HAS_UV | FLAG_MASK
+/** Whether a row reads a voxel brick (\`FLAG_VOXEL\`, \`voxelWgsl.ts\`): its corners are its voxels'
+ *  contours, its triangles three corners each in turn. */
+const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
 
 /**
  * The geometry of a cluster as every page-geometry pass reads it — visibility raster, compute
@@ -37,6 +40,10 @@ export const UV_READ = FLAG_HAS_UV | FLAG_MASK
  * for the nine words and five streams of corners and positions alone when its row draws no surface
  * attribute. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
  *
+ * A row of a voxel brick (\`FLAG_VOXEL\`) builds each corner from its voxel's record in place
+ * (\`voxelWgsl.ts\`): one more branch of the same reads, so every pass draws a voxel as it draws a
+ * triangle, with no pass of its own.
+ *
  * Vertex colours: quantized on the page, at the tail of the source UV buffer otherwise
  * (`../../webgpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
  * rasters cut a masked row at its base map alpha times the vertex alpha (`pageMaskAlpha`), as the
@@ -50,12 +57,8 @@ export const UV_READ = FLAG_HAS_UV | FLAG_MASK
 /** The corners, positions and deformed tail of a page, read from \`indices\` and \`positions\`. */
 const PAGE_POINT_WGSL = wgslBlock(
   'PAGE_POINT_WGSL',
-  [],
-  `/** Whether the row's source is a whole copy's: in the float pool, after a source header. */
-fn deformWholeCopy(page:PageInfo)->bool{
- return (page.deformOutput&${(DEFORM_SOURCE_IN_POOL | DEFORM_NO_HEADER) >>> 0}u)==${DEFORM_SOURCE_IN_POOL}u;
-}
-fn pageHeader(page:PageInfo)->ClusterHeader{return pageHeaderFor(page,true);}
+  [VOXEL_WGSL],
+  `fn pageHeader(page:PageInfo)->ClusterHeader{return pageHeaderFor(page,true);}
 /** Whether a raster's corner reads a surface attribute of its page: a line's direction
  *  (\`pageLine\`), a masked row's UV and vertex alpha (\`pageUv\`, \`pageMaskAlpha\`). */
 fn pageSurfaceRead(page:PageInfo)->bool{return (page.flags&${FLAG_LINE | FLAG_MASK}u)!=0u;}
@@ -68,22 +71,24 @@ fn pageHeaderFor(page:PageInfo,withSurface:bool)->ClusterHeader{
   h=clusterPointHeader(page.pageOffset);
   if(withSurface){h=clusterSurfaceHeader(h,page.pageOffset);}
  }
- else if(deformWholeCopy(page)){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);h.influences=(u32(positions[at+3u])-h.morphCount*6u)/2u;}
  return h;
 }
 /** Local vertex index of a corner of the page, three per triangle. */
 fn pageCorner(page:PageInfo,h:ClusterHeader,corner:u32)->u32{
+ if(${VOXEL}){return corner;}
  if(${QUANTIZED}){return clusterIndex(h,page.pageOffset,corner);}
  return indices[page.pageOffset+corner];
 }
 /** Local vertex indices of triangle \`tri\` of the page: a quantized page reads its block record once. */
 fn pageTriangle(page:PageInfo,h:ClusterHeader,tri:u32)->vec3u{
+ if(${VOXEL}){return tri*3u+vec3u(0u,1u,2u);}
  if(${QUANTIZED}){return clusterTriangle(h,page.pageOffset,tri);}
  let at=page.pageOffset+tri*3u;
  return vec3u(indices[at],indices[at+1u],indices[at+2u]);
 }
 /** Position of a page vertex in the primitive's local space, as the page stores it. */
 fn pageRestPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
+ if(${VOXEL}){return voxelPosition(page.pageOffset,vertex);}
  if(${QUANTIZED}){return clusterPosition(h,page.pageOffset,vertex);}
  return vertPos(page.vertexBase,vertex);
 }
@@ -93,13 +98,18 @@ fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(page.deformOutput!=0u){return pageDeformed(page,vertex,0u);}
  return pageRestPosition(page,h,vertex);
 }
+/** Positions of the page vertices \`corners\` of one triangle, as \`pagePosition\` reads each: a
+ *  voxel's polygon built once for the three (\`voxelTriangle\`). */
+fn pageTrianglePositions(page:PageInfo,h:ClusterHeader,corners:vec3u)->mat3x3f{
+ if(page.deformOutput==0u&&${VOXEL}){return voxelTriangle(page.pageOffset,corners);}
+ return mat3x3f(pagePosition(page,h,corners.x),pagePosition(page,h,corners.y),pagePosition(page,h,corners.z));
+}
 /** Where the last frame drew that vertex: what the temporal pass reprojects a pixel by. */
 fn pagePreviousPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(page.deformOutput!=0u){return pageDeformed(page,vertex,3u);}
  return pageRestPosition(page,h,vertex);
 }
-/** A computed result, stored in the float pool: a page's own, a whole copy's, read after its source
- *  header, or a float page's block, which has none (next bit). */
+/** A computed result, stored in the float pool: a page's own, or a float page's block. */
 fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+vertex*11u+field;
  return vec3f(positions[at],positions[at+1u],positions[at+2u]);
@@ -112,8 +122,13 @@ const PAGE_SURFACE_WGSL = wgslBlock(
   [VERTEX_COLOR_WGSL],
   `/** First texture coordinate of a page vertex. */
 fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
+ if(${VOXEL}){return vec2f(0.0);}
  if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex);}
  return vertUv(page.vertexBase,vertex);
+}
+/** Second texture coordinate of a quantized page vertex, where its header says it has one. */
+fn clusterUv1(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
+ return vec2f(clusterGrid(base,h.uv1.x,vertex,h.uv1Bits.x,h.uv1Min.x,h.uv1Step),clusterGrid(base,h.uv1.y,vertex,h.uv1Bits.y,h.uv1Min.y,h.uv1Step));
 }
 /** Vertex colour of a page vertex. */
 fn pageColor(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
@@ -152,6 +167,7 @@ export const PAGE_NORMAL_WGSL = wgslBlock(
   [],
   `fn pageNormal(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(page.deformOutput!=0u){return pageDeformed(page,vertex,6u);}
+ if(${VOXEL}){return voxelVertexNormal(page.pageOffset,vertex);}
  if(${QUANTIZED}){return clusterNormal(h,page.pageOffset,vertex);}
  return vertN(page.vertexBase,vertex);
 }`,
@@ -169,11 +185,14 @@ export const PAGE_SCREEN_WGSL = wgslBlock(
   `/** A row's sprite rule and line width, its surface's (\`pageShape\`): zeros on a row of neither. */
 struct PageShape{sprite:vec2f,lineWidth:f32,}
 /** Clip position \`clip\` of a corner of a line page (\`width\` above zero), widened on screen
- *  (\`lineClip\`); \`vp\` takes the page's local space to clip space. A line page is a quantized
- *  page the world cut at run time: a row without one keeps no direction, and no width. */
+ *  (\`lineClip\`); \`vp\` takes the page's local space to clip space. A line page is one the world
+ *  cut at run time, its direction its normal: this frame's result where the row deforms — a line
+ *  the host rewrites, a rope its simulation moves, read from the float pool as its position is —,
+ *  else its quantized page's. A row with neither keeps no direction, and no width. */
 fn pageLine(page:PageInfo,h:ClusterHeader,vertex:u32,vp:mat4x4f,clip:vec4f,width:f32)->vec4f{
  var along=vec3f(0.0);
- if(${QUANTIZED}){along=clusterNormal(h,page.pageOffset,vertex);}
+ if(page.deformOutput!=0u){along=pageDeformed(page,vertex,6u);}
+ else if(${QUANTIZED}){along=clusterNormal(h,page.pageOffset,vertex);}
  return lineClip(clip,vp*vec4f(along,0.0),width,uni.viewport.xy,uni.pixelRatio);
 }
 /** World position of a corner \`p\` of a sprite page (\`sprite.y\` not zero): its quad turned to

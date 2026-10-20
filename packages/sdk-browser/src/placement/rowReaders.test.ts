@@ -2,8 +2,9 @@
 // item's `matrix`), never the rows' buffer itself: the composition writes a row a parent composes
 // for its readers only when one of its views is read (`composeReaders.ts`), so a reader of the raw
 // buffer would read the world of the last read. The engine's source touches `matrices` in the
-// writers of the rows alone — the owner's pose, a model's meshes, the bodies, the partition's cells
-// — and where the rows are made, grown and viewed; a new module that does must be one of them.
+// writers of the rows alone — a model's meshes, the bodies — and where the rows are made, grown,
+// viewed and written one at a time (`writePlacementRow`, the owner's pose and the partition's
+// cells); a new module that does must be one of them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -13,13 +14,7 @@ import { join, relative } from 'node:path'
 const SOURCE = fileURLToPath(new URL('..', import.meta.url))
 
 /** The modules that write rows, and the one that makes, grows and views them. */
-const TOUCHING = [
-  'partition/follow.ts',
-  'physics/placer.ts',
-  'placement/rows.ts',
-  'world/core/worldModels.ts',
-  'world/core/worldPoseSeat.ts',
-]
+const TOUCHING = ['physics/placer.ts', 'placement/rows.ts', 'world/core/worldModels.ts']
 
 /** Each engine module, tests and fixtures left out, with its text. */
 function* engineModules(dir: string): Generator<[string, string]> {

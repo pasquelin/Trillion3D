@@ -8,7 +8,7 @@ import { createPageCache } from '../streaming/pageCache.ts'
 import { createTextureLevelReader } from '../texture/levelReader.ts'
 import { heldLevelsOf } from '../texture/heldLevels.ts'
 import { tileRecord } from '../texture/tileRecords.ts'
-import { tiledLevelBytes } from '../texture/tileRecords.fixture.ts'
+import { tiledLevelFile } from '../texture/tileRecords.fixture.ts'
 
 const URL = 'http://cache/world.bin'
 
@@ -152,13 +152,12 @@ test('a whole file past the room serves every range waiting on it and is let go:
 })
 
 test('a texture level a server sends whole is sent once, every tile record cut from it, its bytes counted once', async (t) => {
-  const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255)
+  const { file, records } = tiledLevelFile(256, 256)
   const sent: (string | null)[] = []
   t.mock.method(globalThis, 'fetch', async (_url: string, init: RequestInit) => {
     sent.push(new Headers(init.headers).get('range'))
     return new Response(file.slice(), { status: 200 })
   })
-  globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never
   const cache = createPageCache()
   const textures = { url: '{sha}/{kind}-{level}.{format}', version: 6 }
   const read = createTextureLevelReader({ textures, key: 'k' }, 'https://host/', cache)!
@@ -169,10 +168,9 @@ test('a texture level a server sends whole is sent once, every tile record cut f
   for (const [tx, ty] of tiles) ask(tx, ty)
   await levels.settled()
   assert.equal(sent.length, 1, 'one request: the others waited for its answer')
-  for (const [tx, ty] of tiles) {
-    const { offset, bytes } = tileRecord(256, 256, tx, ty)
-    assert.deepEqual(ask(tx, ty), file.subarray(offset, offset + bytes))
-  }
-  // The file and the records are entries of the one cache: each counted once.
-  assert.deepEqual([cache.bytes, cache.levelBytes], [2 * file.byteLength, file.byteLength])
+  for (const [tx, ty] of tiles)
+    assert.deepEqual(ask(tx, ty), records[tileRecord(256, 256, tx, ty).index])
+  // The file and the inflated records are entries of the one cache: each counted once.
+  const inflated = records.reduce((sum, record) => sum + record.byteLength, 0)
+  assert.deepEqual([cache.bytes, cache.levelBytes], [file.byteLength + inflated, inflated])
 })

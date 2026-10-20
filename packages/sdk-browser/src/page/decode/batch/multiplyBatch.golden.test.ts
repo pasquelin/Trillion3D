@@ -1,20 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { assertGolden } from '../../../../../math/src/golden.fixture.ts'
-import { prepareSdkWasm } from '../../../wasm/sdkWasm.ts'
+import { sdkWasm as wasm } from '../../../wasm/sdkWasm.fixture.ts'
 import { createMultiplyLot } from './batchRuntime.ts'
 
 // The shipped module's 4×4 product (`math_multiply_matrix4_batch`, `multiply_matrix4_one` of
 // `packages/math/rust/src/matrix.rs`), whose `simd128` branch only WebAssembly runs: the crate's
-// golden test runs the scalar one. Node cannot fetch the module by its URL; the test hands it the bytes.
-const wasm = await prepareSdkWasm(
-  readFileSync(join(import.meta.dirname, '../../../wasm/kernels.wasm')),
-)
+// golden test runs the scalar one.
 
 test('the multiply lot in WebAssembly returns the bits of its Rust twin on every case', async () => {
-  assert.equal(wasm?.math_simd(), 1, 'the shipped module carries the simd128 product')
+  assert.equal(wasm.math_simd(), 1, 'the shipped module carries the simd128 product')
   const lot = await createMultiplyLot(1)
   assert.ok(lot)
   try {

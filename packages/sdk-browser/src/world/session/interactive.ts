@@ -11,7 +11,7 @@ type Explorer = ReturnType<typeof createExplorerApi>
 type LoopWiring = Omit<ResizeWiring, 'scheduler'>
 
 /** Captures in flight: an image drawn meanwhile is refused (`SURFACE_CAPTURE_BUSY`), so the loop
- *  draws nothing and goes idle until the last one asks the view back. */
+ *  draws nothing until the last one asks the view back. */
 type Captures = { count: number }
 
 /** The loop stops for good: said on the console too, or the canvas would freeze without a word,
@@ -41,7 +41,7 @@ function drawFrame({ explorer, original }: LoopWiring) {
   original.onFrame?.(metrics)
 }
 
-function loopScheduler(loop: LoopWiring, captures: Captures, events: ExplorerEmitters) {
+function loopScheduler(loop: LoopWiring, captures: Captures) {
   const { view, runtime, fail } = loop
   return createExplorerFrameScheduler({
     request: view.requestAnimationFrame.bind(view),
@@ -51,26 +51,16 @@ function loopScheduler(loop: LoopWiring, captures: Captures, events: ExplorerEmi
       // Before its first image, a frame the engine holds to measure the display draws nothing.
       if (!runtime.engine.measureFrame()) drawFrame(loop)
     },
-    // A page landing, or a still image an unfinished average takes, is the image still arriving:
-    // those frames spend none of the settle limit: the engine's own count.
-    progress: () => runtime.engine.landings(),
-    arriving: () => runtime.engine.arriving(),
-    // A display frame out of the engine's steady cadence draws and counts nothing. A frame that
+    // A display frame the engine's frame cap leaves out draws and counts nothing. A frame that
     // would not draw anyway — a capture, a family on its way — is not the engine's to leave out.
     skip: () => !held(runtime, captures) && runtime.engine.skipsFrame(),
     pending: () => (captures.count ? Promise.resolve(false) : runtime.pendingFrame()),
     error: fail,
-    limited: () =>
-      events.diagnose(
-        'interactive-settle-limit',
-        'Automatic rendering paused after 120 frames; invalidate to continue',
-        { frames: 120 },
-      ),
   })
 }
 
 /** A capture puts the view back without what frames build up (the effect chain, the temporal
- *  accumulation, the water): the loop draws it again once it is over, gone idle or not. */
+ *  accumulation, the water): the loop draws it again once it is over. */
 function wrapCaptures(explorer: Explorer, captures: Captures, invalidate: () => void) {
   const aside = <T>(take: () => Promise<T>) => {
     captures.count++
@@ -97,7 +87,7 @@ export function startInteractiveExplorer(
   const fail = (error: unknown) => reportFailure(view, events, error)
   const captures: Captures = { count: 0 }
   const loop: LoopWiring = { original, runtime, explorer, view, fail }
-  const scheduler = loopScheduler(loop, captures, events)
+  const scheduler = loopScheduler(loop, captures)
   const invalidate = scheduler.invalidate
   const resizing = interactiveResize({ ...loop, scheduler }, follow)
   const abort = () => explorer.dispose()

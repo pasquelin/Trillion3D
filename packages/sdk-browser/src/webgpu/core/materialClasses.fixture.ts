@@ -36,7 +36,7 @@ export function scene() {
     // Transmission: thick glass or water, which reads what is already drawn behind it.
     G.physicalSurface({ transparent: true, transmission: 1 }),
   ]
-  const passes = ['exact-clusters', 'clustered-blend', 'shared-blend']
+  const passes = ['exact-clusters', 'clustered-blend', 'clustered-blend']
   const primitives = materials.map((material, index) => {
     const geometry = new Geometry()
     geometry.setAttribute('position', G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0], 3))

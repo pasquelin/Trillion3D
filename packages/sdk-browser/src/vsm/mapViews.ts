@@ -22,7 +22,7 @@ export const vsmMapsOf = (kind: LightKind) =>
 
 /** The mips the raster draws of one map of a light of `kind`: a clipmap level's one, a local map's
  *  every mip. */
-export const vsmMapViewMips = (kind: LightKind) => (kind === 'directional' ? 1 : VSM_MIPS)
+const vsmMapViewMips = (kind: LightKind) => (kind === 'directional' ? 1 : VSM_MIPS)
 
 /** The raster's views of `maps` maps of each light (`vsmMapsOf` where none is given) and the mip
  *  views they hold in all: what the views' list and the commands are sized for. */

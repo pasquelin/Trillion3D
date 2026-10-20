@@ -5,6 +5,7 @@ import { vsmResourceBytes } from '../vsm/layoutBytes.ts'
 import {
   VSM_RENDER_PAIR_CAPACITY,
   VSM_RENDER_CMD_BYTES,
+  VSM_RENDER_ORDER_BYTES,
   VSM_RENDER_PAIR_BYTES,
 } from '../vsm/constants.ts'
 import { vsmTransmissionBytes } from '../vsm/transmissionLayout.ts'
@@ -16,14 +17,17 @@ import { alignUp } from '../../../math/src/scalar/integers.ts'
  * the default pool — `vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })`, one
  * page-table row (`fullMapsFor`) and 2048 physical pages in two slices —: every buffer of the set
  * (`vsmResourceBytes`, `../vsm/layoutBytes.ts`), the raster's pair and command lists at their ceiling
- * (`VSM_RENDER_PAIR_CAPACITY`, one command a pair at most, `../vsm/constants.ts`) and the
+ * (`VSM_RENDER_PAIR_CAPACITY`, one command a pair at most, and its place in the tiers' order,
+ * `../vsm/constants.ts`) and the
  * coloured transmission's first atlas (`vsmTransmissionBytes`, `../vsm/transmissionLayout.ts`).
  * The projection's mask, sized by the canvas, is a frame target. Only the shadows' size modules,
  * never a pass: the core holds this budget, and no shadow pass (`scripts/core-sources.ts`).
  */
 function oneSunShadowMaps() {
   const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
-  const lists = VSM_RENDER_PAIR_CAPACITY * (VSM_RENDER_PAIR_BYTES + VSM_RENDER_CMD_BYTES)
+  const lists =
+    VSM_RENDER_PAIR_CAPACITY *
+    (VSM_RENDER_PAIR_BYTES + VSM_RENDER_CMD_BYTES + VSM_RENDER_ORDER_BYTES)
   return { layout, bytes: vsmResourceBytes(layout) + lists + vsmTransmissionBytes(layout) }
 }
 

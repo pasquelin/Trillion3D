@@ -125,7 +125,7 @@ const tableMaterial = {
 /** A compiled scene of two nodes wearing material 0: a cloth's (mesh 0) and a pole's (mesh 1). */
 async function cookedScene() {
   const node = (mesh: number) => ({
-    ...{ name: `node_${mesh}`, children: [], mesh, light: null, camera: null, skin: null },
+    ...{ name: `node_${mesh}`, children: [], mesh, camera: null, skin: null },
     ...{ weights: null, matrix: null, translation: null, rotation: null, scale: null },
     visible: true,
   })
@@ -135,7 +135,6 @@ async function cookedScene() {
     skins: [],
     animations: [],
     cameras: [],
-    lights: [],
     materials: [tableMaterial],
   } as unknown as PreparedSceneTables
   const meshes = [0, 1].map((mesh) => ({

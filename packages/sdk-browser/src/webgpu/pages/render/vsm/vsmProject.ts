@@ -3,7 +3,7 @@ import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import {
   encodeVirtualShadowProjection,
-  type VsmProjectionLight,
+  writeVsmProjectionFrame,
 } from '../../../../vsm/projectionPass.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../../../../vsm/projectionView.ts'
 import { shadowPageGroup } from '../../../shadow/pageGroup.ts'
@@ -11,8 +11,9 @@ import { stochasticPhase } from '../../../../taa/frameState.ts'
 import { shadowEpoch } from '../../state/shadowEpoch.ts'
 import { shadowsUnsettled } from '../../state/lights.ts'
 import { focalPixels } from '../../../../../../math/src/projection/camera.ts'
-import { ensureMask, maskLayersFor } from './vsmMask.ts'
+import { ensureMask } from './vsmMask.ts'
 import type { EngineVsm } from './engineVsm.ts'
+import type { VsmFrameScratch } from './vsmEncode.ts'
 import { projectionLight } from './vsmPlan.ts'
 import { encodeVsmRenderAndTransmission } from './vsmTransmission.ts'
 import { encodeRowBins } from '../../../../vsm/rowBinsGpu.ts'
@@ -76,72 +77,75 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
   if (blended) encodeRowBins(device, encoder, blended, binned, blendedRows, plan.lights)
 }
 
-/** Projection: one pass, every light a channel reads (`planVsmFrame`: the first 64), four a layer
- *  of the mask array. None when the plan holds no light — every lamp culled, its cache entries
- *  still counted —: every light then reads no shadow (`planVsmFrame` assigns −1), so no pixel
- *  reads the mask, and a pass of no light would store no texel of it. A frame whose inputs are the
- *  last projection's, the shadow pages settled, runs none: its mask is that projection's
- *  (`vsmProjectionHold.ts`). The passes it ran: 0 or 1. */
-export function encodeVsmProjection(
-  { rt, device, encoder, cam, projection, vsm, plan }: VsmFrame,
-  projected: VsmProjectionLight[],
-  views: GPUTextureView[],
+/** The frame's projection context (`VsmProjectionFrame`), rebuilt in place in `scratch` from the
+ * plan's lights a channel reads (`planVsmFrame`: the first 64), the camera, the phase and the depth
+ * pyramid, and written once into the view uniform (`writeVsmProjectionFrame`): what the opaque
+ * projection and the translucent layers' traces read, whether the projection runs or is held. None when the plan
+ * holds no light — every lamp culled, its cache entries still counted —: every light then reads no
+ * shadow (`planVsmFrame` assigns −1), so no pixel reads a mask —, nor without the pyramid. */
+function projectionContext(
+  { rt, device, cam, projection, vsm, plan }: VsmFrame,
+  scratch: VsmFrameScratch,
 ) {
   const { lights, gpu } = rt
-  const [width, height] = gpu.targetSize
   const store = lights.store
+  const context = scratch.context
+  const projected = context.lights
   const reads = Math.min(plan.lights.length, VSM_PROJECTION_MAX_PASS_LIGHTS)
   projected.length = reads
   for (let k = 0; k < reads; k++) {
     const l = plan.lights[k]
     projected[k] = projectionLight(store.light(l.id)!, l.firstId)
   }
-  if (!projected.length) return 0
-  const layers = maskLayersFor(projected.length)
-  // At the targets' size, as the scene textures are at theirs: the view rect is its
-  // top-left, and a dynamic-resolution step does not remake it.
-  const mask = ensureMask(device, vsm, gpu.allocatedSize[0], gpu.allocatedSize[1], layers)
-  const phase = stochasticPhase(rt.gpu.temporal?.frame)
-  const { inputs } = vsm.projectionHold
-  inputs.view = cam.view
-  inputs.projection = projection
-  inputs.revisions = rt.run.gate.revisions
-  inputs.lightsEpoch = store.epoch
-  inputs.shadowEpoch = shadowEpoch(lights)
-  inputs.phase = phase
-  inputs.size = gpu.allocatedSize
-  inputs.lights = projected
-  const held = vsm.projectionHold.held(mask.array)
-  if (held && !shadowsUnsettled(lights, rt.rowWords)) return 0
   // The depth the screen ray marches, its pyramid complete (`encodeDepthPyramid`).
   const hizDepth = rt.vis.gpuHiz?.depth()
-  if (!hizDepth) return 0
+  if (!projected.length || !hizDepth) return undefined
+  context.device = device
+  context.hizDepth = hizDepth
+  context.width = gpu.targetSize[0]
+  context.height = gpu.targetSize[1]
+  context.camera.view = cam.view
+  context.camera.projection = projection
+  context.camera.perspective = cam.perspective === 1
+  context.frameIndex = stochasticPhase(gpu.temporal?.frame)
+  writeVsmProjectionFrame(vsm.res, context)
+  scratch.projecting = true
+  return context
+}
+
+/** Projection of the opaque surfaces: one pass, every light of the frame's context, four a layer
+ *  of the engine's mask. A frame whose inputs are the last projection's, the shadow pages
+ *  settled, runs none: its mask is that projection's (`vsmProjectionHold.ts`). The passes it ran:
+ *  0 or 1. */
+function encodeVsmProjection(frame: VsmFrame, scratch: VsmFrameScratch, views: GPUTextureView[]) {
+  const { rt, device, encoder, cam, projection, vsm } = frame
+  const context = projectionContext(frame, scratch)
+  if (!context) return 0
+  const { lights, gpu } = rt
+  // At the targets' size, as the scene textures are at theirs: the view rect is its
+  // top-left, and a dynamic-resolution step does not remake it.
+  const [width, height] = gpu.allocatedSize
+  const mask = ensureMask(device, vsm, width, height, context.lights.length)
+  const source = scratch.opaque
+  source.depth = gpu.depthView!
+  source.normalRough = views[1]
+  source.flags = views[3]
   // The engine's shadow receiver, as the resolve wrote it (`receiverTargetWgsl.ts`).
-  const receiver = gpu.surfaces!.receiverView
-  const camera = {
-    view: cam.view,
-    projection,
-    perspective: cam.perspective === 1,
-  }
-  encodeVirtualShadowProjection(
-    encoder,
-    vsm.res,
-    {
-      device,
-      depth: gpu.depthView!,
-      hizDepth,
-      normalRough: views[1],
-      flags: views[3],
-      width,
-      height,
-      camera,
-      frameIndex: phase,
-      mask: mask.view,
-      maskTiles: mask.tilesView,
-      receiver,
-    },
-    projected,
-  )
+  source.receiver = gpu.surfaces!.receiverView
+  // The translucent casters' memory, whose panes each missed ray multiplies (`vsmRayThrough`).
+  source.transmission = vsm.transmission?.view
+  const hold = vsm.projectionHold.inputs
+  hold.view = cam.view
+  hold.projection = projection
+  hold.revisions = rt.run.gate.revisions
+  hold.lightsEpoch = lights.store.epoch
+  hold.shadowEpoch = shadowEpoch(lights)
+  hold.phase = context.frameIndex
+  hold.size = gpu.allocatedSize
+  hold.lights = context.lights
+  const held = vsm.projectionHold.held(mask.array)
+  if (held && !shadowsUnsettled(lights, rt.rowWords)) return 0
+  encodeVirtualShadowProjection(encoder, vsm.res, context, source, mask)
   vsm.projectionHold.keep(mask.array)
   return 1
 }
@@ -152,7 +156,9 @@ export function encodeHeldVsmProjection(rt: WebgpuPagesRuntime) {
   const vsm = rt.lights.vsm,
     scratch = vsm?.frameScratch,
     held = scratch?.held
-  if (!vsm || !scratch || !held) return
+  if (!vsm || !scratch) return
+  scratch.projecting = false
+  if (!held) return
   scratch.held = undefined
-  vsm.stats.projectionPasses = encodeVsmProjection(held.frame, scratch.projected, held.views)
+  vsm.stats.projectionPasses = encodeVsmProjection(held.frame, scratch, held.views)
 }

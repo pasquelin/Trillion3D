@@ -1,4 +1,5 @@
 import { budgetRefused, ledgerTentative } from '../core/deviceLedger.ts'
+import { bytesOfBuffers } from '../core/tableGrowth.ts'
 
 /** The session's budget asked for a buffer of `bytes` more of the cut's tables: it throws, by its
  *  own name, when it cannot fund them. */
@@ -46,7 +47,7 @@ type CutHolder = Omit<CutHeld, 'buffers' | 'textures'> & {
 /** THE CUT'S ONE BYTE LEDGER, read where its resources are held: its buffers, its record textures
  *  and its readback ring. */
 export const cutBytes = (cut: CutHeld) =>
-  cut.buffers.reduce((sum, buffer) => sum + buffer.size, 0) +
+  bytesOfBuffers(cut.buffers) +
   cut.textures.reduce((sum, texture) => sum + texture.bytes, 0) +
   (cut.readbacks?.bytes ?? 0)
 

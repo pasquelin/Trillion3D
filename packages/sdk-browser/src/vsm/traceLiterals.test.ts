@@ -6,24 +6,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../texture/shaderRule.fixture.ts'
 import { VSM_F32_BELOW_ONE } from './constants.ts'
-import { vsmTraceWgsl } from './traceWgsl.ts'
 import { VSM_TRACE_COMMON_WGSL } from './traceCommonWgsl.ts'
-import { vsmBlueNoiseTwo } from './blueNoise.ts'
-import { vsmPoolLoadOf } from './resources.ts'
-import { VSM_PROJECTION_VSM_SPECS } from './projectionWgsl.ts'
-import { vsmLayout } from './layout.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
-/** The projection's trace: its pool and its blue noise's pair. */
-const TRACE = vsmTraceWgsl({
-  pool: vsmPoolLoadOf(
-    0,
-    VSM_PROJECTION_VSM_SPECS,
-    vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
-  ),
-  noise: vsmBlueNoiseTwo(1, 0),
-  hiz: [1, 7],
-  lone: false,
-})
+
 /** The literal of `text` that `pattern` captures, as the f32 a shader makes of it. */
 const literal = (text: string, pattern: RegExp) => {
   const found = pattern.exec(text)
@@ -53,11 +38,4 @@ test('the square-to-disk map reads 1 - 2^-24 and the smallest normal f32 as thei
   for (let e = -25; e <= 1; e++)
     for (const p of [2 ** e, Math.fround(2 ** e * 1.5), Math.fround(2 ** (e + 1) * (1 - 2 ** -24))])
       assert.equal(Math.fround(p + guard), p, `|p| = ${p}`)
-})
-
-test('the jitter step turns the top 24 bits into a fraction exactly: its factor is 2^-24', () => {
-  const step = literal(TRACE.text, />>8u\)\*([0-9.e-]+);/)
-  assert.equal(step, 2 ** -24)
-  for (const k of [0, 1, 2 ** 23 + 1, 2 ** 24 - 1])
-    assert.equal(Math.fround(Math.fround(k) * step), k / 2 ** 24)
 })

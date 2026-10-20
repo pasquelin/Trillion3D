@@ -2,6 +2,7 @@ import { COMPUTE_TAKES_WGSL, FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_SHAPE_WGSL } from '../../visibility/shader/pageShapeWgsl.ts'
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { maskUvWgsl } from '../../visibility/shader/pageUv1Wgsl.ts'
 import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
@@ -37,6 +38,7 @@ export const RASTER_TRI_WGSL = wgslBlock(
     PAGE_GEOMETRY_WGSL,
     PAGE_SHAPE_WGSL,
     materialTableWgsl(SMALL_BINDINGS.material),
+    maskUvWgsl(SMALL_BINDINGS.normals),
     COMPUTE_TAKES_WGSL,
     DRAW_MASK_WGSL,
   ],
@@ -88,7 +90,7 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  // alpha its vertex colours bring to the cutout, carried as a third coordinate.
  var ua=vec3f(0.0);var ub=vec3f(0.0);var uc=vec3f(0.0);
  if((page.flags&${FLAG_MASK}u)!=0u){
-  ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));ub=vec3f(pageUv(page,h,ib),pageMaskAlpha(page,h,ib));uc=vec3f(pageUv(page,h,ic),pageMaskAlpha(page,h,ic));
+  ua=vec3f(pageMaskUv(page,h,ia),pageMaskAlpha(page,h,ia));ub=vec3f(pageMaskUv(page,h,ib),pageMaskAlpha(page,h,ib));uc=vec3f(pageMaskUv(page,h,ic),pageMaskAlpha(page,h,ic));
  }
  let cl=clipNear(ca,cb,cc,ua,ub,uc);
  if(cl.n<3u){return t;}

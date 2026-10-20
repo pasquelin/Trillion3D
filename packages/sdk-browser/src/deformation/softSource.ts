@@ -3,6 +3,7 @@ import { length3 } from '../../../math/src/vector/vector.ts'
 import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { Model } from '../physics/tilePlace.ts'
+import { keepPrevious } from './layout.ts'
 
 /** Simulation writeback; never a second render mesh or a CPU skin/morph implementation. */
 export type SoftSource = {
@@ -71,9 +72,9 @@ export function writeSoftSource(
   first: boolean,
 ) {
   const n = source.rest.length
-  block.copyWithin(at + n, at, at + n)
+  keepPrevious(block, at, n)
   block.set(source.positions, at)
-  if (first) block.copyWithin(at + n, at, at + n)
+  if (first) keepPrevious(block, at, n)
   block.set(source.rest, at + n * 2)
   block.set(source.normals, at + n * 3)
 }

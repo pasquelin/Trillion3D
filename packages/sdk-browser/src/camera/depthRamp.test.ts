@@ -83,8 +83,8 @@ test('The weights land at the offset they are given, nothing around them', () =>
 })
 
 test('The resolve uniform: the ramp is the last vec4f, 16-byte aligned', () => {
-  assert.match(wgslModule(SHADE_DECL_WGSL), /feedback:u32,depthRamp:vec4f,\}/)
-  // viewProj 16 words, viewport 2 and five scalars, one padding word: the ramp starts at word 24.
+  assert.match(wgslModule(SHADE_DECL_WGSL), /feedback:u32,pixelError:f32,depthRamp:vec4f,\}/)
+  // viewProj 16 words, viewport 2 and six scalars: the ramp starts at word 24.
   assert.equal(SHADE_UNIFORM.at.depthRamp, 16 + 4 + 4)
   assert.equal(SHADE_UNIFORM.at.depthRamp % 4, 0)
   assert.equal(SHADE_UNIFORM.words, SHADE_UNIFORM.at.depthRamp + 4)

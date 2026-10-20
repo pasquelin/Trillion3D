@@ -21,7 +21,8 @@ import type { SessionDeformation } from '../../deformation/session.ts'
 import { writeRowDeformation } from '../../deformation/outputs.ts'
 import { surfaceEmitsOrOccludes } from '../../scene/surfaceEmission.ts'
 import { packedRowBase, rowIndexCount } from './pageRow.ts'
-import { PAGE_INFO, levelDiagnostic } from '../../visibility/pageInfo.ts'
+import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import { pageDiagnosticWord } from '../../page/selection/diagnostic.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
 type PageRowResources = MaterialLayers & {
@@ -45,6 +46,7 @@ type RowWriter = {
   markRowDirty: (row: number) => void
   rootRank: (packed: number) => number
   outputOf: (packed: number) => DeformationOutput | undefined
+  proxyOf: (rank: number) => boolean
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   constants: ReturnType<typeof createPageRowConstants>
   // Filled again at every row write, never allocated again.
@@ -63,12 +65,16 @@ export function createPageRowWriter(
   rootRank: (packed: number) => number,
   /** Where the placement of a packed rank writes the results of its page (`PackedPages.outputOf`). */
   outputOf: (packed: number) => DeformationOutput | undefined = () => undefined,
+  /** Whether placement `rank` draws as its cell's HLOD 0 actor (`RowCell.proxy`): its rows'
+   *  diagnostic word says so. */
+  proxyOf: (rank: number) => boolean = () => false,
 ) {
   const w: RowWriter = {
     resources,
     markRowDirty,
     rootRank,
     outputOf,
+    proxyOf,
     constants: createPageRowConstants(),
     block: emptyGeometryBlock(),
   }
@@ -83,7 +89,7 @@ export function createPageRowWriter(
 }
 
 function writeRow(
-  { resources, markRowDirty, rootRank, outputOf, constants, block }: RowWriter,
+  { resources, markRowDirty, rootRank, outputOf, proxyOf, constants, block }: RowWriter,
   rec: PageRec,
   pageIndex: number,
   row: number,
@@ -131,7 +137,7 @@ function writeRow(
   )
   ints[base + PAGE_INFO.at.hizSlot] = neverCulled(mat) || deform ? NO_INDEX : row
   ints[base + PAGE_INFO.at.selectionIndex] = pageIndex
-  floats[base + PAGE_INFO.at.diagnosticWord] = levelDiagnostic(rec)
+  ints[base + PAGE_INFO.at.diagnosticWord] = pageDiagnosticWord(rec, proxyOf(rank))
   // Depth units to add for this cluster's coplanar layer — engine depth is reversed: zero for
   // layer 0, one calculation source for the hardware path and the software raster alike.
   ints[base + PAGE_INFO.at.depthBias] = depthLayerUnits(rec.depthLayer)

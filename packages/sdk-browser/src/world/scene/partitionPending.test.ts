@@ -5,9 +5,10 @@ import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
 import { createCellHolds } from '../../partition/cellHolds.ts'
 import type { PageStreaming } from '../../streaming/pageStreamer.ts'
+import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
 
-type Io = Parameters<PartitionCells['frame']>[2]
+type Io = Parameters<PartitionCells['frame']>[1]
 
 test('a still camera is drawn again until the cells it asked for within reach are placed', async () => {
   // The interactive session draws on demand: once the camera stops, only `pending` asks for the
@@ -16,9 +17,8 @@ test('a still camera is drawn again until the cells it asked for within reach ar
     read = () => {},
     decodes: Promise<void>[] = []
   const cells = {
-    frame(_eye: number[], _reach: number, io: Io) {
-      io.request(['near.json'], false)
-      io.request(['ahead.json'], true)
+    frame(_eye: number[], io: Io) {
+      io.request(['near.json'])
       return later
     },
     decodes: () => decodes.splice(0),
@@ -29,19 +29,22 @@ test('a still camera is drawn again until the cells it asked for within reach ar
       new Promise<void>((resolve) => {
         if (url === 'near.json') read = resolve
       }),
+    // Each asked page pinned while its read stands (`viewAsks.ts`).
+    pin() {},
+    unpin() {},
   } as unknown as PageStreaming
   const frame = createPartitionFrame({
     partitions: [cells],
     streamer,
     camera: hostFramingCamera(60, 1, 0.1, 100),
-    engine: { worldCut: () => undefined } as unknown as Engine,
+    engine: { worldCells: () => undefined } as unknown as Engine,
     budget: { admits: () => true, spend() {} },
   })!
   frame()
   let settled = false
   const pending = frame.pending().then((again) => ((settled = true), again))
   await new Promise((resolve) => setTimeout(resolve, 0))
-  assert.equal(settled, false, 'it waits on the read within reach, never on one ahead')
+  assert.equal(settled, false, 'it waits on the read it asked')
   read()
   assert.equal(await pending, true, 'the cell read asks for a frame')
   later = false
@@ -67,7 +70,7 @@ function stillFrame(holder: Parameters<typeof createCellHolds>[0]) {
     partitions: [cells],
     streamer: {} as PageStreaming,
     camera: hostFramingCamera(60, 1, 0.1, 100),
-    engine: { worldCut: () => undefined } as unknown as Engine,
+    engine: { worldCells: () => undefined } as unknown as Engine,
     budget: { admits: () => true, spend() {} },
   })!
   return { holds, frame }
@@ -78,8 +81,9 @@ test('a still camera is drawn again as each hold lands, never waiting for every 
   const { holds, frame } = stillFrame({
     hold: () => new Promise<void>((resolve) => lands.push(resolve)),
     release() {},
+    lift() {},
   })
-  for (const cell of [0, 1, 2]) holds.hold(cell)
+  for (const cell of [0, 1, 2]) holds.hold(cell, PRIORITY_VISIBLE)
   frame()
   const first = frame.pending()
   lands[1]()
@@ -101,9 +105,10 @@ test('a hold that fails for good asks one frame as it settles, then nothing is a
       throw new Error('PAGE_STREAM_FAILED: refused for good')
     },
     release() {},
+    lift() {},
   }
   const { holds, frame } = stillFrame(holder)
-  holds.hold(0)
+  holds.hold(0, PRIORITY_VISIBLE)
   frame()
   assert.equal(await frame.pending(), true, 'the hold failed: a frame is drawn')
   frame()

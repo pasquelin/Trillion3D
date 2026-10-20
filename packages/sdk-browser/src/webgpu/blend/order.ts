@@ -1,5 +1,6 @@
 import { sortSeedsFarToNear } from './sortPlan.ts'
 import { assignOwnSlots } from './runs.ts'
+import { planPipeline } from './plan.ts'
 import { eyeKey } from './eyeKey.ts'
 import { FRAME_HEAD } from './frameHead.ts'
 import { writeFramePlanes } from './framePlanes.ts'
@@ -29,8 +30,7 @@ import type { WebgpuBlendState } from './state.ts'
 /**
  * The frame data the kernels read (`frameLayout`, `frameHead.ts`): the eye, the frustum planes
  * brought to it in single precision (`framePlanes.ts`) and the item count the verdict tests, then
- * each pass's own seeds in paint order and their slots. The water pass writes its own words of the
- * head (`../water/frameWords.ts`).
+ * the own seeds in paint order and their slots.
  */
 function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   const { frameDoubles: doubles, frameWords: words, frameLayout: layout } = blendState
@@ -40,41 +40,45 @@ function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   doubles[3] = 0
   writeFramePlanes(words, blendState.blendPlanes, eye)
   words[FRAME_HEAD.items] = blendState.blendGpu.length
-  for (let pass = 0; pass < layout.ownSeeds.length; pass++) {
-    words.set(blendState.ownSeeds[pass], layout.ownSeeds[pass])
-    words.set(blendState.ownSlots[pass], layout.ownSlots[pass])
-  }
+  words.set(blendState.ownSeeds, layout.ownSeeds)
+  words.set(blendState.ownSlots, layout.ownSlots)
 }
 
 /**
  * The frame's share of the CPU in the order: the own entries' keys and paint order, the frame data
- * for the GPU, and the slots each pass draws. The frustum verdict is the GPU's, in the same
+ * for the GPU, and the slots the pass draws. The frustum verdict is the GPU's, in the same
  * submission (`verdictWgsl.ts`): the CPU reads no item's box here but the own items' keys.
  *
  * WITHOUT AN EYE, NOTHING IS PAINTED: a frame without a camera has no paint order, and no slot.
  */
 export function orderBlendPasses(blendState: WebgpuBlendState, eye: ArrayLike<number> | undefined) {
   if (!eye || !blendState.blendGpu.length) {
-    blendState.runCount[0] = 0
-    blendState.runCount[1] = 0
+    blendState.runCount = 0
     return
   }
-  const { blendGpu: items, ownItems, orderKeys } = blendState
+  const { blendGpu: items, ownItems, orderKeys, orderPriorities, seeds, ownSeeds } = blendState
   for (let k = 0; k < ownItems.length; k++)
     orderKeys[ownItems[k]] = eyeKey(items[ownItems[k]], eye[0], eye[1], eye[2])
-  for (let pass = 0; pass < blendState.seeds.length; pass++) {
-    const seeds = blendState.seeds[pass],
-      own = blendState.ownSeeds[pass]
-    sortSeedsFarToNear(own, seeds, orderKeys)
-    if (seeds.length)
-      assignOwnSlots(
-        seeds,
-        own,
-        blendState.mainPipeline[pass] >= 0,
-        blendState.ownSlots[pass],
-        blendState.slotOwns[pass],
-      )
-    blendState.runCount[pass] = blendState.slotCounts[pass]
-  }
+  sortSeedsFarToNear(ownSeeds, seeds, orderKeys, orderPriorities)
+  if (seeds.length)
+    assignOwnSlots(
+      seeds,
+      ownSeeds,
+      blendState.mainPipeline >= 0,
+      blendState.ownSlots,
+      blendState.slotOwns,
+    )
+  blendState.runCount = blendState.slotCount
+  fillSlotPipelines(blendState)
   writeOrderFrame(blendState, eye)
+}
+
+/** The pipeline rank each slot sets this frame (`slotPipelines`): its own entry's, or the main
+ *  class's for a gap. */
+function fillSlotPipelines(blendState: WebgpuBlendState) {
+  const { slotOwns, slotPipelines, seeds, ownSeeds, mainPipeline } = blendState
+  for (let slot = 0; slot < blendState.runCount; slot++) {
+    const own = slotOwns[slot]
+    slotPipelines[slot] = own >= 0 ? planPipeline(seeds[ownSeeds[own]]) : mainPipeline
+  }
 }

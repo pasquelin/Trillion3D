@@ -5,7 +5,8 @@ import { cutoffByte } from './cutoffByte.ts'
 
 /** Whether a surface takes its map's alpha for coverage: it cuts at `alphaTest`, or it blends
  *  weighing its colour by that alpha. A transmissive one tints what crosses it by its colour
- *  whatever its alpha (`../webgpu/water/compositeWgsl.ts`): it draws the colour under alpha 0. */
+ *  whatever its alpha (`../webgpu/blend/transmission/transmitWgsl.ts`): it draws the colour under
+ *  alpha 0. */
 const alphaIsCoverage = (mat: PageSurface) =>
   mat.alphaTest > 0 || (mat.transparent && !(mat.transmission > 0) && weighsByAlpha(mat.blending))
 

@@ -50,6 +50,9 @@ export interface StreamPage {
   /** A page that is the `bytes` of the file at `file` from `offset`, read by an HTTP Range: the
    *  queue reads the ranges queued end to end in one file by one request (`queueRanges.ts`). */
   range?: { file: string; offset: number }
+  /** A page that is `bytes` from `offset` of the bundle the catalogue names `url`: never read on
+   *  its own, served from that bundle's one read, kept and dropped with it. */
+  bundle?: { url: string; offset: number }
   /** False for a page whoever asks it keeps what it decodes: read for those who join its read,
    *  never kept in the page cache, its bytes held once. */
   kept?: boolean
@@ -65,6 +68,9 @@ type PageCatalogue = {
  *  once it is disposed. */
 export type PageQueue = PageCatalogue & {
   readBytes(url: string, signal: AbortSignal, priority?: number): Promise<Uint8Array>
+  /** One more owner of `url`'s page in the cache, till `unpin` lets it go. */
+  pin(url: string): void
+  unpin(url: string): void
   /** Bytes of a file outside the catalogue, by an HTTP Range through the page cache. */
   readRange: ReadRange
   readonly signal: AbortSignal

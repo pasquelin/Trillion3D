@@ -1,7 +1,8 @@
 import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
 import { hizUniformSlots } from './uniforms.ts'
-import { HIZ_LEVELS_WORDS } from './levelsUniform.ts'
-import { cleanupFailedHiz, createHizPipelines, hizArgsGroup, hizPagesGroup } from './pipelines.ts'
+import { HIZ_LEVELS } from './pyramidTexture.ts'
+import { createHizPipelines, hizArgsGroup, hizPagesGroup } from './pipelines.ts'
+import { destroyAll } from '../core/errorScope.ts'
 import { HIZ_TEST_ARGS_BYTES } from './bindEntries.ts'
 import { TESTED_BOX } from '../partition/contract.ts'
 import type { GpuHiz } from './types.ts'
@@ -42,7 +43,7 @@ export async function createGpuHiz(
     installHiz(h, gpu, first)
     return gpu
   } catch {
-    cleanupFailedHiz(buffers, h?.at)
+    destroyAll([...buffers, h?.at])
     return undefined
   }
 }
@@ -70,7 +71,7 @@ function hizState(
   const flags = hizFlags(device, cap)
   const levels = device.createBuffer({
     label: 'Trillion3D Hi-Z levels',
-    size: HIZ_LEVELS_WORDS * 4,
+    size: HIZ_LEVELS.words * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const testArgs = device.createBuffer({

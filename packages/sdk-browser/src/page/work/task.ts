@@ -57,6 +57,12 @@ export async function runPageTask(
       const cells = decodeCellFile(request.source, request.name)
       return done(request, started, { cells }, [cells.ranks, cells.locals])
     }
+    if (request.op === 'blocks') {
+      const { decodeBcLevel } = await import('../../texture/blockDecode.ts')
+      const { width, height, twoChannel } = request.blocks!
+      const texels = decodeBcLevel(new Uint8Array(request.source), width, height, twoChannel)
+      return done(request, started, { texels: texels.buffer }, [texels.buffer])
+    }
     // `cellPage`.
     const { readCellPage } = await import('../../../../sdk-core/src/scene/core/tablePartition.ts')
     const cellPage = readCellPage(new Uint8Array(request.source), request.name ?? 'a scene page')

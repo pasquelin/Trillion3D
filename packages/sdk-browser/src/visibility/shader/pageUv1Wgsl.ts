@@ -1,7 +1,8 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { FLAG_UV1 } from '../../../../sdk-core/src/page/format.ts'
-import { MATERIAL_SECOND_UV } from '../types.ts'
+import { FLAG_MAP_UV1, MATERIAL_SECOND_UV } from '../types.ts'
 import { QUANTIZED } from './pageGeometryWgsl.ts'
+import { normalAtlasWgsl } from './pageWgsl.ts'
 
 /**
  * A page vertex's second UV set, which the physical maps that ask for it read (`physicalWgsl.ts`):
@@ -18,10 +19,24 @@ export const PAGE_UV1_WGSL = wgslBlock(
  return (page.material&${MATERIAL_SECOND_UV}u)!=0u;
 }
 fn pageUv1(page:PageInfo,h:ClusterHeader,vertex:u32,end:u32)->vec2f{
- if(${QUANTIZED}){
-  let base=page.pageOffset;
-  return vec2f(clusterGrid(base,h.uv1.x,vertex,h.uv1Bits.x,h.uv1Min.x,h.uv1Step),clusterGrid(base,h.uv1.y,vertex,h.uv1Bits.y,h.uv1Min.y,h.uv1Step));
- }
+ if(${QUANTIZED}){return clusterUv1(h,page.pageOffset,vertex);}
  return vertUv1(end,page.vertexBase,vertex);
 }`,
 )
+
+/**
+ * The coordinate a row's base map is read at by the cutout and the shadow's transmittance — what
+ * every vertex stage hands them (`visWgsl.ts`, `../../gpu/raster/triWgsl.ts`,
+ * `../../vsm/renderRasterWgsl.ts`, `../../vsm/transmissionRecordWgsl.ts`): the second set where the
+ * base map reads it (`FLAG_MAP_UV1`, glTF's `texCoord`) and the geometry stores one — a quantized
+ * page in its header, a float geometry in the normal atlas bound at `binding` —, else the first.
+ */
+export const maskUvWgsl = (binding: number) =>
+  wgslBlock(
+    `maskUvWgsl(${binding})`,
+    [normalAtlasWgsl(binding), PAGE_UV1_WGSL],
+    `fn pageMaskUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
+ if((page.flags&${FLAG_MAP_UV1}u)!=0u&&pageHasUv1(page,h)){return pageUv1(page,h,vertex,normalTexels());}
+ return pageUv(page,h,vertex);
+}`,
+  )

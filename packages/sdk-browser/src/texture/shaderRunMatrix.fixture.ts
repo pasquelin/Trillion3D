@@ -1,25 +1,39 @@
 // The WGSL matrices `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, and their products
 // with a vector, in JavaScript double precision.
 
-/** A column-major 4×4 matrix. */
+/** A column-major 4×4 matrix, its own copy of `m`: a column is read by its index, and written
+ *  whole by it (`m[k]=vec4f(…)`, a WGSL matrix built column by column). */
 export class Mat {
-  readonly m: readonly number[]
-  readonly [column: number]: readonly number[]
+  readonly m: number[];
+  [column: number]: readonly number[]
   constructor(m: readonly number[]) {
-    this.m = m
+    const flat = Array.from(m),
+      columns = [0, 1, 2, 3].map((column) => flat.slice(column * 4, column * 4 + 4))
+    this.m = flat
     for (let column = 0; column < 4; column++)
-      Object.defineProperty(this, column, { value: m.slice(column * 4, column * 4 + 4) })
+      Object.defineProperty(this, column, {
+        get: () => columns[column],
+        set(value: readonly number[]) {
+          columns[column] = Array.from(value)
+          for (let row = 0; row < 4; row++) flat[column * 4 + row] = value[row]
+        },
+      })
   }
 }
 
-/** A column-major 3×3 matrix, from its three columns (`mat3x3f`), each read by its index. */
+/** A column-major 3×3 matrix, from its three columns (`mat3x3f`), each read and written whole by
+ *  its index. */
 export class Mat3 {
-  readonly columns: readonly number[][]
-  readonly [column: number]: readonly number[]
-  constructor(columns: number[][]) {
-    this.columns = columns
+  readonly columns: number[][];
+  [column: number]: readonly number[]
+  constructor(columns: readonly (readonly number[])[]) {
+    const own = columns.map((column) => Array.from(column))
+    this.columns = own
     for (let column = 0; column < 3; column++)
-      Object.defineProperty(this, column, { value: columns[column] })
+      Object.defineProperty(this, column, {
+        get: () => own[column],
+        set: (value: readonly number[]) => void (own[column] = Array.from(value)),
+      })
   }
 }
 

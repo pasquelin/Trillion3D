@@ -11,16 +11,15 @@ import { consumedCasts, type CastChanges } from '../webgpu/shadow/castChanges.ts
 import { resized } from '../../../math/src/sequence/resized.ts'
 import type { VsmCacheManager } from './cacheManager.ts'
 import type { VsmCastBoxes } from './castBoxes.ts'
-import { vsmMapWord } from './staleMapWgsl.ts'
 import { encodeCastStale } from './castStale.ts'
 import type { VsmResources } from './resources.ts'
 
 /** The words `vsmCastMaps` writes, rewritten each plan and read by the frame that made them. */
 let mapWords = new Uint32Array(16)
 
-/** The maps that may hold cached pages, each a word (`vsmMapWord`), ids the previous frame's. None
- *  when the cache holds nothing to stale, or when nothing changed: neither the CPU's `boxes` nor a
- *  pass appended to the list `casts` since it was last read. */
+/** The maps that may hold cached pages, each its id, the previous frame's. None when the cache
+ *  holds nothing to stale, or when nothing changed: neither the CPU's `boxes` nor a pass appended
+ *  to the list `casts` since it was last read. */
 export function vsmCastMaps(
   cache: VsmCacheManager,
   boxes: VsmCastBoxes | null,
@@ -31,7 +30,7 @@ export function vsmCastMaps(
   for (const entry of cache.entries.values()) {
     if (!entry.mayHoldCachedPages()) continue
     mapWords = resized(mapWords, count + entry.mapCaches.length)
-    for (let i = 0; i < entry.mapCaches.length; i++) mapWords[count++] = vsmMapWord(entry, i)
+    for (let i = 0; i < entry.mapCaches.length; i++) mapWords[count++] = entry.mapId + i
   }
   return count ? mapWords.subarray(0, count) : null
 }

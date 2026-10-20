@@ -34,6 +34,9 @@ export type Grid = {
   group?: GPUBindGroup
   tilesX: number
   tilesY: number
+  /** Columns its records are laid out for, at least `tilesX × tilesY`: views of other shapes
+   *  drawn in turn (`world.addView`) reuse the layout instead of laying the buffer out again. */
+  columns: number
   poolWords: number
   growths: number
   /** Its records' first word in the buffer. */
@@ -41,7 +44,7 @@ export type Grid = {
 }
 
 /** The grid's records' words. */
-export const recordsOf = (g: Grid) => g.tilesX * g.tilesY * g.slices * TILE_STRIDE_WORDS
+export const recordsOf = (g: Grid) => g.columns * g.slices * TILE_STRIDE_WORDS
 
 export async function createGrid(
   device: GPUDevice,
@@ -71,6 +74,7 @@ export async function createGrid(
     bound: createWebgpuBindIdentity(),
     tilesX: 0,
     tilesY: 0,
+    columns: 0,
     poolWords: 0,
     growths: 0,
     start: 0,

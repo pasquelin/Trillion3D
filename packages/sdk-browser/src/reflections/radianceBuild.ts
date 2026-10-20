@@ -7,17 +7,16 @@ import type { RadiancePyramid, RadianceStages } from './radiance.ts'
 import { RADIANCE_BINDINGS } from './radianceWgsl.ts'
 
 /** What a build reads and writes beyond the pyramid: the frame's HDR target — its level 0 the lit
- *  image, its mips the levels the build writes —, the lighting's view uniform, and the buffer that
- *  holds the image's hash (`settle.ts`). */
-export type RadianceInputs = { texture: GPUTexture; view: GPUBuffer; hash: GPUBuffer }
+ *  image, its mips the levels the build writes — and the lighting's view uniform. */
+export type RadianceInputs = { texture: GPUTexture; view: GPUBuffer }
 
 /** The bind groups of a build over `inputs`: the first dispatch's, then one for each two levels
- *  after, and the roll of the hash. Level `k` is the HDR target's mip `k`, each bound alone: a
- *  dispatch reads one and writes the two after it. */
+ *  after. Level `k` is the HDR target's mip `k`, each bound alone: a dispatch reads one and writes
+ *  the two after it. */
 function buildGroups(
   device: GPUDevice,
   pyramid: RadiancePyramid,
-  { firstLayout, downLayout, rollLayout }: RadianceStages,
+  { firstLayout, downLayout }: RadianceStages,
   inputs: RadianceInputs,
 ) {
   const { sampler } = pyramid,
@@ -30,9 +29,7 @@ function buildGroups(
         coarser: views[1],
         coarsest: views[2],
         halves: sampler,
-        previous: pyramid.image.view,
         view: { buffer: inputs.view },
-        hash: { buffer: inputs.hash },
       }),
     }),
   ]
@@ -48,11 +45,7 @@ function buildGroups(
         }),
       }),
     )
-  const roll = device.createBindGroup({
-    layout: rollLayout,
-    entries: namedEntries(RADIANCE_BINDINGS, { hash: { buffer: inputs.hash } }),
-  })
-  return { groups, roll }
+  return groups
 }
 
 /** The threads a side of the dispatch that makes level `level` of an image drawn `drawn` wide, in
@@ -62,27 +55,28 @@ function buildGroups(
 const radianceThreads = (drawn: number, level: number, extent: number) =>
   Math.min(ceilDiv(drawn, 2 ** level) + 2, ceilDiv(extent, 2 ** level))
 
+/** The workgroups of a dispatch, written in place each one (`radianceGroups`). */
+const dispatched: [number, number] = [0, 0]
+
 /** The workgroups of the dispatch that makes level `level` of an image drawn `size`, in a pyramid
- *  of `extent`. */
+ *  of `width × height`, written into `dispatched`. */
 const radianceGroups = (
   size: readonly [number, number],
   level: number,
-  extent: readonly [number, number],
-) => [
-  ceilDiv(radianceThreads(size[0], level, extent[0]), REFLECTION_SIDE),
-  ceilDiv(radianceThreads(size[1], level, extent[1]), REFLECTION_SIDE),
-]
+  width: number,
+  height: number,
+) => {
+  dispatched[0] = ceilDiv(radianceThreads(size[0], level, width), REFLECTION_SIDE)
+  dispatched[1] = ceilDiv(radianceThreads(size[1], level, height), REFLECTION_SIDE)
+  return dispatched
+}
 
 /**
  * The radiance pyramid of the lit image in `inputs.texture`, drawn at `size` with `viewProjection`, in the
- * open compute `pass`: the hash of the last image moved aside, levels 1 and 2 from the image and
- * its hash, then two levels a dispatch from the last made (`RADIANCE_SHADER`); what the pyramid
- * holds is then that image, for the next one's reflections, its level 0 the lit image itself once
- * the image is encoded (`fresh`, `adoptRadianceImage`). `inputs.view` is the lighting's view, whose
- * drawn size the first dispatch reads; `pose` the camera's view-projection without the temporal
- * accumulation's jitter, kept with it. `still`: the image is drawn from where the held one was, as the
- * image decided it (`drawnFromHeld`). With `hashless` — a settled view, whose hash no sample reads
- * (`settle.verified`) — the image is not hashed: the next image that is hashes the one before it too.
+ * open compute `pass`: levels 1 and 2 from the image, then two levels a dispatch from the last made
+ * (`RADIANCE_SHADER`); what the pyramid holds is then that image, for the next one's reflections, its
+ * level 0 the lit image itself once the image is encoded (`fresh`, `adoptRadianceImage`).
+ * `inputs.view` is the lighting's view, whose drawn size the first dispatch reads.
  */
 export function encodeRadiancePyramid(
   pass: GPUComputePassEncoder,
@@ -92,47 +86,27 @@ export function encodeRadiancePyramid(
   inputs: RadianceInputs,
   size: readonly [number, number],
   viewProjection: ArrayLike<number>,
-  pose: ArrayLike<number>,
-  still: boolean,
-  hashless: boolean,
 ) {
   const { levels, held, build } = pyramid
   if (levels < 3) return
   const { next } = build.identity
   next[0] = inputs.texture
   next[1] = inputs.view
-  next[2] = inputs.hash
-  next[3] = pipelines
-  next[4] = pyramid.image.view
-  next.length = 5
+  next[2] = pipelines
+  next.length = 3
   const moved = build.identity.moved(),
     slot = build.identity.slot
   if (moved || !build.slots[slot])
     build.slots[slot] = buildGroups(device, pyramid, pipelines, inputs)
-  const { groups, roll } = build.slots[slot]!
-  // Drawn from where the image before it was: hashed, and the image before it too where that one
-  // moved or was settled and hashed nothing — still whole, the pyramid's level 0.
-  const hashedBefore = pyramid.hashed,
-    hashing = still && !hashless
-  const first = !hashing
-    ? pipelines.firstPipeline
-    : hashedBefore
-      ? pipelines.firstHashedPipeline
-      : pipelines.firstBothPipeline
-  pass.setPipeline(pipelines.rollPipeline)
-  pass.setBindGroup(0, roll)
-  pass.dispatchWorkgroups(1)
+  const groups = build.slots[slot]!
   for (let at = 0; at < groups.length; at++) {
-    const [x, y] = radianceGroups(size, 2 * at + 2, [pyramid.width, pyramid.height])
+    const [x, y] = radianceGroups(size, 2 * at + 2, pyramid.width, pyramid.height)
     pass.setBindGroup(0, groups[at])
-    pass.setPipeline(at === 0 ? first : pipelines.downPipeline)
+    pass.setPipeline(at === 0 ? pipelines.firstPipeline : pipelines.downPipeline)
     pass.dispatchWorkgroups(x, y)
   }
-  held.still = still
-  pyramid.hashed = hashing
   held.valid = true
   copyMatrix4(held.viewProjection, viewProjection)
-  copyMatrix4(held.pose, pose)
   held.size[0] = size[0]
   held.size[1] = size[1]
   pyramid.fresh = true

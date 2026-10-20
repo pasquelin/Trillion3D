@@ -53,13 +53,13 @@ const VERTEX_NORMALS_WGSL = wgslBlock(
  * pixels or more read (`shadeCacheWgsl.ts`), and those pixels read the words instead. Requires the
  * page geometry, its screen and normals; it lists the rest.
  */
-export const PIXEL_CORNERS_WGSL = wgslBlock(
+const PIXEL_CORNERS_WGSL = wgslBlock(
   'PIXEL_CORNERS_WGSL',
   [InvT3, FRAMEBUFFER_WGSL, VERTEX_NORMALS_WGSL],
   `struct PixelTriangle{p0:vec4f,p1:vec4f,p2:vec4f,w0:vec4f,w1:vec4f,w2:vec4f,n0:vec3f,n1:vec3f,n2:vec3f,uva:vec2f,uvb:vec2f,uvc:vec2f,iw:vec3f,}
 fn decodeCorners(page:PageInfo,h:ClusterHeader,corners:vec3u,invT:InvT3,shape:PageShape)->PixelTriangle{
  let i0=corners.x;let i1=corners.y;let i2=corners.z;
- let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
+ let p=pageTrianglePositions(page,h,corners);let p0=p[0];let p1=p[1];let p2=p[2];
  var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
  // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.
  if(shape.sprite.y!=0.0){w0=pageSprite(page,p0,shape.sprite);w1=pageSprite(page,p1,shape.sprite);w2=pageSprite(page,p2,shape.sprite);}

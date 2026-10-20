@@ -14,7 +14,8 @@ import {
   type FrameSize,
 } from '../state/renderScale.ts'
 import { refreshTargetGrant } from './targetFunding.ts'
-import { grantHiz, grantTargets, refuseTargets, stopped } from './targetDevice.ts'
+import { grantHiz, grantTargets, refuseTargets } from './targetDevice.ts'
+import { stopped } from '../io/lost.ts'
 import { asideTargets, asksAside, makeTargetsAside } from './targetsAside.ts'
 import { dropAside, type HeldTargets } from './targetsSet.ts'
 
@@ -44,8 +45,12 @@ function stepDownAfterRefusal(
   view: WebgpuView,
   error?: unknown,
 ) {
-  const at = rt.scale.memoryRefused(viewKey(rt), rt.run.frame)
-  if (!memoryRefusal(error) || !scalesTargets(rt) || !rt.scale.capMemory(viewKey(rt))) {
+  const at = rt.views.active.scale.memoryRefused(viewKey(rt), rt.run.frame)
+  if (
+    !memoryRefusal(error) ||
+    !scalesTargets(rt) ||
+    !rt.views.active.scale.capMemory(viewKey(rt))
+  ) {
     asked.retryAt = at
     return
   }
@@ -75,7 +80,7 @@ function stepDownAfterRefusal(
  */
 export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, held = false) {
   const { gpu, capture, diag, run } = rt
-  rt.scale.liftMemoryCap(run.frame)
+  rt.views.active.scale.liftMemoryCap(run.frame)
   const size = frameSizeOf(rt, wanted),
     { width, height, renderWidth, renderHeight } = size
   const fit = targetsFit(rt, size),
@@ -105,13 +110,15 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
   )
     return pending.done
   const view = rt.views.active,
-    granted = () => void (viewGpu(rt, view).targetGrant = undefined)
+    // Granted, the record goes; refused, the size steps down, unless the session stopped.
+    settle = (asked: HeldTargets) => (made: boolean) =>
+      void (made
+        ? (viewGpu(rt, view).targetGrant = undefined)
+        : !stopped(rt) && stepDownAfterRefusal(rt, asked, view))
   // The view's targets are in place, its pyramid is not: it alone is asked, refused as they are.
   if (fit) {
     const asked: HeldTargets = { ...size, mode: 'held', requestedBytes: gpu.targetBytes }
-    const done = grantHiz(rt, device, asked, view).then(
-      (made) => void (made ? granted() : !stopped(rt) && stepDownAfterRefusal(rt, asked, view)),
-    )
+    const done = grantHiz(rt, device, asked, view).then(settle(asked))
     gpu.targetGrant = startGrant(done, asked)
     return gpu.targetGrant.done
   }
@@ -133,17 +140,13 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
   if (!held && asksAside(rt, asked)) return makeTargetsAside(rt, device, asked)
   // Granted, the record goes; refused, it stays, settled, and holds the frames at this size. A
   // creation that throws refuses them by name too, unless the session stopped.
-  const done = grantTargets(rt, device, asked, view).then(
-    (made) => void (made ? granted() : !stopped(rt) && stepDownAfterRefusal(rt, asked, view)),
-    (error: unknown) => {
-      // Refused by the budget's split, before any target was touched: those in place are kept.
-      if (!/GPU_BUDGET_UNDER_MINIMUM/.test(String(error)))
-        onView(rt, view, () => releaseTargets(rt))
-      if (stopped(rt)) return
-      refuseTargets(rt, asked, 'gpu-error', error)
-      stepDownAfterRefusal(rt, asked, view, error)
-    },
-  )
+  const done = grantTargets(rt, device, asked, view).then(settle(asked), (error: unknown) => {
+    // Refused by the budget's split, before any target was touched: those in place are kept.
+    if (!/GPU_BUDGET_UNDER_MINIMUM/.test(String(error))) onView(rt, view, () => releaseTargets(rt))
+    if (stopped(rt)) return
+    refuseTargets(rt, asked, 'gpu-error', error)
+    stepDownAfterRefusal(rt, asked, view, error)
+  })
   gpu.targetGrant = startGrant(done, asked)
   return gpu.targetGrant.done
 }

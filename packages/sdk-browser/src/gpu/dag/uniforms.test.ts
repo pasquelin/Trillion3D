@@ -41,7 +41,6 @@ const champs = (
     requestPriorities: _r,
     aheadPageIds: _a,
     selectedTriangles: _s,
-    drawnTriangles: _d,
     transparentTriangles: _p,
     ...reste
   } = reading
@@ -123,13 +122,14 @@ test('requests ahead never make a crowded sample truncated, nor take the cameraâ
   assert.deepEqual(lire(buffer(header, camera))!.aheadPageIds, [])
 })
 
-test('triangle totals are reread as the GPU posted them, the one drawn counter under both names', () => {
-  // Words 6 and 7 are reserved: whatever they hold, the drawn total is the selected one.
+test('triangle totals are reread as the GPU posted them, the drawn count left to the occlusion', () => {
+  // Words 6 and 7 are reserved: whatever they hold, the cut's total is the selected one; the
+  // triangles drawn are counted past the occlusion test (`drawnTrianglesOf`), never here.
   const { neuf } = pair([3, 0, 0, 0, 900, 90, 700, 200], [10, 20, 30])
   const reading = lire(neuf)!
   assert.equal(reading.selectedTriangles, 900)
   assert.equal(reading.transparentTriangles, 90)
-  assert.equal(reading.drawnTriangles, 900)
+  assert.equal('drawnTriangles' in reading, false, 'no drawn counter is read')
   assert.equal('uncoveredTriangles' in reading, false, 'no uncovered counter is read')
 })
 

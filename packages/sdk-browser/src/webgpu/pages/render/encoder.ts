@@ -1,6 +1,6 @@
 import { cpuNow, msSince } from '../../../diagnostic/stopwatch.ts'
+import { drawnTrianglesOf } from '../state/drawnTriangles.ts'
 import { vsmSubmitted } from './vsm/vsmFrameEnd.ts'
-import { reflectionsSubmitted } from '../../../reflections/frame.ts'
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
 import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
 import { viewProj } from '../helpers.ts'
@@ -37,10 +37,16 @@ export function abandonFrameEncoder(rt: WebgpuPagesCore) {
   if (!dropped) return
   timing.frameEncoder = undefined
   rowWordsDropped(rt.rowWords, dropped)
+  settleFrameSelection(timing, false)
+  timing.gpuTiming?.cancelUnsubmitted()
+}
+
+/** Settles the selection whose readback rode in the image's command buffer, once: `submitted`
+ *  when the buffer left, false when it was dropped. */
+function settleFrameSelection(timing: WebgpuPagesCore['timing'], submitted: boolean) {
   const settle = timing.frameSelection
   timing.frameSelection = undefined
-  settle?.(false)
-  timing.gpuTiming?.cancelUnsubmitted()
+  settle?.(submitted)
 }
 
 export function submitColorCopy(
@@ -57,8 +63,9 @@ export function submitColorCopy(
   const offscreen = composesOffscreen(context.diagnosticGpuVariant)
   if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
     // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
-    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect)
-    run.gpuDrawCalls++
+    const at = rt.views.active.rect
+    if (gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, at))
+      run.gpuDrawCalls++
   }
   const owned = encoder === timing.frameEncoder
   // Texture image feedback leaves with the image: the target where pixels posted their requests is
@@ -78,6 +85,12 @@ export function submitColorCopy(
   const command = encoder.finish()
   device.queue.submit([command])
   timing.lastQueueSubmitMs = msSince(submitStart)
+  // The image is in flight until the device has run it: the loop paces itself on that count, one
+  // a frame — the main view's image; the views drawn beside it follow it in the queue.
+  if (rt.views.active === rt.views.main) {
+    run.gpuFramesInFlight++
+    void device.queue.onSubmittedWorkDone().finally(() => run.gpuFramesInFlight--)
+  }
   // What the image replaced as it was encoded goes, its last command submitted (`frameRetire.ts`).
   destroyRetired(device)
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
@@ -87,16 +100,16 @@ export function submitColorCopy(
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
   vsmSubmitted(rt)
-  reflectionsSubmitted(rt)
+  // An inspection asked reads the main view's image now, before a view aside overwrites what the
+  // views share (`../diagnostic/inspection/read.ts`).
+  if (rt.views.active === rt.views.main && !capture.capturing) run.inspect?.()
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
   // the row change, whether it drew rows or had none to draw.
   rt.layout.rows.rowsChanged = false
   run.imageRevision++
   if (owned) {
     timing.frameEncoder = undefined
-    const settle = timing.frameSelection
-    timing.frameSelection = undefined
-    settle?.(true)
+    settleFrameSelection(timing, true)
   }
   if (rt.diag.traceEnabled)
     rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
@@ -106,9 +119,7 @@ export function submitColorCopy(
       width,
       height,
       drawCalls: run.gpuDrawCalls,
-      // Synchronous cut count, held where the hole is: nothing here waits for the GPU count readback,
-      // so the guard that hid it covered nothing.
-      drawnTriangles: run.drawnTriangles,
+      drawnTriangles: drawnTrianglesOf(run, rt.vis.gpuPartition?.counts()),
       transparent: {
         drawCalls: run.blendDrawCalls,
         submittedTriangles: run.blendSubmittedTriangles,
@@ -128,8 +139,8 @@ export function submitColorCopy(
       scope: 'selection-and-render-passes',
       excludes: ['uploads and copies', 'CPU work', 'presentation latency'],
       drawCalls: run.gpuDrawCalls,
-      renderScale: rt.scale.drawn,
-      scaleSteered: rt.scale.steered,
+      renderScale: rt.views.active.scale.drawn,
+      scaleSteered: rt.views.active.scale.steered,
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
     })

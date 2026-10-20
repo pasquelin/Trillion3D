@@ -1,4 +1,5 @@
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { joined } from '../../../../sdk-core/src/runtime/joined.ts'
 import { worldControls, type WorldControls } from './worldCamera.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts'
@@ -146,10 +147,10 @@ export function worldControlsHandle(
     },
   }
   // The settings are accessors of their own module; they join the handle as accessors, live.
-  const kept = {
-    ...Object.getOwnPropertyDescriptors(controlSettingAccessors(settings, setting)),
-    ...Object.getOwnPropertyDescriptors(targets.accessors),
-  }
   type Kept = ControlSettings & CharacterSettings & typeof targets.accessors
-  return Object.defineProperties(handle, kept) as typeof handle & Kept
+  return joined(
+    handle,
+    controlSettingAccessors(settings, setting),
+    targets.accessors,
+  ) as typeof handle & Kept
 }

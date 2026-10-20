@@ -16,11 +16,12 @@
  */
 import { wgslDouble } from '../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { dAdd, dLess, dMul, dSqrt, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
+import { dDot3, dLess, dMul, dSqrt, dSub, splitDouble } from '../../../math/src/wgsl/double.ts'
 import { affineAxis, dBoxAffine } from '../../../math/src/wgsl/doubleAffine.ts'
 import { dIsFinite } from '../../../math/src/wgsl/doubleRound.ts'
 import { dIsNan } from '../../../math/src/wgsl/doubleWords.ts'
 import { FINITE_SENTINEL } from '../../../math/src/wgsl/constants.ts'
+import { D_HALF } from '../../../math/src/wgsl/doubleConstants.ts'
 import { toF32 } from '../../../math/src/wgsl/f32.ts'
 import { STRETCH_DOUBLE_WGSL } from './gpuStretchWgsl.ts'
 import { CORNER_VALUES } from '../gpu/partition/contract.ts'
@@ -119,7 +120,7 @@ fn composeRoot(rank:u32,world:array<vec2u,16>)->vec2u{
  *  (`composeRoot`) —, the residency folded in. */
 export const LOD_WGSL = wgslBlock(
   'LOD_WGSL',
-  [splitDouble, toF32, affineAxis, dSqrt, dMul, dAdd, dSub, FINITE_SENTINEL],
+  [splitDouble, toF32, affineAxis, dSqrt, dMul, dDot3, dSub, FINITE_SENTINEL, D_HALF],
   `
 fn lodCentre(o:u32,at:u32,world:array<vec2u,16>,src:u32,low:u32){
  for(var axis=0u;axis<3u;axis++){
@@ -140,8 +141,8 @@ fn composeLod(row:u32,rank:u32,world:array<vec2u,16>){
   let dx=dSub(rootBoxes[r+3u],a);
   let dy=dSub(rootBoxes[r+4u],b);
   let dz=dSub(rootBoxes[r+5u],c);
-  let s=dAdd(dAdd(dMul(dx,dx),dMul(dy,dy)),dMul(dz,dz));
-  lods[o+18u]=toF32(dMul(dSqrt(s),${wgslDouble(0.5)}));
+  let s=dDot3(dx,dx,dy,dy,dz,dz);
+  lods[o+18u]=toF32(dMul(dSqrt(s),D_HALF));
  }
  if((flags&${LOD_BIT.has}u)==0u){return;}
  let scale=rootBoxes[r+6u];

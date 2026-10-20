@@ -1,10 +1,11 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { COARSEN_FLOOR_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
 
 /** The share of the list a raised cut aims to fill: the law may err by a factor 2 before it
  *  overflows again. */
 const COARSE_FILL = 1 / 2
 /** The coarsest factor: under the law it divides the ranks by 2³², so a cut still past the list
- *  there is made of its roots and cell stand-ins alone, which no threshold coarsens further. */
+ *  there is made of its roots alone, which no threshold coarsens further. */
 const COARSEST = 2 ** 16
 /** A view whose cut asks more or less than this share of what it asked at its factor's first
  *  fitting cut has clearly changed: its own threshold is tried again. */
@@ -95,3 +96,9 @@ export function coarsenTick(c: Coarsening) {
   if (c.factor === 1 || --c.wait > 0) return false
   return tryOwn(c, true)
 }
+
+/** The projected-error threshold a view cuts under at `factor`: its own at 1; past, the factor
+ *  scales it from `COARSEN_FLOOR_PIXEL_ERROR` at least — a factor on a 0 px threshold would keep
+ *  every leaf, overflow again, and leave the view on its roots. */
+export const coarsenedThreshold = (pixelError: number, factor: number) =>
+  factor === 1 ? pixelError : Math.max(pixelError, COARSEN_FLOOR_PIXEL_ERROR) * factor

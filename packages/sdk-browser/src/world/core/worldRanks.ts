@@ -1,5 +1,5 @@
 import type { Cut } from './worldCuts.ts'
-import type { LoadedModel } from './loadedModel.ts'
+import type { ModelRecord } from './loadedModel.ts'
 import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 
 /**
@@ -10,7 +10,7 @@ import type { Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
  */
 export function createWorldRanks() {
   const primitives = new WeakMap<Cut, Primitive>(),
-    models = new WeakMap<LoadedModel, number>()
+    models = new WeakMap<ModelRecord, number>()
   let next = 0
   /** The primitive of `cut` at its rank, made the first time it is asked. */
   const primitiveOf = (cut: Cut) => {
@@ -24,9 +24,9 @@ export function createWorldRanks() {
     /** The primitive of `cut` at its rank: the one object a session opens on and the one a session
      *  already open is handed, its pages the resource's own. */
     primitive: primitiveOf,
-    /** The first rank of `model`'s block; `span` its meshes' ranks past it, read at its first
-     *  seat only. */
-    model(model: LoadedModel, span: () => number) {
+    /** The first rank of the block of the model `model` records — one block, however many
+     *  placements draw it —; `span` its meshes' ranks past it, read at its first seat only. */
+    model(model: ModelRecord, span: () => number) {
       let first = models.get(model)
       if (first === undefined) {
         models.set(model, (first = next))

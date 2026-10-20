@@ -16,7 +16,7 @@ import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 import { hostStretches } from './hostStretches.fixture.ts'
 import { MARK_WORD } from './frameTable.ts'
 
-test('a reach written again keeps the cut in hand, and the frame words keep the reach', async () => {
+test('a reach written again or moved keeps the cut in hand, and the frame words keep the reach', async () => {
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
@@ -39,8 +39,13 @@ test('a reach written again keeps the cut in hand, and the frame words keep the 
     word,
     'the frame words made again keep the reach',
   )
-  selection.markWorld(0, rootMark({ mark: SHADOWLESS_ROOT, reach: 0 }))
-  assert.equal(selection.peek(), null, 'another reach is another cut')
+  // A skinned or simulated root reaches another distance every image it moves: the cut in hand
+  // stays adoptable, a frame late as under a pose that moved — voided, no cut would ever be
+  // adopted and the session's first image never shown.
+  selection.markWorld(0, rootMark({ mark: SHADOWLESS_ROOT, reach: 0.4 }))
+  assert.equal(selection.peek(), held, 'another reach keeps the cut in hand')
+  selection.markWorld(0, rootMark({ mark: 0, reach: 0.4 }))
+  assert.equal(selection.peek(), null, 'another mark is another cut')
   selection.dispose()
   fixture.geometry.dispose()
 })

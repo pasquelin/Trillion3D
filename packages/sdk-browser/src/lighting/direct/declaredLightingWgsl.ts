@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { bindingsLabel, lightingBase, type LightingBindings } from './lightingWgsl.ts'
+import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
 
 /**
  * Declared lights that light a blend surface, taken from the list of the cell its own depth `z`
@@ -15,9 +16,7 @@ import { bindingsLabel, lightingBase, type LightingBindings } from './lightingWg
  * With no list — a device that could not fit the grid pass, or a pixel past the grid —, the loop
  * walks every declared light, the one rule of the opaque resolve too (`cellSlice`).
  *
- * With `pair`, `declaredLightingPair`: the two sums of one walk, on the surface and on a null
- * albedo (`declaredLightWgsl`), each that of its own walk bit for bit — the water lights its pixel
- * once for its colour and its specular.
+ * Its shadows are read from the fragment (`directShadowWgsl`): every translucent layer reads its own.
  *
  * `key` (`LOBELESS_KEY` unless given) as the opaque resolve's, its `narrow` aside: `unshadowed`,
  * the loop of a scene no light of which holds a shadow slot; `rectless`, of a scene that holds no
@@ -29,14 +28,30 @@ import { bindingsLabel, lightingBase, type LightingBindings } from './lightingWg
 export const declaredLightingWgsl = (
   bindings: LightingBindings,
   key: Partial<ContractKey> = LOBELESS_KEY,
-  { pair = false } = {},
 ) =>
   wgslBlock(
-    `declaredLightingWgsl(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${pair})`,
-    [lightingBase(bindings, key, { pair })],
+    `declaredLightingWgsl(${bindingsLabel(bindings)}, ${variantLabel(key)})`,
+    [lightingBase(bindings, key)],
     `
-fn declaredLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->${pair ? 'LightPair' : 'vec3f'}{
+fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->vec3f{
  vsmTraceAt(pixel);
- return sliceLighting${pair ? 'Pair' : ''}(rgb,metal,rough,N,V,P,ao,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
+ return sliceLighting(rgb,metal,rough,N,V,P,ao,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
+}`,
+  )
+
+/**
+ * The same lights split into their diffuse and specular shares (`declaredLightingSplit`), one walk
+ * and one shadow read a light, so a forward-lit translucent surface can weigh them apart: a thin
+ * translucent layer lays its diffuse under its coverage, its specular over it. Listed beside
+ * the module's `declaredLightingWgsl` of the same `key`, whose base it reads.
+ */
+export const declaredLightingSplitWgsl = (key: Partial<ContractKey> = LOBELESS_KEY) =>
+  wgslBlock(
+    `declaredLightingSplitWgsl(${variantLabel(key)})`,
+    [declaredLightWgsl(key, { term: 'split' }), sliceLightingWgsl('split')],
+    `
+fn declaredLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->LightSplit{
+ vsmTraceAt(pixel);
+ return sliceLightingSplit(rgb,metal,rough,N,V,P,ao,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
 }`,
   )

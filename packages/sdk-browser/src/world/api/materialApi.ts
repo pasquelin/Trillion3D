@@ -19,6 +19,7 @@ import {
   type SceneMaterialPatch,
 } from './materialValues.ts'
 import { assignment, PLAIN } from './createdMaterials.ts'
+import { countBy } from '../../../../math/src/sequence/counts.ts'
 
 type Inputs = {
   check: () => void
@@ -103,13 +104,9 @@ type Writes = {
 function wear({ wearing, wearers }: Writes, mesh: DrawSource, id: string) {
   const before = wearing.get(mesh)
   if (before === id) return
-  if (before !== undefined) {
-    const left = wearers.get(before)! - 1
-    if (left > 0) wearers.set(before, left)
-    else wearers.delete(before)
-  }
+  if (before !== undefined) countBy(wearers, before, -1)
   wearing.set(mesh, id)
-  wearers.set(id, (wearers.get(id) ?? 0) + 1)
+  countBy(wearers, id, 1)
 }
 
 /**

@@ -4,7 +4,7 @@ import { HALF_PI } from '../../../../math/src/constants.ts'
 import { linearPartScale } from '../../../../math/src/matrix/singular.ts'
 import { normalMatrix3 } from '../../../../math/src/matrix/matrix3.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
-import { OPEN_CONE, type NormalCone } from './cone.ts'
+import { leafCone, type NormalCone } from './cone.ts'
 import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
 import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
@@ -148,7 +148,7 @@ export function coneSkipsPage(
   const min = rec.min ?? fallbackMin,
     max = rec.max ?? fallbackMax
   if (!ctx.ready) coneContextFor(ctx, world, cam.viewPoint)
-  return coneCullsPageWith(ctx, rec.cone ?? OPEN_CONE, world, min, max, rec.material)
+  return coneCullsPageWith(ctx, leafCone({ cone: rec.cone }), world, min, max, rec.material)
 }
 
 const loneContext = createConeContext()

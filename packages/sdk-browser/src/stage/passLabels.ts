@@ -38,9 +38,6 @@ export const RASTER_TESTED_DEPTH_PASS = 'Trillion3D raster tested depth'
 export const RASTER_IDENTIFIERS_PASS = 'Trillion3D raster identifiers'
 export const RASTER_OCCLUDER_HIZ_PASS = 'Trillion3D raster occluder hiz'
 export const RASTER_RESOLVE_PASS = 'Trillion3D raster resolve'
-/** The impostor cards' surface pass, and their visibility pass. */
-export const IMPOSTOR_PASS = 'Trillion3D impostor cards'
-export const IMPOSTOR_VISIBILITY_PASS = `${IMPOSTOR_PASS} visibility`
 /** The surfaces' clear when the image draws no material
  *  (`../webgpu/pages/render/encodeVisSetup.ts`). */
 export const EMPTY_SURFACES_PASS = 'Trillion3D empty surfaces'
@@ -55,10 +52,13 @@ export const TEXTURE_FEEDBACK_REDUCE_PASS = 'Trillion3D texture feedback reduce'
 /** The tile pools' victim queues, ranked on the places the feedback stamped
  *  (`../webgpu/tile/evictSort.ts`). */
 export const TEXTURE_EVICTION_PASS = 'Trillion3D texture eviction queue'
-/** The blend passes (`../webgpu/blend/`): the transparents, the transmissive ones, the order and
- *  expansion, the display mask and the display filter. */
+/** The blend passes (`../webgpu/blend/`): the transparents — every layer, the transmissive ones
+ *  under the dual blend among them — and the dual blend's companion pass, the distortion's
+ *  accumulation and application, the order and expansion, the display mask and the display filter. */
 export const TRANSPARENTS_PASS = 'Trillion3D transparents'
-export const TRANSMISSION_PASS = 'Trillion3D transmission'
+export const BLEND_COMPANION_PASS = 'Trillion3D blend companion'
+export const DISTORTION_PASS = 'Trillion3D distortion'
+export const DISTORTION_APPLY_PASS = 'Trillion3D distortion apply'
 export const BLEND_ORDER_PASS = 'Trillion3D blend order and expansion'
 export const DISPLAY_MASK_PASS = 'Trillion3D display mask'
 export const DISPLAY_FILTER_PASS = 'Trillion3D display filter'
@@ -104,6 +104,9 @@ export const AS_IS_SHARE_PASS = 'Trillion3D as-is share seed'
 export const TAA_PASS = 'Trillion3D temporal antialiasing'
 /** Every pass of the bloom chain, down and up its levels (`../webgpu/effects/webgpuBloom.ts`). */
 export const BLOOM_PASS = 'Trillion3D bloom'
+/** Both passes of every outline, its scan and its line over the display image
+ *  (`../webgpu/effects/webgpuOutline.ts`). */
+export const OUTLINE_PASS = 'Trillion3D outline'
 /** The HDR composition, alone or presenting the canvas too (`../lighting/deferred/deferred.ts`). */
 export const HDR_COMPOSITION_PASS = 'Trillion3D HDR composition'
 export const HDR_PRESENT_PASS = 'Trillion3D HDR composition + present'
@@ -113,6 +116,14 @@ export const DIRECT_PRESENT_PASS = 'Trillion3D direct present'
 export const VIEW_PRESENT_PASS = 'Trillion3D view present'
 /** The guides drawn over the image (`../guides/guidePass.ts`). */
 export const GUIDE_PASS = 'Trillion3D guides'
+/** The x-ray view's edges, drawn over the lit image (`../webgpu/visibility/xray.ts`). */
+export const XRAY_PASS = 'Trillion3D x-ray'
+/** The frame-difference view, the display image against the one before, onto the canvas
+ *  (`../webgpu/pages/render/frameDifference.ts`). */
+export const FRAME_DIFFERENCE_PASS = 'Trillion3D frame difference'
+/** The see-through views' background, laid before their transparents
+ *  (`../webgpu/visibility/xray.ts`). */
+export const SEE_THROUGH_BACKGROUND_PASS = 'Trillion3D see-through background'
 /** The capture of the emission and occlusion layer (`../webgpu/pages/io/surfaceCapture.ts`). */
 export const CAPTURE_PASS = 'Trillion3D capture emission and occlusion'
 
@@ -143,15 +154,15 @@ export const ENGINE_PASSES = [
   definePass({ label: RASTER_IDENTIFIERS_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: RASTER_OCCLUDER_HIZ_PASS, stage: 'hiZ', block: 'visibility' }),
   definePass({ label: RASTER_RESOLVE_PASS, stage: 'geometry', block: 'visibility' }),
-  definePass({ label: IMPOSTOR_VISIBILITY_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: EMPTY_SURFACES_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: MATERIAL_COMPUTE_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: MATERIAL_SURFACES_PASS, stage: 'geometry', block: 'materials' }),
-  definePass({ label: IMPOSTOR_PASS, stage: 'geometry', block: 'materials' }),
   definePass({ label: TEXTURE_FEEDBACK_REDUCE_PASS, stage: 'textures', block: 'other' }),
   definePass({ label: TEXTURE_EVICTION_PASS, stage: 'textures', block: 'other' }),
   definePass({ label: TRANSPARENTS_PASS, stage: 'transparents', block: 'other' }),
-  definePass({ label: TRANSMISSION_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: BLEND_COMPANION_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: DISTORTION_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: DISTORTION_APPLY_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSPARENT_COMPACTION_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSPARENT_OCCLUSION_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: BLEND_ORDER_PASS, stage: 'transparents', block: 'other' }),
@@ -174,10 +185,14 @@ export const ENGINE_PASSES = [
   definePass({ label: AS_IS_SHARE_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: BLOOM_PASS, stage: 'effects', block: 'other' }),
+  definePass({ label: OUTLINE_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: HDR_COMPOSITION_PASS, stage: 'present', block: 'other' }),
   definePass({ label: HDR_PRESENT_PASS, stage: 'present', block: 'other' }),
   definePass({ label: DIRECT_PRESENT_PASS, stage: 'present', block: 'other' }),
   definePass({ label: VIEW_PRESENT_PASS, stage: 'present', block: 'other' }),
   definePass({ label: GUIDE_PASS, stage: 'present', block: 'other' }),
+  definePass({ label: XRAY_PASS, stage: 'present', block: 'other' }),
+  definePass({ label: FRAME_DIFFERENCE_PASS, stage: 'present', block: 'other' }),
+  definePass({ label: SEE_THROUGH_BACKGROUND_PASS, stage: 'present', block: 'other' }),
   definePass({ label: CAPTURE_PASS, stage: 'present', block: 'other' }),
 ]

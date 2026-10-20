@@ -16,6 +16,6 @@ export const frame = (rows: number): PartitionFrame => ({
   height: 8,
   layerTop: 0,
   hasRest: true,
-  viewMoved: false,
   counting: false,
+  cull: 'follow',
 })

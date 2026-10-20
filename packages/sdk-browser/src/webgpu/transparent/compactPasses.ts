@@ -4,10 +4,13 @@ import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 import { TRANSPARENT_COMPACTION_PASS } from '../../stage/passLabels.ts'
-import { sequentialEntries, COMPUTE } from '../../gpu/core/computeBindings.ts'
+import { bufferEntries, COMPUTE } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
 import { buildComputeStages } from '../../gpu/core/computeStages.ts'
 import { UNIFORM_WORDS, type CompactBuffers } from './compactBuffers.ts'
+
+/** The compaction's pass descriptor, one object for every image. */
+const COMPACTION_PASS: GPUComputePassDescriptor = { label: TRANSPARENT_COMPACTION_PASS }
 
 /** The compaction's layout: its nine buffers, the uniform at 1, the inputs read-only. */
 function compactLayout(device: GPUDevice) {
@@ -57,30 +60,32 @@ export function compactPasses(
   const bindTo = (mask: GPUBuffer, made: CompactBuffers) =>
     device.createBindGroup({
       layout,
-      entries: sequentialEntries(
-        [
-          made.entriesBuf,
-          made.uniforms,
-          mask,
-          made.groupCounts,
-          made.groupOffsets,
-          made.instanceBuffer,
-          made.indirectBuffer,
-          made.itemRangesBuf,
-          made.occludedBuffer,
-        ].map((buffer) => ({ buffer })),
-      ),
+      entries: bufferEntries([
+        made.entriesBuf,
+        made.uniforms,
+        mask,
+        made.groupCounts,
+        made.groupOffsets,
+        made.instanceBuffer,
+        made.indirectBuffer,
+        made.itemRangesBuf,
+        made.occludedBuffer,
+      ]),
     })
   // The group over the mask and the held buffers, made again when either moved.
   const bound = createWebgpuBindIdentity()
   let bindGroup: GPUBindGroup | undefined
   const uniData = new Uint32Array(UNIFORM_WORDS)
+  // The three steps' launches, refilled each image: a workgroup a group, a thread an item, a
+  // workgroup a group.
+  const launches = [0, 0, 0]
   return (encoder: GPUCommandEncoder, mask: GPUBuffer, maskOffset: number) => {
     const made = held()
     const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
     const items = Math.max(1, table.pagedItems.length)
-    // A workgroup a group, a thread an item, a workgroup a group.
-    const launches = [groups, ceilDiv(items, WORKGROUP_THREADS), groups]
+    launches[0] = groups
+    launches[1] = ceilDiv(items, WORKGROUP_THREADS)
+    launches[2] = groups
     uniData[0] = table.length
     uniData[1] = groups
     uniData[2] = table.pagedItems.length
@@ -90,7 +95,7 @@ export function compactPasses(
     bound.next[1] = made
     if (bound.moved()) bindGroup = bindTo(mask, made)
     device.queue.writeBuffer(made.uniforms, 0, uniData)
-    const pass = encoder.beginComputePass({ label: TRANSPARENT_COMPACTION_PASS })
+    const pass = encoder.beginComputePass(COMPACTION_PASS)
     pass.setBindGroup(0, bindGroup!)
     for (let step = 0; step < 3; step++) {
       pass.setPipeline(pipelines[step])

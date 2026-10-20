@@ -93,8 +93,9 @@ export const run = (source: string, names: string[], more: object = {}) =>
     ...more,
   })
 
-/** A map's handle: a full map's or, one in eight, a single page's. */
-export const handle = (d: Draw) => ({ id: d.int(0, 40) })
+/** A map's handle: one of the three maps whose allocated rects the tables may hold (`bounds`), so
+ *  that a case reaches their pages. */
+export const handle = (d: Draw) => ({ id: d.int(0, 2) })
 /** A rect within `size` (pages or pixels), some empty or reversed, one in sixteen the
  *  invalidation's empty bounds. */
 export function pageRect(d: Draw, size: number) {

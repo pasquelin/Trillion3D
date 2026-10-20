@@ -1,9 +1,9 @@
 // The shadow maps' pipelines are compiled off the thread before the first frame
 // (`prepareVsmPipelines`): for the set the scene's casting lights are first granted, every compute
 // pipe of the shadow passes — invalidation, marking, page management, the raster's candidates,
-// cull, expand and arguments —, the raster's render pipeline and the projection's twin. The first
-// lit frame then creates no shadow pipeline at once; the projection's kind variant it asks compiles
-// off the thread too, the twin drawing meanwhile.
+// views, cull, expand and arguments —, the raster's render pipeline of every tier and the
+// projection's pipeline of every kind set. The first lit frame then creates no shadow pipeline, at
+// once or off the thread.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../../../../../../sdk-core/src/scene/light/store.ts'
@@ -12,6 +12,7 @@ import { installGpuGlobals } from '../../../../../../../tests/kit/gpu/globals.ts
 import { BACKEND } from '../../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { SHADOW_LIMITS, camera, disposeQuadRun, quadBackend } from '../../testScenes.fixture.ts'
+import { VSM_RENDER_TIERS } from '../../../../vsm/renderParamsWgsl.ts'
 
 /** A pipeline's name, before the tag the session gives its label (`vsm.projection @t3d:1`). */
 const nameOf = (descriptor: { label?: string }) => (descriptor.label ?? '').split(' ')[0]
@@ -36,13 +37,15 @@ test('the first lit frame creates no shadow pipeline at once: prepare compiled t
     assert.deepEqual(shadow(made.sync), [], 'prepare creates none at once')
     const prepared = shadow(made.async)
     assert.ok(prepared.length >= 20, `${prepared.length} shadow pipelines compiled by prepare`)
-    assert.ok(prepared.includes('vsm.render.raster') && prepared.includes('vsm.projection'))
+    assert.ok(prepared.includes('vsm.projection'), "the projection's pipeline")
+    for (let tier = 0; tier < VSM_RENDER_TIERS; tier++)
+      assert.ok(prepared.includes(`vsm.render.raster${tier}`), `the raster of tier ${tier}`)
     made.sync.length = made.async.length = 0
     backend.render(camera())
     await backend.flush()
     assert.ok(backend.metrics().shadowVsmLights, 'the frame shadowed its sun')
     assert.deepEqual(shadow(made.sync), [], 'the frame creates none at once')
-    assert.deepEqual(shadow(made.async), ['vsm.projection'], 'its kind variant, off the thread')
+    assert.deepEqual(shadow(made.async), [], 'nor any off the thread: its kind set was prepared')
   } finally {
     disposeQuadRun(backend, fixture)
   }

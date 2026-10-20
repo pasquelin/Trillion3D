@@ -80,16 +80,16 @@ test('the page table, receiver covers and uncached rects are one buffer for both
   assert.deepEqual(Object.keys(a).sort(), [...SHARED, ...DOUBLED].sort())
   const distinct = new Set([...Object.values(a), ...Object.values(b)])
   assert.equal(distinct.size, SHARED.length + 2 * DOUBLED.length)
-  // One copy fewer of each: 32 MiB at the engine's one-sun set (page table 12 MiB, masks 18 MiB,
-  // rects 2 MiB).
+  // One copy fewer of each: 33.5 MiB at the engine's one-sun set (page table 12 MiB, masks
+  // 17.5 MiB — its suns' maps, no single-page entry —, stale rects 4 MiB, a layer's each).
   const sun = createVsmResources(deviceFor().device, {
     fullMapCapacity: 127,
     sunMapCapacity: 2 * LEVELS + 1,
   })
   const { layout } = sun
   const saved = SHARED.reduce((sum, member) => sum + sun.frames[0][member].size, 0)
-  assert.equal(saved, layout.pageTableWords * 4 + layout.coverWords * 4 + layout.pageRectCount * 16)
-  assert.ok(Math.abs(saved - 32 * MIB) < 1024, `${saved}`)
+  assert.equal(saved, layout.pageTableWords * 4 + layout.coverWords * 4 + layout.pageRectCount * 32)
+  assert.ok(Math.abs(saved - 33.5 * MIB) < 1024, `${saved}`)
 })
 
 test('destroy frees every buffer once, the shared ones included', () => {
@@ -155,7 +155,7 @@ test("no pass binds a shared member as last frame's: such a spec is refused at i
   for (const specs of lists) assert.doesNotThrow(() => vsmBindingsWgsl(0, specs, layout))
 })
 
-test('the projection buffer is a 288-byte record a slot, and the shadows hold 404 MiB of the GPU', () => {
+test('the projection buffer is a 288-byte record a slot, and the shadows hold 413 MiB of the GPU', () => {
   // `shadowBudgetBytes.ts` and `budget.fixture.ts` are both built from `vsmResourceBytes`, so a
   // record size that moved would move both and pass `worldBudget.test.ts`: the numbers are here.
   const fake = deviceFor()
@@ -172,5 +172,5 @@ test('the projection buffer is a 288-byte record a slot, and the shadows hold 40
     vsmResourceBytes(res.layout),
     fake.buffers.reduce((sum, buffer) => sum + buffer.size, 0),
   )
-  assert.equal(SHADOW_POOL_BYTES / MIB, 404)
+  assert.equal(SHADOW_POOL_BYTES / MIB, 413)
 })

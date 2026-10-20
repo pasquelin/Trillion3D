@@ -1,19 +1,18 @@
 // A view aside cut alone reads the tables as the main view's cut would: what moved since the last
-// cut — a placement parked, a cell placed — reaches them before it encodes (`runtime.ts`,
-// `syncTables`). On a generated field of 400 placements under its tree, and on the generated world
-// of three cells of four objects beside twelve placements. A view aside made where another was
-// released takes the world's fade from its own first cut.
+// cut — a placement parked, a placement put in its HLOD 0 cell — reaches them before it encodes
+// (`runtime.ts`, `syncTables`). On a generated field of 400 placements under its tree, and on the
+// generated world of three HLOD 0 cells beside twelve placements.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { packDagSelection } from './pack.ts'
+import { LINK_WORDS } from './worldLinks.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import type { RootsOnGpu } from './runtimeOps.ts'
 import { placementField } from './placementTree.fixture.ts'
 import { ruleDag } from '../../page/cut/cutRule.fixture.ts'
-import { worldDag } from '../../scene/worldSuperRoots.fixture.ts'
+import { worldDag } from '../../scene/worldHlod.fixture.ts'
 import { createSelectionUniforms } from '../core/selection.ts'
-import { worldFadeScale } from './worldFade.ts'
 import { BACKEND } from '../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { DagRoot } from './types.ts'
@@ -81,31 +80,20 @@ test('a view aside cut alone reads the tree refitted and the root word of a park
   assert.deepEqual(bytes(words, 0, rows.byteLength), rows, 'the parked root word sent')
 })
 
-test('a view aside cut alone reads the links of a cell placed since', async () => {
+test('a view aside cut alone reads the links of placements put in their cells since', async () => {
   const world = worldDag(),
     manifest = ruleDag(8) as unknown as DagRoot
   const roots = [...Array.from({ length: 12 }, () => manifest), world as never]
   const { packed, resources, selection, side } = await asideOver(roots)
-  for (let o = 4; o < 8; o++) selection.placeObject(o, o)
+  for (let w = 4; w < 7; w++) selection.placeInCell(w, w - 4)
   await side()
   const { links, linkBase } = packed.world!
   // The cold words, one a record, laid as the packing laid them (`cutTables.ts`).
   const cold = (resources.cutTables.cold.texture as unknown as { words: Uint32Array }).words
-  for (let w = 4; w < 8; w++) assert.equal(cold[linkBase + w], links[w], `placement ${w}`)
-})
-
-test('a view aside made after another is released counts its own camera from its first cut', async () => {
-  const world = worldDag(),
-    manifest = ruleDag(8) as unknown as DagRoot
-  const roots = [...Array.from({ length: 12 }, () => manifest), world as never]
-  const { packed, selection, image } = await asideOver(roots)
-  const cut = async (aside: ReturnType<typeof selection.aside>, x: number) => {
-    await image(aside, x)
-    return packed.world!.scale
-  }
-  const first = selection.aside()
-  for (const x of [5, 6, 7]) await cut(first, x)
-  first.dispose()
-  // The next view takes the released one's token, at the camera it last cut under.
-  assert.equal(await cut(selection.aside(), 7), worldFadeScale(1), 'its first cut, its first move')
+  for (let w = 4; w < 7; w++)
+    for (let k = 0; k < LINK_WORDS; k++) {
+      const at = w * LINK_WORDS + k
+      assert.equal(cold[linkBase + at], links[at], `placement ${w}`)
+    }
+  assert.deepEqual([...links.subarray(4 * LINK_WORDS, 7 * LINK_WORDS)], [0, 0, 1, 0, 2, 0])
 })

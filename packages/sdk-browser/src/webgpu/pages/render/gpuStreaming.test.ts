@@ -10,6 +10,8 @@ import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.t
 import { coarseQuadScene } from '../coarseQuads.fixture.ts'
 import type { Engine } from '../../../engine/types.ts'
 import { graphDraws } from '../../../page/selection/drawSource.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 test('a GPU-driven image reaches the queue as one command buffer', async () => {
   installGpuGlobals()
@@ -22,6 +24,7 @@ test('a GPU-driven image reaches the queue as one command buffer', async () => {
   )
   const { device, submits } = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,

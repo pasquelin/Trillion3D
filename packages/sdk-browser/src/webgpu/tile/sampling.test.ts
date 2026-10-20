@@ -115,13 +115,15 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
   assert.match(shadow, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/)
   assert.doesNotMatch(shadow, /taps/i)
   assert.match(shadow, /colorBlend\(s,uv,lod,nearest,true\)/)
-  for (const [finest, read] of [
-    [false, 'colorSample'],
-    [true, 'colorSampleFinest'],
+  // The camera cutout at the render pixel's own footprint: the pool's upscale offset cancelled
+  // (`exp2(-uni.mipBias)`), so a hard threshold does not flip with the jitter; the shadow's as is.
+  for (const [finest, read, scale] of [
+    [false, 'colorSample', '*exp2(-uni.mipBias)'],
+    [true, 'colorSampleFinest', ''],
   ] as const)
     assert.equal(
       maskAlphaWgsl(finest).text,
-      `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read}(slot,uv,ddx,ddy,sampled).w;}`,
+      `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read}(slot,uv,ddx${scale},ddy${scale},sampled).w;}`,
     )
 })
 

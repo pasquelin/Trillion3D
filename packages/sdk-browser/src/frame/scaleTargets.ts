@@ -1,16 +1,13 @@
-/** A second, ms: the span the frame clock judges over — the refresh measured, a cadence, a frame
- *  missing its refresh once. */
+/** A second, ms: the span the refresh clock judges over (`refreshClock.ts`). */
 export const SECOND_MS = 1000
-/** What the render-scale control and its targets share (`scaleControl.ts`): 60 Hz, the slowest
- *  display the engine draws for — the refresh assumed before the display's is measured, the
- *  slowest steady cadence (`cadence.ts`), the main thread's frame past which it chokes
+/** 60 Hz, the slowest display the engine draws for: the refresh assumed before the display's is
+ *  measured (`scaleControl.ts`), the main thread's frame past which it chokes
  *  (`../diagnostic/frameProfile.ts`). */
 export const FALLBACK_REFRESH_MS = SECOND_MS / 60
-/** What the controller reads: the share of the budget they aim at, the display frames a sample is
- *  kept, the relative change below which the scale holds, and the display frames between two moves. */
-export const HEADROOM = 0.9,
-  HISTORY = 16,
-  THRESHOLD = 0.02,
+/** The images a GPU time is waited for before the timer counts as silent (`scaleTick.ts`), and
+ *  the interactive loop's first display frames, held to measure the refresh on (`scaleControl.ts`,
+ *  `measuring`). */
+export const HISTORY = 16,
   PERIOD = 8
 /** A memory cap (`createTargetCap`) holds the targets an eighth of the display below the refused
  *  ones. */

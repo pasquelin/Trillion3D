@@ -6,9 +6,9 @@ import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND } from './nodeLayout.ts'
 import { TREE_GROUP } from './placementTree.ts'
 
 /** Tree levels a ray walks down at most: a tree of 64-way nodes holds 2⁴² members in seven. */
-export const TREE_DEPTH = 8
+const TREE_DEPTH = 8
 /** Children a level holds ready, nearest first, from one scan of its node (`placementTreeWalk`). */
-export const WALK_LIST = 4
+const WALK_LIST = 4
 
 /**
  * What differs between the rays that walk the placement tree (`placementTreeWalk`): where its nodes
@@ -33,6 +33,9 @@ type TreeWalk = {
   steps: string
   /** What a walk cut short by its steps, not by the tree's end, does: a statement. */
   cut: string
+  /** How far a cell's box is grown on every side, an expression: what the ray meets lies that near
+   *  it — a line within its reach. Unset, the boxes as the tree holds them. */
+  grow?: string
 }
 
 /** The constants the walk reads: its depth, the words of a tree node it reads, its group kind, and
@@ -54,7 +57,10 @@ export const PLACEMENT_TREE_WALK_WGSL = wgslBlock(
 /** The entry `e` of the child the walk's scan reads at `k`: a cell's node by its box, a group's member
  *  by the host's (`entry`), past the nearest hit where the slot holds no placement. */
 const childEntry = (t: TreeWalk) => {
-  const cell = `rayBoxEntry(${t.table}Low(first+k),${t.table}High(first+k),origin,inverse,best.distance)`
+  const [low, high] = [`${t.table}Low(first+k)`, `${t.table}High(first+k)`].map((corner, side) =>
+    t.grow ? `${corner}${side ? '+' : '-'}vec3f(${t.grow})` : corner,
+  )
+  const cell = `rayBoxEntry(${low},${high},origin,inverse,best.distance)`
   if (!t.entry) return `let e=${cell};`
   return `var e=best.distance+1.0;
     if(!group){e=${cell};}

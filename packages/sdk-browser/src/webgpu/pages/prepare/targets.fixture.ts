@@ -6,7 +6,7 @@ export function runtime() {
   const resized: number[][] = [],
     failures: string[] = []
   const temporal = {
-    frame: { hasHistory: true, stillFrames: 5 },
+    frame: { hasHistory: true },
     resize(w: number, h: number) {
       resized.push([w, h])
       return true
@@ -15,12 +15,13 @@ export function runtime() {
     dispose() {},
   }
   const rt = {
-    setup: {},
+    // A display of one render pixel per CSS pixel (`renderPixelRatio`).
+    setup: { pixelRatio: () => 1 },
     // A textured scene's: its pipelines write the feedback (`feedbackVariant.ts`).
     vis: { gpuHiz: {}, writesFeedback: true, writesEmissiveAo: true },
     run: { diagnostic: 'beauty' },
     layout: { rows: { packedCount: 0, packedRecs: [] } },
-    blendState: { blendGpu: [] },
+    blendState: { blendGpu: [], refracts: false, refractGranted: false },
     context: {},
     gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },
     capture: { capturing: false },

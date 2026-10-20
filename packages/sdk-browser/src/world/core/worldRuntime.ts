@@ -73,14 +73,18 @@ export function createWorldRuntime(inputs: WorldRuntimeInputs) {
  *  again while some is stale; a change made meanwhile asks the next pass; a throw ends the pass. */
 function worldResolution(parts: WorldRuntimeParts, reopens: WorldReopens, apply: () => void) {
   const { inputs, state, contents, invalidate } = parts
+  // A mesh whose resource landed is seated at the next frame, or opens the first session.
+  const landed = () => {
+    state.seatWanted = true
+    if (!state.explorer && !reopens.running) apply()
+    invalidate()
+  }
   return async () => {
     await inputs.ready().catch(() => {})
     try {
       while (!state.disposed) {
-        if (await contents.resolve()) state.lightsChanged = true
-        state.seatWanted = true
-        if (!state.explorer && !reopens.running) apply()
-        invalidate()
+        if (await contents.resolve(landed)) state.lightsChanged = true
+        landed()
         if (!contents.staleCount) break
       }
     } catch (error) {

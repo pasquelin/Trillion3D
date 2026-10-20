@@ -4,9 +4,9 @@
  *
  * A physical kind declares the engine's material parameters, on a standard or physical surface
  * (`worldPhysicalSurface.ts`). Every other kind is the family of the same name — basic, Lambert,
- * Phong, toon, normal, matcap, depth —, which the engine maps onto its one lighting model on the
- * WebGPU path (`surfaceModel.ts`), where the bench witness draws each as it is. Lines, points and
- * sprites are unlit: they wear a basic surface.
+ * Phong, toon, normal, matcap, depth, the shadow catcher —, which the engine maps onto its one
+ * lighting model on the WebGPU path (`surfaceModel.ts`), where the bench witness draws each as it
+ * is. Lines, points and sprites are unlit: they wear a basic surface.
  */
 import {
   MATERIAL_COLOURS,
@@ -39,7 +39,7 @@ const FAMILY: Record<string, SurfaceFamily> = {
   lineDashed: 'basic',
   points: 'basic',
   sprite: 'basic',
-  shadow: 'basic',
+  shadow: 'shadow',
   meshLambert: 'lambert',
   meshPhong: 'phong',
   meshToon: 'toon',

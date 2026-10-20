@@ -1,5 +1,4 @@
 import type { TilePlace } from '../../texture/tiles.ts'
-import type { TextureLevelReader } from '../../texture/levelReader.ts'
 import type { PoolEncoding } from '../../texture/blockFormats.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import { heldLevelsOf, type HeldLevels, type LevelFailed } from '../../texture/heldLevels.ts'
@@ -10,10 +9,11 @@ import type { TileKey } from './pageTable.ts'
 import type { TileCounters } from './counters.ts'
 import { serveBaked, serveHost, type Served, type TileAsk } from './serveTile.ts'
 import { copyTailFromTexture } from './write.ts'
+import type { TileTexture } from './tileTexture.ts'
+import type { TextureLevelStore } from '../../texture/levelReader.ts'
 
 type SourcesOptions = {
   device: GPUDevice
-  readLevel?: TextureLevelReader
   /** Which level file each lane samples: a family's blocks, or the lossless one. */
   encoding: PoolEncoding
   counters: TileCounters
@@ -23,12 +23,11 @@ type SourcesOptions = {
 /** The pass's encoder, opened at the first copy that needs it. */
 type OpenEncoder = () => GPUCommandEncoder
 
-/** What the sources hold: the held levels and who hears a read of theirs fail, and the working
- *  textures, live or built off the frame (`createScratches`). */
+/** What the sources hold: who hears a level read fail, and the working textures, live or built off
+ *  the frame (`createScratches`). */
 type Sources = {
   device: GPUDevice
   encoding: PoolEncoding
-  levels: HeldLevels | undefined
   failed: LevelFailed
   build: Build
   scratches: ReturnType<typeof createScratches>
@@ -55,13 +54,11 @@ function withScratch(
   }
 }
 
-/** Serves a tile from its source (`Served`). A baked source is catalogued only beside the reader of
- *  its levels (`tileCatalogue`): one without them has no source, refused by name. */
+/** Serves a tile from its source (`Served`): a baked one through the held levels of its cache's
+ *  reader, which it carries (`tileCatalogue`); a source of neither kind is refused by name. */
 function serveTile(sources: Sources, ask: TileAsk, encoder: OpenEncoder): Served {
   const { source } = ask.atlas.textures[ask.key.slot]
-  const { levels } = sources
-  if ((source.kind === 'baked' || source.kind === 'files') && levels)
-    return serveBaked(sources, levels, source, ask)
+  if (source.kind === 'baked') return serveBaked(sources, heldLevelsOf(source.read), source, ask)
   if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE')
   const id = scratchId(ask.atlas, ask.key.slot)
   return serveHost(sources.scratches, id, ask, encoder)
@@ -108,9 +105,11 @@ function reduceHost(sources: Sources, atlas: WebgpuTileAtlas, slot: number) {
  * tail takes the same path, one temporary working texture at a time.
  */
 export function createTileSources(options: SourcesOptions) {
-  const { device, counters, encoding, readLevel, onFailure } = options
-  // The session's one held-level read, the impostor maps' tails' too (`fileTails.ts`).
-  const levels = readLevel && heldLevelsOf(readLevel)
+  const { device, counters, encoding, onFailure } = options
+  // The held-level read of each cache the atlases catalogue (`hold`): the session's own, a joined
+  // model's; and one of them per store, whose reads in flight and bytes are every cook's there.
+  const levels = new Set<HeldLevels>()
+  const stores = new Map<TextureLevelStore, HeldLevels>()
   const failed: LevelFailed = (address, error) =>
     onFailure(
       `texture-level-read-failed ${address.sha256}/${address.atlas}/${address.level}`,
@@ -118,10 +117,39 @@ export function createTileSources(options: SourcesOptions) {
     )
   const build: Build = (atlas, slot) => buildHostScratch(device, counters, atlas, slot)
   const scratches = createScratches(device, build, options.onFailure)
-  const sources: Sources = { device, encoding, levels, failed, build, scratches }
+  const sources: Sources = { device, encoding, failed, build, scratches }
+  /** Level reads, decoded levels and their bytes, every cache's; none before a cache is held. */
+  const counts = {
+    get inFlight() {
+      let inFlight = 0
+      for (const held of stores.values()) inFlight += held.inFlight
+      return inFlight
+    },
+    get fetched() {
+      let fetched = 0
+      for (const held of levels) fetched += held.fetched
+      return fetched
+    },
+    get bytes() {
+      let bytes = 0
+      for (const held of stores.values()) bytes += held.bytes
+      return bytes
+    },
+  }
   return {
     release: (atlas: WebgpuTileAtlas, slot: number) => scratches.release(scratchId(atlas, slot)),
-    levels,
+    /** The level reads of every cache held, counted together; none before one is. */
+    get levels() {
+      return levels.size ? counts : undefined
+    },
+    /** `texture`'s cache is read from: a chain baked past its tail, catalogued at open or appended. */
+    hold(texture: TileTexture) {
+      if (texture.source.kind !== 'baked') return
+      const { read } = texture.source,
+        held = heldLevelsOf(read)
+      levels.add(held)
+      if (!stores.has(read.store)) stores.set(read.store, held)
+    },
     /** Who hears a level read of theirs fail. */
     failed,
     /** Serves a tile from its source (`Served`). */
@@ -156,9 +184,13 @@ export function createTileSources(options: SourcesOptions) {
       scratches.drop(frame)
     },
     get reading() {
-      return (levels?.inFlight ?? 0) > 0 || scratches.building !== undefined
+      return counts.inFlight > 0 || scratches.building !== undefined
     },
-    settled: () => Promise.all([levels?.settled(), scratches.building]).then(() => undefined),
+    settled: () => {
+      const waits: Promise<unknown>[] = [Promise.resolve(scratches.building)]
+      for (const held of stores.values()) waits.push(held.settled())
+      return Promise.all(waits).then(() => undefined)
+    },
     destroy: () => scratches.destroy(),
   }
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
 import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
-import { contractLighting, gpuHarness } from './contractLighting.fixture.ts'
+import { gpuHarness } from './contractLighting.fixture.ts'
 
 const CLEAR = clearValueOf(0x204060)
 
@@ -123,41 +123,4 @@ test('an image is composed with the share it read, one group per pair', async ()
     ],
   )
   lighting.dispose()
-})
-
-test("a lit frame over the shadow maps' double-buffered tables makes one light group per table", async () => {
-  const h = await contractLighting()
-  const vsmOf = () => ({
-    pageTable: {} as GPUBuffer,
-    projectionData: {} as GPUBuffer,
-    uniforms: {} as GPUBuffer,
-    pool: {} as GPUBuffer,
-    view: {} as GPUBuffer,
-    noise: {} as GPUTextureView,
-  })
-  // The tables this frame reads, then the other frame's: the sets take turns.
-  const sets = [vsmOf(), vsmOf()]
-  const lightsBuffer = {} as GPUBuffer
-  const made = h.bindGroups.length,
-    drawn = h.draws.length
-  for (let frame = 0; frame < 6; frame++) {
-    h.lighting.bind(h.surface, h.target, h.target, true, {
-      lights: lightsBuffer,
-      vsm: sets[frame % 2],
-    })
-    h.lighting.light(h.encoder, h.target)
-  }
-  assert.equal(h.bindGroups.length - made, 2, 'a group per table, each made once')
-  const tableOf = (group: unknown) =>
-    Array.from((group as GPUBindGroupDescriptor).entries).find(
-      (entry) => (entry.resource as GPUBufferBinding | undefined)?.buffer === sets[0].pageTable,
-    )
-      ? 0
-      : 1
-  assert.deepEqual(
-    h.draws.slice(drawn).map(({ groups }) => tableOf(groups[0])),
-    [0, 1, 0, 1, 0, 1],
-    'each frame binds its own table',
-  )
-  h.lighting.dispose()
 })

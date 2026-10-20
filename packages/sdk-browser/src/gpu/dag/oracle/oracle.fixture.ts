@@ -6,9 +6,9 @@ import {
   trianglesOf,
   flagsOf,
 } from '../records.fixture.ts'
-import { dagViewFrames, thresholdOf } from './math.fixture.ts'
+import { dagViewFrames } from './math.fixture.ts'
 import { dagOracleDescent, AHEAD_LEAF } from './descent.fixture.ts'
-import { oracleWorldCovers } from './worldGate.fixture.ts'
+import { oracleWorldCovers, oracleWorldHides, oracleWorldWaits } from './worldGate.fixture.ts'
 import { createDagOraclePredicates } from './predicates.fixture.ts'
 import { aheadDue } from '../aheadDue.fixture.ts'
 import {
@@ -59,12 +59,7 @@ export function evaluateDagSelectionKernel(
     ? dagViewFrames(packed, { ...uniforms, planes: ahead.planes, view: ahead.view })
     : undefined
   // Descent, mirror of `../shader/levelWgsl.ts`, set aside: it returns each node's verdict.
-  const nodeFlags = dagOracleDescent(
-    packed,
-    frames,
-    aheadFrames,
-    oracleWorldCovers(packed, frames, resident?.ready),
-  )
+  const nodeFlags = dagOracleDescent(packed, frames, aheadFrames, oracleWorldCovers(packed))
   const predicates = (f: typeof frames, flags: Pick<typeof nodeFlags, 'at'>) =>
     createDagOraclePredicates({
       packed,
@@ -99,7 +94,7 @@ export function evaluateDagSelectionKernel(
   const wantAhead = (i: number) => {
     if (!aheadView || !aheadFrames || !aheadView.visible(i)) return
     const w = worldOf(records, i)
-    if (!aheadView.draws(i, thresholdOf(aheadFrames, w), true, true)) return
+    if (!aheadView.draws(i, aheadFrames.pixelError, true, true)) return
     boxInto(records, i, box.min, box.max)
     const due = aheadDue(frames.planes[w], aheadFrames.planes[w], box.min, box.max)
     requestWords.push(stagedRequest(i, quantizeAheadPriority(replaced(aheadView, i), due)))
@@ -114,17 +109,19 @@ export function evaluateDagSelectionKernel(
   let frustumRejected = 0,
     lodLevel = 0,
     live = 0
+  // A world cluster whose cell its HLOD does not draw is neither drawn nor asked for.
+  const hides = oracleWorldHides(packed)
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
     // Room past the roots, as a table read back from the GPU holds it: no placement, no cut.
-    if (w === NO_INDEX) continue
+    if (w === NO_INDEX || hides(i)) continue
     if (!visible(i)) {
       frustumRejected++
       wantAhead(i)
       continue
     }
     live++
-    if (!draws(i, thresholdOf(frames, w), true, true) || coneRejects(i, w)) {
+    if (!draws(i, frames.pixelError, true, true) || coneRejects(i, w)) {
       wantAhead(i)
       continue
     }
@@ -135,12 +132,14 @@ export function evaluateDagSelectionKernel(
   // `dagMask`: the cut rule on every live cluster — visible, not rejected by its cone. Without
   // residency every cluster and every finer group is held, and the drawn cut is the kept one.
   const drawablePageIds: number[] = []
+  // A placement its cell returns to asks for its pages and draws none.
+  const waits = oracleWorldWaits(packed)
   for (let i = 0; i < livePages; i++) {
     const w = worldOf(records, i)
-    if (w === NO_INDEX || !visible(i) || coneRejects(i, w)) continue
+    if (w === NO_INDEX || hides(i) || !visible(i) || coneRejects(i, w) || waits(w)) continue
     const ready = !resident || !!resident.ready[i],
       childReady = !resident || !!resident.childReady[i]
-    if (!draws(i, thresholdOf(frames, w), ready, childReady)) continue
+    if (!draws(i, frames.pixelError, ready, childReady)) continue
     note(i)
     drawablePageIds.push(i)
   }
@@ -158,7 +157,6 @@ export function evaluateDagSelectionKernel(
     drawablePageIds,
     selectedTriangles: totals.drawn,
     transparentTriangles: totals.transparent,
-    drawnTriangles: totals.drawn,
     // What the kernel's queues and lists hold (`../shader/levelWgsl.ts`): past their caps, it drops
     // work and the cut is not drawn.
     work: { ...nodeFlags.work, live },

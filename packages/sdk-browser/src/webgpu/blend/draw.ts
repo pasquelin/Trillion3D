@@ -3,86 +3,75 @@ import { feedbackAttachment } from '../pages/prepare/attachments.ts'
 import { blendEntries } from './identity.ts'
 import { createBlendOverdraw } from './overdraw.ts'
 import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts'
-import type { BlendGpuItem } from './state.ts'
-import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts'
+import type { BlendModePipelines, RankedPipelines, TransmitPipelines } from './stagePipelines.ts'
+import type { DualPasses } from './pipelines.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
-import { planItem, planPipeline } from './plan.ts'
-import { DISPLAY_MASK_GROUP, routedFilter, type DisplayFilter } from './displayFilter.ts'
+import { distortionCovers } from './distortionDrawn.ts'
+import { noTransmissiveInView } from './expansionFrame.ts'
+import { DISPLAY_MASK_GROUP, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { directLightResources } from '../pages/prepare/contractLight.ts'
-import { DISPLAY_MASK_PASS, TRANSMISSION_PASS, TRANSPARENTS_PASS } from '../../stage/passLabels.ts'
+import {
+  DISPLAY_MASK_PASS,
+  BLEND_COMPANION_PASS,
+  TRANSPARENTS_PASS,
+} from '../../stage/passLabels.ts'
 
 /**
- * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
- * reads its quantized pages in the page cache, or the concatenated geometry of a cache without
- * them, so ALL paged items share this group; an unpaged item carries its own buffers and keeps
- * its own.
+ * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. An item reads its
+ * quantized pages in the page cache, or the float pool for a geometry its pages carry unquantized,
+ * so ALL items share this group.
  */
-function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGpuItem | undefined) {
+function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return device.createBindGroup({
     layout: rt.vis.blendBindGroupLayout!,
-    entries: item
-      ? blendEntries(rt, item)
-      : (rt.blendState.identity.entries[0] ??= blendEntries(rt)),
+    entries: (rt.blendState.identity.entries[0] ??= blendEntries(rt)),
   })
 }
 
 /**
- * Encodes the slots of a pass into an open render pass: one `drawIndirect` per SLOT, and nothing
- * else.
+ * Encodes slots `from` to `to` of the pass into an open render pass: one `drawIndirect` per SLOT,
+ * and nothing else.
  *
  * The GPU ordered the pass and wrote each slot's argument (`runs.ts`); the CPU knows each slot's
  * pipeline and buffers without that order: a slot of the main class sets the main pipeline and the
  * paged group, an own slot sets its entry's, and the own entries' paint order is the one the CPU
- * ranked (`order.ts`). Draw primitives are rasterized instance by instance, in order: the paint
+ * ranked (`order.ts`), each slot's pipeline taken once a frame (`slotPipelines`). Draw primitives are rasterized instance by instance, in order: the paint
  * order is the one a draw per item gives — without the draws.
  *
  * The loop does no matrix product, no material read, no frustum test: the frustum verdict is the
  * GPU's (`verdictWgsl.ts`), which zeros the instances of what it rejects — an own entry wholly out
  * of view draws no instance, and a draw with no instance sets nothing.
  *
- * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
- * draws it, with the display layers `filter` attached and its mask bound; the bind groups are the
- * same, and they are the blend pass's — the reflection group too, but for a pass whose pipelines read
- * none (`reflected` false: the front pass). Returns the draws encoded.
+ * `pipelines` say what draws each rank; `options` (`BlendRuns`) what else the pass holds. Returns
+ * the draws encoded.
  */
 export function drawBlendRuns(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   pass: GPURenderPassEncoder,
-  slice: number,
   pipelines: RankedPipelines,
-  filter?: DisplayFilter,
-  share = false,
-  reflected = true,
+  { filter, share = false, reflected = true, nearFirst = false }: BlendRuns = {},
 ) {
   const { blendState } = rt,
-    items = blendState.blendGpu,
-    seeds = blendState.seeds[slice],
-    ownSeeds = blendState.ownSeeds[slice],
-    slotOwns = blendState.slotOwns[slice],
-    main = blendState.mainPipeline[slice],
-    count = blendState.runCount[slice],
     args = blendState.argsBuffer!
   if (reflected) bindForwardReflection(pass, rt)
   if (filter) pass.setBindGroup(DISPLAY_MASK_GROUP, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   const held = blendState.identity.slot,
-    pagedGroup = (blendState.pagedGroups[held] ??= blendBindGroup(rt, device, undefined))
+    group = (blendState.sharedGroups[held] ??= blendBindGroup(rt, device))
+  // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
+  // group is set once for the whole list.
+  pass.setBindGroup(0, group)
   let boundPipeline = -1,
-    boundGroup: GPUBindGroup | undefined,
     encoded = 0
-  const base = blendState.planRegions[slice].args * 4
-  for (let slot = 0; slot < count; slot++) {
-    const own = slotOwns[slot]
-    let pipelineRank = main,
-      item: BlendGpuItem | undefined
-    if (own >= 0) {
-      const entry = seeds[ownSeeds[own]]
-      pipelineRank = planPipeline(entry)
-      item = items[planItem(entry)]
-    }
+  const base = blendState.planRegion.args * 4,
+    ranks = blendState.slotPipelines
+  const to = blendState.runCount
+  for (let k = 0; k < to; k++) {
+    const slot = nearFirst ? to - 1 - k : k
+    const pipelineRank = ranks[slot]
     if (pipelines.skips?.(pipelineRank)) continue
     encoded++
     if (boundPipeline !== pipelineRank) {
@@ -92,80 +81,177 @@ export function drawBlendRuns(
       if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`)
       pass.setPipeline(pipeline)
     }
-    const group =
-      item && !item.paged
-        ? ((item.groups ??= [])[held] ??= blendBindGroup(rt, device, item))
-        : pagedGroup
-    // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
-    // group is set once for the whole list, and again only for an unpaged item's own buffers.
-    if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group))
     pass.drawIndirect(args, base + slot * 16)
   }
   return encoded
 }
 
+/** What a pass drawing the runs holds besides their pipelines (`drawBlendRuns`): the display
+ *  layers `filter` attached and its mask bound; the share a debug view or the temporal pass reads
+ *  (`share`); the reflection group bound, but for a pass whose pipelines read none (`reflected`
+ *  false: the front pass, the distortion); the slots near to far, against their paint order
+ *  (`nearFirst`): a pass that writes depth and blends nothing (the front pass) then rejects early
+ *  what lies behind. */
+export type BlendRuns = {
+  filter?: DisplayFilter
+  share?: boolean
+  reflected?: boolean
+  nearFirst?: boolean
+}
+
+/** The colour attachments of the blend pass under the dual blend: the HDR target alone, as WebGPU
+ *  takes a dual blend (`drawBlendPass`). One array, refilled each image. */
+const dualColour: GPURenderPassColorAttachment[] = [
+  { view: undefined as unknown as GPUTextureView, loadOp: 'load', storeOp: 'store' },
+]
+
+/** A colour attachment the blend pass loads and stores, its view set each image. */
+const loaded = (): GPURenderPassColorAttachment => ({
+  view: undefined as unknown as GPUTextureView,
+  loadOp: 'load',
+  storeOp: 'store',
+})
+const hdrColour = loaded(),
+  shareColour = loaded()
+/** The colour attachments of the blend pass on every target (`drawBlendPass`): the HDR target, the
+ *  virtual-texture feedback, the share and the two display layers, each slot empty while unused.
+ *  One array, refilled each image. */
+const allColour: Array<GPURenderPassColorAttachment | null> = [hdrColour, null, null, null, null]
+/** The depth the blend pass tests against, read only: its view set each image. */
+const blendDepth: GPURenderPassDepthStencilAttachment = {
+  view: undefined as unknown as GPUTextureView,
+  depthReadOnly: true,
+}
+/** What a frame asks the programs to reach, and what its one pass on every target holds: one
+ *  object each, refilled each image. */
+const reached = { share: false, filtered: false }
+const allRuns: BlendRuns = {}
+/** The companion pass's colour attachments (`drawCompanion`): no colour, the feedback, the share;
+ *  its runs' options. Refilled each image. */
+const companionColour: Array<GPURenderPassColorAttachment | null> = [null, null, null]
+const companionRuns: BlendRuns = {}
+
+/** Fills `allColour` for an image: the feedback while the pipelines write it, the share a debug
+ *  view or the temporal pass reads, the display layers of an image whose blends filter. */
+function fillAllColour(
+  rt: WebgpuPagesRuntime,
+  share: { view: GPUTextureView } | undefined,
+  filter: DisplayFilter | undefined,
+) {
+  hdrColour.view = rt.gpu.hdrView!
+  // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
+  allColour[1] = rt.vis.writesFeedback ? feedbackAttachment(rt) : null
+  if (share) shareColour.view = share.view
+  allColour[2] = share ? shareColour : null
+  // The display layers (`displayFilter.ts`): the tint and the added value.
+  const layers = filter?.attachments()
+  allColour[3] = layers?.[0] ?? null
+  allColour[4] = layers?.[1] ?? null
+  return allColour
+}
+
 /**
- * Encodes a forward transparent pass over the lit image: the blends, or — under a diagnostic
- * view or variant, which see it as one more blend — the transmission slice. Virtual-texture
- * feedback is opened by `feedbackAttachment`, which alone knows whether a pass of the frame
- * already wrote it; the function says whether it opened a pass. `key`, the frame's lights' key
- * (`directLightResources`, resolved here when not given), picks the program
- * (`createForwardVariants`).
+ * Encodes the forward transparent pass over the lit image, every translucent layer lit in forward
+ * and composed in paint order, after the distortion was applied to the opaque scene
+ * (`distortion.ts`): the blends in their modes, the transmissive layers under the dual blend where the device grants it and no
+ * display layer is on, under its fallback otherwise. Under the dual blend the pass holds the HDR
+ * target alone — WebGPU takes a dual blend on a single target only, and the translucency
+ * writes the one scene colour —, every layer in it, the blends' feedback and share left to the
+ * companion pass (`drawCompanion`). Virtual-texture feedback is opened by `feedbackAttachment`,
+ * which alone knows whether a pass of the frame already wrote it; the function says whether it
+ * opened a pass. `key`, the frame's lights' key (`directLightResources`, resolved here when not
+ * given), picks the program (`createForwardVariants`).
  */
 export function drawBlendPass(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  transmissive = false,
   key?: Partial<ContractKey>,
 ): boolean {
   const { gpu, vis, blendState } = rt,
-    slice = transmissive ? 1 : 0,
-    // The transmission slice routes through the mask the blends drew, if they drew one.
-    filter = transmissive
-      ? routedFilter(gpu.displayFilter)
-      : gpu.displayFilter?.active
-        ? gpu.displayFilter
-        : undefined
+    filter = gpu.displayFilter?.active ? gpu.displayFilter : undefined
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
-  if (!blendState.runCount[slice] || !blendState.argsBuffer) return false
+  if (!blendState.runCount || !blendState.argsBuffer) return false
   // Lit with the code the frame's lights need, on the opaque resolve's key (`pipelines.ts`), and
   // with lobe code while an item's surface carries a lobe (`physicalWgsl.ts`).
   const pipelines = vis.blendPipelines!.lit(key ?? directLightResources(rt), blendState.lobed)
-  if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter, pipelines.mask)
+  if (filter) drawDisplayMask(rt, device, encoder, filter, pipelines.mask)
   const share = activeAsIsShare(rt)
   // A debug view or the temporal pass turning the share on starts its compile (`reach.ts`).
-  pipelines.reach({ share: !!share, filtered: !!filter })
+  reached.share = !!share
+  reached.filtered = !!filter
+  pipelines.reach(reached)
+  // The dual blend's two passes only while a transmissive item may be in view
+  // (`noTransmissiveInView`); else the one pass on every target, the transmissive slots — which
+  // the verdict left without an instance — skipped (`DualPasses.blends`).
+  const passes = filter ? undefined : pipelines.dualPasses,
+    dual =
+      passes && blendState.transmissive > 0 && !noTransmissiveInView(blendState)
+        ? passes
+        : undefined,
+    drawn = passes && !dual ? passes.blends : pipelines
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
     : undefined
+  if (dual) dualColour[0].view = gpu.hdrView!
+  blendDepth.view = gpu.depthView!
   const pass = encoder.beginRenderPass({
-    label: transmissive ? TRANSMISSION_PASS : TRANSPARENTS_PASS,
+    label: TRANSPARENTS_PASS,
     occlusionQuerySet: overdraw?.set,
-    colorAttachments: [
-      {
-        view: gpu.hdrView!,
-        loadOp: 'load',
-        storeOp: 'store',
-      },
-      // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
-      rt.vis.writesFeedback ? feedbackAttachment(rt) : null,
-      // The share a debug view or the temporal pass reads; an empty slot otherwise.
-      share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
-      // The display layers of an image whose blends filter (`displayFilter.ts`).
-      ...(filter ? filter.attachments() : [null, null]),
-    ],
-    depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
+    colorAttachments: dual ? dualColour : fillAllColour(rt, share, filter),
+    depthStencilAttachment: blendDepth,
   })
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
-  overdraw?.begin(pass, transmissive)
-  const encoded = drawBlendRuns(rt, device, pass, slice, pipelines, filter, !!share)
+  overdraw?.begin(pass)
+  allRuns.filter = filter
+  allRuns.share = !!share
+  let encoded = dual
+    ? drawBlendRuns(rt, device, pass, dual.colour)
+    : drawBlendRuns(rt, device, pass, drawn, allRuns)
   overdraw?.end(pass)
   pass.end()
   overdraw?.after(encoder)
-  countBlendDraws(rt, encoded, transmissive)
+  if (dual) encoded += drawCompanion(rt, device, encoder, pipelines.transmission, dual)
+  countBlendDraws(rt, encoded)
   return true
+}
+
+/**
+ * The companion pass of the dual blend, the translucent layers drawn again into their own
+ * targets: what the colour pass's single target leaves out — the tile rank each pixel asks of
+ * the virtual textures, and the share the temporal pass or a debug view reads, at each layer's
+ * coverage (`fsBlendCoverage`, `fsTransmitCoverage`), which composes in any order (`asIsShare.ts`).
+ * The transmissive layers are left out where the distortion's accumulation wrote theirs
+ * (`distortionCovers`). None where the frame writes neither. Returns the draws encoded.
+ */
+function drawCompanion(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  transmission: TransmitPipelines | undefined,
+  dual: DualPasses,
+) {
+  const { gpu } = rt,
+    share = activeAsIsShare(rt),
+    feedback = rt.vis.writesFeedback
+  if (!share && !feedback) return 0
+  companionColour[1] = feedback ? feedbackAttachment(rt) : null
+  if (share) shareColour.view = share.view
+  companionColour[2] = share ? shareColour : null
+  blendDepth.view = gpu.depthView!
+  const pass = encoder.beginRenderPass({
+    label: BLEND_COMPANION_PASS,
+    colorAttachments: companionColour,
+    depthStencilAttachment: blendDepth,
+  })
+  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
+  // The reflection group bound too: a shadow catcher's lights may read its depth pyramid.
+  const companion = dual.companion(!distortionCovers(rt, transmission))
+  companionRuns.share = !!share
+  const encoded = drawBlendRuns(rt, device, pass, companion, companionRuns)
+  pass.end()
+  return encoded
 }
 
 /** The display mask: the blends' filtering surfaces alone, depth-tested, before the blend pass. */
@@ -183,17 +269,14 @@ function drawDisplayMask(
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   })
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
-  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, 0, mask)
+  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, mask)
   pass.end()
 }
 
-/** Frame counters of a transparent pass: draws, and the unpaged triangles it submits. */
-export function countBlendDraws(rt: WebgpuPagesRuntime, encoded: number, transmissive: boolean) {
-  const { run, blendState } = rt
+/** Frame counters of a transparent pass: draws, and the triangles its clusters submit. */
+export function countBlendDraws(rt: WebgpuPagesRuntime, encoded: number) {
+  const { run } = rt
   run.gpuDrawCalls += encoded
   run.blendDrawCalls += encoded
-  run.blendUnpagedTriangles += transmissive
-    ? blendState.transmissionTriangles
-    : blendState.blendTriangles
-  run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles
+  run.blendSubmittedTriangles = run.blendPagedTriangles
 }

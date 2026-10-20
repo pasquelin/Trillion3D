@@ -9,7 +9,6 @@ import {
 } from '../../../../sdk-core/src/world/material/material.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-import { composesWithBackground } from '../../scene/materialBlending.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
 import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import type { PageSurface } from '../../page/surface.ts'
@@ -73,19 +72,12 @@ export function materialKey(material: Material, values = true, pictures = true) 
   return fields.join(';')
 }
 
-/** A surface drawn by the opaque passes, where a value is read from the row at every frame; a
- *  blended or transmissive one is laid out in its forward pass when the session opens, and so is
- *  one whose blending mode composes with the background, whatever `transparent` says. */
-const opaque = (material: Material) =>
-  !material.transparent &&
-  !composesWithBackground(material.blending) &&
-  !((material.transmission as number | undefined) ?? 0)
-
-/** Writes `material`'s values into its sole entry, when nothing but values changed. */
+/** Writes `material`'s values into its sole entry, when nothing but values changed: opaque or
+ *  blended, a pass reads them from its surface's record, which no row or item copies
+ *  (`../../webgpu/material/materialTable.ts`). */
 function repaintValues({ sources }: MaterialsState, material: Material, entry: MaterialEntry) {
   const only = sources.get(entry)
   if (only?.size !== 1 || !only.has(material)) return false
-  if (!opaque(material) || !opaque(entry.material)) return false
   if (materialKey(material, false) !== materialKey(entry.material, false)) return false
   // Only the fields the material holds: a kind never gains a field it does not declare.
   for (const field of Object.keys(material)) {

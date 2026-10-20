@@ -59,7 +59,8 @@ test('a still scene weighs no host map’s coverage rule', () => {
   const map = new Texture(null)
   const colour = atlas([map]),
     data = atlas([])
-  ;(colour.atlas.textures[1] as { source: unknown }).source = {
+  const texture: { source: unknown } = colour.atlas.textures[1]
+  texture.source = {
     kind: 'host',
     map,
     coverage: readers,

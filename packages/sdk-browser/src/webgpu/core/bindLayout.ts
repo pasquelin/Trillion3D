@@ -12,7 +12,7 @@ import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeB
 
 /** Four bindings of a virtual-texture atlas from `base`: one pool per lane, in
  *  `PREVIEW_LAYOUT_NAMES` order, then its page table. */
-export const atlasBindings = (base: number) => ({
+const atlasBindings = (base: number) => ({
   lanes: PREVIEW_LAYOUT_NAMES.map((_, index) => base + index),
   pages: base + PREVIEW_LAYOUT_NAMES.length,
 })
@@ -35,6 +35,13 @@ export const visUniformLayout = (limits: Parameters<typeof uniformSlots>[0], cou
   visSlots?.count === count && visSlots.stride === uniformStride(limits)
     ? visSlots
     : (visSlots = uniformSlots(limits, count, VIS_UNIFORM_BYTES / 4))
+/** The visibility uniform of `count` slots on `device` (`visUniformLayout`). */
+export const visUniformBuffer = (device: GPUDevice, count: number) =>
+  device.createBuffer({
+    label: 'Trillion3D visibility uniforms',
+    size: visUniformLayout(device.limits, count).bytes,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
 export const VIS_BINDINGS = {
   cache: 0,
   position: 1,
@@ -48,6 +55,10 @@ export const VIS_BINDINGS = {
   slotOffsets: 12,
   /** The surfaces' records (`../material/materialTable.ts`): a row's cutout and shape. */
   material: 13,
+  /** The float pool's normal atlas, whose tail holds a float geometry's second UV set (`vertUv1`):
+   *  what a row's cutout reads its base map at (`pageMaskUv`), in every raster and the shadow's
+   *  transmittance. */
+  normals: 14,
 }
 
 export const SHADE_BINDINGS = {
@@ -135,6 +146,8 @@ export const SMALL_BINDINGS = {
   selectionMask: 12,
   /** The visibility raster's number: the one cutout (`maskKeepWgsl`) reads it there in both. */
   material: VIS_BINDINGS.material,
+  /** The visibility raster's number: the cutout's coordinate (`pageMaskUv`) reads it there in both. */
+  normals: VIS_BINDINGS.normals,
 }
 
 /** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the records', atlas,

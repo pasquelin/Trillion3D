@@ -6,6 +6,8 @@ import {
   sequentialEntries,
 } from '../core/computeBindings.ts'
 import { HIZ_MAX_LEVELS } from './uniforms.ts'
+import { fieldLayout } from '../core/fieldLayout.ts'
+import { texelBytesOf } from '../core/textureBytes.ts'
 import type { HizDepth } from './types.ts'
 
 /**
@@ -75,7 +77,7 @@ export function hizTextureSize(layout: { first: number; upper: number }) {
 /** Bytes of the pyramid texture over a pyramid of `layout`. */
 export const hizTextureBytes = (layout: { first: number; upper: number }) => {
   const { width, height } = hizTextureSize(layout)
-  return width * height * HIZ_LAYERS * 4
+  return width * height * HIZ_LAYERS * texelBytesOf(HIZ_FORMAT)
 }
 
 /** The texel of index `i` (`hizRoute`), and its layer: `layer` for a level 0, the last for a coarser
@@ -124,7 +126,7 @@ export const HIZ_DEPTH_LAYERS = 2
 /**
  * The front-over-opaque fold, written once for every reader (`hizDepthWgsl`, the Hi-Z build): at
  * pixel `p` of the level-0 texture `depth`, the opaque depth and, where this image wrote the front
- * layer (`front`, a frame word: `HIZ_LEVELS_FRONT_WORD`, `HIZ_BUILD_FRONT_WORD`), the nearest
+ * layer (`front`, a frame word: `HIZ_LEVELS_FRONT_WORD`, `HIZ_UNI.at.front`), the nearest
  * transparent surface's, reverse-Z, so the larger. An image that did not write it, or a pixel
  * without a transparent surface, reads the opaque depth, bit for bit: a layer kept from the last
  * glass is never folded, and an opaque image loads one texel.
@@ -146,16 +148,19 @@ fn hizFoldOver(depth:texture_2d_array<f32>,p:vec2i,front:bool)->bool{
 /** The levels uniform's struct (`hizLevelWords`), declared by every host that binds it as
  *  \`hizLevels\`: per level its nearest bound's first index, width, height and finished depth's
  *  farthest's first index; then the count of levels, the front word and \`upper\` (\`hizRoute\`). */
-export const HIZ_LEVELS_STRUCT_WGSL = wgslBlock(
-  'HIZ_LEVELS_STRUCT_WGSL',
-  [],
-  `struct HizLevels{level:array<vec4u,${HIZ_MAX_LEVELS}>,count:vec4u,}`,
-)
+export const HIZ_LEVELS = fieldLayout('HizLevels', [
+  ['level', { wgsl: `array<vec4u,${HIZ_MAX_LEVELS}>`, words: 4 * HIZ_MAX_LEVELS, align: 4 }],
+  ['count', 'vec4u'],
+])
+/** `HIZ_LEVELS`'s declaration, which the hosts list. */
+export const HIZ_LEVELS_STRUCT_WGSL = wgslBlock('HIZ_LEVELS_STRUCT_WGSL', [], HIZ_LEVELS.wgsl)
 
 /**
  * What a reader of the whole depth binds in group `group` from `binding` (`GpuHiz.depth`): level 0 —
  * the depth the image drew, and in its second layer, when it holds one, the nearest transparent
- * surface's depth a pixel (zero for none) —, the pyramid and its levels. `hizPlane` is a pixel's depth (the nearer of the opaque depth and
+ * surface's depth a pixel (zero for none) —, the pyramid and its levels. `hizOpaqueDepth` is a
+ * pixel's opaque depth alone, the transparent layer left out; `hizPlane` is a pixel's depth (the
+ * nearer of the opaque depth and
  * the transparent one, which the nearest layer's bounds fold in the same way, `hizFold`) and its
  * plane's slopes in depth per pixel, and `hizFrontOver` whether that depth is a transparent
  * surface's (`hizFoldOver`), in front of the opaque one (a reader that takes only opaque surfaces for walls skips
@@ -173,6 +178,7 @@ export const hizDepthWgsl = (group: number, binding: number) =>
 fn hizLevelCount()->i32{return i32(hizLevels.count.x);}
 fn hizPixelIn(cell:vec2i,size:vec2u)->vec2u{return vec2u(clamp(cell,vec2i(0),vec2i(size)-vec2i(1)));}
 fn hizPixel(cell:vec2i)->vec2u{return hizPixelIn(cell,hizLevels.level[0].yz);}
+fn hizOpaqueDepth(cell:vec2i)->f32{return textureLoad(hizDepth,vec2i(hizPixel(cell)),${HIZ_OPAQUE_LAYER},0).r;}
 fn hizFrontDepth(cell:vec2i)->f32{return hizFold(hizDepth,vec2i(hizPixel(cell)),hizLevels.count.y!=0u);}
 fn hizFrontOver(cell:vec2i)->bool{return hizFoldOver(hizDepth,vec2i(hizPixel(cell)),hizLevels.count.y!=0u);}
 fn hizPlane(cell:vec2i)->vec3f{

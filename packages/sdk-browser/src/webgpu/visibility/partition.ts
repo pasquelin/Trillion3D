@@ -5,6 +5,7 @@ import type { PartitionFrame } from '../../gpu/partition/uniform.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { prepared } from '../pages/state/prepared.ts'
+import { cullStep } from '../pages/render/cutFreeze.ts'
 
 const noMatrix = new Float64Array(16)
 
@@ -24,8 +25,8 @@ const frame: PartitionFrame = {
   height: 0,
   layerTop: 0,
   hasRest: false,
-  viewMoved: true,
   counting: false,
+  cull: 'follow',
 }
 
 /**
@@ -76,11 +77,13 @@ export function encodeWebgpuPartition(
   frame.height = gpu.targetSize[1]
   frame.layerTop = visLayerTop(vis)
   frame.hasRest = twoPass
-  // A moved view, a moved world or a dropped history free the rows the test kept: what stood
-  // still no longer does, and each of them may leave the occluders again.
-  frame.viewMoved = run.occluderViewMoved || run.noOccluderHistory
   // The sampled frame: its kernels count, and its counters are copied (`encodeCounts`).
   frame.counting = partition.countsDue(run.frame)
+  // The image's cull: a frozen cut's draws again the occlusion it kept
+  // (`../pages/render/cutFreeze.ts`).
+  frame.cull = cullStep(rt)
+  // The cut's draw mask, the draw compaction's: only the rows it draws are tested and counted.
+  frame.selection = run.gpuSelection
   partition.beginFrame(encoder, frame)
   run.noOccluderHistory = false
   // What encoding the partition costs the CPU: one uniform and three dispatches, never a resident

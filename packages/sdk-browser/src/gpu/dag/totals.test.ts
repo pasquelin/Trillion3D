@@ -44,14 +44,13 @@ test('the totals are taken on what the cut rule draws', () => {
   // One page in three resident: the rule draws fewer pages than the cut wants.
   const resident = Uint32Array.from({ length: packed.pageCount }, (_, id) => (id % 3 ? 0 : 1))
   const reading = evaluateDagSelectionKernel(packed, uni, ruleResidency(packed, resident))
-  const { selectedTriangles, drawnTriangles, drawablePageIds } = reading
-  assert.ok(drawnTriangles > 0, 'the frame must still draw')
+  const { selectedTriangles, drawablePageIds } = reading
+  assert.ok(selectedTriangles > 0, 'the frame must still draw')
   assert.ok(drawablePageIds!.length < reading.pageIds.length, 'residency must withhold a page')
-  assert.equal(selectedTriangles, drawnTriangles)
-  // `drawn` is exactly the sum of the pages the readback declares drawable — no more, no less.
+  // The total is exactly the sum of the pages the readback declares drawable — no more, no less.
   const sum = (ids: readonly number[]) =>
     ids.reduce((total, id) => total + (pages[id].triangles as number), 0)
-  assert.equal(drawnTriangles, sum(drawablePageIds!))
+  assert.equal(selectedTriangles, sum(drawablePageIds!))
 })
 
 test('the blended share is taken on the same set as the total', () => {
@@ -77,7 +76,6 @@ test('with nothing missing, every total is the sum of the drawable pages', () =>
     const reading = evaluateDagSelectionKernel(packed, uni)
     const dessinables = reading.drawablePageIds!
     assert.equal(reading.selectedTriangles, sum(dessinables), `threshold ${threshold}: cut`)
-    assert.equal(reading.drawnTriangles, sum(dessinables), `threshold ${threshold}: draw`)
     assert.equal(
       reading.transparentTriangles,
       sum(dessinables, true),

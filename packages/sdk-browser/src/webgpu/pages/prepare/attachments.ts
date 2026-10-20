@@ -3,8 +3,6 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 type Attachments = Array<GPURenderPassColorAttachment | null>
 
-let attachmentsFor: GPUTextureView[] | undefined, attachments: Attachments | undefined
-
 /** Each surface view as `attach` makes it; the emission-and-occlusion slot empty while the layer is
  *  its 1×1 stand-in (`SurfaceBuffer.hasEmissiveAo`): its pipelines write no target there. */
 const surfaceSlots = (
@@ -14,45 +12,29 @@ const surfaceSlots = (
 ): Attachments =>
   views.map((view, at) => (at === 2 && surfaces.hasEmissiveAo === false ? null : attach(view)))
 
-/**
- * Surface colour attachments, kept as-is until the next view set. Their four descriptors depend only
- * on the views, and the views change only when the target is resized: rebuilding them every image
- * allocated five objects to write the same fields. `views()` is still called every image; it is what
- * refuses a released target.
- */
-export function surfaceColorAttachments(surfaces: SurfaceBuffer) {
-  const views = surfaces.views()
-  if (attachmentsFor !== views || !attachments) {
-    attachments = surfaceSlots(surfaces, views, (view) => ({
-      view,
-      loadOp: 'clear' as const,
-      storeOp: 'store' as const,
-      clearValue: [0, 0, 0, 0],
-    }))
-    attachmentsFor = views
-    withFeedback = undefined
+/** Surface attachments as `attach` makes them, kept as-is per view set: their descriptors depend
+ *  only on the views, and the views change only when a target is resized — each view drawn in turn
+ *  (`world.addView`) keeps its own. `views()` is still called every image; it is what refuses a
+ *  released target. `withFeedback` adds the feedback target after them while the pipelines write
+ *  it (`feedbackVariant.ts`). */
+function attachmentMemo(attach: (view: GPUTextureView) => GPURenderPassColorAttachment) {
+  const made = new WeakMap<GPUTextureView[], { base: Attachments; withFeedback?: Attachments }>()
+  const entry = (surfaces: SurfaceBuffer) => {
+    const views = surfaces.views()
+    let held = made.get(views)
+    if (!held) made.set(views, (held = { base: surfaceSlots(surfaces, views, attach) }))
+    return held
   }
-  return attachments
-}
-
-let loadedFor: GPUTextureView[] | undefined,
-  loaded: Attachments | undefined,
-  loadedWithFeedback: Attachments | undefined
-
-/** The same surfaces, kept rather than cleared: a pass drawing over what the material passes wrote
- *  (the impostor cards, `../../impostor/encode.ts`). Rebuilt only with the view set. */
-function surfaceLoadAttachments(surfaces: SurfaceBuffer) {
-  const views = surfaces.views()
-  if (loadedFor !== views || !loaded) {
-    loaded = surfaceSlots(surfaces, views, (view) => ({
-      view,
-      loadOp: 'load' as const,
-      storeOp: 'store' as const,
-    }))
-    loadedFor = views
-    loadedWithFeedback = undefined
+  return {
+    of: (surfaces: SurfaceBuffer) => entry(surfaces).base,
+    withFeedback(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
+      const held = entry(surfaces)
+      if (!rt.vis.writesFeedback) return held.base
+      held.withFeedback ??= [...held.base, feedback]
+      feedbackAttachment(rt)
+      return held.withFeedback
+    },
   }
-  return loaded
 }
 
 const feedback: GPURenderPassColorAttachment = {
@@ -60,7 +42,6 @@ const feedback: GPURenderPassColorAttachment = {
   loadOp: 'clear',
   storeOp: 'store',
 }
-let withFeedback: Attachments | undefined
 
 /**
  * Attachment of the virtual-texture feedback target, and the only rule of its load: the first pass
@@ -75,22 +56,17 @@ export function feedbackAttachment(rt: WebgpuPagesRuntime) {
   return feedback
 }
 
-/** The surfaces kept, then the feedback target while the pipelines write it (`feedbackVariant.ts`):
- *  the attachments of the impostor cards' surface stage, whose pixels ask the tiles they read. */
-export function cardColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
-  const base = surfaceLoadAttachments(surfaces)
-  if (!rt.vis.writesFeedback) return base
-  loadedWithFeedback ??= [...base, feedback]
-  feedbackAttachment(rt)
-  return loadedWithFeedback
-}
+/** The surfaces cleared: rebuilding them every image allocated five objects to write the same
+ *  fields. */
+const cleared = attachmentMemo((view) => ({
+  view,
+  loadOp: 'clear' as const,
+  storeOp: 'store' as const,
+  clearValue: [0, 0, 0, 0],
+}))
 
-/** Surfaces then the feedback target, while the pipelines write it (`feedbackVariant.ts`): the
- *  attachments of the hardware resolve. */
-export function shadeColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
-  const base = surfaceColorAttachments(surfaces)
-  if (!rt.vis.writesFeedback) return base
-  withFeedback ??= [...base, feedback]
-  feedbackAttachment(rt)
-  return withFeedback
-}
+/** Surface colour attachments, cleared. */
+export const surfaceColorAttachments = cleared.of
+
+/** Surfaces cleared, then the feedback target: the attachments of the hardware resolve. */
+export const shadeColorAttachments = cleared.withFeedback

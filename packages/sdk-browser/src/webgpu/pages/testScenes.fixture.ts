@@ -20,6 +20,8 @@ import {
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { graphDraws, type DrawAssociations } from '../../page/selection/drawSource.ts'
 import type { PageSurface } from '../../page/surface.ts'
+import { createTextureCaches } from '../../texture/textureCaches.ts'
+import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 /** `scene` with the sources of its graph's drawn nodes, as a session is handed them. */
@@ -60,6 +62,7 @@ export function quadBackend(
 ) {
   const fixture = quadScene()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice,
     maxResidentPages: 2,
@@ -78,6 +81,7 @@ export function streamingQuadBackend(
   gpuDevice: EngineContext['gpuDevice'],
 ) {
   return webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     indices: new Map(),
     readPage: async (url) => scene.indices.get(url)!,
@@ -100,6 +104,7 @@ export async function flushedGpuScene(
   const packed = packDagSelection(collected.roots)
   const gpu = fakeDevice({ ...BACKEND, packed, limits })
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 2,

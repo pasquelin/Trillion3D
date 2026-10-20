@@ -6,6 +6,8 @@ import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
+import { createTextureCaches } from '../../../texture/textureCaches.ts'
+import { createPageCache } from '../../../streaming/pageCache.ts'
 
 test('opaque materials are rendered before lighting into reusable GPU surface textures', async () => {
   installGpuGlobals()
@@ -40,6 +42,7 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -116,6 +119,7 @@ test('surface capture rejects missing pages and a device-limit failure keeps the
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     ...fixture,
     indices: new Map(),
     gpuDevice: device,

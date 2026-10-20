@@ -7,24 +7,15 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readCellPage } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { PartitionCells } from './cells.ts'
-import {
-  decodeHere,
-  world,
-  everywhere,
-  io,
-  noBudget,
-  settled,
-  sizedWhole,
-} from './cells.fixture.ts'
+import { between, decodeHere, world, io, noBudget, settled, sizedWhole } from './cells.fixture.ts'
 
-/** Primes `cells` for an eye at the origin through a catalogue that starts with what the cells name
- *  now, and takes what the prime opens; a read of a file it does not hold is refused, as the
+/** Primes `cells` for an eye between its cells through a catalogue that starts with what the cells
+ *  name now, and takes what the prime opens; a read of a file it does not hold is refused, as the
  *  streamer's queue refuses it. */
 function primeThroughCatalogue(cells: PartitionCells, bytes: (url: string) => Uint8Array) {
   const catalogue = new Set(cells.pages.map((page) => page.url))
   return cells.prime(
-    [0, 0, 0],
-    everywhere,
+    between,
     {
       read: async (url) => {
         if (!catalogue.has(url)) throw new Error(`Unknown page ${url}`)
@@ -42,7 +33,7 @@ function primeThroughCatalogue(cells: PartitionCells, bytes: (url: string) => Ui
 test('a session opened again on the kept cells reads only the files its new catalogue holds', async () => {
   const { cells, bytes } = await sizedWhole(world())
   // The first session opens the pages on its way; its cells are still in flight when it closes.
-  await settled(cells, [0, 0, 0], everywhere, io(bytes).port, noBudget)
+  await settled(cells, between, io(bytes).port, noBudget)
   assert.deepEqual(
     [cells.stats().pages, cells.stats().held],
     [3, 0],

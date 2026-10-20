@@ -11,6 +11,8 @@ import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluid
 import { createWebgpuParticles } from '../webgpu/particles/webgpuParticles.ts'
 import { webgpuModel } from './stepModels.fixture.ts'
 import { PARTICLES_PASS } from '../stage/passLabels.ts'
+import { GRAVITY_PRESETS } from '../../../sdk-core/src/physics/options.ts'
+import { nearly } from '../../../math/src/float/near.fixture.ts'
 
 /** Each compute pass `gpu` began: its label and its dispatches, `window` for one the GPU sizes. */
 const computePassesOf = (gpu: ReturnType<typeof fakeDevice>) =>
@@ -38,7 +40,7 @@ test('WebGPU: one timed pass writes the step words and the staged records, once'
   const words = new Uint8Array(written(step)).buffer
   assert.deepEqual(
     [...new Float32Array(words, 0, 4)],
-    [0, Math.fround(-9.81), 0, 0.01].map(Math.fround),
+    [0, -GRAVITY_PRESETS.earth, 0, 0.01].map(Math.fround),
   )
   assert.deepEqual([...new Uint32Array(words, 16, 3)], [0, 3, 1000], 'first slot, count, capacity')
   assert.deepEqual([...written(records)], [...pool.staging.subarray(0, 24)])
@@ -129,10 +131,9 @@ test('the step words carry a reference emission along each ballistic path', asyn
     assert.ok(age <= lifetime + 1 / 64, `slot ${i}: aged past its life`)
     const start = [x - vx * age + 0.5 * ax * age * age, y - vy * age + 0.5 * ay * age * age]
     const n = Math.round(start[0])
-    const near = (a: number, b: number) => Math.abs(a - b) < 1e-3
-    assert.ok(n >= 0 && n < 5 && near(start[0], n), `slot ${i}: x ${start[0]}`)
-    assert.ok(near(start[1], 1) && near(vy - ay * age, 4 - n), `slot ${i}: y`)
-    assert.ok(near(z - vz * age + 0.5 * az * age * age, -n), `slot ${i}: z`)
+    assert.ok(n >= 0 && n < 5 && nearly(start[0], n, 1e-3), `slot ${i}: x ${start[0]}`)
+    assert.ok(nearly(start[1], 1, 1e-3) && nearly(vy - ay * age, 4 - n, 1e-3), `slot ${i}: y`)
+    assert.ok(nearly(z - vz * age + 0.5 * az * age * age, -n, 1e-3), `slot ${i}: z`)
   }
   assert.ok(moved > 200, `${moved} particles stepped`)
 })

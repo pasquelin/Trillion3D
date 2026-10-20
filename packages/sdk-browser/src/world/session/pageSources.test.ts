@@ -10,7 +10,8 @@ import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { Engine } from '../../engine/types.ts'
 import type { MeasuredWorldOptions } from './options.ts'
-import { modelOpened, served } from '../../scene/worldRoots.fixture.ts'
+import { binaryOf, modelOpened, served } from '../../scene/worldRoots.fixture.ts'
+import { worldPages } from '../../scene/worldRuns.ts'
 
 /** A queue that records what it is told. */
 function queue() {
@@ -18,6 +19,8 @@ function queue() {
   const port: PageQueue = {
     admit: (pages: readonly StreamPage[]) => void told.admitted.push(...pages.map((p) => p.url)),
     forget() {},
+    pin() {},
+    unpin() {},
     readBytes: async () => new Uint8Array(),
     readRange: async () => new ArrayBuffer(0),
     signal: new AbortController().signal,
@@ -32,10 +35,12 @@ test("a scene read catalogues its partitions' pages and binds its world roots", 
   const roots = (await modelOpened(served(t).manifest))!
   const scene = { partitions: [{ pages: [page] }], worldRoots: [roots] }
   assert.equal(await sceneThrough(port, undefined, async () => scene as never), scene)
-  const bundles = roots.table.bundles
-    .slice(1)
-    .map((_, at) => `http://world/world-roots.bin#${at + 1}`)
-  assert.deepEqual(told.admitted, ['scene-page.json', ...bundles], 'its bundles join the queue')
+  const pages = worldPages(roots.table, binaryOf(roots.table)).map(({ url }) => url)
+  assert.deepEqual(
+    told.admitted,
+    ['scene-page.json', ...pages],
+    'its bundles and pages join the queue',
+  )
 })
 
 test('a page read that keeps failing reaches the host once, as it first waits the longest', async (t) => {

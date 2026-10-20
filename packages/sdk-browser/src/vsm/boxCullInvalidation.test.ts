@@ -6,7 +6,13 @@
 // the boxes a change stales, their axes the world's, and carry its flags: casts shadows, and cached
 // as dynamic or not, each in its own bits. Retaken on the kernel of before over the same boxes as
 // identity-rotation instances (the one kind it was handed): the box alone, its instance now, makes
-// the same writes.
+// the same writes. Retaken when the maps became one kind: no single-page map, whose one page the
+// kernel staled whatever the box, a local light's kind drawn in the lights' one numbering
+// (`LIGHT_KIND`, where a drawn 2 now names a sun), and the clip matrix recovered from the UV one
+// column by column (`vsmShiftedToClip`): over the same draws every case wrote as before, but the
+// 127 of the values drawn whole whose matrices are not finite, where the product's 0·∞ terms no
+// longer make a NaN. The handle then names one of the maps the stand-in tables hold rects for
+// (`boxCullTables.fixture.ts`): the single-page maps were what made a case write.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
@@ -15,11 +21,13 @@ import { UNBOUNDED_EXTENT } from './invalidationWgsl.ts'
 import { castInvalidationWgsl } from './castInvalidationWgsl.ts'
 import { bitsDigest, inputs } from './bitsDigest.fixture.ts'
 import { vsmLayout } from './layout.ts'
+import { LIGHT_KIND } from '../../../sdk-core/src/scene/light/contracts.ts'
 
 const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }))
+const LOCAL_KINDS = [LIGHT_KIND.point, LIGHT_KIND.spot, LIGHT_KIND.rect]
 const CASES = 12000
 /** The digest of every case's writes (`bitsDigest`). */
-const GOLDEN = '69ead8bb74d6710ba5654554de1a4991d4e0b8b13a7cf09f00b6982999cf1065'
+const GOLDEN = 'd5a31e50182c515fbb64c9873f0b6c83950e64433d3c1b75c7b3360a02c13e95'
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic'],
@@ -65,7 +73,8 @@ test("an instance's pages are invalidated as the golden holds: the same writes i
       d.vec(n, () => (about ? Math.fround((d.random() - 0.5) * 16) : d.f()))
     const low = () => d.vec(3, () => Math.fround(d.random() * 1e-3))
     const pd = {
-      lightKind: light.directional ? LIGHT_KIND_DIRECTIONAL : d.int(1, 3),
+      // A local light's kind: a point, a spot or a rectangle (`LIGHT_KIND`), never a sun's.
+      lightKind: light.directional ? LIGHT_KIND_DIRECTIONAL : LOCAL_KINDS[d.int(1, 3) - 1],
       originShiftHigh: near(3),
       originShiftLow: low(),
       handle: handle(d),

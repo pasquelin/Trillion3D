@@ -23,6 +23,8 @@ export type VisBindResources = AtlasResources & {
   slotOffsets: GPUBuffer
   /** The surfaces' records (`../material/materialTable.ts`). */
   material: GPUTextureView
+  /** The float pool's normal atlas (`VIS_BINDINGS.normals`). */
+  normals: GPUTextureView
 }
 /** Resources of the hardware-resolve group, identical for both of its constructors. */
 export type ShadeBindResources = AtlasResources & {
@@ -57,6 +59,8 @@ export type SmallBindResources = AtlasResources & {
   selectionMask: GPUBuffer
   /** The surfaces' records (`../material/materialTable.ts`). */
   material: GPUTextureView
+  /** The float pool's normal atlas (`SMALL_BINDINGS.normals`). */
+  normals: GPUTextureView
 }
 
 /** The four entries of an atlas: one view per lane, in `PREVIEW_LAYOUT_NAMES` order, and its page table. */
@@ -89,6 +93,7 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.instances, () => r.instances),
     bufferEntry(b.slotOffsets, () => r.slotOffsets),
     resourceEntry(b.material, () => r.material),
+    resourceEntry(b.normals, () => r.normals),
   ]
 }
 
@@ -135,5 +140,6 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.work, () => r.work),
     bufferEntry(b.selectionMask, () => r.selectionMask),
     resourceEntry(b.material, () => r.material),
+    resourceEntry(b.normals, () => r.normals),
   ]
 }

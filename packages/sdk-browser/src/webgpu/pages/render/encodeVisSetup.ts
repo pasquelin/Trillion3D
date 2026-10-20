@@ -25,16 +25,13 @@ export function encodeEmptySurfaces(
   const [width, height] = gpu.targetSize
   if (!gpu.surfaces) throw new Error('SURFACE_UNAVAILABLE')
   const encoder = createRenderEncoder(rt, device)
-  // Every root of the image may stand behind its impostor card: the cards still draw, their depth
-  // kept by the surfaces' clear.
-  const carded = !!rt.gpu.impostorCode?.encodeImpostorVisibilityPass(rt, device, encoder)
   const pass = encoder.beginRenderPass({
     label: EMPTY_SURFACES_PASS,
     colorAttachments: surfaceColorAttachments(gpu.surfaces),
     depthStencilAttachment: {
       view: depthTarget,
       depthClearValue: DEPTH_CLEAR,
-      depthLoadOp: carded ? 'load' : 'clear',
+      depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },
   })
@@ -83,12 +80,13 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
 export function computeRasterReady(rt: WebgpuPagesRuntime) {
   const { vis, gpu } = rt
   const raster = vis.gpuRaster,
-    { concatPos, concatUv, pageTable, zeroFlags, textures, mapsSampler } = vis
+    { concatPos, concatUv, concatNrm, pageTable, zeroFlags, textures, mapsSampler } = vis
   if (
     !raster ||
     !gpu.cache ||
     !concatPos ||
     !concatUv ||
+    !concatNrm ||
     !pageTable ||
     !zeroFlags ||
     !textures ||
@@ -100,6 +98,7 @@ export function computeRasterReady(rt: WebgpuPagesRuntime) {
     indices: gpu.cache.buffer,
     concatPos,
     concatUv,
+    concatNrm,
     pageTable,
     zeroFlags,
     textures,
@@ -138,6 +137,7 @@ export function computeRasterStages(
   // The uniform is written before any pass (`ensureVisBindings`): it exists when we encode.
   input.uniform = vis.visUniform!
   input.uvs = ready.concatUv
+  input.normals = ready.concatNrm
   input.textures = ready.textures
   input.sampler = ready.mapsSampler
   // Sent up with the visibility groups (`ensureWebgpuVisibilityBindings`), before any pass.

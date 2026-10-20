@@ -1,22 +1,19 @@
-// The Hi-Z test no longer clears the verdicts before it runs: the partition's `classifyRows`
-// already wrote every drawable row's this frame. The shipped row routines run over a frame whose
-// verdict buffer still holds a previous frame's words (and stale words past the drawable rows):
-// with the old clear between the partition and the test, and without it, every word is the same.
+// The Hi-Z test clears no verdict before it runs: the partition's `classifyRows` already wrote
+// every drawable row's this frame, and a row it sends to no test (cut by the near plane, off
+// screen, no pick) keeps the kept verdict written there. The shipped row routines run over a frame
+// whose verdict buffer still holds a previous frame's words (and stale words past the drawable
+// rows): every drawable row holds this frame's verdict, every word past them its old one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
-import { structZero } from '../../texture/shaderRunStructs.fixture.ts'
 import { PARTITION_SHADER } from '../partition/shader.ts'
 import { HIZ_SHADER } from './shader.ts'
+import { rowRoutineScope, testedBounds } from './rowRoutines.fixture.ts'
 import * as C from '../partition/contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type Fn = (...args: unknown[]) => unknown
-type Ref = { get: () => number; set: (value: number) => void }
-const BOUNDS = Object.keys(structZero(HIZ_SHADER)('Bounds') as object)
-const bitsOf = (x: number) => (Number.isInteger(x) ? x >>> 0 : builtins.bitcast_u32(x))
 
 /** One frame of `rows` drawable rows over a verdict buffer of `cap` words left by earlier frames. */
 function frame(seed: number, rows: number, cap: number, hasRest: number) {
@@ -30,7 +27,14 @@ function frame(seed: number, rows: number, cap: number, hasRest: number) {
     ),
     // A previous frame's verdicts, and words no verdict ever takes: a clear would hide neither.
     flags: Array.from({ length: cap }, () => (int(4) === 0 ? 0xdeadbeef : int(3))),
-    items: Array.from({ length: rows }, () => ({ bin: int(3), layer: int(3), triangles: int(99) })),
+    items: Array.from({ length: rows }, (_, row) => ({
+      bin: int(3),
+      layer: int(3),
+      triangles: int(99),
+      selectionIndex: row,
+    })),
+    // The cut's draw mask: a row it leaves undrawn goes to no test and keeps the kept verdict.
+    selectionMask: Array.from({ length: bitWords(rows) }, () => int(2 ** 32)),
     boxes: Array.from({ length: rows }, () => ({
       rect: [int(40) - 8, int(40) - 8, int(90), int(90)],
       nearest: r() + 1e-3,
@@ -40,8 +44,9 @@ function frame(seed: number, rows: number, cap: number, hasRest: number) {
   }
 }
 
-/** Partition then test, as one frame encodes them; `clear` puts back the clear between the two. */
-function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
+/** Partition then test, as one frame encodes them: the verdicts, the rows sent to the test with
+ *  their boxes, and the rest's bits. */
+function verdicts(f: ReturnType<typeof frame>) {
   const m = {
     rowData: [...f.rowData],
     flags: [...f.flags],
@@ -53,69 +58,55 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
     ...m,
     items: f.items,
     pages: f.pages,
-    atomicAdd: (p: Ref, n: number) => [p.get(), p.set((p.get() + n) >>> 0)][0],
-    bitcast_u32: bitsOf,
-    bitcast_i32: (x: number) => x | 0,
+    selectionMask: f.selectionMask,
+    ...rowRoutineScope,
     projectBox: (i: number) => ({ ...f.boxes[i], rect: [...f.boxes[i].rect] }),
-    hiddenByPyramid: (rect: number[]) => (rect[0] & 1) === 0,
-    // The one pick, clipped to the 64 × 48 viewport; the mip table's offset and width of a level.
-    hizRectPick: (rect: number[]) => {
-      const r = [
-        Math.max(rect[0], 0),
-        Math.max(rect[1], 0),
-        Math.min(rect[2], 63),
-        Math.min(rect[3], 47),
-      ]
-      const empty = r[2] < r[0] || r[3] < r[1]
-      return { rect: r, level: r[0] & 3, coarse: 3, found: !empty && (r[1] & 3) !== 0 }
-    },
-    hizMip: (l: number) => [l, l],
-    pyramidHides: (minX: number, minY: number) => ((minX + minY) & 1) === 0,
     tallyAdd: () => {},
   }
-  const uni = { rows: f.rows, width: 64, height: 48, layerTop: 1, hasRest: f.hasRest }
+  const uni = {
+    ...{ rows: f.rows, width: 64, height: 48, layerTop: 1, hasRest: f.hasRest },
+    ...{ selectionEnabled: 1, selectionOffset: 0 },
+  }
   const partition = shaderRun<Record<string, Fn>>(
     PARTITION_SHADER,
     ['projectRow', 'classifyRow', 'bitWord', 'bitMask'],
     {
       ...scope,
-      uni: { ...uni, viewMoved: 0 },
+      uni,
     },
   )
   const bounds: Record<string, number>[] = []
   const hiz = shaderRun<Record<string, Fn>>(HIZ_SHADER, ['testBox'], { ...scope, bounds, uni: {} })
   for (let i = 0; i < f.rows; i++) partition.projectRow(i)
   for (let i = 0; i < f.rows; i++) partition.classifyRow(i)
-  // What `encodeTest` cleared before this change: `min(cap, tableRows)` words, `tableRows` being
-  // the drawable count (`row/slots.ts` sets it).
-  if (clear) m.flags.fill(0, 0, Math.min(f.flags.length, f.rows))
-  for (let k = 0; k < m.state[C.ST_TESTED]; k++) {
-    const box = Object.fromEntries(
-      BOUNDS.map((name, w) => [name, m.tested[k * C.TESTED_BOX.words + w] ?? 0]),
-    )
-    for (const side of ['minX', 'minY', 'maxX', 'maxY']) box[side] |= 0
-    box.nearest = builtins.bitcast_f32(box.nearest) as number
-    bounds.push(box)
-  }
+  bounds.push(...testedBounds(m.tested, m.state[C.ST_TESTED]))
   for (let k = 0; k < m.state[C.ST_TESTED]; k++) hiz.testBox(k)
-  return m.flags
+  return { flags: m.flags, bounds, restBits: m.restBits }
 }
 
-test('without the clear, every verdict word the test leaves is the one it left with it', () => {
-  let tested = 0
+test("without a clear, every drawable row holds this frame's verdict, every word past them its own", () => {
+  let tested = 0,
+    untested = 0
   for (const [seed, rows] of [1, 2, 63, 64, 65, 200, 517].entries())
     for (const hasRest of [0, 1]) {
-      const f = frame(seed + 1, rows, rows + 9, hasRest)
-      const before = verdicts(f, true)
-      assert.deepEqual(verdicts(f, false), before, `${rows} rows, rest ${hasRest}`)
-      tested += before.slice(0, rows).filter((v) => v !== C.VERDICT_OCCLUDER).length
-      // Each drawable row holds one of the three verdicts, none a previous frame's stray word.
-      assert.ok(
-        before.slice(0, rows).every((v) => v <= C.VERDICT_KEPT),
-        `${rows} rows`,
-      )
+      const f = frame(seed + 1, rows, rows + 9, hasRest),
+        { flags, bounds, restBits } = verdicts(f)
+      // An occluder's zero; a rest row's test verdict where it was sent to the test, with a slot
+      // (the fake pyramid hides an even corner), else the kept one.
+      const expected = f.flags.map((old, i) => {
+        if (i >= rows) return old
+        if (!((restBits[i >>> 5] >>> (i & 31)) & 1)) return C.VERDICT_OCCLUDER
+        const box = bounds.find((b) => b.row === i)
+        // A row the cut leaves undrawn is sent to no test.
+        if (!((f.selectionMask[i >>> 5] >>> (i & 31)) & 1)) assert.equal(box, undefined, `row ${i}`)
+        if (!box) return (untested++, C.VERDICT_KEPT)
+        tested++
+        if (f.pages[i].hizSlot === 0xffffffff) return C.VERDICT_KEPT
+        return (box.minX + box.minY) & 1 ? C.VERDICT_KEPT : C.VERDICT_REJECTED
+      })
+      assert.deepEqual(flags, expected, `${rows} rows, rest ${hasRest}`)
     }
-  assert.ok(tested > 0, 'some rows were tested')
+  assert.ok(tested > 0 && untested > 0, 'rows tested and rows kept untested')
 })
 
 test("the partition's classification writes each drawable row's verdict, the occluder's as zero", () => {

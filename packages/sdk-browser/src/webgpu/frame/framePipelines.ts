@@ -20,7 +20,7 @@ const asked = new WeakMap<ShadeCensus, ShadeClasses>()
 /**
  * The census's classes, asked of the set in place once taken anew or once the set was replaced (a
  * feedback variant installed). Once the image needs the layer (`wantsEmissiveAo`: a surface of the census can emit or
- * occlude, a water surface draws) and the set does not write it, they are asked of the set writing it (`withEmissiveAo`) alone, which
+ * occlude) and the set does not write it, they are asked of the set writing it (`withEmissiveAo`) alone, which
  * replaces the set once all are compiled. Nothing is read or allocated while nothing moved.
  */
 function askShadeClasses(rt: WebgpuPagesRuntime) {

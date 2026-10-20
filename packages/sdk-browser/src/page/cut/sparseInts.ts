@@ -1,4 +1,4 @@
-import { mixWord } from '../../../../math/src/scalar/integers.ts'
+import { mixWord, movesIntoHole } from '../../../../math/src/scalar/integers.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
 /**
  * Integer values keyed by non-negative integer ids, held only for the ids that carry one: what the
@@ -118,9 +118,7 @@ function removeAt(t: Table, at: number) {
   let hole = at,
     next = (at + 1) & mask
   while (keys[next] !== EMPTY) {
-    const want = home(t, keys[next])
-    // The entry at `next` may move into the hole when its home is not strictly between them.
-    if (((next - want) & mask) >= ((next - hole) & mask)) {
+    if (movesIntoHole(next, home(t, keys[next]), hole, mask)) {
       write(t, hole, keys[next], values[next])
       hole = next
     }

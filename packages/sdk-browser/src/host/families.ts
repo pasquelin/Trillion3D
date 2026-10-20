@@ -26,22 +26,20 @@ export const families = {
   physics: family('physics', () => import('../physics/session/session.ts')),
   /** The particle steps and draws. */
   particles: family('particles', () => import('../particles/particleCode.ts')),
-  /** WebGPU transmission: the water pass every transmissive surface draws through, glass too. */
-  transmission: family('transmission', () => import('../webgpu/water/transmissionCode.ts')),
+  /** WebGPU transmission: the stages every transmissive surface draws through, and its distortion. */
+  transmission: family('transmission', () => import('../webgpu/blend/transmission/family.ts')),
   /** WebGPU skinning, morphing and the waves of `mesh.waves`. */
   deformation: family('deformation', () => import('../deformation/deformationCode.ts')),
   /** The effect chain's passes. */
   effects: family('effects', () => import('../effects/effectCode.ts')),
   /** The guide passes. */
   guides: family('guides', () => import('../guides/guideCode.ts')),
-  /** The WebGPU feedback A/B measurements. */
+  /** The WebGPU feedback A/B measurements and the frame inspection. */
   diagnostics: family('diagnostics', () => import('../diagnostic/viewCode.ts')),
   /** The measurement's build provenance table and frame report. */
   measurement: family('measurement', () => import('../measurement/measurementCode.ts')),
   /** The world pages' server, under their detached source (`../scene/worldRoots.ts`, `stream`). */
-  worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
-  /** The impostor draw: card plan, pipelines and their encodes; the maps are the tile pool's. */
-  impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
+  worldStream: family('world stream', () => import('../scene/worldRootPages.ts')),
   /** The CPU geometry-page decoder behind the public `page.decode`, and the format's gate
    *  `page.httpSource` checks each page by: the engine itself decodes no page on the CPU (the GPU
    *  reads them in place), so only a page that asks downloads it. */

@@ -5,7 +5,8 @@ import type { PlacementLink } from './gpuCompose.ts'
 import type { DrawSource } from '../page/selection/drawSource.ts'
 import type { Primitive } from '../../../sdk-core/src/contracts/geometry.ts'
 import type { HostAttributes, HostMaterials } from '../host/resources.ts'
-import type { SelectionUniforms } from '../gpu/core/selection.ts'
+import type { WorldCells } from '../gpu/core/selection.ts'
+import type { TextureCache } from '../texture/textureCaches.ts'
 
 /** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
  *  `from + count - 1` of the host geometry's list `name`. */
@@ -52,6 +53,10 @@ export type PlacementGrowth = {
    *  atlas, no table rebuilt. `undefined` once joined; else the refusal, by name — a catalogue
    *  past its keys, a device that refuses the pool or a pass —, nothing joined: the owner says it. */
   addPlacements?(source: DrawSource, primitive: Primitive): Promise<string | undefined>
+  /** The caches a model joining brings — its textures' chains and the folder their levels are
+   *  read from —, handed before its sources: each texture it draws reads its own cache's levels,
+   *  as the open's do (`texture/textureCaches.ts`). */
+  addTextureCaches?(caches: readonly TextureCache[]): void
   /** The world DAG a model joined with (a `WorldRootsHold`, its sources handed to `addPlacements`
    *  first) is drawn from now on, its cells held far where the cut says: its root joins the cut
    *  made over every root. `undefined` once it waits to join, or when there is nothing to draw —
@@ -77,10 +82,10 @@ export interface EngineSceneUpdates extends PlacementGrowth {
     links: readonly PlacementLink[],
     whole: boolean,
   ): void
-  /** The cut's uniforms while it packs the world DAG of `roots` (`GpuSelection.packsWorld`), which a
-   *  partition's plan projects its far cells with (#1332); `undefined` while none packs it, or
-   *  it packs another's: the cut draws one. */
-  worldCut(roots?: object): SelectionUniforms | undefined
+  /** The cut's world cells while it packs the world DAG of `roots` (`GpuSelection.world`), which a
+   *  partition's plan tells what each HLOD 0 cell wants; `undefined` while none packs it, or it
+   *  packs another's: the cut draws one. */
+  worldCells(roots?: object): WorldCells | undefined
   /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
    *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
    *  they were and where they go), each vertex at most `reach` from where its page is bounded on
@@ -103,13 +108,17 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   setClearColor(hex: number): void
   /** Bounced light on or off in place (`EngineContext.bounce`). */
   setBounce(on: boolean): void
-  /** Temporal antialiasing on or off in place (`EngineContext.temporalAntialiasing`); whether
-   *  the image carries it is the `'temporal antialiasing'` capability. */
-  setTemporalAntialiasing(on: boolean): void
+  /** Temporal antialiasing's level in place, `'off'` none (`EngineContext.temporalAntialiasing`);
+   *  whether the image carries it is the `'temporal antialiasing'` capability. */
+  setTemporalAntialiasing(
+    level: import('../../../sdk-core/src/contracts/compilerAbi.ts').TemporalAntialiasingLevel,
+  ): void
   /** The render scale asked in place (`EngineContext.renderScale`), drawn from the next frame, and
    *  the scale of the last image drawn. */
   setRenderScale(scale: import('../frame/renderScaleOption.ts').RenderScale): void
   renderScale(): number
+  /** The interactive loop's frame cap asked in place (`EngineContext.maxFrameRate`). */
+  setMaxFrameRate(rate: number): void
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. False for this change — a map whose picture

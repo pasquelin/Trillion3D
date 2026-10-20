@@ -10,6 +10,7 @@ import { cutBuffer, cutTexture, type CutAdmission } from './cutBuffers.ts'
 import type { TextureMaker } from '../core/recordTexture.ts'
 import { createMainReadbacks } from './mainReadbacks.ts'
 import { recordsIdentity } from './recordsFollow.ts'
+import { destroyAll } from '../core/errorScope.ts'
 
 /** The DAG's GPU resources once made (`createDagResources`). */
 export type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
@@ -61,16 +62,6 @@ export async function createDagResources(
    *  when a table grows (`hold`): the same admission, the same end, the replaced bytes leaving it. */
   const ownTexture: TextureMaker = (descriptor, bytes, old) =>
     cutTexture(setup, descriptor, bytes, old)
-  /** Every resource made so far, each destroyed whatever the others do: a partial setup must not
-   *  leak. */
-  const destroyAll = () => {
-    for (const made of [...buffers, ...textures.map(({ texture }) => texture)])
-      try {
-        made.destroy()
-      } catch {
-        /* The next one still goes. */
-      }
-  }
   try {
     steps?.begin('tables')
     const made = dagTables(device, packed, { own, ownTexture }, listCap, heldSlots)
@@ -80,7 +71,7 @@ export async function createDagResources(
     const compiled = await createDagPipeline(device, group, frames, arm, steps)
     const pipeline = compiled.value
     if (!pipeline) {
-      destroyAll()
+      destroyAll([...buffers, ...textures.map(({ texture }) => texture)])
       refused(compiled.refused ?? 'the device made no pipeline')
       return undefined
     }
@@ -114,7 +105,8 @@ export async function createDagResources(
     }
   } catch (error) {
     refused(error instanceof Error ? error.message : String(error))
-    destroyAll()
+    // A partial setup must not leak.
+    destroyAll([...buffers, ...textures.map(({ texture }) => texture)])
     return undefined
   }
 }

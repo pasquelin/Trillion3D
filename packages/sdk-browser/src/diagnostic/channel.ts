@@ -1,4 +1,5 @@
 import type { EngineDiagnostic, DiagnosticDetail } from './types.ts'
+import { microtaskOnce } from '../../../sdk-core/src/runtime/microtaskOnce.ts'
 
 /** A function that hears each thing a diagnostic channel reports. */
 export type DiagnosticObserver = (diagnostic: EngineDiagnostic) => void
@@ -70,7 +71,6 @@ export function createDiagnosticChannel(
   let droppedTotal = 0
   let firstDroppedSequence: number | undefined
   let lastDroppedSequence: number | undefined
-  let scheduled = false
   let closed = false
   let flushing: Promise<void> | undefined
 
@@ -128,13 +128,9 @@ export function createDiagnosticChannel(
     // An observer may enqueue while it is being called. Leave it for a fresh
     // deferred turn so a faulty observer cannot monopolize the event loop.
   }
+  const turn = microtaskOnce(() => void channel.flush())
   const schedule = () => {
-    if (scheduled || flushing || !enabled) return
-    scheduled = true
-    queueMicrotask(() => {
-      scheduled = false
-      void channel.flush()
-    })
+    if (!flushing && enabled) turn.schedule()
   }
   const channel: DiagnosticChannel = {
     enabled,
@@ -168,7 +164,7 @@ export function createDiagnosticChannel(
     },
     flushSync() {
       if (!enabled) return
-      scheduled = false
+      turn.reset()
       drain()
     },
     close() {

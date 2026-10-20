@@ -32,6 +32,6 @@ const COLOR_TARGET_COST: Partial<Record<GPUTextureFormat, [cost: number, alignme
   r32float: [4, 4],
   rg32uint: [8, 4],
   rgba16float: [8, 2],
-  // The lobes target, which the water's lobed surface stage writes (`../../webgpu/water/`).
+  // The transparents' front lobes, which the front pass writes (`../../reflections/frontLayer.ts`).
   rgba32uint: [16, 4],
 }

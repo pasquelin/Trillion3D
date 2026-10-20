@@ -1,11 +1,5 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
-import {
-  BODY_INDEX,
-  FLAG,
-  GENERATION_SHIFT,
-  LAYER,
-  MOTION,
-} from '../../../sdk-core/src/physics/layout.ts'
+import { BODY_INDEX, engineId, FLAG, LAYER, MOTION } from '../../../sdk-core/src/physics/layout.ts'
 import type { ObjectPhysics, PhysicsHost } from '../../../sdk-core/src/physics/objectPhysics.ts'
 import { physicsMatterOf } from '../../../sdk-core/src/physics/matter.ts'
 import { isSoftType } from '../../../sdk-core/src/physics/soft.ts'
@@ -145,21 +139,19 @@ export function createPhysicsBodies(
     /** A body no mesh holds (a cooked tile or soft body): its slot, then its removal. */
     claim,
     release,
-    /** The body in slot `index`, placed off the scale it was made at, made again at its new one
-     *  before it leaves (its REMOVE after the new body's command): a soft one goes on from it, its
-     *  simulation carried and scaled (`softPlacement.h`). Throws, the old body out, when the new
-     *  one is refused. */
+    /** The body in slot `index`, placed off the scale it was made at, made again at its new one:
+     *  a soft one before it leaves (its REMOVE after), going on from it, its simulation carried and
+     *  scaled (`softPlacement.h`); any other after, its slot given back first, so a rescale needs
+     *  none past the budget. Throws, the old body out, when the new one is refused. */
     remake(index: number) {
       const p = physicsAt(index),
         mesh = meshes[index]
       if (!p || !mesh) return
-      const carries = isSoftType(p.type)
-        ? index | (slots.generation[index] << GENERATION_SHIFT)
-        : undefined
       if (p.decorative) count.decorative--
       p._detach()
+      if (!isSoftType(p.type)) return (release(index), add(mesh))
       try {
-        add(mesh, carries)
+        add(mesh, engineId(index, slots.generation[index]))
       } finally {
         release(index)
       }

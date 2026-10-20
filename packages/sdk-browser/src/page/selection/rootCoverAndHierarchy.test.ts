@@ -1,24 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { collectClusterPages } from './collect.ts'
 import { rootCoverage } from './selection.ts'
 import { selectVisiblePages } from '../cut/cut.fixture.ts'
-import { dagFixture, wideCamera, urls } from './dag.fixture.ts'
+import { collectFixture, dagFixture, wideCamera, urls } from './dag.fixture.ts'
 import { dagCulling } from './helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { rootChildren } from '../../residency/minimumCapacity.ts'
 import type { ClusterRoot, PageRec } from './types.ts'
-import { graphDraws } from './drawSource.ts'
 
 test('the root cover is what stays pinned for a flat cut', () => {
   const fixture = dagFixture()
-  const { roots } = collectClusterPages(
-    fixture.source,
-    graphDraws(fixture.source, fixture.associations),
-    fixture.metadata,
-    fixture.indices,
-  )
+  const { roots } = collectFixture(fixture)
   assert.deepEqual(
     rootCoverage(roots).map((page) => page.url),
     ['root'],
@@ -29,28 +22,10 @@ test('the root cover is what stays pinned for a flat cut', () => {
 test('a page whose replacement error sits below its own error is rejected at load time', () => {
   const fixture = dagFixture()
   fixture.metadata.primitives[0].pages[4].parentError = 0.001
-  assert.throws(
-    () =>
-      collectClusterPages(
-        fixture.source,
-        graphDraws(fixture.source, fixture.associations),
-        fixture.metadata,
-        fixture.indices,
-      ),
-    /parentError below lodError/,
-  )
+  assert.throws(() => collectFixture(fixture), /parentError below lodError/)
   fixture.metadata.primitives[0].pages[4].parentError = 0.2
   fixture.metadata.primitives[0].pages[4].parentSphere = null
-  assert.throws(
-    () =>
-      collectClusterPages(
-        fixture.source,
-        graphDraws(fixture.source, fixture.associations),
-        fixture.metadata,
-        fixture.indices,
-      ),
-    /parentError without parentSphere/,
-  )
+  assert.throws(() => collectFixture(fixture), /parentError without parentSphere/)
   fixture.geometry.dispose()
 })
 
@@ -65,12 +40,7 @@ test('the culling hierarchy accelerates the flat cut without changing it', () =>
     assert.deepEqual(b, a, `pixelError ${pixelError}`)
   }
   // The leaf subtree must actually be skipped once its replacement error fits the budget.
-  const { roots } = collectClusterPages(
-    accelerated.source,
-    graphDraws(accelerated.source, accelerated.associations),
-    accelerated.metadata,
-    accelerated.indices,
-  )
+  const { roots } = collectFixture(accelerated)
   assert.ok(roots[0].culling, 'the hierarchy must be unpacked')
   const coarse = selectVisiblePages(roots, engineCamera(cam), {
     pixelError: 20,
@@ -86,29 +56,11 @@ test('a culling hierarchy that does not match its pages is rejected', () => {
   const broken = dagCulling()
   broken.nodes[15 + 13] = 99 // the leaf child now claims pages past the end
   fixture.metadata.primitives[0].culling = broken
-  assert.throws(
-    () =>
-      collectClusterPages(
-        fixture.source,
-        graphDraws(fixture.source, fixture.associations),
-        fixture.metadata,
-        fixture.indices,
-      ),
-    /culling/i,
-  )
+  assert.throws(() => collectFixture(fixture), /culling/i)
   const short = dagCulling()
   short.count = 4
   fixture.metadata.primitives[0].culling = short
-  assert.throws(
-    () =>
-      collectClusterPages(
-        fixture.source,
-        graphDraws(fixture.source, fixture.associations),
-        fixture.metadata,
-        fixture.indices,
-      ),
-    /culling/i,
-  )
+  assert.throws(() => collectFixture(fixture), /culling/i)
   fixture.geometry.dispose()
 })
 
@@ -119,12 +71,7 @@ for (const transparent of [true, false])
     const fixture = dagFixture()
     fixture.mesh.material = G.basicSurface({ transparent })
     for (const page of fixture.metadata.primitives[0].pages) page.start = (6 - page.id) * 3
-    const { allPages } = collectClusterPages(
-      fixture.source,
-      graphDraws(fixture.source, fixture.associations),
-      fixture.metadata,
-      fixture.indices,
-    )
+    const { allPages } = collectFixture(fixture)
     assert.deepEqual(
       allPages.map((page) => page.sourceOrder),
       [18, 15, 12, 9, 6, 3, 0],

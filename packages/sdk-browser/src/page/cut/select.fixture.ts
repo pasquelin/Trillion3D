@@ -8,12 +8,7 @@ import { worldStretch } from '../selection/rootWorld.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'
 import { traverse } from './visit.fixture.ts'
 import type { ClusterRoot } from '../selection/types.ts'
-import { CARD_ROOT } from '../../visibility/shader/spriteWgsl.ts'
 import { OPEN_PLANES, openMark } from './openRoot.fixture.ts'
-
-/** True when a camera's cut leaves a root to its impostor card (`CARD_ROOT`). Read by the CPU cut
- *  and the GPU cut's oracle (`dagOracleDescent`). */
-export const drawsCard = (mark: number | undefined) => ((mark ?? 0) & CARD_ROOT) !== 0
 
 /** Moves each of the six planes out by `reach` along every axis: a box then clears a plane only
  *  if the box grown by `reach` on each side would — the GPU cut does the same (`planeOf`). */

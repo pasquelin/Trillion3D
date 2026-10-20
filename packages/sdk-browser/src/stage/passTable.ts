@@ -6,7 +6,6 @@ import {
   type WebgpuStage,
 } from './passDeclaration.ts'
 import { ENGINE_PASSES, VSM_PASSES } from './passLabels.ts'
-import { WATER_PASSES } from '../webgpu/water/passLabels.ts'
 import { MIPS_PASSES } from '../texture/mipsPass.ts'
 import { DEFORMATION_PASSES } from '../deformation/pass.ts'
 
@@ -25,7 +24,6 @@ type PassRow = {
  */
 const DECLARED_PASSES: readonly PassDeclaration[] = [
   ...ENGINE_PASSES,
-  ...WATER_PASSES,
   ...MIPS_PASSES,
   ...DEFORMATION_PASSES,
 ]

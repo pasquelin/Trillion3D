@@ -2,7 +2,6 @@
 // CPU oracle walks (`runtimeSceneOracle.fixture.ts`): the two give the same hit and spend the same budget.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { fieldRay, world } from './runtimeScene.fixture.ts'
 import { freshSpent } from './runtimeOracle.fixture.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
@@ -35,37 +34,6 @@ for (const count of [5, 400]) {
     assert.ok(hits > 3, `${hits} hits`)
   })
 }
-
-test('blended copies, members after the placements, are met as the oracle meets them', () => {
-  // The tree's placements, and eight copies of the cube amongst them, each at a pose of its own.
-  const copies = Array.from({ length: 8 }, (_, k) =>
-    new Matrix4().makeTranslation(k * 2 - 1, 0.5, 4 + k),
-  )
-  const w = world(70, 4, { copies })
-  const run = runOver(w)
-  const random = lcgRandom(9)
-  let hits = 0
-  for (let ray = 0; ray < 150; ray++) {
-    const origin: Vec3 = [random() * 16 - 2, 6, random() * 16]
-    const direction: Vec3 = [random() - 0.5, -1, random() - 0.5]
-    const spent = freshSpent()
-    const want = traceScene(w.scene, origin, direction, 100, spent)
-    run.rtBegin()
-    const got = run.rtScene(origin, direction, 100)
-    assert.equal(run.testWork(), spent.work, `ray ${ray} work`)
-    assert.equal(got.found, want.found, `ray ${ray}`)
-    if (want.found) {
-      hits++
-      assert.equal(got.placement, want.placement, `ray ${ray}`)
-      assert.ok(Math.abs(got.distance - want.distance) < 1e-3 * want.distance, `ray ${ray}`)
-    }
-  }
-  assert.ok(hits > 10, `${hits} hits`)
-  assert.ok(
-    [...w.scene.instances.keys()].some((k) => k >= 70),
-    'copies are members',
-  )
-})
 
 test('a long ray across a dense field meets the near cube first, its budget never spent on far patches', () => {
   // 256 cubes on one line, the ray coming down it from the far end: the tree's groups lie along the line

@@ -118,7 +118,7 @@ export function listsOf(bounce: string) {
     {
       ...F32_SCOPE,
       ...K,
-      lights: listed,
+      directLights: listed,
       view: { origin: [corner * spacing, corner * spacing, corner * spacing, spacing] },
     },
   )

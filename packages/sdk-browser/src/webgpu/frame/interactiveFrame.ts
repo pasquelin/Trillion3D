@@ -1,8 +1,8 @@
 import { wantsContractLighting } from '../pages/prepare/contractLight.ts'
 import { deviceAnswer } from './deviceAnswer.ts'
-import { taaArrivals } from '../../taa/frame.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { frameStart } from '../../frame/scheduling.ts'
+import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 
 /**
  * One of the interactive loop's first display frames: held — nothing drawn, the loop
@@ -11,28 +11,39 @@ import { frameStart } from '../../frame/scheduling.ts'
  * explicit render (`world.render`, `awaitPages`, a capture) always draws. Whether it held.
  */
 export function measureWebgpuFrame(rt: WebgpuPagesRuntime) {
-  if (rt.views.active !== rt.views.main || rt.capture.capturing || !rt.scale.measuring) return false
-  rt.scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true)
-  if (!rt.scale.measuring) return false
-  rt.scale.hold()
+  const { scale } = rt.views.main
+  if (rt.views.active !== rt.views.main || rt.capture.capturing || !scale.measuring) return false
+  scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true)
+  if (!scale.measuring) return false
+  scale.hold()
   return true
 }
 
 /**
- * Whether the interactive loop leaves out the display frame that began, to hold its steady
- * cadence (`ScaleControl.skips`, `../../frame/cadence.ts`): drawn on every `cadence`-th refresh
- * while the GPU cannot hold each. Only the main view's loop frames: an explicit render, a capture
- * or another view always draws.
+ * Whether the device still runs `DAG_READBACK_SLOTS` of the loop's images: the CPU of one hides
+ * behind the GPU of the one before, a further one would only queue. The display's own pacing is no
+ * bound: a GPU slower than the refresh would otherwise pile frames up on the device, and every
+ * readback behind them. Admission, not cadence.
+ */
+const deviceSaturated = (rt: WebgpuPagesRuntime) => rt.run.gpuFramesInFlight >= DAG_READBACK_SLOTS
+
+/**
+ * Whether the interactive loop leaves out the display frame that began: while the device is
+ * saturated (`deviceSaturated`), and under the frame cap (`ScaleControl.skips`,
+ * `../../frame/cadence.ts`). Only the main view's loop frames: an explicit render, a capture or
+ * another view always draws.
  */
 export const skipsWebgpuFrame = (rt: WebgpuPagesRuntime) =>
-  rt.views.active === rt.views.main && !rt.capture.capturing && rt.scale.skips(frameStart())
+  rt.views.active === rt.views.main &&
+  !rt.capture.capturing &&
+  (deviceSaturated(rt) || rt.views.main.scale.skips(frameStart()))
 
 /** Wait for feedback, never capture image pixels or bypass frame admission budgets. */
 export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { run, gpu, vis } = rt
   if (run.lost) throw new Error('WEBGPU_LOST')
   // A frame held to measure the display's refresh waits for nothing (`ScaleControl.held`).
-  if (rt.scale.held) return true
+  if (rt.views.main.scale.held) return true
   // What the device still answers for: its answer asks a frame, held or not.
   const answer = deviceAnswer(rt)
   if (answer) {
@@ -56,13 +67,3 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   if (run.lost) throw new Error('WEBGPU_LOST')
   return true
 }
-
-/** What the view received so far, the interactive loop's progress (`frameScheduler.ts`): the camera
- *  pages made resident, and the quiet images a still average not yet whole took — a frame that adds
- *  either spends none of the settle limit, so the loop draws a still image to its hold. */
-export const webgpuLandings = (rt: WebgpuPagesRuntime) =>
-  rt.services.residency.landings + taaArrivals(rt)
-
-/** A residency job still loads pages: the view is still arriving, so the loop spends none of its
- *  settle limit and draws on every display tick meanwhile (`frameScheduler.ts`). */
-export const webgpuArriving = (rt: WebgpuPagesRuntime) => rt.services.residency.busy

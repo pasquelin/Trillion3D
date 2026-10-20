@@ -2,12 +2,15 @@ import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { blendExpandDispatch } from './expandWgsl.ts'
 import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import type { OrderStep } from './orderSteps.ts'
-import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts'
+import { destroyAll } from '../../gpu/core/errorScope.ts'
 import { blendExpandUniform } from './runs.ts'
 import { UNI_WORDS } from './expandUniform.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { writeChangedSlots } from '../../gpu/core/writeChanged.ts'
 import { bindKernels, EXPANSION_REFUSED, type BlendKernels, type Kernel } from './expandKernels.ts'
+import { standInTexture } from '../../gpu/core/standInTexture.ts'
+import { arrayView } from '../../gpu/core/textureViews.ts'
+import { COLD_TABLE } from '../../gpu/dag/cutTables.ts'
 import {
   expandBuffers,
   expandSlots,
@@ -16,25 +19,22 @@ import {
   type ExpandSlots,
 } from './expandBuffers.ts'
 import { VERDICT_GROUP } from './verdictWgsl.ts'
-import { VERDICT_CLEARED } from './verdictLayout.ts'
+import { VERDICT_WORDS } from './verdictLayout.ts'
 import { createVerdictRead } from './verdictRead.ts'
 
 export type BlendExpand = ReturnType<typeof expandApi>
 
 /** What a plan sends the kernels: never per frame. */
 type BlendPlanUpload = {
-  /** Each pass's seeded entries, its counts and its plan regions. */
-  passes: {
-    seeds: Uint32Array
-    counts: { entries: number; runs: number; instanceBase: number }
-    region: { seeds: number; order: number; runs: number; args: number }
-  }[]
+  /** The pass's seeded entries, its counts and its plan region. */
+  seeds: Uint32Array
+  counts: { entries: number; runs: number; instanceBase: number }
+  region: { seeds: number; order: number; runs: number; args: number }
   scene: { maxVertexWords: number; vertexShift: number }
-  /** The order kernel's dispatch words (`orderSteps.ts`), laid as its steps' slots, the items' key
-   *  records and the water items' records. */
+  /** The order kernel's dispatch words (`orderSteps.ts`), laid as its steps' slots, and the items'
+   *  key records. */
   stepWords: Uint32Array<ArrayBuffer>
   keyWords: Uint32Array
-  waterWords: Uint32Array
 }
 
 /**
@@ -47,11 +47,14 @@ type BlendPlanUpload = {
 function expandApi(
   device: GPUDevice,
   buffers: ExpandBuffers,
-  kernels: { order: Kernel; expansion: Kernel; verdict: Kernel },
+  kernels: ReturnType<typeof bindKernels>,
   items: number,
   slots: ExpandSlots,
   made: GPUBuffer[],
 ) {
+  // Bound where the cut follows no world: the verdict reads no cell then (\`cellDraws\`).
+  const noCells = standInTexture(device, 'Trillion3D blend verdict no cells', COLD_TABLE.format),
+    noCellsView = arrayView(noCells)
   const uni = new Uint32Array(UNI_WORDS)
   // The array encoding rereads in place: four expansion dispatches.
   const launches = [0, 0, 0, 0]
@@ -60,58 +63,49 @@ function expandApi(
   const { order, expansion, verdict } = kernels
   const read = createVerdictRead(device)
   return {
-    /** What the water rectangle, the water pass and the front depth bind of the scene's buffers
-     *  (`../water/rect.ts`): the frame data, the key and water item records, the verdict. */
-    buffers: buffers as Pick<ExpandBuffers, 'frame' | 'keyed' | 'waterItems' | 'verdict'>,
     /** The last verdict counts that came back (`verdictRead.ts`). */
     counts: read.latest,
-    /** Static description of each item: paged rank, chunks, table base, vertices. */
+    /** Static description of each item, four words (`buildBlendStatics`): its paged rank, the
+     *  instances the table holds of it, its table base, a fourth word unused. */
     uploadDraws(packed: Uint32Array) {
       write(buffers.draws, 0, packed, items * 4)
     },
-    /** What a new plan changes: each pass's seeds and expansion uniform, the order's dispatch
-     *  words, the key and water item records. */
+    /** What a new plan changes: the pass's seeds and expansion uniform, the order's dispatch
+     *  words, the key records. */
     uploadPlan(plan: BlendPlanUpload) {
-      plan.passes.forEach(({ seeds, counts, region }, pass) => {
-        if (seeds.length) write(buffers.plan, region.seeds, seeds)
-        blendExpandUniform(uni, counts, region, plan.scene)
-        device.queue.writeBuffer(buffers.uniforms, slots.passes.offset(pass)[0], uni)
-      })
+      if (plan.seeds.length) write(buffers.plan, plan.region.seeds, plan.seeds)
+      blendExpandUniform(uni, plan.counts, plan.region, plan.scene)
+      device.queue.writeBuffer(buffers.uniforms, slots.pass.offset(0)[0], uni)
       sendSteps(device, buffers.steps, plan.stepWords, slots.steps)
       if (plan.keyWords.length) write(buffers.keyed, 0, plan.keyWords)
-      if (plan.waterWords.length) write(buffers.waterItems, 0, plan.waterWords)
     },
     /** Key records rewritten between two plans (`writeMovedKeyRecords`), from word `first`. */
     uploadKeys(first: number, words: Uint32Array) {
       write(buffers.keyed, first, words)
     },
-    /** The water items' records rewritten between two plans (`writeWaterItems`). */
-    uploadWaterItems(words: Uint32Array) {
-      if (words.length) write(buffers.waterItems, 0, words)
-    },
     /** The frame's head, own keys and own seeds: the only words a frame sends the kernels. */
     uploadFrame(words: Uint32Array, count: number) {
       write(buffers.frame, 0, words, count)
     },
-    /** The verdict's counts and unions zeroed, before the compute pass that judges. */
+    /** The verdict's counts zeroed, before the compute pass that judges. */
     clearVerdict(encoder: GPUCommandEncoder) {
-      encoder.clearBuffer(buffers.verdict, 0, VERDICT_CLEARED * 4)
+      encoder.clearBuffer(buffers.verdict, 0, VERDICT_WORDS * 4)
     },
-    /** The frustum verdict of every item (`verdictWgsl.ts`), first in the open compute pass. */
-    judge(encoder: GPUComputePassEncoder) {
+    /** The frustum verdict of every item (`verdictWgsl.ts`), first in the open compute pass, on
+     *  the cut's cold words `cells` where the world's cell states lie, if it follows one. */
+    judge(encoder: GPUComputePassEncoder, cells: GPUTextureView | undefined) {
       encoder.setPipeline(verdict.pipelines[0])
-      encoder.setBindGroup(0, verdict.group)
+      encoder.setBindGroup(0, verdict.groupOn(cells ?? noCellsView))
       dispatchRows(encoder, workgroupCount(items, VERDICT_GROUP))
     },
-    /** One pass ordered (`steps`) then expanded, in the open compute pass. */
+    /** The pass ordered (`steps`) then expanded, in the open compute pass. */
     encode(
       encoder: GPUComputePassEncoder,
-      pass: number,
       steps: readonly OrderStep[],
       counts: { entries: number; runs: number },
     ) {
       encodeOrder(encoder, order, steps, slots.steps)
-      encoder.setBindGroup(0, expansion.group, slots.passes.offset(pass))
+      encoder.setBindGroup(0, expansion.group, slots.pass.offset(0))
       blendExpandDispatch(launches, counts.entries, counts.runs)
       for (let step = 0; step < expansion.pipelines.length; step++) {
         encoder.setPipeline(expansion.pipelines[step])
@@ -126,6 +120,7 @@ function expandApi(
     submitted: read.submitted,
     dispose() {
       read.destroy()
+      noCells.destroy()
       for (const buffer of made) buffer.destroy()
     },
   }
@@ -154,7 +149,7 @@ const writeWords = (
   words = source.length,
 ) => queue.writeBuffer(buffer, word * 4, source.buffer as ArrayBuffer, source.byteOffset, words * 4)
 
-/** The order's dispatches of one pass, each step at its uniform slot's dynamic offset. */
+/** The order's dispatches, each step at its uniform slot's dynamic offset. */
 function encodeOrder(
   encoder: GPUComputePassEncoder,
   order: Kernel,
@@ -175,7 +170,7 @@ const STEP_LAYOUT = 'WEBGPU_BLEND_STEP_LAYOUT'
 
 /**
  * The scene buffers of the kernels, and the kernels bound to them. Nothing is allocated per frame.
- * What a frame gives fits in one write: its head — the eye, the frustum planes, the water view —
+ * What a frame gives fits in one write: its head — the eye, the frustum planes —
  * with the own entries' keys and order. What it gets is the frustum verdict, the instance list the
  * blend shader reads and one indirect argument per slot — never per item. A refusal releases what
  * was made.
@@ -194,7 +189,7 @@ export function mountBlendExpand(
     const bound = bindKernels(device, kernels, buffers, shared, outputs)
     return expandApi(device, buffers, bound, sizes.items, slots, made)
   } catch (error) {
-    cleanupFailedHiz(made)
+    destroyAll(made)
     throw new Error(EXPANSION_REFUSED, { cause: error })
   }
 }

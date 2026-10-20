@@ -1,5 +1,4 @@
 import { markRootRows } from '../webgpu/pages/render/movedRoot.ts'
-import { updateWholeDeformationBounds } from './wholeBounds.ts'
 import { worldStretch } from '../page/selection/rootWorld.ts'
 import { noteDeformed } from '../webgpu/pages/render/movedGeometry.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
@@ -13,16 +12,11 @@ import { updateWavePages } from './wavePages.ts'
  * frame's — and the block sent to the float pool when one moved; each root's reach set for the CPU
  * cut (`ClusterRoot.reach`) and in its mark for the GPU cut; each moving root declared to the
  * shadow scheduler with its rest box grown by what it reached; each page the waves alone carry
- * bounded where they carry it (`wavePages.ts`); each whole copy's box follows its
- * record and its node (`worldsMoved`). A root whose reach spans less than
+ * bounded where they carry it (`wavePages.ts`). A root whose reach spans less than
  * the image's pixel error is drawn at rest, as a coarser cluster would be. Returns whether a
  * record moved.
  */
-export function updateWebgpuDeformation(
-  rt: WebgpuPagesRuntime,
-  cam: EngineCamera,
-  worldsMoved = false,
-) {
+export function updateWebgpuDeformation(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const deformation = rt.vis.deformation,
     device = rt.gpu.device,
     pool = rt.vis.concatPos
@@ -43,7 +37,6 @@ export function updateWebgpuDeformation(
       noteDeformed(rt, i, Math.max(before, reach) * worldStretch(root))
   }
   updateWavePages(rt, deformation)
-  updateWholeDeformationBounds(rt, deformation, worldsMoved)
   if (moved) device.queue.writeBuffer(pool, deformation.base * 4, frame.block)
   return moved
 }

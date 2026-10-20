@@ -7,7 +7,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { readList } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import { drawnTriangles, readList } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import { readingOf, readInPlace } from './worldDynamicRead.ts'
 import { readComponent } from '../../../../sdk-core/src/world/geometry/bounds.ts'
 import {
   BufferAttribute,
@@ -79,4 +80,20 @@ test('the float pool writes a list from its numbers as it did from each componen
   for (let v = 0; v < uv.count; v++)
     for (let c = 0; c < 2; c++)
       assert.equal(uvs[v * 2 + c], Math.fround(uv.getComponent(v, c)), `uv ${v} ${c}`)
+})
+
+// A new draw range changes the corners a dynamic resource draws: its rewrite is read anew, not
+// written in place over the corners it was cut with.
+test('a dynamic geometry whose draw range changed is not read in place', () => {
+  const g = new Geometry().setAttribute(
+    'position',
+    new BufferAttribute(
+      new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 2, 0, 0, 2, 1, 0]),
+      3,
+    ),
+  )
+  const into = { ...readingOf(g, drawnTriangles(g, 'triangles')!), box: [-9, -9, -9, 9, 9, 9] }
+  assert.equal(readInPlace(g, 'triangles', {}, into), true, 'the same corners')
+  g.setDrawRange(0, 3)
+  assert.equal(readInPlace(g, 'triangles', {}, into), false, 'fewer corners')
 })

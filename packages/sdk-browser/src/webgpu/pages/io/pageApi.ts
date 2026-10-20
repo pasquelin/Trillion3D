@@ -1,6 +1,6 @@
 import { acceptPageArray } from '../../../page/selection/requests.ts'
 import { applyArrivalPlan } from '../../../page/integration/arrivalSpecs.ts'
-import { pageSourceBytes } from './catalogue.ts'
+import { indexSourceBytes } from './catalogue.ts'
 import { pageAddress } from '../../row/pageSlots.ts'
 import type { ArrivalPlan } from '../../../page/integration/host.ts'
 import type { PageRec } from '../../../page/selection/types.ts'
@@ -44,10 +44,7 @@ export function acceptPage(
   if (!planned) acceptPageArray(recs, array)
   // The cache reads a cluster's bytes by its address, which twelve placements share: the table by
   // address is what yields them, whichever placement just received them.
-  for (let i = 0; i < recs.length; i++) {
-    const bytes = pageSourceBytes(recs[i])
-    if (bytes) sourceBytes.set(pageAddress(recs[i]), bytes)
-  }
+  indexSourceBytes(recs, sourceBytes)
   // Bytes the image draws, queues, waits for or casts a shadow with have arrived: the list of pages
   // still waited for is no longer the previous one, and the next frame must read them.
   if (!affectsImage || affectsImage(recs)) {
@@ -77,13 +74,17 @@ export function acceptPage(
  * any more (`../../../gpu/page/eviction.ts`). A held request waits (`deferredDrops`), asked again at
  * each pin step (`../../residency/pinUpdater.ts`) until none of its clusters is held. `again` is
  * such a question: it says nothing new when the answer is the same.
+ *
+ * A request of geometry pages is never released here: each page drawn from its slot holds its
+ * bytes there, so the CPU cache letting its copy go takes nothing from the pool, whose own order
+ * evicts it for room — a view that turns back finds it resident.
  */
 export function dropPage(rt: WebgpuPagesCore, url: string, again = false) {
   const { run, gpu, diag } = rt,
     { rows } = rt.layout,
     { byUrl, sourceBytes, tracking, bootstrapKey } = rt.setup
   const recs = byUrl.get(url)
-  if (!recs) return
+  if (!recs || recs.every((rec) => rec.geometryPage)) return
   // A request is kept whole: dropping it would take away every cluster it carries, so one held
   // cluster is enough to defer the drop.
   if (recs.some((rec) => bootstrapKey[tracking.keyOf(rec)] > 0)) {

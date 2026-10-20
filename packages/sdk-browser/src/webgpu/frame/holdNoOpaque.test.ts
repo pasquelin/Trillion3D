@@ -8,7 +8,6 @@ import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { camera, flushedGpuScene, quadScene } from '../pages/testScenes.fixture.ts'
-import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
 
 test('a view without a packed row owes no occluder history', () => {
   const rt = settledRt()
@@ -25,9 +24,9 @@ test('a view without a packed row owes no occluder history', () => {
 })
 
 /** Renders the still view as a host does, frame after frame; the index of the first held one. A
- *  few frames to settle the cut, then the full temporal cycle a held frame waits for. */
+ *  few frames to settle the cut. */
 async function firstHeld(backend: Awaited<ReturnType<typeof flushedGpuScene>>['backend']) {
-  for (let frame = 0; frame < TAA_STILL_FRAMES + 8; frame++) {
+  for (let frame = 0; frame < 8; frame++) {
     backend.render(camera())
     await backend.flush()
     if (backend.metrics().frameHeld) return frame
@@ -41,31 +40,14 @@ test('a still view of blend clusters alone holds its frame, and a moved one redr
   scene.metadata.primitives[0].pass = 'clustered-blend'
   scene.material.transparent = true
   scene.material.opacity = 0.5
-  const { backend } = await flushedGpuScene(scene)
+  // A view whose temporal pass runs draws every frame (`taaRuns`): the hold is the plain view's.
+  const { backend } = await flushedGpuScene(scene, { temporalAntialiasing: false })
   try {
     assert.notEqual(await firstHeld(backend), -1, 'the still blend-only view is held')
     scene.source.children[0].position.x = 0.25
     scene.source.updateMatrixWorld(true)
     backend.render(camera())
     assert.equal(backend.metrics().frameHeld, false, 'a moved blend surface is drawn again')
-  } finally {
-    backend.dispose()
-    scene.geometry.dispose()
-    scene.material.dispose()
-  }
-})
-
-test('a still view with no cluster DAG — unpaged surfaces alone — holds its frame', async () => {
-  installGpuGlobals()
-  const scene = quadScene()
-  // The quad's one primitive drawn from its own geometry, unpaged: the scene packs no root.
-  scene.metadata.primitives[0].pass = 'shared-blend'
-  scene.material.transparent = true
-  scene.material.opacity = 0.5
-  const { backend, roots } = await flushedGpuScene(scene)
-  try {
-    assert.equal(roots.length, 0, 'witness: no cluster DAG is packed')
-    assert.notEqual(await firstHeld(backend), -1, 'no cut to move: the still view is held')
   } finally {
     backend.dispose()
     scene.geometry.dispose()

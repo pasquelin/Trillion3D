@@ -12,6 +12,7 @@ import { MIB } from '../../../math/src/constants.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { startModuleWorker } from '../host/besideModule.ts'
 import { cpuNow } from '../diagnostic/stopwatch.ts'
+import { createDeferred } from '../../../sdk-core/src/runtime/deferred.ts'
 
 /** The exports of the threaded module a thread's set-up reads. */
 interface ThreadExports {
@@ -124,8 +125,7 @@ export function joltWorkerPool(
 ) {
   const loads: Promise<void>[] = []
   let started = false
-  let broke!: (error: EngineError) => void
-  const broken = new Promise<never>((_, refused) => (broke = refused))
+  const { promise: broken, reject: broke } = createDeferred<never>()
   broken.catch(() => {})
   const spawn: SpawnJoltThread = (start) => {
     const n = loads.length + 1

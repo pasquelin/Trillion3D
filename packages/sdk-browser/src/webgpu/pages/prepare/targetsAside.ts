@@ -1,12 +1,13 @@
 import { deviceMade, startGrant } from '../../../gpu/core/errorScope.ts'
+import { forgetCapturedImage } from '../state/capture.ts'
 import { ledgerRoom, ledgerTentative } from '../../../gpu/core/deviceLedger.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
-import { restartTaaOnLanding } from '../../../taa/landing.ts'
 import { makeVsmMask } from '../render/vsm/vsmFunding.ts'
 import { onView } from '../state/viewSwitch.ts'
 import type { FrameSize } from '../state/renderScale.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { buildTargets, targetAllocationOf } from './targets.ts'
+import { ensureTaaTargets } from '../../../taa/prepare.ts'
 import { syncFeedbackTarget } from './feedbackVariant.ts'
 import { mainViewGpu } from '../state/view.ts'
 import {
@@ -88,7 +89,7 @@ function buildAside(rt: WebgpuPagesRuntime, device: GPUDevice, aside: AsideTarge
   tradeSet(rt, held, made)
   const pyramid = hiz?.swap(undefined)
   try {
-    buildTargets(rt, device, aside, aside.requestedBytes)
+    buildTargets(rt, device, aside, aside.requestedBytes, true)
     if (hiz && !hiz.resize(device, aside.renderWidth, aside.renderHeight))
       throw new Error('WEBGPU_HIZ_REFUSED')
   } finally {
@@ -105,8 +106,7 @@ const resizes = (rt: WebgpuPagesRuntime, aside: FrameSize) =>
 /**
  * At a frame's entry, before anything is drawn: the targets the device granted aside replace those
  * in place, which are freed — the frames before drew into them. The temporal history, the
- * display's, stays; a new render size restarts a still average, as a landing does, and the
- * occlusion history, whose pyramid is another. Returns whether they did: this frame is then drawn,
+ * display's, stays; a new render size restarts the occlusion history, whose pyramid is another. Returns whether they did: this frame is then drawn,
  * never held on a display colour the new targets never had (`holdWebgpuFrame`).
  */
 export function swapAsideTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -117,19 +117,21 @@ export function swapAsideTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
     resized = resizes(rt, aside),
     old: TargetSet = emptySet()
   tradeSet(rt, old, aside.set)
+  // The temporal pass's render-resolution targets follow the render size swapped in, its history
+  // the display's, the same (`asksAside`).
+  ensureTaaTargets(rt, aside)
   // Made for the pipelines in place when they were asked: a feedback variant installed since makes
   // or releases their feedback target (`followFeedback` runs before this entry swaps them in).
   syncFeedbackTarget(rt, device)
   // Hi-Z dropped meanwhile: the pyramid made for it goes too.
   if (aside.hiz) (vis.gpuHiz ? vis.gpuHiz.swap(aside.hiz) : aside.hiz)?.destroy()
   releaseSet(old.gpu, old.vis)
-  rt.capture.capturedPixels = undefined
-  rt.capture.capturedRevision = -1
+  forgetCapturedImage(rt.capture)
   // The shadows' mask is a frame target: made with them, as a grant makes it.
   makeVsmMask(rt, device)
   if (resized) {
     invalidateOccluderHistory(run)
-    restartTaaOnLanding(rt, 1)
+    run.gate.resourcesChanged()
   }
   rt.diag.engineDiagnostic('frame-allocation', 'GPU targets allocated', targetAllocationOf(rt))
   return true

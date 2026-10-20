@@ -57,6 +57,9 @@ export interface WebgpuLightState {
   vsm?: EngineVsm
   /** Why the last set asked was not made, until one is (`../render/vsm/vsmGrant.ts`). */
   vsmRefusal?: VsmRefusal
+  /** The physical pages the sets' fill asked so far, past the view's own (`vsmPoolAsked`); never
+   *  lowered: no frame flips between two pools. */
+  vsmPoolDemand: number
   /** The store's lights as the shadow maps read them, rewritten in place: the plan's, and the
    *  reserve's (`vsmReserveBytes`), apart so that neither rewrites the other's while it is read
    *  (`../render/vsm/vsmPlan.ts`). */
@@ -85,6 +88,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     shadowReason: null,
     memory: createShadowMemory(),
     firstFrameLogged: false,
+    vsmPoolDemand: 0,
   }
 }
 

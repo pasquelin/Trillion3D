@@ -10,27 +10,26 @@ import { blendSceneOf, paintOutcome, referenceOrder } from './plan.fixture.ts'
 import { cpuModel } from './expandCpu.fixture.ts'
 import { precedes } from './paintOrder.ts'
 import { sortSeedsFarToNear } from './sortPlan.ts'
+import { PLAN_SHIFT } from './planEntry.ts'
 import type { BlendGpuItem } from './state.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 
 type BlendState = ReturnType<typeof blendSceneOf>
 
 /** A frame ranked by `orderBlendPasses`: the whole paint order, and the own entries the CPU
- *  ranked itself, both checked against `referenceOrder` on both passes. */
+ *  ranked itself, both checked against `referenceOrder`. */
 function rankAndCheck(blendState: BlendState, eye: number[], what: string) {
   orderBlendPasses(blendState, eye)
-  const { orders, ownSeeds } = paintOutcome(blendState)
-  for (let pass = 0; pass < orders.length; pass++) {
-    const seeds = blendState.seeds[pass]
-    const expected = referenceOrder(seeds, blendState.orderKeys)
-    assert.deepEqual(orders[pass], seeds.length ? expected : [], `${what}, pass ${pass}`)
-    const own = new Set(ownSeeds[pass].map((seed) => seeds[seed]))
-    assert.deepEqual(
-      ownSeeds[pass].map((seed) => seeds[seed]),
-      expected.filter((entry) => own.has(entry)),
-      `${what}, own entries of pass ${pass}`,
-    )
-  }
+  const { order, ownSeeds } = paintOutcome(blendState)
+  const seeds = blendState.seeds
+  const expected = referenceOrder(seeds, blendState.orderKeys, blendState.orderPriorities)
+  assert.deepEqual(order, seeds.length ? expected : [], what)
+  const own = new Set(ownSeeds.map((seed) => seeds[seed]))
+  assert.deepEqual(
+    ownSeeds.map((seed) => seeds[seed]),
+    expected.filter((entry) => own.has(entry)),
+    `${what}, own entries`,
+  )
 }
 
 const SIDES = [0, 1, 2]
@@ -96,7 +95,7 @@ test('NaN, infinite, signed zero and huge keys give the same order', () => {
 
 /** The first three items the blend pass paints, a double-sided item's two entries counted once. */
 const nanHead = (blendState: BlendState) =>
-  [...new Set(paintOutcome(blendState).orders[0].map(planItem))].slice(0, 3)
+  [...new Set(paintOutcome(blendState).order.map(planItem))].slice(0, 3)
 
 test('a NaN key ranks farthest, by rank among NaNs, whatever the previous frame left', () => {
   const { blendState } = scene(400, 41)
@@ -113,8 +112,8 @@ test('a NaN key ranks farthest, by rank among NaNs, whatever the previous frame 
     assert.deepEqual(nanHead(blendState), [3, 7, 250], 'the NaN keys first, in rank order')
   }
   // From any previous order: the order is the total one, not one the history decides.
-  cpuModel(blendState).orders[0].reverse()
-  blendState.ownSeeds[0].reverse()
+  cpuModel(blendState).order.reverse()
+  blendState.ownSeeds.reverse()
   rankAndCheck(blendState, [-30, -30, -30], 'from reversed orders')
   assert.deepEqual(nanHead(blendState), [3, 7, 250])
 })
@@ -125,32 +124,32 @@ test('precedes is a total order, NaN farthest', () => {
     for (const [b, keyB] of keys.entries()) {
       if (a === b) continue
       assert.notEqual(
-        precedes(keyA, a, keyB, b),
-        precedes(keyB, b, keyA, a),
+        precedes(0, keyA, a, 0, keyB, b),
+        precedes(0, keyB, b, 0, keyA, a),
         `${keyA}#${a} against ${keyB}#${b}: exactly one recedes`,
       )
     }
-  assert.equal(precedes(Infinity, 0, NaN, 1), true, 'an infinite key recedes behind a NaN')
-  assert.equal(precedes(NaN, 2, NaN, 1), true, 'NaN keys by rank')
+  assert.equal(precedes(0, Infinity, 0, 0, NaN, 1), true, 'an infinite key recedes behind a NaN')
+  assert.equal(precedes(0, NaN, 2, 0, NaN, 1), true, 'NaN keys by rank')
 })
 
 test('empty, single-item and single-pass scenes', () => {
   for (const count of [1, 2, 3]) walk(count, 50 + count, 8)
   const blendState = blendSceneOf([])
   orderBlendPasses(blendState, [0, 0, 0])
-  assert.deepEqual(blendState.runCount, [0, 0])
+  assert.equal(blendState.runCount, 0)
 })
 
 test('the merge sort reaches the one sorted list, from any start', () => {
   const sortedFrom = (keys: number[], start: number[]) => {
-    const seeds = Uint32Array.from(keys.keys(), (item) => item << 6),
+    const seeds = Uint32Array.from(keys.keys(), (item) => item << PLAN_SHIFT),
       order = Uint32Array.from(start)
-    sortSeedsFarToNear(order, seeds, Float64Array.from(keys))
+    sortSeedsFarToNear(order, seeds, Float64Array.from(keys), new Int32Array(keys.length))
     return Array.from(order)
   }
   const expected = (keys: number[]) =>
     Array.from(keys.keys()).sort((a, b) =>
-      precedes(keys[a], a, keys[b], b) ? 1 : precedes(keys[b], b, keys[a], a) ? -1 : 0,
+      precedes(0, keys[a], a, 0, keys[b], b) ? 1 : precedes(0, keys[b], b, 0, keys[a], a) ? -1 : 0,
     )
   // A sorted head, a reversed middle, then a tail due at the very front.
   const keys = [

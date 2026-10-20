@@ -15,9 +15,13 @@ import { DEFAULT_BUDGET_CANVAS, effectTargetExcess, splitMemoryBudget } from './
 import { BOUNCE_PROBE_BYTES, SHADOW_POOL_BYTES } from './shadowBudgetBytes.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from './budget.fixture.ts'
 import { MIB } from '../../../math/src/constants.ts'
+import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import type { OverlayFrame } from '../webgpu/effects/webgpuKinds.ts'
 
 const [width, height] = [3840, 2160]
-const chain = [effect.bloom(), effect.bloom({ intensity: 0.5 })]
+// Three blooms: the last one's blend is the composition's, the two before it fill both pass
+// targets.
+const chain = [effect.bloom(), effect.bloom({ intensity: 0.5 }), effect.bloom({ intensity: 0.25 })]
 
 test('the default reserve is the target rule on a 3840 × 2160 canvas, the most a chain holds', async () => {
   assert.deepEqual(DEFAULT_BUDGET_CANVAS, { width, height })
@@ -29,7 +33,17 @@ test('the default reserve is the target rule on a 3840 × 2160 canvas, the most 
   webgpu.encode(encoder, chain, input, width, height)
   await webgpu.settled()
   webgpu.encode(encoder, chain, input, width, height)
-  assert.equal(webgpu.bytes, EFFECT_TARGET_BYTES, 'two pass targets, bloom levels')
+  // An outline of an object, drawn over the display image: its scan's target.
+  const outline = [effect.outline({ objects: [new Object3D()] })]
+  const frame = {
+    size: [width, height],
+    layout: { selectionRoots: [], rootIndex: { revision: 0 } },
+    revisions: { scene: 1, view: 1, resources: 1 },
+  } as unknown as OverlayFrame
+  webgpu.overlay(encoder, outline, frame)
+  await webgpu.settled()
+  webgpu.overlay(encoder, outline, frame)
+  assert.equal(webgpu.bytes, EFFECT_TARGET_BYTES, 'two pass targets, bloom levels, outline scan')
 })
 
 test('the default GPU total grows by exactly that reserve, and each pool keeps 512 MiB', () => {

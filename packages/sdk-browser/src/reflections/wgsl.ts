@@ -38,14 +38,18 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { clipToFramebuffer } from '../../../math/src/wgsl/projection.ts'
 import { LOBE_AXIS_WGSL } from '../lighting/lobeAxisWgsl.ts'
-import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL } from './field.ts'
+import {
+  REFLECTION_ENVIRONMENT_WGSL,
+  REFLECTION_PROBES_PAIR_WGSL,
+  REFLECTION_PROBES_SHARE_WGSL,
+  REFLECTION_PROBES_WGSL,
+} from './field.ts'
 import { reflectionFootprintWgsl } from './footprint.ts'
 import { reflectionRayWgsl } from './ray.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_DEPTH_BINDING } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../gpu/hiz/screenMarch.ts'
 import { RADIANCE_ANSWER } from '../bounce/runtimeRadianceWgsl.ts'
-import { REFLECTION_CONE_WGSL } from './field.ts'
 import { REFLECTION_LOBE_RAY_WGSL } from './sampleWgsl.ts'
 import { REFLECTION_REACH_WGSL } from './reach.ts'
 import { REFLECTION_PROXY_WGSL } from './proxy.ts'
@@ -101,34 +105,56 @@ const reflectionSeenWgsl = (group: number) =>
 }`,
   )
 
+/** The field's answer of a gather of the probes through a lobe (`reflectionFieldOver`, its mean and
+ *  share as `reflectionProbesGathered` answers them): the probes added to the radiance around the
+ *  scene as far as they answer, the surroundings alone past them. */
+export const REFLECTION_FIELD_OVER_WGSL = wgslBlock(
+  'REFLECTION_FIELD_OVER_WGSL',
+  [REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_SHARE_WGSL],
+  `fn reflectionFieldOver(gathered:vec4f)->vec3f{
+ return reflectionEnvironment()+reflectionProbesShare(gathered);
+}`,
+)
+
 /** The chain's last stage (`reflectionField`), what a lobe reflects where neither the screen nor the
  *  proxy answered: the probes' field through the lobe added to the radiance around the scene, as far
  *  as the probes answer, the surroundings alone past them. The trace's rays end on it, and a forward
  *  fragment that is not the front surface reads it alone (`forwardTrace`, `weight.ts`). */
 export const REFLECTION_FIELD_STAGE_WGSL = wgslBlock(
   'REFLECTION_FIELD_STAGE_WGSL',
-  [REFLECTION_ENVIRONMENT_WGSL, REFLECTION_PROBES_WGSL],
+  [REFLECTION_FIELD_OVER_WGSL, REFLECTION_PROBES_WGSL],
   `fn reflectionField(P:vec3f,N:vec3f,lobe:ReflectionLobe)->vec3f{
- let around=reflectionEnvironment();
- let gathered=reflectionProbesGathered(P,N,lobe);
- let confidence=min(gathered.w,1.0);
- return confidence*(around+gathered.xyz)+(1.0-confidence)*around;
+ return reflectionFieldOver(reflectionProbesGathered(P,N,lobe));
+}`,
+)
+
+/** The chain's last stage through two lobes at the same point and normal, one gather of the probes
+ *  (`reflectionFieldPair`): what `reflectionField` answers for each, a column each — the screen stage's. */
+const REFLECTION_FIELD_PAIR_WGSL = wgslBlock(
+  'REFLECTION_FIELD_PAIR_WGSL',
+  [REFLECTION_FIELD_OVER_WGSL, REFLECTION_PROBES_PAIR_WGSL],
+  `fn reflectionFieldPair(P:vec3f,N:vec3f,lobe:ReflectionLobe,other:ReflectionLobe)->mat2x3f{
+ let gathered=reflectionProbesPairGathered(P,N,lobe,other);
+ return mat2x3f(reflectionFieldOver(gathered[0]),reflectionFieldOver(gathered[1]));
 }`,
 )
 
 /**
- * THE CHAIN IN TWO STAGES, each its own kernel (`trace.ts`), as the reference engine traces the screen
- * first and the scene after for the rays the screen left. A ray's chain (`ReflectionChain`) carries what its
+ * THE CHAIN IN TWO STAGES, each its own kernel (`trace.ts`): the screen first, the cheap answer for
+ * every ray, and the scene after for the rays the screen left, so the costly walk runs on few threads. A ray's chain (`ReflectionChain`) carries what its
  * stages answered so far — the radiance, the share still unanswered (`rest`), the farthest the proxy
  * may walk (`bound`: the surface the screen met) and the distance of what answered the larger share
- * (`hit`, `REFLECTION_FAR` where none did yet: what the spatial reuse reaches by,
- * `reflectionReuseReach`, `spatialWgsl.ts`). `reflectionTake` adds one answer to it.
+ * (`hit`, `REFLECTION_FAR` where none did yet: what the resolve reaches by,
+ * `reflectionReuseReach`, `resolveWgsl.ts`). `reflectionTake` adds one answer to it.
  *
  * - `reflectionScreenStage`: the screen's answer along the lobe ray `lobe` (`sampleWgsl.ts`) of a
- *   surface at `P`, of normal `N`, seen from `V`;
- * - `reflectionSceneStage`: what the screen left, the proxy's answer (`reflectionProxied`), then, so
- *   the ray is whole, the environment's for the share the proxy's walk saw leave the scene (`open`),
- *   the field's for the rest.
+ *   surface at `P`, of normal `N`, seen from `V`; for a pixel past the near field (`far`), the field
+ *   answers there all the screen left too, read in the one gather that reads the whole lobe's;
+ * - `reflectionSceneStage`: what the screen left of a ray of a pixel in the near field
+ *   (`reflectionNearField`, `reach.ts`), the proxy's answer (`reflectionProxied`), then, so the ray is
+ *   whole, the environment's for the share the proxy's walk saw leave the scene (`open`), the field's
+ *   for the rest (`reflectionFieldRest`): a pixel past the near field takes the field for all the screen
+ *   left, in the screen stage.
  *
  * A lobe answers by its ray the share its roughness gives it (`reflectionTraceShare`), the field the
  * rest, read through the whole lobe, in the screen stage: never a coin toss between the two, which
@@ -141,6 +167,7 @@ export const reflectionStagesWgsl = (group: number) =>
       reflectionSeenWgsl(group),
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_FIELD_STAGE_WGSL,
+      REFLECTION_FIELD_PAIR_WGSL,
       REFLECTION_REACH_WGSL,
       REFLECTION_LOBE_RAY_WGSL,
       LOBE_AXIS_WGSL,
@@ -155,38 +182,54 @@ fn reflectionTake(ray:ptr<function,ReflectionChain>,answer:RadianceAnswer){
 }
 /** The lobe a ray is read through: its direction and the thin lobe it carries. */
 fn reflectionRayLobe(lobe:ReflectionLobeRay)->ReflectionLobe{return reflectionLobeOf(lobe.R,lobe.axis.w,lobe.axis);}
-fn reflectionScreenStage(P:vec3f,N:vec3f,V:vec3f,lobe:ReflectionLobeRay)->ReflectionChain{
+fn reflectionScreenStage(P:vec3f,N:vec3f,V:vec3f,lobe:ReflectionLobeRay,far:bool)->ReflectionChain{
  var ray=reflectionChainStart();
- // The share a ray answers (\`reflectionTraceShare\`); the field answers the rest here, read through
- // the whole lobe: a lobe too rough to trace is the field's whole, and casts no ray.
+ // The share a ray answers (\`reflectionTraceShare\`); the field answers the rest, read through the
+ // whole lobe: a lobe too rough to trace is the field's whole, and casts no ray.
  let share=reflectionTraceShare(lobe.width);
- if(share<1.0){
-  let whole=reflectionLobeOf(reflect(-V,N),lobe.alpha,vec4f(lobe.axis.xyz,lobe.along));
-  ray.radiance=(1.0-share)*reflectionField(P,N,whole);
- }
  ray.rest=share;
- if(!(share>0.0)||reflectionView.traced.x==0u||dot(N,V)<=0.0){return ray;}
- let ellipse=reflectionRayLobe(lobe);
- let seen=reflectionSeen(P,N,ellipse,reflectionPixelAt(P));
- // The proxy walks no further than the surface the screen met.
- if(seen.confidence>0.0){ray.bound=seen.distance+REFLECTION_THICKNESS*reflectionPixelAt(P+lobe.R*seen.distance);}
- reflectionTake(&ray,seen);
+ if(share>0.0&&reflectionView.traced.x!=0u&&dot(N,V)>0.0){
+  let seen=reflectionSeen(P,N,reflectionRayLobe(lobe),reflectionPixelAt(P));
+  // The proxy walks no further than the surface the screen met.
+  if(seen.confidence>0.0){ray.bound=seen.distance+REFLECTION_THICKNESS*reflectionPixelAt(P+lobe.R*seen.distance);}
+  reflectionTake(&ray,seen);
+ }
+ // The field through the whole lobe for the share no ray answers and, past the near field, through
+ // the ray's lobe for what the screen left: one gather where both read it.
+ let whole=share<1.0;
+ let left=far&&ray.rest>REFLECTION_EPSILON;
+ if(whole){
+  let wide=reflectionLobeOf(reflect(-V,N),lobe.alpha,vec4f(lobe.axis.xyz,lobe.along));
+  if(left){
+   let field=reflectionFieldPair(P,N,wide,reflectionRayLobe(lobe));
+   ray.radiance=(1.0-share)*field[0]+ray.radiance;
+   ray.radiance+=ray.rest*field[1];
+  }else{
+   ray.radiance=(1.0-share)*reflectionField(P,N,wide)+ray.radiance;
+  }
+ }else if(left){
+  ray.radiance+=ray.rest*reflectionField(P,N,reflectionRayLobe(lobe));
+ }
+ if(far){ray.rest=0.0;}
+ return ray;
+}
+fn reflectionFieldRest(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,before:ReflectionChain)->ReflectionChain{
+ var ray=before;
+ if(ray.rest>REFLECTION_EPSILON){ray.radiance+=ray.rest*reflectionField(P,N,reflectionRayLobe(lobe));}
+ ray.rest=0.0;
  return ray;
 }
 fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,screen:ReflectionChain)->ReflectionChain{
  var ray=screen;
- let ellipse=reflectionRayLobe(lobe);
  if(ray.rest>REFLECTION_EPSILON){
   let before=ray.rest;
-  let proxied=reflectionProxied(P,N,ellipse,ray.bound);
+  let proxied=reflectionProxied(P,N,reflectionRayLobe(lobe),ray.bound);
   reflectionTake(&ray,proxied.answer);
   // The share that left the scene sees the environment alone; the field stands for the rest.
   let open=min(before*proxied.open,ray.rest);
   ray.radiance+=open*reflectionEnvironment();
   ray.rest-=open;
  }
- if(ray.rest>REFLECTION_EPSILON){ray.radiance+=ray.rest*reflectionField(P,N,ellipse);}
- ray.rest=0.0;
- return ray;
+ return reflectionFieldRest(P,N,lobe,ray);
 }`,
   )

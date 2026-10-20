@@ -3,7 +3,7 @@ import { createGpuDagSelection } from '../../../gpu/dag/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/pack.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
-import { linkWorldObjects } from './worldRoot.ts'
+import { linkWorldCells } from './worldRoot.ts'
 import type { DagCapacity } from '../../../gpu/dag/packCapacity.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import { rootsOnGpu } from '../../../placement/rootPasses.ts'
@@ -102,25 +102,18 @@ function reportCutSteps(
 
 /**
  * `cut` becomes the session's, at open or for a growth: the one place a cut takes over what
- * followed the one it replaces. Each placement draws the object its row places now
- * (`linkWorldObjects`), the world DAG standing in for it where its group suffices (`worldRoot.ts`):
- * a row moved while the cut was being made included. Its links tell the impostor tier
- * (`linkMoved`), told too of each placement whose standing differs between the two cuts. The old
+ * followed the one it replaces. Each placement lies in the HLOD 0 cell its row lies in now
+ * (`linkWorldCells`, `worldRoot.ts`): a row moved while the cut was being made included. The old
  * cut is let go.
  */
 export function adoptCut(
-  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'run' | 'gpu' | 'rootWorlds'>,
+  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'run' | 'gpu' | 'rootWorlds'> &
+    Partial<Pick<WebgpuPagesRuntime, 'services'>>,
   cut: GpuSelection,
 ) {
   const { run, layout } = rt,
     old = run.gpuSelection
-  linkWorldObjects(rt.context, cut, layout.selectionRoots)
-  // The one listener of the links: the impostor tier, whenever it is made (`../../impostor/frame.ts`).
-  const linkMoved = (rank: number) => rt.gpu?.impostors?.linkMoved(rank)
-  cut.linkMoved = linkMoved
-  if (old)
-    for (let rank = 0; rank < layout.selectionRoots.length; rank++)
-      if (old.worldStandsIn(rank) !== cut.worldStandsIn(rank)) linkMoved(rank)
+  linkWorldCells(cut, layout.selectionRoots)
   old?.dispose()
   run.gpuSelection = cut
   // Its frame words were packed from the CPU's stretches: the GPU's are written into them again.

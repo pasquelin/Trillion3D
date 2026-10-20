@@ -4,7 +4,6 @@
 // JSON-stringified, what the site took from the camera for that frame.
 import { surfaceOf } from '../page/surface.ts'
 import * as G from '../host/graph/graph.fixture.ts'
-import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { collectClusterPages } from '../page/selection/collect.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
@@ -13,7 +12,6 @@ import { visibilityDepth } from '../hiz/visibilityDepth.fixture.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import type { VisPage } from '../visibility/types.ts'
 import type { HizPage } from '../hiz/types.ts'
-import { projectedPageError } from '../page/selection/diagnostic.ts'
 import { resolvePixelError } from '../page/selection/requests.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { engineSites, type Site } from './parentedEngineSites.fixture.ts'
@@ -106,16 +104,6 @@ const pureSites: Site[] = [
       const rgba = shadeVisibility(ids, vis, identityRoots(), view, RASTER)
       return { ids: list(ids), depth: list(depth), rgba: list(rgba) }
     },
-  },
-  {
-    name: 'projectedPageError (error diagnostic)',
-    measure: (_state, camera: HostCamera) =>
-      projectedPageError(
-        { lodError: 0.05, sphere: [0.5, 0, 0, 0.6] },
-        new Matrix4(),
-        engine(camera),
-        VIEWPORT,
-      ),
   },
   {
     name: 'resolvePixelError (camera speed)',

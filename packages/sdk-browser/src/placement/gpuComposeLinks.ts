@@ -4,11 +4,10 @@
  */
 import { MATRIX_VALUES } from '../../../math/src/batch/strides.ts'
 import { resized } from '../../../math/src/sequence/resized.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { packDoubles, PACKED_MATRIX_WORDS } from '../../../math/src/float/splitDouble.ts'
-import { mirrorKey } from '../webgpu/cut/denseKeys.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
-import { placedBy, type PlacementRows } from './rows.ts'
 import { rootRankOfRow } from './update.ts'
 import { noteRootWorld } from './rootWorlds.ts'
 import { deriveRootRows } from './rowWords.ts'
@@ -22,6 +21,7 @@ import {
 import { installComposedWorld, removeComposedWorld } from './gpuComposeWorld.ts'
 import { worldMoved } from '../page/selection/rootWorld.ts'
 import { readerViews, releaseReaderViews } from './composeReaders.ts'
+import { noteMovedRank } from './rootMoves.ts'
 import type { PlacementLink } from './gpuCompose.ts'
 
 /** The session's composition over its root list: a growth appends to it, its links kept; a list
@@ -50,16 +50,14 @@ export function composeState(rt: WebgpuPagesRuntime) {
 export function linkedRanks(rt: WebgpuPagesRuntime, links: readonly PlacementLink[]) {
   const ranks: number[] = [],
     rooted: PlacementLink[] = [],
-    readers: PlacementLink[] = [],
-    blended = new Map<PlacementRows, boolean>()
+    readers: PlacementLink[] = []
   for (const link of links) {
     const rank = rootRankOfRow(rt.layout.selectionRoots, link.rows, link.index)
     if (rank >= 0) {
       ranks.push(rank)
       rooted.push(link)
     }
-    if (!blended.has(link.rows)) blended.set(link.rows, placedBy(rt.blendState.blendGpu, link.rows))
-    if (rank < 0 || blended.get(link.rows)) readers.push(link)
+    if (rank < 0 || link.rows.blended) readers.push(link)
   }
   return { ranks, rooted, readers }
 }
@@ -74,7 +72,10 @@ export function takeSlot(state: ComposeState, parent: object, p: number | undefi
   return slot
 }
 
-/** Every root `slot` held and `ranks` does not keep follows no parent any more. */
+/** The ranks an unlink keeps, made once. */
+const kept = new Set<number>()
+
+/** Every root `slot` held and `ranks` does not keep follows no parent any more: true when one did. */
 export function unlinkHeld(
   rt: WebgpuPagesRuntime,
   state: ComposeState,
@@ -82,10 +83,13 @@ export function unlinkHeld(
   ranks: number[],
 ) {
   const { mobility } = rt.lights,
-    held = state.ranksOf[slot],
-    kept = new Set(ranks)
+    held = state.ranksOf[slot]
+  kept.clear()
+  for (const rank of ranks) kept.add(rank)
+  let unlinked = false
   for (const rank of held) {
     if (state.parentOf[rank] !== slot || kept.has(rank)) continue
+    unlinked = true
     removeComposedWorld(state, rank)
     state.parentOf[rank] = NO_INDEX
     // Its world is no longer composed: what derives from it is taken again (`worldMoved`).
@@ -95,17 +99,19 @@ export function unlinkHeld(
     // and enter staled.
     noteRootWorld(rt, rank)
     deriveRootRows(rt, rank)
-    mirrorKey(state.rankList, rank, false)
+    state.rankList.remove(rank)
     state.linksMoved.mark(rank)
-    state.relinked.push(rank)
     mobility.follow(rank, -1)
     rt.run.gpuSelection?.composedPlacement(rank, false)
   }
   held.length = 0
-  slotMoved(state, slot)
+  if (unlinked) slotMoved(state, slot)
+  return unlinked
 }
 
-/** `ranks` follow `slot`, each at its link's local matrix. */
+/** `ranks` follow `slot`, each at its link's local matrix; true when one joined it or changed its
+ *  local, which alone the next worlds pass composes again (`ComposeState.composed`). A link that
+ *  stands as held is skipped: nothing sent, nothing marked, no move told. */
 export function linkRanks(
   rt: WebgpuPagesRuntime,
   state: ComposeState,
@@ -117,23 +123,31 @@ export function linkRanks(
   }: { slot: number; ranks: number[]; links: readonly PlacementLink[]; whole: boolean },
 ) {
   const held = state.ranksOf[slot]
-  slotMoved(state, slot)
+  let changed = false
   for (let k = 0; k < ranks.length; k++) {
     const rank = ranks[k],
-      was = state.parentOf[rank]
+      was = state.parentOf[rank],
+      local = links[k].local
     if (whole || was !== slot) held.push(rank)
-    // A root linked already keeps its own motion; one another slot held leaves its lists.
+    if (was === slot && sameElements(state.localMats, local, rank * MATRIX_VALUES)) continue
+    changed = true
+    // A root linked already keeps its own motion; one joining leaves the lists of the slot it left.
+    if (was !== slot) {
+      slotMoved(state, slot)
+      if (was !== NO_INDEX) slotMoved(state, was)
+    }
     if (was === NO_INDEX) {
       seedMotion(rt, state, rank)
-      mirrorKey(state.rankList, rank, true)
-      state.relinked.push(rank)
-    } else if (was !== slot) slotMoved(state, was)
+      state.rankList.add(rank)
+    }
     state.parentOf[rank] = slot
     rt.lights.mobility.follow(rank, slot)
     rt.run.gpuSelection?.composedPlacement(rank, true)
-    packDoubles(state.locals, rank * PACKED_MATRIX_WORDS, links[k].local)
-    state.localMats.set(links[k].local as ArrayLike<number>, rank * MATRIX_VALUES)
+    packDoubles(state.locals, rank * PACKED_MATRIX_WORDS, local)
+    state.localMats.set(local as ArrayLike<number>, rank * MATRIX_VALUES)
     state.linksMoved.mark(rank)
+    noteMovedRank(state.composed, rank)
     installComposedWorld(rt, rank)
   }
+  return changed
 }

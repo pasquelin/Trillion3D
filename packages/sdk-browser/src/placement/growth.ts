@@ -8,9 +8,9 @@
  * (`EngineSceneUpdates.growPlacements`). The engine then
  *   1. rebinds every root, page, copy and item that read a row of `from` onto the same row of `to`
  *      (`Rebound` names each matrix view it replaced, for the tables keyed by one);
- *   2. appends one root per new row, cloned from a root of the same buffer — a copy per new row,
- *      cloned from a copy of the same buffer, for a blended surface —: its pages name the
- *      same clusters, geometry and surface, only the world and the per-placement marks are its own;
+ *   2. appends one root per new row, cloned from a root of the same buffer — a blended surface's
+ *      copy comes with it —: its pages name the same clusters, geometry and surface, only the
+ *      world and the per-placement marks are its own;
  *   3. grows its own tables where the new roots overflow them — geometrically, like the owner's
  *      buffer, so a scene that grows by one placement at a time grows each table a logarithmic
  *      number of times.
@@ -19,14 +19,28 @@
 import { BOX_VALUES } from '../../../math/src/geometry/box.ts'
 import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
 import { forgetRowRoots } from './update.ts'
-import { createBlendCopyRecord } from '../cluster/blendCopyRecord.ts'
-import type { BlendCopy } from '../cluster/blendCopyContract.ts'
 import type { MatrixElements } from '../host/matrixElements.ts'
 import { placementWorld, type PlacementOf, type PlacementRows } from './rows.ts'
 
 /** The view on its new row each matrix a growth rebound now is, by the view it replaced: a root
  *  and the copy of its placement stand on one, so the tables keyed by a view find them both. */
 export type Rebound = Map<MatrixElements, MatrixElements>
+
+/** Each value `held` keeps by a view `rebound` replaced moved to the new view, then `moved` told;
+ *  a key absent (`undefined`) is skipped, so a value of 0 moves. */
+export function rekeyRebound<K extends object, V, R extends K>(
+  held: Map<K, V>,
+  rebound: ReadonlyMap<R, R>,
+  moved?: (value: V, view: R) => void,
+) {
+  for (const [old, view] of rebound) {
+    const value = held.get(old)
+    if (value === undefined) continue
+    held.delete(old)
+    held.set(view, value)
+    moved?.(value, view)
+  }
+}
 
 /** The view on `placement`'s row that replaces `held`: the same one for every holder of `held`. */
 function viewOn(rebound: Rebound | undefined, held: MatrixElements, placement: PlacementOf) {
@@ -71,96 +85,39 @@ function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: num
   return root
 }
 
-/**
- * Steps 1 and 2 of the contract on any list posed by rows: each item of `from` is `rebind`-ed to
- * the same row of `to`, and one item per new row is `clone`-d from the first of them, returned
- * with it. `items` itself is not extended.
- */
-function growPlaced<T extends { readonly placement?: PlacementOf }>(
-  items: readonly T[],
-  from: PlacementRows,
-  to: PlacementRows,
-  rebind: (item: T, placement: PlacementOf) => void,
-  clone: (template: T, placement: PlacementOf) => T | undefined,
-) {
-  let template: T | undefined
-  for (const item of items)
-    if (item.placement?.rows === from) {
-      rebind(item, { rows: to, index: item.placement.index })
-      template ??= item
-    }
-  const added: { item: T; template: T }[] = []
-  if (template)
-    for (let index = from.capacity; index < to.capacity; index++) {
-      const item = clone(template, { rows: to, index })
-      if (item) added.push({ item, template })
-    }
-  return added
-}
-
-/** `growPlaced` on a root list: the roots of `from` read `to`, and one parked root per new row is
- *  returned — with the root whose pages its own pages copy rank for rank — for the engine to
- *  append to its tables. */
+/** Steps 1 and 2 of the contract on a root list: the roots of `from` read `to`, and one parked
+ *  root per new row, cloned from the first of them, is returned for the engine to append to its
+ *  tables. */
 export function growRowRoots(
   roots: ClusterRoot<PageRec>[],
   from: PlacementRows,
   to: PlacementRows,
   rebound?: Rebound,
 ) {
-  const added = growPlaced(
-    roots,
-    from,
-    to,
-    (root, placement) => pose(root, placement, rebound),
-    (template, { rows, index }) => rowRoot(template, rows, index),
-  )
+  let template: ClusterRoot<PageRec> | undefined
+  for (const root of roots)
+    if (root.placement?.rows === from) {
+      pose(root, { rows: to, index: root.placement.index }, rebound)
+      template ??= root
+    }
+  const added: ClusterRoot<PageRec>[] = []
+  if (template)
+    for (let index = from.capacity; index < to.capacity; index++)
+      added.push(rowRoot(template, to, index))
   forgetRowRoots(roots)
   return added
 }
 
-/** `growPlaced` on the items the blend pass holds — one per placement, its matrix a view on the
- *  row —: each of `from` reads `to`. They are cloned by their copies, never by themselves. */
+/** Step 1 on the blended copies and the items the blend pass holds — one per placement, its
+ *  matrix a view on the row —: each of `from` reads `to`. None is cloned: a new row's copy comes
+ *  with the root of its row (`pagedBlendCopiesOf`), and its item with that copy. */
 export function growRowItems(
   items: readonly { matrix: MatrixElements; placement?: PlacementOf }[],
   from: PlacementRows,
   to: PlacementRows,
   rebound: Rebound,
 ) {
-  growPlaced(
-    items,
-    from,
-    to,
-    (item, placement) => poseMatrix(item, placement, rebound),
-    () => undefined,
-  )
-}
-
-/** `growPlaced` on the blended copies: the copies of `from` read `to`, and one parked copy per new
- *  row is returned, its primitive's deformation and proxy the template's — a paged one comes with
- *  the root of its row, never from here. */
-export function growRowCopies(
-  copies: readonly BlendCopy[],
-  from: PlacementRows,
-  to: PlacementRows,
-  rebound: Rebound,
-) {
-  return growPlaced(
-    copies,
-    from,
-    to,
-    (copy, placement) => poseMatrix(copy, placement, rebound),
-    (template, placement) => {
-      if (template.userData.pagedBlend || !template.userData.drawSource) return undefined
-      // What its primitive gives every placement comes whole from the template, as a copy collected
-      // at the open carries it (`collect.ts`).
-      return createBlendCopyRecord(
-        template.userData.drawSource,
-        template.renderOrder,
-        placementWorld(placement.rows, placement.index),
-        template.surface,
-        placement,
-        template,
-      )
-    },
-  ).map(({ item }) => item)
+  for (const item of items)
+    if (item.placement?.rows === from)
+      poseMatrix(item, { rows: to, index: item.placement.index }, rebound)
 }

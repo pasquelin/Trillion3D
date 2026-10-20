@@ -19,7 +19,9 @@ const READERS = ['clusterHeader', 'clusterTriangle', 'clusterIndex', 'clusterPos
 const ATTRIBUTES = ['clusterNormal', 'clusterColor', 'clusterJoint', 'clusterWeight']
 const NAMES = [...ROUTINES, ...READERS, ...ATTRIBUTES, 'clusterMorph']
 const HELPERS = [
+  'octBytesDecode',
   'octDecode',
+  'octUnfold',
   'octFold',
   'pow2FromExponent',
   'bitLength',

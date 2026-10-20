@@ -17,8 +17,13 @@ import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_WGSL,
+  VSM_RENDER_CHUNK_COUNTS,
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_PARAMS,
+  VSM_RENDER_TIER_CMDS,
+  VSM_RENDER_TIER_CORNERS,
+  VSM_RENDER_TIER_PAIRS,
+  VSM_RENDER_TIERS,
 } from './renderParamsWgsl.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
@@ -60,6 +65,7 @@ function argumentKernels(scope: {
     [
       'vsmRenderChunkCounter',
       'vsmRenderArgsAt',
+      'vsmRenderArgsGrid',
       'groupGrid',
       'ceilDiv',
       'vsmRenderArgsCull',
@@ -103,18 +109,21 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
       ...{ cmdCapacity: slot(c)[at.cmdCapacity], pairCapacity: slot(c)[at.pairCapacity] },
     })
   // u32 words: a store truncates as WGSL's integer division does (`shaderRun` divides in doubles).
-  const counts = new Uint32Array(VSM_RENDER_COUNTS_HEAD + 4 * stats.chunks)
+  const counts = new Uint32Array(VSM_RENDER_COUNTS_HEAD + VSM_RENDER_CHUNK_COUNTS * stats.chunks)
   const args = new Uint32Array(VSM_RENDER_ARGS_STRIDE_WORDS * stats.chunks)
   const kernels = argumentKernels({ params, counts, args })
+  // The views kernel listed the 17 maps with a page to draw, in the counters' word 1.
   counts[0] = 100
+  counts[1] = 17
   read(0)
   kernels.vsmRenderArgsCull()
 
   const argsBuffer = fake.buffers.find((b) => b.label === 'vsm.render.args')
   const groups = (offset: number) => args[offset / 4] * args[offset / 4 + 1] * args[offset / 4 + 2]
   const work = new Map<number, number[]>()
-  // The candidates' kernel and its argument kernel, run above, open chunk 0's compute pass.
-  const candidates = ['vsmRenderCandidates', 'vsmRenderArgsCull']
+  // The candidates' and the views' kernels and their argument kernel, run above, open chunk 0's
+  // compute pass.
+  const candidates = ['vsmRenderCandidates', 'vsmRenderViews', 'vsmRenderArgsCull']
   // Every dispatch and draw, in pass order: chunk c's compute pass 2c, its raster pass 2c + 1.
   type Call = {
     pass: number
@@ -126,10 +135,12 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   const calls: Call[] = [...fake.dispatches, ...fake.draws].sort((a, b) => a.pass - b.pass)
   for (const call of calls.filter((c) => !candidates.includes(c.entryPoint!))) {
     const c = Math.floor(call.pass / 2)
-    // Chunk 0's cull counted 12 commands, its expand 40 pairs of 3 corners.
-    if (call.entryPoint === 'vsmRenderCull' && c === 0) counts[VSM_RENDER_COUNTS_HEAD] = 12
+    // Chunk 0's cull counted 12 commands, all of the lowest corner tier, whose expand listed 40
+    // pairs.
+    if (call.entryPoint === 'vsmRenderCull' && c === 0)
+      counts[VSM_RENDER_COUNTS_HEAD] = counts[VSM_RENDER_COUNTS_HEAD + VSM_RENDER_TIER_CMDS] = 12
     if (call.entryPoint === 'vsmRenderExpand' && c === 0)
-      [counts[VSM_RENDER_COUNTS_HEAD + 1], counts[VSM_RENDER_COUNTS_HEAD + 2]] = [40, 3]
+      counts[VSM_RENDER_COUNTS_HEAD + VSM_RENDER_TIER_PAIRS] = 40
     let done: number
     if (call.entryPoint === 'vsmRenderArgsExpand' || call.entryPoint === 'vsmRenderArgsDraw') {
       // One thread, directly: the argument kernels write the buffer the others read.
@@ -148,11 +159,13 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
     work.set(c, [...(work.get(c) ?? []), done])
   }
   assert.equal(work.size, stats.chunks, 'every chunk encoded')
-  // Chunk 0: 2 groups of candidates × 17 views, its argument kernel, 12 commands, the draw's
-  // argument kernel, 40 pairs of 3 vertices; every other chunk culls, expands and draws nothing.
-  assert.deepEqual(work.get(0), [34, 1, 12, 1, 120])
+  // Chunk 0: 2 groups of candidates × 17 views, its argument kernel, one group binning 12
+  // commands, the lowest tier's expand over them and no other tier's, the draws' argument kernel,
+  // 40 pairs of the lowest tier's corners; every other chunk culls, bins, expands and draws nothing.
+  const tiers = (first: number) => [first, ...Array<number>(VSM_RENDER_TIERS - 1).fill(0)]
+  assert.deepEqual(work.get(0), [34, 1, 1, ...tiers(12), 1, ...tiers(40 * VSM_RENDER_TIER_CORNERS)])
   for (let c = 1; c < stats.chunks; c++)
-    assert.deepEqual(work.get(c), [0, 1, 0, 1, 0], `chunk ${c}`)
+    assert.deepEqual(work.get(c), [0, 1, 0, ...tiers(0), 1, ...tiers(0)], `chunk ${c}`)
 })
 
 test('a device aligning at 512 lays the chunks’ parameter slots 512 bytes apart', () => {
@@ -179,8 +192,9 @@ test('a device aligning at 512 lays the chunks’ parameter slots 512 bytes apar
     slots.buffer,
     fake.writes.filter((w) => w.buffer === (paramsBuffer as unknown as GPUBuffer)),
   )
-  // Chunk c's index at word 25 of its slot, 128 words a slot; its groups bound at c × 512.
-  for (let c = 0; c < chunks; c++) assert.equal(slots[c * 128 + 25], c, `chunk ${c}`)
+  // Chunk c's index at its word of its slot, 128 words a slot; its groups bound at c × 512.
+  const { chunk } = VSM_RENDER_PARAMS.at
+  for (let c = 0; c < chunks; c++) assert.equal(slots[c * 128 + chunk], c, `chunk ${c}`)
   assert.deepEqual(
     [...offsets].sort((a, b) => a - b),
     Array.from({ length: chunks }, (_, c) => c * 512),

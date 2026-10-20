@@ -1,7 +1,7 @@
+import { rootBlended } from '../../../page/selection/collectBlend.ts'
 import { workgroupCount } from '../../../../../math/src/scalar/integers.ts'
 import type { PageRec } from '../../../page/selection/types.ts'
 import { createWebgpuRowState } from '../../row/state.ts'
-import { pageAddress } from '../../row/pageSlots.ts'
 import { DRAW_ITEM_U32 } from '../../../gpu/draw/contract.ts'
 import { createCornerHold } from '../../visibility/corners.ts'
 import { createDrawItemWordsHold } from '../../visibility/itemWords.ts'
@@ -12,63 +12,37 @@ import { postPackedBases } from '../../../page/selection/placements.ts'
 import { createPackedPages, createPageCatalogue } from '../../../page/selection/catalogue.ts'
 import { createPackedInstances } from '../../row/instances.ts'
 import type { NodeIndex } from '../render/movedNode.ts'
+import { pagesHeld } from '../../../gpu/page/placement.ts'
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>
 
-/** How many packed pages share each pool address, and the most at one: the rows a slot feeds. */
-export type PoolCopies = { byAddress: Map<string, number>; max: number }
-
-/** Counts `pages` into `copies`, `by` more placements each. */
-function countCopies(copies: PoolCopies, pages: readonly PageRec[], by: number) {
-  for (const page of pages) {
-    const address = pageAddress(page),
-      n = (copies.byAddress.get(address) ?? 0) + by
-    copies.byAddress.set(address, n)
-    copies.max = Math.max(copies.max, n)
-  }
-  return copies
-}
-
-/** The placements of each primitive among `roots`, a primitive being its shared `pages` array. */
-function placementsByPrimitive(roots: readonly { readonly pages: readonly PageRec[] }[]) {
-  const counts = new Map<readonly PageRec[], number>()
-  for (const { pages } of roots) counts.set(pages, (counts.get(pages) ?? 0) + 1)
-  return counts
-}
-
-/** Counts the pages of `roots` into `copies`: each primitive page once, by its placement count —
- *  O(primitive pages), never one step per packed instance (#1235). */
-export function countRootCopies(
-  copies: PoolCopies,
-  roots: readonly { readonly pages: readonly PageRec[] }[],
-) {
-  for (const [pages, placements] of placementsByPrimitive(roots))
-    countCopies(copies, pages, placements)
-  return copies
-}
-
 /**
- * The page table a scene of `opaque` and `blended` packed pages asks, on a pool of `slots` whose
- * address feeds `maxCopies` rows at most, bounded by one binding of the device (`limits`).
- * Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle: rows
- * are the visibility buffer's, and only opaque clusters ever claim one. Blended clusters cast from
- * rows behind them, which only the shadow pass reads: as many as the pool can hold resident at
- * once, and none in a scene that blends nothing. Neither side passes the rows the view holds,
- * `viewRows` (`VIEW_ROWS`, `ROW_STEP` past it, until the cut asked more): a thousand placements of
- * a page ask no more than the view draws (#1232).
+ * The page table a scene of `opaque` and `blended` packed pages asks, on a pool holding `pages` at
+ * most (`pagesHeld`) whose address feeds `maxCopies` rows at most, bounded by one binding of the
+ * device (`limits`). Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the
+ * triangle: rows are the visibility buffer's, and only opaque clusters ever claim one. Blended
+ * clusters cast from rows behind them, which only the shadow pass reads: as many as the pool can
+ * hold resident at once, and none in a scene that blends nothing. Neither side passes the rows the
+ * view holds, `viewRows` (`VIEW_ROWS`, `ROW_STEP` past it, until the cut asked more): a thousand
+ * placements of a page ask no more than the view draws (#1232).
  */
 export function askedTableRows(
   opaque: number,
   blended: number,
-  slots: number,
+  pages: number,
   maxCopies: number,
   limits: GPUSupportedLimits | undefined,
   viewRows: number,
 ) {
-  const resident = slots * maxCopies
+  const resident = pages * maxCopies
   const draw = Math.max(1, Math.min(VIS_MAX_PAGES, opaque || 1, resident, viewRows))
   return boundTableRows(limits, draw, Math.min(blended, resident, viewRows))
 }
+
+/** The pages of `root` the transparent pass draws: those whose page is blended (`PageRec.transparent`),
+ *  wherever its root is filed. */
+export const blendedPagesOf = (root: { pages: readonly { transparent?: boolean }[] }) =>
+  root.pages.reduce((total, page) => total + (page.transparent ? 1 : 0), 0)
 
 /** The geometry of the drawing path: the packed opaque pages, the row table sized to the slot
  *  budget and to one binding of the device (`limits`), and every per-row scratch array the image
@@ -80,10 +54,11 @@ export function createWebgpuPagesLayout(
   /** The pool slot, in words, an address holds in the page cache, -1 none: the cache's own. */
   slotWords: (address: string) => number,
 ) {
-  const { roots, bootstrap, cap: slots, pageBytes } = setup
-  // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/residencyMirror.ts`).
-  const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
-    transparentRoots = roots.filter((root) => root.pages[0]?.transparent)
+  const { roots, bootstrap, cap: slots, pageBytes, homes } = setup
+  // The world DAG is one more opaque root, wherever it sits (`worldRoot.ts`), its blended pages, if
+  // any, the transparent pass's (`ClusterRoot.mixed`).
+  const opaqueRoots = roots.filter((root) => !rootBlended(root)),
+    transparentRoots = roots.filter(rootBlended)
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
   // GPU selection, the residency and the page budget read all of it; only the drawing path splits,
   // because a transparent cluster is blended in source order instead of entering the visibility
@@ -99,25 +74,25 @@ export function createWebgpuPagesLayout(
   // its own base.
   const placement = postPackedBases(selectionRoots)
   const packedPages = createPackedPages(selectionRoots, placement)
-  const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0)
+  // Counted by their pages' own kind: the world DAG, an opaque root, holds blended pages too.
+  const blendedPageCount = selectionRoots.reduce((total, root) => total + blendedPagesOf(root), 0)
   const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16)
   const gpuWanted: PageRec[] = bootstrap
-  const copies = countRootCopies({ byAddress: new Map(), max: 1 }, selectionRoots)
+  const instances = createPackedInstances(selectionRoots, placement)
   // A scene whose instances fit the rows of a view holds them all; a larger one opens at one step
   // of the row cache and grows by what its cut asks (`growTables.ts`, `../../row/slots.ts`).
   const viewRows = packedPages.length > VIEW_ROWS ? ROW_STEP : VIEW_ROWS
   const { drawSlots, blendSlots, bounded } = askedTableRows(
-    opaquePageCount,
-    packedPages.length - opaquePageCount,
-    slots,
-    copies.max,
+    packedPages.length - blendedPageCount,
+    blendedPageCount,
+    pagesHeld(pageBytes, slots, homes),
+    instances.copiesMax,
     limits,
     viewRows,
   )
   // The one catalogue over `packedPages`: its `recordOf` is how a consumer resolves the packed
   // ranks the cut publishes, and the row state indexes it once (`./catalogue.ts`).
   const catalogue = createPageCatalogue(packedPages)
-  const instances = createPackedInstances(selectionRoots, placement)
   const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, instances, slotWords)
   return {
     transparentRoots,
@@ -136,9 +111,7 @@ export function createWebgpuPagesLayout(
     get placement() {
       return placement
     },
-    opaquePageCount,
-    /** The pool addresses' placements, which rows grown in place add to. */
-    copies,
+    blendedPageCount,
     /** The rows the view holds (`../../row/tableRows.ts`): the table is never asked past them, and
      *  only a cut that selected more raises them (`growTables.ts`, `followCutRows`). */
     viewRows,

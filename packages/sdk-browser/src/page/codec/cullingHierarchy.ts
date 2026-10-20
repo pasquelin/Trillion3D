@@ -3,7 +3,7 @@ import {
   CULLING_RECORD_FLOATS,
   CULLING_STRIDE,
 } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
-import { reserveArena, takeHeld } from '../../wasm/wasmArena.ts'
+import { takeHeld, withArena } from '../../wasm/wasmArena.ts'
 import type { SdkWasm } from '../../wasm/sdkWasm.ts'
 
 /** One cluster as the hierarchy builder takes it: its box, and for a cluster something replaces,
@@ -29,30 +29,30 @@ export function buildCullingHierarchy(
   clusters: readonly CullingInput[],
 ): { order: Uint32Array; culling: CullingHierarchy } {
   const count = clusters.length
-  const input = reserveArena(module, [
-    { type: 'f64', length: Math.max(1, count * CULLING_RECORD_FLOATS) },
-    { type: 'u32', length: 1 },
-  ])
-  if (!input) throw new Error('CULLING_BUILDER_MEMORY')
-  let nodes: number
-  try {
-    const [records] = input.blocks()
-    clusters.forEach((cluster, k) => {
-      const at = k * CULLING_RECORD_FLOATS,
-        root = cluster.parentError === null || cluster.parentError === undefined,
-        band = cluster.parentSphere
-      records.view.set(cluster.min as ArrayLike<number>, at)
-      records.view.set(cluster.max as ArrayLike<number>, at + 3)
-      for (let a = 0; a < 4; a++) records.view[at + 6 + a] = band ? band[a] : 0
-      records.view[at + 10] = root ? Infinity : (cluster.parentError as number)
-      records.view[at + 11] = cluster.level ?? 0
-    })
-    const status = module.culling_build(records.offset, count, input.blocks()[1].offset)
-    if (status !== 0) throw new Error('CULLING_BUILDER_REFUSED')
-    nodes = input.blocks()[1].view[0]
-  } finally {
-    input.freed()
-  }
+  const nodes = withArena(
+    module,
+    [
+      { type: 'f64', length: Math.max(1, count * CULLING_RECORD_FLOATS) },
+      { type: 'u32', length: 1 },
+    ],
+    'CULLING_BUILDER_MEMORY',
+    (input) => {
+      const [records] = input.blocks()
+      clusters.forEach((cluster, k) => {
+        const at = k * CULLING_RECORD_FLOATS,
+          root = cluster.parentError === null || cluster.parentError === undefined,
+          band = cluster.parentSphere
+        records.view.set(cluster.min as ArrayLike<number>, at)
+        records.view.set(cluster.max as ArrayLike<number>, at + 3)
+        for (let a = 0; a < 4; a++) records.view[at + 6 + a] = band ? band[a] : 0
+        records.view[at + 10] = root ? Infinity : (cluster.parentError as number)
+        records.view[at + 11] = cluster.level ?? 0
+      })
+      const status = module.culling_build(records.offset, count, input.blocks()[1].offset)
+      if (status !== 0) throw new Error('CULLING_BUILDER_REFUSED')
+      return input.blocks()[1].view[0]
+    },
+  )
   // The held answer: the nodes, `CULLING_STRIDE` doubles each, then one rank a cluster.
   const [flat, ranks] = takeHeld(module, [nodes * CULLING_STRIDE * 8, count * 4])
   return {

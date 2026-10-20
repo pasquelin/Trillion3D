@@ -1,12 +1,17 @@
-import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts'
+import {
+  BLEND_ITEM_WORDS,
+  ITEM_FLAGS_WORD,
+  ITEM_HLOD_PROXY,
+  itemProxyBit,
+  writeBlendItemRecord,
+} from './items.ts'
 import { refreshBlendPlan } from './plan.ts'
-import { writeVolumeRecords } from '../transparent/transmission.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { frontStageOf } from './frontStage.ts'
 
 /**
- * Records, volumes and the encode plan, rebuilt after a scene change.
+ * Records and the encode plan, rebuilt after a scene change.
  *
  * This is the ONLY remaining loop over items, and a camera that moves does not trigger it: it
  * only restarts on a matrix move or a resource mount. With `posesOnly` — a frame whose scene moved
@@ -22,7 +27,7 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     buffer = blendState.itemBuffer
   if (!buffer || !blendState.blendGpu.length) {
     // No item left: no lobe either, so the lobes target and the lobed programs are dropped too.
-    blendState.lobed = blendState.waterLobed = false
+    blendState.lobed = false
     blendState.frontOutputs = 0
     return
   }
@@ -35,7 +40,6 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     modes: blendState.planModes,
     filtered: blendState.filtersDisplay,
   })
-  writeVolumeRecords(rt, device)
 }
 
 /** Every record written whole, the lobe switches derived from them, and what the front pass writes. */
@@ -43,25 +47,19 @@ function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUB
   const { blendState, vis } = rt,
     items = blendState.blendGpu,
     packed = blendState.itemPacked
-  let lobed = false,
-    waterLobed = false
+  let lobed = false
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
     lobed ||= item.lobed
-    waterLobed ||= item.lobed && !!item.transmissive
   }
   blendState.lobed = lobed
-  blendState.waterLobed = waterLobed
   blendState.frontOutputs = frontStageOf(items)
-  // A transmissive surface that brings a lobe: the water's lobed stage compiles, off the frame, the
-  // frames held until it lands (`lobedStage.ts`).
-  if (waterLobed) blendState.water?.lobed.ask()
   queue.writeBuffer(buffer, 0, packed.buffer, 0, packed.byteLength)
 }
 
-/** The poses alone: each item whose matrix moved writes its sixteen words, and the span from the
- *  first moved to the last is sent — none when no pose moved. */
+/** The poses alone: each item whose matrix or HLOD 0 actor bit moved writes them, and the span from
+ *  the first moved to the last is sent — none when nothing moved. */
 function writeBlendPoses(
   blendState: WebgpuPagesRuntime['blendState'],
   queue: GPUQueue,
@@ -71,11 +69,17 @@ function writeBlendPoses(
     packed = blendState.itemPacked
   let first = -1,
     last = -1
+  const ints = blendState.itemInts
   for (let i = 0; i < items.length; i++) {
     const pose = items[i].matrix.elements,
-      base = i * BLEND_ITEM_WORDS
-    if (sameMatrixFloat32(packed, pose, base)) continue
+      base = i * BLEND_ITEM_WORDS,
+      flags = base + ITEM_FLAGS_WORD
+    // Its placement drawn as its cell's HLOD 0 actor or as itself (`ITEM_HLOD_PROXY`), beside it.
+    const proxied = ((ints[flags] & ~ITEM_HLOD_PROXY) | itemProxyBit(items[i])) >>> 0
+    const still = sameMatrixFloat32(packed, pose, base)
+    if (still && proxied === ints[flags]) continue
     packed.set(pose, base)
+    ints[flags] = proxied
     if (first < 0) first = i
     last = i
   }

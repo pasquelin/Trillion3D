@@ -84,7 +84,7 @@ const materialProgram = oncePerDevice((device: GPUDevice) => {
 })
 
 /** The turns a host texture asks of raw texels, as bits (`turnFlags`). */
-export const TEXEL_FLIP = 1,
+const TEXEL_FLIP = 1,
   TEXEL_PREMULTIPLY = 2
 /** The turns host texture `map` asks of raw texels: none, the texels go up as they are. */
 export const turnFlags = (map: Texture) =>

@@ -12,6 +12,7 @@ import {
   uploadDrawItems,
 } from './drawOps.ts'
 import type { Draw, DrawKernels } from './drawOps.ts'
+import { heldGroup } from '../../webgpu/core/bindIdentity.ts'
 import { buildComputeStages } from '../core/computeStages.ts'
 
 /**
@@ -46,8 +47,7 @@ export async function createGpuDraw(
     const held = allocated
     d = {
       ...made,
-      testedGroup: undefined,
-      testedBound: [],
+      testedHeld: heldGroup(),
       device,
       slotCap,
       layerSlots,
@@ -121,8 +121,8 @@ function drawApi(d: Draw, release: () => void): GpuDraw {
     get instanceBuffer() {
       return d.held.instanceBuffer
     },
-    get slotOffsetsBuffer() {
-      return d.held.groupOffsets
+    get groupsBuffer() {
+      return d.held.groups
     },
     slots: d.held.slots,
     corners: d.corners,

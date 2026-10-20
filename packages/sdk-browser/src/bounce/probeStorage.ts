@@ -1,4 +1,4 @@
-import { arrayView } from '../gpu/core/textureViews.ts'
+import { arrayView, layerView } from '../gpu/core/textureViews.ts'
 import type { BounceCascades } from '../../../sdk-core/src/bounce/cascades.ts'
 import { constructGpuResources } from '../gpu/core/errorScope.ts'
 import { createBounceUniform } from './uniform.ts'
@@ -37,9 +37,7 @@ export function createProbeStorage(
     const snapshot = atlas('Trillion3D bounce probes snapshot v3')
     /** One view per level of `atlas`, which a clear renders to. */
     const layers = (atlas: GPUTexture) =>
-      Array.from({ length: extent[2] }, (_, level) =>
-        atlas.createView({ dimension: '2d', baseArrayLayer: level, arrayLayerCount: 1 }),
-      )
+      Array.from({ length: extent[2] }, (_, level) => layerView(atlas, level))
     const views = {
       probes: arrayView(probes),
       snapshot: arrayView(snapshot),

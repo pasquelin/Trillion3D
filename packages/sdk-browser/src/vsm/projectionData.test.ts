@@ -50,6 +50,7 @@ const PINNED_OFFSETS: readonly (readonly [string, number])[] = [
   ['ditherTexels', 268],
   ['cornerSteps', 272],
   ['lightRange', 280],
+  ['tableOrigin', 284],
 ]
 
 /** Throws unless the struct of `text` has the offsets the lighting shader reads, as numbers: no
@@ -145,8 +146,8 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
   assert.deepEqual([i(o.mapLevel), u(o.flags)], [-2, FLAGS])
   assert.deepEqual([f(o.ditherTexels), u(o.finestMip)], [2, 3])
   assert.equal(i(o.levelsLeft), -1)
-  // The word past the last field, up to the record's 16-byte end, is zero.
-  assert.equal(u(284), 0)
+  // The last field fills the record's 16-byte end: the page table's origin, two halves.
+  assert.equal(u(o.tableOrigin), 7 | (9 << 16))
   const bytes = new Uint8Array(buffer)
   assert.ok(
     bytes.subarray(0, at).every((b) => b === 0xab),

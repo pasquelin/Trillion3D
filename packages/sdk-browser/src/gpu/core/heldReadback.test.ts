@@ -5,7 +5,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { readGpuImage } from './readback.ts'
-import { HOLD_IDLE_MS } from './heldBuffers.ts'
 
 const capturing = () => {
   const gpu = fakeDevice(),
@@ -34,7 +33,7 @@ test('the capture ring is destroyed once idle', async (context) => {
   const { gpu, device, made } = capturing()
   await readGpuImage(device, {} as GPUTexture, 8, 4)
   assert.equal(gpu.destroyed.length, 0, 'held after its capture')
-  context.mock.timers.tick(HOLD_IDLE_MS)
+  context.mock.timers.runAll()
   assert.equal(gpu.destroyed.length, 1, 'given back to the device')
   await readGpuImage(device, {} as GPUTexture, 8, 4)
   assert.equal(made().length, 2, 'the next capture makes one again')

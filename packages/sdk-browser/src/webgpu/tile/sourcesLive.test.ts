@@ -22,7 +22,7 @@ test('a live texture keeps its raw texels between pictures, let go with it', () 
   const maps = [host]
   const atlas = {
     kind: 'color',
-    textures: tileCatalogue(maps, () => undefined, undefined, encoding),
+    textures: tileCatalogue(maps, () => undefined, encoding),
     poolOf: () => ({ texture: { format: 'rgba8unorm' }, occupied: () => [] }),
   } as unknown as WebgpuTileAtlas
   const sources = createTileSources({

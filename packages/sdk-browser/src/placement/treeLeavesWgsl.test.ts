@@ -38,7 +38,7 @@ test('every leaf the GPU writes is the CPU formula’s, word for word', () => {
     TREE_LEAVES_WGSL,
     [
       ...DOUBLE_HELPERS,
-      ...['dLess', 'dMin', 'dMax', 'fromF32', 'affineAxis', 'carriedBox', 'nodesNode', 'nodesWord'],
+      ...['dLess', 'dMin', 'dMax', 'fromF32', 'carriedBox', 'nodesNode', 'nodesWord'],
       ...['framesRow', 'framesWord', 'markReach', 'reachUnbounded', 'writeLeaf'],
     ],
     {

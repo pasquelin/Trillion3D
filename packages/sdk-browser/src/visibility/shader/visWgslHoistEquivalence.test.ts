@@ -36,8 +36,9 @@ test('the hardware raster reads the share in the same text as the compute raster
     /fn hardwareCorner\(page:PageInfo,h:ClusterHeader,vertexIndex:u32,shape:PageShape\)->u32\{\n if\(uni\.computeSpan<=0\.0\)\{return pageCorner\(page,h,vertexIndex\);\}\n let corners=pageTriangle\(page,h,vertexIndex\/3u\);/,
   )
   assert.match(VIS_SHADER, /let vp=uni\.viewProj\*page\.world;/)
-  // The corner of the instance's batch (`drawBatch`), in both vertex stages.
-  assert.equal(VIS_SHADER.match(/let id=hardwareCorner\(page,h,corner,shape\);/g)?.length, 2)
+  // The corner of the instance's batch (`drawBatch`), in the one vertex stage both halves draw
+  // with.
+  assert.equal(VIS_SHADER.match(/let id=hardwareCorner\(page,h,corner,shape\);/g)?.length, 1)
 })
 
 function assertSameTriangle(viewProj: Mat4, world: Mat4, vertices: readonly Point[]) {

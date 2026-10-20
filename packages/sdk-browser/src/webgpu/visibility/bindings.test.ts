@@ -104,7 +104,7 @@ test('atlas entries alone govern table and individual lane invalidation; stable 
 
 test('indirect groups follow buffer changes inside the same draw owner', () => {
   const { rt, device, ensure } = mount()
-  const draw = { instanceBuffer: {}, slotOffsetsBuffer: {} }
+  const draw = { instanceBuffer: {}, groupsBuffer: {} }
   Object.assign(rt.vis, { gpuDraw: draw })
   ensure()
   const first = visGroupFor(rt, device, 0)
@@ -113,7 +113,7 @@ test('indirect groups follow buffer changes inside the same draw owner', () => {
   ensure()
   const second = visGroupFor(rt, device, 0)
   assert.notEqual(second, first)
-  draw.slotOffsetsBuffer = {}
+  draw.groupsBuffer = {}
   ensure()
   assert.notEqual(visGroupFor(rt, device, 0), second)
 })

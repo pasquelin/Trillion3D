@@ -9,7 +9,8 @@ import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
 import { SHADE_UNIFORM, VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { writeDepthRamp } from '../../camera/depthConvention.ts'
 import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts'
-import { SHADE_MODE } from '../../visibility/shader/shadeMode.ts'
+import { diagnosticCode } from '../../visibility/shader/shadeMode.ts'
+import { wordViews } from '../../gpu/core/wordViews.ts'
 
 /** One entry per indirect draw slot, plus the direct path's. Size follows the scene's coplanar-layer
  *  count: with no layer, one layer's `BASE_SLOTS`. */
@@ -23,16 +24,9 @@ export const visLayerTop = (vis: WebgpuVisState) => vis.drawLayerSlots - 1
 
 const U = VIS_UNIFORM.at,
   SHADE = SHADE_UNIFORM.at
-/** The integer view of a packed array, made once: an image makes none. */
-const ints = new WeakMap<Float32Array, Uint32Array>()
-const intsOf = (words: Float32Array) => {
-  let view = ints.get(words)
-  if (!view) ints.set(words, (view = new Uint32Array(words.buffer)))
-  return view
-}
 /** The words every slot holds alike, built each image and compared with what slot 0 holds. */
 const shared = new Float32Array(VIS_UNIFORM.words),
-  sharedInts = intsOf(shared)
+  sharedInts = wordViews(shared.buffer).u
 
 /** Uploads visibility and material resolve uniforms for the current cut, creating the two uniform
  *  buffers on `rt.vis` the first time. A slot differs from the next by its two words alone
@@ -60,7 +54,7 @@ export function writeWebgpuVisibilityUniforms(
     size: layout.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   }))
-  const visInts = intsOf(visUniPacked)
+  const visInts = wordViews(visUniPacked.buffer, visUniPacked.byteOffset).u
   const computeSpan = computeRasterReady(rt) ? computeSpanFor(rt.context?.diagnosticGpuVariant) : 0
   shared.fill(0)
   shared.set(viewProj, U.viewProj)
@@ -106,13 +100,14 @@ export function writeWebgpuVisibilityUniforms(
   shadeUniPacked[SHADE.viewport + 1] = height
   shadeUniPacked[SHADE.pixelRatio] = pixelRatio
   shadeUniPacked[SHADE.mipBias] = mipBias
-  const shadeInts = intsOf(shadeUniPacked)
+  const shadeInts = wordViews(shadeUniPacked.buffer, shadeUniPacked.byteOffset).u
   shadeInts[SHADE.pageCount] = tableRows
   // Texture image-feedback phase: one pixel in sixteen speaks, all of them during a convergence.
   shadeInts[SHADE.feedback] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0
   // The depth material's ramp: white at the near plane, black at the far one.
   const { near, far, perspective } = run.gate.cam
   writeDepthRamp(shadeUniPacked, SHADE.depthRamp, near, far, perspective)
-  shadeInts[SHADE.mode] = SHADE_MODE[diagnostic] ?? 0
+  shadeInts[SHADE.mode] = diagnosticCode(diagnostic)
+  shadeUniPacked[SHADE.pixelError] = run.diagnosticPixelError
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked)
 }

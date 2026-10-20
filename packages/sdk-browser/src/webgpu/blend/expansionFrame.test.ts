@@ -1,34 +1,34 @@
-// The water pass's never-waiting skip (`expansionFrame.ts`): an image that wants water binds its
-// rectangle's kernels unless the verdict's counts, read back under the very same inputs, saw no
-// transmissive item in view — and any input the verdict reads moving brings the pass back at once.
+// The distortion's never-waiting skip (`expansionFrame.ts`): an image draws it unless the verdict's
+// counts, read back under the very same inputs, saw no transmissive item in view — and any input
+// the verdict reads moving brings it back at once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { encodeBlendExpansion } from './expansionFrame.ts'
+import { encodeBlendExpansion, noTransmissiveInView } from './expansionFrame.ts'
 import { noteKeyRecord } from './keyRecords.ts'
+import { KEY_RECORD_WORDS } from './keyLayout.ts'
 import { orderBlendPasses } from './order.ts'
 import { blendSceneOf } from './plan.fixture.ts'
-import { WATER_RANK_SHIFT } from '../water/rank.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
-/** A scene of one blend and one water item, its kernels stood in by a recorder. */
+/** A scene of one blend and one transmissive item, its kernels stood in by a recorder. */
 function waterScene() {
   const item = (water: number) =>
     ({
       surface: surfaceOf(G.basicSurface({ transparent: true })),
+      geometry: { quantized: false },
       matrix: new Matrix4(),
       count: 3,
       transmissive: water > 0,
-      flags: water << WATER_RANK_SHIFT,
+      flags: 0,
       bounds: new Float64Array([-1, -1, -1, 1, 1, 1]),
     }) as unknown as BlendGpuItem
   const blendState = blendSceneOf([item(0), item(1)])
   blendState.transmissive = 1
-  const bound: number[] = [],
-    keys: number[] = []
+  const keys: number[] = []
   const counts = { epoch: -1, rejected: 0, inView: 0 }
   blendState.expand = {
     buffers: {},
@@ -41,17 +41,15 @@ function waterScene() {
     encode: () => {},
     readCounts: () => {},
   } as never
-  blendState.water = { rect: { encode: () => bound.push(1) } } as never
   blendState.itemBuffer = {} as GPUBuffer
-  const rt = { blendState, gpu: { volumeBuffer: {} } } as unknown as WebgpuPagesRuntime
+  const rt = { blendState, gpu: {}, run: {} } as unknown as WebgpuPagesRuntime
   const encoder = { beginComputePass: () => ({ end: () => {} }) } as unknown as GPUCommandEncoder
-  /** One image that wants water: whether its rectangle's kernels ran, or it stayed quiet. */
+  /** One image: whether it draws the distortion, or stays quiet. */
   const image = () => {
-    bound.length = 0
     orderBlendPasses(blendState, [0, 0, 5])
-    blendState.waterWanted = true
     encodeBlendExpansion(rt, encoder)
-    return { bound: bound.length === 1, quiet: blendState.waterQuiet }
+    const quiet = noTransmissiveInView(blendState)
+    return { bound: !quiet, quiet }
   }
   /** The counts of the last image come back: `inView` water items in view. */
   const readBack = (inView: number) => {
@@ -87,7 +85,7 @@ test('a plane, a box or a drawn bit moved since the counts: the pass comes back 
   assert.equal(image().quiet, true)
   noteKeyRecord(blendState, 1)
   assert.deepEqual(image(), { bound: true, quiet: false }, 'a key record went up')
-  assert.deepEqual(keys, [16], 'the water item’s record alone')
+  assert.deepEqual(keys, [KEY_RECORD_WORDS], 'the water item’s record alone')
   readBack(0)
   blendState.planMoved = true
   assert.deepEqual(image(), { bound: true, quiet: false }, 'a new plan')

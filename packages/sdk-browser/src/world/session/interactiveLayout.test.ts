@@ -51,8 +51,6 @@ function startOn(
     engine: {
       measureFrame: () => false,
       skipsFrame: () => false,
-      landings: () => 0,
-      arriving: () => false,
     },
   }
   const events = { emit() {}, diagnose() {} }
@@ -98,7 +96,7 @@ test('a disposed session hears no resize and asks no frame', () => {
   const { view, frames } = testWindow(1)
   const canvas = { width: 400, height: 300, clientWidth: 400, clientHeight: 300 }
   const { resized, dispose } = startOn(canvas, view, { width: 400, height: 300, pixelRatio: 1 })
-  while (frames.run());
+  frames.run()
   dispose()
   canvas.clientWidth = 200
   view.resize()

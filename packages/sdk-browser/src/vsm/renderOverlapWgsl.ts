@@ -2,7 +2,7 @@ import { VSM_COVER_GATHER_WGSL } from './pageGatherWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { lowBits } from '../../../math/src/wgsl/integer.ts'
 import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
-import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_STALE_RECT_INDEX_WGSL } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 
 /** The page-overlap and static-caching pieces the command cull reads (`renderCullWgsl.ts`): its
@@ -11,6 +11,7 @@ export const VSM_RENDER_OVERLAP_WGSL = wgslBlock(
   'VSM_RENDER_OVERLAP_WGSL',
   [
     VSM_CONSTANTS_WGSL,
+    VSM_STALE_RECT_INDEX_WGSL,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
     VSM_TABLE_ORIGIN_WGSL,
@@ -57,9 +58,10 @@ fn vsmTouchesMappedPixels(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,f
  let cover8x8=vsmGatherCover(coverCell,coverLevel);
  return vsmMaskRectHits(cover8x8,subRectAtLevel.xy,subRectAtLevel.zw);
 }
-/** Clips a pixel rect to the uncached page rect bounds of a map's mip. */
-fn vsmClipToStaleRect(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4i{
- let staleRectPages=vsmStaleRects[h.id*VSM_MIPS+mipLevel];
+/** Clips a pixel rect to the uncached page rect bounds of a map's mip, its static or dynamic
+ *  layer's. */
+fn vsmClipToStaleRect(pixels:vec4i,h:VsmHandle,mipLevel:u32,staticLayer:bool)->vec4i{
+ let staleRectPages=vsmStaleRects[vsmStaleRectIndex(h.id,mipLevel,staticLayer)];
  let bounds=vec4i(vec4u(staleRectPages.xy<<vec2u(VSM_LOG2_PAGE),(staleRectPages.zw<<vec2u(VSM_LOG2_PAGE))+vec2u(VSM_PAGE_TEXELS-1u)));
  return vec4i(max(pixels.xy,bounds.xy),min(pixels.zw,bounds.zw));
 }

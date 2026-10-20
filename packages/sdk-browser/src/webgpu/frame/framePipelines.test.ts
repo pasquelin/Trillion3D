@@ -40,7 +40,8 @@ function census(keys: number[], emits = false) {
   } satisfies ShadeCensus
 }
 
-/** The scene's resolve classes, compiled as prepare leaves them. */
+/** The scene's resolve classes, compiled as prepare leaves them: writing the feedback, which their
+ *  one module's override `FEEDBACK` says (`feedbackConstants`). */
 async function classes(gpu: ReturnType<typeof gatedDevice>, keys: number[], emissiveAo = true) {
   let done = false
   const module = {} as GPUShaderModule
@@ -90,7 +91,11 @@ test('a class a material changed into compiles off the frame before the image th
   await armedRt.land()
   const nine = rt.vis.shadeClasses!.of(9)
   assert.equal(nine.ready, true)
-  assert.deepEqual(fragmentOf(nine.get()).constants, { CLASS_KEY: 9 }, 'the class of before')
+  assert.deepEqual(
+    fragmentOf(nine.get()).constants,
+    { CLASS_KEY: 9, FEEDBACK: 1 },
+    'the class of before',
+  )
   assert.equal(compiled.sync, 0, 'no frame compiled a class')
 })
 
@@ -99,7 +104,11 @@ test('a surface that came to emit switches the classes once those writing the la
     { rt, device, compiled } = armedRt
   const scene = census([5, 9])
   const before = await classes(armedRt, [5, 9], false)
-  assert.deepEqual(fragmentOf(before.of(5).get()).constants, { CLASS_KEY: 5, EMISSIVE_AO: 0 })
+  assert.deepEqual(fragmentOf(before.of(5).get()).constants, {
+    CLASS_KEY: 5,
+    EMISSIVE_AO: 0,
+    FEEDBACK: 1,
+  })
   Object.assign(rt.vis, { shadeCensus: scene, shadeClasses: before, writesEmissiveAo: false })
   scene.emits = true
   scene.moved()
@@ -114,7 +123,7 @@ test('a surface that came to emit switches the classes once those writing the la
   assert.equal(rt.vis.writesEmissiveAo, true)
   for (const key of [5, 9]) {
     const fragment = fragmentOf(after.of(key).get())
-    assert.deepEqual(fragment.constants, { CLASS_KEY: key }, 'the layer written')
+    assert.deepEqual(fragment.constants, { CLASS_KEY: key, FEEDBACK: 1 }, 'the layer written')
     assert.deepEqual([...fragment.targets][2], { format: 'rgba16float' })
   }
   assert.equal(compiled.sync, 0)

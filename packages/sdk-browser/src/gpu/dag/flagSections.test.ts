@@ -48,10 +48,13 @@ test("the sections are the kernel's: queue 0, the lists and logs, the queues", (
 })
 
 test("the eviction sort's scratch follows the cut's pages, never the global cap", () => {
-  // Two words a staged key under the burst the pool's list can take, two a group of 256 keys
-  // (`poolScratchWords`, one group at least): no page, 2 * 1; three pages, 2 * 3 + 2 * 1; 1,800
-  // pages, 2 * 1024 + 2 * 8; the cap's
-  // 262,144 and past it, 2 * 1024 + 2 * 1024. The sort that sized it for the cap whatever the
-  // scene took 4,096 words for three pages.
-  assert.deepEqual([0, 3, 1800, 262144, 1 << 20].map(evictScratchWords), [2, 8, 2064, 4096, 4096])
+  // Two words a staged key under the burst the pool's list can take, two counts and 128 rank words
+  // a group of 256 keys (`poolScratchWords`, one group at least): no page, 2 + 128; three pages,
+  // 2 * 3 + 2 + 128; 1,800 pages, 2 * 1024 + 8 * 130; the cap's 262,144 and past it,
+  // 2 * 1024 + 1024 * 130. The sort that sized it for the cap whatever the scene took 135,168
+  // words for three pages.
+  assert.deepEqual(
+    [0, 3, 1800, 262144, 1 << 20].map(evictScratchWords),
+    [130, 136, 3088, 135168, 135168],
+  )
 })

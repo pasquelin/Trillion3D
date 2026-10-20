@@ -52,6 +52,20 @@ const movedUnions = new WeakMap<PageRec, Float64Array>()
 export const movedPagesBox = (pages: readonly PageRec[]) =>
   pages.length ? movedUnions.get(pages[0]) : undefined
 
+/** The local box every row of `root` lies in, into `out` (six bounds): its local box united with
+ *  its pages' own (`movedPagesBox`), grown by its reach. False for a root with no local box: its
+ *  rows may lie anywhere. The one bound a root's travel (`../../shadow/rowTravel.ts`) and its
+ *  screen rectangle (`../../effects/rootsRect.ts`) read. */
+export function rootLocalBound(out: Float64Array, root: ClusterRoot<PageRec>) {
+  const local = root.localBox
+  if (!local || !(local[3] >= local[0])) return false
+  out.set(local)
+  const box = movedPagesBox(root.pages)
+  if (box) boxUnion(out, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+  boxGrow(out, 0, out, 0, root.reach ?? 0)
+  return true
+}
+
 const span = { from: 0, to: -1 }
 /** Root `root` takes its pages' boxes of `boxes` (`BOX_VALUES` a page, page `k` its `k`-th), and
  *  widens `span` to the pages whose box moved; their union is kept (`movedPagesBox`). A record its
@@ -176,10 +190,4 @@ export function noteDeformed(rt: WebgpuPagesRuntime, rank: number, reach: number
   if (!box) return
   boxGrow(moved, 0, box, 0, reach)
   declare(rt, promote(rt, rank))
-}
-
-/** A whole-copy deformation changed only this bounded world region. */
-export function noteDeformedBounds(rt: WebgpuPagesRuntime, box: Float64Array) {
-  moved.set(box)
-  declare(rt, false)
 }

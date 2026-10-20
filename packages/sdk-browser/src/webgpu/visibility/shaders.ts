@@ -6,7 +6,7 @@ import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
   atlasLayoutEntries,
-  visUniformLayout,
+  visUniformBuffer,
 } from '../core/bindLayout.ts'
 import {
   DIAGNOSTIC_SHADE_WGSL,
@@ -57,6 +57,8 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
       '2d-array',
       GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
     ),
+    // The float pool's normal atlas: a float geometry's second UV set, a cutout's coordinate.
+    computeTextureEntry(b.normals, 'unfilterable-float', '2d-array', GPUShaderStage.VERTEX),
   ]
 }
 
@@ -78,11 +80,7 @@ export async function createWebgpuVisibilityShaders(
   // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans
   // the row table; WebGPU hands back a zeroed buffer and nothing ever writes to this one.
   const zeroFlags = zeroFlagsBuffer(device, drawSlots)
-  const visUniform = device.createBuffer({
-    label: 'Trillion3D visibility uniforms',
-    size: visUniformLayout(device.limits, slotCount).bytes,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  const visUniform = visUniformBuffer(device, slotCount)
   // With no variant, the two modules are exactly those from before: production compiles no
   // diagnostic stage.
   const visModule = device.createShaderModule({

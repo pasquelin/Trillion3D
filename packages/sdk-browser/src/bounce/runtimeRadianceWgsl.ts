@@ -5,6 +5,7 @@ import { SURFACE_RAY_WGSL } from './surfaceRayWgsl.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
+import { markReachWgsl } from '../deformation/halfFloat.ts'
 import { runtimeSceneWgsl } from './runtimeSceneWgsl.ts'
 import { sceneKey, type SceneBindings } from './sceneBindings.ts'
 import {
@@ -46,6 +47,7 @@ export const runtimeRadianceWgsl = (scene: SceneBindings) =>
       NORMAL_TRANSFORM_WGSL,
       faceNormal,
       worldMatrix3,
+      markReachWgsl,
     ],
     `
 ${wgslConsts({
@@ -111,7 +113,7 @@ fn rtLayers(origin:vec3f,direction:vec3f,reach:f32,tangent:f32,budget:u32,lit:bo
   let instance=rtWorldsInstance(hit.placement,0u);
   let surface=rtSurfaceOf(instance[RT_INSTANCE_SURFACE]);
   let spread=hit.distance*tangent+RT_SPREAD_FLOOR;
-  let marked=unpack2x16float(instance[RT_INSTANCE_MARK]>>16u).x;
+  let marked=markReach(instance[RT_INSTANCE_MARK]);
   let world=worldMatrix3(rtWorldOf(hit.placement));
   let known=spread/(spread+marked*length(world[0]));
   let opacity=select(1.0,surface.opacity,surface.blended);

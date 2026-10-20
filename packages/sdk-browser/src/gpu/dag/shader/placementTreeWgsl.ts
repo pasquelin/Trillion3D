@@ -1,11 +1,12 @@
-import { REACH_UNBOUNDED, TREE_GROUP } from '../placementTree.ts'
+import { TREE_GROUP } from '../placementTree.ts'
 import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND } from '../nodeLayout.ts'
-import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
+import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
 import { LEVEL_QUEUES } from './levelWgsl.ts'
+import { reachUnboundedWgsl } from '../../../deformation/halfFloat.ts'
 
 /**
  * The placement tree in the descent (`../placementTree.ts`): its levels top first, the last its
@@ -22,43 +23,39 @@ import { LEVEL_QUEUES } from './levelWgsl.ts'
  * (`primitiveWgsl.ts`), so a placement no kept group holds costs nothing: no planes, no matrix, no
  * root test.
  *
- * With a tree, queue 0 holds its top nodes, then the world DAG's root — the one placement the tree
- * leaves out, wherever the packing put it (`worldRoot`) —, then the members drawn whatever the view
- * (`always`, `../placementTree.ts`: never culled, or deformed past every finite reach), which no
- * group opens; `dagPrepare` writes those alone. Without one, it holds one root per placement.
+ * With a tree, queue 0 holds its top nodes, then the members drawn whatever the view (`always`,
+ * `../placementTree.ts`: never culled, or deformed past every finite reach) and the world DAG's
+ * placements — those the tree leaves out, wherever the packing put them —, which no group opens;
+ * `dagPrepare` writes those alone. Without one, it holds one root per placement.
  */
 export const DAG_TREE_PREPARE_WGSL = wgslBlock(
   'DAG_TREE_PREPARE_WGSL',
-  [NO_INDEX],
+  [NO_INDEX, reachUnboundedWgsl],
   `/** Whether the cut descends a placement tree (\`treeTop\`, its top level's nodes). */
 fn hasTree()->bool{return views[0u].treeTop>0u;}
 /** Queue 0's entries a view opens: one root per placement without a tree; with one, its top
- *  nodes, the world DAG's root when it is packed, then the members drawn whatever the view. */
+ *  nodes, then the members drawn whatever the view and the world DAG's placements. */
 fn rootSlots()->u32{
- let world=select(0u,1u,views[0u].worldRoot!=NO_INDEX);
- return select(views[0u].worldCount,views[0u].treeTop+world+views[0u].alwaysCount,hasTree());
+ return select(views[0u].worldCount,views[0u].treeTop+views[0u].alwaysCount,hasTree());
 }
 /** Whether placement \`w\` is drawn whatever the view, as \`drawnAlways\` says of its mark: never
  *  culled, or deformed past every finite reach (\`reachOf\` infinite). */
-fn drawnAlways(w:u32)->bool{let mark=markOf(w);return (mark&${SPRITE_UNCULLED}u)!=0u||(mark>>16u)>=${REACH_UNBOUNDED}u;}
+fn drawnAlways(w:u32)->bool{let mark=markOf(w);return (mark&${SPRITE_UNCULLED}u)!=0u||reachUnbounded(mark);}
 /** The one gate of a placement's root, whoever opens it — \`dagPrepare\` an ungrouped one, its kept
- *  group a member (\`placementStep\`): parked, drawn by its impostor card, or drawn by the world DAG
- *  in its place (\`worldCovers\`), it opens nothing. */
-fn opensRoot(w:u32)->bool{return rootOf(w)!=NO_INDEX&&(markOf(w)&${CARD_ROOT}u)==0u&&!worldCovers(w);}
+ *  group a member (\`placementStep\`): parked, or its cell drawn by its HLOD or by nothing
+ *  (\`worldCovers\`), it opens nothing. */
+fn opensRoot(w:u32)->bool{return rootOf(w)!=NO_INDEX&&!worldCovers(w);}
 /** Placement \`w\`'s root, at entry \`at\` of queue 0 under the view \`vi\`, or none. */
 fn openRoot(at:u32,w:u32){
  putEntry(queueBase(0u),at,select(NO_INDEX,packEntry(vi,rootOf(w)),opensRoot(w)),w);
 }
 /** \`dagPrepare\`'s thread \`i\`, with a tree, writes queue 0's entry \`i\` (\`rootSlots\`): the top
- *  nodes, the world DAG's root behind them when packed, then each member drawn whatever the view. */
+ *  nodes, then each member drawn whatever the view or placement of the world DAG. */
 fn prepareTreeRoots(i:u32){
  let top=views[0u].treeTop;
  if(i<top){putEntry(queueBase(0u),i,packEntry(0u,treeEntry(i)),0u);return;}
- let w=views[0u].worldRoot;
- let world=select(0u,1u,w!=NO_INDEX);
  vi=0u;
- if(i<top+world){openRoot(i,w);return;}
- let j=i-top-world;
+ let j=i-top;
  if(j>=views[0u].alwaysCount){return;}
  openRoot(i,treeAlwaysAt(j));
 }

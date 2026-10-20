@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { worldDiagnostic } from './worldHandles.ts'
 import type { MeasuredWorld } from '../session/explorer.ts'
+import type { FrameInspection } from '../../webgpu/pages/diagnostic/inspection/types.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 
 /** A session that records the modes put on it and refuses the ones in `refused`. */
@@ -36,7 +37,7 @@ test('a mode written before the session opens is put on it; one it refuses leave
   early.handle.mode = 'triangles'
   const { opened, put } = session()
   early.apply(opened)
-  assert.deepEqual(put, ['wireframe'])
+  assert.deepEqual(put, ['triangles'])
   // Refused at the opening: the opening goes on, in the normal image, and says why.
   const refusing = worldDiagnostic(() => null)
   refusing.handle.mode = 'clusters'
@@ -49,7 +50,7 @@ test('a mode written before the session opens is put on it; one it refuses leave
   open.handle.mode = 'triangles'
   open.handle.mode = 'clusters'
   assert.equal(open.handle.mode, 'triangles')
-  assert.deepEqual(live.put, ['wireframe'])
+  assert.deepEqual(live.put, ['triangles'])
 })
 
 test('a session that fails to open is named on the handle until the next opening', (t) => {
@@ -81,4 +82,31 @@ test('a session that fails to open is named on the handle until the next opening
   assert.equal(error(), null)
   diagnostic.apply(session().opened)
   assert.equal(error(), null)
+})
+
+test('an inspection or a freeze asked before the session opens waits for it; a disposal answers null', async () => {
+  const frozen: boolean[] = []
+  const answer = { frame: 7 } as unknown as FrameInspection
+  const opened = {
+    ...session().opened,
+    freezeCut: (on: boolean) => frozen.push(on),
+    inspectFrame: () => Promise.resolve(answer),
+  } as unknown as MeasuredWorld
+  let asked = 0
+  const early = worldDiagnostic(
+    () => null,
+    false,
+    () => asked++,
+  )
+  early.handle.freeze = true
+  const read = early.handle.inspect()
+  assert.equal(asked, 2, 'each asks a frame')
+  early.apply(opened)
+  assert.deepEqual(frozen, [true])
+  assert.equal(await read, answer)
+  const closed = worldDiagnostic(() => null)
+  const never = closed.handle.inspect()
+  closed.close()
+  assert.equal(await never, null)
+  assert.equal(await closed.handle.inspect(), null)
 })

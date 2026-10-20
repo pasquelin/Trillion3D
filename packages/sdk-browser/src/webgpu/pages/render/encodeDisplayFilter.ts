@@ -1,6 +1,7 @@
 import { createDisplayFilter, type DisplayFilter } from '../../blend/displayFilter.ts'
 import type { WebgpuGpuState } from '../state/gpu.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { keepsBeautyChain } from '../../../visibility/shader/shadeMode.ts'
 
 /** Releases the display layers, the bytes they counted and their temporal history. */
 function dropDisplayFilter(gpu: WebgpuGpuState) {
@@ -16,7 +17,7 @@ function dropDisplayFilter(gpu: WebgpuGpuState) {
  *  are. */
 export const opensDisplayFilter = ({ blendState, run, context, vis }: WebgpuPagesRuntime) =>
   blendState.filtersDisplay &&
-  run.diagnostic === 'beauty' &&
+  keepsBeautyChain(run.diagnostic) &&
   !context.diagnosticGpuVariant &&
   !!vis.blendPipelines
 

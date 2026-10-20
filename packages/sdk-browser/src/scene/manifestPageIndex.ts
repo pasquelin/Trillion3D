@@ -7,10 +7,11 @@ import type {
 import type { GeometryPageDescriptor } from '../../../sdk-core/src/page/contracts.ts'
 
 /**
- * Manifest pages deduplicated by URL in a single pass. Four `flatMap` built four complete
- * copies before deduplicating three of them. Tables preserve, as `new Map(entries)`, the last value
- * of a URL instead of its first appearance, and `values()` returns that appearance order: order
- * and contents remain unchanged.
+ * Manifest pages deduplicated by URL in a single pass: the geometry pages, each a slice of its
+ * streaming bundle, and the index pages of a cache that carries no geometry page. A page with its
+ * geometry is read as that geometry page alone, never by a URL of its own. Tables preserve, as
+ * `new Map(entries)`, the last value of a URL instead of its first appearance, and `values()`
+ * returns that appearance order.
  */
 export function indexManifestPages(metadata: ClusterManifest) {
   const pageByUrl = new Map<string, Page>()
@@ -18,8 +19,8 @@ export function indexManifestPages(metadata: ClusterManifest) {
   const geometryIdByUrl = new Map<string, number>()
   for (const primitive of metadata.primitives)
     for (const page of primitive.pages) {
-      pageByUrl.set(page.url, page)
-      if (page.geometry) {
+      if (!page.geometry) pageByUrl.set(page.url, page)
+      else {
         geometryByUrl.set(page.geometry.url, page.geometry)
         geometryIdByUrl.set(page.geometry.url, page.id)
       }
@@ -35,11 +36,11 @@ export function indexManifestPages(metadata: ClusterManifest) {
   }
 }
 
-/** The pages a primitive is read through, as the streamer catalogues them: its index pages, its
- *  geometry pages and the bundles that carry them. */
+/** The pages a primitive is read through, as the streamer catalogues them: its geometry pages, or
+ *  the index pages of a cache without them, and the bundles that carry them. */
 export function primitivePages(primitive: Primitive) {
-  const pages: (Page | GeometryPageDescriptor | StreamBundle)[] = [...primitive.pages]
-  for (const page of primitive.pages) if (page.geometry) pages.push(page.geometry)
+  const pages: (Page | GeometryPageDescriptor | StreamBundle)[] = []
+  for (const page of primitive.pages) pages.push(page.geometry ?? page)
   for (const bundle of primitive.streams?.pages ?? []) pages.push(bundle)
   return pages
 }

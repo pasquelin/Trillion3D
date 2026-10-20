@@ -1,22 +1,25 @@
 /**
  * THE CELL AND NODE EACH ROW OF A PARTITION PLACES, a column of the rows (`PlacementRows.cells`): a
- * row carries a world matrix and no node of its own. What the world DAG's links read
- * (`../webgpu/pages/prepare/worldRoot.ts`): a row draws the world object of its cell's node for its
- * primitive (`../scene/worldObjects.ts`). Rows grown keep theirs, and the list of those whose cell
- * moved, as their other columns (`growPlacementRows`).
+ * row carries a world matrix and no node of its own. What the world's links read
+ * (`../webgpu/pages/prepare/worldRoot.ts`): a row lies in its cell's HLOD 0 cell, whose one
+ * representation draws it or not (`../gpu/dag/worldLinks.ts`). Rows grown keep theirs, and the list
+ * of those whose cell moved, as their other columns (`growPlacementRows`).
  */
 import type { PlacementRows } from '../placement/rows.ts'
 import { createChangedRuns } from '../webgpu/residency/ranges.ts'
 
-/** Where a row's node lies (`PlacementRows.cells`): its cell and its rank among the cell's nodes. */
+/** Where a row's node lies (`PlacementRows.cells`): its cell, its rank among the cell's nodes, its
+ *  instance and its HLOD 0 cell. */
 export type RowCell = NonNullable<NonNullable<PlacementRows['cells']>[number]>
 
 /** Row `index` of `rows` places `at` now, or nothing: marked in the rows' one changed list
- *  (`PlacementRows.cellsMoved`) for the backend that links rows to the world objects they draw
+ *  (`PlacementRows.cellsMoved`) for the backend that links rows to the HLOD 0 cells they lie in
  *  (`takeCellsMoved`). */
 export function setRowCell(rows: PlacementRows, index: number, at: RowCell | undefined) {
-  ;(rows.cells ??= [])[index] = at
-  ;(rows.cellsMoved ??= createChangedRuns()).mark(index)
+  rows.cells ??= []
+  rows.cells[index] = at
+  rows.cellsMoved ??= createChangedRuns()
+  rows.cellsMoved.mark(index)
 }
 
 /** The rows of `rows` whose cell moved since they were last taken, each once, increasing: `visit`

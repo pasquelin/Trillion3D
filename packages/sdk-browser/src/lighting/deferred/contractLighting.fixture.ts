@@ -1,4 +1,3 @@
-import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { written } from '../../../../../tests/kit/gpu/fakeRecords.ts'
@@ -24,18 +23,4 @@ export function gpuHarness() {
       return gpu.destroyed.includes(gpu.buffers[0]!)
     },
   }
-}
-
-/** A deferred lighting on the harness with its contract program compiled, bound to `target`;
- *  `bind(contract)` rebinds it to the direct contract or to the plain composition. */
-export async function contractLighting() {
-  const h = gpuHarness()
-  const lighting = await createDeferredLighting(h.device)
-  const target = h.view()
-  const bind = (contract = true) =>
-    lighting.bind(h.surface, target, target, contract, { lights: {} as GPUBuffer })
-  bind()
-  await lighting.settle()
-  bind()
-  return Object.assign(h, { lighting, target, bind })
 }

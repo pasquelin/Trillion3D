@@ -28,12 +28,7 @@ const surfaceTarget = (device: GPUDevice, format: GPUTextureFormat, size: GPUExt
 const OPTIONAL_TARGETS = {
   subsurface: ['thin transmission', SUBSURFACE_FORMAT, () => loadOnlyUsage() | copies()],
   receiver: ['shadow receiver', RECEIVER_TARGET_FORMAT, loadOnlyUsage],
-  // Written as a colour too, by the water's lobed surface stage (`../webgpu/water/lobedStage.ts`).
-  lobes: [
-    'physical lobes',
-    PHYSICAL_LOBES_FORMAT,
-    () => loadOnlyUsage() | GPUTextureUsage.RENDER_ATTACHMENT,
-  ],
+  lobes: ['physical lobes', PHYSICAL_LOBES_FORMAT, loadOnlyUsage],
 } satisfies Record<string, [string, GPUTextureFormat, () => number]>
 type OptionalTarget = keyof typeof OPTIONAL_TARGETS
 
