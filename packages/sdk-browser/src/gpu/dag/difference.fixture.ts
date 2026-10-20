@@ -59,7 +59,7 @@ export const DIFFERENCE_KERNELS: readonly string[] = [
 ]
 
 /** The mirror of kernel `stage` on `out`, true when it is one of the difference kernels: both lists
- *  at once on the first list's, which run before the second's (`../encode.ts`). */
+ *  at once on the first list's, which run before the second's (`encode.ts`). */
 export function mirrorDifferenceStage(stage: string, out: Uint32Array, listCap: number) {
   if (stage === DIFFERENCE_STAGES[0]) writeDifference(out, listCap)
   else if (stage === KEEP_STAGES[0]) keepSnapshot(out, listCap)

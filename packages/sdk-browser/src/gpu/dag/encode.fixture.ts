@@ -18,7 +18,7 @@ export const LIVE = 1234,
   DRAWN = 4000,
   /** Descent queue `q`'s record: `QUEUE + q`. */
   QUEUE = 5000,
-  /** The pool sort's record, which the host arms with the pool's list (`../poolList.ts`). */
+  /** The pool sort's record, which the host arms with the pool's list (`poolList.ts`). */
   POOL = 6000
 /** The list each argument record of `dispatchArgs` holds once armed (`DAG_ARGS`). */
 const LIST_OF_RECORD = new Map<number, number>([

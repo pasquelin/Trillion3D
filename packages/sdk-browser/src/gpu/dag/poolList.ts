@@ -7,7 +7,7 @@ import { rootOfPacked } from '../../page/selection/placements.ts'
 
 /**
  * The keys the pool holds, as the eviction queue sweeps them (`shader/evictWgsl.ts`): a count, then
- * one content key per held slot (`../evict.ts`), fed by the cache's arrivals and departures — named
+ * one content key per held slot (`evict.ts`), fed by the cache's arrivals and departures — named
  * by the key's canonical page — and kept dense — a departure takes the last entry's place —, so the
  * sweep is bounded by the slots, never the catalogue. `note` returns whether the list moved; the cut
  * arms the pool sort for the count it holds (`shader/evictWgsl.ts`, `armPoolSort`).

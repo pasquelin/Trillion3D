@@ -12,7 +12,7 @@ type PoolCache = Pick<GpuPageCache, 'get' | 'load'>
  * special case: whatever the tier, a page never enters the pool before its parents.
  *
  * Two readers, one closure. The pool holds clusters, not bundles, so admission walks the cluster
- * parents (`createPageParents`, `../../residency/pageParents.ts`); the bytes come by bundle, so
+ * parents (`createPageParents`, `../../page/selection/pageParents.ts`); the bytes come by bundle, so
  * the request reads the compiled bundle lists (`PageRec.dependencies`, `../cut/pending.ts`). The
  * cook refuses a bundle list that misses the bundle of a parent or is not closed, so the bundles of
  * every page walked here are requested and retained with the page. The group-mates the cut rule

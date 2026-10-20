@@ -153,7 +153,7 @@ export function createHeldOpen(capacity: number) {
     takePlacements: () => placements.take(),
     /**
      * The table made again over `capacity` slots, every entry it holds and every count it had no
-     * room for placed again: what the row cache's growth asks (`../queueGrowth.ts`). Its words are new, to be written whole; the
+     * room for placed again: what the row cache's growth asks (`queueGrowth.ts`). Its words are new, to be written whole; the
      * placements whose count moved are listed, as by `set`.
      */
     resize(capacity: number) {
@@ -178,7 +178,7 @@ export function createHeldOpen(capacity: number) {
 export type HeldOpen = ReturnType<typeof createHeldOpen>
 
 /** The kernel's lookup: placement `w`'s count at `node`, `blank` its node's own when it holds none.
- *  `heldBy` is the placement's frame word (`../worlds.ts`): a placement holding nothing reads no
+ *  `heldBy` is the placement's frame word (`worlds.ts`): a placement holding nothing reads no
  *  slot. */
 export const DAG_HELD_OPEN_WGSL = wgslBlock(
   'DAG_HELD_OPEN_WGSL',
