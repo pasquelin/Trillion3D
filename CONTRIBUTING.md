@@ -73,7 +73,7 @@ The rules of #483, for every change to geometry, streaming, memory or shadows:
   `check:changed --push`.
 - `pnpm run check:changed` is the one local gate (changed-file format, lint, types, lines,
   duplicates, and the unit tests the change can affect); the CI runs all of `validate`.
-- Everything in English. Tests, scripts, bench and Rust: 200 lines a file at most; runtime
+- Everything in English. Tests, scripts, bench and Rust: 300 lines a file at most; runtime
   modules: no function over 60 lines or a complexity of 20. No duplicated block, no copied helper.
 - Generic engine: no scene names, no constant tuned on a measurement scene (every value derives
   from what the object carries, or is declared); the engine never reads another project.

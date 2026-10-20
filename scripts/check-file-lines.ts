@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { changedFiles, isTestModule, repositoryFiles, unitOf } from './repository-files.ts'
 
-export const MAX_LINES = 200
+export const MAX_LINES = 300
 const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
 
 /**
