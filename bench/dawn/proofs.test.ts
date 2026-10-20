@@ -41,8 +41,9 @@ test('no module under tests/gpu is left behind: each is named by another file', 
     .map((file) => posixPath(relative(at(PROOFS), file)))
     .filter((file) => /\.(ts|mts)$/.test(file) && !SUFFIXES.some((end) => file.endsWith(end)))
     .filter((file) => !file.endsWith('.test.ts'))
-  const tracked = (await gitPaths(['ls-files', '-z'], REPOSITORY_ROOT)).filter((f) =>
-    /\.(mjs|ts|mts)$/.test(f),
+  // A tracked file removed from the working tree names nothing: it is left out.
+  const tracked = (await gitPaths(['ls-files', '-z'], REPOSITORY_ROOT)).filter(
+    (f) => /\.(mjs|ts|mts)$/.test(f) && existsSync(at(f)),
   )
   const texts = new Map<string, string>(tracked.map((f) => [f, readFileSync(at(f), 'utf8')]))
   for (const module of modules) {

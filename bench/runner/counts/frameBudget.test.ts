@@ -38,7 +38,10 @@ test('every stage has its rows, each its count at its rate, the frame their sum'
   const triangles = rows.find((row) => row.work === 'triangles')!
   assert.equal(triangles.count, SPONZA_TRIANGLES)
   assert.ok(rows.every((row) => row.ms >= 0 && Number.isFinite(row.ms)))
-  assert.ok(Math.abs(FRAME_RATES.trianglePs - 53.24) < 1e-9, "UE5's 1,331 µs for 25 million")
+  assert.ok(
+    Math.abs(FRAME_RATES.trianglePs - 53.24) < 1e-9,
+    'the reference rate: 1,331 µs for 25 million',
+  )
   assert.ok(
     UNCOUNTED.some((what) => what.includes('shadow passes')),
     'what is not counted is named',

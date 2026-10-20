@@ -83,8 +83,15 @@ function cube(size: number) {
 }
 
 /** The glTF of `columns` × `rows` cubes of `size`, `spacing` apart on the ground plane, each the
- *  leaf node of one mesh, painted `color`; its binary beside it. */
-function crowdSource(directory: string, columns: number, rows: number, color: number[]) {
+ *  leaf node of one mesh, painted `color` and `surface`'s fields; its binary beside it. Its cubes
+ *  carry positions and normals alone: no texture coordinates. */
+function crowdSource(
+  directory: string,
+  columns: number,
+  rows: number,
+  color: number[],
+  surface: Record<string, unknown> = {},
+) {
   const spacing = 1,
     shape = cube(0.6)
   const bytes = Buffer.concat([
@@ -109,6 +116,7 @@ function crowdSource(directory: string, columns: number, rows: number, color: nu
     materials: [
       {
         pbrMetallicRoughness: { baseColorFactor: color, metallicFactor: 0, roughnessFactor: 0.8 },
+        ...surface,
       },
     ],
     buffers: [{ uri: 'crowd.bin', byteLength: bytes.length }],
@@ -143,10 +151,11 @@ export function crowdModel(
   rows: number,
   color: number[],
   simplification?: 'none' | 'qem-endpoints',
+  surface?: Record<string, unknown>,
 ) {
   const out = measureOutput('gpu-proofs', `append-models-${name}`)
   const source = resolve(out, 'source')
-  crowdSource(source, columns, rows, color)
+  crowdSource(source, columns, rows, color, surface)
   compileFullCache({
     cwd: REPOSITORY_ROOT,
     source,

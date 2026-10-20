@@ -13,7 +13,7 @@ export type FakeDraw = {
   firstInstance?: number
   bindOffset?: number
   instanceBuffer?: unknown
-  slotOffsetsBuffer?: unknown
+  groupsBuffer?: unknown
   indirect?: boolean
   buffer?: unknown
   offset?: number
@@ -130,14 +130,14 @@ export function renderPass(
       const entries = bound?.entries
       const page = entries?.find((entry) => entry.binding === 2)
       const instances = entries?.find((entry) => entry.binding === 8),
-        offsets = entries?.find((entry) => entry.binding === 9)
+        groups = entries?.find((entry) => entry.binding === 9)
       draws.push({
         vertexCount: words[0],
         instanceCount: words[1],
         firstInstance: words[3],
         bindOffset: page?.resource?.offset ?? 0,
         instanceBuffer: instances?.resource,
-        slotOffsetsBuffer: offsets?.resource,
+        groupsBuffer: groups?.resource,
         indirect: true,
         buffer,
         offset,

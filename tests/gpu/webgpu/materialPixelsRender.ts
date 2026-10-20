@@ -91,15 +91,14 @@ export async function engineImage(
   sceneLights: SceneLightStore,
   camera: Camera,
   events: EngineDiagnostic[],
-): Promise<{ pixels: number[] | undefined; held: boolean }> {
+): Promise<{ pixels: number[] }> {
   const { backend, canvas } = engine(scene, device, (e: EngineDiagnostic) => events.push(e), {
     clearColor: CLEAR_COLOR,
     sceneLights,
   })
   try {
     await backend.prepare()
-    const { held, rendered } = await untilHeld(backend, camera)
-    return { pixels: held ?? rendered, held: held !== null }
+    return { pixels: (await untilHeld(backend, camera)).settled }
   } finally {
     release(backend, canvas, scene)
   }

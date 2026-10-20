@@ -36,7 +36,7 @@ const orpheline = manifesteEtScene({ primitives: 3, pages: 2, triangles: 2, seed
 // and nothing here reads `.has(mesh)` — deleting the key keeps the map's own value type.
 for (const mesh of orpheline.associations.keys()) orpheline.associations.delete(mesh)
 const emptyMetadata: ClusterManifest = {
-  schema: 0,
+  formatVersion: 0,
   status: 'ready',
   key: 'bench-empty',
   scope: DEFAULT_SCOPE,
@@ -98,7 +98,6 @@ const passeCollect =
       refusal: null,
       requestCount: output.requests.size,
       prepared: output.prepared,
-      blendCopies: output.blendCopies.length,
       pages: output.allPages.map(recDe),
       boxes: output.roots.flatMap((root) => [
         ...boxToArray(root.localBox ?? new Float64Array(6)),

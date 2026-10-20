@@ -70,23 +70,11 @@ export async function plane(
   })
   try {
     await backend.prepare()
-    let last: object = {}
-    const { held, count } = await untilHeld(backend, camera, (f) => void (last = f.metrics))
-    if (!held) throw new Error(`the plane never held: ${count} images, ${stillness(last, events)}`)
-    return held
+    return (await untilHeld(backend, camera)).settled
   } finally {
     release(backend, canvas, scene)
   }
 }
-
-/** A view that never held: its size, draws, pending tiles, why its last frames were drawn. */
-const stillness = (metrics: object, events: unknown[], m = metrics as Record<string, unknown>) =>
-  JSON.stringify({
-    size: [m.renderWidth, m.renderHeight],
-    draws: m.transparentDrawCalls,
-    tiles: m.textureTilesPending,
-    drawn: events.filter((e) => (e as { phase: string }).phase === 'frame-drawn').slice(-2),
-  })
 
 /** A pixel's brightness where world point `(x, y, 0)` lands. */
 export const level = (pixels: number[], x: number, y: number) =>

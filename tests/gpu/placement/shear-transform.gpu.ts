@@ -10,7 +10,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
-import { OPEN_CONE } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import { OPEN_CONE } from '../../kit/reference/cone.ts'
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'

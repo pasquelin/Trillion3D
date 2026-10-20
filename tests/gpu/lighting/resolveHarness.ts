@@ -52,6 +52,8 @@ export const resolveHarness = (
     `
 @group(0) @binding(5) var<uniform> view:View;
 ${lighting(narrow, shadowed, rects, lobes, perLight)}${lobes ? LOBE_ENTRIES_WGSL : ''}
+/** No bounced light, as the direct program answers a thin surface's back: the harness lists no probe. */
+fn sampleBounce(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}
 struct Sample{albedoMetal:vec4f,normalRough:vec4f,pointAo:vec4f,eyeFlag:vec4f,}
 @group(0) @binding(${SAMPLES_BINDING}) var<storage,read> samples:array<Sample>;
 @group(0) @binding(${SUMS_BINDING}) var<storage,read_write> sums:array<vec4u>;
@@ -60,7 +62,6 @@ fn main(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&samples)){return;}
  let s=samples[id.x];
  surfaceModel=u32(s.eyeFlag.w);
- shadowFootprint=0.01;
  let lit=contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,0u);
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
 }`,
@@ -80,7 +81,6 @@ fn zeroLobes(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&samples)){return;}
  let s=samples[id.x];
  surfaceModel=u32(s.eyeFlag.w);
- shadowFootprint=0.01;
  let N=normalize(s.normalRough.xyz);
  setLobes(lobeAxis(vec3f(0.0,0.0,1.0),0.0,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));
  sums[id.x]=vec4u(bitcast<vec3u>(lobeSample(s)),0u);
@@ -90,7 +90,6 @@ fn isoAniso(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&samples)){return;}
  let s=samples[id.x];
  surfaceModel=u32(s.eyeFlag.w);
- shadowFootprint=0.01;
  let N=normalize(s.normalRough.xyz);
  let T=normalize(cross(select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),abs(N.y)>0.9),N));
  setLobes(lobeAxis(T,1e-6,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));

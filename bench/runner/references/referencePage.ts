@@ -41,11 +41,6 @@ export async function referenceView(options: MeasureViewOptions): Promise<Refere
   if (!reference) return { error: 'this dist has no reference mode' }
   for (const light of options.lights ?? []) explorer.addLight(light)
   explorer.setPose(options.pose)
-  for (let i = 0; i < options.warmup; i++) {
-    await explorer.awaitPages()
-    explorer.render(options.pose)
-    await explorer.flush()
-  }
   const settleFrames = await measure.calmPose(explorer, options.pose, REFERENCE_HOLD_LIMIT)
   if (settleFrames === null)
     return { error: `the pose did not hold in ${REFERENCE_HOLD_LIMIT} frames: ${lost.join('; ')}` }

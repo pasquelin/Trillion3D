@@ -143,10 +143,10 @@ export function manifesteEtScene({
     list.push(primitive)
   }
   source.updateMatrixWorld(true)
-  // The rest of `ClusterManifest` (schema, status, key, scope, node counts) is never read by
+  // The rest of `ClusterManifest` (formatVersion, status, key, scope, node counts) is never read by
   // the loading path this bench measures: only `primitives` is.
   const metadata: ClusterManifest = {
-    schema: 0,
+    formatVersion: 0,
     status: 'ready',
     key: 'bench',
     scope: DEFAULT_SCOPE,

@@ -4,11 +4,11 @@
 timing:
 
 ```sh
-node bench/runner/bench.ts --engine webgpu --textures cache --gaze-network \
+node bench/runner/bench.ts --engine webgpu --gaze-network \
   --scene sponza --views overview,ground --images 60 --pixelError 1 --out .mesure/out/gaze-network
 ```
 
-It needs a compiled cache scene, `--textures cache` and the WebGPU page engine on every side, and
+It needs a compiled cache scene and the WebGPU page engine on every side, and
 does not run with `--reference`. From a worktree whose `.mesure/assets/` is empty, set
 `TRILLION3D_ASSETS` to the main checkout's. The readings go to `gazeNetwork` in `measure.json` and
 a "Gaze-driven network transfer" table in `resume.md`.

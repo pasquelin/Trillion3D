@@ -6,6 +6,7 @@
 // bit; between two, its error against the exact filter must be no larger than the hardware's.
 import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
+import { bilinearRead } from '../../../packages/sdk-browser/src/texture/bilinear.fixture.ts'
 import type { Chain } from './cardTileRig.ts'
 
 /** What two f32 roundings of a mix may add to an error that is otherwise the same: 2^-22. */
@@ -20,18 +21,8 @@ const texel = (chain: Chain, srgb: boolean, l: number, x: number, y: number, c: 
 
 /** Level `l`'s bilinear read of channel `c` at `(u, v)`, the edge clamped. */
 function bilinear(chain: Chain, srgb: boolean, l: number, u: number, v: number, c: number) {
-  const side = chain.side >> l,
-    x = u * side - 0.5,
-    y = v * side - 0.5
-  const x0 = Math.floor(x),
-    y0 = Math.floor(y),
-    fx = x - x0,
-    fy = y - y0
-  const at = (i: number, j: number) =>
-    texel(chain, srgb, l, clamp(i, 0, side - 1), clamp(j, 0, side - 1), c)
-  const top = at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx
-  const bottom = at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx
-  return top * (1 - fy) + bottom * fy
+  const side = chain.side >> l
+  return bilinearRead((i, j) => texel(chain, srgb, l, i, j, c), side, side, u * side, v * side)
 }
 
 /** The exact trilinear read of channel `c` of `chain` at `(u, v)` and level `lod`, clamped to

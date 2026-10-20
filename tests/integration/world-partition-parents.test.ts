@@ -43,7 +43,7 @@ test(
       streamer,
       camera,
       engine: {
-        worldCut: () => undefined,
+        worldCells: () => undefined,
         updatePlacements: (rows) => void drawn.add(rows),
         composePlacements: composeStandIn(),
       } as Partial<Engine> as Engine,

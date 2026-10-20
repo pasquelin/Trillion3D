@@ -1,7 +1,7 @@
 // The preview tests' sidecar bench: a manifest of previews encoded, its preview words reachable on
 // the finished buffer, and the refusal a lying sidecar must meet.
 import assert from 'node:assert/strict'
-import { TEMPLATES, sha } from './manifestBinary.ts'
+import { BINARY, sha } from './manifestBinary.ts'
 import { decodeManifestBinary } from '../../../packages/sdk-core/src/manifest/binaryDecode.ts'
 import { encodeManifestBinary } from './manifestBinaryEncode.ts'
 import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/contracts/base.ts'
@@ -14,7 +14,7 @@ import { PREVIEW_WORDS } from '../../../packages/sdk-core/src/texture/previewFor
 
 function manifestWith(previews: TexturePreview[]): ClusterManifest {
   return {
-    schema: CLUSTERED_BLEND_FORMAT_VERSION,
+    formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     status: 'ready',
     key: 'k',
     scope: 'full',
@@ -28,7 +28,7 @@ function manifestWith(previews: TexturePreview[]): ClusterManifest {
 }
 /** `previews` encoded into a slim manifest and its sidecar buffer. */
 export function encode(previews: TexturePreview[]) {
-  const { manifest: slim, binary } = encodeManifestBinary(manifestWith(previews), TEMPLATES)
+  const { manifest: slim, binary } = encodeManifestBinary(manifestWith(previews), BINARY)
   slim.binary.sha256 = sha('f')
   // `encodeManifestBinary` always backs the view with a plain `ArrayBuffer`; `.buffer` types as
   // the wider `ArrayBufferLike`.

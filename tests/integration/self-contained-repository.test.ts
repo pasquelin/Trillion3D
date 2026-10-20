@@ -3,7 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { gitPaths } from '../../scripts/git-paths.ts'
-import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
+import { REPOSITORY_ROOT, repositoryFiles } from '../../scripts/repository-files.ts'
 
 // THE REPOSITORY NEVER NAMES THE MACHINE IT WAS WRITTEN ON.
 //
@@ -16,7 +16,9 @@ import { REPOSITORY_ROOT } from '../../scripts/repository-files.ts'
 const HOME_PATH = /\/(?:Users|home)\/[A-Za-z0-9._-]+\//
 
 test('no tracked file points into a home directory', async () => {
-  const tracked = await gitPaths(['ls-files', '-z'], REPOSITORY_ROOT)
+  // The maintained files as they stand: a tracked file deleted in the working tree carries nothing.
+  const tracked = repositoryFiles()
+  assert.ok(tracked, 'not a Git repository')
   // A submodule is tracked as one entry, a directory: its files are another repository's.
   const submodules = new Set(
     await gitPaths(

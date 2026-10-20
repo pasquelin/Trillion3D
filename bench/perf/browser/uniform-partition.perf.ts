@@ -70,7 +70,6 @@ const image = (): PartitionFrame => ({
   height: 600,
   layerTop: 0,
   hasRest: true,
-  viewMoved: false,
   counting: false,
 })
 

@@ -25,7 +25,7 @@ export function indirectDraws(draws: readonly FakeDraw[]) {
   return vis
 }
 
-/** The transparent passes' draws of an image — the blends', the water surfaces' — on the blend vertex stage,
+/** The transparent passes' draws of an image — the blends', the transmissive layers' — on the blend vertex stage,
  *  the front pass's left out: it draws every run once more, for the transparents' front alone
  *  (`webgpu/blend/frontPass.ts`). */
 export const transparentDraws = (draws: readonly FakeDraw[]) =>

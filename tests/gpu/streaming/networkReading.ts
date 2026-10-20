@@ -73,7 +73,6 @@ export async function readOverNetwork(manifestUrl: string, poses: number, holdMs
     height: 800,
     pixelRatio: 1,
     pixelError: 1,
-    textureSource: 'cache',
     temporalAntialiasing: false,
     diagnosticDetail: 'trace',
     onDiagnostic,

@@ -49,6 +49,11 @@ export async function captureTrajectory(
         render: (pose) => explorer.render(pose),
         capture,
         nextFrame: animationFrame,
+        resetHistory: () => {
+          const { camera } = explorer
+          camera.temporalRevision = (camera.temporalRevision ?? 0) + 1
+        },
+        displayWidth: () => canvas.width,
       },
       options.poses ?? [],
       indices,

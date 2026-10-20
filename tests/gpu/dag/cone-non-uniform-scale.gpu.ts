@@ -13,7 +13,7 @@ import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
 import { Quaternion } from '../../../packages/sdk-core/src/world/math/quaternion.ts'
 import { Euler } from '../../../packages/sdk-core/src/world/math/euler.ts'
 import { Matrix3 } from '../../../packages/sdk-core/src/world/math/matrix3.ts'
-import { OPEN_CONE, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+import type { NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
 import {
   coneContextFor,
   coneCullsPageWith,
@@ -27,7 +27,7 @@ import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
 import { signedArea } from '../../../bench/oracles/browser/cpu-image/projection.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
-import { triangleCone } from '../../kit/reference/cone.ts'
+import { OPEN_CONE, triangleCone } from '../../kit/reference/cone.ts'
 import { project } from '../kit/cameraRig.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 import type { SelectionCase } from './selectionCase.ts'

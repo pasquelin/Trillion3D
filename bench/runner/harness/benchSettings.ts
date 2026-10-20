@@ -24,7 +24,6 @@ export interface BenchSettings {
   dpr: number
   port: number
   trace: boolean
-  textureSource: 'cache' | 'host'
   textureUploadMs: number | null
   temporalAntialiasing: boolean
   visible: boolean

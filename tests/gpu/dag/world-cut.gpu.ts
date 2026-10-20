@@ -1,7 +1,7 @@
-// The world DAG and the placements it stands in for, cut by the WGSL kernel itself: on every frame
-// — objects placed or not, super-roots held or not, the world top always — every object is drawn
-// exactly once, by its placement or its world group, wherever either is whole: placed, or every
-// root of the world above it held. Never twice, never a part.
+// The world HLOD and the placements of its HLOD 0 cells, cut by the WGSL kernel itself: on every
+// frame, each cell in the word the host chose (`CELL_DRAW`, `worldFollow.ts`), every object is
+// drawn exactly once — by its placement while its cell draws its placements, by its actor while
+// its cell draws it — and not at all where its word draws neither.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -12,67 +12,56 @@ import {
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import { ruleResidency } from '../../../packages/sdk-browser/src/gpu/dag/readiness.fixture.ts'
 import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts'
+import { CELL_DRAW } from '../../../packages/sdk-browser/src/gpu/dag/worldLinks.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
 import { runSelectionKernel } from './selectionKernel.ts'
 
 const FRAMES = 24
 
-/** The roots of the world above object `u` of `s`: the clusters nothing replaces, reached through
- *  the groups replacing its world cluster. */
-function rootsAbove(s: WorldScene, u: number) {
-  const st = s.world.structure,
-    found = new Set<number>()
-  const climb = (rank: number) => {
-    if (st.owners[rank] < 0) return void found.add(rank)
-    const g = st.owners[rank]
-    for (let i = st.outputOffsets[g]; i < st.outputOffsets[g + 1]; i++) climb(st.outputs[i])
-  }
-  climb(s.packed.world!.clusterOf[u])
-  return [...found]
-}
-
-/** A frame's residency: the objects `placed` (each its cluster, its world object with it), the
- *  super-roots `held`, the world top always. */
-function residentOf(s: WorldScene, placed: boolean[], held: boolean[]) {
+/** `states` written for the world of `s`, one per HLOD 0 cell, and the residency the host waits
+ *  for before choosing them: a cell drawing its placements has its placement resident, one drawing
+ *  its HLOD every world page of its cell. */
+function frameOf(s: WorldScene, states: readonly number[]) {
+  const world = s.packed.world!,
+    cold = new Uint32Array(s.packed.pageCones.buffer)
+  world.states.set(states)
+  cold.set(world.states, world.stateBase)
   const resident = new Uint8Array(s.packed.pageCount)
-  placed.forEach((on, u) => on && (resident[u] = resident[s.base + u] = 1))
-  for (let rank = s.world.leaves; rank < s.world.pages.length; rank++)
-    resident[s.base + rank] = rank === s.world.pages.length - 1 || held[rank] ? 1 : 0
+  states.forEach((state, u) => {
+    if (state & CELL_DRAW.placements) resident[u] = 1
+    if (state & CELL_DRAW.hlod)
+      s.world.pages.forEach((_, rank) => world.hlod[rank] === u && (resident[s.base + rank] = 1))
+  })
   return resident
 }
 
-test('the kernel draws every object exactly once, by its placement or its world group', async () => {
-  let lone = 0
-  const next = lcgRandom(1473)
-  const frames = Array.from({ length: FRAMES }, (_, frame) => {
-    const s = worldScene(frame % 4)
-    const threshold = 0.05 * 2 ** (next() * 12)
-    const placed = Array.from({ length: s.world.leaves }, () => next() < 0.8)
-    const held = s.world.pages.map(() => next() < 0.7)
-    return { s, uniforms: cameraSelectionUniforms(s.cam, threshold, [1280, 720]), placed, held }
+test('the kernel draws every object exactly once, by the representation its cell chose', async () => {
+  const next = lcgRandom(1473),
+    // Its placements, its actor, nothing, its actor while its placements ask.
+    choices = [CELL_DRAW.placements, CELL_DRAW.hlod, 0, CELL_DRAW.hlod | CELL_DRAW.asking]
+  const frames = Array.from({ length: FRAMES }, () => {
+    const s = worldScene()
+    const threshold = 0.01 * 2 ** (next() * 8)
+    const states = Array.from({ length: s.world.leaves }, () => choices[Math.floor(next() * 4)])
+    const resident = frameOf(s, states)
+    return { s, uniforms: cameraSelectionUniforms(s.cam, threshold, [1280, 720]), states, resident }
   })
   const { readings } = await runSelectionKernel(
-    frames.map(({ s, uniforms, placed, held }, frame) => ({
+    frames.map(({ s, uniforms, resident }, frame) => ({
       name: `frame ${frame}`,
       packed: s.packed,
       uniforms,
-      resident: residentOf(s, placed, held),
+      resident,
     })),
   )
-  frames.forEach(({ s, uniforms, placed, held }, frame) => {
-    const drawn = readings[frame].drawn,
-      resident = residentOf(s, placed, held)
+  frames.forEach(({ s, uniforms, states, resident }, frame) => {
+    const drawn = readings[frame].drawn
     const model = evaluateDagSelectionKernel(s.packed, uniforms, ruleResidency(s.packed, resident))
-    const whole = placed.map((on, u) =>
-      on || rootsAbove(s, u).every((rank) => resident[s.base + rank]) ? 1 : 0,
-    )
-    lone += whole.filter((on, u) => !on).length
+    const once = states.map((state) => (state & (CELL_DRAW.placements | CELL_DRAW.hlod) ? 1 : 0))
     assert.deepEqual(
       objectCovers(s, drawn),
-      whole,
+      once,
       `frame ${frame}: drawn ${drawn}, model ${model.drawablePageIds}`,
     )
   })
-  // The frames reach the case the rule is for: an object neither placed nor stood in for.
-  assert.ok(lone > 0)
 })

@@ -22,6 +22,8 @@ import { BACKEND } from '../../../tests/kit/gpu/fakeRecords.ts'
 import { fakeDevice } from '../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../tests/kit/gpu/globals.ts'
 import { cutFrameScene } from './support/cutFrameScene.ts'
+import { createTextureCaches } from '../../../packages/sdk-browser/src/texture/textureCaches.ts'
+import { createPageCache } from '../../../packages/sdk-browser/src/streaming/pageCache.ts'
 
 const SIDE = 96,
   WARM = 40,
@@ -41,6 +43,7 @@ const gpu = fakeDevice({
   limits: { maxBufferSize: 1 << 28, maxStorageBufferBindingSize: 1 << 27 },
 })
 const rt = createWebgpuPagesRuntime({
+  textureCaches: createTextureCaches(createPageCache()),
   ...scene,
   draws: graphDraws(scene.source, scene.associations),
   indices: new Map(),

@@ -2,27 +2,28 @@
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
 import * as written from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
-import * as pageFlags from '../../../packages/sdk-core/src/manifest/binaryPageWords.ts'
-import {
-  checkedDepthLayer,
-  countManifest,
-  expectTemplate,
-  slimBinaryOf,
-  writeCone,
-  writeSha,
-} from './manifestBinaryEncodeChecks.ts'
+import { countManifest, slimBinaryOf, writeSha } from './manifestBinaryEncodeChecks.ts'
 import { manifestBinaryRanges } from './manifestBinaryRanges.ts'
 import { encodePreviewColumns } from './manifestBinaryPreviewEncode.ts'
+import { pageColumns, writePage } from './manifestBinaryPageEncode.ts'
 import type {
+  GeometryFile,
   ManifestBinaryDescriptor,
   SlimClusterManifest,
   SlimPrimitive,
 } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
+import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
 
-/** Splits a manifest into its JSON and mapped columns; the caller hashes the bytes for `sha256`. */
+/** Splits a manifest into its JSON and mapped columns, its bundles lying in `geometryFiles`; the
+ *  caller hashes the bytes for `sha256`. */
 export function encodeManifestBinary(
   manifest: ClusterManifest,
-  descriptor: Pick<ManifestBinaryDescriptor, 'url' | 'pageUrl' | 'geometryUrl' | 'bundleUrl'>,
+  {
+    geometryFiles,
+    ...descriptor
+  }: Pick<ManifestBinaryDescriptor, 'url'> & {
+    geometryFiles: GeometryFile[]
+  },
 ): { manifest: SlimClusterManifest; binary: Uint8Array } {
   const counts = countManifest(manifest)
   const { ranges, bytes } = manifestBinaryRanges(counts)
@@ -42,15 +43,7 @@ export function encodeManifestBinary(
       ranges[name].offset,
       ranges[name].length / format.BYTES_PER_ELEMENT[format.COLUMN_KIND[name]],
     )
-  const bounds = view('pageBounds', (b, o, n) => new Float64Array(b, o, n)),
-    sphere = view('pageSphere', (b, o, n) => new Float64Array(b, o, n))
-  const parentSphere = view('pageParentSphere', (b, o, n) => new Float64Array(b, o, n)),
-    error = view('pageError', (b, o, n) => new Float64Array(b, o, n))
-  const ints = view('pageInt', (b, o, n) => new Int32Array(b, o, n)),
-    words = view('pageU32', (b, o, n) => new Uint32Array(b, o, n))
-  const pageSha = view('pageSha', (b, o, n) => new Uint8Array(b, o, n)),
-    geometrySha = view('geometrySha', (b, o, n) => new Uint8Array(b, o, n))
-  const geometryWords = view('geometryU32', (b, o, n) => new Uint32Array(b, o, n))
+  const columns = pageColumns(view)
   const cullingNodes = view('cullingNodes', (b, o, n) => new Float64Array(b, o, n))
   const groupLevel = view('groupLevel', (b, o, n) => new Int32Array(b, o, n)),
     groupError = view('groupError', (b, o, n) => new Float64Array(b, o, n))
@@ -65,8 +58,6 @@ export function encodeManifestBinary(
   const words32 = (b: ArrayBuffer, o: number, n: number) => new Uint32Array(b, o, n)
   const dependencyCount = view('bundleDependencyCount', words32),
     dependencyList = view('bundleDependency', words32)
-  const pageDepthLayer = view('pageDepthLayer', (b, o, n) => new Uint32Array(b, o, n))
-  const pageCone = view('pageCone', (b, o, n) => new Float64Array(b, o, n))
   encodePreviewColumns(manifest.texturePreviews ?? [], view)
   let page = 0,
     node = 0,
@@ -78,62 +69,7 @@ export function encodeManifestBinary(
     dependency = 0
   const primitives: SlimPrimitive[] = manifest.primitives.map((primitive) => {
     for (const item of primitive.pages) {
-      bounds.set(item.min, page * 6)
-      bounds.set(item.max, page * 6 + 3)
-      let flags = 0
-      if (item.role !== undefined) {
-        flags |= pageFlags.FLAG_ROLE
-        if (item.role === 'coarse') flags |= pageFlags.FLAG_COARSE
-      }
-      if (typeof item.lodError === 'number' && Array.isArray(item.sphere)) {
-        flags |= pageFlags.FLAG_CLUSTER_ERROR
-        error[page * 2] = item.lodError
-        sphere.set(item.sphere, page * 4)
-      }
-      if (item.parentError !== undefined) {
-        flags |= pageFlags.FLAG_PARENT_ERROR
-        if (typeof item.parentError === 'number') {
-          flags |= pageFlags.FLAG_PARENT_ERROR_FINITE
-          error[page * 2 + 1] = item.parentError
-        }
-      }
-      if (item.parentSphere !== undefined) {
-        flags |= pageFlags.FLAG_PARENT_SPHERE
-        if (item.parentSphere !== null) {
-          flags |= pageFlags.FLAG_PARENT_SPHERE_SET
-          parentSphere.set(item.parentSphere, page * 4)
-        }
-      }
-      ints[page * 8 + format.INT_ID] = item.id
-      ints[page * 8 + format.INT_LEVEL] = item.level ?? -1
-      if (item.group !== undefined) {
-        flags |= pageFlags.FLAG_GROUP
-        ints[page * 8 + format.INT_GROUP] = item.group ?? -1
-      } else ints[page * 8 + format.INT_GROUP] = -1
-      if (item.source !== undefined) {
-        flags |= pageFlags.FLAG_SOURCE
-        ints[page * 8 + format.INT_SOURCE] = item.source ?? -1
-      } else ints[page * 8 + format.INT_SOURCE] = -1
-      ints[page * 8 + format.INT_STREAM] = item.stream ?? -1
-      ints[page * 8 + format.INT_STREAM_OFFSET] = item.streamOffset ?? -1
-      ints[page * 8 + format.INT_COUNT] = item.count
-      ints[page * 8 + format.INT_START] = item.start ?? -1
-      words[page * 2 + format.U32_BYTES] = item.bytes
-      expectTemplate(descriptor.pageUrl, item.url, item.sha256)
-      writeSha(pageSha, page, item.sha256)
-      if (item.geometry) {
-        flags |= pageFlags.FLAG_GEOMETRY
-        expectTemplate(descriptor.geometryUrl, item.geometry.url, item.geometry.sha256)
-        writeSha(geometrySha, page, item.geometry.sha256)
-        geometryWords[page * 5] = item.geometry.bytes
-        geometryWords[page * 5 + 1] = item.geometry.vertexCount
-        geometryWords[page * 5 + 2] = item.geometry.indexCount
-        geometryWords[page * 5 + 3] = item.geometry.flags
-        geometryWords[page * 5 + 4] = item.geometry.uncompressedBytes
-      }
-      writeCone(pageCone, page, item.cone)
-      words[page * 2 + format.U32_FLAGS] = flags
-      if (item.depthLayer !== undefined) pageDepthLayer[page] = checkedDepthLayer(item.depthLayer)
+      writePage(columns, page, item)
       page++
     }
     if (primitive.culling) {
@@ -157,10 +93,11 @@ export function encodeManifestBinary(
       root += primitive.structure.roots.length
     }
     for (const item of primitive.streams?.pages ?? []) {
-      expectTemplate(descriptor.bundleUrl, item.url, item.sha256)
+      const file = geometryFiles.findIndex(({ url }) => url === item.range?.file)
+      if (!item.range || file < 0)
+        throw new EngineError('INVALID_CACHE', 'A bundle lies in no geometry file', { bundle })
       writeSha(bundleSha, bundle, item.sha256)
-      bundleWords[bundle * 2] = item.bytes
-      bundleWords[bundle * 2 + 1] = item.count
+      bundleWords.set([file, item.range.offset, item.bytes, item.count], bundle * 4)
       dependencyCount[bundle] = item.dependencies.length
       dependencyList.set(item.dependencies, dependency)
       dependency += item.dependencies.length
@@ -180,6 +117,7 @@ export function encodeManifestBinary(
   return {
     manifest: {
       ...top,
+      geometryFiles,
       binary: {
         ...descriptor,
         version: written.MANIFEST_BINARY_VERSION,

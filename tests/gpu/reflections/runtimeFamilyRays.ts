@@ -5,7 +5,8 @@
 // lets the rest through, an opaque one ends the ray). Nothing here reads the engine but the contract's layer
 // count (`RAY_LAYERS`).
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
-import { add, subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { add } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
 import { slabCut } from '../../../packages/math/src/geometry/slab.ts'
 import { rayRectangle, raySphere } from './rayShapes.ts'
 import { RAY_LAYERS } from '../../../packages/sdk-browser/src/bounce/runtimeLayout.ts'

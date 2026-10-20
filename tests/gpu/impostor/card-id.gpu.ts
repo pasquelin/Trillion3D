@@ -9,6 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
+import { near } from '../../../packages/math/src/float/near.fixture.ts'
 
 type Texel = { id: number; colour: number[]; wanted: number[] }
 type Reading = Awaited<ReturnType<typeof import('./cardIdPage.ts').runCardId>> & {
@@ -22,9 +23,6 @@ type Reading = Awaited<ReturnType<typeof import('./cardIdPage.ts').runCardId>> &
   }
   two: { middle: Texel; ring: Texel; written: number; tagged: number }
 }
-
-const near = (a: number[], b: number[], within: number) =>
-  a.every((v, k) => Math.abs(v - b[k]) <= within)
 
 test('a card is drawn textured when the depths of its two stages differ by thirty-two ulps', async () => {
   const reading = (await runPageProof(
@@ -43,11 +41,11 @@ test('a card is drawn textured when the depths of its two stages differ by thirt
   assert.equal(one.id >>> 24, base >>> 24, 'the visibility stage wrote the card identifier')
   assert.ok(one.tagged > 100, 'the card covers pixels')
   assert.equal(one.written, one.tagged, 'every pixel the card kept is written, and no other')
-  assert.ok(near(one.colour, one.wanted, 0.02), `the atlas colour, not white: ${one.colour}`)
+  near(one.colour, one.wanted, 'the atlas colour, not white', 0.02)
   assert.equal(one.outside, false, 'a pixel outside the card is not written')
-  assert.ok(near(two.middle.colour, two.middle.wanted, 0.02), 'the nearer card covers the middle')
+  near(two.middle.colour, two.middle.wanted, 'the nearer card covers the middle', 0.02)
   assert.equal(two.middle.id & 0xff, 1, 'by its slot')
-  assert.ok(near(two.ring.colour, two.ring.wanted, 0.02), 'the farther one shows around it')
+  near(two.ring.colour, two.ring.wanted, 'the farther one shows around it', 0.02)
   assert.equal(two.ring.id & 0xff, 0)
   assert.equal(two.written, two.tagged, 'each pixel is written by the one card that kept it')
 })

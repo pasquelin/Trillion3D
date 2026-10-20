@@ -49,7 +49,7 @@ async function sequence(
   result: { padded?: unknown; scene?: unknown },
 ) {
   result.padded = await paddedRead(device)
-  const scene = transformScene(false)
+  const scene = transformScene()
   const { backend, canvas } = engine(scene, device, (e) => events.push(e))
   try {
     await backend.prepare()
@@ -62,10 +62,9 @@ async function sequence(
     await backend.flush()
     const settled = await backend.capture()
     result.scene = {
-      held: held.held !== null,
       red: redCount(unsettled),
       bytes: unsettled.length,
-      moved: held.held ? compareImages(held.held, unsettled).differentPixels : null,
+      moved: compareImages(held.settled, unsettled).differentPixels,
       difference: compareImages(settled, unsettled).differentPixels,
     }
   } finally {

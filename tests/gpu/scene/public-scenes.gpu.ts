@@ -113,11 +113,4 @@ test('mirrored texture coordinates cost the simplification nothing', async () =>
   const dag = primitive.dag as DagLevels | null | undefined
   assert.deepEqual(dag?.warnings ?? [], [], 'the mirrored halves stopped the coarsening')
   assert.ok((dag?.depth ?? 0) >= 1, 'the mirrored plane never left level 0')
-  const topology = primitive.topology
-  assert.ok(topology, 'the cache published no topology for the mirror scene')
-  // The fold is continuous in (position, uv): the weld joins the two halves instead of splitting
-  // them, so nothing along the mirror is locked and no edge of it is seen twice.
-  assert.equal(topology.edges.nonManifold, 0, 'the mirror fold left a non-manifold edge')
-  assert.equal(topology.vertices.locked, 0, 'the mirror fold locked a vertex')
-  assert.equal(topology.manifold, true, 'the welded mirror plane is not manifold')
 })

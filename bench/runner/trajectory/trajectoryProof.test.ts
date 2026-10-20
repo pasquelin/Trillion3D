@@ -56,20 +56,9 @@ test('one changed channel after convergence is a regression, even when arrival m
   assert.equal(f.verdict().status, 'regression')
 })
 
-test('streaming timeout never becomes a match or a claimed regression', () => {
-  const f = fixture()
-  f.candidate.settleFrames = null
-  assert.equal(f.verdict().status, 'unsettled')
-  f.captures.set('settled', f.image(41))
-  assert.equal(f.verdict().status, 'unsettled')
-})
-
-test('an unstable or unconverged reference cannot certify a candidate', () => {
+test('an unstable reference cannot certify a candidate', () => {
   const f = fixture()
   f.captures.set('repeat', f.image(41))
-  assert.equal(f.verdict().status, 'unstable-reference')
-  f.captures.set('repeat', f.image(40))
-  f.reference.settleFrames = null
   assert.equal(f.verdict().status, 'unstable-reference')
 })
 

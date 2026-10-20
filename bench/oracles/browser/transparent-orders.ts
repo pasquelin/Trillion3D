@@ -101,13 +101,8 @@ export function argumentsReference(scene: ReferenceScene, args: Uint32Array) {
       box = item.bounds
     const out = !!box && frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])
     args[i * 4] = draws[i * 4 + 1]
-    args[i * 4 + 1] = out
-      ? 0
-      : item.paged && itemCounts && item.pagedIndex !== undefined
-        ? (itemCounts[item.pagedIndex] ?? 0)
-        : item.paged
-          ? 0
-          : 1
+    args[i * 4 + 1] =
+      out || !itemCounts || item.pagedIndex === undefined ? 0 : (itemCounts[item.pagedIndex] ?? 0)
     args[i * 4 + 2] = draws[i * 4 + 2]
     args[i * 4 + 3] = 0
   }
@@ -140,17 +135,12 @@ export function encodeReference(
     }
     encoded++
     const held = args[index * 4 + 1]
+    if (!instances || item.tableBase === undefined) continue
     for (let j = 0; j < held; j++) {
-      if (item.paged && instances && item.tableBase !== undefined) {
-        const entry = instances[item.tableBase + j]
-        sortie[at++] = index
-        sortie[at++] = spans[entry * 2]
-        sortie[at++] = spans[entry * 2 + 1]
-      } else {
-        sortie[at++] = index
-        sortie[at++] = 0
-        sortie[at++] = item.count
-      }
+      const entry = instances[item.tableBase + j]
+      sortie[at++] = index
+      sortie[at++] = spans[entry * 2]
+      sortie[at++] = spans[entry * 2 + 1]
     }
   }
   return { encoded, rejected, length: at }

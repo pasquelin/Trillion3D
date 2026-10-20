@@ -1,8 +1,9 @@
 // Page of the ray proof (`raycast.gpu.ts`): a world draws a generated scene — two still quads, a
 // box, a quad its morph target moves a unit toward the eye, a helper mark before the box, a hidden
-// quad before a third one, a blended quad, and a box behind the camera, out of every view —, then each ray of `RAYS` is cast with `world.raycast` and its answer read
-// beside the oracle's (`raycastOracle.ts`): the object, the distance, the normal and the triangle,
-// in doubles from the meshes the page built. A generated scene: no file of the site.
+// quad before a third one, a blended quad, a line, and a box behind the camera, out of every view
+// —, then each ray of `RAYS` is cast with `world.raycast` and its answer read beside the oracle's
+// (`raycastOracle.ts`): the object, the distance, the normal and the triangle, in doubles from the
+// meshes the page built. A generated scene: no file of the site.
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
@@ -11,11 +12,16 @@ import { BufferAttribute } from '../../../packages/sdk-core/src/world/buffer/att
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Ray } from '../../../packages/sdk-core/src/world/math/volumes.ts'
 import { markHelper } from '../../../packages/sdk-browser/src/world/core/helperMark.ts'
-import { drawnTriangles, nearestTriangle } from './raycastOracle.ts'
+import { drawnTriangles, nearestSegment, nearestTriangle } from './raycastOracle.ts'
 import { frame, open, type World } from './appendProof.ts'
 
 const paint = material.meshStandard({ color: 0xb04a3a, roughness: 0.7 })
 const glass = material.meshStandard({ color: 0x70b03a, transparent: true, opacity: 0.5 })
+/** One segment, 3 long along x. */
+const segment = () =>
+  geometry.createBuffer({
+    position: new BufferAttribute(new Float32Array([-1.5, 0, 0, 1.5, 0, 0]), 3),
+  })
 
 /** A 2 × 2 quad facing +z whose one morph target moves every corner a unit toward +z. */
 function movingQuad() {
@@ -44,6 +50,7 @@ function build(world: World) {
     helper: at(markHelper(object.mesh(geometry.plane(1, 1), paint)), 'helper', -3, 0, -1),
     hidden: at(object.mesh(geometry.plane(2, 2), paint), 'hidden', 0, -2.5, -1),
     glass: at(object.mesh(geometry.plane(2, 2), glass), 'glass', 0, 2.5, -3),
+    line: at(object.lineSegments(segment(), material.line()) as Mesh, 'line', 0, 4.5, -3),
     // Behind the camera (`frame`, at (0, 6, 9) looking at the origin): out of every view.
     behind: at(object.mesh(geometry.box(1, 1, 1), paint), 'behind', 0, 0, 20),
   }
@@ -53,12 +60,13 @@ function build(world: World) {
 }
 type Meshes = ReturnType<typeof build>
 
-/** The rays: an origin, a direction, the options, and the meshes the oracle reads for it. */
+/** The rays: an origin, a direction, the options, and the meshes the oracle reads for it — the
+ *  line's segment within the ray's line threshold, 1 unset. */
 const RAYS: Array<{
   name: string
   origin: number[]
   direction: number[]
-  options?: (m: Meshes) => { objects?: Mesh[]; helpers?: boolean }
+  options?: (m: Meshes) => { objects?: Mesh[]; helpers?: boolean; lineThreshold?: number }
   meets: (keyof Meshes)[]
 }> = [
   { name: 'still, one triangle', origin: [0.7, 0.2, 5], direction: [0, 0, -1], meets: ['still'] },
@@ -88,6 +96,17 @@ const RAYS: Array<{
     options: (m) => ({ objects: [m.still] }),
   },
   { name: 'a blended quad', origin: [0.3, 2.7, 5], direction: [0, 0, -1], meets: ['glass'] },
+  { name: 'a line within reach', origin: [0.4, 5.2, 5], direction: [0, 0, -1], meets: ['line'] },
+  {
+    name: 'a line out of reach',
+    ...{ origin: [0.4, 5.2, 5], direction: [0, 0, -1], meets: ['line'] },
+    options: () => ({ lineThreshold: 0.5 }),
+  },
+  {
+    name: 'a line, oblique',
+    ...{ origin: [-2, 4, 5], direction: [0.3, 0.05, -1], meets: ['line'] },
+    options: () => ({ lineThreshold: 0.3 }),
+  },
   { name: 'out of every view', origin: [0.1, 0.2, 30], direction: [0, 0, -1], meets: ['behind'] },
   { name: 'nothing', origin: [0, 9, 5], direction: [0, 0, -1], meets: [] },
 ]
@@ -104,10 +123,17 @@ export async function run() {
     for (const ray of RAYS) {
       const direction = new Vector3(...(ray.direction as [number, number, number])).normalize()
       const d = [direction.x, direction.y, direction.z]
-      const triangles = ray.meets.flatMap((name) => drawnTriangles(meshes[name]))
-      const expected = nearestTriangle(triangles, ray.origin, d)
+      const options = ray.options?.(meshes) ?? {}
+      const surfaces = ray.meets.filter((name) => name !== 'line')
+      const triangles = surfaces.flatMap((name) => drawnTriangles(meshes[name]))
+      const line = ray.meets.includes('line')
+        ? nearestSegment(meshes.line, ray.origin, d, options.lineThreshold ?? 1)
+        : null
+      const expected = line
+        ? { triangle: { mesh: meshes.line, rank: 0 }, ...line }
+        : nearestTriangle(triangles, ray.origin, d)
       const cast = new Ray(new Vector3(...(ray.origin as [number, number, number])), direction)
-      const hit = await world.raycast(cast, ray.options?.(meshes) ?? {})
+      const hit = await world.raycast(cast, options)
       readings.push({
         name: ray.name,
         got: hit && {

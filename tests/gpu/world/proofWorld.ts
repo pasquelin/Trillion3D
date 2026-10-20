@@ -42,18 +42,16 @@ export const benchManifest = (scene: string) =>
 /**
  * `manifestUrl` opened with no `engine` option — the session's own engine —, lit by
  * `lights` before its first frame (a cache whose light table is empty is lit by its host or by
- * nothing), settled at its first point of interest and read back: the texture source the session
- * opened with, in its own words (`texture-source`), and the image, bottom row first.
+ * nothing), settled at its first point of interest and read back: the image, bottom row first.
  */
 export async function defaultWorldImage(manifestUrl: string, lights: SceneLight[] = []) {
   const { openMeasuredWorld } = await measurementSdk()
   const canvas = proofCanvas('default-world')
-  const opened = await openDefaultWorld(openMeasuredWorld, canvas, manifestUrl, lights)
-  const { world } = opened
+  const world = await openDefaultWorld(openMeasuredWorld, canvas, manifestUrl, lights)
   try {
     const held = await settle(world)
     const pixels = new Uint8Array(await world.capture())
-    return { textureSource: opened.textureSource(), held: held !== null, pixels }
+    return { held: held !== null, pixels }
   } finally {
     world.dispose()
     canvas.remove()

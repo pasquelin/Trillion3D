@@ -16,13 +16,13 @@ import { TILE, transformScene } from '../placement/transformScene.ts'
 const FRAMES = 6
 
 /**
- * One pass, `paged` or not: the tilted tile with no declared convention until held, then under the
+ * One pass: the tilted tile with no declared convention until held, then under the
  * WebGPU convention, then with the declaration removed. The physical view — position, look, near,
  * far, field — never moves.
  */
-async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
-  const scene = transformScene(paged)
-  const { backend, canvas } = engine(scene, device, (e) => events.push({ paged, ...e }))
+async function sequence(device: GPUDevice, events: unknown[]) {
+  const scene = transformScene()
+  const { backend, canvas } = engine(scene, device, (e) => events.push(e))
   const camera = cameraFace()
   camera.near = 2.8
   camera.far = 12

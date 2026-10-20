@@ -34,6 +34,17 @@ export function viewUniform(device: GPUDevice, skew: number) {
   return bufferHolding(device, data, GPUBufferUsage.UNIFORM)
 }
 
+/** The visibility stage's group over a depth of `side` texels nothing was drawn into before the
+ *  cards (`drawnDepth`): a new texture's zeros, the far plane. */
+export function nothingDrawn(device: GPUDevice, layout: GPUBindGroupLayout, side: number) {
+  const depth = device.createTexture({
+    size: [side, side],
+    format: 'depth32float',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  })
+  return device.createBindGroup({ layout, entries: [{ binding: 1, resource: depth.createView() }] })
+}
+
 /** The records of cards at `centres` (z, radius), each a mesh of unit object radius whose pivot is
  *  its origin: the world is `radius`, the translation `(0, 0, z)`; card `k` reads colour map `k`
  *  (`CARD_MAPS`). */

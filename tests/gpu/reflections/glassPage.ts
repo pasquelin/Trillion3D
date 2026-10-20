@@ -88,7 +88,7 @@ async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind:
     viewport: [WIDTH, HEIGHT],
   })
   try {
-    const { held, rendered } = await untilHeld(backend, camera)
+    const { settled: held, rendered } = await untilHeld(backend, camera)
     const pixels = flipRows(Uint8Array.from(held ?? rendered ?? []), WIDTH)
     return { held: held !== null, pixels: Array.from(pixels) }
   } finally {

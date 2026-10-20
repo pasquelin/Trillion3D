@@ -21,6 +21,8 @@ import type {
 import { graphDraws } from '../../../packages/sdk-browser/src/page/selection/drawSource.ts'
 import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
+import { createTextureCaches } from '../../../packages/sdk-browser/src/texture/textureCaches.ts'
+import { createPageCache } from '../../../packages/sdk-browser/src/streaming/pageCache.ts'
 
 export const VIEWPORT: [number, number] = [96, 96]
 /** An indexed square of half-side `half` in the plane `z = 0`, its two triangles already bounded. */
@@ -106,7 +108,7 @@ export function batisseur() {
       // manifest of the engine's own scene fixtures (`pagesEngine.fixture.ts`).
       const metadata: ClusterManifest = {
         ...DAG,
-        schema: 1,
+        formatVersion: 1,
         status: 'ready',
         key: 'proof-scene',
         scope: 'slice',
@@ -160,6 +162,7 @@ export function engine(
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
   const backend = factory({
+    textureCaches: createTextureCaches(createPageCache()),
     source: scene.source,
     metadata: scene.metadata,
     indices: scene.indices,

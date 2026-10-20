@@ -28,7 +28,6 @@ async function walkTheTrajectory() {
     pixelError: 1,
     maxResidentPages: 100000,
     preload: 'visible',
-    textureSource: 'cache',
     temporalAntialiasing: true,
     onDiagnostic: (event) => void events.push(event),
   })

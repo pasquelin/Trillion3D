@@ -27,6 +27,7 @@ const FAMILIES: Record<SurfaceFamily, new () => THREE.Material> = {
   normal: THREE.MeshNormalMaterial,
   matcap: THREE.MeshMatcapMaterial,
   depth: THREE.MeshDepthMaterial,
+  shadow: THREE.ShadowMaterial,
 }
 /** The engine's sides in the library's numbers. */
 const SIDES: Record<Side, THREE.Side> = {

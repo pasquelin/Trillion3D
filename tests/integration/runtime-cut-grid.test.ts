@@ -1,7 +1,7 @@
 // The run-time cut picks the grid exponent the compiler wrote. On every compiled scene, each paged
 // primitive's position exponent (`quantization.positionExponent`) is asked again of the cut's grid
-// (`cutGrid.ts` `positionGridExponent`, the call `runtimeCut.ts` makes), from what the cache keeps
-// of the compiler's inputs: the widest extent of the pages' bounds, the finest positive error of
+// (`cutGrid.ts` `primitiveGrids`, the call `runtimeCut.ts` makes), from what the cache keeps
+// of the compiler's inputs: the box of the pages' bounds, the finest positive error of
 // the DAG's coarse pages, whether the primitive is blended, and the largest world scale the
 // published scene places its mesh at.
 import test from 'node:test'
@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { composeMatrix4 } from '../../packages/math/src/matrix/matrix4Compose.ts'
 import { IDENTITY_MATRIX4, multiplyMatrix4 } from '../../packages/math/src/matrix/matrix4.ts'
-import { positionGridExponent } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
+import { primitiveGrids } from '../../packages/sdk-browser/src/world/page/cutGrid.ts'
 import { sdkWasm } from '../../packages/sdk-browser/src/wasm/sdkWasm.fixture.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
 import { length3 } from '../../packages/math/src/vector/vector.ts'
@@ -77,13 +77,24 @@ async function checkScene(pointer: string) {
       const error = page.lodError ?? 0
       if ((page.level ?? 0) > 0 && error > 0) finestError = Math.min(finestError, error)
     }
+    // The box's two corners: the extent the module measures is its longest side.
+    const corners = Float32Array.from([...low, ...high])
     const extent = Math.max(0, ...[0, 1, 2].map((axis) => high[axis] - low[axis]))
     const blended = primitive.pass === 'clustered-blend'
     const inputs = {
       finestError: Number.isFinite(finestError) ? finestError : null,
       scale: scales.get(primitive.mesh) ?? 0,
     }
-    const exponent = positionGridExponent(sdkWasm, extent, blended, inputs)
+    const none = new Uint32Array(0)
+    const exponent = primitiveGrids(
+      sdkWasm,
+      corners,
+      null,
+      none,
+      [],
+      blended,
+      inputs,
+    ).positionExponent
     if (exponent !== quantization.positionExponent)
       differences.push(
         `${pointer} mesh ${primitive.mesh} primitive ${primitive.primitive}: compiled ` +

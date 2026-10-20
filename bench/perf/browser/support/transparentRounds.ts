@@ -19,7 +19,6 @@ import {
   pose,
   regimes,
   spans,
-  type BenchItem,
   type BenchSide,
   type Frame,
 } from './scenesTransparent.ts'
@@ -39,7 +38,7 @@ const encodedCalls = () => counts
  * THE ENCODE LOOP, counted: every slot is encoded, the frustum verdict being the GPU's — a slot
  * whose items it rejects draws no instance (`packages/sdk-browser/src/webgpu/blend/draw.ts`).
  */
-const callCount = (blendState: BenchSide['blendState']) => blendState.runCount[0]
+const callCount = (blendState: BenchSide['blendState']) => blendState.runCount
 
 /** The CPU model of the order and its expansion, reread as index ranges: what the rasterizer would
  *  see. */
@@ -50,13 +49,11 @@ function etale(
   output: Uint32Array,
 ) {
   const { blendState, scene } = side
-  // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/webgpu/blend/plan.test.ts`.
-  const items = blendState.blendGpu as unknown as BenchItem[]
   refreshEyeKeys(blendState, orderEye(blendState))
   const instances = expandBlendPlan({
-    order: orderBlendPlanCpu(blendState, 0),
-    runs: cpuModel(blendState).runs[0],
-    runCount: blendState.runCount[0],
+    order: orderBlendPlanCpu(blendState),
+    runs: cpuModel(blendState).runs,
+    runCount: blendState.runCount,
     draws: blendState.drawsPacked,
     keep,
     itemCounts: scene.itemCounts!,
@@ -73,8 +70,8 @@ function etale(
     const item = instanceItem(mirror.expanded[i * 2]),
       key = mirror.expanded[i * 2 + 1]
     output[at++] = item
-    output[at++] = items[item].paged ? spans[key * 2] : key
-    output[at++] = items[item].paged ? spans[key * 2 + 1] : items[item].count - key
+    output[at++] = spans[key * 2]
+    output[at++] = spans[key * 2 + 1]
   }
   return at
 }

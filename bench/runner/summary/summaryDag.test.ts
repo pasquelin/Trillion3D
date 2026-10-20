@@ -10,7 +10,7 @@ const stalled = (mesh: number, rootTriangles: number) => ({
   mesh,
   primitive: 0,
   rootTriangles,
-  cause: 'seam-locked',
+  cause: 'unreducible',
   seamVertices: 30,
   lockedVertices: 4,
   uvIslands: 9,
@@ -35,8 +35,8 @@ test("each side prints the compiler's stall table as it comes, or says it has no
   assert.ok(lines.includes('- before: no stall recorded'))
   const rows = lines.filter((line) => /^\| \d/.test(line))
   assert.deepEqual(rows, [
-    '| 3/0 | 640 | seam-locked | 30 | 4 | 9 |',
-    '| 7/0 | 12544 | seam-locked | 30 | 4 | 9 |',
-    '| 8/0 | 640 | seam-locked | 30 | 4 | 9 |',
+    '| 3/0 | 640 | unreducible | 30 | 4 | 9 |',
+    '| 7/0 | 12544 | unreducible | 30 | 4 | 9 |',
+    '| 8/0 | 640 | unreducible | 30 | 4 | 9 |',
   ])
 })

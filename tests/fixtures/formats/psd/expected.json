@@ -1,24 +1,24 @@
 {
   "binary": {
     "texturePreviewAstcBytes": 0,
-    "texturePreviewBc7Bytes": 0,
+    "texturePreviewBc7Bytes": 48,
     "texturePreviewBytes": 44,
     "texturePreviewEtc2Bytes": 0,
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is rgb-brut.psd, a flattened 4 × 2 Photoshop composite in eight-bit RGB with a raw surface, compiled by the common harness.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 12,
+  "manifestBinaryVersion": 13,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 48,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "809903edf11339203fc812cba1d3f797a417a40fea5105b85c94a91bc93b96aa"
         },
         {
           "bytes": 0,
@@ -81,7 +81,7 @@
       "pixelBytes": 44,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "758e5b8ad8b931bc70210938d42fc70a6424f0c7098a70c19ba041c15eff5de9",
+      "sourceSha256": "18f1d63b596bc812bfde6f5e611f95853590a80e01698690e13be0f7b480abc3",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 4
@@ -90,29 +90,23 @@
   "report": {
     "bakedLevels": 0,
     "base": 64,
-    "blockBytes": 0,
+    "blockBytes": 48,
     "blockFormats": ["bc7"],
     "colorTextures": 1,
     "dataTextures": 0,
     "encoded": {
       "bc7": {
-        "keptPsnrDb": null,
-        "lossless": 1,
-        "rgba": 0,
+        "keptPsnrDb": {
+          "median": 58.54,
+          "min": 58.54,
+          "p10": 58.54
+        },
+        "lossless": 0,
+        "rgba": 1,
         "twoChannel": 0
       }
     },
-    "lossless": [
-      {
-        "atlas": "srgb",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 122,
-        "psnrDb": 14.37,
-        "sha256": "758e5b8ad8b931bc70210938d42fc70a6424f0c7098a70c19ba041c15eff5de9"
-      }
-    ],
+    "lossless": [],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 44,
@@ -124,11 +118,11 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 7
+    "version": 10
   },
   "rule": "A flattened composite of eight bits per channel enters progressive previews like any other RGBA8 source: the lossless tail of its mip chain is produced, no reason is carried in the report, and the pixels are those the file already carried — never recomposed layers.",
   "textures": {
-    "url": "../../textures/v7/{sha}/{kind}-{level}.{format}",
-    "version": 7
+    "url": "../../textures/v10/{sha}/{kind}-{level}.{format}",
+    "version": 10
   }
 }

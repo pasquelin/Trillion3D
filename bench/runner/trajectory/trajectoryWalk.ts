@@ -2,11 +2,17 @@ import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.t
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 import type { TrajectoryCheckpoint } from './trajectoryProof.ts'
 import { HOLD_FRAME_LIMIT } from '../harness/measurePage.ts'
+import { upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 interface TrajectoryPort {
   render(pose: CameraPose): Partial<FrameMetrics>
   nextFrame(): Promise<unknown>
   capture(name: string): Promise<string>
+  /** A view cut: the temporal history dropped, its jitter back to phase zero. */
+  resetHistory(): void
+  /** The display's width in pixels, which the jitter's phases are counted against. */
+  displayWidth(): number
 }
 
 /** Unlike the bench's flush barrier, every convergence render is explicit and observed here. */
@@ -34,14 +40,23 @@ export async function walkTrajectory(
     drawn ||= typeof frame.drawnTriangles === 'number' && frame.drawnTriangles > 0
     return frame
   }
+  // From a history reset, a whole number of the jitter's phase cycles, `HOLD_FRAME_LIMIT` frames at
+  // least, so every settled image is captured at the same phase of the same history: the temporal
+  // pass runs every frame and never holds (its jitter moves the image each frame). Fewer where the
+  // engine holds earlier, a view without temporal accumulation.
   const settle = async (pose: CameraPose, index: number) => {
-    for (let count = 1; count <= HOLD_FRAME_LIMIT; count++)
+    port.resetHistory()
+    const first = await render(pose, index)
+    if (first.frameHeld === true) return 1
+    const display = port.displayWidth(),
+      phases = upscalePhases(first.renderWidth ?? display, display),
+      frames = alignUp(HOLD_FRAME_LIMIT, phases)
+    for (let count = 2; count <= frames; count++)
       if ((await render(pose, index)).frameHeld === true) return count
-    return null
+    return frames
   }
   if (!poses.length) throw new Error('empty trajectory')
-  if ((await settle(poses[0], -1)) === null)
-    throw new Error(`initial pose did not settle within ${HOLD_FRAME_LIMIT} frames`)
+  await settle(poses[0], -1)
   const checked = new Set(indices)
   for (const [index, pose] of poses.entries()) {
     const frame = await render(pose, index)

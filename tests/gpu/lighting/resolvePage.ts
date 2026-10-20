@@ -25,10 +25,7 @@ import {
   createDeferredView,
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
 import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
-import {
-  CONTRACT_SHADOW_BINDINGS,
-  CONTRACT_VSM_BINDINGS,
-} from '../../../packages/sdk-browser/src/lighting/direct/shadowBindings.ts'
+import { CONTRACT_SHADOW_BINDINGS } from '../../../packages/sdk-browser/src/lighting/direct/shadowBindings.ts'
 import { UNREAD } from './resolveUnread.ts'
 import { SAMPLE_FLOATS, SAMPLES_BINDING, SUMS_BINDING, resolveHarness } from './resolveHarness.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -105,10 +102,6 @@ export async function run(scenes: ResolveScene[]) {
   // What the deferred program binds where a frame brings nothing of its own.
   const standIns = new Map<number, GPUBindingResource>([
     [5, { buffer: view.buffer }],
-    [CONTRACT_VSM_BINDINGS.pageTable, { buffer: placeholders.vsmPageTable }],
-    [CONTRACT_VSM_BINDINGS.projectionData, { buffer: placeholders.vsmProjectionData }],
-    [CONTRACT_VSM_BINDINGS.uniforms, { buffer: placeholders.vsmUniforms }],
-    [CONTRACT_VSM_BINDINGS.pool, { buffer: placeholders.vsmPool }],
     [CONTRACT_SHADOW_BINDINGS.transmittance, placeholders.vsmMask],
     [DEFERRED_BINDINGS.maskTiles, placeholders.vsmMaskTiles],
     [DEFERRED_BINDINGS.transmissionResolve, placeholders.transmittanceView],

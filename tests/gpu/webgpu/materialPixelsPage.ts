@@ -49,7 +49,6 @@ interface Comparison {
   pair: readonly [Renderer, Renderer]
   difference: number[]
   reason: string
-  held: boolean
   events: EngineDiagnostic[]
   samples: Reading[]
   /** Pixels where the engine shows the background and the reference a surface (`behind`). */
@@ -77,17 +76,16 @@ async function drawn(
   fixture: Fixture,
   sides: Sides,
   events: EngineDiagnostic[],
-): Promise<{ pixels: ArrayLike<number>; held: boolean }> {
+): Promise<{ pixels: ArrayLike<number> }> {
   const scene = sceneOf(fixture, sides.sun)
   const { camera } = sides
   const lights = fixture.lit ? sides.stores.sun : sides.stores.none
   if (renderer === 'webgpu') {
-    const { pixels, held } = await engineImage(scene, sides.device, lights, camera, events)
-    return { pixels: pixels ?? [], held }
+    return engineImage(scene, sides.device, lights, camera, events)
   }
   const pixels = await witnessImage(scene, sides.renderer, camera)
   releaseScene(scene)
-  return { pixels, held: true }
+  return { pixels }
 }
 
 /** One fixture on its pair of renderers: the readings at its points and the engine's
@@ -104,7 +102,6 @@ async function compare(fixture: Fixture, sides: Sides): Promise<Comparison> {
     pair,
     difference,
     reason,
-    held: reference.held && engine.held,
     events,
     samples: fixture.points.map((point) => {
       const a = rgbAt(reference.pixels, point),

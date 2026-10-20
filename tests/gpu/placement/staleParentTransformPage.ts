@@ -15,8 +15,8 @@ import { PIVOT, TILE, openPass, translation } from './transformScene.ts'
  * dirty again and ask again, ask another pose, then make the parent singular and read the named
  * refusal.
  */
-async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
-  const { s, backend, canvas, setTransform, camera } = openPass(device, paged, events)
+async function sequence(device: GPUDevice, events: unknown[]) {
+  const { s, backend, canvas, setTransform, camera } = openPass(device, events)
   const pivot = G.byName(s.source, PIVOT)
   if (!pivot) throw new Error('scene missing pivot node')
   const steps: { name: string; held: boolean | null | undefined; red: number }[] = []
@@ -66,5 +66,5 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
   }
 }
 
-/** The sequence, unpaged then paged. */
+/** The sequence. */
 export const run = () => runPasses(sequence)

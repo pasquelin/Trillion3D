@@ -56,7 +56,7 @@ async function readAt(device: GPUDevice, events: unknown[], prepared: ReturnType
   const { backend, canvas } = engine(prepared, device, (e) => events.push(e))
   try {
     await backend.prepare()
-    const { held, rendered } = await untilHeld(backend, camera)
+    const { settled: held, rendered } = await untilHeld(backend, camera)
     const pixels = Uint8Array.from(held ?? rendered ?? [])
     const at: Record<string, number[]> = {}
     for (const [name, [x, y]] of Object.entries(AT)) at[name] = colorAt(pixels, camera, x, y)

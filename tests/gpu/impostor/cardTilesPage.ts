@@ -18,7 +18,7 @@ import { SURFACE_FORMATS } from '../../../packages/sdk-browser/src/scene/surface
 import { CARD_FLOATS } from '../../../packages/sdk-browser/src/impostor/cardSlots.ts'
 import { bufferHolding, readTexture } from '../kit/computeReadback.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
-import { viewUniform } from './cardIdRig.ts'
+import { nothingDrawn, viewUniform } from './cardIdRig.ts'
 import { CARD_MAPS, MAP_FRAMES, MAP_LEVELS, cardTileAtlases, proofMaps } from './cardTileRig.ts'
 import { referenceGroup, referencePipelines } from './cardTilesReference.ts'
 import { compareSurfaces, surfaceBytes } from './cardTilesCompare.ts'
@@ -63,7 +63,12 @@ function records(device: GPUDevice) {
   return bufferHolding(device, data, GPUBufferUsage.STORAGE)
 }
 
-type Stages = { vis: GPURenderPipeline; surface: GPURenderPipeline; maps: GPUBindGroup }
+type Stages = {
+  vis: GPURenderPipeline
+  surface: GPURenderPipeline
+  maps: GPUBindGroup
+  drawn: GPUBindGroup
+}
 
 /** The cards drawn by `stages` — their visibility stage, then their surface stage —, the four
  *  surfaces read back, then the identifiers the visibility stage kept. */
@@ -100,6 +105,7 @@ async function drawn(
   visual.setPipeline(stages.vis)
   visual.setBindGroup(0, image)
   visual.setBindGroup(1, stages.maps)
+  visual.setBindGroup(2, stages.drawn)
   visual.draw(4, LODS.length)
   visual.end()
   const surface = encoder.beginRenderPass({ colorAttachments: surfaces.map(clear) })
@@ -145,8 +151,10 @@ export function runCardTiles() {
       device,
       pipes.imageLayout,
       pipes.idsLayout,
+      pipes.drawnLayout,
       MAP_LEVELS,
     )
+    const nothing = nothingDrawn(device, pipes.drawnLayout, SIDE)
     const image = device.createBindGroup({
       layout: pipes.imageLayout,
       entries: [
@@ -156,7 +164,12 @@ export function runCardTiles() {
     })
     const pool = await drawn(
       device,
-      { vis: pipes.visPipeline(true), surface: pipes.surfacePipeline(false), maps: tiles.group },
+      {
+        vis: pipes.visPipeline(true),
+        surface: pipes.surfacePipeline(false),
+        maps: tiles.group,
+        drawn: nothing,
+      },
       image,
       pipes.idsLayout,
     )
@@ -166,6 +179,7 @@ export function runCardTiles() {
         vis: reference.vis,
         surface: reference.surface,
         maps: referenceGroup(device, reference.tilesLayout, sampler, proofMaps),
+        drawn: nothing,
       },
       image,
       pipes.idsLayout,

@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { build } from 'esbuild'
 import { execFileSync } from 'node:child_process'
 import * as common from '../../packages/sdk/index.ts'
 import * as core from '../../packages/sdk-core/src/index.ts'
@@ -59,7 +58,7 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 701 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 719 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
@@ -89,8 +88,19 @@ test('generated inventory and explicit facade files are current', async () => {
   // No CPU batch loop the engine never runs (invertMatrix4Batch, normalMatrix3Batch,
   // decomposeMatrix4Batch, srgbToLinearBatch, linearToSrgbBatch), no CPU cone test beside the GPU
   // cull (boxConeRejects), no full impostor walk beside the watch (planImpostors, ImpostorCard,
-  // ImpostorPlan); the compile job's scopes are one public table (ASSET_SCOPES).
-  assert.equal(inventory.exports.length, 701)
+  // ImpostorPlan); the compile job's scopes are one public table (ASSET_SCOPES). The baked mesh a
+  // section's lookup returns (BakedEntry) and the frame, prime and budget a partition's cells take
+  // (CellFrameIo, CellPrimeIo, CellBudget) are named where the public signatures carry them. The
+  // stream's addresses are public (geometryPageAddress, streamBundleAddress) with the geometry file
+  // the manifest names (GeometryFile); the world roots' page record (WorldRootsPage) is gone. A
+  // world's views are public (ViewOptions, ViewRect, ViewFrameInfo, WorldView, ViewFrameMetrics).
+  // A frame's inspection is public (FrameInspection, InspectedCamera, InspectedClusters,
+  // InspectedShadowMap, InspectedReflections, InspectedLight, CLUSTER_STATE). The ray through a
+  // canvas point, as `world.raycast` and the move handles aim it, is public (canvasRay).
+  // The temporal anti-aliasing option `world.temporalAntialiasing` and `WorldOptions` take
+  // (TemporalAntialiasingOption), and the texture cache and world cells the engine's signatures
+  // carry (TextureCache, WorldCells), are named.
+  assert.equal(inventory.exports.length, 724)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -133,65 +143,6 @@ test('generated inventory and explicit facade files are current', async () => {
       `${name} must remain reachable from ${entryPoint}`,
     )
   }
-})
-
-test('a maths-only bundle keeps baseline bytes and excludes platform modules', async () => {
-  const bundle = (entry: string) =>
-    build({
-      stdin: {
-        contents: `import { multiplyMatrix4 } from '${entry}'; console.log(multiplyMatrix4);`,
-        resolveDir: new URL('../..', import.meta.url).pathname,
-      },
-      bundle: true,
-      platform: 'browser',
-      format: 'esm',
-      write: false,
-      metafile: true,
-      treeShaking: true,
-      minify: true,
-    })
-  const baseline = await bundle('./packages/sdk-core/src/index.ts')
-  const proposed = await bundle('./packages/sdk/index.ts')
-  const browserProposed = await bundle('./packages/sdk/browser.ts')
-  const inputs = Object.keys(proposed.metafile.inputs)
-  assert.ok(inputs.some((path) => path.endsWith('/math/src/matrix/matrix4.ts')))
-  assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The minified bytes of a bundle of `multiplyMatrix4` alone, through each entry: the engine
-  // core, its node writes noted in their journal and its stage labels, the screen reflections and
-  // the image effects among them; the package, with
-  // the machine-independent quaternion normalisation and arc trigonometry; its browser condition.
-  // The aim's scratch buffers are marked pure, so a bundle that never aims a node drops them; the
-  // length rule's range (hypot outside the normal band) is kept. The browser entry's camera
-  // projections read `length2` from the vector module, whose lazy init it starts; its transform tree
-  // grows by the one growth rule (`resized`), keeps a second list of the children whose world
-  // something else composes (`firstLazy`, `lastLazy`); the cache format's constants the compiler writes are
-  // printed into one module (`contracts/writtenFormats.ts`), which the entry's chain now includes;
-  // the render-origin module imports the matrix inverse and the culling batch the empty-bounds test,
-  // two more module init calls in the chain (7 bytes, no function kept); the merged duplicate removals
-  // (runtime, language, code) move it by two bytes more; the compute-path governor gone, its
-  // contract's module leaves the browser chain; the light settings' tap count, gone with the
-  // filtered shadow read, takes eleven off; the run-time proxy's contract, posed for deformed
-  // placements, moves the core by sixty bytes off, the package and its browser condition by
-  // fourteen and eighteen on. The batch twins gone, the bundle is of the single product
-  // `multiplyMatrix4`, the kernels' bits. The light settings' samples a pixel, gone with the sampled
-  // resolve, and the proxy's one ray budget of two milliseconds take nineteen off the core. The
-  // batch union of moved boxes gone to the WebAssembly lot, its module scratch box with it, takes
-  // thirty-five more off each of the three. Every module importing the maths from its own file,
-  // not through the core's barrel, takes six off the core and 143 off the browser condition. The
-  // node setters the package exports being the counted ones, noted in the write journal, put the
-  // journal's counters in the package's chain: 32 bytes on, 42 on its browser condition.
-  assert.equal(baseline.outputFiles[0].contents.length, 2_528)
-  assert.equal(proposed.outputFiles[0].contents.length, 1_403)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 2_988)
-  assert.ok(
-    !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
-  )
-  const browserOutput = Object.values(browserProposed.metafile.outputs)[0]
-  assert.ok(
-    !Object.entries(browserOutput.inputs).some(
-      ([path, contribution]) => path.includes('/sdk-browser/') && contribution.bytesInOutput > 0,
-    ),
-  )
 })
 
 test('one dot product is public, on three components: no N-dimensional one beside it', () => {

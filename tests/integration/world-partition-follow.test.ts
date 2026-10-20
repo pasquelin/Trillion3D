@@ -1,7 +1,9 @@
 // #404: the synthetic worlds of `world-partition.fixture.ts`, compiled by this checkout's native
 // compiler and read whole as a world reads them (`loadModel`), their cells followed by the
 // session's per-frame step (`world-partition-follow.fixture.ts`): a zoom out to 0.5 and a parent
-// scaled down leave no object missing, the rows grown in place, no session reopened.
+// scaled down leave no object missing, the rows grown in place, no session reopened. A zoom moves
+// no streaming source — a cell streams by the source's location, the camera's lens plays no part
+// (`partition/plan.ts`) —: the same cells stay held.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
@@ -26,7 +28,7 @@ test(
     const after = await view.settle()
     const wider = await assertNoneMissing(view)
     t.diagnostic(JSON.stringify({ before, after, near, wider, ...view.engine.counts }))
-    assert.ok(wider > near && after.held > before.held, 'the wider view holds more cells')
+    assert.deepEqual([wider, after.held], [near, before.held], 'a zoom streams the same cells')
     assert.deepEqual([after.waiting, view.renewed.count], [0, 0])
   },
 )

@@ -21,7 +21,7 @@ type Counts = ReturnType<typeof countBundles>['counts']
 async function heldPose(backend: Engine, x: number, counts?: Counts) {
   const recorded: number[] = []
   let before = counts?.recorded ?? 0
-  const { held } = await untilHeld(backend, cameraFace(x), () => {
+  const { settled: held } = await untilHeld(backend, cameraFace(x), () => {
     const now = counts?.recorded ?? 0
     recorded.push(now - before)
     before = now

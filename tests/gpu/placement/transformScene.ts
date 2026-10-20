@@ -22,9 +22,8 @@ export const TILE = 'tile',
 /** A world matrix for `setTransform`: a pure translation along `x`. */
 export const translation = (x: number) => toApiMatrix(new Matrix4().makeTranslation(x, 0, 0))
 
-/** `paged` chooses the tile's pass: `clustered-blend` sends it through the DAG pages,
- *  `shared-blend` through the unpaged path. */
-export function transformScene(paged: boolean): ScenePreparee {
+/** The tile is drawn from its DAG pages (`clustered-blend`), as every blended surface. */
+export function transformScene(): ScenePreparee {
   const builder = batisseur()
   const backdrop = G.basicSurface({ color: 0x1b3a5c, side: G.DOUBLE_SIDE })
   builder.place(backdrop, 'exact-clusters', 4, [0, 0, -2]).name = 'background'
@@ -37,15 +36,15 @@ export function transformScene(paged: boolean): ScenePreparee {
   pivot.name = PIVOT
   pivot.add(tile)
   builder.source.add(pivot)
-  builder.add(tile, paged ? 'clustered-blend' : 'shared-blend', HALF)
+  builder.add(tile, 'clustered-blend', HALF)
   return builder.fini()
 }
 
 /** One pass of the transform proofs: the scene, its pages engine on `device` reporting into
  *  `events`, the `setTransform` both proofs drive, and the camera facing the tile. */
-export function openPass(device: GPUDevice, paged: boolean, events: unknown[]) {
-  const s = transformScene(paged)
-  const { backend, canvas } = engine(s, device, (e) => events.push({ paged, ...e }))
+export function openPass(device: GPUDevice, events: unknown[]) {
+  const s = transformScene()
+  const { backend, canvas } = engine(s, device, (e) => events.push(e))
   if (!backend.setTransform) throw new Error('backend missing setTransform')
   return { s, backend, canvas, setTransform: backend.setTransform, camera: cameraFace() }
 }

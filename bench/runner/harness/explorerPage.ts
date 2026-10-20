@@ -47,10 +47,6 @@ export function explorerOptions(
     bounce: options.bounce === true,
     // Lights the source file carried: the engine declares them alone, the bench can silence them.
     importedLights: options.importedLights !== false,
-    // Whether the loader opens the source images. Forwarded both ways since the engine's own
-    // default became `'cache'`: a witness side asks for `'host'` and has to be heard, or
-    // it would draw the placeholder pixel the loader leaves in a baked image's place.
-    textureSource: options.textureSource,
     // The tile pass's millisecond budget: without the option, the engine keeps its own default.
     ...(typeof options.textureUploadMs === 'number'
       ? { maxTextureUploadMsPerFrame: options.textureUploadMs }

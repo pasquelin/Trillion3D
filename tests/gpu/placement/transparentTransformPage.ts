@@ -42,8 +42,8 @@ function reading(
  * One pass: start, node move, parent move, shear, out of view, return, then settling and a move
  * after the held image.
  */
-async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
-  const { s, backend, canvas, setTransform, camera } = openPass(device, paged, events)
+async function sequence(device: GPUDevice, events: unknown[]) {
+  const { s, backend, canvas, setTransform, camera } = openPass(device, events)
   const steps: ReturnType<typeof reading>[] = []
   const step = async (name: string) => {
     const { pixels, metrics } = await image(backend, camera)
@@ -80,5 +80,5 @@ async function sequence(device: GPUDevice, paged: boolean, events: unknown[]) {
   return steps
 }
 
-/** The sequence, unpaged then paged. */
+/** The sequence. */
 export const run = () => runPasses(sequence)

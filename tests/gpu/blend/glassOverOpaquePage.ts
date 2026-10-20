@@ -13,7 +13,7 @@ async function imageOf(device: GPUDevice, events: unknown[], layout: Backdrop) {
   const camera = cameraFace()
   const { backend, release } = await sunlitEngine(backdropScene(layout), device, events)
   try {
-    const { held, rendered } = await untilHeld(backend, camera)
+    const { settled: held, rendered } = await untilHeld(backend, camera)
     const pixels = Uint8Array.from(held ?? rendered ?? [])
     return { held: held !== null, centre: colorAt(pixels, camera, 0, 0), pixels }
   } finally {

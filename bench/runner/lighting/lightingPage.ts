@@ -103,17 +103,13 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     moveNode(i)
     last = explorer.render(poseAt(i))
   }
-  // A moving capture waits for its pose's pages as the still warmup does (#1016).
-  if (poses) {
-    explorer.setPose(current)
-    await explorer.awaitPages()
-  }
   await explorer.flush()
   // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
   // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current
-  // The capture is that of a HELD pose (`harness/measurePage.ts`): `settleFrames` says how many frames
-  // it took for the engine to hold it, `null` if it holds no image.
+  // The capture is that of a settled pose (`harness/measurePage.ts`): its pages awaited, as the still
+  // warmup does (#1016), then drawn; `settleFrames` says how many frames, `null` if the engine
+  // reports no hold.
   const settleFrames = await measure.calmPose(explorer, capturePose)
   const response = await measure.posterCapture(
     options.captureFile,

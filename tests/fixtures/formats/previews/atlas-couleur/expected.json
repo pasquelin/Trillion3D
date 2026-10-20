@@ -1,24 +1,24 @@
 {
   "binary": {
     "texturePreviewAstcBytes": 0,
-    "texturePreviewBc7Bytes": 0,
+    "texturePreviewBc7Bytes": 3264,
     "texturePreviewBytes": 12268,
     "texturePreviewEtc2Bytes": 0,
     "texturePreviews": 3
   },
   "case": "Four quads, four materials that share three colour textures: an OPAQUE with a 40×24 PNG baseColorTexture linked by uri, a MASK at alphaCutoff 0.25 on a 24×16 PNG with binary alpha embedded in a bufferView, and a BLEND whose 80×48 JPEG baseColorTexture also serves as emissiveTexture to a fourth material.",
   "formatVersion": 12,
-  "manifestBinaryVersion": 12,
+  "manifestBinaryVersion": 13,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 1360,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "c1c8793b39d1228a4a920412b32b082c0c0798c32fc158f08e4ad3f7b2c5c007"
         },
         {
           "bytes": 0,
@@ -120,7 +120,7 @@
       "pixelBytes": 5112,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "f56a90018bf0679da243894aca26f2b6fb484aee7e0eeba867cf0af87a2b05e0",
+      "sourceSha256": "ae601887f343ccc10456c1eb86414d7859f6bbf5dc242cd14bbac5a7057f0cbe",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 40
@@ -130,10 +130,10 @@
       "bakedLevels": 0,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 544,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "d2ecfd7f0fcaf3a09d0f0e7d4e76ef46d6af5989c115fee9b42f9adde23905ac"
         },
         {
           "bytes": 0,
@@ -222,7 +222,7 @@
       "pixelBytes": 2044,
       "pixelOffset": 5112,
       "sourceKind": 1,
-      "sourceSha256": "81917ae413a56beb0171601b3b3e621bd4f06601f75e7e1ac5de9abf510b051c",
+      "sourceSha256": "764ca8b2876da06936d980caac536133e756aeb3986689a8db72873f78423fc3",
       "sourceView": 6,
       "texture": 1,
       "width": 24
@@ -232,10 +232,10 @@
       "bakedLevels": 1,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 1360,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "4bc69e77f2dcc2ad23ca2643fdd9b42485cb069932aebd3e18eff488205bc5f4"
         },
         {
           "bytes": 0,
@@ -337,7 +337,7 @@
       "pixelBytes": 5112,
       "pixelOffset": 7156,
       "sourceKind": 0,
-      "sourceSha256": "767afd28cc0dd6c70555e3b21b6a0d043c58d4ed73737b380bbf5140ef93ae02",
+      "sourceSha256": "63409ac8494d98206d3a7740dff3dcf710ef1f523cd48cf992a2cfb1036b428d",
       "sourceView": 4294967295,
       "texture": 2,
       "width": 80
@@ -346,47 +346,23 @@
   "report": {
     "bakedLevels": 1,
     "base": 64,
-    "blockBytes": 0,
+    "blockBytes": 3264,
     "blockFormats": ["bc7"],
     "colorTextures": 3,
     "dataTextures": 0,
     "encoded": {
       "bc7": {
-        "keptPsnrDb": null,
-        "lossless": 3,
-        "rgba": 0,
+        "keptPsnrDb": {
+          "median": 49.88,
+          "min": 39.34,
+          "p10": 39.34
+        },
+        "lossless": 0,
+        "rgba": 3,
         "twoChannel": 0
       }
     },
-    "lossless": [
-      {
-        "atlas": "srgb",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 77,
-        "psnrDb": 37.89,
-        "sha256": "767afd28cc0dd6c70555e3b21b6a0d043c58d4ed73737b380bbf5140ef93ae02"
-      },
-      {
-        "atlas": "srgb-coverage-64",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 7,
-        "psnrDb": 54.74,
-        "sha256": "81917ae413a56beb0171601b3b3e621bd4f06601f75e7e1ac5de9abf510b051c"
-      },
-      {
-        "atlas": "srgb",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 95,
-        "psnrDb": 30.22,
-        "sha256": "f56a90018bf0679da243894aca26f2b6fb484aee7e0eeba867cf0af87a2b05e0"
-      }
-    ],
+    "lossless": [],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 12268,
@@ -398,11 +374,11 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 7
+    "version": 10
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Only the texture whose every binding is a MASK base colour has its alpha rescaled to preserve source coverage at the material threshold; the other two keep their alpha intact.",
   "textures": {
-    "url": "../../textures/v7/{sha}/{kind}-{level}.{format}",
-    "version": 7
+    "url": "../../textures/v10/{sha}/{kind}-{level}.{format}",
+    "version": 10
   }
 }

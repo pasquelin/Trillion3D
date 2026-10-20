@@ -4,7 +4,7 @@
 // `screenError/screenErrorSurface.ts`), through the server's `/capture`.
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
-import { posterCapture } from '../harness/measurePage.ts'
+import { calmPose, HOLD_FRAME_LIMIT, posterCapture } from '../harness/measurePage.ts'
 import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 export interface HoldOptions {
@@ -44,13 +44,7 @@ export async function holdAndCapture(o: HoldOptions) {
   const rows = []
   for (const { view, pose } of o.poses) {
     explorer.setPose(pose)
-    let held = -1
-    for (let i = 0; i < 400 && held < 0; i++) {
-      await explorer.awaitPages()
-      const frame = explorer.render(pose)
-      await explorer.flush()
-      if (i >= 8 && frame.frameHeld === true) held = i
-    }
+    const held = (await calmPose(explorer, pose)) ?? HOLD_FRAME_LIMIT
     // Three more frames: the WebGPU readback of the cut is one frame behind the cut.
     for (let i = 0; i < 3; i++) {
       explorer.render(pose)

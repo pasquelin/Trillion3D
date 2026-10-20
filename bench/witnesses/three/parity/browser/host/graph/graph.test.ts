@@ -1,8 +1,8 @@
 /**
  * The engine's own graph holds the host library's numbers: the same poses composed into the same
- * world matrices, the same aim, the same projection, the same element read out of a normalised or
- * interleaved attribute and the same bounds. Each rule is checked against the host library,
- * which a test may name, on values away from the trivial ones.
+ * world matrices, the same aim, the same projection, and the same defaults of a texture, a surface
+ * and a copied light. Each rule is checked against the host library, which a test may name, on
+ * values away from the trivial ones (the geometry's: `graphGeometry.test.ts`).
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -16,12 +16,12 @@ import { InstancedMesh } from '../../../../../../../packages/sdk-core/src/world/
 import { Camera } from '../../../../../../../packages/sdk-core/src/world/camera/camera.ts'
 import { perspectiveProjection } from '../../../../../../../packages/math/src/projection/camera.ts'
 import { Light } from '../../../../../../../packages/sdk-core/src/world/light/light.ts'
-import { BufferAttribute } from '../../../../../../../packages/sdk-core/src/world/buffer/attribute.ts'
 import { familySurface } from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { threeMaterials } from '../../../../fromSurface.ts'
 import { Texture } from '../../../../../../../packages/sdk-core/src/world/texture/texture.ts'
 import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
 import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geometry/geometry.ts'
+import { ulpBetween } from '../../../../../../../packages/math/src/float/ulp.fixture.ts'
 
 test('a posed chain resolves to the independent world matrices, aim and decomposition included', () => {
   const [a, b, c] = [
@@ -45,6 +45,12 @@ test('a posed chain resolves to the independent world matrices, aim and decompos
   ta.scale.set(1, 3, 0.5)
   c.lookAt({ x: 4, y: -1, z: 9 })
   tc.lookAt(4, -1, 9)
+  // The aim's local turn is one quaternion product where the host premultiplies: a component may
+  // move by its last bit. The host then takes the engine's turn, so the composition below compares
+  // bit for bit.
+  const turn = [c.quaternion.x, c.quaternion.y, c.quaternion.z, c.quaternion.w]
+  turn.forEach((v, i) => assert.ok(ulpBetween(v, tc.quaternion.toArray()[i]) <= 1, `turn[${i}]`))
+  tc.quaternion.set(turn[0], turn[1], turn[2], turn[3])
   a.updateMatrixWorld(true)
   ta.updateMatrixWorld(true)
   assert.deepEqual([...c.matrixWorld.elements], tc.matrixWorld.elements)
@@ -94,32 +100,6 @@ test('angles and quaternion follow each other, and a watch hears either face', (
   assert.equal(revision.revision, 3)
 })
 
-test('a geometry bounds itself by the rule of the engine, morph targets included', () => {
-  const positions = new Float32Array([0, 0, 0, 1, 2, 3, -4, 0.5, 2])
-  const morph = new Float32Array([0.5, -1, 0, 0, 0, 2, 1, 1, 1])
-  const geometry = new Geometry().setAttribute('position', new BufferAttribute(positions, 3))
-  geometry.morphAttributes.position = [new BufferAttribute(morph, 3)]
-  // A relative target is bounded vertex by vertex, tighter than a box on box
-  // (geometry.test.ts): the comparison here is on an absolute one.
-  geometry.morphTargetsRelative = false
-  const reference = new THREE.BufferGeometry()
-  reference.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  reference.morphAttributes.position = [new THREE.BufferAttribute(morph, 3)]
-  reference.morphTargetsRelative = false
-  geometry.computeBoundingBox()
-  geometry.computeBoundingSphere()
-  reference.computeBoundingBox()
-  reference.computeBoundingSphere()
-  assert.deepEqual(
-    [...geometry.boundingBox!.min.toArray(), ...geometry.boundingBox!.max.toArray()],
-    [...reference.boundingBox!.min.toArray(), ...reference.boundingBox!.max.toArray()],
-  )
-  assert.deepEqual(
-    [...geometry.boundingSphere!.center.toArray(), geometry.boundingSphere!.radius],
-    [...reference.boundingSphere!.center.toArray(), reference.boundingSphere!.radius],
-  )
-})
-
 test('a texture transform, a surface family and a copied light hold the default values', () => {
   const texture = new Texture(null),
     reference = new THREE.Texture()
@@ -145,32 +125,6 @@ test('a texture transform, a surface family and a copied light hold the default 
   assert.notEqual(copy.target, light.target, 'a copied light aims at a copy of the target')
   const mesh = new Mesh(new Geometry(), surface)
   assert.equal(mesh.clone().material, surface, 'a copied mesh shares its surface')
-})
-
-test('a copied geometry owns its buffers, and a triangle list spells every corner', () => {
-  const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0]),
-    order = new Uint16Array([0, 1, 2, 2, 1, 3]),
-    shades = new Uint8Array([0, 64, 128, 255])
-  const geometry = new Geometry().setIndex(new BufferAttribute(order, 1))
-  geometry.setAttribute('position', new BufferAttribute(positions, 3))
-  geometry.setAttribute('shade', new BufferAttribute(shades, 1, true))
-  const reference = new THREE.BufferGeometry().setIndex(new THREE.BufferAttribute(order, 1))
-  reference.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  reference.setAttribute('shade', new THREE.BufferAttribute(shades, 1, true))
-  const copy = geometry.clone()
-  assert.notEqual(copy.attributes.position.array, positions, 'the copy owns its positions')
-  assert.deepEqual([...copy.index!.array], [...order])
-  const flat = geometry.toNonIndexed(),
-    expected = reference.toNonIndexed()
-  assert.equal(flat.index, null)
-  for (const name of ['position', 'shade']) {
-    assert.deepEqual([...flat.attributes[name].array], [...expected.attributes[name].array], name)
-    assert.equal(flat.attributes[name].normalized, expected.attributes[name].normalized, name)
-    assert.equal(
-      flat.attributes[name].array.constructor,
-      expected.attributes[name].array.constructor,
-    )
-  }
 })
 
 test('the ambient, rectangle and probe lights copy themselves whole', () => {

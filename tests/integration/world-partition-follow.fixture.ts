@@ -9,11 +9,9 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { length3 } from '../../packages/math/src/vector/vector.ts'
 import type { Engine } from '../../packages/sdk-browser/src/engine/types.ts'
 import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts'
 import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts'
-import { cellReach } from '../../packages/sdk-browser/src/partition/plan.ts'
 import { createPageCache } from '../../packages/sdk-browser/src/streaming/pageCache.ts'
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts'
 import {
@@ -35,7 +33,6 @@ export async function served(t: TestContext, prefix: string, gltf: ReturnType<ty
   const pointer = await compiled(root, gltf)
   machine(t, pointer)
   return loadModel(pointer.href, {
-    textureSource: 'host',
     scope: 'full',
     pageCache: createPageCache(),
   })
@@ -58,7 +55,7 @@ function standIn(opened: Iterable<PlacementRows>) {
   const drawn = new Set(opened)
   const counts = { grown: 0 }
   const backend = {
-    worldCut: () => undefined,
+    worldCells: () => undefined,
     updatePlacements() {},
     composePlacements: composeStandIn(),
     growsInPlace: () => true,
@@ -101,7 +98,8 @@ export async function followed(model: LoadedModel, eye: readonly number[]) {
   return { cells, camera, engine, renewed, settle }
 }
 
-/** Asserts every node of `cells` within reach of `camera` has a live row, at its compiled
+/** Asserts every node of `cells` within the main grid's loading range of `camera`, on the ground,
+ *  has a live row, at its compiled
  *  translation taken by `place` to where the page moved it, in rows the engine draws; returns how
  *  many there are. */
 export async function assertNoneMissing(
@@ -120,13 +118,13 @@ export async function assertNoneMissing(
     for (let row = 0; row < rows.capacity; row++)
       if (rows.live[row]) drawn.add(key(rows.matrices[row * 16 + 12], rows.matrices[row * 16 + 14]))
   const eye = camera.position,
-    reach = cellReach(camera)
+    reach = cells.ranges[0]
   let near = 0
   for (const { url } of await cellRecords(cells.pages)) {
     const body = readJson(fileURLToPath(url))
     for (const { translation } of body.nodes) {
       const [x, y, z] = place(translation)
-      if (length3(x - eye.x, y - eye.y, z - eye.z) > reach) continue
+      if (Math.hypot(x - eye.x, z - eye.z) > reach) continue
       near++
       assert.ok(drawn.has(key(x, z)), `the node at ${[x, y, z]} is drawn`)
     }

@@ -21,8 +21,8 @@ const group = (use: number[], uniform: number[]) => ({
 const sort = (code: string) => ({ entryPoint: 'poolScatter', module: { code } })
 
 test('the rows’ sort is known by its program and writes no queue: the double runs no closure', () => {
-  // Per row: its last use, its walk word, its page.
-  const rows = [10, 0, 7, 99, 0, 8, 50, 0, 9]
+  // Per row: its last use, its page (`rowWords.ts`).
+  const rows = [10, 7, 99, 8, 50, 9]
   assert.equal(rows.length, 3 * ROW_USE_WORDS)
   const bind = group(rows, [100, 3, 0, 4])
   simulateComputeDispatch(sort(ROW_SORT_WGSL), bind)

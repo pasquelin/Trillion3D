@@ -29,7 +29,6 @@ export async function openBenchWorld(
     pixelRatio: 1,
     pixelError: 1,
     maxResidentPages: 100000,
-    textureSource: 'cache',
     temporalAntialiasing: false,
     ...options,
   })

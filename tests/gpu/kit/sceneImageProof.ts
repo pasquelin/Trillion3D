@@ -1,10 +1,8 @@
-// Reading a rendered frame back: pixels, the frame-held wait, and the pixel counts the engine
+// Reading a rendered frame back: pixels, the settled-image wait, and the pixel counts the engine
 // proofs share; two images are compared by `compareImages`. Split from `sharedSceneProof.ts`
 // (scene construction and mounting) to keep each file under the line gate.
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
-import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
-import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
 import { VIEWPORT, cameraFace, engine, release, type ScenePreparee } from './sharedSceneProof.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'
@@ -27,32 +25,30 @@ export async function image(
   return { pixels: await backend.capture(), metrics: backend.metrics() }
 }
 
-/**
- * The most images a still view is rendered before giving up on its hold: the engine's longest
- * still average — temporal accumulation at the lowest render scale (`taaStillFrames`) —, and as
- * many again for what lands while the view settles (a page, a tile, its targets), which restarts
- * that average.
- */
-const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1))
+/** Images a still view is drawn before it counts as settled: four times the temporal history's
+ *  sixteen samples, which the temporal pass, running every frame, then holds whole. A view without
+ *  temporal accumulation holds its image earlier. */
+const SETTLE_FRAMES = 64
 
-/** Renders until the image is held; returns the last RENDERED image, the held one, and the count
- *  rendered before it. `onFrame` sees every image, the held one included, before the hold ends the
- *  wait. */
+/** Renders until the image is settled: held — a view without temporal accumulation, nothing
+ *  changing —, or `SETTLE_FRAMES` drawn, the temporal pass running every frame and never holding
+ *  (its jitter moves the image each frame). Returns the image before the last, the settled one, and
+ *  the count rendered before it. `onFrame` sees every image, the settled one included. */
 export async function untilHeld(
   backend: Engine,
   camera: Camera,
   onFrame?: (frame: Awaited<ReturnType<typeof image>>) => void,
-): Promise<{ rendered: number[] | undefined; held: number[] | null; count: number }> {
+): Promise<{ rendered: number[] | undefined; settled: number[]; count: number }> {
   let rendered: number[] | undefined,
     count = 0
-  for (let i = 0; i < PLAFOND; i++) {
+  for (;;) {
     const frame = await image(backend, camera)
     onFrame?.(frame)
-    if (frame.metrics.frameHeld) return { rendered, held: Array.from(frame.pixels), count }
+    if (frame.metrics.frameHeld || count === SETTLE_FRAMES - 1)
+      return { rendered, settled: Array.from(frame.pixels), count }
     rendered = Array.from(frame.pixels)
     count++
   }
-  return { rendered, held: null, count }
 }
 
 /** Pixels of an image that differ from its corner pixel, the cleared background: an image where

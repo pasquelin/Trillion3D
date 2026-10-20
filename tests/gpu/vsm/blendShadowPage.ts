@@ -19,7 +19,7 @@ async function shot(device: GPUDevice, events: unknown[], receiver: Receiver, op
   })
   try {
     await backend.prepare()
-    const { held, rendered } = await untilHeld(backend, penumbraCamera())
+    const { settled: held, rendered } = await untilHeld(backend, penumbraCamera())
     return { held: held !== null, pixels: held ?? rendered ?? [] }
   } finally {
     release(backend, canvas, prepared)

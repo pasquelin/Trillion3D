@@ -23,7 +23,7 @@ interface Result extends PageProofResult {
   passes: Record<string, Pass>
 }
 
-test('setTransform under a stale parent poses what it was asked, paged and unpaged', async () => {
+test('setTransform under a stale parent poses what it was asked', async () => {
   const result = (await runPageProof(
     resolve(import.meta.dirname, 'staleParentTransformPage.ts'),
     'staleParentTransform',

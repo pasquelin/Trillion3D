@@ -36,7 +36,8 @@ export function referencePartitionUniform(frame: PartitionFrame, rows: number) {
   u32[at.height] = frame.height
   u32[at.layerTop] = frame.layerTop
   u32[at.hasRest] = frame.hasRest ? 1 : 0
-  u32[at.viewMoved] = frame.viewMoved ? 1 : 0
   u32[at.counting] = frame.counting ? 1 : 0
+  u32[at.selectionEnabled] = frame.selection ? 1 : 0
+  u32[at.selectionOffset] = frame.selection?.maskOffset ?? 0
   return u32
 }

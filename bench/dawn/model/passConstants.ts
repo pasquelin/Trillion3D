@@ -60,11 +60,10 @@ export const LIGHTING_READ = 1 + 8 + 4 + 8 + 8 + 8 + 4 + 4,
   LIGHTING_FETCHES = 7,
   LIGHTING_WRITE = 8 + 8
 /** The shadow setup's footprint: eight neighbour depths a covered pixel (ENGINE.md, "Direct
- *  lighting"), the screen ray's march of the depth pyramid (`vsmScreenRayCast`): its texel reads,
- *  8 on average over the proof scenes at 3170 × 2000 (a ray of 15 pixels), 17 at the 99th
- *  percentile; the bytes a covered pixel's projection reads and writes. */
+ *  lighting"), the screen ray's depth reads (`vsmScreenRayCast`): the start and its four samples
+ *  (`VSM_SCREEN_RAY_SAMPLES`); the bytes a covered pixel's projection reads and writes. */
 export const FOOTPRINT = 8,
-  SCREEN_RAY = 8,
+  SCREEN_RAY = 1 + 4,
   PROJECTION_BYTES = 21
 /** A shadow ray's sample: a page-table word, then the depth texel it names. */
 export const SAMPLE_FETCHES = 2
@@ -79,11 +78,12 @@ export const TAA_TARGET_BYTES = 8 + 4 + 8 + 4,
 export const taaFetches = (f: Pick<Frame, 'P' | 'D'>) =>
   countTaaFetches(f.P < 0.9 * f.D ? 0.5 : 1, false).fetches
 /** The cut's dependent dispatches per frame (`encodeDagKernels`), counted on its encoder by the
- *  model's test: sixteen whatever the levels — the first arming, clear, prepare, wanted, mask,
- *  prefix, scatter, commit, sort, the parents' raise, then the eviction queue's shared pool sort:
- *  count, place, groups, offsets, spread, scatter —, and two a level — its kernel and its arming
- *  —; the levels the model counts. */
-export const DAG_FIXED_DISPATCHES = 16,
+ *  model's test: seventeen whatever the levels — the first arming, clear, prepare, the wanted and
+ *  the mask each behind its arming, prefix, scatter, commit, sort, the parents' raise, then the
+ *  eviction queue's shared pool sort: count, place, groups, offsets, spread, scatter; pass 0 runs
+ *  flat, unarmed, one less —, and two a level — its kernel and its arming —; the levels the model
+ *  counts. */
+export const DAG_FIXED_DISPATCHES = 17,
   DAG_LEVEL_DISPATCHES = 2,
   DAG_LEVELS = 8
 /** The partition's bytes a cluster: its row, then its counts (`encodeVis`). */

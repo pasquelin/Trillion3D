@@ -1,5 +1,5 @@
-// A transparent object moved by the public `setTransform` changes place in the image, paged as
-// unpaged, by its own node as by its parent, under a sheared matrix, out of view and on return,
+// A transparent object moved by the public `setTransform` changes place in the image, by its own
+// node as by its parent, under a sheared matrix, out of view and on return,
 // including after the held image has settled (`transparentTransformPage.ts`). Out of view, the
 // GPU's frustum verdict rejects it and nothing is painted: its slots are encoded as in view, and
 // the GPU leaves each indirect draw without an instance (`webgpu/blend/verdictWgsl.ts`).
@@ -23,7 +23,7 @@ interface Result extends PageProofResult {
 /** The page's three probes: left, right, top-right corner of the sheared tile. */
 const [LEFT, RIGHT, CORNER] = [0, 1, 2]
 
-test('a transparent follows setTransform, paged and unpaged', async () => {
+test('a transparent follows setTransform', async () => {
   const result = (await runPageProof(
     resolve(import.meta.dirname, 'transparentTransformPage.ts'),
     'transparentTransform',

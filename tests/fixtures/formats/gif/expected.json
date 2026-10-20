@@ -1,24 +1,24 @@
 {
   "binary": {
     "texturePreviewAstcBytes": 0,
-    "texturePreviewBc7Bytes": 0,
+    "texturePreviewBc7Bytes": 48,
     "texturePreviewBytes": 44,
     "texturePreviewEtc2Bytes": 0,
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is palette-globale.gif, a 4 × 2 GIF indexed on a global colour table of eight entries, compiled by the common harness.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 12,
+  "manifestBinaryVersion": 13,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 48,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "4aa0901dd4a2ade43d1ca32b4dfde9484a0c7452081a12a63e75ea77fdec1c80"
         },
         {
           "bytes": 0,
@@ -81,7 +81,7 @@
       "pixelBytes": 44,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "fb2d122650a7670bdaccc13ac94de0c5a9c55c091a50de90e67ac8f94f321574",
+      "sourceSha256": "d9c14c88f00f45c9edef16dde1129a8a8a034c21953c6b467d89c169111f6d4f",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 4
@@ -90,29 +90,23 @@
   "report": {
     "bakedLevels": 0,
     "base": 64,
-    "blockBytes": 0,
+    "blockBytes": 48,
     "blockFormats": ["bc7"],
     "colorTextures": 1,
     "dataTextures": 0,
     "encoded": {
       "bc7": {
-        "keptPsnrDb": null,
-        "lossless": 1,
-        "rgba": 0,
+        "keptPsnrDb": {
+          "median": 18.26,
+          "min": 18.26,
+          "p10": 18.26
+        },
+        "lossless": 0,
+        "rgba": 1,
         "twoChannel": 0
       }
     },
-    "lossless": [
-      {
-        "atlas": "srgb",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 201,
-        "psnrDb": 10.91,
-        "sha256": "fb2d122650a7670bdaccc13ac94de0c5a9c55c091a50de90e67ac8f94f321574"
-      }
-    ],
+    "lossless": [],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 44,
@@ -124,11 +118,11 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 7
+    "version": 10
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Neither BMP nor GIF adds loss: the first is read as-is and put back in image order, the second is indexed, and a colour table already carries 8-8-8.",
   "textures": {
-    "url": "../../textures/v7/{sha}/{kind}-{level}.{format}",
-    "version": 7
+    "url": "../../textures/v10/{sha}/{kind}-{level}.{format}",
+    "version": 10
   }
 }

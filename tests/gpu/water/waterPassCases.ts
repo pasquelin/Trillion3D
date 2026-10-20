@@ -3,7 +3,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import { colorBytesPerSample } from '../../../packages/sdk-browser/src/gpu/core/colorBytes.fixture.ts'
-import { waterSurfaceTargets } from '../../../packages/sdk-browser/src/webgpu/water/surfaceTargets.ts'
+import { blendTargets } from '../../../packages/sdk-browser/src/webgpu/blend/blendTargets.ts'
 
 interface WaterMaterial {
   tint: [number, number, number]
@@ -36,10 +36,11 @@ export const waterSurface = (transmission: number, thickness: number) =>
     attenuationColor: new Color(WATER.attenuationColor),
   })
 
-/** The colour bytes per sample the water surface stage writes, from its own targets: the limit
- *  a device must grant for the water pass to run. */
+/** The colour bytes per sample the transparents' pass writes at most, from its own targets — the
+ *  lit colour, the request, the share and the display layers —: the limit a device must grant for
+ *  a transmissive layer to draw. */
 export const WATER_ATTACHMENT_BYTES = colorBytesPerSample(
-  waterSurfaceTargets(true).map((target) => target.format),
+  blendTargets('normal', GPUColorWrite.ALL, true, true, true).map((target) => target?.format),
 )
 
 interface GroundSpec {

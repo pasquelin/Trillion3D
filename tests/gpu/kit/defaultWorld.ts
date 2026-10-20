@@ -1,6 +1,5 @@
 // A world opened with the engine's own defaults, wherever the proof's page runs: one opening, so
 // every proof that reads a default image reads the same.
-import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { openMeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
 
@@ -8,8 +7,7 @@ import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/cont
  * `manifestUrl` opened on `canvas` by `open` (the page's own import of `openMeasuredWorld`: on Dawn
  * it loads after the GPU) with no `engine` option — the session's own engine —, lit
  * by `lights` before its first frame (a cache whose light table is empty is lit by its host or by
- * nothing), and posed at its first point of interest once its pages are in. The world, and the
- * texture source the session opened with, in its own words (`texture-source`); a failure disposes
+ * nothing), and posed at its first point of interest once its pages are in; a failure disposes
  * of it.
  */
 export async function openDefaultWorld(
@@ -18,7 +16,6 @@ export async function openDefaultWorld(
   manifestUrl: string,
   lights: readonly SceneLight[],
 ) {
-  const sources: EngineDiagnostic[] = []
   const world = await open(canvas, {
     manifestUrl,
     scope: 'full',
@@ -27,7 +24,6 @@ export async function openDefaultWorld(
     pixelRatio: 1,
     temporalAntialiasing: false,
     pixelError: 0,
-    onDiagnostic: (event) => void (event.phase === 'texture-source' && sources.push(event)),
   })
   try {
     for (const light of lights) world.addLight(light)
@@ -37,9 +33,5 @@ export async function openDefaultWorld(
     world.dispose()
     throw error
   }
-  return {
-    world,
-    /** The texture source the session opened with, as its diagnostic said it. */
-    textureSource: () => (sources[0]?.context.textureSource as string | undefined) ?? null,
-  }
+  return world
 }

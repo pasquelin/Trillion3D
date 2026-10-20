@@ -7,7 +7,8 @@
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { dotVector3 } from '../../../packages/math/src/vector/vector.ts'
-import { reflect, subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { reflect } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
 import { raySphere } from './rayShapes.ts'
 import { paintPixel, rigFrameOf } from './rigFrame.ts'
 

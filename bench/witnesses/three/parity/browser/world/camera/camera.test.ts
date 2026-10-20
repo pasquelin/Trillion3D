@@ -65,11 +65,14 @@ test('createExplorerCamera yields the same bounds, centre and radius as expandBy
   assert.ok(Object.is(rendered.radius, radius), `radius: ${rendered.radius} !== ${radius}`)
 })
 
-test('createExplorerCamera throws on a scene with no geometry, empty bounds', () => {
+test('createExplorerCamera frames the unit box about the origin on a scene with no geometry', () => {
   const source = new Group()
   source.add(new Group())
-  assert.throws(
-    () => createExplorerCamera(source, canvas, { manifestUrl: '' }),
-    /Empty scene bounds/,
-  )
+  // One empty-box rule (`frameBounds`): the page poses the camera itself, the framing takes the
+  // unit box, whose half-diagonal is √3.
+  const framed = createExplorerCamera(source, canvas, { manifestUrl: '' })
+  assertBits([framed.bounds.min.x, framed.bounds.min.y, framed.bounds.min.z], [-1, -1, -1])
+  assertBits([framed.bounds.max.x, framed.bounds.max.y, framed.bounds.max.z], [1, 1, 1])
+  assertBits([framed.center.x, framed.center.y, framed.center.z], [0, 0, 0])
+  assert.ok(Object.is(framed.radius, Math.sqrt(3)), `radius: ${framed.radius}`)
 })

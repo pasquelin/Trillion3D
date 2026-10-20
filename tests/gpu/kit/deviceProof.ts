@@ -42,15 +42,12 @@ export async function runOnDevice<R extends object = object>(
   return { adapter: info.court, ...result, events, errors }
 }
 
-/** A two-pass proof, unpaged then paged: `sequence(device, paged, events)` for each, reported
- *  under `passes['non-paged']` and `passes.paged`. */
+/** A proof over the paged scene: `sequence(device, events)`, reported under `passes.paged`. */
 export function runPasses(
-  sequence: (device: GPUDevice, paged: boolean, events: unknown[]) => Promise<unknown>,
+  sequence: (device: GPUDevice, events: unknown[]) => Promise<unknown>,
 ): Promise<DeviceResult> {
   return runOnDevice(async (device, events, result) => {
-    const passes: Record<string, unknown> = (result.passes = {})
-    for (const paged of [false, true])
-      passes[paged ? 'paged' : 'non-paged'] = await sequence(device, paged, events)
+    result.passes = { paged: await sequence(device, events) }
   })
 }
 

@@ -6,14 +6,9 @@ import { callsOf, sceneDe } from './transparentRounds.ts'
 for (const [index, [name, side]] of FACES.entries()) {
   test(`transparent benchmark: ${name} keeps the reference ranges with batched draws`, () => {
     const laps = sceneDe(name, side)
-    assert.equal(laps.after.blendState.seeds[0].length, ITEMS * (index + 1))
-    assert.equal(laps.after.blendState.seeds[1].length, 0)
-    // Four unpaged primitives retain their own hardware-culled draws per face.
-    assert.deepEqual(callsOf(laps), {
-      name,
-      before: 3008 * (index + 1),
-      after: index ? 13 : 9,
-    })
+    assert.equal(laps.after.blendState.seeds.length, ITEMS * (index + 1))
+    // Every item reads the one shared group: one draw, a double-sided scene's too (VERTEX CULL).
+    assert.deepEqual(callsOf(laps), { name, before: 3004 * (index + 1), after: 1 })
 
     for (const [regime, frames] of regimes) {
       for (const frame of frames) {

@@ -58,13 +58,13 @@ async function settled(backend: Engine, before?: number[] | null) {
   let image = await untilHeld(backend, camera)
   for (
     let wait = 0;
-    before && wait < 50 && !(image.held && compareImages(image.held, before).differentPixels);
+    before && wait < 50 && !(image.settled && compareImages(image.settled, before).differentPixels);
     wait++
   ) {
     await new Promise((resolve) => setTimeout(resolve, 20))
     image = await untilHeld(backend, camera)
   }
-  return image.held
+  return image.settled
 }
 
 async function sequence(device: GPUDevice, events: unknown[]) {

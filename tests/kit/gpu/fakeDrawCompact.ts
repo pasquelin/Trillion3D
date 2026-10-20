@@ -9,8 +9,9 @@ import { boundWords, type BoundBuffer } from './fakeBuffers.ts'
 import { maskBit } from './globals.ts'
 
 /** Replays the draw compaction (`scatterGroups`) over the group it binds: the items, the uniform,
- *  the rest bits and, when bound, the visibility mask; the counts, instances and indirect
- *  arguments written where the draw reads them. */
+ *  the rest bits and, when bound, the visibility mask; each slot's start in the offsets region of
+ *  `groups` (group 0's, `drawGroupWords`), the instances and indirect arguments written where the
+ *  draw reads them. */
 export function simulateScatterGroups(entries: readonly BoundBuffer[]) {
   const uni = boundWords(entries, 1)
   const count = uni[0],
@@ -18,7 +19,7 @@ export function simulateScatterGroups(entries: readonly BoundBuffer[]) {
     slotCap = uni[2]
   const itemInts = boundWords(entries, 0)
   const n = Math.min(count, slotCap)
-  const restInts = boundWords(entries, 7)
+  const restInts = boundWords(entries, 6)
   const restAt = (i: number) => (hasBit(restInts, i) ? 1 : 0)
   const items: DrawItem[] = []
   for (let i = 0; i < n; i++)
@@ -37,13 +38,13 @@ export function simulateScatterGroups(entries: readonly BoundBuffer[]) {
           })),
         )
       : items
-  const mask = entries.some((entry) => entry.binding === 6) ? boundWords(entries, 6) : undefined
+  const mask = entries.some((entry) => entry.binding === 5) ? boundWords(entries, 5) : undefined
   const filtered =
     uni[4] && mask
       ? source.filter((_, i) => maskBit(mask, uni[5], itemInts[i * DRAW_ITEM_U32 + 2]))
       : source
   const result = evaluateDrawCompact(count > slotCap ? source : filtered, maxVertexCount, slotCap)
-  boundWords(entries, 5).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
+  boundWords(entries, 4).set(result.counts.map((_, slot) => result.indirect[slot * 4 + 3]))
   boundWords(entries, 2).set(result.instances)
   boundWords(entries, 3).set(indirectForDraw(result))
 }

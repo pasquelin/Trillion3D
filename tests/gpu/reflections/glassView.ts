@@ -2,7 +2,8 @@
 // against (`glassPage.ts`): the eye's rays, a ray's crossing of a pane, a point's pixel.
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { camera } from '../../../packages/sdk-browser/src/reflections/boxes.fixture.ts'
-import { reflect, type Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
+import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
+import { reflect } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
 import { rayRectangle } from './rayShapes.ts'
 
 export const WIDTH = 256,

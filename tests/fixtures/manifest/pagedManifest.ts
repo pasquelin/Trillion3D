@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import { MANIFEST_BINARY_VERSION } from '../../../packages/sdk-core/src/contracts/writtenFormats.ts'
-import { TEMPLATES } from './manifestBinary.ts'
+import { BINARY } from './manifestBinary.ts'
 import { encodeManifestBinary } from './manifestBinaryEncode.ts'
 
 /** An empty slot of a root or an index page. */
@@ -26,20 +26,20 @@ export function pagedManifest(manifest: ClusterManifest, index = false, cut = fa
     return `${page.sha256}${page.bytes.toString(16).padStart(8, '0')}${'0'.repeat(96)}`
   }
   const columns = (part: object) => {
-    const { manifest: slim, binary } = encodeManifestBinary(part as ClusterManifest, TEMPLATES)
+    const { manifest: slim, binary } = encodeManifestBinary(part as ClusterManifest, BINARY)
     return {
       ...slim,
       version: MANIFEST_BINARY_VERSION,
       binary: { ...slim.binary, ...put(binary as Uint8Array<ArrayBuffer>, 'bin') },
     }
   }
-  const { schema, formatVersion, status, scope, primitives, ...top } = manifest
+  const { formatVersion, status, scope, primitives, ...top } = manifest
   const head = columns({ ...top, primitives: [] })
   const parts = cut ? primitives.map((primitive) => [primitive]) : [primitives]
   let meshes = parts.map((part) => slot(columns({ primitives: part })))
   if (index) meshes = [slot({ version: MANIFEST_BINARY_VERSION, pages: [...meshes, EMPTY] })]
   const pages = [...meshes, ...Array<string>(8 - meshes.length).fill(EMPTY)]
-  return { root: { schema, formatVersion, status, scope, head: slot(head), pages }, files }
+  return { root: { formatVersion, status, scope, head: slot(head), pages }, files }
 }
 
 /** Writes `m` paged into `dir`, its root as `file`. */

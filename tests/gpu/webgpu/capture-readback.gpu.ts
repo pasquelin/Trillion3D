@@ -9,7 +9,7 @@ import { runPageProof, publishAndVerify } from '../kit/enginePageProof.ts'
 
 interface Reading {
   padded: { bytes: number; different: number; level: { bytes: number; different: number } }
-  scene: { held: boolean; red: number; bytes: number; moved: number | null; difference: number }
+  scene: { red: number; bytes: number; moved: number; difference: number }
 }
 
 test('a capture copies the image back exactly, with or without a flush before it', async () => {
@@ -25,9 +25,8 @@ test('a capture copies the image back exactly, with or without a flush before it
     { bytes: 67 * 5 * 4, different: 0, level: { bytes: 33 * 2 * 4, different: 0 } },
     'the padded rows read exactly, bottom first; a level read top first',
   )
-  assert.ok(scene.held, 'the first view is held')
   assert.equal(scene.bytes, 96 * 96 * 4)
   assert.ok(scene.red > 0, 'the tile is in the unflushed capture')
-  assert.ok(scene.moved && scene.moved > 0, 'the capture is of the slid view, not the held one')
+  assert.ok(scene.moved > 0, 'the capture is of the slid view, not the held one')
   assert.equal(scene.difference, 0, 'the unflushed capture is the image the flush reads')
 })

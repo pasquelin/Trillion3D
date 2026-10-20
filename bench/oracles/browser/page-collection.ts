@@ -1,8 +1,6 @@
 // Oracle, loading side: `packages/sdk-browser/src/page/selection/collect.ts:34-153`, copied as-is;
 // a mesh's primitive is found as the scene oracle finds it (`referencePrimitiveOf`).
 import * as THREE from 'three'
-import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
-import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
 import { DAG_ERROR_MODEL } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
 import {
@@ -54,7 +52,6 @@ export function referenceCollectClusterPages(
   )
   const roots: ReferenceRoot[] = [],
     allPages: PageRec[] = [],
-    blendCopies: HostMesh[] = [],
     bootstrap: PageRec[] = []
   const structures = new Map<Primitive, ReturnType<typeof structureIndex>>()
   let order = 0
@@ -64,21 +61,12 @@ export function referenceCollectClusterPages(
   for (const mesh of meshes(source)) {
     const primitive = referencePrimitiveOf(metadata, associations, mesh)
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`)
-    if (primitive.pass === 'shared-blend' || surfaceOf(mesh.material).transmission > 0) {
-      const copy = new Mesh(mesh.geometry, mesh.material)
-      copy.matrixAutoUpdate = false
-      copy.matrix.copy(mesh.matrixWorld)
-      copy.frustumCulled = mesh.frustumCulled
-      copy.renderOrder = order++
-      copy.userData.sourceMesh = mesh
-      blendCopies.push(copy)
-      continue
-    }
     const sourceIndices = mesh.geometry.getIndex()
     if (!sourceIndices) throw new Error('Indexed source required')
     const src = sourceIndices.array
     const transparent =
       primitive.pass === 'clustered-blend' ||
+      surfaceOf(mesh.material).transmission > 0 ||
       (Array.isArray(mesh.material)
         ? mesh.material.some((material) => material.transparent)
         : mesh.material.transparent)
@@ -186,7 +174,6 @@ export function referenceCollectClusterPages(
   return {
     roots,
     allPages,
-    blendCopies,
     bootstrap,
     requests: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),

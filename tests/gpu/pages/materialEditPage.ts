@@ -50,8 +50,8 @@ async function held(backend: Engine) {
     rows += countsStep(backend, 'encode')?.rowsUploaded ?? 0
   })
   return {
-    pixels: Uint8Array.from(frames.held ?? frames.rendered ?? []),
-    held: !!frames.held,
+    pixels: Uint8Array.from(frames.settled ?? frames.rendered ?? []),
+    held: !!frames.settled,
     rows,
   }
 }

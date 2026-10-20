@@ -4,7 +4,12 @@
 // kit's alone: the engine's query is on the GPU.
 import type { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts'
 import { rayTriangle } from '../../../packages/math/src/geometry/rayTriangle.ts'
-import { normalizeVector3, writeCrossVector3 } from '../../../packages/math/src/vector/vector.ts'
+import {
+  dotVector3 as dot,
+  normalizeVector3,
+  writeCrossVector3,
+} from '../../../packages/math/src/vector/vector.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** A world triangle of the oracle: its three corners, and the mesh and rank it comes from. */
 export type OracleTriangle = { corners: number[][]; mesh: Mesh; rank: number }
@@ -61,6 +66,42 @@ export function nearestTriangle(
   writeCrossVector3(normal, 0, ...edge(b, a), ...edge(c, a))
   normalizeVector3(normal)
   return { ...best, normal: [...normal] }
+}
+
+/** Where the engine meets a line (`raySegmentDistance`): the nearest pass of the ray by the one
+ *  segment of a line mesh, in doubles, within `reach` of it — the distance along the ray and the
+ *  normal facing the ray —, or `null`. */
+export function nearestSegment(mesh: Mesh, origin: number[], direction: number[], reach: number) {
+  const [a, b] = [0, 1].map((k) => drawnCorner(mesh, k)),
+    edge = b.map((x, c) => x - a[c]),
+    offset = origin.map((x, c) => x - a[c])
+  const [dd, ee, de] = [dot(direction, direction), dot(edge, edge), dot(direction, edge)]
+  // The closest points of the two lines, the segment's clamped to its ends, the ray's to its start.
+  const s = clamp(
+    (dd * dot(edge, offset) - de * dot(direction, offset)) / (dd * ee - de * de),
+    0,
+    1,
+  )
+  const point = a.map((x, c) => x + edge[c] * s)
+  const t = Math.max(
+    0,
+    dot(
+      direction,
+      point.map((x, c) => x - origin[c]),
+    ) / dd,
+  )
+  const gap = point.map((x, c) => origin[c] + direction[c] * t - x)
+  if (dot(gap, gap) > reach * reach || t <= NEAR) return null
+  return { distance: t, normal: direction.map((x) => -x) }
+}
+
+/** Vertex `v` of `mesh` in the world. */
+function drawnCorner(mesh: Mesh, v: number) {
+  mesh.updateWorldMatrix(true, false)
+  const p = mesh.geometry.attributes.position,
+    m = mesh.matrixWorld.elements
+  const [x, y, z] = [p.getX(v), p.getY(v), p.getZ(v)]
+  return [0, 1, 2].map((r) => m[r] * x + m[4 + r] * y + m[8 + r] * z + m[12 + r])
 }
 
 /** `to − from`, three numbers. */

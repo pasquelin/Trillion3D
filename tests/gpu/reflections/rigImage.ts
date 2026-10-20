@@ -1,7 +1,6 @@
-// The still image every reflection proof reads (`rig.ts`): the image a still view of a frame holds,
-// drawn as a frame loop draws while the view is unsettled — one image an animation frame, the lit
-// image's hash coming back some frames later — until the reflections are settled
-// (`reflectionsSettled`: the history frozen, the lit image final), its reflection target read back.
+// The image every reflection proof reads (`rig.ts`): the image a still view of a frame holds after a
+// fixed count of images drawn as a frame loop draws them — one image an animation frame —, enough
+// for the history to fill (`REFLECTION_HISTORY`, twice over), its reflection target read back.
 import { animationFrame } from '../kit/frame.ts'
 import { REFLECTION_COUNTS } from '../../../packages/sdk-browser/src/reflections/constants.ts'
 import { openRig } from './rig.ts'
@@ -9,22 +8,22 @@ import type { RigFrame } from './rigFrame.ts'
 
 type Rig = Awaited<ReturnType<typeof openRig>>
 
-/** Images of `rig` drawn until its view is settled, at most `limit`: how many were drawn — a still
- *  view's history freezes after `REFLECTION_STILL` quiet images, and the lit image's hash answers some
- *  images later, so twice that bounds it. */
-export async function untilSettled(rig: Rig, limit = 2 * REFLECTION_COUNTS.REFLECTION_STILL) {
-  let images = 0
-  while (!rig.settled() && images < limit) {
+/** The images a still view draws before it is read: its history full twice over. */
+const STILL_IMAGES = 2 * REFLECTION_COUNTS.REFLECTION_HISTORY
+
+/** `images` images of `rig` drawn, one an animation frame; the view's radiance pyramid then holds
+ *  an image of it (`settled`). */
+async function untilSettled(rig: Rig, images = STILL_IMAGES) {
+  for (let image = 0; image < images; image++) {
     rig.image()
-    images++
     await animationFrame()
   }
-  if (!rig.settled()) throw new Error(`the view never settled in ${limit} images`)
+  if (!rig.settled()) throw new Error(`the view holds no image after ${images} images`)
   return images
 }
 
-/** The reflection target a still view of `frame` on `device` holds once settled, its raw half-float
- *  words; the rig made for it disposed. */
+/** The reflection target a still view of `frame` on `device` holds after `STILL_IMAGES` images, its
+ *  raw half-float words; the rig made for it disposed. */
 export async function settledImage(device: GPUDevice, frame: RigFrame) {
   const rig = await openRig(device, frame)
   await untilSettled(rig)

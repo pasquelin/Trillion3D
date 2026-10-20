@@ -37,12 +37,14 @@ fn colorRequestAt(s:TileSlot,uv:vec2f,level:u32,missing:bool)->u32{return 0u;}
 fn dataRequestAt(s:TileSlot,uv:vec2f,level:u32,missing:bool)->u32{return 0u;}`,
   )
 
-/** The reference's visibility and surface pipelines on the engine's image and identifier layouts,
+/** The reference's visibility and surface pipelines on the engine's image, identifier and drawn depth
+ *  layouts,
  *  their group 1 the three textures (`referenceGroup`), for chains of `levels` levels. */
 export async function referencePipelines(
   device: GPUDevice,
   imageLayout: GPUBindGroupLayout,
   idsLayout: GPUBindGroupLayout,
+  drawnLayout: GPUBindGroupLayout,
   levels: number,
 ) {
   const FRAGMENT = GPUShaderStage.FRAGMENT
@@ -67,7 +69,7 @@ export async function referencePipelines(
       ...(depthStencil && { depthStencil }),
     })
   const [vis, surface] = await Promise.all([
-    make('card_vis_hiz_fs', VIS_TARGETS, [imageLayout, tilesLayout], VIS_DEPTH),
+    make('card_vis_hiz_fs', VIS_TARGETS, [imageLayout, tilesLayout, drawnLayout], VIS_DEPTH),
     make(
       'card_fs',
       SURFACE_FORMATS.map((format) => ({ format })),

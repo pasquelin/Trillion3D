@@ -21,7 +21,11 @@ const options = { stageProfile: true, temporalAntialiasing: true }
 async function heldPose(backend: Engine, camera: Camera) {
   let withdrawn = 0,
     rejected = 0
-  const { rendered, held, count } = await untilHeld(backend, camera, ({ metrics }) => {
+  const {
+    rendered,
+    settled: held,
+    count,
+  } = await untilHeld(backend, camera, ({ metrics }) => {
     withdrawn = Math.max(withdrawn, countsStep(backend, 'partition')?.pyramidWithdrawn ?? 0)
     rejected = Math.max(rejected, metrics.hizRejectedClusters ?? 0)
   })

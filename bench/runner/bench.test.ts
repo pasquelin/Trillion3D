@@ -139,17 +139,10 @@ test('the engines are WebGPU and the two Three witnesses, nothing else', () => {
   )
 })
 
-test('--gaze-network is a recorded setting that requires baked cache textures', () => {
+test('--gaze-network is a recorded setting', () => {
   const root = '/tmp/test'
   assert.strictEqual(readOptions([], root).settings.gazeNetwork, false)
-  assert.strictEqual(
-    readOptions(['--gaze-network', '--textures', 'cache'], root).settings.gazeNetwork,
-    true,
-  )
-  assert.throws(
-    () => readOptions(['--gaze-network'], root),
-    /--gaze-network requires --textures cache/,
-  )
+  assert.strictEqual(readOptions(['--gaze-network'], root).settings.gazeNetwork, true)
 })
 
 test('trajectoryPoses plays one pose per frame from the view index', () => {

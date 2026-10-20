@@ -49,19 +49,6 @@ export function writeSha(target: Uint8Array, slot: number, sha: string) {
     )
   for (let i = 0; i < 64; i++) target[slot * 64 + i] = sha.charCodeAt(i)
 }
-/** Every object url a sidecar names follows its template; a cache where one does not is rejected. */
-export function expectTemplate(template: string, url: string, sha: string) {
-  if (template.replace('{sha}', sha) !== url)
-    throw new EngineError(
-      'INVALID_CACHE',
-      'A cache object url does not follow the manifest template',
-      {
-        url,
-        template,
-      },
-    )
-}
-
 export function countManifest(manifest: ClusterManifest): Counts {
   const previews = manifest.texturePreviews ?? []
   const counts: Counts = {
@@ -130,17 +117,14 @@ export function slimBinaryOf(primitive: {
             groups: primitive.structure.groups.length,
             roots: primitive.structure.roots.length,
           }
-  if (primitive.streams !== undefined)
-    slim.streams =
-      primitive.streams === null
-        ? null
-        : {
-            version: primitive.streams.version,
-            pinned: primitive.streams.pinned,
-            bundleBytes: primitive.streams.bundleBytes,
-            dependencyBound: primitive.streams.dependencyBound,
-            maxDependencies: primitive.streams.maxDependencies,
-            pages: primitive.streams.pages.length,
-          }
+  if (primitive.streams)
+    slim.streams = {
+      version: primitive.streams.version,
+      pinned: primitive.streams.pinned,
+      bundleBytes: primitive.streams.bundleBytes,
+      dependencyBound: primitive.streams.dependencyBound,
+      maxDependencies: primitive.streams.maxDependencies,
+      pages: primitive.streams.pages.length,
+    }
   return slim
 }

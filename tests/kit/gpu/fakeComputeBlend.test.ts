@@ -4,7 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { simulateComputeDispatch } from './fakeCompute.ts'
-import { WORKGROUP_THREADS } from '../../../packages/sdk-browser/src/gpu/dispatch/grid.ts'
 
 const GROUPS = 100
 /** Sitting in every group count before the pass: a count it did not write. */
@@ -27,18 +26,14 @@ function compaction() {
 }
 
 test('the compaction counts the groups its dispatch reaches, and those alone', () => {
+  // A workgroup a group: its lanes count the group's entries by the lane scan (`shader.ts`).
   const pipeline = { entryPoint: 'countTransparentGroups' }
+  const reached = GROUPS / 2
   const short = compaction()
-  simulateComputeDispatch(pipeline, short.bind, undefined, undefined, 1)
-  assert.deepEqual(
-    [...short.counts.subarray(0, WORKGROUP_THREADS)],
-    new Array(WORKGROUP_THREADS).fill(0),
-  )
-  assert.deepEqual(
-    [...short.counts.subarray(WORKGROUP_THREADS)],
-    new Array(GROUPS - WORKGROUP_THREADS).fill(UNWRITTEN),
-  )
+  simulateComputeDispatch(pipeline, short.bind, undefined, undefined, reached)
+  assert.deepEqual([...short.counts.subarray(0, reached)], new Array(reached).fill(0))
+  assert.deepEqual([...short.counts.subarray(reached)], new Array(GROUPS - reached).fill(UNWRITTEN))
   const whole = compaction()
-  simulateComputeDispatch(pipeline, whole.bind, undefined, undefined, 2)
+  simulateComputeDispatch(pipeline, whole.bind, undefined, undefined, GROUPS)
   assert.deepEqual([...whole.counts], new Array(GROUPS).fill(0))
 })

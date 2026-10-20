@@ -121,8 +121,6 @@ export function readOptions(argv: string[], root: string) {
     port: number('port', 0),
     // A breakdown campaign puts "trace" details on BOTH sides, including the one without variants.
     trace: [...flags.keys()].some((name) => name === 'variant' || name.startsWith('variant-')),
-    // `--textures cache`: the engine reads baked texture levels from cache; loader does not open source images.
-    textureSource: flags.get('textures') === 'cache' ? 'cache' : 'host',
     // `--texture-budget <ms>`: CPU milliseconds a frame may spend copying texture tiles; without
     // the option, the engine keeps its default (1.0 ms).
     textureUploadMs: flags.has('texture-budget') ? number('texture-budget', 1) : null,
@@ -146,8 +144,6 @@ export function readOptions(argv: string[], root: string) {
     throw new Error('--instances must be 1, 4, 9 or 12')
   if (settings.lights < 0) throw new Error('--lights must be a non-negative integer')
   if (settings.frames < 1) throw new Error('--images must be a positive integer')
-  if (settings.gazeNetwork && settings.textureSource !== 'cache')
-    throw new Error('--gaze-network requires --textures cache')
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`))
   // `--resources`: base path referenced by compiled cache glTF via relative path, mounted under `/assets/`.

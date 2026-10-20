@@ -1,9 +1,9 @@
 // A clip convention the host declares changes nothing the engine draws: the same physical camera
 // (near 2.8, far 12) and a tilted tile that crosses the near plane, rendered with no declared
 // convention, then under WebGPU's `[0, 1]`, then with the declaration removed, give the same image
-// pixel for pixel, both ways, paged and unpaged. The engine composes its own projection, in
-// reversed depth and with an infinite far plane, so the declaration changes none of its numbers and
-// the held image must stay held (`depthConventionPage.ts`).
+// pixel for pixel, both ways. The engine composes its own projection, in reversed depth and with an
+// infinite far plane, so the declaration changes none of its numbers and the held image must stay
+// held (`depthConventionPage.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'

@@ -1,9 +1,14 @@
-// The normal cone the WebGPU prepare builds from the host vertices, kept as the reference
-// the compiler's cooked cone and the run-time cut's are checked against
+// The normal cone the WebGPU prepare builds from the host vertices, kept as the reference the
+// compiler's cooked cone and the run-time cut's are checked against
 // (`packages/page-codec-wasm/src/normal_cone.rs`, `tests/integration/cooked-cones.test.ts`,
-// `packages/sdk-browser/src/world/page/cutCones.test.ts`) and the input the cone tests and probes
-// build from. No engine source calls it: the engine reads the cone `normal_cone.rs` built.
-import { OPEN_CONE, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+// `packages/sdk-browser/src/world/page/cutPageCones.test.ts`) and the input the cone tests and
+// probes build from. No engine source calls it: the engine reads the cone `normal_cone.rs` built.
+import { leafCone, type NormalCone } from '../../../packages/sdk-browser/src/page/cone/cone.ts'
+
+/** The cone that never rejects: a leaf's without one (`leafCone`). */
+export const OPEN_CONE = leafCone({})
+
+const { PI } = Math
 
 /** Ulps a built angle may stand above this reference's: twice `ANGLE_MARGIN_ULPS` (4,
  *  `normal_cone.rs`). */
@@ -14,13 +19,16 @@ const word = (value: number) => new BigUint64Array(Float64Array.of(value).buffer
 /** Whether `cone`, built by `normal_cone.rs`, bounds the triangles of `indices` over `positions`:
  *  every non-degenerate face's normal within its angle (by this runtime's `Math.acos`), and that
  *  angle at most `WIDEST` ulps above `triangleCone`'s on the same triangles. The compiler keeps the
- *  narrower of the mean cone and the smallest one, so the axis may differ from this one. */
+ *  smallest cone, never wider than this mean one, so the axis may differ from it; from a
+ *  quarter-turn up it opens the cone (`OPEN_CONE`, no view culls there), which this mean cone, no
+ *  narrower, then reaches too. */
 export function coneHolds(
   cone: NormalCone,
   positions: ArrayLike<number>,
   indices: ArrayLike<number>,
 ): boolean {
   const reference = triangleCone(positions, indices)
+  if (cone.angle === OPEN_CONE.angle) return word(reference.angle) + WIDEST >= word(PI / 2)
   if (word(cone.angle) > word(reference.angle) + WIDEST) return false
   return widestAngle(positions, indices, cone.axis) <= cone.angle
 }

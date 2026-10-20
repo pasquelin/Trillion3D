@@ -1,24 +1,24 @@
 {
   "binary": {
     "texturePreviewAstcBytes": 0,
-    "texturePreviewBc7Bytes": 0,
+    "texturePreviewBc7Bytes": 5904,
     "texturePreviewBytes": 23292,
     "texturePreviewEtc2Bytes": 0,
     "texturePreviews": 3
   },
   "case": "Three quads, three opaque materials, one KTX 2.0 texture each: an uncompressed 4 × 4 R8G8B8A8 sRGB level, a 16 × 16 UASTC LDR 4 × 4 payload, and a 256 × 256 ETC1S payload under BasisLZ supercompression.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 12,
+  "manifestBinaryVersion": 13,
   "previews": [
     {
       "atlas": 0,
       "bakedLevels": 0,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 48,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "436e1af30095ceb8013573dfed4e48e5867715653696b724c14f019195d913fd"
         },
         {
           "bytes": 0,
@@ -81,7 +81,7 @@
       "pixelBytes": 84,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "520bb17e4fd68cd68a365775d275a37d1d62c7b5b82c81cc488a5e7cab4db844",
+      "sourceSha256": "09414b3582c0555e77567f224f789f5fe226725db36ef39b3f214a263358a18b",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 4
@@ -91,10 +91,10 @@
       "bakedLevels": 0,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 368,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "01c511a94872a70555f8cc3b5f881a47a441d6267e52ea7438cc4babaedef886"
         },
         {
           "bytes": 0,
@@ -183,7 +183,7 @@
       "pixelBytes": 1364,
       "pixelOffset": 84,
       "sourceKind": 0,
-      "sourceSha256": "9aa054bbc21b2c7798945705bd69950f8cad148886f2cf213ef38077096e2c04",
+      "sourceSha256": "6b2bf042f1d6b4352c88eabf60405c017921ce6cdfb06b103c9ae3ceaf1d69b6",
       "sourceView": 4294967295,
       "texture": 1,
       "width": 16
@@ -193,10 +193,10 @@
       "bakedLevels": 2,
       "blocks": [
         {
-          "bytes": 0,
+          "bytes": 5488,
           "format": "bc7",
-          "layout": 0,
-          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          "layout": 1,
+          "sha256": "0287bba01c8e28ffbeebae2fb1155185d3677e96ff27399af296e4cef61fa448"
         },
         {
           "bytes": 0,
@@ -311,7 +311,7 @@
       "pixelBytes": 21844,
       "pixelOffset": 1448,
       "sourceKind": 0,
-      "sourceSha256": "caae8bc87302f92f55d6ae99e74317a12cbe3e788c8600121271f64b71e8a362",
+      "sourceSha256": "e29c1477df999b3082254235887faf3b2f623dafaa945e76bd2673a6beacb944",
       "sourceView": 4294967295,
       "texture": 2,
       "width": 256
@@ -320,47 +320,23 @@
   "report": {
     "bakedLevels": 2,
     "base": 64,
-    "blockBytes": 0,
+    "blockBytes": 5904,
     "blockFormats": ["bc7"],
     "colorTextures": 3,
     "dataTextures": 0,
     "encoded": {
       "bc7": {
-        "keptPsnrDb": null,
-        "lossless": 3,
-        "rgba": 0,
+        "keptPsnrDb": {
+          "median": 46.95,
+          "min": 21.25,
+          "p10": 21.25
+        },
+        "lossless": 0,
+        "rgba": 3,
         "twoChannel": 0
       }
     },
-    "lossless": [
-      {
-        "atlas": "srgb",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 133,
-        "psnrDb": 13.81,
-        "sha256": "520bb17e4fd68cd68a365775d275a37d1d62c7b5b82c81cc488a5e7cab4db844"
-      },
-      {
-        "atlas": "srgb",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 6,
-        "psnrDb": 46.63,
-        "sha256": "9aa054bbc21b2c7798945705bd69950f8cad148886f2cf213ef38077096e2c04"
-      },
-      {
-        "atlas": "srgb",
-        "format": "bc7",
-        "layout": "rgba",
-        "maskFlips": 0,
-        "maxDelta": 100,
-        "psnrDb": 37.33,
-        "sha256": "caae8bc87302f92f55d6ae99e74317a12cbe3e788c8600121271f64b71e8a362"
-      }
-    ],
+    "lossless": [],
     "maxLevels": 7,
     "notes": {},
     "pixelBytes": 23292,
@@ -372,11 +348,11 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 7
+    "version": 10
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. The KTX2 container adds no loss: what the driver yields is the reconstruction the codec specification defines, and nothing else.",
   "textures": {
-    "url": "../../textures/v7/{sha}/{kind}-{level}.{format}",
-    "version": 7
+    "url": "../../textures/v10/{sha}/{kind}-{level}.{format}",
+    "version": 10
   }
 }

@@ -5,6 +5,8 @@ import { poseAt } from './poses.ts'
 import type { FrameMetrics } from '../../../packages/sdk-core/src/contracts/metrics.ts'
 
 const pose = poseAt({ min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 10, z: 10 } }, 0)
+/** A backend whose history reset does nothing, on a display 64 pixels wide. */
+const still = { resetHistory() {}, displayWidth: () => 64 }
 test('arrival counters survive a backend reusing its metrics scratch during settling', async () => {
   const scratch: Partial<FrameMetrics> = {
     selectedTriangles: 10,
@@ -21,6 +23,7 @@ test('arrival counters survive a backend reusing its metrics scratch during sett
         return scratch
       },
       capture: async (name) => name,
+      ...still,
     },
     [pose],
     [0],
@@ -56,6 +59,7 @@ test('arrival precedes convergence and temporary holes/errors remain failures af
         captures.push(renders)
         return name
       },
+      ...still,
     },
     [pose],
     [0],
@@ -69,7 +73,7 @@ test('arrival precedes convergence and temporary holes/errors remain failures af
   assert.equal(ticks, renders, 'all renders, including settling, advance through browser frames')
 })
 
-test('intermediate moving poses render once and an unsettled checkpoint stays bounded', async () => {
+test('intermediate moving poses render once and a checkpoint settles in whole phase cycles', async () => {
   let renders = 0
   const result = await walkTrajectory(
     {
@@ -81,13 +85,15 @@ test('intermediate moving poses render once and an unsettled checkpoint stays bo
         uncoveredTriangles: 0,
       }),
       capture: async (name) => name,
+      ...still,
     },
     [pose, pose, pose],
     [2],
     'candidate',
     true,
   )
-  assert.equal(renders, 1 + 3 + 64)
-  assert.equal(result.checkpoints[0].settleFrames, null)
+  // From the reset, six cycles of the eleven phases a frame at the display's size has.
+  assert.equal(renders, 1 + 3 + 66)
+  assert.equal(result.checkpoints[0].settleFrames, 66, 'a whole number of phase cycles')
   assert.deepEqual(result.coverageFailures, [])
 })

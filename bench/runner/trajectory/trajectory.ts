@@ -21,15 +21,7 @@ import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
 async function main() {
   const { flags, settings, out, resources } = readOptions(
-    [
-      '--engine',
-      'webgpu',
-      '--images',
-      String(PATH_POSES),
-      '--textures',
-      'cache',
-      ...process.argv.slice(2),
-    ],
+    ['--engine', 'webgpu', '--images', String(PATH_POSES), ...process.argv.slice(2)],
     REPOSITORY_ROOT,
   )
   const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60))

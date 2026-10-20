@@ -8,6 +8,10 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { engine, releaseScene } from '../kit/sharedSceneProof.ts'
 import { BACKGROUND, WATER_ATTACHMENT_BYTES } from './waterPassCases.ts'
 import {
+  DISTORTION_APPLY_PASS,
+  DISTORTION_PASS,
+} from '../../../packages/sdk-browser/src/stage/passLabels.ts'
+import {
   SIZE,
   waterCostScene,
   waterCostCamera,
@@ -25,7 +29,7 @@ export interface WaterCostOptions {
 }
 
 export async function run(factory: EngineFactory, options: WaterCostOptions) {
-  // The engine's own device, holding the timestamps and the five water targets; the kit refuses
+  // The engine's own device, holding the timestamps and the transparents' targets; the kit refuses
   // a device lacking the limit.
   const gpu = await openGpuDevice(['timestamp-query'], {
     maxColorAttachmentBytesPerSample: WATER_ATTACHMENT_BYTES,
@@ -96,9 +100,10 @@ export async function run(factory: EngineFactory, options: WaterCostOptions) {
           typeof metrics.gpuHostGapMs !== 'number'
         )
           invalidSamples++
-        const surfaces = sample.passes.some((p) => p.name === 'Trillion3D water surfaces')
-        const composite = sample.passes.some((p) => p.name === 'Trillion3D water composite')
-        if (options.enabled ? !surfaces || !composite : surfaces || composite) waterPassMismatches++
+        const accumulated = sample.passes.some((p) => p.name === DISTORTION_PASS)
+        const applied = sample.passes.some((p) => p.name === DISTORTION_APPLY_PASS)
+        if (options.enabled ? !accumulated || !applied : accumulated || applied)
+          waterPassMismatches++
       }
       if (
         fresh &&

@@ -9,6 +9,9 @@ import {
   VIS_UNIFORM_BYTES,
 } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts'
 import { visLayoutEntries } from '../../../packages/sdk-browser/src/webgpu/visibility/shaders.ts'
+import { VIS_TARGETS } from '../../../packages/sdk-browser/src/webgpu/visibility/pipelines.ts'
+import { VIS_FRAGMENT } from '../../../packages/sdk-browser/src/visibility/shader/visWgsl.ts'
+import { VIS_UNIFORM } from '../../../packages/sdk-browser/src/visibility/shader/uniformLayout.ts'
 import { bufferHolding } from '../kit/computeReadback.ts'
 import { PAGE_INFO } from '../../../packages/sdk-browser/src/visibility/pageInfo.ts'
 import { NO_INDEX } from '../../../packages/math/src/constants.ts'
@@ -21,11 +24,6 @@ const WIDTH = 256,
   HEIGHT = 160
 /** A page drawn by the direct path, past the indirect slots, under its canonical instance index. */
 export const DIRECT_PAGE = 122
-/** Words of `Uniforms` (`VIS_UNIFORMS_WGSL`) the slots differ by: the slot drawn, and whether its
- *  draw is indirect. */
-const DRAW_SLOT_WORD = 20,
-  INDIRECT_WORD = 21
-
 /** The page a visibility identifier names: its packed row base, less one (`packedRowBase`). */
 export const pageOfId = (id: number) => (id >>> VIS_TRIANGLE_BITS) - 1
 
@@ -48,8 +46,9 @@ function pageTable() {
   return table
 }
 
-/** The visibility pipelines (untested and tested halves), one bind group per slot and one for the
- *  direct page, and the layered target each slot draws into. */
+/** The visibility pipeline (both halves draw with it, as the engine's `visPipeline`), one bind
+ *  group per slot and one for the direct page, the layered target each slot draws into, and the
+ *  page table and Hi-Z verdicts the tested half's compaction reads (`GpuDraw.encodeTested`). */
 export function setupVisibility(
   device: GPUDevice,
   module: GPUShaderModule,
@@ -63,6 +62,8 @@ export function setupVisibility(
     positions = upload(Float32Array.of(-1, -1, 0.5, 1, -1, 0.5, 0, 1, 0.5)),
     flags = upload(new Uint32Array(1)),
     uvs = upload(new Float32Array(6)),
+    // No page has a Hi-Z slot: the tested half's compaction rejects none (`hizRejected`).
+    hizFlags = upload(new Uint32Array(1)),
     // No page carries a map: no lane pool is ever read, the atlas page table stays empty.
     colorPages = upload(new Uint32Array(64))
   const maps = device
@@ -76,29 +77,23 @@ export function setupVisibility(
   // No page draws a sprite, a line or a cutout: none reads its surface's record.
   const records = device
     .createTexture({ size: [1, 1], format: 'rgba32uint', usage: GPUTextureUsage.TEXTURE_BINDING })
-    .createView()
+    .createView({ dimension: '2d-array' })
   const layout = device.createBindGroupLayout({ entries: visLayoutEntries() })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
-  const pipelines = ['vis_vs', 'vis_hiz_vs'].map((entryPoint) =>
-    device.createRenderPipeline({
-      layout: pipelineLayout,
-      vertex: { module, entryPoint },
-      // The engine's one visibility stage: the identifier, and the pyramid's level 0 beside it.
-      fragment: {
-        module,
-        entryPoint: 'vis_hiz_fs',
-        targets: [{ format: 'r32uint' }, { format: 'r32float' }],
-      },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-    }),
-  )
+  const pipeline = device.createRenderPipeline({
+    layout: pipelineLayout,
+    vertex: { module, entryPoint: 'vis_vs' },
+    // The engine's one visibility stage: the identifier, and the pyramid's level 0 beside it.
+    fragment: { module, entryPoint: VIS_FRAGMENT, targets: VIS_TARGETS },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+  })
   const b = VIS_BINDINGS
   const groups = Array.from({ length: slots + 1 }, (_, slot) => {
     const block = new ArrayBuffer(VIS_UNIFORM_BYTES),
       ints = new Uint32Array(block)
     new Float32Array(block).set([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
-    ints[DRAW_SLOT_WORD] = slot % slots
-    ints[INDIRECT_WORD] = slot < slots ? 1 : 0
+    ints[VIS_UNIFORM.at.drawSlot] = slot % slots
+    ints[VIS_UNIFORM.at.indirect] = slot < slots ? 1 : 0
     const uniform = device.createBuffer({
       size: VIS_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -136,5 +131,13 @@ export function setupVisibility(
     Array.from({ length: slots + 1 }, (_, slot) =>
       texture.createView({ dimension: '2d', baseArrayLayer: slot, arrayLayerCount: 1 }),
     )
-  return { pipelines, groups, target, views: layer(target), levelViews: layer(levels) }
+  return {
+    pipeline,
+    groups,
+    table,
+    hizFlags,
+    target,
+    views: layer(target),
+    levelViews: layer(levels),
+  }
 }

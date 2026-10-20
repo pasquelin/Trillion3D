@@ -128,9 +128,8 @@ with two engines they are the union of both sides' needs.
 | `--width` / `--height` / `--dpr`                                       | 1280 / 720 / 1                          | CSS viewport; `--dpr 2` renders twice the pixels per axis                                                                                                                                        |
 | `--out` / `--port`                                                     | `.mesure/out/<engine>-<timestamp>/` / 0 | output directory, server port                                                                                                                                                                    |
 | `--bounce on\|off`                                                     | `off`                                   | bounce lighting                                                                                                                                                                                  |
-| `--textures cache\|host`                                               | `host`                                  | `cache` skips every source image whose chain the cache carries; `host` decodes them all, as the Three witnesses need. The engine reads the baked levels either way                               |
-| `--texture-budget <ms>`                                                | engine's 1.0 ms                         | CPU ms a frame may copy texture tiles; read on a cold traversal (`--warmup 0 --moving-camera --textures cache`)                                                                                  |
-| `--compression[-<side>] auto\|bc7\|astc\|none`                         | `auto`                                  | block family of the WebGPU texture pools under `--textures cache`²                                                                                                                               |
+| `--texture-budget <ms>`                                                | engine's 1.0 ms                         | CPU ms a frame may copy texture tiles; read on a cold traversal (`--warmup 0 --moving-camera`)                                                                                                   |
+| `--compression[-<side>] auto\|bc7\|astc\|none`                         | `auto`                                  | block family of the WebGPU texture pools²                                                                                                                                                        |
 | `--antialiasing on\|off`                                               | `on`                                    | TAA jitter and accumulation                                                                                                                                                                      |
 | `--scale[-<side>] <s>`                                                 | display                                 | WebGPU frame drawn at `s` per axis, reconstructed by the temporal resolve; below 1 needs `webgpu` and TAA                                                                                        |
 | `--reference`                                                          | off                                     | class-2 image proof against the [reference image](#reference-images)³                                                                                                                            |
@@ -202,11 +201,11 @@ All read on **one frame**, the measured loop's last (`series[].sides[].recordedF
 | Counter                   | Meaning                                                                                                                                           |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `selectedTriangles`       | the frame's cluster cut before frustum and occlusion rejection; `null` without a cut                                                              |
-| `drawnTriangles`          | the published cut, opaque and transparent, minus clusters with no resident page. Counted at cut commit, no GPU readback; occlusion not subtracted |
+| `drawnTriangles`          | `selectedTriangles` less the occlusion test's rejects (`hizRejectedTriangles`, last GPU sample, one frame in fifteen)                             |
 | `coverage` (`resume.md`)  | `selectedTriangles − drawnTriangles − uncoveredTriangles`: zero expected                                                                          |
 | `submittedTriangles`      | GPU count of the opaque raster pass; `null` while a GPU cut's readback is pending                                                                 |
 | `totalSubmittedTriangles` | the same with transparent passes; `null` under `--moving-camera`, where the readback never returns                                                |
-| `frameHeld`               | the frame was held (scene unchanged): zero clusters drawn is a record, not a missing reading                                                      |
+| `frameHeld`               | the frame was held (scene unchanged, no temporal pass running): zero clusters drawn is a record, not a missing reading                            |
 | `uncoveredTriangles`      | cut triangles with no resident page and no covering ancestor, a hole: zero is the only valid value                                                |
 | `hiZ`                     | occlusion input, rejected, downsampled; on the GPU path an earlier frame, `null` before the first count                                           |
 
@@ -215,9 +214,10 @@ allocated VRAM per side and view as registered by the device wrapper, in three c
 atlas, geometry pool, render targets) and the top labelled allocations
 (`metrics.gpuAllocatedByLabel`).
 
-The capture is taken on a **still pose**: after warmup the pose renders until held, at most 64
-frames (`calmPose`, `harness/measurePage.ts`; `settleFrames` gives the count). Each series runs in a
-fresh page closed right after.
+The capture is taken on a **still pose**: its pages awaited, the pose renders 64 frames — the
+temporal pass runs every frame and never holds (its jitter moves the image each frame) —, fewer
+where a view without it holds earlier (`calmPose`, `harness/measurePage.ts`; `settleFrames` gives
+the count). Each series runs in a fresh page closed right after.
 
 ## Assets
 
@@ -287,10 +287,12 @@ compression; `trajectory.json` records build hashes, asset identity, browser ver
 path version beside the PNGs. The output directory must be new and under `.mesure/out/`.
 
 Default: every pose, checkpoints every 60 (`--checkpoint-every`, at most 32 checkpoints) and at the
-last; `--images` shortens a diagnosis. Each checkpoint waits a 64-frame held-image barrier; every
-render is checked for coverage and streaming errors. The baseline runs twice: only exact, non-black
-0 px A/A images become goldens. Missing captures, page or GPU errors, holes, no drawn geometry,
-unsettled images and unstable goldens fail; one changed pixel after convergence is a regression. A
+last; `--images` shortens a diagnosis. Each checkpoint resets the temporal history (a view cut) and
+renders a whole number of the jitter's phase cycles, 64 frames at least, so every capture lands on
+the same phase of the same history; every render is checked for coverage and streaming errors. The
+baseline runs twice: only exact, non-black 0 px A/A images become goldens. Missing captures, page or
+GPU errors, holes, no drawn geometry and unstable goldens fail; one changed pixel after convergence
+is a regression. A
 difference gone after convergence is reported `transient`, with arrival page counters and settling
 frames. `--scene` and `--cache` pick another scene than Sponza; a missing cache fails.
 

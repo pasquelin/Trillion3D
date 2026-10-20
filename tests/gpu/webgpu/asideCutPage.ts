@@ -8,7 +8,7 @@ import { runOnDevice } from '../kit/deviceProof.ts'
 import { transformScene } from '../placement/transformScene.ts'
 
 async function sequence(device: GPUDevice, events: unknown[], result: { scene?: unknown }) {
-  const scene = transformScene(false)
+  const scene = transformScene()
   const { backend, canvas } = engine(scene, device, (e) => events.push(e))
   try {
     await backend.prepare()
@@ -18,12 +18,14 @@ async function sequence(device: GPUDevice, events: unknown[], result: { scene?: 
     const aside = await backend.captureColorView!(cameraFace(0.4), { width, height })
     const after = await untilHeld(backend, cameraFace())
     result.scene = {
-      held: before.held !== null && after.held !== null,
+      held: before.settled !== null && after.settled !== null,
       red: redCount(aside),
       bytes: aside.length,
       main:
-        before.held && after.held ? compareImages(before.held, after.held).differentPixels : null,
-      moved: before.held ? compareImages(before.held, aside).differentPixels : null,
+        before.settled && after.settled
+          ? compareImages(before.settled, after.settled).differentPixels
+          : null,
+      moved: before.settled ? compareImages(before.settled, aside).differentPixels : null,
     }
   } finally {
     release(backend, canvas, scene)

@@ -46,7 +46,6 @@ test(
         !phases.some((phase) => /failed|gpu-device-lost/.test(phase)),
         `${fixture.name}: GPU failure diagnostic`,
       )
-      assert.equal(fixture.held, true, `${fixture.name}: the engine image never settled`)
       if (fixture.holes !== undefined)
         assert.equal(
           fixture.holes,

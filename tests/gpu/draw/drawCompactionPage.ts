@@ -20,7 +20,7 @@ export async function runDrawCompaction({ cases, cap }: { cases: DrawCase[]; cap
   const vis = setupVisibility(
     device,
     module,
-    { instances: draw.instanceBuffer, slotOffsets: draw.slotOffsetsBuffer },
+    { instances: draw.instanceBuffer, slotOffsets: draw.groupsBuffer },
     draw.slots,
   )
   const results = []

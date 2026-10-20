@@ -16,7 +16,15 @@ import { srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { readTexture } from '../kit/computeReadback.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 
-import { DEPTH_SKEW, SIDE, cardRecords, cardTiles, half, viewUniform } from './cardIdRig.ts'
+import {
+  DEPTH_SKEW,
+  SIDE,
+  cardRecords,
+  cardTiles,
+  half,
+  nothingDrawn,
+  viewUniform,
+} from './cardIdRig.ts'
 
 /** What one pair of stages drew. */
 type Drawn = {
@@ -80,6 +88,7 @@ async function drawCards(
   visual.setPipeline(pipes.visPipeline(true))
   visual.setBindGroup(0, visImage)
   visual.setBindGroup(1, tiles.group)
+  visual.setBindGroup(2, nothingDrawn(device, pipes.drawnLayout, SIDE))
   cards.forEach((_, slot) => visual.draw(4, 1, 0, slot))
   visual.end()
   const draw = encoder.beginRenderPass({

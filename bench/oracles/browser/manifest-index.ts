@@ -6,10 +6,16 @@ import type { GeometryPageDescriptor } from '../../../packages/sdk-core/src/page
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor }
 const hasGeometry = (page: Page): page is PageWithGeometry => !!page.geometry
 
-/** `openExplorerPageSources`: four `flatMap` over every page of the manifest. */
+/** `openExplorerPageSources`: four `flatMap` over every page of the manifest. A page with its
+ *  geometry is read as that geometry page alone, never by a URL of its own (manifest 13). */
 export function referenceIndexManifestPages(metadata: ClusterManifest) {
   const pages = [
-    ...new Map(metadata.primitives.flatMap((p) => p.pages).map((p) => [p.url, p])).values(),
+    ...new Map(
+      metadata.primitives
+        .flatMap((p) => p.pages)
+        .filter((page) => !hasGeometry(page))
+        .map((p) => [p.url, p]),
+    ).values(),
   ]
   const geometryPages = [
     ...new Map(

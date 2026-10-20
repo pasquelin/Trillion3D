@@ -1,10 +1,9 @@
 // The engine's deformation kernel on a real GPU (`deformationKernelPage.ts`), over the layout of
 // `deformationKernelCases.ts`: a compressed skinned and morphed page decoded in place, then the same
 // three vertices as a dynamic float source whose previous position is the last image's, a soft
-// source, a wave, and a whole copy skinned out of the float pool and written back into it.
+// source and a wave.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { OCT_BYTE_STEP } from '../../../packages/math/src/constants.ts'
 import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
 import { MOVED, REST, waves } from './deformationKernelCases.ts'
 import { deformationRecords } from './deformationKernelRun.ts'
@@ -14,7 +13,7 @@ const field = (frame: number[], vertex: number, from: number) =>
   frame.slice(vertex * DEFORM_VERTEX_WORDS + from, vertex * DEFORM_VERTEX_WORDS + from + 3)
 
 test('the deformation kernel decodes, deforms and keeps the history the engine declares', async () => {
-  const [skin, dynamic, moved, still, soft, waving, copied] = await deformationRecords()
+  const [skin, dynamic, moved, still, soft, waving] = await deformationRecords()
   for (let v = 0; v < 3; v++) {
     const rest = REST.slice(v * 3, v * 3 + 3)
     assert.deepEqual(field(skin, v, 0), [rest[0] + 2, rest[1], 1], `skin and morph, vertex ${v}`)
@@ -27,12 +26,6 @@ test('the deformation kernel decodes, deforms and keeps the history the engine d
     const offset = waves.offset(rest[0], rest[2], [])
     field(waving, v, 0).forEach((c, axis) =>
       assert.ok(Math.abs(c - rest[axis] - offset[axis]) < 0.01, `wave, vertex ${v}`),
-    )
-    // The whole copy deforms the float pool's exact normal, the page its octahedral one.
-    assert.deepEqual(field(copied, v, 0), field(skin, v, 0), `whole copy, vertex ${v}`)
-    assert.deepEqual(field(copied, v, 3), field(skin, v, 3), `whole copy history, vertex ${v}`)
-    field(copied, v, 6).forEach((c, axis) =>
-      assert.ok(Math.abs(c - field(skin, v, 6)[axis]) <= OCT_BYTE_STEP, `whole copy normal, ${v}`),
     )
   }
 })

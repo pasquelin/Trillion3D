@@ -132,7 +132,7 @@
       "pbrMetallicRoughness": {
         "baseColorFactor": [0.1, 0.1, 0.1, 1.0],
         "metallicFactor": 0.0,
-        "roughnessFactor": 0.6
+        "roughnessFactor": 1.0
       }
     }
   ],
@@ -199,7 +199,7 @@
     "version": "obj-ufbx-0.11.3-gltf-7"
   },
   "selectedNodes": 1,
-  "sidecarSha256": "2fa6732c8f4f3d61c9f86b0a230c43c3dc0ce4e1654b14eb6b79ca4d379857a0",
+  "sidecarSha256": "c936d3fb859c5afc0390dbef7cb9e057d8435cf3cb46608a6de44ad2ac0a0360",
   "sourceTriangles": 5,
   "textures": [
     {
@@ -217,11 +217,11 @@
   ],
   "trianglesAcrossNodes": 5,
   "unsupported": {
+    "ior-unsupported": 1,
     "material-ambient-color": 1,
     "material-bump-map": 1,
     "material-separate-opacity-texture": 1,
     "material-specular-color": 1,
-    "ior-unsupported": 1,
     "texture-bump-scale": 1,
     "texture-offset": 1,
     "texture-scale": 1

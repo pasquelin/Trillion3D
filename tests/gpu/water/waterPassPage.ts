@@ -24,17 +24,14 @@ import {
   type WaterCase,
 } from './waterPassCases.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
-import {
-  WATER_COMPOSITE_PASS,
-  WATER_SURFACE_PASS,
-} from '../../../packages/sdk-browser/src/webgpu/water/passLabels.ts'
+import { DISTORTION_PASS } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
 
-function scene(paged: boolean, kase: WaterCase): ScenePreparee {
+function scene(kase: WaterCase): ScenePreparee {
   const builder = batisseur()
   const ground = G.basicSurface({ color: new Color(GROUND.color), side: G.DOUBLE_SIDE })
   builder.place(ground, 'exact-clusters', 4, [kase.groundX, 0, -GROUND.depth]).name = 'ground'
   const water = waterSurface(kase.transmission, kase.thickness)
-  builder.place(water, paged ? 'clustered-blend' : 'shared-blend', 1).name = 'water'
+  builder.place(water, 'clustered-blend', 1).name = 'water'
   return builder.fini()
 }
 
@@ -47,7 +44,6 @@ function centre(pixels: Uint8Array): number[] {
 
 interface CaseResult {
   name: string
-  paged: boolean
   centre: number[]
   moved: number[]
   drawsFirst: number | null | undefined
@@ -60,12 +56,11 @@ interface CaseResult {
  *  work at all. */
 async function waterCase(
   device: GPUDevice,
-  paged: boolean,
   kase: WaterCase,
   events: EngineDiagnostic[],
 ): Promise<CaseResult> {
   const { labels, restore } = recordPassLabels(device)
-  const s = scene(paged, kase)
+  const s = scene(kase)
   const { backend, canvas } = engine(s, device, (e: EngineDiagnostic) => events.push(e), {
     clearColor: BACKGROUND,
   })
@@ -79,13 +74,9 @@ async function waterCase(
       moved: number
       pixels: Uint8Array
     }[] = []
-    // Four images of the pose, then on until it is held: a still view that reflects freezes its
-    // reflections' history after `REFLECTION_STILL` quiet images (`settle.ts`) and is held after them.
-    for (
-      let i = 0;
-      i < 4 || (i < 4 + 2 * REFLECTION_COUNTS.REFLECTION_STILL && !frames[i - 1].held);
-      i++
-    ) {
+    // Four images of the pose, then a fixed count more: the reflections' history full twice over
+    // (`REFLECTION_HISTORY`).
+    for (let i = 0; i < 4 + 2 * REFLECTION_COUNTS.REFLECTION_HISTORY; i++) {
       const { pixels, metrics: metrics } = await image(backend, camera)
       frames.push({
         centre: centre(pixels),
@@ -97,16 +88,10 @@ async function waterCase(
         pixels,
       })
     }
-    if (
-      kase.transmission > 0 &&
-      (!labels.has(WATER_SURFACE_PASS) || !labels.has(WATER_COMPOSITE_PASS))
-    )
-      throw new Error('Water proof did not encode the real water passes')
-    if (events.some((e) => e.phase === 'water-pass-refused'))
-      throw new Error('Water pass was refused')
+    if (kase.transmission > 0 && !labels.has(DISTORTION_PASS))
+      throw new Error('Water proof did not encode the distortion of its transmissive layer')
     return {
       name: kase.name,
-      paged,
       centre: frames[0].centre,
       moved: frames.slice(0, 4).map((f) => f.moved),
       drawsFirst: frames[0].draws,
@@ -119,14 +104,13 @@ async function waterCase(
   }
 }
 
-/** Every case, unpaged then paged, on a device that grants the water stage its attachments. */
+/** Every case, on a device that grants the water stage its attachments. */
 export function run() {
   return runOnDevice<{ cases: CaseResult[] }>(
     async (device, events, result) => {
       const cases: CaseResult[] = (result.cases = [])
-      for (const paged of [false, true])
-        for (const kase of CASES)
-          cases.push(await waterCase(device, paged, kase, events as EngineDiagnostic[]))
+      for (const kase of CASES)
+        cases.push(await waterCase(device, kase, events as EngineDiagnostic[]))
     },
     { maxColorAttachmentBytesPerSample: WATER_ATTACHMENT_BYTES },
   )

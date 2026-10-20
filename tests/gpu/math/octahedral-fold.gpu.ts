@@ -6,8 +6,8 @@
 // page normals' (`cluster/decodeWgsl.ts`) and the compiler's `oct_decode`: the lower half folded
 // per axis in one rounding, `1 − |other|` on its side. The lobes' unpack and the receiver's plane
 // decode take it too: their lower half, which added `−z` to each axis in a second rounding, moves
-// by at most `FEW_ULPS` per component against `develop`'s decode, and no component's 8-bit unorm
-// moves (class 1). A million directions of every octant, on and off
+// by at most `ROUNDINGS` units of 2^-24 per component against `develop`'s decode, and no component's
+// 8-bit unorm by more than one step (class 1). A million directions of every octant, on and off
 // the axes, at lengths from 2^-8 to 2^7; a million lobe words; every 10-bit receiver cell and
 // impostor frame. The zero vector, which no caller encodes, is left out. Straight down on the
 // hemi-octahedron, where `develop` divided zero by zero, reads the zenith frame `(0, 0)`.
@@ -81,29 +81,34 @@ fn wasImpOctEncode(d:vec3f,hemi:f32)->vec2f{
 
 const THREADS = 1 << 20
 
-/** The most a decode's component may move, in ulps, against `develop`'s second rounding. */
-const FEW_ULPS = 8
+/**
+ * The most a decode's component may move against `develop`'s, in units of 2^-24 — half an ulp of
+ * one, the most one rounding moves a value in [0.5, 1]: before normalizing, `develop`'s fold rounds
+ * x and y three times where the per-axis fold rounds once (4 units apart at most, z the same);
+ * normalizing a point of the octahedron, of length 1/√3 at least, scales that by √3 at most (10);
+ * each decode's own `normalize` rounds a few units more. An absolute bound, never an ulp count of
+ * the component: where the exact component is zero — `|e.y| = 1` —, the per-axis fold returns 0 and
+ * `develop`'s a rounding's residue of either sign, millions of the component's own ulps apart.
+ */
+const ROUNDINGS = 32
 
 /** Per thread: a direction (one of the 26 axis and diagonal ones first, then hashed ones), a lobe
  *  word, a receiver cell; each codec's differing results counted in its own counter, then the lobe
- *  and receiver decodes against `develop`'s: the largest ulp distance of a component, and the
- *  count of normals whose 8-bit unorm moved. */
+ *  and receiver decodes against `develop`'s: the largest distance of a component in units of
+ *  2^-24, and the largest step of a component's 8-bit unorm. A component `develop` left exactly
+ *  zero encodes 127.5, a step's edge: a rounding's residue moves it by one. */
 const SHADER = wgslProgram(
   `${DEVELOP_WGSL}
 @group(0) @binding(0) var<storage,read_write> differ:array<atomic<u32>,12>;
 fn same2(a:vec2f,b:vec2f)->bool{return all(bitcast<vec2u>(a)==bitcast<vec2u>(b));}
 fn same3(a:vec3f,b:vec3f)->bool{return all(bitcast<vec3u>(a)==bitcast<vec3u>(b));}
 fn tally(k:u32,same:bool){if(!same){atomicAdd(&differ[k],1u);}}
-fn ordered(x:f32)->i32{let b=bitcast<i32>(x);return select(b,-(b&0x7fffffff),b<0);}
-fn ulps(a:vec3f,b:vec3f)->u32{
- var m=0u;
- for(var c=0u;c<3u;c++){let d=ordered(a[c])-ordered(b[c]);m=max(m,u32(abs(d)));}
- return m;
-}
-fn unorm8(n:vec3f)->u32{return pack4x8unorm(vec4f(n*0.5+0.5,0.0));}
+fn apart(a:vec3f,b:vec3f)->u32{let d=abs(a-b);return u32(ceil(max(d.x,max(d.y,d.z))*exp2(24.0)));}
+fn unorm8(n:vec3f)->vec3i{let w=pack4x8unorm(vec4f(n*0.5+0.5,0.0));return vec3i(vec3u(w,w>>8u,w>>16u)&vec3u(255u));}
 fn moved(k:u32,now:vec3f,was:vec3f){
- atomicMax(&differ[k],ulps(now,was));
- tally(k+2u,unorm8(now)==unorm8(was));
+ atomicMax(&differ[k],apart(now,was));
+ let step=abs(unorm8(now)-unorm8(was));
+ atomicMax(&differ[k+2u],u32(max(step.x,max(step.y,step.z))));
 }
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
@@ -147,8 +152,11 @@ test('every octahedral caller returns, bit for bit, its own fold or the per-axis
     Object.fromEntries(names.map((name, k) => [name, values[k]])),
     Object.fromEntries(names.map((name) => [name, 0])),
   )
-  const [lobeUlps, receiverUlps, lobeBytes, receiverBytes] = values.slice(8)
-  assert.ok(lobeUlps <= FEW_ULPS, `lobe decode moved ${lobeUlps} ulps from develop's`)
-  assert.ok(receiverUlps <= FEW_ULPS, `receiver decode moved ${receiverUlps} ulps from develop's`)
-  assert.deepEqual({ lobe: lobeBytes, receiver: receiverBytes }, { lobe: 0, receiver: 0 })
+  const [lobeApart, receiverApart, lobeStep, receiverStep] = values.slice(8)
+  assert.ok(lobeApart <= ROUNDINGS, `lobe decode moved ${lobeApart} · 2^-24 from develop's`)
+  assert.ok(
+    receiverApart <= ROUNDINGS,
+    `receiver decode moved ${receiverApart} · 2^-24 from develop's`,
+  )
+  assert.ok(Math.max(lobeStep, receiverStep) <= 1, 'an 8-bit unorm moves one step at most')
 })

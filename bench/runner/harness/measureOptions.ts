@@ -38,7 +38,6 @@ export interface MeasureViewOptions {
   importedLights: boolean
   lights: SceneLight[]
   moving: MovingLightPlan | null
-  textureSource: 'cache' | 'host'
   textureUploadMs: number | null
   /** Block format asked of the texture pools; `undefined` leaves the engine's own choice. */
   textureCompression: TextureCompression | undefined

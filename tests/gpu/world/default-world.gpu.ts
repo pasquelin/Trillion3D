@@ -15,8 +15,8 @@ import { benchManifest, defaultWorldImage } from './proofWorld.ts'
 import { drawnPixels } from '../kit/sceneImageProof.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/repository-files.ts'
 
-/** The default world of `manifestUrl` on Dawn, lit by `lights`: the texture source it opened
- *  with, and the pixels its image draws, with the errors nothing caught. */
+/** The default world of `manifestUrl` on Dawn, lit by `lights`: the pixels its image draws, with
+ *  the errors nothing caught. */
 async function defaultOnDawn(manifestUrl: string, lights: SceneLight[] = []) {
   const errors: string[] = []
   const read = await runOnDawn(() => defaultWorldImage(manifestUrl, lights), null, errors)
@@ -35,8 +35,7 @@ test(
   { timeout: 120_000 },
   async () => {
     const garden = manifestUrlOf('tests/fixtures/scenes/kinetic-garden').slice(1)
-    const opened = await defaultOnDawn(pathToFileURL(resolve(REPOSITORY_ROOT, garden)).href)
-    assert.equal(opened.textureSource, 'cache')
+    await defaultOnDawn(pathToFileURL(resolve(REPOSITORY_ROOT, garden)).href)
   },
 )
 

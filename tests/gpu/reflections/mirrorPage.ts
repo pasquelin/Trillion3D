@@ -1,17 +1,16 @@
 // The engine side of the reflection proof: a synthetic still frame — a mirror floor and an emissive
 // quad standing on it, seen by an infinite reversed perspective (`mirrorScene.ts`) — laid in the
-// engine's own inputs and run through its kernels as an image runs them (`rig.ts`) until the view is
-// settled (`rigImage.ts`), then three images more, whose reflection targets are read back to the bit.
+// engine's own inputs and run through its kernels as an image runs them (`rig.ts`) for a fixed count
+// of images (`rigImage.ts`), its reflection target read back.
 import { PHYSICAL_SURFACE_FLAG } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { MIRROR, mirrorScene } from './mirrorScene.ts'
-import { openRig } from './rig.ts'
-import { settledImage, untilSettled } from './rigImage.ts'
+import { settledImage } from './rigImage.ts'
 import { MODEL_FLAG } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
 
-/** What the proof reads: per reflective family, the reflection targets of the three images drawn
- *  after the view settled, as raw half-float words. */
-type MirrorReading = { families: Record<string, number[][]>; size: number }
+/** What the proof reads: per reflective family, the reflection target once the view drew its fixed
+ *  count of images, as raw half-float words. */
+type MirrorReading = { families: Record<string, number[]>; size: number }
 
 /** The reflective families the rig draws, by name: the mirror floor, rough floors, a coated one. */
 const FAMILIES = {
@@ -24,19 +23,8 @@ const FAMILIES = {
 export function run() {
   return runOnDevice<MirrorReading>(async (device, _events, result) => {
     result.families = {}
-    for (const [name, made] of Object.entries(FAMILIES)) {
-      const rig = await openRig(device, made())
-      // The view settles — its history frozen, its lit image final —; the next three images, the
-      // HDR targets taking turns between them, hold it.
-      await untilSettled(rig)
-      const targets: number[][] = []
-      for (let k = 0; k < 3; k++) {
-        rig.image()
-        targets.push(Array.from(await rig.read()))
-      }
-      rig.dispose()
-      result.families[name] = targets
-    }
+    for (const [name, made] of Object.entries(FAMILIES))
+      result.families[name] = Array.from(await settledImage(device, made()))
     result.size = MIRROR.size
   })
 }

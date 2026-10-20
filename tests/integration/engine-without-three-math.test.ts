@@ -86,9 +86,6 @@ const FRONTIERE: Record<string, Record<string, string>> = {
   'world/render/sessionState.ts': {
     'camera.updateMatrixWorld()': 'the session sets the pose it is handed into its camera',
   },
-  'world/api/viewportApi.ts': {
-    'view.updateMatrixWorld()': 'the capture view is a host camera, set then resolved',
-  },
 }
 
 /** Lines triggering a pattern, comments excluded. */

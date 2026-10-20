@@ -27,7 +27,7 @@ import {
 } from '../../../packages/sdk-core/src/manifest/binaryPreviewEntry.ts'
 import { previewGeometry } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 
-type ColumnView = <T>(
+export type ColumnView = <T>(
   name: format.ColumnName,
   make: (buffer: ArrayBuffer, offset: number, elements: number) => T,
 ) => T

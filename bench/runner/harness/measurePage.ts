@@ -45,28 +45,34 @@ export function networkFrom(depuis: number): NetworkBytes {
   return network
 }
 
-/** Frames a pose may take for the engine to hold its image before the capture gives up. */
+/** Frames a pose is drawn after its pages landed: four times the temporal history's sixteen
+ *  samples, which the temporal pass, running every frame, then holds whole. */
 export const HOLD_FRAME_LIMIT = 64
 
 /**
- * Renders the pose until the engine holds it — temporal accumulation converged, nothing in
- * flight — at most `limit` frames. A capture taken mid-accumulation would carry the history of
- * the trajectory, whose texture-tile arrivals do not replay identically from one run to
- * another; a held pose's capture depends only on the pose. Returns how many frames it took,
- * or `null` if the engine holds no image (the Three witness, for example).
+ * Settles the pose: waits for the pages it reads (`awaitPages`), then draws it `limit` frames, or
+ * fewer where the engine holds the image earlier — a view without temporal accumulation, which
+ * holds once nothing changes; a view whose temporal pass runs draws every frame and never holds
+ * (its jitter moves the image each frame). A capture after it depends on the pose, not on the
+ * trajectory's arrivals. Returns how many frames it drew, or `null` if the engine reports no hold
+ * at all (the Three witness, for example).
  */
 export async function calmPose(
   explorer: MeasuredWorld,
   pose: CameraPose,
   limit = HOLD_FRAME_LIMIT,
 ): Promise<number | null> {
+  // The pose drawn once, so the pages awaited are the ones it reads.
+  explorer.render(pose)
+  await explorer.flush()
+  await explorer.awaitPages()
   for (let i = 0; i < limit; i++) {
     const frame = explorer.render(pose)
     await explorer.flush()
     if (typeof frame.frameHeld !== 'boolean') return null
     if (frame.frameHeld) return i
   }
-  return null
+  return limit
 }
 
 /**

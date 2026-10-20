@@ -36,10 +36,6 @@ export const CLUSTER_DECODING_SHADER = wgslProgram(
 @group(0) @binding(2) var<storage, read> pages:array<PageInfo>;
 @group(0) @binding(3) var<storage, read> positions:array<f32>;
 @group(0) @binding(4) var<storage, read> uvs:array<f32>;
-fn clusterUv1(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
- return vec2f(clusterGrid(base,h.uv1.x,vertex,h.uv1Bits.x,h.uv1Min.x,h.uv1Step),
-  clusterGrid(base,h.uv1.y,vertex,h.uv1Bits.y,h.uv1Min.y,h.uv1Step));
-}
 fn put(at:u32,v:f32){out[at]=bitcast<u32>(v);}
 @compute @workgroup_size(64) fn decode(@builtin(global_invocation_id) id:vec3u){
  let page=pages[0];let slot=page.pageOffset;

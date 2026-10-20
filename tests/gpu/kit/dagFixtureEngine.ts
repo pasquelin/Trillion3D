@@ -4,6 +4,8 @@ import type { EngineContext } from '../../../packages/sdk-browser/src/engine/typ
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import { dagFixture } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { createTextureCaches } from '../../../packages/sdk-browser/src/texture/textureCaches.ts'
+import { createPageCache } from '../../../packages/sdk-browser/src/streaming/pageCache.ts'
 
 /** The engine on a fresh DAG fixture, on `device`, at 128 × 128 and the finest cut, its diagnostics
  *  pushed to `events`; `options` completes the context. The fixture comes back beside it. */
@@ -14,6 +16,7 @@ export function dagFixtureEngine(
 ) {
   const fixture = dagFixture()
   const backend = webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
     source: fixture.source,
     metadata: fixture.metadata,
     indices: fixture.indices,

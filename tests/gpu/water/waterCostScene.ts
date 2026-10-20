@@ -1,6 +1,6 @@
 // The water-cost scene: controlled water coverage, its geometry identical with the tile
 // parked offscreen. Measured by `bench/dawn/waterCost.ts` (`waterCostPage.ts`), bounded by
-// `packages/sdk-browser/src/webgpu/water/rectWgsl.test.ts`.
+// the distortion of the transmissive layer (`packages/sdk-browser/src/webgpu/blend/distortion.ts`).
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'

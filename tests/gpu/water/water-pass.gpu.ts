@@ -1,6 +1,6 @@
-// A transmissive surface is composed by the water pass — surface buffer, then one fullscreen
-// composite on the frozen backdrop — and the image it yields is the one the material equations
-// predict, paged as unpaged (`waterPassPage.ts`).
+// A transmissive surface is lit in forward and composed as a thin translucent layer over the
+// distorted opaque scene, and the image it yields is the one the material equations predict, drawn
+// from its pages (`waterPassPage.ts`).
 //
 // Four cases, each read at the tile's centre where the view is face-on: a basin whose declared
 // thickness is the ground's depth; the same basin declared five times deeper, which must render
@@ -17,7 +17,6 @@ import { BACKGROUND, GROUND, WATER } from './waterPassCases.ts'
 
 interface WaterCaseReading {
   name: string
-  paged: boolean
   centre: number[]
   drawsFirst: number
   moved: number[]
@@ -49,7 +48,7 @@ const EXPECTED: Record<string, number[]> = {
 /** Display levels the composition may round to on a channel. */
 const TOLERANCE = 3
 
-test('the water pass composes the predicted image and holds it, paged and unpaged', async () => {
+test('the water pass composes the predicted image and holds it', async () => {
   const result = (await runPageProof(
     resolve(import.meta.dirname, 'waterPassPage.ts'),
     'waterPass',
@@ -57,9 +56,9 @@ test('the water pass composes the predicted image and holds it, paged and unpage
   )) as Result
   assertSoundProof(result)
   const cases = result.cases ?? []
-  assert.equal(cases.length, 8, 'four cases, paged and unpaged')
+  assert.equal(cases.length, 4, 'four cases')
   for (const c of cases) {
-    const name = `${c.name} (${c.paged ? 'paged' : 'unpaged'})`
+    const name = c.name
     const want = EXPECTED[c.name]
     c.centre.forEach((value, i) =>
       assert.ok(

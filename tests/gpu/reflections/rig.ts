@@ -1,16 +1,15 @@
 // The engine side of the reflection proofs: a synthetic still frame (flags, normals, base colour,
 // depth, lit image, physical lobes, the scene's proxy) laid in the engine's own inputs, then the
 // engine's kernels run on it as an image runs them: the image staged as the engine stages it — its
-// view, turn and quiet count (`stageReflectionImage`) —, the depth pyramid (`gpu/hiz`), the opaque
-// trace, then the radiance pyramid of the lit image and the settle's count of it
-// (`encodeImageRadiance`), adopted as the next image's level 0 (`adoptRadianceImage`). Consecutive
+// view and turn (`stageReflectionImage`) —, the depth pyramid (`gpu/hiz`), the opaque
+// trace, then the radiance pyramid of the lit image (`encodeImageRadiance`), adopted as the next image's level 0 (`adoptRadianceImage`). Consecutive
 // still images, whose reflection targets are read back to the bit.
 import { rigProxy } from './rigRuntime.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { createSurroundings } from '../../../packages/sdk-browser/src/lighting/toneUnmap.ts'
 import {
   createScreenReflection,
-  reflectionsSettled,
+  reflectionsPending,
 } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 import { reflectionGroup } from '../../../packages/sdk-browser/src/reflections/group.ts'
 import { createReflectionPipelines } from '../../../packages/sdk-browser/src/reflections/reflectionPipelines.ts'
@@ -110,7 +109,6 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     front: false,
     surroundings,
   }
-  let lightsEpoch = 0
   // No bounce probes, no light grid: the engine's stand-ins, as an image without them binds them.
   const standIns = createDeferredPlaceholders(device)
   // The scene's proxy the scene stage walks, and the radiance its faces give; else no proxy, a header
@@ -133,7 +131,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
     /** One image: staged, the depth pyramid built, the trace; then, when `radiance`, the pyramid of
      *  the lit image the next image reflects. */
     image(radiance = true) {
-      stageReflectionImage(reflection, told, lightsEpoch)
+      stageReflectionImage(reflection, told)
       const encoder = device.createCommandEncoder()
       const pass = encoder.beginComputePass()
       // The visibility's builds once the depth is drawn: its culling layer, then its nearest and
@@ -149,22 +147,19 @@ export async function openRig(device: GPUDevice, frame: RigFrame) {
           encoder,
           reflection,
           pipelines,
-          { texture: targets.hdrTexture, view: lightView.buffer, hash: reflection.settle.hash },
+          { texture: targets.hdrTexture, view: lightView.buffer },
           told,
         )
       }
       device.queue.submit([encoder.finish()])
-      reflection.settle.submitted()
       adoptRadianceImage(targets)
     },
-    /** The lit image is another from now on: a light changed, the next image is staged under its
-     *  new epoch, as the engine stages one (`stageReflectionImage`). */
+    /** The lit image is another from now on: a light changed. */
     light(radiance: Float32Array) {
       lit = radiance
-      lightsEpoch++
     },
-    /** Whether the view's reflections are what a still view shows (`reflectionsSettled`). */
-    settled: () => reflectionsSettled(reflection, false),
+    /** Whether the view's radiance pyramid holds an image of it (`reflectionsPending`). */
+    settled: () => !reflectionsPending(reflection),
     /** Every word of the reflection target set to `word`. */
     fill(word: number) {
       device.queue.writeTexture(

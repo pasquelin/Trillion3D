@@ -18,10 +18,7 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { UNI_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { planPipeline } from '../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
-import {
-  PLAN_SHARED_BIT,
-  planEntry,
-} from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
+import { planEntry } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
 import { bitWords } from '../../../packages/math/src/scalar/integers.ts'
 import { xorshiftRandom } from '../../../packages/math/src/sequence/random.ts'
 import { expandOnGpu } from './scatterKernel.ts'
@@ -34,37 +31,34 @@ const VERTEX_WORDS = 48,
   CLUSTERS = 6
 
 /**
- * One plan: paged items that share a run, primitives that carry their own buffers and split the
- * run, a frustum that rejects some of them, and entries enough that several count packets follow
- * each other — where the running sum is proved.
+ * One plan: items that share a run, a few the table lists no cluster of yet, two pipelines that
+ * split the run, a frustum that rejects some of them, and entries enough that several count packets
+ * follow each other — where the running sum is proved.
  */
-function plan(items: number, unpaged: number[], base: { instances: number; args: number }) {
+function plan(items: number, unlisted: number[], base: { instances: number; args: number }) {
   const draws = new Uint32Array(items * 4),
     counts = new Uint32Array(items),
     clusters = new Uint32Array(items * CLUSTERS),
     keep = new Uint32Array(bitWords(items))
   for (let item = 0; item < items; item++) {
-    const own = unpaged.includes(item)
-    draws[item * 4] = own ? NO_INDEX : item
-    draws[item * 4 + 1] = own ? 1 + Math.floor(next() * 4) : CLUSTERS
+    const listed = !unlisted.includes(item)
+    draws[item * 4] = listed ? item : NO_INDEX
+    draws[item * 4 + 1] = listed ? CLUSTERS : 0
     draws[item * 4 + 2] = item * CLUSTERS
-    draws[item * 4 + 3] = own ? 3 * (1 + Math.floor(next() * 5)) : 0
     counts[item] = Math.floor(next() * (CLUSTERS + 1))
     for (let j = 0; j < CLUSTERS; j++) clusters[item * CLUSTERS + j] = 7000 + item * CLUSTERS + j
     if (next() < 0.8) setBit(keep, item)
   }
-  // The sorted plan: paint order, the share bit and the pipeline in the low bits.
+  // The sorted plan: paint order, the pipeline in the low bits.
   const order = new Uint32Array(items)
   for (let i = 0; i < items; i++) {
     const item = (items - 1 - i + 17) % items
-    order[i] = planEntry(item, i % 3 === 0 ? 2 : 1, !unpaged.includes(item))
+    order[i] = planEntry(item, i % 3 === 0 ? 2 : 1)
   }
-  // Production's slots: the shared entries of pipeline 1 are the main class, the others draw
-  // their own; the plan is already in paint order, each seed in place.
+  // Production's slots: the entries of pipeline 1 are the main class, the others draw their own;
+  // the plan is already in paint order, each seed in place.
   const seeds = Uint32Array.from(
-    Array.from(order.keys()).filter(
-      (at) => !(order[at] & PLAN_SHARED_BIT) || planPipeline(order[at]) !== 1,
-    ),
+    Array.from(order.keys()).filter((at) => planPipeline(order[at]) !== 1),
   )
   const slots = new Uint32Array(seeds.length),
     runCount = assignOwnSlots(order, seeds, true, slots, new Int32Array(slotCapacity(items)))

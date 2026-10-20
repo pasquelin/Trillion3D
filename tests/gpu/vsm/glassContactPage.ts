@@ -1,6 +1,6 @@
 // A glass pane over a floor, lit, on the machine's device: the contact-shadow ray the lights cast
-// (`vsmScreenRayCast`, the engine's one screen march over the depth pyramid) meets the pane in the
-// depth pyramid and does not darken the floor behind it — a pane's shadow is the maps' transmission
+// (`vsmScreenRayCast`, four samples of the opaque depth) passes the pane in the depth pyramid's
+// level 0 and does not darken the floor behind it — a pane's shadow is the maps' transmission
 // (`glass-contact.gpu.ts`). The depth is generated: a floor, then once an opaque wall and once a
 // transparent pane in the same place; the view is orthographic, its world its NDC.
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
@@ -10,6 +10,7 @@ import {
   HIZ_FRONT_LAYER,
   hizDepthBindEntries,
   hizDepthEntries,
+  hizDepthWgsl,
 } from '../../../packages/sdk-browser/src/gpu/hiz/pyramidTexture.ts'
 import { SCREEN_MARCH_WGSL } from '../../../packages/sdk-browser/src/gpu/hiz/screenMarch.ts'
 import { screenSlab } from '../../../packages/sdk-browser/src/gpu/hiz/screenSlab.ts'
@@ -23,6 +24,7 @@ import { vsmLayout } from '../../../packages/sdk-browser/src/vsm/layout.ts'
 import { vsmProjectionWgsl } from '../../../packages/sdk-browser/src/vsm/projectionWgsl.ts'
 import { functionsOf } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { wgslF32 } from '../../../packages/math/src/wgsl/number.ts'
 import { clipToFramebuffer } from '../../../packages/math/src/wgsl/projection.ts'
 import { bufferHolding } from '../kit/computeReadback.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
@@ -43,7 +45,8 @@ export type GlassContact = {
   floor: number
   wall: number
   pane: number
-  /** The screen march's own reading of the pane: it meets it, and says it is in front. */
+  /** The engine's screen march (the reflection's) reading the pane: it meets it, and says it is in
+   *  front. */
   paneSeen: { stopped: boolean; front: boolean }
 }
 
@@ -52,6 +55,9 @@ const castText = () => {
   const module = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
   return functionsOf(module, ['vsmScreenRayCast'])
 }
+
+/** The geometry of a surface's thickness the reflection's march takes, in this view. */
+const SLAB = screenSlab([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], HEIGHT)
 
 const SHADER = (group: number) =>
   wgslProgram(
@@ -66,16 +72,17 @@ ${castText()}
  let towardLight=vec3f(1.0,0.0,0.5);
  let rayLength=1.4;
  let thickness=6.0;
- out[0]=vsmScreenRayCast(origin,towardLight,rayLength,thickness);
+ out[0]=vsmScreenRayCast(origin,towardLight,rayLength,0.5);
  let size=vsmView.viewPixels.xy;
  let start=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin,1.0),size);
  let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin+towardLight*rayLength,1.0),size);
  let d=stop-start;
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,vsmView.screenSlab,0xffffffffu);
+ let slab=vec4f(${[...SLAB].map(wgslF32).join(',')});
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),thickness,slab,0xffffffffu);
  out[1]=select(0.0,1.0,hit.t>=0.0);
  out[2]=select(0.0,1.0,hit.front);
 }`,
-    [SCREEN_MARCH_WGSL(group, 0), clipToFramebuffer],
+    [hizDepthWgsl(group, 0), SCREEN_MARCH_WGSL(group, 0), clipToFramebuffer],
   )
 
 export async function testGlassContact(): Promise<GlassContact> {
@@ -95,7 +102,6 @@ export async function testGlassContact(): Promise<GlassContact> {
   const view = new Float32Array(VSM_PROJECTION_VIEW_BYTES / 4)
   view.set(identity, VSM_PROJECTION_VIEW_WORD.shiftedToClip)
   view.set([WIDTH, HEIGHT, 1 / WIDTH, 1 / HEIGHT], VSM_PROJECTION_VIEW_WORD.viewPixels)
-  view.set(screenSlab(identity, HEIGHT), VSM_PROJECTION_VIEW_WORD.screenSlab)
   const uniform = bufferHolding(device, view, GPUBufferUsage.UNIFORM)
   const result = device.createBuffer({
     size: 32,

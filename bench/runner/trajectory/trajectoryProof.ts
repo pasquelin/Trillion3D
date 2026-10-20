@@ -8,7 +8,7 @@ export interface TrajectoryCheckpoint {
   index: number
   arrival: string | null
   settled: string
-  settleFrames: number | null
+  settleFrames: number
   pagesRequested: number | null
   residentPages: number | null
 }
@@ -44,13 +44,10 @@ export function trajectoryVerdict(
   const aa = imageDiff(golden, captures.get(repeat.settled))
   const arrival = imageDiff(golden, captures.get(candidate.arrival ?? ''))
   const settled = imageDiff(golden, captures.get(candidate.settled))
-  let status: 'match' | 'transient' | 'regression' | 'unstable-reference' | 'unsettled' | 'invalid'
+  let status: 'match' | 'transient' | 'regression' | 'unstable-reference' | 'invalid'
   if (reference.index !== repeat.index || reference.index !== candidate.index) status = 'invalid'
-  else if (reference.settleFrames === null || repeat.settleFrames === null)
-    status = 'unstable-reference'
   else if (!valid(aa) || !valid(arrival) || !valid(settled)) status = 'invalid'
   else if (aa.pixels !== 0) status = 'unstable-reference'
-  else if (candidate.settleFrames === null) status = 'unsettled'
   else if (settled.pixels !== 0) status = 'regression'
   else status = arrival.pixels !== 0 ? 'transient' : 'match'
   return { index: reference.index, status, aa, arrival, settled, candidate }

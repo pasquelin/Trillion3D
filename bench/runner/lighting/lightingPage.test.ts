@@ -33,6 +33,7 @@ function explorerMock(metrics: Record<string, unknown> | null): Mock & Opened {
     // The engine publishes its selected cut (`selectedPageIds`), the only source left to read it.
     engine: { id: 'engine-test', selectedPageIds: () => [] },
     setDiagnostic: () => {},
+    setClearColor: () => {},
     setPose: () => {},
     awaitPages: async () => waits.push(seen.at(-1)),
     render: (pose: unknown) => {
@@ -101,7 +102,6 @@ async function mesurer(
     importedLights: true,
     lights: [],
     moving: null,
-    textureSource: 'host',
     textureUploadMs: null,
     textureCompression: undefined,
     temporalAntialiasing: true,

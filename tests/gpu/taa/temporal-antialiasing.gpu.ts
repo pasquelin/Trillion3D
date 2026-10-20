@@ -1,10 +1,11 @@
 // Temporal antialiasing softens edges and nothing else (`temporalAntialiasingPage.ts`).
 //
 // A red tile rotated on a blue background, rendered by the real WebGPU engine. Without the option
-// the image is the plain one. With it, the engine renders a full cycle of still frames before
-// holding; the held image differs from the plain one only within two pixels of an edge — the reach
-// of jitter and the filter —, surface interiors stay identical, two runs give the same image to the
-// bit, a pan keeps the history, and a moved tile leaves no ghost where it was.
+// the image is the plain one. With it, the temporal pass runs every frame and never holds (its
+// jitter moves the image each frame): after a fixed run of still frames, the settled image differs
+// from the plain one only within two pixels of an edge — the reach of jitter and the filter —,
+// surface interiors stay identical, two runs give the same image to the bit, a pan keeps the
+// history, and a moved tile leaves no ghost where it was.
 //
 //   node bench/dawn/proofs.ts tests/gpu/taa/temporal-antialiasing.gpu.ts
 import test from 'node:test'
@@ -12,10 +13,9 @@ import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
 import { isRed } from '../kit/sceneImageProof.ts'
-import { TAA_STILL_FRAMES } from '../../../packages/sdk-browser/src/taa/stillFrames.fixture.ts'
 import { changedPixels, nearEdge } from './antialiasingDiffs.ts'
 
-type Held = { rendered: number[] | undefined; held: number[] | null; count: number }
+type Held = { rendered: number[] | undefined; settled: number[]; count: number }
 type Run = {
   still: Held
   panned: number[]
@@ -51,26 +51,29 @@ test('accumulation softens edges only, keeps its history under a pan, and leaves
   assert.equal(accumulated.capabilities?.motionVectors, 'derived')
   assert.ok(!accumulated.capabilities?.unsupported?.includes('temporal antialiasing'))
   for (const [name, run] of Object.entries({ plain, accumulated, witness })) {
-    assert.ok(run.still.held, `${name}: never held while still, ${run.still.count} frames`)
-    assert.ok(run.moved.held, `${name}: never held after the move, ${run.moved.count} frames`)
-    // The held image is the one just rendered, shown again as it is.
-    assert.deepEqual(run.still.held, run.still.rendered, `${name}: held ≠ rendered`)
+    assert.ok(run.still.settled, `${name}: never settled while still, ${run.still.count} frames`)
+    assert.ok(run.moved.settled, `${name}: never settled after the move, ${run.moved.count} frames`)
   }
-  // The still average (`taaStillFrames`: whole cycles of the jitter, `TAA_STILL_DRAWS` draws at
-  // least) precedes the hold with accumulation, and what lands while the view settles restarts it
-  // once at most; without accumulation, the hold comes at once.
+  // Without accumulation the view holds at once, the held image the one just rendered; with it,
+  // the pass draws every frame, the image settled after the fixed run (`untilHeld`).
   assert.ok(plain.still.count <= 4, `without accumulation, held after ${plain.still.count}`)
-  const cycle = accumulated.still.count
-  assert.ok(
-    cycle >= TAA_STILL_FRAMES && cycle <= 2 * TAA_STILL_FRAMES,
-    `with accumulation, held after ${cycle}; ${TAA_STILL_FRAMES} to ${2 * TAA_STILL_FRAMES} expected`,
+  assert.deepEqual(plain.still.settled, plain.still.rendered, 'plain: held ≠ rendered')
+  assert.deepEqual(witness.still.settled, accumulated.still.settled, 'two runs differ while still')
+  assert.deepEqual(
+    witness.moved.settled,
+    accumulated.moved.settled,
+    'two runs differ after the move',
   )
-  assert.deepEqual(witness.still.held, accumulated.still.held, 'two runs differ while still')
-  assert.deepEqual(witness.moved.held, accumulated.moved.held, 'two runs differ after the move')
 
   // With versus without: edges change, the interior does not.
   for (const step of ['still', 'moved'] as const) {
-    const changed = changedPixels(accumulated[step].held!, plain[step].held!, 2, width, height)
+    const changed = changedPixels(
+      accumulated[step].settled!,
+      plain[step].settled!,
+      2,
+      width,
+      height,
+    )
     assert.ok(changed.edges > 0, `${step}: accumulation changes no edge pixel`)
     assert.equal(changed.interior, 0, `${step}: ${changed.interior} interior pixels changed`)
   }
@@ -78,16 +81,16 @@ test('accumulation softens edges only, keeps its history under a pan, and leaves
   // Under a pan the history must stay readable: reprojected askew, the clamp would reject it and
   // the moving image would fall back to the current frame alone, its edges hard. So the in-between
   // edge pixels of the moving image are counted against the still converged image's.
-  const still = between(accumulated.still.held!),
+  const still = between(accumulated.still.settled!),
     panned = between(accumulated.panned)
   assert.ok(still > 0, 'no in-between edge while still: accumulation smoothed nothing')
   assert.ok(panned >= 0.7 * still, `${panned} in-between edges panned, ${still} still`)
 
   // No ghost: where the tile was before the move and is not after it, the moved images with and
   // without accumulation both show the background, to 2 a channel.
-  const before = plain.still.held!,
-    after = plain.moved.held!,
-    afterAccumulated = accumulated.moved.held!
+  const before = plain.still.settled!,
+    after = plain.moved.settled!,
+    afterAccumulated = accumulated.moved.settled!
   let ghosts = 0
   for (let y = 1; y < height - 1; y++)
     for (let x = 1; x < width - 1; x++) {

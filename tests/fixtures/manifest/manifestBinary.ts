@@ -2,75 +2,77 @@ import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/c
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../packages/sdk-core/src/page/format.ts'
 import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/geometry.ts'
 import {
-  levelBlockBytes,
-  previewFirstLevel,
-  previewGeometry,
-} from '../../../packages/sdk-core/src/texture/previewLevels.ts'
+  geometryPageAddress,
+  streamBundleAddress,
+} from '../../../packages/sdk-core/src/page/contracts.ts'
+import { previewFirstLevel } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
+import { previewLevels } from './manifestBinaryLevels.ts'
 
-export const TEMPLATES = {
-  url: 'clusters.bin',
-  pageUrl: '../../objects/{sha}.bin',
-  geometryUrl: '../../objects/{sha}.bin',
-  bundleUrl: '../../objects/{sha}.bin',
-}
 export const sha = (c: string) => c.repeat(64)
 const url = (c: string) => `../../objects/${sha(c)}.bin`
+/** The fixture's one geometry container. */
+const FILE = { url: url('e'), sha256: sha('e'), bytes: 96 }
+/** The sidecar's address and the geometry container its pages lie in. */
+export const BINARY = { url: 'clusters.bin', geometryFiles: [FILE] }
+
+/** The streaming bundle of digest `sha(c)`, `bytes` long at `offset` of the fixture's container,
+ *  needing the bundles `dependencies` of its primitive. */
+function bundle(c: string, offset: number, bytes: number, count: number, dependencies: number[]) {
+  const range = { file: FILE.url, offset }
+  return {
+    url: streamBundleAddress(FILE.url, offset),
+    range,
+    sha256: sha(c),
+    bytes,
+    count,
+    dependencies,
+  }
+}
+const BUNDLES = [bundle('a', 0, 32, 1, []), bundle('b', 32, 48, 1, [0]), bundle('f', 80, 16, 1, [])]
+
+/** A page of `stream`, `bytes` long at `offset` of that bundle (`BUNDLES[at]`), and the page
+ *  fields that name it: proven by its bundle's digest. */
+function placed(
+  [stream, at]: [number, number],
+  offset: number,
+  bytes: number,
+  facts: Record<string, number>,
+) {
+  const { url, range, sha256 } = BUNDLES[at]
+  const geometry = {
+    url: geometryPageAddress(range.file, range.offset + offset),
+    bundle: { url, offset },
+    sha256,
+    bytes,
+    ...(facts as {
+      vertexCount: number
+      indexCount: number
+      flags: number
+      uncompressedBytes: number
+    }),
+  }
+  return { url: geometry.url, sha256, bytes, geometry, stream, streamOffset: offset }
+}
 
 /** Source dimensions of the fixture's single progressive-level entry. */
 const PREVIEW_SIZE: [number, number] = [32, 16]
-
-/** The tail of a `width`×`height` source, each level `bytesOf` its dimensions, every byte
- *  deterministic and level-distinct so a round trip that mixed up two levels would show here. */
-function previewTail(
-  width: number,
-  height: number,
-  seed: number,
-  bytesOf: (w: number, h: number) => number,
-) {
-  return previewGeometry(width, height).sizes.map(
-    ([w, h], index) =>
-      new Uint8Array(bytesOf(w, h)).map(
-        (_byte, i) => (i + index + seed) % 256,
-      ) as Uint8Array<ArrayBuffer>,
-  )
-}
-/** One progressive level pyramid: the lossless RGBA8 tail, and the same tail in each block
- *  family's blocks — RGBA in the BC family, two channels in ASTC and ETC2 — as the sidecar
- *  carries them. */
-export function previewLevels(width: number, height: number, seed: number) {
-  return {
-    levels: previewTail(width, height, seed, (w, h) => w * h * 4),
-    layouts: { bc7: 'rgba', astc: 'two-channel', etc2: 'two-channel' } as const,
-    blocks: {
-      bc7: previewTail(width, height, seed + 1, levelBlockBytes),
-      astc: previewTail(width, height, seed + 2, levelBlockBytes),
-      etc2: previewTail(width, height, seed + 3, levelBlockBytes),
-    },
-  }
-}
 
 /** Every optional field in both of its shapes: a round trip that misses one would show here. */
 export function manifest(): ClusterManifest {
   const dagPages = [
     {
       id: 0,
-      url: url('a'),
-      sha256: sha('a'),
-      bytes: 48,
+      ...placed([0, 0], 0, 32, {
+        vertexCount: 8,
+        indexCount: 12,
+        flags: 15,
+        uncompressedBytes: 128,
+      }),
       count: 12,
       start: 0,
       min: [-1, -2, -3],
       max: [1, 2, 3],
       role: 'exact' as const,
-      geometry: {
-        url: url('b'),
-        sha256: sha('b'),
-        bytes: 32,
-        vertexCount: 8,
-        indexCount: 12,
-        flags: 15,
-        uncompressedBytes: 128,
-      },
       level: 0,
       lodError: 0,
       sphere: [0, 0, 0, 3.7416573867739413],
@@ -78,15 +80,11 @@ export function manifest(): ClusterManifest {
       parentSphere: [0.5, 0, 0, 4],
       group: 0,
       source: null,
-      stream: 0,
-      streamOffset: 0,
       cone: { axis: [-0.0621135613999339, 0.027174688463389093, 0.9976990737678042], angle: 1.75 },
     },
     {
       id: 1,
-      url: url('c'),
-      sha256: sha('c'),
-      bytes: 48,
+      ...placed([1, 1], 0, 48, { vertexCount: 8, indexCount: 12, flags: 1, uncompressedBytes: 96 }),
       count: 12,
       start: 12,
       min: [0, 0, 0],
@@ -99,18 +97,14 @@ export function manifest(): ClusterManifest {
       parentSphere: null,
       group: null,
       source: 0,
-      stream: 0,
-      streamOffset: 48,
       cone: { axis: [0, 0, 1], angle: Math.PI },
     },
   ]
-  // The sparse shape: a cluster band and nothing else — no group, no bundle, no packed geometry.
+  // The sparse shape: a cluster band and its geometry in its bundle — no group, no role.
   const sparsePages = [
     {
       id: 0,
-      url: url('d'),
-      sha256: sha('d'),
-      bytes: 24,
+      ...placed([0, 2], 0, 16, { vertexCount: 4, indexCount: 6, flags: 1, uncompressedBytes: 48 }),
       count: 6,
       min: [0, 0, 0],
       max: [1, 1, 1],
@@ -122,13 +116,13 @@ export function manifest(): ClusterManifest {
       cone: { axis: [1, 0, 0], angle: 0.5 },
     },
   ]
-  return {
-    schema: CLUSTERED_BLEND_FORMAT_VERSION,
+  // A copy: a test that alters the manifest leaves the shared bundles as they are.
+  return structuredClone({
     formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
     status: 'ready',
     key: 'k',
     scope: 'full',
-    errorModel: 'dag-group-qem-v3',
+    errorModel: 'dag-group-qem-v4',
     geometryPages: { formatVersion: GEOMETRY_PAGE_FORMAT_VERSION, codec: 'quantized' as const },
     simplification: true,
     sourceTriangles: 8,
@@ -173,16 +167,7 @@ export function manifest(): ClusterManifest {
           bundleBytes: 131072,
           dependencyBound: 1,
           maxDependencies: 1,
-          pages: [
-            { url: url('e'), sha256: sha('e'), bytes: 96, count: 2, dependencies: [] },
-            { url: url('f'), sha256: sha('f'), bytes: 48, count: 1, dependencies: [0] },
-          ],
-        },
-        topology: {
-          triangles: 8,
-          edges: { boundary: 4, manifold: 8, nonManifold: 0 },
-          vertices: { interior: 1, boundary: 4, locked: 0, unused: 0 },
-          manifold: true,
+          pages: BUNDLES.slice(0, 2),
         },
       },
       {
@@ -192,8 +177,15 @@ export function manifest(): ClusterManifest {
         pages: sparsePages,
         culling: null,
         structure: null,
-        streams: null,
+        streams: {
+          version: 1,
+          pinned: 1,
+          bundleBytes: 131072,
+          dependencyBound: 0,
+          maxDependencies: 0,
+          pages: BUNDLES.slice(2),
+        },
       },
     ],
-  } as ClusterManifest
+  } as ClusterManifest)
 }

@@ -1,7 +1,6 @@
 // The "transparents in a few orders" bench scene and its frames: twelve placements per
-// paged prototype, a few primitives that carry their own buffers, and three camera
-// regimes. Both sides of the bench each build a copy, so neither benefits from the
-// state the other leaves.
+// paged prototype, and three camera regimes. Both sides of the bench each build a copy, so
+// neither benefits from the state the other leaves.
 import * as THREE from 'three'
 import { basicSurface } from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
@@ -19,17 +18,16 @@ import { frustumExcludesBox } from '../../../../packages/math/src/geometry/frust
 
 /** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),
  *  picked from the engine's item so a renamed field fails the type check, not the bench run. */
-export type BenchItem = Pick<
-  BlendGpuItem,
-  'surface' | 'count' | 'paged' | 'pagedIndex' | 'tableBase'
-> & { matrix: THREE.Matrix4; bounds: Float64Array }
+export type BenchItem = Pick<BlendGpuItem, 'surface' | 'pagedIndex' | 'tableBase'> & {
+  matrix: THREE.Matrix4
+  bounds: Float64Array
+}
 
-/** Order of magnitude of the measured scene: 4 288 transparent items, twelve placements each. */
+/** Order of magnitude of the measured scene: 4 284 transparent items, twelve placements each. */
 const PLACEMENTS = 12,
   PROTOTYPES = 357,
-  ISOLES = 4,
   PAGINES = PROTOTYPES * PLACEMENTS
-export const ITEMS = PAGINES + ISOLES
+export const ITEMS = PAGINES
 /** What a paged primitive holds in the catalogue, and the vertices of a cluster. */
 const CLUSTERS = 8,
   MOTS = 48
@@ -61,8 +59,8 @@ function boxOf(i: number) {
 }
 
 /**
- * The scene: twelve placements per prototype, plus four primitives that carry their buffers.
- * Reduced fixture: only the fields the blend order reads are populated (no real GPU buffers).
+ * The scene: twelve placements per prototype. Reduced fixture: only the fields the blend order
+ * reads are populated (no real GPU buffers).
  */
 function batisItems(side: THREE.Side): BenchItem[] {
   const items: BenchItem[] = [],
@@ -72,17 +70,14 @@ function batisItems(side: THREE.Side): BenchItem[] {
       }),
     )
   for (let i = 0; i < ITEMS; i++) {
-    const paged = i < PAGINES
     const matrix = new THREE.Matrix4().setPosition(...centreOf(i))
     const bounds = boxOf(i)
     items.push({
       surface,
       matrix,
       bounds,
-      count: paged ? 0 : 900,
-      paged,
-      pagedIndex: paged ? i : undefined,
-      tableBase: paged ? i * CLUSTERS : 0,
+      pagedIndex: i,
+      tableBase: i * CLUSTERS,
     })
   }
   return items
@@ -174,7 +169,7 @@ export function benchSide(side: THREE.Side) {
     },
     args: new Uint32Array(ITEMS * 4),
     // A double-sided item spreads its instances twice: one per plan entry.
-    output: new Uint32Array((PAGINES * CLUSTERS + ISOLES) * 3 * 2),
+    output: new Uint32Array(PAGINES * CLUSTERS * 3 * 2),
   }
 }
 export type BenchSide = ReturnType<typeof benchSide>

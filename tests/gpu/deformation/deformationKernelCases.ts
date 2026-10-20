@@ -4,7 +4,7 @@
 // (`PAGE_INFO_STRUCT_WGSL`), never by a copied offset; each record is laid out by `recordLayout`.
 import { Waves } from '../../../packages/sdk-core/src/fluids/waves.ts'
 import { encodePage } from '../../../packages/sdk-browser/src/page/codec/encodePage.fixture.ts'
-import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../packages/sdk-core/src/page/format.ts'
+import { FLAG_SOFT_SOURCE } from '../../../packages/sdk-core/src/page/format.ts'
 import {
   KIND_MORPH,
   KIND_SKIN,
@@ -15,7 +15,6 @@ import {
 } from '../../../packages/sdk-browser/src/deformation/layout.ts'
 import { DEFORM_VERTEX_WORDS } from '../../../packages/sdk-browser/src/deformation/outputs.ts'
 import {
-  DEFORM_SOURCE_IN_POOL,
   FLAG_CLUSTER_PAGE,
   FLAG_DYNAMIC,
 } from '../../../packages/sdk-browser/src/visibility/types.ts'
@@ -104,21 +103,6 @@ const [dirX, dirZ, k, amplitude, lateral, phase] = [
 ].map((values) => values[0])
 wave.set([dirX, dirZ, k, amplitude, lateral, phase, phase, 0], waved.wave)
 wave.set([dirX, dirZ, k, amplitude, lateral, phase, phase, 0], waved.wave + 8)
-/** A whole copy in the float pool: the rest vertices, the skin record at 16, the source header
- *  just before the block (`packedBase - 1`: flags, morphs, vertices, floats a vertex), then each
- *  vertex's morph delta and four influences; its records are written at float 100. */
-const MORPHS = 1,
-  INFLUENCES = 4,
-  SOURCE_FLOATS = MORPHS * 6 + INFLUENCES * 2,
-  HEADER = 52,
-  WHOLE_OUTPUT = 100
-const whole = new Float32Array(160)
-whole.set(REST)
-new Uint32Array(whole.buffer).set(new Uint32Array(record.buffer, 0, skinned.floats), 16)
-whole.set([FLAG_SKIN, MORPHS, 3, SOURCE_FLOATS], HEADER)
-for (let v = 0; v < 3; v++)
-  whole.set([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0], HEADER + 4 + v * SOURCE_FLOATS)
-
 const atOutput = { buffer: 'positions', at: OUTPUT } as const
 export const FRAMES: Frame[] = [
   { writes: [], read: atOutput },
@@ -150,24 +134,6 @@ export const FRAMES: Frame[] = [
     read: atOutput,
   },
   { writes: [{ buffer: 'positions', at: 0, words: bits(wave) }], read: atOutput },
-  // The whole copy: the rest vertices skinned out of the float pool, written into it.
-  {
-    writes: [
-      {
-        buffer: 'pages',
-        at: 0,
-        words: row({
-          ...clusterRow,
-          flags: 0,
-          packedBase: HEADER + 1,
-          deform: 17,
-          deformOutput: (WHOLE_OUTPUT + 1) | DEFORM_SOURCE_IN_POOL,
-        }),
-      },
-      { buffer: 'positions', at: 0, words: bits(whole) },
-    ],
-    read: { buffer: 'positions', at: WHOLE_OUTPUT },
-  },
 ]
 
 /** The buffers before the first frame: the cache with the page, the skin record, the float pool's

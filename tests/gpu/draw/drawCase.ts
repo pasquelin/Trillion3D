@@ -58,9 +58,11 @@ export async function runCase(
   const encoder = device.createCommandEncoder()
   const pass = encoder.beginComputePass()
   draw.encode({ pass }, items.length, selection)
+  // The tested half, as the engine compacts it after the Hi-Z test (`visibility/passes.ts`).
+  draw.encodeTested({ pass }, vis.table, vis.hizFlags)
   pass.end()
   const { slots } = draw
-  // Each indirect slot, then the direct page past them; the tested half reads the verdicts.
+  // Each indirect slot, then the direct page past them; both halves draw with the one pipeline.
   for (let slot = 0; slot <= slots; slot++) {
     const render = encoder.beginRenderPass({
       colorAttachments: [
@@ -73,7 +75,7 @@ export async function runCase(
         },
       ],
     })
-    render.setPipeline(vis.pipelines[slot >= slots / 2 && slot < slots ? 1 : 0])
+    render.setPipeline(vis.pipeline)
     render.setBindGroup(0, vis.groups[slot])
     if (slot < slots) render.drawIndirect(draw.indirectBuffer, slot * 16)
     else render.draw(3, 1, 0, DIRECT_PAGE)
