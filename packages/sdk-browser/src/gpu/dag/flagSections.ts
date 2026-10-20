@@ -1,5 +1,6 @@
 import { CAND_LIVE_WORDS } from './shader/levelWgsl.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { LIST_DROPPED, QUEUE_DROPPED } from './shader/viewsWgsl.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
 import { poolScratchWords } from '../pool/sortWords.ts'
@@ -91,7 +92,7 @@ export function grownFlagShape(
         : shape.queueWords,
     candCap =
       dropped & LIST_DROPPED
-        ? Math.min(Math.max(1, bounds.pageCount), grownLength(shape.candCap, shape.candCap + 1))
+        ? clamp(bounds.pageCount, 1, grownLength(shape.candCap, shape.candCap + 1))
         : shape.candCap
   if (queueWords <= shape.queueWords && candCap <= shape.candCap) return undefined
   return { ...shape, queueWords, candCap }

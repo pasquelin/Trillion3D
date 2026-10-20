@@ -52,8 +52,9 @@ const blendProgram = (key: Partial<ContractKey>, subgroups: boolean) => {
     `@group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
 // The blended colour, the tile rank this pixel asks of the virtual textures, in its own target
-// (no memory write: early reject kept), the as-is share and the display layers (\`displayFilter.ts\`).
-struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,@location(2) asIs:vec4f,@location(3) tint:vec4f,@location(4) add:vec4f,}`,
+// (no memory write: early reject kept), the as-is share, the display layers (\`displayFilter.ts\`)
+// and what the layer gives up of the temporal history (\`blendGivenUp\`).
+struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,@location(2) asIs:vec4f,@location(3) tint:vec4f,@location(4) add:vec4f,@location(5) givenUp:f32,}`,
   )
 }
 
@@ -124,7 +125,7 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let deltas=fwidth(in.bary);
  let g=blendGrads(in);
  let layer=blendLayer(in,front,g);
- if(!layer.kept){discard;return BlendOut(vec4f(0.0),0u,vec4f(0.0),vec4f(0.0),vec4f(0.0));}
+ if(!layer.kept){discard;return BlendOut(vec4f(0.0),0u,vec4f(0.0),vec4f(0.0),vec4f(0.0),0.0);}
  let s=layer.s;
  if((flags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){return blendDiagnosticOut(in,s,deltas);}
  var rgb=s.rgb;
@@ -150,29 +151,30 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }else{rgb+=s.emissive;}
  let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,alpha,masked);
- return BlendOut(vec4f(rgb,alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,alpha*r.keep),r.tint,r.add);
+ return BlendOut(vec4f(rgb,alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,alpha*r.keep),r.tint,r.add,blendGivenUp(in,alpha*r.keep));
 }
 // The reflection's resources are group 1 (\`REFLECTION_GROUP\`); a filtered image's pipelines read
 // the display mask (group 2), every other one reads none.
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
 // The layer's outputs past its colour, for the dual blend's companion pass (\`drawCompanion\`), where
-// the colour pass holds the HDR target alone: \`blendFragment\`'s request and share — its coverage, a
-// shadow catcher's lit (\`catcherAlpha\`), a diagnostic view's its colour's —, no other light read.
-struct BlendCovered{@location(1) request:u32,@location(2) asIs:vec4f,}
+// the colour pass holds the HDR target alone: \`blendFragment\`'s request, share — its coverage, a
+// shadow catcher's lit (\`catcherAlpha\`), a diagnostic view's its colour's — and history given up,
+// no other light read.
+struct BlendCovered{@location(1) request:u32,@location(2) asIs:vec4f,@location(3) givenUp:f32,}
 @fragment fn fsBlendCoverage(in:VSOut,@builtin(front_facing) front:bool)->BlendCovered{
  let flags=in.ids.y;
  let deltas=fwidth(in.bary);
  let g=blendGrads(in);
  let layer=blendLayer(in,front,g);
- if(!layer.kept){discard;return BlendCovered(0u,vec4f(0.0));}
+ if(!layer.kept){discard;return BlendCovered(0u,vec4f(0.0),0.0);}
  let s=layer.s;
- if((flags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){return BlendCovered(s.request,blendDiagnosticOut(in,s,deltas).asIs);}
+ if((flags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){return BlendCovered(s.request,blendDiagnosticOut(in,s,deltas).asIs,0.0);}
  var alpha=s.alpha;
  if((flags&${itemFlags.FLAG_UNLIT_VIEW}u)==0u&&blendLit(flags)&&modelFlag(flags)==${surfaceModel.MODEL_FLAG.shadow}u){
   alpha=catcherAlpha(alpha,blendLights(in,front,g,s,blendToEye(in)));
  }
- return BlendCovered(s.request,vec4f(0.0,1.0,0.0,alpha));
+ return BlendCovered(s.request,vec4f(0.0,1.0,0.0,alpha),blendGivenUp(in,alpha));
 }
 `,
   )
@@ -192,7 +194,7 @@ const BLEND_DIAGNOSTIC = `fn blendDiagnosticOut(in:VSOut,s:BlendSurface,deltas:v
   if(mode==${DIAGNOSTIC_VIEWS.wireframe.code}u||mode==${DIAGNOSTIC_VIEWS.xray.code}u){
    let coverage=wireframeEdge(in.bary,deltas);
    if(coverage==0.0){discard;}
-   return BlendOut(vec4f(diagnosticWireColor(false)*coverage,coverage),s.request,vec4f(0.0,1.0,0.0,coverage),vec4f(1.0),vec4f(0.0));
+   return BlendOut(vec4f(diagnosticWireColor(false)*coverage,coverage),s.request,vec4f(0.0,1.0,0.0,coverage),vec4f(1.0),vec4f(0.0),0.0);
   }
   // The screen-error view's word is the cluster's world error (\`diagnosticWorldError\`), measured at
   // this pixel's clip w.
@@ -200,5 +202,5 @@ const BLEND_DIAGNOSTIC = `fn blendDiagnosticOut(in:VSOut,s:BlendSurface,deltas:v
   var screenError=0.0;
   if(mode==${DIAGNOSTIC_VIEWS['screen-error'].code}u){screenError=diagnosticScreenError(bitcast<f32>(in.diagId),depth,uni.viewProj,uni.viewport,uni.pixelRatio,uni.pixelError);}
   let shown=diagnosticColor(mode,DiagnosticPixel(in.diagId,in.tri&${(1 << TRI_CHANNELS_SHIFT) - 1}u,in.diagId,0u,s.rgb+s.emissive,s.geometric,screenError));
-  return BlendOut(vec4f(shown,1.0),s.request,vec4f(0.0,1.0,0.0,1.0),vec4f(1.0),vec4f(0.0));
+  return BlendOut(vec4f(shown,1.0),s.request,vec4f(0.0,1.0,0.0,1.0),vec4f(1.0),vec4f(0.0),0.0);
 }`

@@ -47,8 +47,8 @@ export interface Page {
    *  WebGPU cut skips a one-sided cluster the camera sees from behind its cone. */
   cone?: { axis: [number, number, number]; angle: number }
 }
-/** A bounding sphere an error band can be projected through: four finite values, a radius of at
- *  least zero. Unrolled on purpose: it runs once per cluster at preparation, with no closure. */
+/** An LOD sphere an error band is projected through — culling reads boxes —: four finite values,
+ *  a radius of at least zero. Unrolled on purpose: it runs once per cluster at preparation, with no closure. */
 export function clusterSphereValid(sphere: unknown): sphere is number[] {
   return (
     Array.isArray(sphere) &&

@@ -13,6 +13,7 @@ import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { holdAheadView, type AheadView } from './aheadView.ts'
 import type { AsideCut } from './aside.ts'
 import type { DagRoot } from '../dag/types.ts'
+import type { ActorWarmth } from '../dag/worldFollow.ts'
 import type { PoseHost } from '../dag/proxyInstances.ts'
 import type { ProxyBoxes } from '../../bounce/probeSync.ts'
 import type { CutTables, ProxyResources } from '../dag/cutReaders.ts'
@@ -102,6 +103,14 @@ export type WorldCells = {
   /** Whether the cell stood, at the last cut, for an actor it cannot draw, wished by its parent:
    *  its content is wished for it. */
   stands(instance: number, cell: number): boolean
+  /** Each cell of `instance` whose visibility moved since the last call for that instance, told to
+   *  `visit`; every cell at the first call, or once more moved than it has cells. */
+  moved(instance: number, visit: (cell: number) => void): void
+  /** A switch that draws an HLOD actor waits until its textures are warm (`ActorWarmth`,
+   *  `../dag/worldFollow.ts`). */
+  warmWith(warmth?: ActorWarmth): void
+  /** Whether a switch waits on an actor's textures: the view keeps drawing till it is done. */
+  readonly warming: boolean
   /** Advanced whenever a cell's visibility moved. */
   readonly revision: number
 }

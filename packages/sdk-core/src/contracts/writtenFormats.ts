@@ -8,6 +8,7 @@
 //   packages/asset-compiler-rust/src/cutout.rs
 //   packages/asset-compiler-rust/src/voxel.rs
 //   packages/asset-compiler-rust/src/voxel/bricks.rs
+//   packages/asset-compiler-rust/src/voxel/page.rs
 //   packages/asset-compiler-rust/src/compiler_world_roots.rs
 //   packages/asset-compiler-rust/src/texture_preview.rs
 //   packages/asset-compiler-rust/src/texture_preview/levels.rs
@@ -135,16 +136,47 @@ export const CLUSTER_ORDERED = 1
 export const CUTOUT_SHEET_VERSION = 1
 
 /**
- * Format of `voxels.bin` and of the manifest's `voxels` section (`stage.rs` lays it out).
+ * Format of `voxels.bin` and of the manifest's `voxels` section (`stage.rs` lays it out): 4 since a
+ * voxel's record is twelve bytes — no coverage, no material, which the runtime never read — and a
+ * page's brick holds the rank of its first voxel (`trillion3d_page_codec::voxel`).
  */
-export const VOXEL_VERSION = 2
+export const VOXEL_VERSION = 4
 
 /**
  * Bytes of a brick and of a voxel.
  */
 export const VOXEL_BRICK_BYTES = 16
 
-export const VOXEL_RECORD_BYTES = 16
+export const VOXEL_RECORD_BYTES = 12
+
+/**
+ * `T3VP` read as a little-endian `u32`: a voxel page's magic.
+ */
+export const VOXEL_PAGE_MAGIC = 0x50563354
+
+/**
+ * Words of a voxel page's head and of each brick's record.
+ */
+export const VOXEL_PAGE_HEAD_WORDS = 6
+
+export const VOXEL_BRICK_WORDS = 5
+
+/**
+ * Bricks a page holds at most: twelve triangles each, 252 of the 256 a page's identifier names.
+ */
+export const VOXEL_PAGE_BRICKS = 21
+
+/**
+ * Corners and triangles of a brick's box.
+ */
+export const VOXEL_BRICK_CORNERS = 8
+
+export const VOXEL_BRICK_TRIANGLES = 12
+
+/**
+ * The geometry descriptor's flag of a voxel page, beside a `WGP3` page's attribute flags.
+ */
+export const GEOMETRY_VOXEL = 256
 
 /**
  * Version of the world-roots products: 2 since their records, 3 since an object root names its
@@ -162,9 +194,14 @@ export const VOXEL_RECORD_BYTES = 16
  * the primitive whose material it wore, 13 since a merged layer's actor may wear a material of
  * the scene or another actor's flattened one, its rank in `hlodMaterials` naming it, and the
  * world's pages carry every attribute its actors carry, 14 since a cluster no longer names its HLOD
- * layer — its cell's level, which the table carries, gives it.
+ * layer — its cell's level, which the table carries, gives it, 15 since each table cell's level
+ * word carries in its high 16 bits whether its actor's build failed, so a failed top keeps its
+ * content standing where a cell of objects in no layer follows its range alone, 16 since a
+ * cluster of a voxel layer's actor holds a voxel page, flagged `GEOMETRY_VOXEL`, its triangles
+ * its bricks' boxes', 17 since that page's head is six words, its bricks five — the rank of their
+ * first voxel added —, its voxels twelve bytes (`trillion3d_page_codec::voxel`).
  */
-export const WORLD_ROOTS_VERSION = 14
+export const WORLD_ROOTS_VERSION = 17
 
 /**
  * Section contract: moving level scale, order, reduction rule, color space,

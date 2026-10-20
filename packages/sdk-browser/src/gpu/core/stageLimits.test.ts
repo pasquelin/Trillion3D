@@ -108,7 +108,7 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
     return { surface: surfaceOf(surface), transmissive: index === all.length - 1 }
   }) as unknown as BlendGpuItem[]
   const lit = { precompile: true, key: FULL_CONTRACT, onFailure: (e: unknown) => failures.push(e) }
-  for (const share of [false, true]) {
+  for (const share of [0, 2] as const) {
     const built = await createWebgpuBlendPipelines(
       device,
       items,

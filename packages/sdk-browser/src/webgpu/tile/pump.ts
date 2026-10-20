@@ -1,7 +1,7 @@
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { createTileSources } from './sources.ts'
-import type { createTileRequests } from './requests.ts'
+import type { createTileRequests, TileRequest } from './requests.ts'
 import type { TileCounters } from './counters.ts'
 
 /** What a tile pass reads: the streamer's parts (`./streamer.ts`). */
@@ -22,7 +22,8 @@ type PumpParts = {
 }
 
 /**
- * One pass: requested tiles, served in weight order until the byte or the millisecond budget (the
+ * One pass: requested tiles — the feedback's in weight order, then those asked beside it
+ * (`requests.ts`, `ask`) —, served until the byte or the millisecond budget (the
  * pass's stage on the session's clock, capped by the host's ceiling) is spent; `unbounded` lifts
  * both. Both are read after each copy, the clock once: the first always lands, the one that crosses
  * a budget overshoots it — the peak says by how much. Returns what was served and what is pending —
@@ -44,11 +45,10 @@ export const createTilePump =
       (encoder ??= p.device.createCommandEncoder({ label: 'Trillion3D texture tiles' }))
     const wanted = requests.take(frame),
       at = requests.frame
-    counters.worked = wanted.to > wanted.from
-    let index = wanted.from
-    for (; index < wanted.to && !stop; index++) {
-      const request = wanted.list[index]
-      if (request.atlas.resides(request.key)) continue
+    counters.worked = wanted.to > wanted.from || requests.askedCount > 0
+    /** One request served, unless it resides: counted, the budgets read after it. */
+    const serve = (request: TileRequest) => {
+      if (request.atlas.resides(request.key)) return
       let verdict: ReturnType<typeof sources.serve> = 'waiting'
       try {
         verdict = sources.serve(request.atlas, request.key, at, open)
@@ -64,12 +64,20 @@ export const createTilePump =
         stop = !unbounded && (bytes >= p.budgetBytes || !clock.admits())
       }
     }
+    let index = wanted.from
+    for (; index < wanted.to && !stop; index++) serve(wanted.list[index])
+    // What the image shows first; then what a switch to come waits on, asked again next image.
+    let k = 0
+    for (; k < requests.askedCount && !stop; k++) serve(requests.asked[k])
+    // Those the budget left are pending too: asked again next image, they keep the view drawing.
+    const askedLeft = requests.askedCount - k
+    requests.clearAsked()
     sources.endPass(encoder, at)
     p.flushAll()
     requests.defer(index)
     counters.served += served
     counters.deferred = requests.deferred
-    counters.pending = waiting + requests.deferred
+    counters.pending = waiting + requests.deferred + askedLeft
     counters.bytesLastFrame = bytes
     // The shadows that follow the landed tiles are the pass's cost too: timed before the clock stops.
     if (colorChanged.size) p.onColorChanged(colorChanged)

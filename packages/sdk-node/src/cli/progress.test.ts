@@ -108,14 +108,14 @@ test('batch progress opens one line per job id and ignores batch-level lines', (
   assert.match(text, /2\/2 b/)
   assert.match(text, /✔ 1\/2 a 1 triangles/)
 })
-/** A primitive's DAG warning, its stall a locked border. */
+/** A primitive's DAG warning, its stall a group the simplifier could not reduce. */
 const warning = (code: DagWarning['code'], roots: number, pages: number): DagWarning => ({
   code,
   roots,
   pages,
-  groups: { borderLocked: 1 },
+  groups: { unreducible: 1 },
   rootTriangles: 640,
-  ...{ cause: 'border-locked', seamVertices: 30, lockedVertices: 4, uvIslands: 9 },
+  ...{ cause: 'unreducible', seamVertices: 30, lockedVertices: 4, uvIslands: 9 },
 })
 // Behaviour: warnings are counted while the job compiles and told once at its end — one line per
 // code, with its public code, count, worst case and documentation page — never one line per
@@ -182,7 +182,7 @@ test('verbose adds the info codes and every occurrence under a single line per c
   assert.equal(text.match(/ DAG_FLAT ×/g)?.length, 1, text)
   assert.match(
     text,
-    /\n {4}DAG_FLAT mesh 3\/0: 3 roots of 9 pages \(cause border-locked\)\n {4}DAG_FLAT mesh 4\/0: /,
+    /\n {4}DAG_FLAT mesh 3\/0: 3 roots of 9 pages \(cause unreducible\)\n {4}DAG_FLAT mesh 4\/0: /,
   )
   assert.match(text, /ℹ yard T3D-I\d{3} node-hidden ×1: /)
 })

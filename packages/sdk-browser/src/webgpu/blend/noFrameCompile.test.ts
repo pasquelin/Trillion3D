@@ -26,8 +26,8 @@ test('what the scene reaches at prepare draws with no synchronous compile', asyn
   const calls = watch(mount.device)
   for (const mode of [0, 1, 3]) {
     for (const cull of [0, 1, 2]) {
-      assert.ok(blendPipelines.at(mode * 3 + cull, false, false))
-      assert.ok(blendPipelines.at(mode * 3 + cull, true, false), 'a filtering scene: routed')
+      assert.ok(blendPipelines.at(mode * 3 + cull, false, 0))
+      assert.ok(blendPipelines.at(mode * 3 + cull, true, 0), 'a filtering scene: routed')
     }
   }
   for (const cull of [0, 1, 2]) assert.ok(blendPipelines.mask.at(cull))
@@ -40,14 +40,14 @@ test('a mode, a share or a filter reached later compiles off the frame, at the c
   const { blendPipelines } = await createWebgpuBlendPipelines(mount.device, [item('normal')])
   const calls = watch(mount.device)
   const before = mount.renderPipelines.length
-  blendPipelines.reach({ modes: ['multiply'], share: true, filtered: true })
+  blendPipelines.reach({ modes: ['multiply'], share: 2, filtered: true })
   await settled()
   assert.ok(mount.renderPipelines.length > before, 'the change started its compiles')
   const made = mount.renderPipelines.length
   for (const cull of [0, 1, 2]) {
-    assert.ok(blendPipelines.at(9 + cull, false, false))
-    assert.ok(blendPipelines.at(9 + cull, false, true))
-    assert.ok(blendPipelines.at(9 + cull, true, true))
+    assert.ok(blendPipelines.at(9 + cull, false, 0))
+    assert.ok(blendPipelines.at(9 + cull, false, 2))
+    assert.ok(blendPipelines.at(9 + cull, true, 2))
     assert.ok(blendPipelines.mask.at(cull))
   }
   assert.equal(calls.render, 0, 'no frame made one')
@@ -59,14 +59,14 @@ test('a frame that gets there before the compile makes the one pipeline, never a
   const { blendPipelines } = await createWebgpuBlendPipelines(mount.device, [item('normal')])
   const calls = watch(mount.device)
   const before = mount.renderPipelines.length
-  assert.ok(blendPipelines.at(9 + 2, false, false), 'multiply, never reached: made at once')
+  assert.ok(blendPipelines.at(9 + 2, false, 0), 'multiply, never reached: made at once')
   assert.equal(calls.render, 1, 'the one cull drawn, alone')
   // Its two other culls compile off the thread from that draw on, once: a later draw of either
   // finds it made.
   await settled()
   assert.equal(mount.renderPipelines.length, before + 3)
-  assert.ok(blendPipelines.at(9, false, false) && blendPipelines.at(9 + 1, false, false))
-  assert.equal(blendPipelines.at(9 + 2, false, false), blendPipelines.at(9 + 2, false, false))
+  assert.ok(blendPipelines.at(9, false, 0) && blendPipelines.at(9 + 1, false, 0))
+  assert.equal(blendPipelines.at(9 + 2, false, 0), blendPipelines.at(9 + 2, false, 0))
   assert.equal(calls.render, 1, 'once')
   assert.equal(mount.renderPipelines.length, before + 3, 'nothing compiled twice')
 })

@@ -3,7 +3,7 @@ import { sha256Hex } from '../../../streaming/sha256Hex.ts'
 import { readGpuImage } from '../../../gpu/core/readback.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'
-import { blendWritesShare } from '../prepare/asIsShareTarget.ts'
+import { blendShareTargets } from '../prepare/asIsShareTarget.ts'
 import { blendContext } from '../prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
@@ -83,7 +83,7 @@ export async function prepareFeedbackAb(
     undefined,
     false,
     rt.vis.blendBindGroupLayout,
-    blendWritesShare(rt),
+    blendShareTargets(rt),
     blendContext(rt),
   )
   if (rt.blendState.transmissive > 0 && !rt.vis.blendPipelines?.transmission)

@@ -8,9 +8,9 @@ import {
 } from '../stagePipelines.ts'
 import { cullOf, refractsRank, transmitsRank } from '../planCull.ts'
 import { displayMaskLayout, displayTargets } from '../displayFilter.ts'
-import { companionTargets } from '../blendTargets.ts'
+import { companionTargets, type ShareTargets } from '../blendTargets.ts'
 import { ADD_ONE, OVER } from '../equations.ts'
-import { REACTIVE_TARGET } from '../../../lighting/deferred/asIsShare.ts'
+import { GIVEN_UP_TARGET, REACTIVE_TARGET } from '../../../lighting/deferred/asIsShare.ts'
 import { DISTORTION_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from '../../../scene/targetFormats.ts'
 import {
   computeSamplerEntry,
@@ -36,25 +36,27 @@ type Culls = ReturnType<typeof preparedPipeline>[]
 /** The pipelines a plan rank of a transmissive item picks of `culls` of the frame's share: its
  *  cull's; every rank `drawn` refuses is skipped (\`transmitsRank\` unless given). */
 const ranked = (
-  culls: (share: boolean) => Culls,
+  culls: (share: ShareTargets) => Culls,
   drawn: (rank: number) => boolean = transmitsRank,
 ): TransmitPipelines['coverage'] => ({
-  at: (rank, _filtered, share = false) => culls(share)[cullOf(rank)].get(),
+  at: (rank, _filtered, share = 0) => culls(share)[cullOf(rank)].get(),
   skips: (rank) => !drawn(rank),
 })
 
 /** The targets of the fallback, as the blend pass lays them (`blendTargets`): the HDR target, the
  *  request, the reactive value where the frame has a share — green alone, as a particle's —, the
- *  display layers of a normal layer where it is `filtered`. */
+ *  display layers of a normal layer where it is `filtered`, the history given up at `share` 2
+ *  (`ShareTargets`). */
 export const overTargets = (
   feedback: boolean,
   filtered: boolean,
-  share: boolean,
+  share: ShareTargets,
 ): (GPUColorTargetState | null)[] => [
   { format: HDR_FORMAT, blend: OVER_BLEND },
   feedback ? { format: FEEDBACK_FORMAT } : null,
   share ? REACTIVE_TARGET : null,
   ...(filtered ? displayTargets('normal') : [null, null]),
+  share === 2 ? GIVEN_UP_TARGET : null,
 ]
 
 /** The distortion's accumulation group: the deferred view, the opaque depth. */
@@ -174,14 +176,14 @@ export function createTransmitPipelines(
       false,
       groups.own ?? reflectedGroups(device, groups.mask),
     ).map((descriptor) => preparedPipeline(device, descriptor))
-  // The fallback by display layers then share (0 plain, 1 filtered, 2 share, 3 both), the
-  // companion pass by share.
+  // The fallback by display layers then share-target key (`+filtered + 2 * share`), the companion
+  // pass by share-target key.
   const overs: Culls[] = [],
     coverage: Culls[] = []
   const distortionCoverage: Culls[] = []
   let dualCulls: Culls | undefined, distortionCulls: Culls | undefined
-  const overOf = (filtered: boolean, share: boolean) =>
-    (overs[+filtered + 2 * +share] ??= filtered
+  const overOf = (filtered: boolean, share: ShareTargets) =>
+    (overs[+filtered + 2 * share] ??= filtered
       ? culls('fsTransmitFiltered', overTargets(feedback, true, share), {
           mask: displayMaskLayout(device),
           route: true,
@@ -189,8 +191,8 @@ export function createTransmitPipelines(
       : culls('fsTransmit', overTargets(feedback, false, share)))
   const dualOf = () =>
     (dualCulls ??= culls('fsTransmitDual', [{ format: HDR_FORMAT, blend: DUAL_BLEND }]))
-  const coverageOf = (share: boolean) =>
-    (coverage[+share] ??= culls(
+  const coverageOf = (share: ShareTargets) =>
+    (coverage[share] ??= culls(
       'fsTransmitCoverage',
       companionTargets(null, feedback, share, REACTIVE_TARGET),
       { own: [] },
@@ -199,19 +201,19 @@ export function createTransmitPipelines(
     (distortionCulls ??= culls('fsDistortion', [DISTORTION_TARGET], {
       own: [distortionLayout(device)],
     }))
-  const distortionCoverageOf = (share: boolean) =>
-    (distortionCoverage[+share] ??= culls(
+  const distortionCoverageOf = (share: ShareTargets) =>
+    (distortionCoverage[share] ??= culls(
       'fsDistortionCoverage',
       companionTargets(DISTORTION_TARGET, feedback, share, REACTIVE_TARGET),
       { own: [distortionLayout(device)] },
     ))
   const over: TransmitPipelines['over'] = {
-    at: (rank, filtered = false, share = false) => overOf(filtered, share)[cullOf(rank)].get(),
+    at: (rank, filtered = false, share = 0) => overOf(filtered, share)[cullOf(rank)].get(),
   }
   /** The colour pass's reached sets — the dual blend where the device has it, the fallback
    *  otherwise and wherever display layers are on —, then with `unlit` the companion pass's. */
   const reachedSets = (
-    { shares, filtered }: { shares: ReadonlySet<boolean>; filtered: boolean },
+    { shares, filtered }: { shares: ReadonlySet<ShareTargets>; filtered: boolean },
     unlit: boolean,
   ) => {
     const sets: Culls[] = dual ? [dualOf()] : []

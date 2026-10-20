@@ -175,6 +175,12 @@ test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 shar
     left = written(target!, src, [seed(AS_IS_FLAG), 0, 0, 0])[0]
     assert.ok(Math.abs(left - 0.6) < 1e-9, `${mode} over a debug view leaves ${left}`)
     assert.equal(written(target!, src, [seed(2), 0, 0, 0])[0], 0, `${mode} over a lit surface`)
+    // Beside it, what the layers give up of the temporal history: the largest of their own at
+    // their coverage, so a layer keeping its whole history (0) lowers none, in any order.
+    const givenUp = blendTargets(mode, 0xf, true)[5]!
+    assert.equal(givenUp.format, 'r8unorm', mode)
+    assert.equal(written(givenUp, [0.1, 0, 0, 0.4], [0.5, 0, 0, 0])[0], 0.5, mode)
+    assert.equal(written(givenUp, [0.75, 0, 0, 1], [0.5, 0, 0, 0])[0], 0.75, mode)
   }
   // The temporal resolve reads that share as it is, and composition curves the lit 0.4 alone.
   const [readWgsl] = capture(

@@ -9,11 +9,16 @@ test('opaque and blend pipelines omit exactly the feedback output', () => {
   assert.equal(shadeTargetFormats(true).length, 5)
   assert.equal(shadeTargetFormats(false).length, 4)
   assert.equal(shadeTargetFormats(true)[4], 'r32uint')
-  // The colour, the feedback, the share, the two display layers' slots: no front target, the front
-  // pass writes the transparents' front alone (`frontLayer.ts`). One module serves both variants
-  // (override `FEEDBACK`): without the feedback its location stays, an empty slot.
-  assert.equal(blendTargets('normal', 0xf, true).length, 5)
-  assert.equal(blendTargets('normal', 0xf, false).length, 5)
+  // The colour, the feedback, the share, the two display layers' slots, the history given up: no
+  // front target, the front pass writes the transparents' front alone (`frontLayer.ts`). One module
+  // serves both variants (override `FEEDBACK`): without the feedback its location stays, an empty slot.
+  assert.equal(blendTargets('normal', 0xf, true).length, 6)
+  assert.equal(blendTargets('normal', 0xf, false).length, 6)
+  // The history given up at share-target key 2 alone: a slot left empty below it.
+  assert.equal(blendTargets('normal', 0xf, true, false, 2)[5]?.format, 'r8unorm')
+  assert.equal(blendTargets('normal', 0xf, true, false, 1)[5], null)
+  assert.equal(blendTargets('normal', 0xf, true, false, 1)[2]?.format, 'rg8unorm')
+  assert.equal(blendTargets('normal', 0xf, true, false, 0)[2], null)
   assert.equal(blendTargets('normal', 0xf, true)[1]?.format, 'r32uint')
   assert.equal(blendTargets('normal', 0xf, false)[1], null)
   assert.equal(blendTargets('normal', 0xf, true)[2]?.format, 'rg8unorm')

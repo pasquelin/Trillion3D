@@ -37,7 +37,10 @@ test('a world DAG is never appended: its links reach every placement, a cut is p
   const { roots, capacity } = scene()
   const grown = packDagSelection(roots.slice(0, 3), capacity)
   const cells = new Int32Array(roots[3].pages.length)
-  const world = { ...roots[3], hlod: { cells, parent: Int32Array.of(-1), layer: Uint8Array.of(0) } }
+  const world = {
+    ...roots[3],
+    hlod: { cells, parent: Int32Array.of(-1), layer: Uint8Array.of(0), actor: Uint8Array.of(1) },
+  }
   assert.equal(appendDagRoots(grown, [world as DagRoot]), undefined)
   assert.equal(grown.live!.worlds, 3, 'nothing moved')
 })

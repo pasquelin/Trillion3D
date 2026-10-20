@@ -71,7 +71,7 @@ function joue(items: ReturnType<typeof item>[]) {
       hdrView: {},
       colorView: {},
       depthView: {},
-      asIsShare: { view: {} },
+      asIsShare: { view: {}, givenUpView: {} },
       targetSize: [8, 8],
       backdrop: { colorView: {}, depthView: {}, active: false },
       cache: { buffer: {} },

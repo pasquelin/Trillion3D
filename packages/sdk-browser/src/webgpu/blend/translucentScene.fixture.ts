@@ -123,7 +123,7 @@ export function targets(gpu: WebgpuGpuState) {
     hdrTexture: {},
     depthTexture: {},
     feedbackView: {},
-    asIsShare: { view: {} },
+    asIsShare: { view: {}, givenUpView: {} },
     surfaces: { views: () => views, lobesView: {}, width: 8, height: 8, lobes: { width: 1 } },
     backdrop: { color: {}, colorView: {}, distortion: {}, distortionView: {}, active: true },
     deferred: {

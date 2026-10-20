@@ -15,6 +15,7 @@ import { viewGpu, type WebgpuView } from '../state/view.ts'
 import { viewTargetBytes } from '../state/gpu.ts'
 import { cutLedgerBytes } from '../../../gpu/dag/cutBuffers.ts'
 import { keepsBeautyChain } from '../../../visibility/shader/shadeMode.ts'
+import { taaWanted } from '../state/gpu.ts'
 
 /** Admit proposed targets before makeTargets creates any resource. Pool floors use
  * the same constructors as normal residency, so root coverage and texture tails
@@ -46,7 +47,7 @@ function frameMadeBytes(rt: WebgpuPagesRuntime, size: FrameSize) {
       rt.blendState.filtersDisplay &&
       keepsBeautyChain(rt.run.diagnostic) &&
       !rt.context.diagnosticGpuVariant
-  const history = !!gpu.temporal && gpu.temporalWanted && !rt.capture.capturing
+  const history = !!gpu.temporal && taaWanted(gpu) && !rt.capture.capturing
   return (
     (history
       ? taaTargetBytes(size) + (filters ? display * FILTER_HISTORY_BYTES_PER_PIXEL : 0)

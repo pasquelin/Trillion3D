@@ -42,7 +42,7 @@ export type WorldRootsDagTable = {
   /** The binary's resolved address, which every page address starts with: two worlds' pages never
    *  share one (`geometryPageAddress`). */
   url: string
-  chain: Pick<WorldRoots['chain'], 'parent' | 'level'>
+  chain: Pick<WorldRoots['chain'], 'parent' | 'level' | 'actor'>
   /** Each bundle's offset in the binary: where its pages lie (`geometryPageAddress`). */
   bundles: readonly Pick<WorldRootsBundle, 'offset'>[]
 }
@@ -105,6 +105,7 @@ export function worldRootDag(
       cells: hlod,
       parent: table.chain.parent,
       layer: table.chain.level,
+      actor: table.chain.actor,
     },
     held,
   }

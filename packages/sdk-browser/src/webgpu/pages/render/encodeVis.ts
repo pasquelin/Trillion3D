@@ -85,6 +85,8 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // Surfaces, one class at a time, and the virtual-texture feedback target where each opaque
   // pixel posts the tile rank it wants — completed by transparents, reduced to counts at submit.
   encodeMaterialPasses(rt, device, encoder)
+  // The voxel trace's counters of a sampled image, copied the same way.
+  vis.voxelSteps?.encodeCopy(encoder, run.frame)
   const presented = encodeSurfaceLighting(rt, device, encoder, cam)
   submitColorCopy(rt, device, encoder, height, width, presented)
   // Submitted triangles are those of every drawable row: both halves are drawn, and a cluster the

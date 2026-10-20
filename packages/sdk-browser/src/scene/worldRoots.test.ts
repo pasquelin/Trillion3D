@@ -1,5 +1,5 @@
-// The runtime reads the world's HLOD and pins nothing; an HLOD 0 cell holds the bundles of its
-// HLOD 1 roots while its HLOD 1 actor is loaded, and lets them go when it leaves.
+// The runtime reads the world's HLOD and holds nothing at open; an HLOD 0 cell holds — pins — the
+// bundles of its HLOD 1 roots while its HLOD 1 actor is loaded, and lets them go when it leaves.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { eventually } from '../streaming/eventually.fixture.ts'
@@ -18,10 +18,10 @@ const asked = (ranges: readonly string[]) =>
     return sum + to - from + 1
   }, 0)
 
-test('nothing is pinned; a held HLOD 0 cell holds the bundles of its HLOD 1 roots', async (t) => {
+test('nothing is held at open; a held HLOD 0 cell holds the bundles of its HLOD 1 roots', async (t) => {
   const { table, manifest, ranges, bin } = served(t)
   const { roots, queue } = await opened(t, manifest)
-  assert.deepEqual([ranges, roots.bytes(), heldBy(roots)], [[], 0, []], 'nothing read at open')
+  assert.deepEqual([ranges, roots.top().bytes, heldBy(roots)], [[], 0, []], 'nothing read at open')
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
   assert.deepEqual(heldBy(roots), [0, 1, 2, 3], 'each bundle the held cells need')
   assert.equal(asked(ranges), bin.byteLength, 'each read once')
@@ -31,7 +31,7 @@ test('nothing is pinned; a held HLOD 0 cell holds the bundles of its HLOD 1 root
   assert.deepEqual(heldBy(roots), [0, 2, 3], 'a bundle another held cell needs stays')
   roots.release(1)
   roots.release(2)
-  assert.deepEqual([heldBy(roots), roots.bytes()], [[], 0], 'nothing left')
+  assert.deepEqual([heldBy(roots), roots.top().bytes], [[], 0], 'nothing left')
 })
 
 test('a bundle whose bytes are not those its table names waits its turn, its hold on its way, wanted till released', async (t) => {
@@ -89,7 +89,9 @@ test("a server that ignores the Range is read whole once through the page cache:
   assert.equal(cache.bytes, kept([0, 1, 2, 3]), 'each counted once, till the budget evicts it')
   assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
   const bundles = heldBy(roots).reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0)
-  assert.equal(roots.bytes(), bundles, 'never counted twice')
+  // Every cell of the fixture is a top: the tops' budget holds each bundle once, and reserves
+  // nothing more once they are all pinned — never counted twice beside the cache's entries.
+  assert.deepEqual([roots.top().bytes, roots.reserved()], [bundles, 0], 'never counted twice')
 })
 
 test('the world DAG names its pages through the one source, from what is held', async (t) => {

@@ -54,7 +54,8 @@ type Inputs = {
   /** The host node of each core rank. */ parents: readonly Object3D[]
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>
   /** The world bundles its HLOD cells' roots lie in. */
-  world?: Pick<WorldRootsHold, 'hold' | 'release' | 'lift'> & Partial<Pick<WorldRootsHold, 'table'>>
+  world?: Pick<WorldRootsHold, 'hold' | 'release' | 'lift'> &
+    Partial<Pick<WorldRootsHold, 'table' | 'top' | 'fits'>>
 }
 
 /** What the placements of one partition share: the rows each one's view asks of every mesh, and
@@ -206,12 +207,14 @@ export function createPartitionCells(
       return index.named()
     },
     /** The pages of the index opened and the cells they list, the cells placed now, those a mesh
-     *  short of rows keeps waiting, and the rows sized. */
+     *  short of rows keeps waiting, the rows sized, and the top HLOD cells' budget, bytes held and
+     *  refusals (`../scene/worldBundles.ts`). */
     stats: () => ({
       ...index.stats(),
       held: held.size,
       waiting,
       rows: [...meshes.values()].reduce((sum, mesh) => sum + capacityOf(mesh), 0),
+      ...(world?.top && { top: world.top() }),
     }),
     /** Before a frame from `eye` looking along the unit `axis`: the plan's cells leave and far
      *  pages close, rows past those sized grow, the pages and cells it wants are asked, those read

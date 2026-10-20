@@ -3,15 +3,17 @@
  *
  * The compiler builds the world's HLOD chain, HLOD 1 to 3 (`world-roots.table`,
  * docs/FORMAT.md, World HLOD), its records read straight from their bytes, never one string of the
- * whole world. Nothing is pinned: an HLOD cell holds the bundles of its actor's roots while its
- * actor is loaded (`hold`, `worldBundles.ts`, `../partition/hlodCells.ts`), read through the
+ * whole world. Nothing is held for good: an HLOD cell holds the bundles of its actor's roots — pinned
+ * in the session's page cache — while its actor is loaded, and lets them go when it leaves
+ * (`hold`, `worldBundles.ts`, `../partition/hlodCells.ts`), read through the
  * queue of the session drawing it (`bind`): an HLOD actor streams with its own grid's cell, so its
- * pages follow that cell's range. A partitioned world opens its DAG at load: the cut packs it as its
+ * pages follow that cell's range; a top cell's, always loaded, within the tops' own budget. A partitioned world opens its DAG at load: the cut packs it as its
  * last root (`dag`, `../webgpu/pages/prepare/worldRoot.ts`), since every spatially loaded cell has
  * its HLOD built and something must stand in for a cell before its own pages land. Every read — the table and the DAG whole, the bundles as pages — goes through one page
  * queue: the session's its load reads for, or — a world's model, before any session — one of its
  * own over the world's page cache; the table and the DAG are read for their decode alone, never
- * kept there (`readWhole`). The session counts every byte held here in its CPU budget (`bytes`).
+ * kept there (`readWhole`). The session reserves off its CPU budget the DAG and what the tops'
+ * budget leaves free (`reserved`): the bundles held are the page cache's entries, counted there.
  */
 import {
   WORLD_ROOTS_DAG,
@@ -131,9 +133,14 @@ function worldRootsHold(
     watch: bundles.watch,
     /** The session's queue the bundles are read through, bound by each session. */
     bind: bundles.bind,
-    /** Every byte held here: the bundles the cells and the pages in flight hold
-     *  (`worldBundles.ts`), and the DAG. */
-    bytes: () => bundles.bytes() + dagBytes,
+    /** What the session reserves off the page cache's total for it: the DAG, and what the top
+     *  cells' budget leaves free (`worldBundles.ts`) — the bundles held are the cache's own
+     *  entries, never counted twice. */
+    reserved: () => bundles.reserve() + dagBytes,
+    /** The top cells' budget, the bytes they hold, and the tops refused (`worldBundles.ts`). */
+    top: bundles.top,
+    /** Whether top cell `cell`'s bundles fit the tops' budget now (`worldBundles.ts`). */
+    fits: bundles.fits,
   }
 }
 

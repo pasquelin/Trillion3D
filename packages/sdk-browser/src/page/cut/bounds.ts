@@ -10,11 +10,11 @@ import type { ClusterCut } from '../selection/math.ts'
 /**
  * Per-node bounds of the culling hierarchy, derived once from the clusters it packs.
  *
- * The manifest already carries, per node, the box, a bounding sphere and the subtree's maximum
+ * The manifest already carries, per node, the box, an LOD sphere and the subtree's maximum
  * replacement error: enough to reject a subtree whose no cluster still has a stand-in that is too
  * coarse, and nothing more. The GPU cut reads what the manifest does not carry: the floor of own
- * error with the sphere that bounds the clusters it summarises, which rejects a subtree too
- * coarse to give the cut anything (`../../gpu/dag/packNodes.ts`). Both are read from the pages: the
+ * error with the LOD sphere enclosing those of the clusters it summarises, which rejects a subtree
+ * too coarse to give the cut anything (`../../gpu/dag/packNodes.ts`). Both are read from the pages: the
  * reduction is done here, at prepare time, once per primitive, without touching the manifest format.
  *
  * Monotonicity, the invariant: a node's bounds enclose those of all its descendants. A floor

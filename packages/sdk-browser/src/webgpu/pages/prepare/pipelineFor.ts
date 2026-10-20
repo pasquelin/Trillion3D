@@ -1,4 +1,5 @@
 import type { PageRec } from '../../../page/selection/types.ts'
+import { rowSide } from '../../row/surfaceRow.ts'
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE, CULL_BINS } from '../../../gpu/draw/contract.ts'
 import { visLayerPipelineIndex } from '../../visibility/pipelines.ts'
 import { windingCw } from '../render/winding.ts'
@@ -13,7 +14,8 @@ const VIS_SLOTS = ['visPipelineBack', 'visPipelineNone', 'visPipelineFront'] as 
 
 /** Pipeline of an indirect slot: layer 0 keeps its own, each later layer has the same states plus
  *  its depth bias. A slot's face rank is its bin's face mode: a cutout slot draws with its face
- *  mode's pipeline, an opaque one with that pipeline's twin (`drawVis`). */
+ *  mode's pipeline, an opaque one with that pipeline's twin, a voxel one with its voxel twin
+ *  (`drawVis`). */
 export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
   const { vis } = rt
   const layer = Math.floor(slot / BASE_SLOTS),
@@ -23,7 +25,7 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
 }
 
 export const visBin = (rec: PageRec, rootRank: number, roots: Roots): 0 | 1 | 2 => {
-  const side = rec.material.side
+  const side = rowSide(rec)
   if (side === 'double') return BIN_NONE
   // Indirect pipelines share ccw front faces; a mirrored transform swaps which side
   // must be culled instead of requiring three more draw slots.

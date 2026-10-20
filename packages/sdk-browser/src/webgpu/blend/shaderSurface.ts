@@ -10,7 +10,7 @@ import {
 import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/cotangentFrameWgsl.ts'
 import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
-import { TRI_CHANNELS_SHIFT } from './vertexReadsWgsl.ts'
+import { TRI_CHANNELS_SHIFT, TRI_GIVEN_UP_SHIFT } from './vertexReadsWgsl.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../tile/wgsl.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
@@ -112,7 +112,7 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
     ],
     `
 struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,nX:vec3f,nY:vec3f,${lobes ? 'uv1X:vec2f,uv1Y:vec2f,channels:u32,' : ''}}
-fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(${uv}),dpdy(${uv}),dpdx(in.view),dpdy(in.view),dpdx(in.normal.xyz),dpdy(in.normal.xyz)${lobes ? `,dpdx(in.uv.zw),dpdy(in.uv.zw),in.tri>>${TRI_CHANNELS_SHIFT}u` : ''});}
+fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(${uv}),dpdy(${uv}),dpdx(in.view),dpdy(in.view),dpdx(in.normal.xyz),dpdy(in.normal.xyz)${lobes ? `,dpdx(in.uv.zw),dpdy(in.uv.zw),extractBits(in.tri,${TRI_CHANNELS_SHIFT}u,${TRI_GIVEN_UP_SHIFT - TRI_CHANNELS_SHIFT}u)` : ''});}
 fn blendSampled(in:VSOut)->bool{return (in.ids.y&${FLAG_SAMPLED}u)!=0u;}
 /** The coordinate and screen derivatives map \`i\` (\`SURFACE_MAP_FIELDS\` order) is read at: the
  *  second UV set where the record's \`channels\` word says so, in a program that carries it. */

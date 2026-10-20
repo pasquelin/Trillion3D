@@ -81,7 +81,7 @@ test('forced full renders run the temporal pass and never replace the held frame
   const rt = {
     feedbackAB: { force: true },
     gpu: {
-      temporalWanted: true,
+      temporalLevel: 'max',
       targetSize: [20, 10],
       allocatedSize: [20, 10],
       displaySize: [20, 10],

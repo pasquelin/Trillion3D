@@ -2,7 +2,7 @@
 // never by sending its records up again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createMaterialTable, materialWord } from './materialTable.ts'
+import { createMaterialTable } from './materialTable.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_TEXELS, MATERIAL_TABLE } from './materialLayout.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { surfaceOf } from '../../page/surface.ts'

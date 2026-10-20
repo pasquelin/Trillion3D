@@ -10,13 +10,9 @@ import { createWorldSettings } from './worldSettings.ts'
 import { createWorldQuality, renderScaleOf } from './worldQuality.ts'
 import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
 import {
-  resolveTemporalAntialiasing,
+  temporalAntialiasingLevel,
   type TemporalAntialiasingOption,
 } from '../../../../sdk-core/src/contracts/materialOptions.ts'
-
-/** The level `option` names, `true` the default one, `false` off; refused when it is no level. */
-const levelOf = (option: TemporalAntialiasingOption): TemporalAntialiasingLevel =>
-  resolveTemporalAntialiasing(option)!
 
 /** What of the world's runtime the switches reach: its open session and a frame. */
 interface SwitchedRuntime {
@@ -32,9 +28,8 @@ interface SwitchedRuntime {
  * manifest names a temporal anti-aliasing level below that (`scene`), and each is applied once its
  * resolved value changes.
  * The frame cap is held as asked and written into the open session's loop.
- * Temporal antialiasing and the render scale read back what the open session draws — the level,
- * `'off'` while the image carries none —; before one opens, the level resolved
- * (`world.temporalAntialiasing`), and 1. The chain is shared by
+ * Temporal antialiasing reads the level resolved, as a view's does; the render scale reads back
+ * what the open session draws, 1 before one opens. The chain is shared by
  * reference: a session reads it at every frame.
  * A session is given the switches when it starts opening and draws frames before it is open,
  * which no setter reaches: what the page changed meanwhile is written into it once open (`apply`).
@@ -47,8 +42,8 @@ export function worldSwitches(
   const invalidate = () => runtime().invalidate()
   const settings = createWorldSettings()
   // The page's own level, `true` included: it holds over a scene's and a preset's.
-  if (options.temporalAntialiasing !== undefined)
-    settings.set('antialiasing', levelOf(options.temporalAntialiasing), 'page')
+  if (options.temporalAntialiasing != null)
+    settings.set('antialiasing', temporalAntialiasingLevel(options.temporalAntialiasing), 'page')
   const scale = {
     asked: () => held.renderScale,
     ask: (next: RenderScale) => void (switches.renderScale = next),
@@ -109,13 +104,15 @@ export function worldSwitches(
     set bounce(on: boolean) {
       settings.set('bounce', on, 'page')
     },
+    /** The level asked, resolved over the page, the preset and the scene; whether the image
+     *  carries it is the `'temporal antialiasing'` capability. */
     get temporalAntialiasing(): TemporalAntialiasingLevel {
-      const session = runtime().explorer
-      if (session && !session.temporalAntialiasing()) return 'off'
       return held.temporalAntialiasing
     },
-    set temporalAntialiasing(option: TemporalAntialiasingOption) {
-      settings.set('antialiasing', levelOf(option), 'page')
+    /** The page's level; `undefined` or `null` gives the setting back to the preset and the scene. */
+    set temporalAntialiasing(option: TemporalAntialiasingOption | null | undefined) {
+      if (option == null) settings.clear('antialiasing', 'page')
+      else settings.set('antialiasing', temporalAntialiasingLevel(option), 'page')
     },
     /** A loaded scene's level (`TEMPORAL_AA_FIELD` of its manifest): the `scene` setting, the
      *  first scene naming one deciding for the world's life. */

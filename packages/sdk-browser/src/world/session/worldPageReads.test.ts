@@ -21,7 +21,7 @@ test("a world page and a cache page are read under the session's signal, at the 
     reserve: () => {},
   }
   // The hold holds no byte the prepared engine's reserve counts.
-  const hold = { metadata, bytes: () => 0 }
+  const hold = { metadata, reserved: () => 0 }
   const context = await probeEngineContext(
     metadata,
     {

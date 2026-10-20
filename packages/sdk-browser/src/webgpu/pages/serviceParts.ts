@@ -16,7 +16,7 @@ import { pageAddress, readGeometryAhead } from '../row/pageSlots.ts'
 import { markWebgpuLost } from './io/lost.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { noteResidenceChange } from '../shadow/bounds.ts'
-import { rootOf, rootOfPacked } from '../../page/selection/placements.ts'
+import { rootOfPacked } from '../../page/selection/placements.ts'
 import { rowWrittenAsProxy } from './prepare/worldRoot.ts'
 
 /** The row table's sync: the residency follower, the page-row writer, the row cache. */

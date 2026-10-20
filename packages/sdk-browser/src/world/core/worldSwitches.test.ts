@@ -10,12 +10,10 @@ import { DEFAULT_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
 const unseen = { last: null }
 
 /** An open session that records the switches written into it. */
-function session(draws = true) {
+function session() {
   const written: string[] = []
-  let on = draws
   const explorer = {
-    setTemporalAntialiasing: (next: string) => void (written.push(next), (on = next !== 'off')),
-    temporalAntialiasing: () => on,
+    setTemporalAntialiasing: (next: string) => void written.push(next),
   } as unknown as MeasuredWorld
   return { explorer, written }
 }
@@ -23,7 +21,7 @@ function session(draws = true) {
 // #363: `createWorld(…, { temporalAntialiasing: false })` opens its sessions with it off, and
 // the property flips the open session in place, never reopening it.
 test('temporal antialiasing is given to the session and switched in place', () => {
-  const open = session(false)
+  const open = session()
   let renewed = 0,
     invalidated = 0
   const runtime = {
@@ -39,7 +37,7 @@ test('temporal antialiasing is given to the session and switched in place', () =
   switches.temporalAntialiasing = true
   switches.temporalAntialiasing = 'max'
   assert.deepEqual(open.written, ['max'], 'written once, into the open session')
-  assert.equal(switches.temporalAntialiasing, 'max', 'read back from the session')
+  assert.equal(switches.temporalAntialiasing, 'max', 'the level resolved, the session open')
   assert.equal(sessionOptions(options, switches.held).temporalAntialiasing, 'max', 'kept on reopen')
   switches.temporalAntialiasing = 'medium'
   assert.deepEqual(open.written, ['max', 'medium'], 'another level, in place')
@@ -62,13 +60,17 @@ test("a scene's level sits below the preset and the page, the first scene naming
   assert.equal(page.temporalAntialiasing, 'max', "the page's true holds over the scene's off")
 })
 
-test('temporal antialiasing is on by default and reads as the session draws it', () => {
+test('temporal antialiasing is at its finest level by default, the level resolved read back', () => {
   const runtime = { explorer: null as MeasuredWorld | null, renew() {}, invalidate() {} }
   const switches = worldSwitches({}, () => runtime, unseen)
   assert.equal(switches.held.temporalAntialiasing, 'max', 'the finest level by default')
   assert.equal(switches.temporalAntialiasing, 'max', 'before a session: what the page asked')
-  runtime.explorer = session(false).explorer
-  assert.equal(switches.temporalAntialiasing, 'off', 'read back from the session')
+  runtime.explorer = session().explorer
+  assert.equal(switches.temporalAntialiasing, 'max', 'a session open: the level resolved still')
+  // Undefined gives the setting back to the preset and the scene.
+  switches.temporalAntialiasing = 'low'
+  switches.temporalAntialiasing = undefined
+  assert.equal(switches.temporalAntialiasing, 'max')
 })
 
 // #349: `world.effects` is one chain for the world's life, handed to every session it opens; a

@@ -263,14 +263,18 @@ function worldSettings({ switches, live }: WorldParts) {
     },
     /** Temporal antialiasing: sub-pixel jitter accumulated over frames, at a quality level —
      *  `'off'`, `'low'`, `'medium'`, `'high'`, `'max'` (the default) —, `true` the default level
-     *  and `false` off. Written, it takes effect at the next frame, history dropped, no session
-     *  reopened, over the quality preset and the scene's level. Read, it is the level the image
-     *  carries: `'off'` while the program compiles after it was turned on. */
+     *  and `false` off. Written, it takes effect at the next frame, no session reopened, over the
+     *  quality preset and the scene's level; `undefined` gives it back to them. Read, the level
+     *  resolved; whether the image carries it — not while its program compiles, nor on a device
+     *  that refuses it — is the `'temporal antialiasing'` capability. */
     get temporalAntialiasing(): import('../../../../sdk-core/src/contracts/compilerAbi.ts').TemporalAntialiasingLevel {
       return switches.temporalAntialiasing
     },
     set temporalAntialiasing(
-      option: import('../../../../sdk-core/src/contracts/materialOptions.ts').TemporalAntialiasingOption,
+      option:
+        | import('../../../../sdk-core/src/contracts/materialOptions.ts').TemporalAntialiasingOption
+        | null
+        | undefined,
     ) {
       switches.temporalAntialiasing = option
     },

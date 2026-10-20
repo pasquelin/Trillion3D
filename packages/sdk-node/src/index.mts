@@ -55,6 +55,9 @@ import {
 } from '../../sdk-core/src/contracts/compilerAbi.ts'
 import { resolveHlod } from '../../sdk-core/src/contracts/hlodOptions.ts'
 import { materialFlags, materialJobFields } from '../../sdk-core/src/contracts/materialOptions.ts'
+import { voxelizeFlags, voxelizeJobFields } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
+export { resolveVoxelize } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
+export type { VoxelizeOption } from '../../sdk-core/src/contracts/voxelizeOptions.ts'
 export {
   resolveMaterials,
   resolveResponsive,
@@ -115,12 +118,13 @@ export async function prepare(
   }
   const args = JOB_FIELDS.map((field) => job[field])
   // The HLOD, either form, as the compiler reads it (`resolveHlod`): a flag, never positional; the
-  // scene's temporal anti-aliasing, the responsive objects and the settings by material name, each
-  // a flag when named. What does not read is the job's refusal, as the compiler's.
+  // scene's temporal anti-aliasing, the responsive objects, the settings by material name and the
+  // voxelized objects, each a flag when named. What does not read is the job's refusal, as the
+  // compiler's.
   try {
     const hlod = resolveHlod(options.hlod)
     if (hlod) args.push(`${HLOD_OPTION}${JSON.stringify(hlod)}`)
-    args.push(...materialFlags(options))
+    args.push(...materialFlags(options), ...voxelizeFlags(options))
   } catch (error) {
     if (error instanceof TypeError) throw compilerError('INVALID_OPTIONS', error.message)
     throw error
@@ -177,6 +181,7 @@ export async function prepareMany(
           id,
           ...(job.hlod == null ? {} : { hlod: resolveHlod(job.hlod) }),
           ...materialJobFields(job),
+          ...voxelizeJobFields(job),
         },
       ]
     } catch (error) {

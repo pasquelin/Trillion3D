@@ -35,7 +35,7 @@ function runtime(scale: RenderScale | undefined, allocated = DISPLAY, apart = tr
     views: { active: { scale: control } },
     gpu: {
       temporal: {},
-      temporalWanted: true,
+      temporalLevel: 'max',
       targetSize: [...allocated],
       allocatedSize: [...allocated],
       displaySize: DISPLAY,
@@ -107,7 +107,7 @@ test('a capture, a diagnostic view and a GPU variant draw at the display size', 
 // made at the bounds' maximum and the composition upscales the scale drawn in them.
 test('without the temporal resolve, the targets are made at the bounds maximum, apart', () => {
   for (const off of [
-    (view: WebgpuPagesRuntime) => (view.gpu.temporalWanted = false),
+    (view: WebgpuPagesRuntime) => (view.gpu.temporalLevel = 'off'),
     (view: WebgpuPagesRuntime) => (view.gpu.temporal = undefined),
   ]) {
     const fixed = runtime(0.5).rt
@@ -129,9 +129,9 @@ test('without the temporal resolve, the targets are made at the bounds maximum, 
 // maximum, the display's own: neither the switch nor any move of the controller changes their size.
 test('switched back on, the targets made off stay, whatever the controller asks', () => {
   const { rt, control } = runtime(FULL_RANGE)
-  rt.gpu.temporalWanted = false
+  rt.gpu.temporalLevel = 'off'
   assert.equal(sizeOf(rt).renderWidth, 3456)
-  rt.gpu.temporalWanted = true
+  rt.gpu.temporalLevel = 'max'
   assert.equal(sizeOf(rt).renderWidth, 3456, 'on again: the same targets')
   lowered(control, 40)
   assert.equal(control.wanted(), 0.5)

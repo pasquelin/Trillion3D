@@ -70,8 +70,8 @@ export type DagRoot = {
   /** Group links: what the cut rule's residency is derived from (`../../page/cut/readiness.ts`). */
   structure?: ClusterStructureIndex
   /** The world HLOD's alone (`scene/worldHlod.ts`): each rank's HLOD cell, and each cell of the
-   *  chain's parent (-1 for a top cell) and layer. */
-  hlod?: { cells: Int32Array; parent: Int32Array; layer: Uint8Array }
+   *  chain's parent (-1 for a top cell), layer and actor's flags (`CHAIN_ACTOR`). */
+  hlod?: { cells: Int32Array; parent: Int32Array; layer: Uint8Array; actor: Uint8Array }
 }
 /** What a placement's cut residency is derived from, and where its pages sit in the packing and
  *  its primitive's shared nodes in the node table (`readiness.ts`). */

@@ -3,6 +3,7 @@ import { sampleWebgpuFrame } from './signature.ts'
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts'
 import { beginTaaFrame } from '../../taa/frame.ts'
 import { taaRuns } from '../pages/state/renderScale.ts'
+import { taaConverged } from '../../taa/landing.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { effectsMoved } from '../pages/render/encodeEffects.ts'
 import { guidesMoved } from '../pages/render/encodeGuides.ts'
@@ -72,12 +73,13 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // into them, never held on a display colour they never had. Its stillness is the scene's.
     const swapped = !awaited && answered && swapAsideTargets(rt, device)
     // Guides and effects may still require drawing this quiet source; a temporal pass runs on every
-    // image, so a still view keeps converging (`taaRuns`); the frame-difference view compares each
-    // image with the one before, so it draws every one.
+    // image until its history is whole (`taaConverging`): a still view converges, then is held on
+    // its converged image; the frame-difference view compares each image with the one before, so
+    // it draws every one.
     if (
       swapped ||
       !quiet ||
-      taaRuns(rt) ||
+      taaConverging(rt) ||
       run.diagnostic === 'frame-difference' ||
       guidesMoved(rt) ||
       effectsMoved(rt) ||
@@ -115,6 +117,18 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   }
   recordHeldFrameWork(rt, presented, msSince(start))
   return true
+}
+
+/** Whether the view's temporal pass still converges (`taaRuns`, `taaConverged`): its history not
+ *  yet whole, so a quiet view is drawn again. Once whole, the image last drawn is the converged one
+ *  the hold redisplays to the bit; a revision or a motion breaks the hold (`quiet`), and the pass
+ *  resumes on the history it holds. A session opened with `drawConverged` keeps drawing it: the
+ *  frame a cost measurement reads. */
+export function taaConverging(rt: WebgpuPagesRuntime) {
+  const frame = rt.gpu.temporal?.frame
+  if (!taaRuns(rt) || !frame) return false
+  if (rt.context.drawConverged === true) return true
+  return !taaConverged(frame, rt.gpu.targetSize[0], rt.gpu.displaySize[0])
 }
 
 /** Stores the frame that has just been fully encoded and submitted: it alone allows a hold. The

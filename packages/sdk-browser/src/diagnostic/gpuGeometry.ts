@@ -38,14 +38,15 @@ export const DIAGNOSTIC_SHADE_WGSL = wgslBlock(
 }`,
 )
 
-/** The raster's fragment stage: its entry point and overrides. */
-type VisStage = { entryPoint: string; constants?: Record<string, number> }
+/** The raster's fragment stage: its entry point and overrides, and whether it draws no fragment
+ *  at all — then the voxel slots draw none either (`../webgpu/visibility/pipelines.ts`). */
+type VisStage = { entryPoint: string; constants?: Record<string, number>; fragmentless?: true }
 
 /** Raster stage that each variant imposes: `geometry-flat` the one stage with its mask test
  *  compiled out, `geometry-vertices` the stage with no fragment. */
 const VIS_STAGE: Partial<Record<DiagnosticGpuVariant, VisStage>> = {
   'geometry-flat': { entryPoint: VIS_FRAGMENT, constants: VIS_UNMASKED },
-  'geometry-vertices': { entryPoint: 'vis_hiz_jete_fs' },
+  'geometry-vertices': { entryPoint: 'vis_hiz_jete_fs', fragmentless: true },
 }
 
 /** Surface-resolve stage that each variant imposes. */

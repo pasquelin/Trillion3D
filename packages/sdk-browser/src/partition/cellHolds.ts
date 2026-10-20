@@ -12,8 +12,10 @@
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
 import { createDeferred } from '../../../sdk-core/src/runtime/deferred.ts'
 
-/** What a held cell holds, counted per cell. */
-type Holder = Pick<WorldRootsHold, 'hold' | 'release' | 'lift'>
+/** What a held cell holds, counted per cell, and whether a top cell's bundles fit the tops'
+ *  budget (`fits`, none: every one does). */
+type Holder = Pick<WorldRootsHold, 'hold' | 'release' | 'lift'> &
+  Partial<Pick<WorldRootsHold, 'fits'>>
 
 /** The holds on their way, and what a frame waits on: the next to land or fail, asked as a list of
  *  one made when first asked, or nothing while none reads. */
@@ -45,6 +47,7 @@ export function createCellHolds(world?: Holder) {
    *  hold failed for good. */
   const holding = new Map<number, { stop: AbortController; priority: number }>(),
     failed = new Set<number>(),
+    reading = new Set<number>(),
     landings = createLandings()
   /** Advanced by every hold, release and failure. */
   let revision = 0
@@ -61,14 +64,19 @@ export function createCellHolds(world?: Holder) {
       }
       const stop = new AbortController()
       holding.set(cell, { stop, priority })
+      reading.add(cell)
       revision++
       landings.started()
-      world.hold(cell, { signal: stop.signal, priority }).then(landings.settled, () => {
+      const landed = () => {
+        if (!stop.signal.aborted) reading.delete(cell)
+        landings.settled()
+      }
+      world.hold(cell, { signal: stop.signal, priority }).then(landed, () => {
         if (!stop.signal.aborted) {
           failed.add(cell)
           revision++
         }
-        landings.settled()
+        landed()
       })
     },
     /** `cell` left: its bundles are released, its reads still queued let go. */
@@ -77,12 +85,17 @@ export function createCellHolds(world?: Holder) {
       if (!own) return
       holding.delete(cell)
       failed.delete(cell)
+      reading.delete(cell)
       revision++
       own.stop.abort()
       world!.release(cell)
     },
     /** The cells held now. */
     cells: () => holding.keys(),
+    /** The cells whose hold still reads: the only ones a moved priority can lift. */
+    reading: () => reading.values(),
+    /** Whether top cell `cell`'s bundles fit the tops' budget now (`../scene/worldBundles.ts`). */
+    fits: (cell: number) => !world?.fits || world.fits(cell),
     /** Whether `cell`'s hold failed for good: its actor never comes while it stays held. */
     failed: (cell: number) => failed.has(cell),
     /** Advanced by every hold, release and failure. */

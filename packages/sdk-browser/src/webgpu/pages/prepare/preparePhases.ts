@@ -74,7 +74,7 @@ export async function prepareMaterials(
   gpuDevice: GPUDevice,
   step: PrepareStep,
 ) {
-  const { gpu, vis, diag, blendState } = rt,
+  const { vis, diag, blendState } = rt,
     { allPages } = rt.setup
   throwIfStopped(rt)
   // A geometry the device refuses fails the image, told with the material steps below.

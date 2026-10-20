@@ -3,7 +3,7 @@ import { drawBlendRuns } from './draw.ts'
 import { DISTORTION_APPLY_PASS, DISTORTION_PASS } from '../../stage/passLabels.ts'
 import { DISTORTION_GROUP, type TransmitPipelines } from './stagePipelines.ts'
 import { feedbackAttachment } from '../pages/prepare/attachments.ts'
-import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
+import { activeAsIsShare, blendShareTargets } from '../pages/prepare/asIsShareTarget.ts'
 import { distortionCovers, drawsDistortion } from './distortionDrawn.ts'
 
 /**
@@ -28,7 +28,8 @@ export function encodeDistortion(
     view = gpu.deferred!.uniform!
   const [width, height] = gpu.targetSize
   const covers = distortionCovers(rt, transmission),
-    share = covers ? activeAsIsShare(rt) : undefined
+    share = covers ? activeAsIsShare(rt) : undefined,
+    targets = share ? blendShareTargets(rt) : 0
   const pass = encoder.beginRenderPass({
     label: DISTORTION_PASS,
     colorAttachments: [
@@ -41,6 +42,7 @@ export function encodeDistortion(
       // The companion pass's outputs, where the accumulation writes them (`distortionCovers`).
       covers && rt.vis.writesFeedback ? feedbackAttachment(rt) : null,
       share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
+      share && targets === 2 ? { view: share.givenUpView, loadOp: 'load', storeOp: 'store' } : null,
     ],
     // The opaque depth, tested and read at once: a read-only attachment.
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
@@ -48,7 +50,7 @@ export function encodeDistortion(
   pass.setViewport(0, 0, width, height, 0, 1)
   pass.setBindGroup(DISTORTION_GROUP, transmission.distortionGroup(view, gpu.depthView!))
   const drawn = covers ? transmission.distortionCoverage : transmission.distortion
-  const encoded = drawBlendRuns(rt, device, pass, drawn, { share: !!share, reflected: false })
+  const encoded = drawBlendRuns(rt, device, pass, drawn, { share: targets, reflected: false })
   pass.end()
   encoder.copyTextureToTexture({ texture: gpu.hdrTexture! }, { texture: backdrop.color }, [
     width,

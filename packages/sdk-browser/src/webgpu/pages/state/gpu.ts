@@ -6,8 +6,11 @@ import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts'
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts'
 import type { DisplayFilter } from '../../blend/displayFilter.ts'
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts'
-import type { TaaRunningLevel } from '../../../taa/levels.ts'
-import { DEFAULT_TEMPORAL_AA_LEVEL } from '../../../../../sdk-core/src/contracts/compilerAbi.ts'
+import { isTaaLevelOn } from '../../../taa/levels.ts'
+import {
+  DEFAULT_TEMPORAL_AA_LEVEL,
+  type TemporalAntialiasingLevel,
+} from '../../../../../sdk-core/src/contracts/compilerAbi.ts'
 import type { WebgpuEffects } from '../../effects/webgpuEffects.ts'
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts'
 import type { WebgpuParticles } from '../../particles/webgpuParticles.ts'
@@ -67,11 +70,9 @@ export interface WebgpuGpuState {
   /** Temporal-antialiasing pass and its two history targets; absent when the host refuses it or the
    *  device does not host it. */
   temporal: TemporalAntialiasing | undefined
-  /** Whether the host wants the pass: set at preparation, then by `setTemporalAntialiasing`. */
-  temporalWanted: boolean
-  /** The level the pass runs at while wanted (`../../../taa/levels.ts`), set with it: the last
-   *  level other than off. */
-  temporalLevel: TaaRunningLevel
+  /** The level the host wants the pass at (`../../../taa/levels.ts`), `'off'` none: set at
+   *  preparation, then by `setTemporalAntialiasing` (`taaWanted`). */
+  temporalLevel: TemporalAntialiasingLevel
   /** The effect chain's targets and programs, made at the first frame with a pass. */
   effects: WebgpuEffects | undefined
   /** Revision of the chain the last encoded image drew, -1 while its programs compile: another
@@ -98,6 +99,10 @@ export interface TransmissionBackdrop {
   /** True when the copies are at the target size and the copy is worth it. */
   active: boolean
 }
+
+/** Whether the host wants a view's temporal pass: any level but off (`temporalLevel`). */
+export const taaWanted = (gpu: Pick<WebgpuGpuState, 'temporalLevel'>) =>
+  isTaaLevelOn(gpu.temporalLevel)
 
 export function createWebgpuGpuState(viewport: readonly [number, number]): WebgpuGpuState {
   return {
@@ -127,7 +132,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     presenter: undefined,
     deferred: undefined,
     temporal: undefined,
-    temporalWanted: true,
     temporalLevel: DEFAULT_TEMPORAL_AA_LEVEL,
     effects: undefined,
     effectsRevision: 0,

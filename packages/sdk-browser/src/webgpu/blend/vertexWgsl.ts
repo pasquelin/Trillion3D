@@ -1,5 +1,7 @@
 import {
+  BLEND_GIVEN_UP_WGSL,
   TRI_CHANNELS_SHIFT,
+  TRI_GIVEN_UP_SHIFT,
   VERTEX_LISTS_WGSL,
   VERTEX_READS_WGSL,
   vsOutWgsl,
@@ -13,7 +15,7 @@ import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_UV1_WGSL } from '../../visibility/shader/pageUv1Wgsl.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_MATERIAL_MASK, FACING_SHIFT, FACING_WGSL } from './facing.ts'
-import { ITEM_FLAG_BITS, ITEM_HLOD_PROXY } from './items.ts'
+import { ITEM_FLAG_BITS, ITEM_HISTORY_SHIFT, ITEM_HLOD_PROXY } from './items.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { lowBits } from '../../../../math/src/wgsl/integer.ts'
@@ -81,6 +83,7 @@ export const blendVertexWgsl = (lobes: boolean) => {
       vsOutWgsl(layout.uv, layout.ids),
       DIAGNOSTIC_PALETTE_WGSL,
       BLEND_DIAGNOSTIC_CODE_WGSL,
+      BLEND_GIVEN_UP_WGSL,
       FACING_WGSL,
       lowBits,
       cornerBarycentric,
@@ -114,10 +117,11 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
  if(m.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(pageNormal(page,h,v),0.0)),m.lineWidth,uni.viewport,uni.pixelRatio);}
  // A sprite's quad turns to face the camera (\`spriteAt\`), about its origin.
  if(m.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,m.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
+ // The triangle's rank, and above it the item's history share code (\`TRI_GIVEN_UP_SHIFT\`).
+ out.tri=(local/3u)|(((it.flags>>${ITEM_HISTORY_SHIFT}u)&${itemFlags.HISTORY_SHARE_MASK}u)<<${TRI_GIVEN_UP_SHIFT}u);
  // The diagnostic views' cluster word and triangle (\`diagnosticColor\`), the opaque resolve's:
  // the screen-error view's word turned to the cluster's world error, which needs the item's world.
  // Read in a diagnostic view alone: a test of the image's view flags, the same for every lane.
- out.tri=local/3u;
  if((uni.viewFlags&${itemFlags.FLAG_DIAGNOSTIC_VIEW}u)!=0u){
   out.diagId=clusterDiagnostic[slot.y];
   // The HLOD view's word, of a placement drawn as its cell's HLOD 0 actor (\`ITEM_HLOD_PROXY\`).

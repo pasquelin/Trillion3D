@@ -7,8 +7,12 @@ import { sequentialEntries, computeTextureEntry } from '../../gpu/core/computeBi
 
 /** Red, the as-is share; green, the reactive value. */
 export const AS_IS_SHARE_FORMAT: GPUTextureFormat = 'rg8unorm'
-/** Bytes per pixel of that format, as the frame's target cost counts them (`targets.ts`). */
-export const AS_IS_SHARE_BYTES = 2
+/** What the layers over a pixel give up of its temporal history, beside it: one channel, so the
+ *  blend pass's targets stay within WebGPU's 32 colour bytes a sample (31 with the display
+ *  layers; four channels would cost 8). */
+export const GIVEN_UP_FORMAT: GPUTextureFormat = 'r8unorm'
+/** Bytes per pixel of both targets, as the frame's target cost counts them (`targets.ts`). */
+export const AS_IS_SHARE_BYTES = 3
 
 /** The target as a blend writes it (`../../webgpu/blend/pipelines.ts`): its coverage over what
  *  the pixel holds, in both channels. */
@@ -22,6 +26,18 @@ export const SHARE_TARGET: GPUColorTargetState = {
  *  green alone (`GPUColorWrite.GREEN`). */
 export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 }
 
+/** The largest of what each layer writes is kept, in any order. */
+const KEEP_LARGEST: GPUBlendComponent = { operation: 'max', srcFactor: 'one', dstFactor: 'one' }
+
+/** The given-up target as a blend or a transmissive layer writes it
+ *  (`../../webgpu/blend/shader.ts`): the share of the history its surface gives up
+ *  (`blendGivenUp`) times its coverage, the pixel keeping the largest of its layers' — a layer that
+ *  keeps its whole history writes 0 and lowers none, a faint edge gives up little. */
+export const GIVEN_UP_TARGET: GPUColorTargetState = {
+  format: GIVEN_UP_FORMAT,
+  blend: { color: KEEP_LARGEST, alpha: KEEP_LARGEST },
+}
+
 /** The seed's program, once a device, compiled off the thread from the first frame entry of a scene
  *  whose transparents or particles can write the share (`askAsIsSeed`): frame targets made again at
  *  another size compile nothing, and the image that first seeds finds it compiled. */
@@ -33,20 +49,31 @@ const seedProgram = oncePerDevice((device) => {
   const layout = device.createBindGroupLayout({
     entries: [computeTextureEntry(0, 'uint', '2d', GPUShaderStage.FRAGMENT)],
   })
-  const pipeline = started(
-    preparedPipeline(device, {
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      vertex: { module, entryPoint: 'fullscreen' },
-      fragment: { module, entryPoint: 'seed', targets: [{ format: AS_IS_SHARE_FORMAT }] },
-      primitive: { topology: 'triangle-list' },
-    }),
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+  // By the pass's targets: the share alone, then with the history given up, which the pass
+  // clears and the seed never draws.
+  const pipelines = [[], [{ format: GIVEN_UP_FORMAT, writeMask: 0 }]].map((givenUp) =>
+    started(
+      preparedPipeline(device, {
+        layout: pipelineLayout,
+        vertex: { module, entryPoint: 'fullscreen' },
+        fragment: {
+          module,
+          entryPoint: 'seed',
+          targets: [{ format: AS_IS_SHARE_FORMAT }, ...givenUp],
+        },
+        primitive: { topology: 'triangle-list' },
+      }),
+    ),
   )
-  return { layout, pipeline }
+  return { layout, pipelines }
 })
 
-/** Asks the seed's program of `device` off the frame, the frames held until it landed
+/** Asks the seed's programs of `device` off the frame, the frames held until they landed
  *  (`../../webgpu/frame/framePipelines.ts`). */
-export const askAsIsSeed = (device: GPUDevice) => void seedProgram(device).pipeline.ask()
+export const askAsIsSeed = (device: GPUDevice) => {
+  for (const pipeline of seedProgram(device).pipelines) pipeline.ask()
+}
 
 /**
  * The current image's debug-view share, seeded from opaque flags before transparents blend it, and
@@ -54,6 +81,12 @@ export const askAsIsSeed = (device: GPUDevice) => void seedProgram(device).pipel
  * its coverage over it (`../../webgpu/blend/transmission/transmitWgsl.ts`), so a pixel behind transparents holds
  * their accumulated opacity. The temporal pass shortens a moving pixel's history by it
  * (`../../taa/historyWgsl.ts`).
+ *
+ * In a target of its own, what the blends and transmissive layers over the pixel give up of its
+ * history (`GIVEN_UP_TARGET`), cleared to 0 on an image whose blends give some up to a temporal
+ * pass (`blendShareTargets`): the history update caps the history's share by its complement as by
+ * an opaque surface's (`../../taa/resolveWgsl.ts`). A particle gives up none; an image whose
+ * blends all keep their history neither clears nor binds it, the update reading a 1×1 zero.
  */
 export function createAsIsShare(
   device: GPUDevice,
@@ -68,27 +101,46 @@ export function createAsIsShare(
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   })
   const view = texture.createView()
-  const { layout, pipeline } = seedProgram(device)
+  const givenUp = device.createTexture({
+    label: 'Trillion3D current history given up',
+    size: { width, height },
+    format: GIVEN_UP_FORMAT,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  })
+  const givenUpView = givenUp.createView()
+  const { layout, pipelines } = seedProgram(device)
   const group = device.createBindGroup({ layout, entries: sequentialEntries([flags]) })
+  const cleared = (target: GPUTextureView): GPURenderPassColorAttachment => ({
+    view: target,
+    loadOp: 'clear',
+    storeOp: 'store',
+    clearValue: [0, 0, 0, 0],
+  })
+  const attachments = [[cleared(view)], [cleared(view), cleared(givenUpView)]]
   return {
     view,
-    /** Clears the share and its reactive value to 0, then, on an image that can hold an as-is
-     *  pixel (`asIs`, `readsAsIs`), seeds the share from the flags. Any other image's flags hold no
-     *  as-is pixel (only a row shown as-is or a diagnostic view writes one): the seed would write
-     *  the clear's zeros again, so its draw is left out. */
-    seed(encoder: GPUCommandEncoder, asIs: boolean) {
+    givenUpView,
+    /** Clears the share and its reactive value to 0, the history given up too where the image's
+     *  blends write it (`givenUp`), then, on an image that can hold an as-is pixel (`asIs`,
+     *  `readsAsIs`), seeds the share from the flags. Any other image's flags hold no as-is pixel
+     *  (only a row shown as-is or a diagnostic view writes one): the seed would write the clear's
+     *  zeros again, so its draw is left out. */
+    seed(encoder: GPUCommandEncoder, asIs: boolean, givenUp: boolean) {
       const pass = encoder.beginRenderPass({
         label: AS_IS_SHARE_PASS,
-        colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] }],
+        colorAttachments: attachments[+givenUp],
       })
       if (asIs) {
-        pass.setPipeline(pipeline.get())
+        pass.setPipeline(pipelines[+givenUp].get())
         pass.setBindGroup(0, group)
         pass.draw(3)
       }
       pass.end()
     },
-    dispose: () => texture.destroy(),
+    dispose() {
+      texture.destroy()
+      givenUp.destroy()
+    },
   }
 }
 

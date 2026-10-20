@@ -19,24 +19,13 @@ export const QUALITY_GROUPS = [
 /** A group a quality level is chosen for. */
 export type QualityGroup = (typeof QUALITY_GROUPS)[number]
 
-/**
- * When a change reaches the image: `uniform`, a word written at every frame; `frame`, a choice the
- * CPU makes at every frame; `resources`, buffers made aside, the old ones in use until they are
- * ready; `pipeline`, a program compiled aside, never in the middle of a frame.
- */
-type RenderSettingApply = 'uniform' | 'frame' | 'pipeline' | 'resources'
-/** What a change throws away: nothing, or the antialiasing's history. */
-type RenderSettingInvalidation = 'none' | 'taaHistory'
-
+/** What every setting says beside its value: who writes it. How a change reaches the image, and
+ *  what it throws away, is the hook's that applies it (`watch`), never a word of the table. */
 interface EntryBase {
-  /** When a change reaches the image. */
-  apply: RenderSettingApply
   /** The quality group whose levels write it. */
   group: QualityGroup
   /** Set by the editor alone: neither a preset nor a page writes it. */
   editorOnly: boolean
-  /** What a change throws away. */
-  invalidates: RenderSettingInvalidation
 }
 
 /** One setting of the table: its kind, its default — an engine constant — and its bounds. */

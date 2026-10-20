@@ -1,4 +1,8 @@
-import type { WorldRoots, WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import {
+  CHAIN_ACTOR,
+  type WorldRoots,
+  type WorldRootsCluster,
+} from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { ClusterGroup } from '../../../sdk-core/src/contracts/geometry.ts'
 import {
   encodeWorldRoots,
@@ -46,12 +50,13 @@ export function packBundles(
 /** The world's HLOD 0 cells. */
 const CELLS = 3
 
-/** A chain of `count` HLOD 0 cells along x, one unit each, every one a top cell: its actor always
- *  loaded (`WorldRoots.chain`). */
+/** A chain of `count` HLOD 0 cells along x, one unit each, every one a top cell whose actor is
+ *  built: always loaded (`WorldRoots.chain`). */
 export function flatChain(count: number): WorldRoots['chain'] {
   return {
     parent: new Int32Array(count).fill(-1),
     level: new Uint8Array(count),
+    actor: new Uint8Array(count).fill(CHAIN_ACTOR.built),
     bounds: Float64Array.from({ length: 6 * count }, (_, at) => {
       const [cell, k] = [Math.floor(at / 6), at % 6]
       return k === 0 ? cell : k === 3 ? cell + 1 : k < 3 ? -1 : 1

@@ -7,6 +7,7 @@ import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts'
 import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { materialTableWgsl } from '../material/materialWgsl.ts'
+import { HISTORY_GIVEN_UP_WGSL } from '../../visibility/types.ts'
 
 /** What every vertex stage of the runs binds and reads before its layout's own reads: the item
  *  records, and the material table their surfaces' records lie in. */
@@ -43,6 +44,17 @@ export const VERTEX_LISTS_WGSL = wgslBlock(
  *  it already, and handed to the fragments (`blendGrads`, `shaderSurface.ts`), which read no record
  *  for it. */
 export const TRI_CHANNELS_SHIFT = 16
+/** Where `tri` carries, above the channels (`SURFACE_MAP_FIELDS`, seven bits), the item's history
+ *  share code (`ITEM_HISTORY_SHIFT`): read off the item by the vertex stage, which reads it already. */
+export const TRI_GIVEN_UP_SHIFT = 28
+
+/** What a transparent fragment's surface gives up of the temporal history, from its code in `tri`
+ *  (`TRI_GIVEN_UP_SHIFT`): its layer writes it at its coverage (`GIVEN_UP_TARGET`). */
+export const BLEND_GIVEN_UP_WGSL = wgslBlock(
+  'BLEND_GIVEN_UP_WGSL',
+  [HISTORY_GIVEN_UP_WGSL],
+  `fn blendGivenUp(in:VSOut,coverage:f32)->f32{return historyGivenUp(in.tri>>${TRI_GIVEN_UP_SHIFT}u)*coverage;}`,
+)
 
 /** The stage's output, its UV and ids lanes those of the layout (`LAYOUTS`,
  *  `vertexWgsl.ts`). */

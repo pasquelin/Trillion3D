@@ -78,6 +78,7 @@ function optionContext(session: ExplorerSession) {
     textureCompression: options.textureCompression,
     stageProfile: options.stageProfile,
     feedbackTargetAB: options.feedbackTargetAB === true,
+    drawConverged: options.drawConverged === true,
     // The diagnostic variant is checked here, once: outside `trace`, it is refused.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(
       options.diagnosticGpuVariant,
@@ -185,7 +186,7 @@ export async function prepareExplorerEngine(session: ExplorerSession, inputs: In
   // of the cached pages' CPU share: reserved once prepared, then as each frame says them.
   const roots = inputs.worldRoots
   const hostBytes = () =>
-    roots.reduce((bytes, held) => bytes + held.bytes(), engine.hostTableBytes())
+    roots.reduce((bytes, held) => bytes + held.reserved(), engine.hostTableBytes())
   streamer.reserve(hostBytes())
   return { viewport: context.viewport!, context, engine, hostBytes }
 }

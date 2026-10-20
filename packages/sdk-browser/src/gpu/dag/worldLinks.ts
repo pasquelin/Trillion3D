@@ -60,9 +60,11 @@ export type PackedWorld = {
   hlod: Int32Array
   /** How many HLOD cells the chain holds, the HLOD 0 cells first, each layer after the one below. */
   cells: number
-  /** Each cell's parent in the chain, -1 for a top cell, and its layer. */
+  /** Each cell's parent in the chain, -1 for a top cell, its layer, and its actor's flags
+   *  (`CHAIN_ACTOR`: built, failed, none for objects in no layer). */
   parent: Int32Array
   layer: Uint8Array
+  actor: Uint8Array
   /** Per HLOD cell, the world ranks nothing replaces that wear a page: what must be resident
    *  before its actor is ready. */
   rootsOf: readonly number[][]
@@ -108,7 +110,7 @@ export function packWorldLinks(
   { cutLinks, cold, at }: { cutLinks: readonly DagCutLinks[]; cold: Uint32Array; at: number },
 ): PackedWorld {
   const root = roots[worlds[0]],
-    { cells: hlod, parent, layer } = root.hlod!,
+    { cells: hlod, parent, layer, actor } = root.hlod!,
     cells = parent.length
   const linkBase = at + LINK_HEADER
   const links = new Uint32Array(LINK_WORDS * Math.max(slots, roots.length)).fill(NO_INDEX)
@@ -129,6 +131,7 @@ export function packWorldLinks(
     cells,
     parent,
     layer,
+    actor,
     rootsOf: cellRoots(root, cells),
     links,
     linkBase,

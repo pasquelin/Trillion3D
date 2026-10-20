@@ -36,8 +36,10 @@ export function createRankedQueue(o: {
   const lifted = new Set<number>()
   const queued: DenseKeySet[] = [],
     waiting: DenseKeySet[] = []
-  for (let r = 0; r < RANKS; r++)
-    ((queued[r] = createDenseKeySet()), (waiting[r] = createDenseKeySet()))
+  for (let r = 0; r < RANKS; r++) {
+    queued[r] = createDenseKeySet()
+    waiting[r] = createDenseKeySet()
+  }
   // The cuts whole until an admission names the room (`requestAdmission.ts`).
   let room = Infinity,
     count = 0,

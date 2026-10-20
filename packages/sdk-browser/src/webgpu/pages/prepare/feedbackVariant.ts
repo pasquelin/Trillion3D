@@ -3,7 +3,7 @@ import { FEEDBACK_BYTES } from '../../../scene/surfaceBuffer.ts'
 import { SHADE_SHADER } from '../../../visibility/shader/shadeWgsl.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'
-import { blendWritesShare } from './asIsShareTarget.ts'
+import { blendShareTargets } from './asIsShareTarget.ts'
 import { blendContext } from './contractLight.ts'
 import { makeFeedbackTarget } from './targets.ts'
 import { keepsEveryOutput } from './emissiveAoLayer.ts'
@@ -136,7 +136,7 @@ async function feedbackPipelines(
       undefined,
       feedback,
       vis.blendBindGroupLayout,
-      blendWritesShare(rt),
+      blendShareTargets(rt),
       // The transmissive stages in place have their twin in this variant, copies joined or not.
       { ...blendContext(rt), holdsTransmission: transmitsNow(rt) },
     )

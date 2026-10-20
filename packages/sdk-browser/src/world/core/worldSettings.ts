@@ -14,19 +14,12 @@ import {
   type RenderSettingEntry,
 } from '../../../../sdk-core/src/runtime/renderSettings.ts'
 
-type Apply = RenderSettingEntry['apply']
-/** Who may write a setting, and what its change throws away: by default anyone, and nothing. */
-type Extra = { editorOnly?: boolean; invalidates?: RenderSettingEntry['invalidates'] }
-const base = (group: QualityGroup, apply: Apply, extra: Extra = {}) => ({
-  apply,
-  group,
-  editorOnly: extra.editorOnly ?? false,
-  invalidates: extra.invalidates ?? 'none',
-})
-const flag = (value: boolean, group: QualityGroup, apply: Apply, extra?: Extra) => ({
+/** Who may write a setting: by default anyone. */
+const base = (group: QualityGroup, editorOnly = false) => ({ group, editorOnly })
+const flag = (value: boolean, group: QualityGroup) => ({
   kind: 'flag' as const,
   default: value,
-  ...base(group, apply, extra),
+  ...base(group),
 })
 
 /** Every render setting of the engine, by name. */
@@ -36,16 +29,17 @@ const WORLD_SETTINGS = {
     kind: 'float',
     default: DEFAULT_PIXEL_ERROR,
     range: [0, Number.MAX_VALUE],
-    ...base('viewDistance', 'frame'),
+    ...base('viewDistance'),
   },
-  // The temporal anti-aliasing's level, `'off'` none (`../../taa/levels.ts`).
+  // The temporal anti-aliasing's level, `'off'` none (`../../taa/levels.ts`): its hook keeps the
+  // history unless the flicker rejection turns on (`setWebgpuTemporalAntialiasing`).
   antialiasing: {
     kind: 'choice',
     default: DEFAULT_TEMPORAL_AA_LEVEL,
     choices: TEMPORAL_AA_LEVELS,
-    ...base('edgeSmoothing', 'pipeline', { invalidates: 'taaHistory' }),
+    ...base('edgeSmoothing'),
   },
-  bounce: flag(false, 'indirectLight', 'resources'),
+  bounce: flag(false, 'indirectLight'),
 } as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** A world's registry over the engine's settings. */

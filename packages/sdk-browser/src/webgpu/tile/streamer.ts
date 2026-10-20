@@ -12,6 +12,7 @@ import { HEADERS_SWITCHED, HEADERS_WRITTEN, samplingHeaders } from './samplingHe
 import { textureJournals } from '../../../../sdk-core/src/texture/writes.ts'
 import { surfaceJournals } from '../../page/surfaceWrites.ts'
 import { createTilePump } from './pump.ts'
+import type { TileKey } from './pageTable.ts'
 /**
  * Tile streamer: what the image asked becomes resident, under a per-image budget in bytes AND in
  * milliseconds, most looked-at tile first. Image-feedback counters name the tiles; the streamer
@@ -87,6 +88,11 @@ export function createWebgpuTileStreamer(options: {
   const journal = textureJournals.open(),
     surfaces = surfaceJournals.open()
   const followHeaders = samplingHeaders(color, data, journal, surfaces)
+  /** The image the warmth was last asked at, and per atlas, slot and level, its answer then:
+   *  every switch asking the same texture in one image reads it once. */
+  let warmFrame = -1
+  const warmAt = new Map<number, boolean>()
+  const key: TileKey = { slot: 0, level: 0, tx: 0, ty: 0 }
   return {
     color,
     data,
@@ -119,6 +125,43 @@ export function createWebgpuTileStreamer(options: {
       flushAll()
       options.onColorChanged(colorChanged)
       return (found & HEADERS_SWITCHED) !== 0
+    },
+    /**
+     * Whether every tile of slot `slot` of the `kind` atlas resides at the level whose side matches
+     * `pixels`, those that do not asked for the next pass beside the feedback, within what a pass
+     * takes (`requests.ts`, `ask`): what a switch to an HLOD actor not drawn yet waits on
+     * (`../pages/prepare/hlodWarm.ts`). Read once per image `frame` and level. A retired texture
+     * or a level of the tail — always resident (`tails.ts`) — is warm.
+     */
+    warm(kind: 'color' | 'data', slot: number, pixels: number, frame: number) {
+      const atlas = kind === 'color' ? color : data,
+        entry = atlas.textures[slot]
+      if (!entry || entry.retired) return true
+      const { width, height, tail } = entry.layout
+      const level = Math.max(
+        0,
+        Math.floor(Math.log2(Math.max(width, height) / Math.max(pixels, 1))),
+      )
+      if (level >= tail) return true
+      if (frame !== warmFrame) {
+        warmFrame = frame
+        warmAt.clear()
+      }
+      const id = (slot * 16 + level) * 2 + (kind === 'color' ? 0 : 1)
+      const known = warmAt.get(id)
+      if (known !== undefined) return known
+      let warm = true
+      key.slot = slot
+      key.level = level
+      scan: for (key.ty = 0; key.ty < entry.layout.down[level]; key.ty++)
+        for (key.tx = 0; key.tx < entry.layout.across[level]; key.tx++) {
+          if (atlas.resides(key)) continue
+          warm = false
+          // The pass takes no more: the rest waits for the next image.
+          if (!requests.ask(atlas, key)) break scan
+        }
+      warmAt.set(id, warm)
+      return warm
     },
     /** An image's feedback leaves with it (`publish.ts`). */
     publishRequests: published.publish,

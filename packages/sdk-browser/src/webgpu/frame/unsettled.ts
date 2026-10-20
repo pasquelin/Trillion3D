@@ -22,6 +22,7 @@ const REASONS = [
   'bounceProbes',
   'deforming',
   'reflections',
+  'hlodWarming',
 ] as const
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -64,6 +65,9 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (shadowsUnsettled(lights, rt.rowWords)) mask |= BIT.shadowsPending
   // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending
+  // An HLOD switch waiting on its actor's textures switches on a later cut: a still view keeps
+  // drawing till it has (`../pages/prepare/hlodWarm.ts`).
+  if (run.gpuSelection?.world?.warming) mask |= BIT.hlodWarming
   return mask
 }
 /** The temporal histories still advancing: bounce probes and deformation. */

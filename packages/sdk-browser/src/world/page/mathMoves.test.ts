@@ -6,7 +6,6 @@
 // The sweep holds each radius the same in float32; past it, a last-bit move in float64 can turn a
 // comparison only at an exact tie.
 import test from 'node:test'
-import assert from 'node:assert/strict'
 import {
   HALTON_SWEEP,
   assertSameFloat32,

@@ -5,12 +5,7 @@
  * HLOD builds none.
  */
 import type { HlodExpertOf, HlodLayer, HlodWire } from './compilerAbi.ts'
-import {
-  DEFAULT_HLOD_LEVELS,
-  DEFAULT_HLOD_VOXEL_PIXELS,
-  MAX_HLOD_LEVELS,
-  MIN_HLOD_LEVELS,
-} from './compilerAbi.ts'
+import { DEFAULT_HLOD_LEVELS, MAX_HLOD_LEVELS, MIN_HLOD_LEVELS } from './compilerAbi.ts'
 import {
   fieldsOf as fieldsIn,
   refusal,
@@ -49,7 +44,12 @@ export const HLOD_QUALITIES: Record<
 
 /** The groups of the simple form, each with its own chain:
  *  - `buildings`: the main chain;
- *  - `foliage`: a short chain of two levels whose voxel is half the rule's, to keep the silhouette;
+ *  - `foliage`: a short chain of two levels — the objects themselves, then one `voxel` actor per
+ *    HLOD 0 cell, the cell's objects voxelized together: no shell, no atlas, a leaf's cut-out
+ *    kept, the cut picking each brick level by its error —, its top actors standing in up to the
+ *    2 048 m grid, whose cells' own make the top always loaded, as every chain's
+ *    (`compiler_tables/partition/hlod.rs`); its objects' meshes are voxelized far away too
+ *    (`voxelizeOptions.ts`);
  *  - `props`: small objects, their own instanced cells absorbed by the main chain's first
  *    approximated layer.
  *  A group matching an object wins over those after it, in the order of the `groups` keys; an
@@ -75,9 +75,6 @@ export interface HlodSimple {
 /** A job's HLOD: the simple form or the expert form (`layers`), never both. Left out, the job
  *  builds no HLOD. */
 export type HlodOptions = HlodSimple | HlodExpert
-
-/** The foliage chain's voxel, in pixels: half the rule's. */
-const FOLIAGE_ACCURACY_PIXELS = DEFAULT_HLOD_VOXEL_PIXELS / 2
 
 /** The fields each form and a rule may hold. */
 const SIMPLE_FIELDS = ['levels', 'quality', 'groups'] as const
@@ -151,7 +148,8 @@ export function resolveHlod(options?: HlodOptions | null): HlodWire | undefined 
   // the main chain's first approximated layer.
   const layers: HlodLayer[] = [
     ...chain('hlod', levels, preset),
-    ...chain('foliage', 2, { ...preset, accuracyPixels: FOLIAGE_ACCURACY_PIXELS }),
+    { name: 'foliage0', builder: 'instanced', parent: 'foliage1' },
+    { name: 'foliage1', builder: 'voxel' },
     { name: 'props0', builder: 'instanced', parent: 'hlod1' },
   ]
   const marks: Record<HlodGroup, string> = {

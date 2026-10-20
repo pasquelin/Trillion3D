@@ -6,6 +6,7 @@ import type {
   ResponsiveOption,
   TemporalAntialiasingOption,
 } from '../../../sdk-core/src/contracts/materialOptions.ts'
+import type { VoxelizeOption } from '../../../sdk-core/src/contracts/voxelizeOptions.ts'
 import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
 import type { JobSnapshot } from '../../../sdk-core/src/runtime/jobs/jobs.ts'
 
@@ -87,6 +88,10 @@ export interface CompilerEvent {
    *  winning over `responsive` and the material's own `extras` (`resolveMaterials`).
    *  @defaultValue none */
   materials?: MaterialsOption
+  /** The objects whose meshes are voxelized far away — their coarse levels bricks of voxels, a
+   *  leaf's cut-out kept —: a node's name, a pattern on it, or a match (`resolveVoxelize`); the
+   *  HLOD `foliage` group's objects are without it. @defaultValue none */
+  voxelize?: VoxelizeOption
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void
@@ -158,6 +163,7 @@ export interface BatchJob extends Pick<
   | 'temporalAntialiasing'
   | 'responsive'
   | 'materials'
+  | 'voxelize'
 > {
   /** Its name. */ id?: string
   /** The source file. */ source: string

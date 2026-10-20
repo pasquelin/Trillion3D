@@ -14,6 +14,7 @@ import {
   SIMPLIFICATIONS,
   TEMPORAL_AA_LEVELS,
   TEMPORAL_AA_OPTION,
+  VOXELIZE_OPTION,
 } from '../../../sdk-core/src/contracts/compilerAbi.ts'
 import type { HlodOptions } from '../../../sdk-core/src/contracts/hlodOptions.ts'
 import type {
@@ -21,6 +22,7 @@ import type {
   ResponsiveOption,
   TemporalAntialiasingOption,
 } from '../../../sdk-core/src/contracts/materialOptions.ts'
+import type { VoxelizeOption } from '../../../sdk-core/src/contracts/voxelizeOptions.ts'
 
 /** Exit code of `--strict` when the compile succeeded with warnings; failures exit 1. */
 const STRICT_EXIT = 3
@@ -28,9 +30,15 @@ const FLAGS = new Set(['--strict', '--verbose'])
 const argv = process.argv.slice(2)
 // The flags holding a value: the HLOD, either form (`resolveHlod`), the scene's temporal
 // anti-aliasing (`resolveTemporalAntialiasing`, a bare level or a boolean), the responsive objects
-// (`resolveResponsive`) and the settings by material name (`resolveMaterials`), each the last
-// one, JSON but for the level.
-const JSON_OPTIONS = [HLOD_OPTION, TEMPORAL_AA_OPTION, RESPONSIVE_OPTION, MATERIALS_OPTION]
+// (`resolveResponsive`), the settings by material name (`resolveMaterials`) and the voxelized
+// objects (`resolveVoxelize`), each the last one, JSON but for the level.
+const JSON_OPTIONS = [
+  HLOD_OPTION,
+  TEMPORAL_AA_OPTION,
+  RESPONSIVE_OPTION,
+  MATERIALS_OPTION,
+  VOXELIZE_OPTION,
+]
 const isJsonFlag = (arg: string) => JSON_OPTIONS.some((option) => arg.startsWith(option))
 const flags = new Set(argv.filter((arg) => arg.startsWith('--') && !isJsonFlag(arg)))
 const [
@@ -48,7 +56,7 @@ const unknown = [...flags].filter((flag) => !FLAGS.has(flag))
 if (!input || !output || !resourceBaseUrl || unknown.length)
   throw compilerError(
     'INVALID_ARGS',
-    `usage: trillion3d-compile [--strict] [--verbose] [${HLOD_OPTION}JSON] [${TEMPORAL_AA_OPTION}${TEMPORAL_AA_LEVELS.join('|')}|true|false] [${RESPONSIVE_OPTION}JSON] [${MATERIALS_OPTION}JSON] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
+    `usage: trillion3d-compile [--strict] [--verbose] [${HLOD_OPTION}JSON] [${TEMPORAL_AA_OPTION}${TEMPORAL_AA_LEVELS.join('|')}|true|false] [${RESPONSIVE_OPTION}JSON] [${MATERIALS_OPTION}JSON] [${VOXELIZE_OPTION}JSON] SOURCE CACHE [${ASSET_SCOPES.join('|')}] [triangleBudget] RESOURCE_BASE_URL [threads] [ramBudgetMb] [${SIMPLIFICATIONS.join('|')}]`,
   )
 /** Whether `word` is one of `list`'s words. */
 const oneOf = <T extends string>(list: readonly T[], word: string): word is T =>
@@ -82,6 +90,7 @@ const temporalAntialiasing =
       : (levelWord as TemporalAntialiasingOption | undefined)
 const responsive = jsonFlag<ResponsiveOption>(RESPONSIVE_OPTION)
 const materials = jsonFlag<MaterialsOption>(MATERIALS_OPTION)
+const voxelize = jsonFlag<VoxelizeOption>(VOXELIZE_OPTION)
 const [strict, verbose] = [flags.has('--strict'), flags.has('--verbose')]
 const controller = new AbortController()
 process.once('SIGINT', () => controller.abort())
@@ -102,6 +111,7 @@ const result = await prepare(input, output, scope, triangleBudget, {
   temporalAntialiasing,
   responsive,
   materials,
+  voxelize,
   signal: controller.signal,
   onProgress: (event) => {
     if (progress) progress.event(event)

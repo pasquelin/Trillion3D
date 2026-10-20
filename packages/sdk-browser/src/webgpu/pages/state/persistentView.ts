@@ -2,7 +2,8 @@ import type { HostCamera } from '../../../camera/world.ts'
 import { drawnTrianglesOf } from './drawnTriangles.ts'
 import { viewTargetBytes } from './gpu.ts'
 import type { ViewFrameMetrics } from '../../../../../sdk-core/src/contracts/metrics.ts'
-import { rigViewTemporal, setWebgpuTemporalAntialiasing, taaLevelOf } from '../../../taa/prepare.ts'
+import { rigViewTemporal, setWebgpuTemporalAntialiasing } from '../../../taa/prepare.ts'
+import { temporalAntialiasingLevel } from '../../../../../sdk-core/src/contracts/materialOptions.ts'
 import type { TemporalAntialiasingLevel } from '../../../../../sdk-core/src/contracts/compilerAbi.ts'
 import { releaseSettledCapture } from '../io/captureAside.ts'
 import { renderWebgpuPages } from '../render/render.ts'
@@ -57,9 +58,7 @@ export async function addWebgpuView(rt: WebgpuPagesRuntime, options: WebgpuViewO
   const scale = createViewScale(options.renderScale ?? 'auto', rt.views.main.scale)
   const view = createWebgpuView(width, height, scale, true)
   view.rect = at
-  const level = taaLevelOf(options.temporalAntialiasing)
-  view.gpu.temporalWanted = level !== 'off'
-  if (level !== 'off') view.gpu.temporalLevel = level
+  view.gpu.temporalLevel = temporalAntialiasingLevel(options.temporalAntialiasing)
   const presenter = options.canvas
     ? createGpuPresenter(device, options.canvas)
     : viewGpu(rt, rt.views.main).presenter

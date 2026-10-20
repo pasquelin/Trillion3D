@@ -5,7 +5,7 @@ import { DEFAULT_SCOPE } from '../../sdk-core/src/contracts/base.ts'
 import { getSdkProvenance } from './compiler/provenance.mts'
 import { resolveCompilerExecutable } from './compiler/executable.mts'
 import type { BatchJob } from './compiler/contracts.ts'
-import type { JobField } from '../../sdk-core/src/contracts/compilerAbi.ts'
+import type { JobField, MATERIAL_SETTINGS } from '../../sdk-core/src/contracts/compilerAbi.ts'
 
 /** One hashed file of `getSdkProvenance()`'s snapshot, as this test reads it: hashes only, no
  *  embedded source text, whatever the caller might otherwise expect from the field name. */
@@ -25,9 +25,12 @@ test('Compilation jobs expose the shared slice default', () => {
 })
 test('a batch job names the fields of one compile job, as the single job names them', () => {
   // Type-checked: a batch field the compile job does not declare (the former `triangles`), or a
-  // job field the batch misses, makes this assignment fail to compile.
+  // job field the batch misses, makes this assignment fail to compile. The compile configuration
+  // a job carries beside its fields — HLOD layers, materials, temporal settings, voxelization —
+  // is no command-line field.
+  type ConfigField = 'hlod' | 'materials' | 'voxelize' | (typeof MATERIAL_SETTINGS)[number]
   type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
-  const same: SameKeys<Exclude<keyof BatchJob, 'id'>, JobField> = true
+  const same: SameKeys<Exclude<keyof BatchJob, 'id' | ConfigField>, JobField> = true
   assert.equal(same, true)
 })
 test('compiler executable selection is explicit, then environment, then package-relative', () => {

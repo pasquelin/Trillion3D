@@ -4,6 +4,7 @@ import { luminance } from '../../../math/src/wgsl/color.ts'
 import { toHalf } from '../../../math/src/float/half.ts'
 import { TRIANGLE_PALETTE_WGSL } from './trianglePalette.ts'
 import { DIAGNOSTIC_VIEWS } from '../visibility/shader/shadeMode.ts'
+import { CLASS_FEATURE } from '../visibility/shader/classWords.ts'
 /**
  * What a diagnostic view paints, computed here and nowhere else: the cluster's diagnostic word and
  * the colours of every view. Pure arithmetic, so a view can read it without loading the boundary
@@ -82,7 +83,9 @@ const V = DIAGNOSTIC_VIEWS
  *  is the shading of the LOD and HLOD colorations instead: the colour times
  *  `0.05 + 0.95·Luminance(BaseColor + Emissive)`, unlit — the surface's own brightness keeps its
  *  detail readable under the flat colour, never fully black.
- *  `diagnosticColor` is the one colour of a view's pixel (`DiagnosticPixel`), every resolve's. */
+ *  `diagnosticColor` is the one colour of a view's pixel (`DiagnosticPixel`), every resolve's; the
+ *  voxel view paints a voxel row (its material class's `CLASS_FEATURE.VOXEL`) in its level's
+ *  colour and any other pixel grey by its brightness. */
 export const DIAGNOSTIC_PALETTE_WGSL = wgslBlock(
   'DIAGNOSTIC_PALETTE_WGSL',
   [luminance, TRIANGLE_PALETTE_WGSL, DIAGNOSTIC_WIRE_WGSL],
@@ -133,6 +136,10 @@ fn diagnosticColor(mode:u32,p:DiagnosticPixel)->vec3f{
   case ${V.hlod.code}u:{return diagnosticDebugColor(diagnosticHlod((p.word>>${DIAGNOSTIC_WORD.hlodShift}u)&${DIAGNOSTIC_WORD.hlodMask}u),p.base);}
   case ${V['screen-error'].code}u:{return diagnosticShade(diagnosticError(p.screenError),p.normal);}
   case ${V.materials.code}u:{return diagnosticShade(hashColor(p.material),p.normal);}
+  case ${V.voxels.code}u:{
+   if((p.material&${CLASS_FEATURE.VOXEL}u)!=0u){return diagnosticShade(diagnosticLevel(p.word&${DIAGNOSTIC_WORD.levelMask}u),p.normal);}
+   return vec3f(0.15+0.5*luminance(p.base));
+  }
   default:{return diagnosticShade(diagnosticFlat(),p.normal);}
  }
 }`,

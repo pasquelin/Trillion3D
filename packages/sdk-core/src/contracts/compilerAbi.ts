@@ -44,15 +44,16 @@ export type JobField = (typeof JOB_FIELDS)[number]
 /** How an HLOD layer builds its actors: `instanced`, the objects themselves, batched — a layer
  *  objects are assigned to —; `approximate`, one closed shell per cell wearing a flattened
  *  material; `merge`, the cell's objects merged into one mesh; `proxy`, the cell's objects
- *  remeshed into one closed surface. */
-export const HLOD_BUILDERS = ['instanced', 'approximate', 'merge', 'proxy'] as const
+ *  remeshed into one closed surface; `voxel`, the cell's objects voxelized together, levels of
+ *  bricks the cut picks by their error — no shell, no atlas, a leaf's cut-out kept. */
+export const HLOD_BUILDERS = ['instanced', 'approximate', 'merge', 'proxy', 'voxel'] as const
 /** One of `HLOD_BUILDERS`. */
 export type HlodBuilder = (typeof HLOD_BUILDERS)[number]
 /** Which LOD of each source a `merge` layer takes: `calculate`, the coarsest whose error the
  *  layer's deviation holds at the distance the layer is first seen from; `lowest`, its coarsest. */
 export const HLOD_LOD_SELECTIONS = ['calculate', 'lowest'] as const
 /** One of `HLOD_LOD_SELECTIONS`. */
-export type HlodLodSelection = (typeof HLOD_LOD_SELECTIONS)[number]
+type HlodLodSelection = (typeof HLOD_LOD_SELECTIONS)[number]
 /** The atlas sides, in texels, a layer may name: a power of two in these bounds. */
 export const MIN_HLOD_TEXTURE_SIZE = 16
 /** See `MIN_HLOD_TEXTURE_SIZE`. */
@@ -176,6 +177,17 @@ export const DEFAULT_TEMPORAL_AA_LEVEL = 'max' satisfies TemporalAntialiasingLev
 export const RESPONSIVE_FIELD = 'responsive'
 /** The command line's flag naming the responsive objects, its JSON after the `=`. */
 export const RESPONSIVE_OPTION = '--responsive='
+/** The job field naming the objects whose meshes are voxelized far away (`resolveVoxelize`): one
+ *  match on what the glTF carries, as `responsive` names its objects. Their DAG's coarse levels are
+ *  bricks of voxels wherever voxels hold the error better than triangles; the objects of the HLOD
+ *  `foliage` group are voxelized without it, and so is a mesh whose own `extras` asks
+ *  (`VOXELIZE_EXTRA`). The command line's `--voxelize=` flag holds it as JSON. */
+export const VOXELIZE_FIELD = 'voxelize'
+/** The command line's flag naming the voxelized objects, its JSON after the `=`. */
+export const VOXELIZE_OPTION = '--voxelize='
+/** The key of a glTF mesh's `extras` asking for voxels far away — `"extras": { "shapePreservation":
+ *  "voxelize" }` —, the lowest source of a mesh's voxels. */
+export const VOXELIZE_EXTRA = 'shapePreservation'
 /** The job field setting materials by name (`resolveMaterials`): `{ name: { temporalAntialiasing,
  *  responsive } }`, an explicit value that wins over the match and the material's own extras; the
  *  command line's `--materials=` flag holds it as JSON. */

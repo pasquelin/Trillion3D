@@ -3,12 +3,9 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { ViewFrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { HostCamera } from '../../camera/world.ts'
 import type { EngineView } from '../../engine/types.ts'
+import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
 import {
-  DEFAULT_TEMPORAL_AA_LEVEL,
-  type TemporalAntialiasingLevel,
-} from '../../../../sdk-core/src/contracts/compilerAbi.ts'
-import {
-  resolveTemporalAntialiasing,
+  temporalAntialiasingLevel,
   type TemporalAntialiasingOption,
 } from '../../../../sdk-core/src/contracts/materialOptions.ts'
 import type { RenderScale } from '../../frame/renderScaleOption.ts'
@@ -173,8 +170,7 @@ export function createWorldViews(world: WorldOfViews) {
     const record: ViewRecord = {
       options: {
         renderScale: options.renderScale ?? 'auto',
-        temporalAntialiasing:
-          resolveTemporalAntialiasing(options.temporalAntialiasing) ?? DEFAULT_TEMPORAL_AA_LEVEL,
+        temporalAntialiasing: temporalAntialiasingLevel(options.temporalAntialiasing),
         maxFrameRate: options.maxFrameRate ?? Infinity,
       },
       canvas: target?.canvas ?? world.canvas,
@@ -233,13 +229,13 @@ export function createWorldViews(world: WorldOfViews) {
         record.handle?.setRenderScale(scale)
         world.invalidate()
       },
-      /** Its own temporal antialiasing's level, from the next frame; `true` the default level,
-       *  `false` off. */
+      /** Its own temporal antialiasing's level, from the next frame; `true` or none the default
+       *  level, `false` off. Read, the level asked, as the world's. */
       get temporalAntialiasing(): TemporalAntialiasingLevel {
         return record.options.temporalAntialiasing
       },
-      set temporalAntialiasing(option: TemporalAntialiasingOption) {
-        const level = resolveTemporalAntialiasing(option)!
+      set temporalAntialiasing(option: TemporalAntialiasingOption | null | undefined) {
+        const level = temporalAntialiasingLevel(option)
         record.options.temporalAntialiasing = level
         record.handle?.setTemporalAntialiasing(level)
         world.invalidate()
@@ -328,7 +324,7 @@ export interface WorldView {
   get renderScale(): number
   set renderScale(scale: RenderScale)
   get temporalAntialiasing(): TemporalAntialiasingLevel
-  set temporalAntialiasing(option: TemporalAntialiasingOption)
+  set temporalAntialiasing(option: TemporalAntialiasingOption | null | undefined)
   maxFrameRate: number
   onFrame(hook: (info: ViewFrameInfo) => void): () => void
   dispose(): void

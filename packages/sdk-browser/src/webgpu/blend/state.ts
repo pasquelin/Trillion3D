@@ -133,6 +133,9 @@ function translucentState() {
     /** An item is `lobed`: the blends are lit by a lobed program (`shader.ts`). Set with the
      *  records. */
     lobed: false,
+    /** An item's surface gives up some of its history (`ITEM_NEEDS.givesUp`): under a temporal
+     *  pass, the blends write the history given up (`blendShareTargets`). Set with the records. */
+    givesUp: false,
     /** What the front pass writes (`frontStageOf`): the reflecting surface the trace answers once an
      *  item reflects (lit, of the physical model), its lobes once one carries a lobe. Set with the
      *  records. */

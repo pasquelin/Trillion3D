@@ -2,6 +2,7 @@ import { cpuNow } from '../../../diagnostic/stopwatch.ts'
 import { pumpResidentTiles } from '../prepare/lightResources.ts'
 import { ensurePageTable } from './pageTable.ts'
 import { followCutRows } from '../prepare/growTables.ts'
+import { warmWorldActors } from '../prepare/hlodWarm.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The cut of the drawn view: the main one, or the view's own beside it on the same tables
@@ -48,6 +49,9 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
     run.gpuMetricsReady = false
   rows.clearResidencyChanges()
   marks.residencyUploadEnd = cpuNow()
+  // The world's HLOD switches wait for the actors they draw to warm: the tiles those ask are
+  // served in this pass beside the feedback's (`../prepare/hlodWarm.ts`).
+  warmWorldActors(rt)
   // What the previous image's feedback requested of the textures becomes resident, on what the
   // rows left of the frame's clock: a page without its row draws a coarser ancestor — a hole where
   // a window was —, a tile not in yet only a coarser level. The pass times itself on its budget

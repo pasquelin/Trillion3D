@@ -61,6 +61,11 @@ function wakingWorld(world: WorldCells, wake: () => void) {
       show: (instance, cell, word) => world.show(instance, cell, word) && (wake(), true),
       visible: world.visible,
       stands: world.stands,
+      moved: world.moved,
+      warmWith: world.warmWith,
+      get warming() {
+        return world.warming
+      },
       get revision() {
         return world.revision
       },

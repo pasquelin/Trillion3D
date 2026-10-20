@@ -129,6 +129,9 @@ export interface MeasuredWorldOptions {
   stageProfile?: boolean
   /** Opt-in same-session GPU feedback-target A/B diagnostic; never enabled by production. */
   feedbackTargetAB?: boolean
+  /** Keep drawing a still view whose temporal history is whole instead of holding its converged
+   *  image: every frame then costs a full draw, what a cost measurement reads. Off by default. */
+  drawConverged?: boolean
   /** A GPU DIAGNOSTIC variant (`../../diagnostic/gpuVariant.ts`): it neutralises a factor of the
    *  frame to split its duration, and therefore renders an image different from production.
    *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */

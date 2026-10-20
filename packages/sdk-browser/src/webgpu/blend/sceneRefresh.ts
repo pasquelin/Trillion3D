@@ -2,6 +2,7 @@ import {
   BLEND_ITEM_WORDS,
   ITEM_FLAGS_WORD,
   ITEM_HLOD_PROXY,
+  ITEM_NEEDS,
   itemProxyBit,
   writeBlendItemRecord,
 } from './items.ts'
@@ -9,6 +10,7 @@ import { refreshBlendPlan } from './plan.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { frontStageOf } from './frontStage.ts'
+import { blendShareTargets } from '../pages/prepare/asIsShareTarget.ts'
 
 /**
  * Records and the encode plan, rebuilt after a scene change.
@@ -26,8 +28,10 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
   const { blendState, vis } = rt,
     buffer = blendState.itemBuffer
   if (!buffer || !blendState.blendGpu.length) {
-    // No item left: no lobe either, so the lobes target and the lobed programs are dropped too.
+    // No item left: no lobe either, so the lobes target and the lobed programs are dropped too,
+    // and no history given up.
     blendState.lobed = false
+    blendState.givesUp = false
     blendState.frontOutputs = 0
     return
   }
@@ -35,25 +39,32 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
   else writeBlendRecords(rt, device.queue, buffer)
   refreshBlendPlan(blendState)
   if (posesOnly) return
-  // A blending written on a surface starts its compile here, off the frame (`reach.ts`).
+  // A blending or a history share written on a surface starts its compile here, off the frame
+  // (`reach.ts`).
   vis.blendPipelines?.reach({
     modes: blendState.planModes,
+    share: blendShareTargets(rt),
     filtered: blendState.filtersDisplay,
   })
 }
 
-/** Every record written whole, the lobe switches derived from them, and what the front pass writes. */
+/** Every record written whole, the lobe and given-up switches derived from them, and what the
+ *  front pass writes. */
 function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUBuffer) {
   const { blendState, vis } = rt,
     items = blendState.blendGpu,
     packed = blendState.itemPacked
-  let lobed = false
+  let lobed = false,
+    givesUp = false
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
-    item.lobed = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
+    const needs = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
+    item.lobed = (needs & ITEM_NEEDS.lobed) !== 0
     lobed ||= item.lobed
+    givesUp ||= (needs & ITEM_NEEDS.givesUp) !== 0
   }
   blendState.lobed = lobed
+  blendState.givesUp = givesUp
   blendState.frontOutputs = frontStageOf(items)
   queue.writeBuffer(buffer, 0, packed.buffer, 0, packed.byteLength)
 }

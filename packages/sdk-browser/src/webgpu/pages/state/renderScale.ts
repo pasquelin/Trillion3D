@@ -2,6 +2,7 @@ import { upscaleMipBias } from '../../../taa/jitter.ts'
 import { renderExtent, type RenderScaleBounds } from '../../../frame/renderScaleOption.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { drawsLit, keepsBeautyChain } from '../../../visibility/shader/shadeMode.ts'
+import { taaWanted } from './gpu.ts'
 
 /** Whether this image is the beauty one, its whole chain kept: the diagnostic view off, or a view
  *  of the lit image that keeps it (`keepsBeautyChain`), and no second-camera capture. */
@@ -30,12 +31,10 @@ function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
 
 /** Whether the view's temporal pass runs this image: rigged, switched on, a lit image other than
  *  the view that bypasses it (`no-temporal-aa`, which draws as the pass switched off). It then
- *  runs on every image: such a view is never held (`holdWebgpuFrame`). */
+ *  runs on every image until its history is whole, then the still view is held on its converged
+ *  image (`taaConverging`, `holdWebgpuFrame`). */
 export const taaRuns = (rt: WebgpuPagesRuntime) =>
-  !!rt.gpu.temporal &&
-  rt.gpu.temporalWanted &&
-  litImage(rt) &&
-  rt.run.diagnostic !== 'no-temporal-aa'
+  !!rt.gpu.temporal && taaWanted(rt.gpu) && litImage(rt) && rt.run.diagnostic !== 'no-temporal-aa'
 
 /** Render pixels per CSS pixel: the host's ratio times the render-to-display one, so a line drawn
  *  below the display keeps its display width. The host's own at native size. */

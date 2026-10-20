@@ -59,7 +59,7 @@ export function renderGpuCut(
     return
   }
   streamCutResidency(rt, gpuDevice)
-  if (cutFrame(rt, gpuDevice, cam)) encodeImage(rt, gpuDevice, cam)
+  if (cutFrame(rt, gpuDevice)) encodeImage(rt, gpuDevice, cam)
 }
 
 /** The camera's motion the view's cut reads its view ahead from: the main view's alone, which
@@ -99,7 +99,7 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
 }
 
 /** The frame's encoder opened, the rows followed, and the cut dispatched into it; false when the image stops there. */
-function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, cam: EngineCamera) {
+function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   let cut: boolean
   try {
     const encoder = openFrameEncoder(rt, gpuDevice)

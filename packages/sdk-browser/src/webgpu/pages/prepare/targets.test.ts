@@ -36,7 +36,7 @@ const native = (width: number, height: number) => ({
 test('targets follow resolution, history included: 4K is admitted and costed', () => {
   const { rt, resized, temporal } = runtime()
   // The pass on: switched off, its history is not made (`ensureTaaTargets`).
-  rt.gpu.temporalWanted = true
+  rt.gpu.temporalLevel = 'max'
   for (const [width, height] of [
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],
@@ -81,10 +81,11 @@ test('a blended scene costs the share only when a debug view or the temporal pas
   Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { ...rt.vis, asIsShown: false } })
   const base = frameTargetAllocation(rt, native(64, 32))
   rt.vis.asIsShown = true
-  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'a debug view shown')
+  // Its two channels and, beside them, the history the transparents give up: three bytes a pixel.
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 3, 'a debug view shown')
   rt.vis.asIsShown = false
-  rt.gpu.temporalWanted = true
-  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 2, 'its reactive value')
+  rt.gpu.temporalLevel = 'max'
+  assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32 * 3, 'its reactive value')
 })
 
 // With no debug view the frame targets hold no share texture and cost none; with one, the
@@ -114,7 +115,7 @@ test('the frame targets hold the share only while a debug view reads it', () => 
   assert.ok(shown.share && shown.held, 'a debug view: the share is made')
   const plain = made(false)
   assert.ok(!plain.share && !plain.held, 'no debug view: no share texture')
-  assert.equal(shown.bytes - plain.bytes, 64 * 32 * 2, 'the total drops by its bytes')
+  assert.equal(shown.bytes - plain.bytes, 64 * 32 * 3, 'the total drops by its bytes')
 })
 
 test('targets that fit ask nothing of the device: the steady frame is free', () => {

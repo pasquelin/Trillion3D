@@ -73,7 +73,6 @@ export const VIEW_GPU_KEYS = [
   ...TARGET_GPU_KEYS,
   'targetGrant',
   'temporal',
-  'temporalWanted',
   'temporalLevel',
   'effects',
   'effectsRevision',
@@ -181,7 +180,7 @@ export function createWebgpuView(
 ): WebgpuView {
   const viewport: [number, number] = [width, height]
   const gpu = pick(createWebgpuGpuState(viewport), VIEW_GPU_KEYS)
-  gpu.temporalWanted = false
+  gpu.temporalLevel = 'off'
   return {
     id: own ? `view${++ownViews}` : '',
     viewport,

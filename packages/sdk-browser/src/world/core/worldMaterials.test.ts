@@ -4,7 +4,6 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import type { PageSurface } from '../../page/surface.ts'
 import { createWorldMaterials } from './worldMaterials.ts'
 import { variantPlain } from '../../page/surfaceVariant.ts'
 

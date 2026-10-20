@@ -21,8 +21,8 @@ export function blendCatchUp(
     const list = [...modes]
     await Promise.all([
       filtered && prepareDisplayProgram(device),
-      ...[...shares].map((withShare) => {
-        const { perMode, routed } = sets[+withShare]
+      ...[...shares].map((share) => {
+        const { perMode, routed } = sets[share]
         return Promise.all([
           perMode.precompile(list),
           filtered && (routed === maskSet ? routed : routed.filtered).precompile(list),

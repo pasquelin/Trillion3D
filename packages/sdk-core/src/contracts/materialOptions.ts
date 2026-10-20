@@ -84,6 +84,18 @@ export function resolveTemporalAntialiasing(
 }
 
 /**
+ * The level a runtime option names: `undefined` or `null` the default level, as `true`; `false`
+ * off; a level as itself (`resolveTemporalAntialiasing`). The one reading of the runtime's
+ * option, whoever takes it — the world, a view, a session.
+ * @throws TypeError naming the levels when it is none of them.
+ */
+export function temporalAntialiasingLevel(
+  option?: TemporalAntialiasingOption | null,
+): TemporalAntialiasingLevel {
+  return resolveTemporalAntialiasing(option) ?? DEFAULT_TEMPORAL_AA_LEVEL
+}
+
+/**
  * A material's history share as a number: a name of `TEMPORAL_AA_SHARES`, or a number in [0, 1].
  * @param share - The share, by name or by value.
  * @param what - What names it, for the refusal.

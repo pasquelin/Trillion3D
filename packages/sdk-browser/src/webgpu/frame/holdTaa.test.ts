@@ -1,9 +1,12 @@
-// A view whose temporal pass runs draws every frame: it is never held; a view
-// that does not accumulate holds as before.
+// A view whose temporal pass runs is drawn until its history is whole, then held on its converged
+// image like any still view; a change draws again on the history it holds. A view that does not
+// accumulate holds as before.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { createTaaFrameState } from '../../taa/frameState.ts'
+import { taaConverged } from '../../taa/landing.ts'
+import { HISTORY_LAWS } from '../../taa/historyWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { settledRt } from './hold.fixture.ts'
@@ -16,7 +19,7 @@ function heldRuntime() {
   const frame = createTaaFrameState()
   frame.viewSeen = rt.run.gate.temporalRevision
   Object.assign(rt.gpu, {
-    temporalWanted: true,
+    temporalLevel: 'max',
     targetSize: [64, 32],
     allocatedSize: [64, 32],
     displaySize: [64, 32],
@@ -30,11 +33,54 @@ function heldRuntime() {
   return { rt, frame }
 }
 
-test('a quiet view whose temporal pass runs is drawn every frame, its jitter running on', () => {
-  const { rt, frame } = heldRuntime()
+/** `frame` as `count` images drawn at the display's size leave it: the jitter `count` phases on. */
+function accumulate(frame: ReturnType<typeof createTaaFrameState>, count: number) {
+  frame.hasHistory = count > 0
+  frame.accumulated = count
+  frame.sample = count % frame.phases
+}
+
+test('a quiet view whose history is not whole is drawn every frame, its jitter running on', () => {
+  const { rt } = heldRuntime()
   const { device } = fakeDevice()
   for (let i = 0; i < 3; i++) assert.equal(holdWebgpuFrame(rt, device), false)
   assert.equal(rt.run.frameHeld, false)
+})
+
+test('the history is whole after whole cycles holding its most samples at every display pixel', () => {
+  const frame = createTaaFrameState()
+  const { samples } = HISTORY_LAWS
+  // At the display's size every image reaches every pixel: ⌈16 / 11⌉ = 2 cycles of 11 phases.
+  const whole = frame.phases * Math.ceil(samples / frame.phases)
+  assert.equal(whole, 22)
+  accumulate(frame, whole - 1)
+  assert.equal(taaConverged(frame, 64, 64), false, 'a phase short')
+  accumulate(frame, whole)
+  assert.equal(taaConverged(frame, 64, 64), true)
+  accumulate(frame, whole + 1)
+  assert.equal(taaConverged(frame, 64, 64), false, 'held only at the end of a cycle')
+  // At half the display per axis a cycle reaches a pixel a quarter as often: 37 phases, ⌈16 /
+  // 9.25⌉ = 2 cycles.
+  frame.phases = 37
+  accumulate(frame, 74)
+  assert.equal(taaConverged(frame, 32, 64), true)
+  accumulate(frame, 37)
+  assert.equal(taaConverged(frame, 32, 64), false)
+})
+
+test('a quiet view whose history is whole is held on the image it last drew, until a change', () => {
+  const { rt, frame } = heldRuntime()
+  const { device } = fakeDevice()
+  accumulate(frame, 22)
+  const drawn = rt.run.imageRevision
+  assert.equal(holdWebgpuFrame(rt, device), true, 'held: nothing encoded, the image redisplayed')
+  assert.equal(rt.run.frameHeld, true)
+  assert.equal(frame.accumulated, 22, 'a held frame accumulates nothing')
+  assert.equal(rt.run.imageRevision, drawn, 'no present without a drawn image to show')
+  // A change breaks the hold: drawn again, on the history it holds — a view cut alone drops it.
+  rt.run.gate.resourcesChanged()
+  assert.equal(holdWebgpuFrame(rt, device), false)
+  assert.equal(frame.hasHistory, true)
 })
 
 test('a view that does not accumulate holds its quiet frame', () => {
@@ -42,4 +88,13 @@ test('a view that does not accumulate holds its quiet frame', () => {
   const { device } = fakeDevice()
   rt.run.diagnostic = 'wireframe'
   assert.equal(holdWebgpuFrame(rt, device), true)
+})
+
+test('a session opened to measure draws its converged temporal view every frame', () => {
+  const { rt, frame } = heldRuntime()
+  const { device } = fakeDevice()
+  accumulate(frame, 22)
+  Object.assign(rt.context, { drawConverged: true })
+  for (let i = 0; i < 3; i++) assert.equal(holdWebgpuFrame(rt, device), false)
+  assert.equal(rt.run.frameHeld, false, 'each frame costs a draw')
 })

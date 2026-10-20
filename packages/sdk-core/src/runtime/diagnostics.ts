@@ -7,6 +7,7 @@ export type DiagnosticMode =
   | 'clusters'
   | 'lod'
   | 'hlod'
+  | 'voxels'
   | 'screen-error'
   | 'materials'
   | 'visibility'
@@ -39,6 +40,7 @@ export interface DiagnosticCapability {
  *  @property xray - The edges of every triangle submitted, hidden ones too.
  *  @property triangles - One colour per triangle. @property clusters - One colour per cluster. @property lod - The detail level drawn.
  *  @property hlod - The HLOD coloration: no proxy, or the proxy level drawn.
+ *  @property voxels - What is drawn as voxels, by level, the triangles in grey.
  *  @property screen-error - The error on screen. @property materials - One colour per material.
  *  @property visibility - The pages seen. @property pages - The pages held.
  *  @property texture-mip - The texture size read. @property overdraw - Pixels drawn again.
@@ -61,6 +63,8 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property clusters - One colour per cluster.
  * @property lod - Which detail level each cluster was drawn at.
  * @property hlod - Where each HLOD level starts: white an object near, blue HLOD 0 (the object itself past the main loading range), yellow onwards the world DAG's levels.
+ * @property voxels - Where the image is drawn as voxels — an object's far levels, a voxel HLOD
+ *   cell's —, each voxel in its level's colour, as the LOD view paints levels; the triangles grey.
  * @property screen-error - How far each cluster is from the full detail, on screen.
  * @property materials - One colour per kind of material.
  * @property visibility - The pages seen this frame.
@@ -96,8 +100,9 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property taa-thin - The thin geometry detection at each pixel: red how far its history clamp
  *   relaxes, green a cluster hole region, blue the coverage history.
  * @property taa-material-history - The most of its history the temporal anti-aliasing keeps at
- *   each pixel, by its material, as grey: white the whole history (1, the default), 0.75 a
- *   responsive material, black none (0, the current image alone).
+ *   each pixel, by its material — the opaque surface's or, at their coverage, the transparents'
+ *   over it, the least —, as grey: white the whole history (1, the default), 0.75 a responsive
+ *   material, black none (0, the current image alone).
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
@@ -121,6 +126,11 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       "HLOD coloration: white for an object within the main loading range, blue for HLOD level 0 (the object's own instanced meshes, out to HLOD 0's range), yellow onwards for the world DAG's merged levels",
+  },
+  voxels: {
+    available: true,
+    reason:
+      "The pixels drawn as voxels in their level's colour — an object's far levels, a voxel HLOD cell's —, the triangles in grey by their brightness",
   },
   'screen-error': {
     available: true,
@@ -207,6 +217,6 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
   'taa-material-history': {
     available: true,
     reason:
-      'The most of its history the temporal anti-aliasing keeps at each pixel, by its material, raw: white the whole history, 0.75 grey a responsive material, black none',
+      'The most of its history the temporal anti-aliasing keeps at each pixel, by its material, opaque or transparent at its coverage, raw: white the whole history, 0.75 grey a responsive material, black none',
   },
 }

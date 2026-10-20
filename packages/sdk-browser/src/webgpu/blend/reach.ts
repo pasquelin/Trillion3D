@@ -1,9 +1,10 @@
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { createListeners } from '../../../../sdk-core/src/runtime/listeners.ts'
+import type { ShareTargets } from './blendTargets.ts'
 
 /** What a transparent pass has to be able to draw without compiling: the blending modes of the
  *  scene's surfaces, the share targets a frame binds, and whether display layers can be on. */
-type Reached = { modes: Set<Blending>; shares: Set<boolean>; filtered: boolean }
+type Reached = { modes: Set<Blending>; shares: Set<ShareTargets>; filtered: boolean }
 
 /**
  * The set of pipeline variants the scene's current materials and settings reach, which only
@@ -14,7 +15,7 @@ type Reached = { modes: Set<Blending>; shares: Set<boolean>; filtered: boolean }
  */
 export function createReach(first: {
   modes: readonly Blending[]
-  share: boolean
+  share: ShareTargets
   filtered: boolean
 }) {
   const state: Reached = {
@@ -28,7 +29,7 @@ export function createReach(first: {
     onChange: (listener: () => Promise<unknown>) =>
       void changes.subscribe(() => void listener().catch(() => undefined)),
     /** Widens the set by what a frame or a change of the plan now asks for. */
-    reach(next: { modes?: readonly Blending[]; share?: boolean; filtered?: boolean }) {
+    reach(next: { modes?: readonly Blending[]; share?: ShareTargets; filtered?: boolean }) {
       const before = state.modes.size + state.shares.size + +state.filtered
       if (next.modes) for (const mode of next.modes) state.modes.add(mode)
       if (next.share !== undefined) state.shares.add(next.share)

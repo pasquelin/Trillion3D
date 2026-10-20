@@ -139,7 +139,7 @@ test('particles and water over a multiply surface show the witness', () => {
     filter,
     layer(
       water,
-      overTargets(false, true, false).filter((t): t is GPUColorTargetState => !!t),
+      overTargets(false, true, 0).filter((t): t is GPUColorTargetState => !!t),
       BLENDS.premultiplied,
       1,
       true,

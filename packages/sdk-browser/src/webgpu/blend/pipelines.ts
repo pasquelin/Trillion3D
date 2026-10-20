@@ -25,7 +25,12 @@ import {
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts'
 import { feedbackConstants } from '../tile/requestWgsl.ts'
-import { blendTargets, companionTargets } from './blendTargets.ts'
+import {
+  blendTargets,
+  companionTargets,
+  SHARE_TARGET_KEYS,
+  type ShareTargets,
+} from './blendTargets.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { createFrontStages, prepareFrontStage } from './frontStage.ts'
 import { createForwardVariants, type ForwardLit } from '../../lighting/deferred/forwardVariants.ts'
@@ -51,7 +56,7 @@ type BlendProgramSetup = {
   transmissionCode: TransmissionCode | undefined
   variant: DiagnosticGpuVariant | undefined
   feedback: boolean
-  share: boolean
+  share: ShareTargets
   reach: Reach
   /** The pass's lit programs, once made: what a frame's pick reads. */
   programs: () => ForwardVariants<BlendProgram>
@@ -72,7 +77,7 @@ export async function createWebgpuBlendPipelines(
   variant?: DiagnosticGpuVariant,
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
-  share = false,
+  share: ShareTargets = 0,
   { lit, holdsTransmission }: { lit?: ForwardLit; holdsTransmission?: boolean } = {},
 ) {
   // The forward materials' layout, which the feedback-free diagnostic pipelines share: the
@@ -128,8 +133,8 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
   })
 }
 
-/** The module lit with the code `key` leaves in, and its pipelines: two lazy sets (#365), with no
- *  reader of the share its slot stays empty, no target is bound. */
+/** The module lit with the code `key` leaves in, and its pipelines: a lazy set by share-target key
+ *  (#365, `ShareTargets`), a slot the key leaves out empty, no target bound. */
 async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise<BlendProgram> {
   const { device, layout, variant, feedback, share, reach, transmissionCode } = setup
   // Without a variant, production compiles no diagnostic stage and has no write mask of its own.
@@ -138,7 +143,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
   const constants = feedbackConstants(feedback)
   const label = `BLEND${variantLabel(key)}`
   const module = device.createShaderModule({ label, code: blendModuleCode(setup, key) })
-  const sets = [false, true].map((withShare) => ({
+  const sets = SHARE_TARGET_KEYS.map((withShare) => ({
     perMode: pipelinesByMode(device, (mode) =>
       stageDescriptors(
         device,
@@ -158,7 +163,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
       blendTargets(mode, writeMask, feedback, true, withShare),
     ),
   }))
-  const { routed: maskSet } = sets[+share]
+  const { routed: maskSet } = sets[share]
   // The transmissive items' pipelines, on the same module (`./transmission/pipelines.ts`): their unlit
   // stages, the first program's of its lobe choice — the companion pass requests the lobes' maps.
   const lobes = +!!key.lobeless
@@ -193,13 +198,13 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     reach: reach.reach,
     lit: (frame, lobed) => setup.programs().pick(frame, lobed).pipelines,
     lobedAwaited: () => setup.programs().awaited(FULL_CONTRACT),
-    at(rank, filtered = false, withShare = false) {
+    at(rank, filtered = false, withShare = 0) {
       // A transmissive rank: its fallback, or under a diagnostic variant the normal mode's.
       if (transmission && transmitsRank(rank))
         return transmission.over.at(rank, filtered, withShare)
       const mode = transmitsRank(rank) ? 'normal' : blendingOf(rank)
       if (!mode) throw new Error(`blend pipeline rank ${rank} names no blending mode`)
-      const set = sets[+withShare]
+      const set = sets[withShare]
       return (filtered ? set.routed.filtered : set.perMode).at(mode, cullOf(rank))
     },
   }
@@ -234,15 +239,15 @@ function createDualPasses(
         module,
         entryPoint,
         constants: feedbackConstants(false),
-        targets: blendTargets(mode, writeMask, false, false, false).slice(0, 1),
+        targets: blendTargets(mode, writeMask, false, false, 0).slice(0, 1),
       },
       false,
       reflectedGroups(device),
     ),
   )
   const covered: ReturnType<typeof preparedPipeline>[][] = []
-  const coveredOf = (share: boolean) =>
-    (covered[+share] ??= stageDescriptors(
+  const coveredOf = (share: ShareTargets) =>
+    (covered[share] ??= stageDescriptors(
       device,
       module,
       layout,
@@ -256,7 +261,7 @@ function createDualPasses(
       reflectedGroups(device),
     ).map((descriptor) => preparedPipeline(device, descriptor)))
   const companions = [false, true].map((transmissive): RankedPipelines => ({
-    at: (rank, _filtered, share = false) =>
+    at: (rank, _filtered, share = 0) =>
       transmitsRank(rank)
         ? transmission.coverage.at(rank, false, share)
         : coveredOf(share)[cullOf(rank)].get(),

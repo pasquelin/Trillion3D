@@ -33,6 +33,7 @@ export const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
   lit: true,
   doubleSided: false,
   backSide: false,
+  hasIor: false,
   metalness: 0,
   roughness: 1,
   alphaTest: 0.5,

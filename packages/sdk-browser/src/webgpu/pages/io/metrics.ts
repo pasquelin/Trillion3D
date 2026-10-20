@@ -39,8 +39,9 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
   const pending = !run.gpuMetricsReady
   const blend = transparentCounts(rt)
   const deformation = timing.lastGpuPassMs?.passes.find((pass) => pass.name === DEFORMATION_PASS)
-  // What the occlusion test dropped: the GPU's last sampled counts; `null` when it counted nothing,
-  // never an unmeasured 0.
+  // What the occlusion test dropped, and the voxel trace's steps: the GPU's last sampled counts;
+  // `null` when it counted nothing, never an unmeasured 0.
+  const steps = vis.voxelSteps?.stats()
   const hiz = vis.gpuPartition?.counts(),
     hizCountedFrame = hiz?.frame ?? null
   return {
@@ -95,6 +96,9 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     hizTestedTriangles: hiz?.testedTriangles ?? null,
     hizRejectedTriangles: hiz?.rejectedTriangles ?? null,
     hizOversizedTriangles: hiz?.oversizedTriangles ?? null,
+    voxelBricks: hiz?.voxelBricks ?? null,
+    voxelStepsMean: steps?.mean ?? null,
+    voxelStepsMax: steps?.max ?? null,
     hizCountedFrame,
     lightsActive: lights.lightsActive,
     ...directLightTimings(timing.lastGpuPassMs),

@@ -12,7 +12,7 @@ type Io = Parameters<PartitionCells['frame']>[1]
 
 test('a still camera is drawn again until the cells it asked for within reach are placed', async () => {
   // The interactive session draws on demand: once the camera stops, only `pending` asks for the
-  // frames that place the cells read after it (`hostRuntime.ts`, `pendingFrame`).
+  // frames that place the cells read after it (`../render/sessionRuntime.ts`, `pendingFrame`).
   let later = true,
     read = () => {},
     decodes: Promise<void>[] = []

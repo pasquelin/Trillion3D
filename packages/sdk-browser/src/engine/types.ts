@@ -25,6 +25,7 @@ import type { Intersection, RayFilter, RayReach } from '../world/query/types.ts'
 import type { PresentRect } from '../gpu/core/presentAt.ts'
 import type { RenderScale } from '../frame/renderScaleOption.ts'
 import type { WebgpuViewOptions } from '../webgpu/pages/state/persistentView.ts'
+import type { TextureCaches } from '../texture/textureCaches.ts'
 type ViewSize = { width: number; height: number }
 /** A view drawn beside the main one (`Engine.addView`). */
 export interface EngineView {
@@ -145,7 +146,7 @@ export interface EngineContext {
   draws: readonly DrawSource[]
   /** The caches the drawn textures come from — the session's own, each model a world adds —: the
    *  chain of each texture and the reader of its levels (`../texture/textureCaches.ts`). */
-  textureCaches: import('../texture/textureCaches.ts').TextureCaches
+  textureCaches: TextureCaches
   signal?: AbortSignal
   maxResidentPages?: number
   pixelError?: number
@@ -198,6 +199,9 @@ export interface EngineContext {
   bounceBudgetMs?: number
   stageProfile?: boolean // Off by default; the bench and harness time the frame steps.
   feedbackTargetAB?: boolean
+  /** A still view's temporal pass drawn every frame once its history is whole, never held on the
+   *  converged image (`taaConverging`): off by default; the bench's cost series set it. */
+  drawConverged?: boolean
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant
   /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */

@@ -25,6 +25,8 @@ import {
   TEMPORAL_AA_FIELD,
   TEMPORAL_AA_LEVELS,
   TEMPORAL_AA_SHARES,
+  VOXELIZE_EXTRA,
+  VOXELIZE_FIELD,
   type HlodLayer,
   type JobField,
 } from '../contracts/compilerAbi.ts'
@@ -146,7 +148,7 @@ const hlod: JsonSchemaProperty = {
     },
     groups: {
       type: 'object',
-      description: `Simple form, the objects of each group by name, for those no mark names: ${HLOD_GROUPS.join(', ')} — buildings the main chain, foliage two levels with a finer voxel, props their own instanced cells absorbed by the main chain's first approximated layer. Each the node's exact name, { regex, flags } on it, or a match object; the first group in key order that matches an object takes it, and an object no group names has no HLOD.`,
+      description: `Simple form, the objects of each group by name, for those no mark names: ${HLOD_GROUPS.join(', ')} — buildings the main chain, foliage two levels, the objects themselves then their cells voxelized together (no shell, a leaf's cut-out kept), their meshes voxelized far away, props their own instanced cells absorbed by the main chain's first approximated layer. Each the node's exact name, { regex, flags } on it, or a match object; the first group in key order that matches an object takes it, and an object no group names has no HLOD.`,
       properties: Object.fromEntries(
         HLOD_GROUPS.map((group) => [
           group,
@@ -239,6 +241,12 @@ const responsive: JsonSchemaProperty = /* @__PURE__ */ (() => ({
   anyOf: [{ type: 'string', description: "The node's exact name." }, regex, match],
 }))()
 
+/** The `voxelize` option (`voxelizeOptions.ts`, `resolveVoxelize`). */
+const voxelize: JsonSchemaProperty = /* @__PURE__ */ (() => ({
+  description: `The objects whose meshes are voxelized far away: their DAG's coarse levels are bricks of voxels wherever voxels hold the error better than triangles, a leaf card's cut-out kept, for foliage and other thin parts. The node's exact name, { regex, flags } on it, or a match object. The objects of the HLOD foliage group are voxelized without it, and so is a mesh whose own extras.${VOXELIZE_EXTRA} is "voxelize".`,
+  anyOf: [{ type: 'string', description: "The node's exact name." }, regex, match],
+}))()
+
 /** The `materials` option (`materialOptions.ts`, `resolveMaterials`), the named shares listed. */
 const materials: JsonSchemaProperty = /* @__PURE__ */ (() => {
   const names = Object.entries(TEMPORAL_AA_SHARES)
@@ -254,7 +262,7 @@ const materials: JsonSchemaProperty = /* @__PURE__ */ (() => {
  * JSON Schema documenting options for native asset compilation (prepare / CLI): the job fields,
  * defaults and bounds `compilerAbi.ts` declares once, which the compiler's Rust is printed from,
  * the HLOD (`hlod`), the scene's temporal anti-aliasing (`temporalAntialiasing`) and the material
- * options (`responsive`, `materials`).
+ * options (`responsive`, `materials`) and the voxelized objects (`voxelize`).
  */
 export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = {
   type: 'object',
@@ -266,6 +274,7 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = {
     [TEMPORAL_AA_FIELD]: temporalAntialiasing,
     [RESPONSIVE_FIELD]: responsive,
     [MATERIALS_FIELD]: materials,
+    [VOXELIZE_FIELD]: voxelize,
   },
   required: ['source', 'cache', 'resourceBaseUrl'] satisfies JobField[],
   additionalProperties: false,

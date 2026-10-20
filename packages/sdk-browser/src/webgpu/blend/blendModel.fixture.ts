@@ -24,11 +24,15 @@ function factor(name: GPUBlendFactor, src: Rgba, dst: Rgba, c: number) {
   return value
 }
 
-/** What `state` writes for `src` over `dst`. */
+/** What `state` writes for `src` over `dst`: `max` and `min` keep the larger or smaller, their
+ *  factors one. */
 export function blend(state: GPUBlendState, src: Rgba, dst: Rgba): Rgba {
   const channel = (c: number) => {
     const part = c === 3 ? state.alpha : state.color
-    assert.equal(part.operation ?? 'add', 'add')
+    const operation = part.operation ?? 'add'
+    if (operation === 'max') return Math.max(src[c], dst[c])
+    if (operation === 'min') return Math.min(src[c], dst[c])
+    assert.equal(operation, 'add')
     return (
       src[c] * factor(part.srcFactor ?? 'one', src, dst, c) +
       dst[c] * factor(part.dstFactor ?? 'zero', src, dst, c)

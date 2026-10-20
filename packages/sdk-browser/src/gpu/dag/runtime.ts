@@ -1,4 +1,4 @@
-import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'
+import type { GpuSelection } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
@@ -101,6 +101,11 @@ function selectionOver(run: DagRun, roots: RootsOnGpu): GpuSelection {
       show: links.show,
       visible: links.visible,
       stands: links.stands,
+      moved: links.moved,
+      warmWith: links.warmWith,
+      get warming() {
+        return links.warming
+      },
       get revision() {
         return links.revision
       },

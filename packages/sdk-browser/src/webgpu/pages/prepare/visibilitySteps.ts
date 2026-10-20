@@ -1,3 +1,4 @@
+import { createVoxelSteps } from '../../visibility/voxelSteps.ts'
 import { createWebgpuBlendPipelines, type BlendedSurface } from '../../blend/pipelines.ts'
 import { ensureWebgpuShadeBindings } from '../../core/shadeBindings.ts'
 import type { createWebgpuVisibilityShaders } from '../../visibility/shaders.ts'
@@ -13,7 +14,7 @@ import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../../scene/surface
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { isCancelled } from '../../../engine/common.ts'
 import { families } from '../../../host/families.ts'
-import { blendWritesShare } from './asIsShareTarget.ts'
+import { blendShareTargets } from './asIsShareTarget.ts'
 import { blendContext } from './contractLight.ts'
 
 type Shaders = Awaited<ReturnType<typeof createWebgpuVisibilityShaders>>
@@ -35,7 +36,7 @@ export async function buildBlendPipelines(
       rt.context.diagnosticGpuVariant,
       vis.writesFeedback,
       layout,
-      blendWritesShare(rt),
+      blendShareTargets(rt),
       blendContext(rt),
     )
   } catch (error) {
@@ -142,6 +143,7 @@ export async function prepareShadeClasses(
   const classes = vis.shadeCensus!.keys
   // The frame's cache first: the class pipelines' group binds its buffer.
   vis.shadeCache ??= await createShadeCache(gpuDevice)
+  vis.voxelSteps ??= createVoxelSteps(gpuDevice)
   ;({
     shadeBindGroupLayout: vis.shadeBindGroupLayout,
     shadeClasses: vis.shadeClasses,

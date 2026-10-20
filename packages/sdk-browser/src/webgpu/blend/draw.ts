@@ -10,7 +10,9 @@ import { distortionCovers } from './distortionDrawn.ts'
 import { noTransmissiveInView } from './expansionFrame.ts'
 import { DISPLAY_MASK_GROUP, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
+import { activeAsIsShare, blendShareTargets } from '../pages/prepare/asIsShareTarget.ts'
+import type { ShareTargets } from './blendTargets.ts'
+import type { AsIsShare } from '../../lighting/deferred/asIsShare.ts'
 import { directLightResources } from '../pages/prepare/contractLight.ts'
 import {
   DISPLAY_MASK_PASS,
@@ -52,7 +54,7 @@ export function drawBlendRuns(
   device: GPUDevice,
   pass: GPURenderPassEncoder,
   pipelines: RankedPipelines,
-  { filter, share = false, reflected = true, nearFirst = false }: BlendRuns = {},
+  { filter, share = 0, reflected = true, nearFirst = false }: BlendRuns = {},
 ) {
   const { blendState } = rt,
     args = blendState.argsBuffer!
@@ -87,14 +89,14 @@ export function drawBlendRuns(
 }
 
 /** What a pass drawing the runs holds besides their pipelines (`drawBlendRuns`): the display
- *  layers `filter` attached and its mask bound; the share a debug view or the temporal pass reads
- *  (`share`); the reflection group bound, but for a pass whose pipelines read none (`reflected`
+ *  layers `filter` attached and its mask bound; the share targets attached (`share`,
+ *  `ShareTargets`); the reflection group bound, but for a pass whose pipelines read none (`reflected`
  *  false: the front pass, the distortion); the slots near to far, against their paint order
  *  (`nearFirst`): a pass that writes depth and blends nothing (the front pass) then rejects early
  *  what lies behind. */
 export type BlendRuns = {
   filter?: DisplayFilter
-  share?: boolean
+  share?: ShareTargets
   reflected?: boolean
   nearFirst?: boolean
 }
@@ -112,11 +114,19 @@ const loaded = (): GPURenderPassColorAttachment => ({
   storeOp: 'store',
 })
 const hdrColour = loaded(),
-  shareColour = loaded()
+  shareColour = loaded(),
+  givenUpColour = loaded()
 /** The colour attachments of the blend pass on every target (`drawBlendPass`): the HDR target, the
- *  virtual-texture feedback, the share and the two display layers, each slot empty while unused.
- *  One array, refilled each image. */
-const allColour: Array<GPURenderPassColorAttachment | null> = [hdrColour, null, null, null, null]
+ *  virtual-texture feedback, the share, the two display layers and the history given up beside the
+ *  share, each slot empty while unused. One array, refilled each image. */
+const allColour: Array<GPURenderPassColorAttachment | null> = [
+  hdrColour,
+  null,
+  null,
+  null,
+  null,
+  null,
+]
 /** The depth the blend pass tests against, read only: its view set each image. */
 const blendDepth: GPURenderPassDepthStencilAttachment = {
   view: undefined as unknown as GPUTextureView,
@@ -124,30 +134,39 @@ const blendDepth: GPURenderPassDepthStencilAttachment = {
 }
 /** What a frame asks the programs to reach, and what its one pass on every target holds: one
  *  object each, refilled each image. */
-const reached = { share: false, filtered: false }
+const reached: { share: ShareTargets; filtered: boolean } = { share: 0, filtered: false }
 const allRuns: BlendRuns = {}
-/** The companion pass's colour attachments (`drawCompanion`): no colour, the feedback, the share;
- *  its runs' options. Refilled each image. */
-const companionColour: Array<GPURenderPassColorAttachment | null> = [null, null, null]
+/** The companion pass's colour attachments (`drawCompanion`): no colour, the feedback, the share,
+ *  the history given up; its runs' options. Refilled each image. */
+const companionColour: Array<GPURenderPassColorAttachment | null> = [null, null, null, null]
 const companionRuns: BlendRuns = {}
 
 /** Fills `allColour` for an image: the feedback while the pipelines write it, the share a debug
- *  view or the temporal pass reads, the display layers of an image whose blends filter. */
+ *  view or the temporal pass reads and the history given up beside it at `targets` 2, the display
+ *  layers of an image whose blends filter. */
 function fillAllColour(
   rt: WebgpuPagesRuntime,
-  share: { view: GPUTextureView } | undefined,
+  share: AsIsShare | undefined,
+  targets: ShareTargets,
   filter: DisplayFilter | undefined,
 ) {
   hdrColour.view = rt.gpu.hdrView!
   // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
   allColour[1] = rt.vis.writesFeedback ? feedbackAttachment(rt) : null
-  if (share) shareColour.view = share.view
-  allColour[2] = share ? shareColour : null
+  allColour[2] = attached(shareColour, share?.view)
   // The display layers (`displayFilter.ts`): the tint and the added value.
   const layers = filter?.attachments()
   allColour[3] = layers?.[0] ?? null
   allColour[4] = layers?.[1] ?? null
+  allColour[5] = attached(givenUpColour, targets === 2 ? share?.givenUpView : undefined)
   return allColour
+}
+
+/** `colour` on `view`, or an empty slot without one. */
+function attached(colour: GPURenderPassColorAttachment, view: GPUTextureView | undefined) {
+  if (!view) return null
+  colour.view = view
+  return colour
 }
 
 /**
@@ -176,9 +195,10 @@ export function drawBlendPass(
   // with lobe code while an item's surface carries a lobe (`physicalWgsl.ts`).
   const pipelines = vis.blendPipelines!.lit(key ?? directLightResources(rt), blendState.lobed)
   if (filter) drawDisplayMask(rt, device, encoder, filter, pipelines.mask)
-  const share = activeAsIsShare(rt)
+  const share = activeAsIsShare(rt),
+    targets = share ? blendShareTargets(rt) : 0
   // A debug view or the temporal pass turning the share on starts its compile (`reach.ts`).
-  reached.share = !!share
+  reached.share = targets
   reached.filtered = !!filter
   pipelines.reach(reached)
   // The dual blend's two passes only while a transmissive item may be in view
@@ -199,13 +219,13 @@ export function drawBlendPass(
   const pass = encoder.beginRenderPass({
     label: TRANSPARENTS_PASS,
     occlusionQuerySet: overdraw?.set,
-    colorAttachments: dual ? dualColour : fillAllColour(rt, share, filter),
+    colorAttachments: dual ? dualColour : fillAllColour(rt, share, targets, filter),
     depthStencilAttachment: blendDepth,
   })
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
   overdraw?.begin(pass)
   allRuns.filter = filter
-  allRuns.share = !!share
+  allRuns.share = targets
   let encoded = dual
     ? drawBlendRuns(rt, device, pass, dual.colour)
     : drawBlendRuns(rt, device, pass, drawn, allRuns)
@@ -234,11 +254,12 @@ function drawCompanion(
 ) {
   const { gpu } = rt,
     share = activeAsIsShare(rt),
+    targets = share ? blendShareTargets(rt) : 0,
     feedback = rt.vis.writesFeedback
   if (!share && !feedback) return 0
   companionColour[1] = feedback ? feedbackAttachment(rt) : null
-  if (share) shareColour.view = share.view
-  companionColour[2] = share ? shareColour : null
+  companionColour[2] = attached(shareColour, share?.view)
+  companionColour[3] = attached(givenUpColour, targets === 2 ? share?.givenUpView : undefined)
   blendDepth.view = gpu.depthView!
   const pass = encoder.beginRenderPass({
     label: BLEND_COMPANION_PASS,
@@ -248,7 +269,7 @@ function drawCompanion(
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
   // The reflection group bound too: a shadow catcher's lights may read its depth pyramid.
   const companion = dual.companion(!distortionCovers(rt, transmission))
-  companionRuns.share = !!share
+  companionRuns.share = targets
   const encoded = drawBlendRuns(rt, device, pass, companion, companionRuns)
   pass.end()
   return encoded

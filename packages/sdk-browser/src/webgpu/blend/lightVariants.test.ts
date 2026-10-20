@@ -118,7 +118,7 @@ test('the translucent layers draw with the program of the frame’s key', async 
     undefined,
     true,
     undefined,
-    false,
+    0,
     { lit: { precompile: true, key: first } },
   )
   for (const key of [first, ...KEYS]) {

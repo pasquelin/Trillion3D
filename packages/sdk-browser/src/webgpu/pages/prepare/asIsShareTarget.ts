@@ -2,11 +2,24 @@ import { AS_IS_SHARE_BYTES, createAsIsShare } from '../../../lighting/deferred/a
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { readsAsIs } from './contractLight.ts'
 import { drawsParticles } from '../../particles/webgpuParticleFrame.ts'
+import { taaWanted } from '../state/gpu.ts'
+import type { ShareTargets } from '../../blend/blendTargets.ts'
 
 /** Whether the transparents write the share: a blended image that can show a debug view,
  *  or whose temporal pass reads their coverage as the reactive value. */
 export const blendWritesShare = (rt: WebgpuPagesRuntime) =>
-  rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || !!rt.gpu.temporalWanted)
+  rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || taaWanted(rt.gpu))
+
+/** The share targets the transparents write (`ShareTargets`): none without a share; the history
+ *  given up beside it only where an item's surface gives some up (`givesUp`) to a temporal pass
+ *  that reads it. A scene whose blends all keep their history pays no given-up target. */
+export const blendShareTargets = (rt: WebgpuPagesRuntime): ShareTargets =>
+  !blendWritesShare(rt) ? 0 : rt.blendState.givesUp && taaWanted(rt.gpu) ? 2 : 1
+
+/** Whether this image's blend pass writes the history given up, which the seed then clears and the
+ *  temporal pass reads (`blendShareTargets`). */
+export const writesGivenUp = (rt: WebgpuPagesRuntime) =>
+  !!rt.vis.blendPipelines && blendShareTargets(rt) === 2
 
 /** Whether the image has a share target: its transparents or its particles (their coverage as the
  *  reactive value) write it. Any other scene draws and allocates what it did before. */
@@ -56,6 +69,6 @@ export function seedAsIsShare(
     gpu.targetBytes += width * height * AS_IS_SHARE_BYTES
     makeAsIsShare(rt, device, width, height)
   }
-  gpu.asIsShare!.seed(encoder, readsAsIs(rt))
+  gpu.asIsShare!.seed(encoder, readsAsIs(rt), writesGivenUp(rt))
   return gpu.asIsShare
 }

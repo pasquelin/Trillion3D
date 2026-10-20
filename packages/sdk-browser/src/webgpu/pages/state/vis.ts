@@ -22,6 +22,7 @@ import type { BlendModePipelines } from '../../blend/stagePipelines.ts'
 import type { PresentClasses } from '../../core/presentClasses.ts'
 import type { MaterialTiles } from '../../core/materialTiles.ts'
 import type { ShadeCache } from '../../visibility/shadeCache.ts'
+import type { VoxelSteps } from '../../visibility/voxelSteps.ts'
 import type { ShadeClasses } from '../../visibility/shadePipelines.ts'
 import type { ShadeCensus } from '../../visibility/shadeCensus.ts'
 import type { FeedbackAside } from '../prepare/feedbackVariant.ts'
@@ -53,6 +54,8 @@ export interface WebgpuVisState {
   materialTiles: MaterialTiles | undefined
   /** What the frame composes once for the resolve (`../../visibility/shadeCache.ts`). */
   shadeCache: ShadeCache | undefined
+  /** The voxel trace's counters the resolve binds (`../../visibility/voxelSteps.ts`). */
+  voxelSteps: VoxelSteps | undefined
   /** Whether the resolve and blend pipelines in place write the texture feedback: the drawn
    *  view then has its target (`../prepare/feedbackVariant.ts`). */
   writesFeedback: boolean
@@ -141,6 +144,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     presentClasses: createPresentClasses(),
     materialTiles: undefined,
     shadeCache: undefined,
+    voxelSteps: undefined,
     writesFeedback: true,
     writesEmissiveAo: true,
     emissiveAoShown: false,

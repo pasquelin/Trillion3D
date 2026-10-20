@@ -14,20 +14,21 @@ import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 import { CULL_MODES } from './planCull.ts'
 import type { DualPasses } from './pipelines.ts'
+import type { ShareTargets } from './blendTargets.ts'
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the blend pass's modes and
  *  transmissive culls, `filtered` in an image with display layers (`displayFilter.ts`); a rank
  *  the pass `skips` is not drawn (the display mask draws the filtering modes alone, the distortion
- *  the transmissive items alone); `share`, those that write the as-is share of a debug view
- *  (`blendTargets`). */
+ *  the transmissive items alone); `share`, the share targets they write (`ShareTargets`,
+ *  `blendTargets`). */
 export type RankedPipelines = {
-  at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline | undefined
+  at(rank: number, filtered?: boolean, share?: ShareTargets): GPURenderPipeline | undefined
   skips?(rank: number): boolean
 }
 
 /** Ranked pipelines that make the one a rank asks for (`RankedPipelines`). */
 type MadePipelines = Omit<RankedPipelines, 'at'> & {
-  at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline
+  at(rank: number, filtered?: boolean, share?: ShareTargets): GPURenderPipeline
 }
 
 /**
@@ -51,7 +52,7 @@ export interface TransmitPipelines {
   readonly applyEmpty: GPUBindGroup
   distortionGroup(view: GPUBuffer, depth: GPUTextureView): GPUBindGroup
   applyGroup(view: GPUBuffer, offsets: GPUTextureView, scene: GPUTextureView): GPUBindGroup
-  precompile(reached: { shares: ReadonlySet<boolean>; filtered: boolean }): Promise<unknown>
+  precompile(reached: { shares: ReadonlySet<ShareTargets>; filtered: boolean }): Promise<unknown>
 }
 
 /** The distortion's bind group, after the blend's (`TransmitPipelines.distortion`, `.apply`), and
@@ -152,8 +153,8 @@ export interface BlendModePipelines extends RankedPipelines {
    *  the one with every code path, which lights any (`askLobedPrograms`). */
   lobedAwaited(): Promise<unknown> | undefined
   /** Starts the compile of what a change of the scene or of a setting now reaches (`reach.ts`). */
-  reach(next: { modes?: readonly Blending[]; share?: boolean; filtered?: boolean }): void
-  at(rank: number, filtered?: boolean, share?: boolean): GPURenderPipeline
+  reach(next: { modes?: readonly Blending[]; share?: ShareTargets; filtered?: boolean }): void
+  at(rank: number, filtered?: boolean, share?: ShareTargets): GPURenderPipeline
 }
 
 /** The groups after the blend's of a stage that reads the reflection (`REFLECTION_GROUP`), the

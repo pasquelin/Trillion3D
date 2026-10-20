@@ -2,12 +2,16 @@ import type { WebgpuTileAtlas } from './atlasTypes.ts'
 import type { FeedbackHits, WebgpuTileFeedback } from './feedback.ts'
 import type { TileKey } from './pageTable.ts'
 import type { TileCounters } from './counters.ts'
+import { tileId } from './ids.ts'
 
 /** A tile to serve: its atlas, its key and its weight. */
 export type TileRequest = { atlas: WebgpuTileAtlas; key: TileKey; weight: number }
 
 /** What a pass serves: the requests `from` to `to` of `list`, heaviest first. */
 export type TileWanted = { readonly list: readonly TileRequest[]; from: number; to: number }
+
+/** The tiles a pass may take beside the feedback (`ask`). */
+const TILES_ASKED = 64
 
 const byWeight = (a: TileRequest, b: TileRequest) => b.weight - a.weight
 
@@ -83,9 +87,40 @@ export function createTileRequests(options: {
     counters.missingAverage = requested ? gap / requested : 0
     merge(count)
   }
+  /** Tiles asked beside the feedback for an image they are not drawn in yet — an HLOD actor
+   *  warming before its switch (`../pages/prepare/hlodWarm.ts`) —: served after the feedback's,
+   *  asked again each image while still wanted, let go once a pass is over. Each tile once a pass
+   *  (`seen`, by atlas and tile id), at most `TILES_ASKED`: what a pass may take beside the
+   *  feedback, never the room the image itself asks. The records are kept from pass to pass. */
+  const asked: TileRequest[] = [],
+    seen = new Set<number>()
+  let askedCount = 0
   return {
     reset: () => {
       wanted.from = wanted.to = 0
+    },
+    /** Tile `key` of `atlas` asked for the next pass, beside the feedback; false once the pass
+     *  takes no more. */
+    ask(atlas: WebgpuTileAtlas, key: TileKey) {
+      if (askedCount >= TILES_ASKED) return false
+      const id = tileId(key) + (atlas === color ? 0 : 2 ** 32)
+      if (seen.has(id)) return true
+      seen.add(id)
+      if (askedCount === asked.length) asked.push(record())
+      const request = asked[askedCount++]
+      request.atlas = atlas
+      Object.assign(request.key, key)
+      return true
+    },
+    /** How many tiles were asked beside the feedback since the last pass (`ask`), in `asked`. */
+    get askedCount() {
+      return askedCount
+    },
+    asked: asked as readonly TileRequest[],
+    /** A pass is over: what it asked beside the feedback is let go. */
+    clearAsked() {
+      askedCount = 0
+      seen.clear()
     },
     /** The requests a pass serves, in weight order; none when nothing is named or deferred. */
     take(frame: number): TileWanted {

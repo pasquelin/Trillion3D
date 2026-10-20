@@ -120,7 +120,7 @@ export function encodeSurfaceLighting(
   encodeReflectionRadiance(rt, encoder)
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)
-  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare?.view)
+  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare)
   const effects = encodeEffects(rt, device, encoder, accumulated)
   const composed =
     asIs && blendShare && !accumulated

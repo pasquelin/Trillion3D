@@ -118,12 +118,12 @@ fn transmitFragment(in:VSOut,front:bool)->Transmit{
  return Transmit(thinAdd(in,s,l),thinMul(l),s.request);
 }
 // The fallback without dual-source blending, the colour premultiplied, blended over by its grey
-// coverage, with the request, the reactive value at that coverage, and the
-// display layers left as they are.
+// coverage, with the request, the reactive value and the history given up at that coverage, and
+// the display layers left as they are.
 @fragment fn fsTransmit(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{
  let t=transmitFragment(in,front);
  let a=greyCoverage(t.mul);
- return BlendOut(vec4f(t.add,a),t.request,vec4f(0.0,1.0,0.0,a),vec4f(1.0),vec4f(0.0));
+ return BlendOut(vec4f(t.add,a),t.request,vec4f(0.0,1.0,0.0,a),vec4f(1.0),vec4f(0.0),blendGivenUp(in,a));
 }
 // With display layers (\`../displayFilter.ts\`): masked, tint and added value as a normal
 // layer's, of the fallback's premultiplied colour.
@@ -132,22 +132,23 @@ fn transmitFragment(in:VSOut,front:bool)->Transmit{
  let a=greyCoverage(t.mul);
  let unlit=(in.ids.y&${FLAG_UNLIT_VIEW}u)!=0u;
  let r=displayRoute(t.add/max(a,1e-4),uni.exposure,uni.toneCurve,unlit,a,maskAt(in.position));
- return BlendOut(vec4f(t.add,a)*r.keep,t.request,vec4f(0.0,1.0,0.0,a),r.tint,r.add);
+ return BlendOut(vec4f(t.add,a)*r.keep,t.request,vec4f(0.0,1.0,0.0,a),r.tint,r.add,blendGivenUp(in,a));
 }
 // The companion pass: the same layers drawn again for what the colour pass's single
-// target cannot hold — here the tile rank the pixel asks of the virtual textures, and the reactive
-// value at the layer's grey coverage, which composes in any order (\`asIsShare.ts\`): a diagnostic
-// view's colour coverage, else the fallback's (\`greyCoverage\`).
+// target cannot hold — here the tile rank the pixel asks of the virtual textures, the reactive
+// value and the history given up at the layer's grey coverage, which compose in any order
+// (\`asIsShare.ts\`): a diagnostic view's colour coverage, else the fallback's (\`greyCoverage\`).
 fn transmitCoverage(in:VSOut,s:BlendSurface,deltas:vec3f)->f32{
  if((in.ids.y&${FLAG_DIAGNOSTIC_VIEW}u)!=0u){return blendDiagnosticOut(in,s,deltas).color.a;}
  return greyCoverage(thinMul(thinLayer(in,s)));
 }
-struct Covered{@location(1) request:u32,@location(2) reactive:vec4f,}
+struct Covered{@location(1) request:u32,@location(2) reactive:vec4f,@location(3) givenUp:f32,}
 @fragment fn fsTransmitCoverage(in:VSOut,@builtin(front_facing) front:bool)->Covered{
  let deltas=fwidth(in.bary);
  let t=transmitSurface(in,front,blendGrads(in));
- if(!t.kept){discard;return Covered(0u,vec4f(0.0));}
- return Covered(t.s.request,vec4f(0.0,1.0,0.0,transmitCoverage(in,t.s,deltas)));
+ if(!t.kept){discard;return Covered(0u,vec4f(0.0),0.0);}
+ let c=transmitCoverage(in,t.s,deltas);
+ return Covered(t.s.request,vec4f(0.0,1.0,0.0,c),blendGivenUp(in,c));
 }
 // The distortion accumulation: the offset of a refracting
 // fragment, positive and negative apart, of the inverse ior \`invIor\` its material declares.
@@ -170,16 +171,18 @@ fn transmitOffset(in:VSOut,s:BlendSurface,invIor:f32)->vec4f{
 }
 // The accumulation and the companion pass in one draw of every transmissive layer, where the image
 // refracts and the companion pass is wanted (\`encodeDistortion\`): the offset — zero, added, where
-// the layer bends nothing — beside the request and the reactive value (\`fsTransmitCoverage\`).
-struct DistortedCovered{@location(0) offset:vec4f,@location(1) request:u32,@location(2) reactive:vec4f,}
+// the layer bends nothing — beside the request, the reactive value and the history given up
+// (\`fsTransmitCoverage\`).
+struct DistortedCovered{@location(0) offset:vec4f,@location(1) request:u32,@location(2) reactive:vec4f,@location(3) givenUp:f32,}
 @fragment fn fsDistortionCoverage(in:VSOut,@builtin(front_facing) front:bool)->DistortedCovered{
  let deltas=fwidth(in.bary);
  let t=transmitSurface(in,front,blendGrads(in));
- if(!t.kept){discard;return DistortedCovered(vec4f(0.0),0u,vec4f(0.0));}
+ if(!t.kept){discard;return DistortedCovered(vec4f(0.0),0u,vec4f(0.0),0.0);}
  let invIor=materialAt(in.material&${FACING_MATERIAL_MASK}u).invIor;
  var offset=vec4f(0.0);
  if(invIor!=1.0){offset=transmitOffset(in,t.s,invIor);}
- return DistortedCovered(offset,t.s.request,vec4f(0.0,1.0,0.0,transmitCoverage(in,t.s,deltas)));
+ let c=transmitCoverage(in,t.s,deltas);
+ return DistortedCovered(offset,t.s.request,vec4f(0.0,1.0,0.0,c),blendGivenUp(in,c));
 }
 // The distortion application, a full-screen pass whose pixels with no accumulated offset are
 // dropped (\`distortedScene\`) — nothing bent them, the scene stays as it is —, on the full-screen

@@ -3,7 +3,7 @@
  * partition's streaming policy, one loading range per grid around the camera.
  *
  * Each grid streams its cells within its loading range of the camera — the main grid's, then each
- * HLOD layer's, twice the one below (`TablePartition.hlod.ranges`, `compiler_tables/partition/
+ * HLOD layer's, twice the one below — four times at HLOD 2 — (`TablePartition.hlod.ranges`, `compiler_tables/partition/
  * grid.rs`) —: a cell is wished while its streaming bounds meet the sphere of that range around the
  * eye, tested in 2D, its up axis dropped, as a 2D grid's spatial index tests it — height never
  * keeps a cell out (glTF's up is `+Y`). An HLOD 0 cell

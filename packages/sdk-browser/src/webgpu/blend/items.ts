@@ -5,6 +5,7 @@ import { materialWord, type MaterialTable } from '../material/materialTable.ts'
 import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 import { channelsOf } from '../material/materialRecord.ts'
 import { SURFACE_MAP_FIELDS } from '../../visibility/materialType.ts'
+import { HISTORY_SHARE_MASK, HISTORY_SHARE_SHIFT } from '../../visibility/types.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
@@ -54,6 +55,10 @@ type BlendAtlasTables = MaterialLayers & {
  *  (`rowFlags`), the bits above them — model, fog, sprite, line — being its record's to read; the
  *  vertex stage keeps the same below the view's (`vertexWgsl.ts`). */
 export const ITEM_FLAG_BITS = 0xffff
+/** Above them, read by the vertex stage alone, the four bits of its surface's history share code
+ *  (`HISTORY_SHARE_SHIFT` of the row's flags), here from bit 16: the stage hands them to the
+ *  fragments (`TRI_GIVEN_UP_SHIFT`), never into the flags it ORs the view's with. */
+export const ITEM_HISTORY_SHIFT = 16
 /** Above them, read by the vertex stage alone: the item's placement draws as its cell's HLOD 0 actor
  *  (`RowCell.proxy`), which the HLOD view colours (`diagnosticProxied`), as a page row's word says
  *  (`pageDiagnosticWord`). Written with the record, and again with the poses (`sceneRefresh.ts`). */
@@ -69,9 +74,13 @@ export const itemProxyBit = ({ placement }: Pick<BlendGpuItem, 'placement'>) =>
 const floatSecondUv = (item: BlendGpuItem, blocks?: ReadonlyMap<HostAttributes, GeometryBlock>) =>
   !!blocks?.get(item.sourceGeometry.attributes)?.hasUv1
 
+/** What an item's record says of the programs and targets it needs (`writeBlendItemRecord`): the
+ *  lobed programs — its surface carries a lobe, or a map reading the second UV set —, and the
+ *  history given up — its surface's history share code is not 0 (`blendShareTargets`). */
+export const ITEM_NEEDS = { lobed: 1, givesUp: 2 } as const
+
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer.
- *  Returns whether it needs the lobed programs: its surface carries a lobe, or a map reading the
- *  second UV set. */
+ *  Returns what it needs (`ITEM_NEEDS` bits). */
 export function writeBlendItemRecord(
   floats: Float32Array,
   ints: Uint32Array,
@@ -91,15 +100,15 @@ export function writeBlendItemRecord(
   ints[base + ITEM.vertexBase] = item.vertexBase ?? 0
   // What the table holds of its surface, written first where it moved: its record and summary.
   const seen = tables.materialTable.surface(mat, tables)
+  const { flags } = rowFlags(seen.row, item.geometry, tables.textures)
+  const historyCode = (flags >>> HISTORY_SHARE_SHIFT) & HISTORY_SHARE_MASK
   ints[base + ITEM.flags] =
-    item.flags |
-    (rowFlags(seen.row, item.geometry, tables.textures).flags & ITEM_FLAG_BITS) |
-    itemProxyBit(item)
+    item.flags | (flags & ITEM_FLAG_BITS) | (historyCode << ITEM_HISTORY_SHIFT) | itemProxyBit(item)
   // The deformation record of its placement (`PageInfo.deform`), in the float pool that holds it.
   ints[base + ITEM.deform] = tables.deformation?.wordOfWorld(item.matrix) ?? 0
   // Its surface's record (`../material/materialTable.ts`), the opaque rows' table.
   ints[base + ITEM.material] = materialWord(seen.rank, floatSecondUv(item, tables.geometryBlocks))
-  return lobed
+  return (lobed ? ITEM_NEEDS.lobed : 0) | (historyCode ? ITEM_NEEDS.givesUp : 0)
 }
 
 /** WGSL declaration of the record, made of its table (`BLEND_ITEM_FIELDS`). */
