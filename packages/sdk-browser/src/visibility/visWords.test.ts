@@ -3,7 +3,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
-import { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK, visPageIndex, visTriangle } from './visWords.ts'
+import {
+  VIS_MAX_PAGE_TRIANGLES,
+  VIS_TRIANGLE_BITS,
+  VIS_TRIANGLE_MASK,
+  visPageIndex,
+  visTriangle,
+} from './visWords.ts'
+import { VOXEL_BRICK_TRIANGLES, VOXEL_PAGE_BRICKS } from '../../../sdk-core/src/page/voxelPage.ts'
 
 type Decode = (id: number) => number
 
@@ -24,4 +31,12 @@ test('the WGSL decode returns the row and the triangle an identifier was encoded
     assert.equal(row(id) >>> 0, page)
     assert.equal(tri(id) >>> 0, triangle)
   }
+})
+
+// A voxel page draws its bricks' boxes (`voxelWgsl.ts`): its identifier names every box triangle
+// of the bricks the compiler packs in one (`VOXEL_PAGE_BRICKS`, `voxel/page.rs`), and one brick
+// more would not fit.
+test("a voxel page's box triangles all fit a page's identifier", () => {
+  assert.ok(VOXEL_PAGE_BRICKS * VOXEL_BRICK_TRIANGLES <= VIS_MAX_PAGE_TRIANGLES)
+  assert.ok((VOXEL_PAGE_BRICKS + 1) * VOXEL_BRICK_TRIANGLES > VIS_MAX_PAGE_TRIANGLES)
 })

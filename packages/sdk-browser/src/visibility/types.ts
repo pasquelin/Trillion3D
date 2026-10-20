@@ -4,6 +4,8 @@ import type { Texture } from '../../../sdk-core/src/texture/contract.ts'
 import { VIS_MAX_PAGE_TRIANGLES, VIS_PAGE_ROWS } from './visWords.ts'
 import { PAGE_INFO } from './pageInfo.ts'
 import { rgbaBytes } from '../texture/imageExtent.ts'
+import { wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { saturate } from '../../../math/src/scalar/reals.ts'
 /** Largest addressable page count: the rows an identifier names (`VIS_PAGE_ROWS`). */
 export const VIS_MAX_PAGES = VIS_PAGE_ROWS
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
@@ -44,9 +46,9 @@ export const FLAG_LIT = 1,
   FLAG_HAS_ORM = 512,
   FLAG_HAS_NORMAL_MAP = 1024,
   FLAG_HAS_TANGENT = 2048,
-  /** The row's pool slot holds a voxel brick (`../../../sdk-core/src/page/voxelPage.ts`): each
-   *  corner is a corner of a voxel's contour, built from its record in place
-   *  (`shader/voxelWgsl.ts`), and its surface is the voxel's own. */
+  /** The row's pool slot holds voxel bricks (`../../../sdk-core/src/page/voxelPage.ts`): each
+   *  brick draws its box, built from its record in place, and each pixel of it traces the
+   *  brick's voxels (`shader/voxelWgsl.ts`); its surface is the voxel's own. */
   FLAG_VOXEL = 4096,
   /** Frame flag, not a material one: the whole frame comes out as raw albedo because no light is
    *  declared, or because the host asked for the unlit view. Only the transparent draw reads it —
@@ -81,18 +83,29 @@ export const FLAG_FOG_FREE = 1 << 20,
   FLAG_MAP_UV1 = 1 << 24
 /** The four bits from here of a row's flags: the most of its history the temporal anti-aliasing
  *  keeps on its surface's pixels (`VisMaterial`'s `historyShare`), as its code
- *  (`historyShareCode`). The passes carry it as they carry a pixel animation, and the history
- *  update caps the history's share by it (`../taa/resolveWgsl.ts`). Where a blend item's word
- *  holds the frame flags' diagnostic code, which it never takes from a row: a row's flags reach an
- *  item through `ITEM_FLAG_BITS`, its low sixteen bits. Bits 17 to 19 are the surface model's
- *  (`MODEL_SHIFT`), 20 to 24 the flags above, 29 and up free. */
-export const HISTORY_SHARE_SHIFT = 25
+ *  (`historyShareCode`). The opaque passes carry it as they carry a pixel animation, and the
+ *  history update caps the history's share by it (`../taa/resolveWgsl.ts`); a blend item carries
+ *  it in its record's own bits (`ITEM_HISTORY_SHIFT`), its layers writing what they give up of the
+ *  history into a target of their own (`GIVEN_UP_TARGET`). The blend pass's frame flags hold their
+ *  diagnostic code at these bits, a word a row's flags reach through `ITEM_FLAG_BITS` alone, its
+ *  low sixteen bits. Bits 17 to 19 are the surface model's (`MODEL_SHIFT`), 20 to 24 the flags
+ *  above, 29 and up free. */
+export const HISTORY_SHARE_SHIFT = 25,
+  HISTORY_SHARE_MASK = 15
 /** The code's steps: a share is a whole number of twelfths of history, so 1, 0.75, 0.5, 0.25 and 0
  *  are exact; code 0 the whole history, the engine's own blend, `HISTORY_SHARE_STEPS` none. */
 export const HISTORY_SHARE_STEPS = 12
 /** The history share's code (`HISTORY_SHARE_SHIFT`), the nearest twelfth of what it gives up. */
 export const historyShareCode = (share = 1) =>
-  Math.round((1 - Math.min(Math.max(share, 0), 1)) * HISTORY_SHARE_STEPS)
+  Math.round((1 - saturate(share)) * HISTORY_SHARE_STEPS)
+/** What a history share code gives up of the history, in [0, 1] (`historyShareCode` undone): the
+ *  one decode the history update (`../taa/resolveWgsl.ts`) and the transparents
+ *  (`../webgpu/blend/vertexReadsWgsl.ts`) read. */
+export const HISTORY_GIVEN_UP_WGSL = wgslFn(
+  'historyGivenUp',
+  [],
+  `fn historyGivenUp(code:u32)->f32{return f32(code&${HISTORY_SHARE_MASK}u)/${HISTORY_SHARE_STEPS}.0;}`,
+)
 export type VisPage = {
   array: Uint32Array
   attributes: HostAttributes

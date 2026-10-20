@@ -77,6 +77,8 @@ export interface VsmRenderScene {
    *  are, from the GPU's histograms of them (`rowPageBound.ts`), or, where that cannot speak, by
    *  the worst case: every row reaching every page. */
   rowSpheres: VsmRowSpheres
+  /** Whether the table holds a voxel row: its tier is drawn then alone (`vsmEncodeChunks`). */
+  voxels?: boolean
 }
 
 export interface VsmRenderFrame {
@@ -105,7 +107,8 @@ export interface VsmRenderContext extends VsmChunkKernels, VsmChunkContext<Raste
   expands: VsmComputePipe[]
   raster: {
     layout1: GPUBindGroupLayout
-    /** The raster pipeline of each corner tier, lowest first; read where it is bound. */
+    /** The raster pipeline of each tier, lowest first, the voxel tiers last — made the first time
+     *  a table holds a voxel row —; read where it is bound. */
     tiers: PreparedPipeline<GPURenderPipeline>[]
   }
   target: GPUTextureView
@@ -175,6 +178,7 @@ export function encodeVsmRender(
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)
-  vsmEncodeChunks(encoder, ctx, tables, scene.pageGroup, args, scene.rowCount, chunks, viewCount)
+  const { pageGroup, rowCount, voxels } = scene
+  vsmEncodeChunks(encoder, ctx, tables, pageGroup, args, rowCount, chunks, viewCount, voxels)
   return { chunks, chunkRows, roomLimited }
 }

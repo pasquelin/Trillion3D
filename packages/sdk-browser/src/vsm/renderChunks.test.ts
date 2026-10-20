@@ -18,12 +18,12 @@ import {
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_WGSL,
   VSM_RENDER_CHUNK_COUNTS,
+  VSM_RENDER_CORNER_TIERS,
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_PARAMS,
   VSM_RENDER_TIER_CMDS,
   VSM_RENDER_TIER_CORNERS,
   VSM_RENDER_TIER_PAIRS,
-  VSM_RENDER_TIERS,
 } from './renderParamsWgsl.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
@@ -162,7 +162,8 @@ test('200 000 rows resident, 100 chosen: past the first chunk, no group, no inst
   // Chunk 0: 2 groups of candidates × 17 views, its argument kernel, one group binning 12
   // commands, the lowest tier's expand over them and no other tier's, the draws' argument kernel,
   // 40 pairs of the lowest tier's corners; every other chunk culls, bins, expands and draws nothing.
-  const tiers = (first: number) => [first, ...Array<number>(VSM_RENDER_TIERS - 1).fill(0)]
+  // The corner tiers alone: the table holds no voxel row.
+  const tiers = (first: number) => [first, ...Array<number>(VSM_RENDER_CORNER_TIERS - 1).fill(0)]
   assert.deepEqual(work.get(0), [34, 1, 1, ...tiers(12), 1, ...tiers(40 * VSM_RENDER_TIER_CORNERS)])
   for (let c = 1; c < stats.chunks; c++)
     assert.deepEqual(work.get(c), [0, 1, 0, ...tiers(0), 1, ...tiers(0)], `chunk ${c}`)

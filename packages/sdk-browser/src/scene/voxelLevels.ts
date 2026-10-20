@@ -8,7 +8,11 @@ import type {
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import { assertVoxelSection, decodeVoxelFile } from '../../../sdk-core/src/contracts/voxel.ts'
 import { joinVoxelLevels, type VoxelJoin } from '../../../sdk-core/src/page/voxelJoin.ts'
-import { GEOMETRY_VOXEL } from '../../../sdk-core/src/page/voxelPage.ts'
+import {
+  GEOMETRY_VOXEL,
+  VOXEL_BRICK_CORNERS,
+  VOXEL_BRICK_INDICES,
+} from '../../../sdk-core/src/page/voxelPage.ts'
 import { sphereUnion } from '../../../math/src/geometry/sphere.ts'
 import { boxEmpty, boxUnion } from '../../../math/src/geometry/box.ts'
 import {
@@ -213,7 +217,9 @@ async function serveJoin(join: VoxelJoin, urls: string[]) {
     Object.assign(page, { url: `${url}#${offset}`, sha256, stream, streamOffset: offset })
     page.geometry = {
       ...{ url: page.url, bundle: { url, offset }, sha256, bytes: page.bytes },
-      ...{ vertexCount: page.count, indexCount: page.count, flags: GEOMETRY_VOXEL },
+      // A page's count is its boxes' corners named, three a triangle; it holds eight a brick.
+      vertexCount: (page.count / VOXEL_BRICK_INDICES) * VOXEL_BRICK_CORNERS,
+      ...{ indexCount: page.count, flags: GEOMETRY_VOXEL },
       uncompressedBytes: page.bytes,
     }
   })

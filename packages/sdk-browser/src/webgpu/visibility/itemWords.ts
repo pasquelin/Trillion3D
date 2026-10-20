@@ -1,5 +1,5 @@
-import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/contract.ts'
-import { rowCutout } from '../row/pageRow.ts'
+import { BIN_KIND, CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/contract.ts'
+import { rowKind } from '../row/pageRow.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { visBin } from '../pages/prepare/pipelineFor.ts'
 import { createDirtyRows, forEachRewrittenRun } from '../row/dirty.ts'
@@ -18,8 +18,9 @@ import { PAGE_INFO } from '../../visibility/pageInfo.ts'
  * row, the runs the GPU has not yet received. Along the way it holds the TOTAL of drawable-row
  * triangles, updated on those rows alone and on rows that enter or leave the drawable rank: that is
  * what the image submits, exactly, without any image walking the resident rows again. A cutout row
- * (`FLAG_MASK`) takes its face mode's cutout bin (plus `CULL_BINS`): the compaction draws it in its
- * own slot, whose count the GPU keeps as for every other (`drawVis`).
+ * (`FLAG_MASK`) takes its face mode's cutout bin (plus `CULL_BINS`), a voxel row (`FLAG_VOXEL`)
+ * its voxel bin (plus twice `CULL_BINS`): the compaction draws each in its own slot, whose count
+ * the GPU keeps as for every other (`drawVis`).
  */
 export function createDrawItemWordsHold(slots: number) {
   return {
@@ -31,6 +32,11 @@ export function createDrawItemWordsHold(slots: number) {
     triangles: new Uint32Array(Math.max(1, slots)),
     /** Sum of triangles of rows `[0, heldCount)`. */
     total: 0,
+    /** Whether each row is a voxel row, as it entered `voxelRows`. */
+    voxel: new Uint8Array(Math.max(1, slots)),
+    /** Voxel rows of `[0, heldCount)`: the voxel slots are walked while there is one
+     *  (`drawVis`). */
+    voxelRows: 0,
     heldCount: 0,
   }
 }
@@ -51,6 +57,8 @@ export function refreshDrawItemWords(
   for (let row = rows.packedCount; row < hold.heldCount; row++) {
     hold.total -= hold.triangles[row]
     hold.triangles[row] = 0
+    hold.voxelRows -= hold.voxel[row]
+    hold.voxel[row] = 0
   }
   // A row that enters the drawable rank enters with its words: it is dirty, or it has just been
   // written. Rewriting it costs what the rank grew, and nothing more.
@@ -74,11 +82,17 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
       rank = rootOfPacked(rt.layout.placement, rows.packedPageIndex[row])
     const cull = visBin(rec, rank, rt.layout.selectionRoots)
     drawItemWords[word] = row
-    // The cutout bit `maskKeep` reads on the GPU, from the words this image uploads.
-    drawItemWords[word + 1] = ints && rowCutout(ints, row) ? cull + CULL_BINS : cull
+    // The cutout bit `maskKeep` reads on the GPU, from the words this image uploads; a voxel row in
+    // the slots whose stage traces its bricks (`vis_voxel_fs`).
+    const kind = ints ? rowKind(ints, row) : BIN_KIND.OPAQUE,
+      voxel = kind === BIN_KIND.VOXEL ? 1 : 0
+    drawItemWords[word + 1] = cull + kind * CULL_BINS
     drawItemWords[word + 2] = rows.packedPageIndex[row]
-    // The coplanar layer belongs to the table row, not to the image: it travels with the item.
-    drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots)
+    // The coplanar layer belongs to the table row, not to the image: it travels with the item. A
+    // voxel row writes its depth, which a layer's bias would not reach: it draws on layer 0.
+    drawItemWords[word + 3] = voxel ? 0 : Math.min(rec.depthLayer, layerSlots)
+    hold.voxelRows += voxel - hold.voxel[row]
+    hold.voxel[row] = voxel
     // Triangles the row draws are those of its page-table row — what the GPU actually draws — not
     // those the cluster declares. The GPU partition weighs an occlusion reject with them, and the
     // table total follows without a per-image walk.

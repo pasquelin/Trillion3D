@@ -25,7 +25,7 @@ export function packDrawIndirect(vertexCount: number, instanceCount: number): Ui
  *  `contract.ts`). */
 export type DrawItem = {
   pageIndex: number
-  /** Face mode, plus `CULL_BINS` on a cutout row (`contract.ts`). */
+  /** Face mode, plus `CULL_BINS` on a cutout row, twice on a voxel row (`contract.ts`). */
   bin: number
   rest: 0 | 1
   selectionIndex?: number

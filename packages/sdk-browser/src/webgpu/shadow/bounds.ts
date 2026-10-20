@@ -3,7 +3,8 @@ import type { PageRec } from '../../page/selection/types.ts'
 import type { WebgpuLightState } from '../pages/state/lights.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
-import { rowCutout } from '../row/pageRow.ts'
+import { rowKind } from '../row/pageRow.ts'
+import { BIN_KIND } from '../../gpu/draw/contract.ts'
 import { mobilityRows } from './rowBuffers.ts'
 import type { RowRunVisitor } from '../row/dirty.ts'
 import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
@@ -59,7 +60,7 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     // A row the table does not hold yet is sized as the scene's largest: never a triangle short.
     corners: (row) =>
       rows.pageTableInts?.[row * ROW_WORDS + PAGE_INFO.at.indexCount] ?? rt.setup.maxCorners,
-    cutout: (row) => !!rows.pageTableInts && rowCutout(rows.pageTableInts, row),
+    cutout: (row) => !!rows.pageTableInts && rowKind(rows.pageTableInts, row) === BIN_KIND.CUTOUT,
     shadowless: (rank) => {
       const root = selectionRoots[rank]
       return !root || !!root.parked || ((root.mark ?? 0) & CASTS_NO_SHADOW) !== 0

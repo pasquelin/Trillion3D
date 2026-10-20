@@ -18,9 +18,9 @@ import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
  * An item takes one instance per batch of its triangles (`batchesOf`, `drawBatches`), consecutive
  * and in triangle order, so its row's triangles reach the raster as one instance per row drew them.
  *
- * A slot is a bin — a cull mode, or its cutout bin —, an occluder/tested half and a coplanar depth
- * layer (`contract.ts`). The layer is a property of the page-table row, not of the frame, so it
- * travels with the item and never costs a branch per pixel.
+ * A slot is a bin — a cull mode, its cutout bin or its voxel bin —, an occluder/tested half and a
+ * coplanar depth layer (`contract.ts`). The layer is a property of the page-table row, not of the
+ * frame, so it travels with the item and never costs a branch per pixel.
  *
  * Counting and scattering run one workgroup per group of 64 items: each lane reads its own item
  * once, tallies its slot in workgroup memory, and ranks itself among the earlier lanes of the same

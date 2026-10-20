@@ -9,6 +9,7 @@ import { rowFlags, surfaceRow } from './surfaceRow.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { FLAG_COLOR, FLAG_UV } from '../../../../sdk-core/src/page/format.ts'
 import {
+  FLAG_BACK,
   FLAG_CLUSTER_PAGE,
   FLAG_DOUBLE,
   FLAG_HAS_COLOR,
@@ -177,9 +178,11 @@ test('a row multiplies by its vertex colours only when the material asks and the
   assert.deepEqual(rowMaterial(asks, { ...page(FLAG_UV) }, layers), plain)
 })
 
-// A voxel brick is no quantized page: its row reads its voxels' contours, carries their normals,
-// draws from both sides, and wears its voxels' surface — none of its material's maps.
-test("a voxel brick's row reads its voxels, both sides, in the voxel class alone", () => {
+// A voxel brick is no quantized page: its row reads its bricks' boxes, carries its voxels' normals,
+// draws its boxes' back faces alone (`rowSide`) — each pixel traced once, an eye inside a box
+// too —, and wears its voxels' surface — none of its material's maps, whatever side its material
+// draws.
+test("a voxel brick's row reads its voxels, back faces alone, in the voxel class alone", () => {
   const map = {} as Texture
   const layers = { mapLayer: new Map([[map, 1]]), dataLayer: new Map() }
   const geometryPage = {
@@ -195,9 +198,9 @@ test("a voxel brick's row reads its voxels, both sides, in the voxel class alone
   const row = rowMaterial({ ...surfaceOf(G.standardSurface()), map }, geo, layers)
   assert.equal(row.flags & (FLAG_HAS_MAP | FLAG_CLUSTER_PAGE), 0)
   assert.equal(
-    row.flags & (FLAG_VOXEL | FLAG_DOUBLE | FLAG_HAS_NORMAL),
-    FLAG_VOXEL | FLAG_DOUBLE | FLAG_HAS_NORMAL,
+    row.flags & (FLAG_VOXEL | FLAG_DOUBLE | FLAG_BACK | FLAG_HAS_NORMAL),
+    FLAG_VOXEL | FLAG_BACK | FLAG_HAS_NORMAL,
   )
   const f = CLASS_FEATURE
-  assert.equal(row.classKey, f.VOXEL | f.DOUBLE_SIDED | f.HAS_VERTEX_NORMAL)
+  assert.equal(row.classKey, f.VOXEL | f.HAS_VERTEX_NORMAL)
 })

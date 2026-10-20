@@ -2,19 +2,19 @@
 // that neither reads the page nor discards (`visOpaque.test.ts`: the same image), made with it at
 // preparation; none under a diagnostic variant of the raster stage. `drawVis` draws each half's
 // opaque slots with the twin, then its cutout slots with the pipeline that discards — both halves
-// with the same pipelines.
+// with the same pipelines —, and its voxel slots only on a frame whose table holds a voxel row.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
+import { BASE_SLOTS, BIN_KIND, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import {
   createWebgpuCoplanarLayerPipelines,
   createWebgpuVisibilityRasterPipelines,
-  opaqueTwin,
+  twinOf,
 } from './pipelines.ts'
 import { drawVis } from './drawer.ts'
 import { createWebgpuVisState } from '../pages/state/vis.ts'
@@ -34,7 +34,7 @@ const build = async (variant?: 'geometry-flat') => {
 test("an occluder's twin is itself but for the opaque fragment stage", async () => {
   const { all } = await build()
   for (const pipeline of all) {
-    const twin = opaqueTwin(pipeline) as Made
+    const twin = twinOf(pipeline, BIN_KIND.OPAQUE) as Made
     assert.deepEqual(twin.fragment, { ...pipeline.fragment!, constants: { MASKED: 0 } })
     assert.deepEqual({ ...twin, fragment: pipeline.fragment }, pipeline)
   }
@@ -42,7 +42,7 @@ test("an occluder's twin is itself but for the opaque fragment stage", async () 
 
 test('a diagnostic raster stage imposes itself: no twin', async () => {
   const { all } = await build('geometry-flat')
-  assert.ok(all.every((pipeline) => !pipeline || !opaqueTwin(pipeline)))
+  assert.ok(all.every((pipeline) => !pipeline || !twinOf(pipeline, BIN_KIND.OPAQUE)))
 })
 
 /** The pipelines `drawVis` sets and the indirect offsets it draws. */
@@ -82,6 +82,8 @@ async function drawn(rest: boolean) {
       },
       placement: { baseOfRoot: Int32Array.of(0), packedCount: 4 },
       selectionRoots: [{ world: new Matrix4() }],
+      // No voxel row: the voxel slots are not walked.
+      itemWordsHold: { voxelRows: 0 },
     },
   } as unknown as WebgpuPagesRuntime
   drawVis(rt, device, pass, rest)

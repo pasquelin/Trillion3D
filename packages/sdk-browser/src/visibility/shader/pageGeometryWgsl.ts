@@ -20,8 +20,8 @@ export const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`
 /** The flags under which a vertex hands its UV on: a row that has one AND is masked, the only one
  *  whose `maskKeep` reads it (an unmasked row keeps every fragment before its first read). */
 export const UV_READ = FLAG_HAS_UV | FLAG_MASK
-/** Whether a row reads a voxel brick (\`FLAG_VOXEL\`, \`voxelWgsl.ts\`): its corners are its voxels'
- *  contours, its triangles three corners each in turn. */
+/** Whether a row reads voxel bricks (\`FLAG_VOXEL\`, \`voxelWgsl.ts\`): its vertices are its bricks'
+ *  box corners, eight a brick, its triangles their boxes', twelve a brick. */
 const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
 
 /**
@@ -40,9 +40,10 @@ const VOXEL = `(page.flags&${FLAG_VOXEL}u)!=0u`
  * for the nine words and five streams of corners and positions alone when its row draws no surface
  * attribute. `pageHeader` of a row that is not quantized costs nothing and returns zeroes.
  *
- * A row of a voxel brick (\`FLAG_VOXEL\`) builds each corner from its voxel's record in place
- * (\`voxelWgsl.ts\`): one more branch of the same reads, so every pass draws a voxel as it draws a
- * triangle, with no pass of its own.
+ * A row of voxel bricks (\`FLAG_VOXEL\`) builds each brick's box from its record in place
+ * (\`voxelWgsl.ts\`): one more branch of the same reads, so every pass draws a brick's box as it
+ * draws triangles; the voxel variants of the passes that write a depth trace its voxels in the box
+ * (\`voxelHitWgsl.ts\`).
  *
  * Vertex colours: quantized on the page, at the tail of the source UV buffer otherwise
  * (`../../webgpu/core/vertexColors.ts`). The resolve multiplies the base colour by them, and the
@@ -75,20 +76,20 @@ fn pageHeaderFor(page:PageInfo,withSurface:bool)->ClusterHeader{
 }
 /** Local vertex index of a corner of the page, three per triangle. */
 fn pageCorner(page:PageInfo,h:ClusterHeader,corner:u32)->u32{
- if(${VOXEL}){return corner;}
+ if(${VOXEL}){return voxelBoxVertex(corner);}
  if(${QUANTIZED}){return clusterIndex(h,page.pageOffset,corner);}
  return indices[page.pageOffset+corner];
 }
 /** Local vertex indices of triangle \`tri\` of the page: a quantized page reads its block record once. */
 fn pageTriangle(page:PageInfo,h:ClusterHeader,tri:u32)->vec3u{
- if(${VOXEL}){return tri*3u+vec3u(0u,1u,2u);}
+ if(${VOXEL}){return vec3u(voxelBoxVertex(tri*3u),voxelBoxVertex(tri*3u+1u),voxelBoxVertex(tri*3u+2u));}
  if(${QUANTIZED}){return clusterTriangle(h,page.pageOffset,tri);}
  let at=page.pageOffset+tri*3u;
  return vec3u(indices[at],indices[at+1u],indices[at+2u]);
 }
 /** Position of a page vertex in the primitive's local space, as the page stores it. */
 fn pageRestPosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
- if(${VOXEL}){return voxelPosition(page.pageOffset,vertex);}
+ if(${VOXEL}){return voxelBoxCorner(page.pageOffset,vertex);}
  if(${QUANTIZED}){return clusterPosition(h,page.pageOffset,vertex);}
  return vertPos(page.vertexBase,vertex);
 }
@@ -98,10 +99,8 @@ fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(page.deformOutput!=0u){return pageDeformed(page,vertex,0u);}
  return pageRestPosition(page,h,vertex);
 }
-/** Positions of the page vertices \`corners\` of one triangle, as \`pagePosition\` reads each: a
- *  voxel's polygon built once for the three (\`voxelTriangle\`). */
+/** Positions of the page vertices \`corners\` of one triangle, as \`pagePosition\` reads each. */
 fn pageTrianglePositions(page:PageInfo,h:ClusterHeader,corners:vec3u)->mat3x3f{
- if(page.deformOutput==0u&&${VOXEL}){return voxelTriangle(page.pageOffset,corners);}
  return mat3x3f(pagePosition(page,h,corners.x),pagePosition(page,h,corners.y),pagePosition(page,h,corners.z));
 }
 /** Where the last frame drew that vertex: what the temporal pass reprojects a pixel by. */

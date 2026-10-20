@@ -29,7 +29,7 @@ function frameOf(seed: number, rows: number) {
     ),
     flags: Array.from({ length: rows }, () => int(3)),
     items: Array.from({ length: rows }, (_, row) => ({
-      // A face mode, or its cutout bin.
+      // A face mode, its cutout bin or its voxel bin.
       bin: int(HALF_SLOTS),
       layer: int(3),
       triangles: int(1 << 24),
@@ -55,7 +55,7 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
     restBits: new Array<number>(bitWords(rows)).fill(0),
     state: new Array<number>(C.STATE_WORDS).fill(0),
     tested: [] as number[],
-    tally: new Array<number>(C.ST_REJECTED_TRIANGLES + 1).fill(0),
+    tally: new Array<number>(C.ST_VOXEL_TRIANGLES + 1).fill(0),
   }
   const scope = {
     ...m,
@@ -83,7 +83,7 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
   }
   const partition = shaderRun<Record<string, Fn>>(
     PARTITION_SHADER,
-    ['projectRow', 'classifyRow', 'bitWord', 'bitMask', ...own],
+    ['projectRow', 'classifyRow', 'voxelTally', 'bitWord', 'bitMask', ...own],
     {
       ...scope,
       uni,
@@ -125,7 +125,7 @@ test('a sampled frame counts what one atomic per row counted; the image reads th
   }
   // Every counter the kernels keep was reached.
   assert.ok(
-    seen.slice(0, C.ST_REJECTED_TRIANGLES + 1).every((total) => total > 0),
+    seen.slice(0, C.ST_VOXEL_TRIANGLES + 1).every((total) => total > 0),
     `${seen}`,
   )
 })

@@ -1,5 +1,4 @@
 import { COMPUTE_TAKES_WGSL, FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
-import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_SHAPE_WGSL } from '../../visibility/shader/pageShapeWgsl.ts'
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { maskUvWgsl } from '../../visibility/shader/pageUv1Wgsl.ts'
@@ -7,7 +6,8 @@ import { materialTableWgsl } from '../../webgpu/material/materialWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
-import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../../visibility/types.ts'
+import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK, FLAG_VOXEL } from '../../visibility/types.ts'
+import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 
 /**
  * What a triangle decides before a pixel is named, and the only writing of that compute: binning
@@ -80,7 +80,8 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  var t:Tri;t.ok=0u;t.row=pageIndex;t.triangle=triangle;t.quad=0u;
  let page=pages[pageIndex];
  if(uni.selectionEnabled!=0u&&!maskSelects(page.selectionIndex)){return t;}
- if(triangle*3u+2u>=page.indexCount){return t;}
+ // A brick's box traces its voxels where hardware draws it (\`vis_voxel_fs\`), never here.
+ if(triangle*3u+2u>=page.indexCount||(page.flags&${FLAG_VOXEL}u)!=0u){return t;}
  let h=pageHeaderFor(page,pageSurfaceRead(page));
  let corners=pageTriangle(page,h,triangle);let ia=corners.x;let ib=corners.y;let ic=corners.z;
  let shape=pageShape(page);

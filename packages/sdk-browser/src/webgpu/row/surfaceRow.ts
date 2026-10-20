@@ -1,4 +1,6 @@
 import { materialClassKey } from '../../visibility/shader/materialClass.ts'
+import { GEOMETRY_VOXEL } from '../../../../sdk-core/src/page/voxelPage.ts'
+import type { PageRec } from '../../page/selection/types.ts'
 import {
   PHYSICAL_MAP_FIELDS,
   SURFACE_MAP_FIELDS,
@@ -146,6 +148,7 @@ const VOXEL_KEPT = ~(
   FLAG_HAS_MAP |
   FLAG_MASK |
   FLAG_BACK |
+  FLAG_DOUBLE |
   FLAG_HAS_ORM |
   FLAG_HAS_NORMAL_MAP |
   FLAG_SPRITE |
@@ -154,10 +157,19 @@ const VOXEL_KEPT = ~(
 /** A row of no map: what a voxel row resolves with, whatever its surface's. */
 const NO_MAPS = { rough: 0, metal: 0, ao: 0, emissive: 0, normal: 0 }
 
+/**
+ * The side a row draws (`visBin`, the shadow casters' `FLAG_BACK`): its surface's, but a voxel
+ * row's boxes are drawn by their back faces alone — each pixel traced once, from the eye or the
+ * box's entry, whichever is farther, so an eye inside a box or a box across the near plane still
+ * draws its voxels. The rule, written once here, gives the row its flags too (`voxelRowFlags`).
+ */
+export const rowSide = (rec: PageRec): PageRec['material']['side'] =>
+  (rec.geometryPage?.flags ?? 0) & GEOMETRY_VOXEL ? 'back' : rec.material.side
+
 /** The flags and class of a voxel brick's row (`FLAG_VOXEL`): its surface's lighting and model,
  *  none of its maps — its voxels carry their own prefiltered colour, roughness and occlusion —,
- *  drawn from both sides, its normals the contours'. */
+ *  its side `rowSide`'s, its normals its voxels'. */
 function voxelRowFlags(bits: number) {
-  const flags = (bits & VOXEL_KEPT) | FLAG_VOXEL | FLAG_DOUBLE | FLAG_HAS_NORMAL
+  const flags = (bits & VOXEL_KEPT) | FLAG_VOXEL | FLAG_HAS_NORMAL | FLAG_BACK
   return { flags, classKey: materialClassKey(flags, NO_MAPS) }
 }

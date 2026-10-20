@@ -1,16 +1,22 @@
 import type { PageRec } from '../../page/selection/types.ts'
-import { FLAG_MASK, ROW_WORDS } from '../../visibility/types.ts'
+import { FLAG_MASK, FLAG_VOXEL, ROW_WORDS } from '../../visibility/types.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { BIN_KIND, type BinKind } from '../../gpu/draw/contract.ts'
 
 /** Stamps rank `row` as the Hi-Z slot of the row at `base`, unless the row has none. */
 export function restampHizSlot(ints: Uint32Array, base: number, row: number) {
   if (ints[base + PAGE_INFO.at.hizSlot] !== NO_INDEX) ints[base + PAGE_INFO.at.hizSlot] = row
 }
-/** True when row `row` of the table `ints` is a cutout (`FLAG_MASK`): the bit `maskKeep` tests. */
-export const rowCutout = (ints: Uint32Array, row: number) =>
-  (ints[row * ROW_WORDS + PAGE_INFO.at.flags] & FLAG_MASK) !== 0
+/** The kind of row `row` of the table `ints` (`BIN_KIND`): voxel bricks (`FLAG_VOXEL`), whose boxes
+ *  trace their voxels and write their depth (`vis_voxel_fs`); a cutout (`FLAG_MASK`), the bit
+ *  `maskKeep` tests; or opaque. */
+export function rowKind(ints: Uint32Array, row: number): BinKind {
+  const flags = ints[row * ROW_WORDS + PAGE_INFO.at.flags]
+  if (flags & FLAG_VOXEL) return BIN_KIND.VOXEL
+  return flags & FLAG_MASK ? BIN_KIND.CUTOUT : BIN_KIND.OPAQUE
+}
 /**
  * Identifier base of a page-table row: its rank shifted by the triangle bits, leaving zero free for
  * the background. The first write of a row and the compact that moves it both rest on it; two writes

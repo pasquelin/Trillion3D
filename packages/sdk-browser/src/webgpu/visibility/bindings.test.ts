@@ -25,6 +25,7 @@ function mount() {
     visUniform: {},
     shadeUniform: {},
     shadeCache: { buffer: {} },
+    voxelSteps: { buffer: {} },
     zeroFlags: {},
     gpuHiz: { flags: {} },
     textures: { color: { views, pages }, data: { views: dataViews, pages } },

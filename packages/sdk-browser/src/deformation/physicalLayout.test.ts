@@ -65,6 +65,7 @@ test("a transparent item's deformation words are its own, its neighbour's untouc
     1,
     {
       surface: surfaceOf(material()),
+      priority: 0,
       matrix: new Matrix4(),
       flags: 1,
       sourceGeometry: new Geometry(),

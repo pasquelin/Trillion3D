@@ -1,7 +1,7 @@
 /**
  * What the Hi-Z occlusion test of a frame did, published as-is.
  *
- * These seven numbers live apart from `FrameMetrics` because they have their own RHYTHM: on the
+ * These numbers — and the voxel far field's, sampled alike — live apart from `FrameMetrics` because they have their own RHYTHM: on the
  * GPU path they are accumulated by the device — the partition counts them while packing the rows, the
  * occlusion kernel while writing its verdicts — and the host only rereads them one frame in fifteen.
  */
@@ -35,4 +35,12 @@ export interface OcclusionFrameMetrics {
    * count the last sampled frame left behind. `null` when there is none.
    */
   hizCountedFrame?: number | null
+  /** Voxel bricks the cut draws on that same frame, before the occlusion test: each a box whose
+   *  pixels trace its voxels. `null` where no frame was counted. */
+  voxelBricks?: number | null
+  /** The DDA steps a voxel pixel's ray took through its brick, the mean and the most, as the
+   *  resolve last counted them on one pixel in 64 of a sampled frame (at most 10, a 4³ brick's
+   *  bound). `null` until a frame counted one. */
+  voxelStepsMean?: number | null
+  voxelStepsMax?: number | null
 }

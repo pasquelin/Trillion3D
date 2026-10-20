@@ -14,6 +14,7 @@ import {
   ST_OVERSIZED_TRIANGLES,
   ST_TESTED,
   ST_TESTED_TRIANGLES,
+  ST_VOXEL_TRIANGLES,
   TESTED_BOX,
   STATE_TALLY_WGSL,
 } from './contract.ts'
@@ -22,6 +23,10 @@ import { bitMask, bitWord } from '../../../../math/src/wgsl/integer.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../dispatch/grid.ts'
 import { HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts'
 import { DRAW_MASK_WGSL } from '../dag/shader/drawMaskWgsl.ts'
+import { BIN_KIND, CULL_BINS } from '../draw/contract.ts'
+
+/** First bin of the voxel rows (`BIN_KIND`, `itemWords.ts`). */
+const VOXEL_BIN = BIN_KIND.VOXEL * CULL_BINS
 
 /**
  * Occluder/tested split and packing of the Hi-Z test bounds, per resident row.
@@ -59,6 +64,11 @@ fn classifyRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocatio
  if(row<uni.rows){classifyRow(row);}
  flushTally(lane);
 }
+/** The box triangles of a voxel row the cut draws, occluder or tested, before the test: twelve a
+ *  brick (\`ST_VOXEL_TRIANGLES\`). */
+fn voxelTally(item:DrawItem){
+ if(item.bin>=${VOXEL_BIN}u&&(uni.selectionEnabled==0u||maskSelects(item.selectionIndex))){tallyAdd(${ST_VOXEL_TRIANGLES}u,item.triangles);}
+}
 fn classifyRow(i:u32){
  let base=i*${ROW_DATA_U32}u;
  let held=rowData[base+${ROW_FLAGS}u];
@@ -67,6 +77,8 @@ fn classifyRow(i:u32){
  rowData[base+${ROW_FLAGS}u]=(held&~${FLAG_PREV_REST}u)|select(0u,${FLAG_PREV_REST}u,rest!=0u);
  // Verdict the compute raster reads: a row's half, before any occlusion test.
  flags[i]=select(${VERDICT_OCCLUDER}u,${VERDICT_KEPT}u,rest!=0u);
+ // A sampled frame alone reads an occluder's item: for its voxel bricks (\`voxelTally\`).
+ if(uni.counting!=0u){voxelTally(items[i]);}
  if(rest==0u){tallyAdd(${ST_OCCLUDERS}u,1u);return;}
  atomicOr(&restBits[bitWord(i)],bitMask(i));
  let item=items[i];

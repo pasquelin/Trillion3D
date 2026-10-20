@@ -2,6 +2,7 @@
 // point light, one a spot; the full maps a set is first made for, the mask's lights, the raster's
 // views, and the set's options for them.
 import { alignUp, nextPow2 } from '../../../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../../../math/src/scalar/reals.ts'
 import { VSM_POOL_PAGES } from '../../../../vsm/constants.ts'
 import type { VsmFrameLight } from '../../../../vsm/frameSetup.ts'
 import { vsmShadowed } from '../../../../vsm/seenLights.ts'
@@ -62,7 +63,7 @@ export function directionalCount(lights: readonly VsmFrameLight[]) {
 export function vsmPoolAsked({ lights, views }: WebgpuPagesRuntime) {
   let pages = vsmViewPoolPages(views.main.viewport[0], views.main.viewport[1])
   for (const { viewport } of views.persistent) pages += vsmViewPoolPages(viewport[0], viewport[1])
-  return Math.min(VSM_POOL_PAGES, Math.max(lights.vsmPoolDemand, nextPow2(pages)))
+  return clamp(nextPow2(pages), lights.vsmPoolDemand, VSM_POOL_PAGES)
 }
 
 /** The set's options for `fullMapCapacity` maps and `directional` suns, at `poolPages`:

@@ -14,7 +14,7 @@ export const DEFORMATION_BINDING = {
   image: 5,
 } as const
 const B = DEFORMATION_BINDING
-import { DEFORM_ADDRESS, FLAG_CLUSTER_PAGE, FLAG_DYNAMIC } from '../visibility/types.ts'
+import { DEFORM_ADDRESS, FLAG_CLUSTER_PAGE, FLAG_DYNAMIC, FLAG_VOXEL } from '../visibility/types.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
 import { DEFORM_TAG_WORDS, DEFORM_VERTEX_WORDS, DEFORMED_FIELD } from './outputs.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts'
@@ -48,6 +48,7 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
   let p=pageRestPosition(page,h,v);
   var n=vec3f(0.0);
   if((page.flags&${FLAG_CLUSTER_PAGE}u)!=0u){n=clusterNormal(h,page.pageOffset,v);}
+  else if((page.flags&${FLAG_VOXEL}u)!=0u){n=voxelVertexNormal(page.pageOffset,v);}
   else{n=vertN(page.vertexBase,v);}
   let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+v*${DEFORM_VERTEX_WORDS}u;
   let tags=at-${DEFORM_TAG_WORDS}u;

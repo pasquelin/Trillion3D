@@ -17,6 +17,7 @@ import { vsmCastPipes } from '../../../../vsm/castStale.ts'
 import { vsmMarkingPipes } from '../../../../vsm/markingPass.ts'
 import { vsmPageManagementPipes } from '../../../../vsm/pageManagementPass.ts'
 import { vsmRasterPipe, vsmRenderComputePipes } from '../../../../vsm/renderPipes.ts'
+import { VSM_RENDER_CORNER_TIERS } from '../../../../vsm/renderParamsWgsl.ts'
 import { vsmProjectionPipeline } from '../../../../vsm/projectionPipelines.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm } from './vsmRegrow.ts'
@@ -88,12 +89,16 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
     ...Object.values(vsmPageManagementPipes(device, layout, vsmCountersOn(device))).map(
       ({ pipe }) => pipe,
     ),
-    ...[render.candidates, render.views, render.cull, render.bin, ...render.expands],
+    // The corner tiers alone: a voxel tier compiles the first time a table holds a voxel row.
+    ...[render.candidates, render.views, render.cull, render.bin],
+    ...render.expands.slice(0, VSM_RENDER_CORNER_TIERS),
     ...Object.values(render.args),
   ]
   return [
     ...pipes.map((pipe) => pipe?.prepared.prepare()),
-    ...vsmRasterPipe(device, layout, pageLayout).tiers.map((tier) => tier.prepare()),
+    ...vsmRasterPipe(device, layout, pageLayout)
+      .tiers.slice(0, VSM_RENDER_CORNER_TIERS)
+      .map((tier) => tier.prepare()),
     vsmProjectionPipeline(device, layout)
       .prepare()
       .then(() => undefined),

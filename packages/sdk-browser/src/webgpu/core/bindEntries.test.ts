@@ -54,6 +54,7 @@ function stubVis(layouts: Record<string, unknown>) {
     visUniform: token(),
     shadeUniform: token(),
     shadeCache: { buffer: token() },
+    voxelSteps: { buffer: token() },
     zeroFlags: token(),
     visView: {} as GPUTextureView,
     textures: stubTextures(),
@@ -103,7 +104,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       targetSize: [4, 4],
       colorView: {},
       depthView: {},
-      asIsShare: { view: {} },
+      asIsShare: { view: {}, givenUpView: {} },
       backdrop: { colorView: {}, depthView: {}, active: false },
       deferred: {
         placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },

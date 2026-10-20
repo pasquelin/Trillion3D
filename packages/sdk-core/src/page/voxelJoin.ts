@@ -5,15 +5,17 @@ import { sphereUnion } from '../../../math/src/geometry/sphere.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 import {
   encodeVoxelPage,
-  VOXEL_CORNERS,
+  VOXEL_BRICK_INDICES,
+  VOXEL_PAGE_BRICKS,
   VOXEL_PAGE_HEAD_WORDS,
   VOXEL_PAGE_MAGIC,
   type VoxelPage,
 } from './voxelPage.ts'
 
 /**
- * THE VOXEL LEVELS JOINED TO THE DAG THEY CONTINUE (`../contracts/voxel.ts`): each brick one page
- * of its primitive, in the group links the one cut reads, so the DAG's own pixel-error rule picks
+ * THE VOXEL LEVELS JOINED TO THE DAG THEY CONTINUE (`../contracts/voxel.ts`): a group's bricks
+ * pages of its primitive, as many to a page as `VOXEL_PAGE_BRICKS`, in the group links the
+ * one cut reads, so the DAG's own pixel-error rule picks
  * a voxel level as it picks a triangle level — no second rule, no distance.
  *
  * - A group of a primitive's DAG drawn as voxels takes its bricks as its outputs: its children are
@@ -55,19 +57,22 @@ function addPage(join: VoxelJoin, voxels: VoxelPage, producer: Producer) {
   const id = join.primitive.pages.length + join.pages.length
   join.pages.push({
     ...{ id, url: '', sha256: '', bytes: voxels.bytes.byteLength },
-    ...{ count: voxels.voxels * VOXEL_CORNERS, min: voxels.min, max: voxels.max, role: 'coarse' },
+    ...{ count: voxels.bricks * VOXEL_BRICK_INDICES, min: voxels.min, max: voxels.max },
+    role: 'coarse',
     ...{ ...producer, parentError: null, parentSphere: null, group: null, cone: ANY_FACING },
   })
   join.bytes.push(voxels.bytes)
   return id
 }
 
-/** The bricks of `group` as pages of `join`: their indices. */
+/** The bricks of `group` as pages of `join`, in the file's order — near bricks together —,
+ *  `VOXEL_PAGE_BRICKS` a page: their indices. */
 function brickPages(file: VoxelFile, group: VoxelGroup, join: VoxelJoin, producer: Producer) {
   const ids: number[] = []
   let voxel = group.firstVoxel
-  for (let b = 0; b < group.bricks; b++) {
-    const page = encodeVoxelPage(file, group, b, voxel)
+  for (let b = 0; b < group.bricks; b += VOXEL_PAGE_BRICKS) {
+    const count = Math.min(VOXEL_PAGE_BRICKS, group.bricks - b)
+    const page = encodeVoxelPage(file, group, [b, count], voxel)
     voxel += page.voxels
     ids.push(addPage(join, page, producer))
   }
@@ -80,9 +85,9 @@ function brickPages(file: VoxelFile, group: VoxelGroup, join: VoxelJoin, produce
 function emptyPage(at: number[]): VoxelPage {
   const words = new Uint32Array(VOXEL_PAGE_HEAD_WORDS)
   words[0] = VOXEL_PAGE_MAGIC
-  words[1] = 0xffff << 16
   return {
     bytes: new Uint8Array(words.buffer),
+    bricks: 0,
     voxels: 0,
     min: at.slice(0, 3),
     max: at.slice(0, 3),

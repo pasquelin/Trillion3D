@@ -10,6 +10,9 @@ import {
   VSM_RENDER_ARGS_DRAW,
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_TIER_EXPAND,
+  VSM_RENDER_CORNER_TIERS,
+  VSM_RENDER_TIERS,
+  VSM_RENDER_VOXEL_TIER,
 } from './renderParamsWgsl.ts'
 import type { PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { VSM_RENDER_EXPAND_SPECS } from './renderExpandWgsl.ts'
@@ -31,8 +34,8 @@ import {
 import type { VsmRenderContext, VsmRenderScene } from './renderPass.ts'
 
 /** Chunk `c`'s commands (`encodeVsmChunkCommands`), their bin by corner tier, then the expand of
- *  each tier over its commands, lowest first (marking jobs and the raster's pages), and the draws'
- *  arguments, in `pass`. */
+ *  each of the first `tiers` tiers over its commands, lowest first (marking jobs and the raster's
+ *  pages), and the draws' arguments, in `pass`. */
 function encodeVsmChunkCull(
   pass: GPUComputePassEncoder,
   kernels: VsmChunkKernels & Pick<VsmRenderContext, 'bin' | 'expands'>,
@@ -40,6 +43,7 @@ function encodeVsmChunkCull(
   args: GPUBuffer,
   c: number,
   offset: readonly number[],
+  tiers: number,
 ) {
   encodeVsmChunkCommands(pass, kernels, groups, args, c, offset)
   const at = (word: number) => (c * VSM_RENDER_ARGS_STRIDE_WORDS + word) * 4
@@ -47,7 +51,7 @@ function encodeVsmChunkCull(
   pass.setBindGroup(0, groups.expand0)
   pass.setBindGroup(1, groups.expand1, offset)
   pass.dispatchWorkgroupsIndirect(args, at(VSM_RENDER_ARGS_BIN))
-  for (let t = 0; t < kernels.expands.length; t++) {
+  for (let t = 0; t < tiers; t++) {
     pass.setPipeline(kernels.expands[t].pipeline)
     pass.dispatchWorkgroupsIndirect(args, at(VSM_RENDER_ARGS_TIER_EXPAND + 3 * t))
   }
@@ -56,13 +60,13 @@ function encodeVsmChunkCull(
   pass.dispatchWorkgroups(1)
 }
 
-/** Chunk `c`'s raster: one drawIndirect a corner tier of its pairs into the page-sized dummy
- *  `target`. Encoded directly: each chunk is its own pass between its compute passes, and a bundle
+/** Chunk `c`'s raster: one drawIndirect a tier of the first `count` of `tiers`, of its pairs, into
+ *  the page-sized dummy `target`. Encoded directly: each chunk is its own pass between its compute passes, and a bundle
  *  of its commands would cost a key and `executeBundles` for the same backend commands. */
 function encodeVsmChunkRaster(
   encoder: GPUCommandEncoder,
   label: string,
-  tiers: readonly PreparedPipeline<GPURenderPipeline>[],
+  [tiers, count]: readonly [readonly PreparedPipeline<GPURenderPipeline>[], number],
   target: GPUTextureView,
   pageGroup: GPUBindGroup,
   raster1: GPUBindGroup,
@@ -81,11 +85,28 @@ function encodeVsmChunkRaster(
   })
   raster.setBindGroup(0, pageGroup)
   raster.setBindGroup(1, raster1)
-  for (let t = 0; t < tiers.length; t++) {
+  for (let t = 0; t < count; t++) {
     raster.setPipeline(tiers[t].get())
     raster.drawIndirect(args, (c * VSM_RENDER_ARGS_STRIDE_WORDS + VSM_RENDER_ARGS_DRAW + 4 * t) * 4)
   }
   raster.end()
+}
+
+/** The tiers a frame draws: the corner tiers, and the voxel tiers too while the table holds a
+ *  voxel row, once their raster and expand pipelines are compiled — asked the first frame that
+ *  needs them (`ask`, the frames waiting for them), nothing compiled before. */
+function tiersDrawn(ctx: VsmRenderContext, voxels: boolean) {
+  if (!voxels) return VSM_RENDER_CORNER_TIERS
+  let ready = true
+  for (let t = VSM_RENDER_VOXEL_TIER; t < VSM_RENDER_TIERS; t++) {
+    const raster = ctx.raster.tiers[t],
+      expand = ctx.expands[t].prepared
+    if (raster.ready && expand.ready) continue
+    raster.ask()
+    expand.ask()
+    ready = false
+  }
+  return ready ? VSM_RENDER_TIERS : VSM_RENDER_CORNER_TIERS
 }
 
 /**
@@ -103,7 +124,9 @@ export function vsmEncodeChunks(
   rowCount: number,
   chunks: number,
   mapCount: number,
+  voxels = false,
 ) {
+  const tiers = tiersDrawn(ctx, voxels)
   const opening = ctx.passes.chunk(0),
     first = encoder.beginComputePass(opening.cullPass)
   encodeVsmCandidates(
@@ -118,13 +141,13 @@ export function vsmEncodeChunks(
   for (let c = 0; c < chunks; c++) {
     const each = ctx.passes.chunk(c)
     const pass = c ? encoder.beginComputePass(each.cullPass) : first
-    encodeVsmChunkCull(pass, ctx, groups.chunk, args, c, each.offset)
+    encodeVsmChunkCull(pass, ctx, groups.chunk, args, c, each.offset, tiers)
     pass.end()
     // The non-cluster raster: one page viewport, atomicMax into the pool.
     encodeVsmChunkRaster(
       encoder,
       each.raster,
-      ctx.raster.tiers,
+      [ctx.raster.tiers, tiers],
       ctx.target,
       pageGroup,
       groups.raster1,

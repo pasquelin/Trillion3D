@@ -51,6 +51,8 @@ export function shadeLayout(device: GPUDevice) {
         fragment | GPUShaderStage.VERTEX,
       ),
       ...atlasLayoutEntries(b.data),
+      // The voxel trace's counters (`voxelStepsWgsl.ts`): only the voxel classes write them.
+      computeBufferEntry(b.voxelSteps, 'storage', fragment),
     ],
   })
 }

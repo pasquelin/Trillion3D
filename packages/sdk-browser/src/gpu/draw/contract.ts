@@ -34,15 +34,20 @@ export const BIN_BACK = 0,
   BIN_FRONT = 2
 /**
  * The face modes a row's bin names: back, none, front. A cutout row's bin is its face mode's plus
- * this: its own slot, after the opaque ones of its half. An occluder slot, or a compacted tested
- * one, then draws its opaque rows with the stage that never discards — one cutout row does not
- * take the early depth reject from a whole slot —, and the depth they wrote rejects a hidden
- * cutout fragment before it reads its page.
+ * this, a voxel row's plus twice this (`BIN_KINDS`): their own slots, after the opaque ones of
+ * their half. An occluder slot, or a compacted tested one, then draws its opaque rows with the
+ * stage that never discards — one cutout row does not take the early depth reject from a whole
+ * slot —, and the depth they wrote rejects a hidden cutout fragment before it reads its page; a
+ * voxel row, whose stage writes its depth and so keeps no early reject, is drawn last.
  */
 export const CULL_BINS = 3
-/** Slots of one half — occluder or tested — of a coplanar layer: the face modes, then the same
- *  for cutout rows. */
-export const HALF_SLOTS = 2 * CULL_BINS
+/** The kinds of rows a half's slots tell apart, in their order (`rowKind`): opaque, cutout,
+ *  voxel. */
+export const BIN_KIND = { OPAQUE: 0, CUTOUT: 1, VOXEL: 2 } as const
+export type BinKind = (typeof BIN_KIND)[keyof typeof BIN_KIND]
+export const BIN_KINDS = 3
+/** Slots of one half — occluder or tested — of a coplanar layer: the face modes of each kind. */
+export const HALF_SLOTS = BIN_KINDS * CULL_BINS
 /** Slots of one coplanar layer: the occluder half, then the tested half. */
 export const BASE_SLOTS = 2 * HALF_SLOTS
 export const UNIFORM_BYTES = 32
@@ -65,8 +70,8 @@ export function drawGroupWords(slotCap: number, slots: number) {
  */
 export const drawIndirectBytes = (slots: number) => slots * DRAW_INDIRECT_STRIDE + (slots + 1) * 4
 /**
- * u32 per draw record: the page-table row, its bin (face mode, plus `CULL_BINS` on a cutout
- * row), its page index in the selection
+ * u32 per draw record: the page-table row, its bin (face mode, plus `CULL_BINS` times its kind:
+ * one a cutout row, two a voxel row), its page index in the selection
  * catalogue, its coplanar layer, and its triangles. All five are properties of the ROW, never of
  * the frame: the GPU partition reads the last two to count its slots and weigh an occlusion
  * reject, without any per-frame walk gathering them.

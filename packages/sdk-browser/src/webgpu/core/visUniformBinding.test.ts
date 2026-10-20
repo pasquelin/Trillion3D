@@ -24,6 +24,7 @@ test('every group that binds the visibility uniform spans the whole struct', () 
     sampler: {} as GPUSampler,
     uniform: buffer,
     material: {} as GPUTextureView,
+    normals: {} as GPUTextureView,
   }
   const vis = visBindEntries({
     ...shared,

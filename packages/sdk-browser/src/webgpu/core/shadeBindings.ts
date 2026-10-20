@@ -25,6 +25,7 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
       shadeCache: () => rt.vis.shadeCache?.buffer,
       material: () => rt.vis.materialTable.view,
       lobes: () => rt.gpu.surfaces?.lobesView,
+      voxelSteps: () => rt.vis.voxelSteps?.buffer,
     }),
   ))
   if (identity.entriesMoved(vis.shadeBindGroupLayout)) vis.shadeBindGroup = undefined

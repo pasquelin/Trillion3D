@@ -2,7 +2,13 @@ import { shadeLayout } from './shadeLayout.ts'
 import { scoped } from './pipelines.ts'
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { preparedPipelines } from '../../gpu/core/preparedPipelines.ts'
-import { shadeVariantFragment, variesShade } from '../../diagnostic/gpuGeometry.ts'
+import {
+  DIAGNOSTIC_SHADE_WGSL,
+  shadeVariantFragment,
+  variesShade,
+} from '../../diagnostic/gpuGeometry.ts'
+import { CLASS_FEATURE } from '../../visibility/shader/classWords.ts'
+import { shadeShader } from '../../visibility/shader/shadeWgsl.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { shadeTargetFormats } from './shadeTargets.ts'
 import { feedbackConstants } from '../tile/requestWgsl.ts'
@@ -51,6 +57,18 @@ export function createWebgpuShadePipelines(
   // One entry with the feedback target or without it: its request folded by `FEEDBACK`.
   const entryPoint = shadeVariantFragment(variant)
   const fed = feedbackConstants(feedback)
+  // A voxel class's resolve is its own module (`shadeShader`'s voxel text), made the first time
+  // one is: a scene without voxels compiles the module it compiled before them.
+  let voxelModule: GPUShaderModule | undefined
+  const moduleOf = (key: number) =>
+    (key & CLASS_FEATURE.VOXEL) === 0
+      ? shadeModule
+      : (voxelModule ??= device.createShaderModule({
+          code: shadeShader({
+            voxel: true,
+            ...(variesShade(variant) && { diagnostic: DIAGNOSTIC_SHADE_WGSL }),
+          }),
+        }))
   /** Class features derive from the key; a single class draws full screen, every other the tiles
    *  its pixels are in. */
   const shadeDescriptor = (
@@ -62,15 +80,16 @@ export function createWebgpuShadePipelines(
       ? { CLASS_KEY: key, SINGLE_CLASS: 1 }
       : { CLASS_KEY: key }
     if (!layer) constants.EMISSIVE_AO = 0
+    const module = moduleOf(key)
     return {
       layout: single ? layout : tileLayout,
       vertex: {
-        module: shadeModule,
+        module,
         entryPoint: single ? 'shade_vs' : 'shade_tile_vs',
         constants,
       },
       fragment: {
-        module: shadeModule,
+        module,
         entryPoint,
         constants: { ...constants, ...fed },
         // The surfaces, then the tile request the image's feedback target receives.

@@ -1,5 +1,7 @@
 import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../../../sdk-core/src/page/format.ts'
+import { FLAG_VOXEL } from '../visibility/types.ts'
+import { VOXEL_BRICK_CORNERS } from '../../../sdk-core/src/page/voxelPage.ts'
 import {
   KIND_MORPH,
   KIND_SKIN,
@@ -95,7 +97,9 @@ const PAGE_RECORD: DeformRecordSource = { source: 'positions', prefix: 'deform' 
  * last frame's record: where the vertex was, which the temporal pass reprojects a pixel by.
  *
  * In this order: the morph targets move the rest vertex, the joints carry the result
- * (linear blend of every palette influence), then the waves carry the world point to where
+ * (linear blend of every palette influence; a brick's box corners by its one joint, rigidly, so the
+ * box stays a box its voxels are traced through at rest, `voxelCarry`), then the waves carry the
+ * world point to where
  * the trochoidal sum puts it — `waveTerms` of `sdk-core/src/fluids/waves.ts`, printed into WGSL
  * (`waveTermsWgsl.ts`), on the same numbers.
  * The record lives in the float pool the passes already bind (`positions`), after its vertices:
@@ -179,6 +183,10 @@ fn deformVertex(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f,normal:vec3f
  }
  if((a.kinds&${KIND_SKIN}u)!=0u&&(h.flags&${FLAG_SKIN}u)!=0u){
   p=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(p,1.0));n=deformSkin(h,page,vertex,a.palette,a.joints,vec4f(n,0.0));
+ }
+ if((a.kinds&${KIND_SKIN}u)!=0u&&(page.flags&${FLAG_VOXEL}u)!=0u){
+  let joint=voxelJoint(page.pageOffset,vertex/${VOXEL_BRICK_CORNERS}u);
+  if(joint!=0xFFFFu){let m=deformJoint(a.palette,joint,a.joints);p=vec4f(p,1.0)*m;n=vec4f(n,0.0)*m;}
  }
  if((a.kinds&${KIND_WAVE}u)!=0u){
   let m=deformMatrix(a.world);let world=transformPoint(m,p);

@@ -81,6 +81,8 @@ export const SHADE_BINDINGS = {
   material: 20,
   /** The lobes target the resolve writes and the lighting reads (`../../scene/physicalLobes.ts`). */
   lobes: 21,
+  /** The voxel trace's counters, which the voxel classes alone write (`voxelStepsWgsl.ts`). */
+  voxelSteps: 22,
 }
 
 export const BLEND_BINDINGS = {

@@ -9,8 +9,10 @@ import {
   ST_REJECTED_TRIANGLES,
   ST_TESTED,
   ST_TESTED_TRIANGLES,
+  ST_VOXEL_TRIANGLES,
   ST_WITHDRAWN,
 } from './contract.ts'
+import { VOXEL_BRICK_TRIANGLES } from '../../../../sdk-core/src/page/voxelPage.ts'
 
 /**
  * What a frame decided and counted, and that frame's number.
@@ -34,6 +36,8 @@ export type PartitionCountsFrame = {
   historyOccluders: number
   /** Rows drawn last image that last image's pyramid withdrew to the tested half. */
   withdrawn: number
+  /** Voxel bricks the cut draws, before the occlusion test: each one box the raster traces. */
+  voxelBricks: number
 }
 
 const empty = (): PartitionCountsFrame => ({
@@ -47,6 +51,7 @@ const empty = (): PartitionCountsFrame => ({
   oversizedTriangles: 0,
   historyOccluders: 0,
   withdrawn: 0,
+  voxelBricks: 0,
 })
 
 /** Periodic sample of partition counters: one copy, one mapping, no wait. */
@@ -68,6 +73,7 @@ export function createPartitionCounters(device: GPUDevice) {
       counted.oversizedTriangles = words[ST_OVERSIZED_TRIANGLES]
       counted.historyOccluders = words[ST_HISTORY_OCCLUDERS]
       counted.withdrawn = words[ST_WITHDRAWN]
+      counted.voxelBricks = words[ST_VOXEL_TRIANGLES] / VOXEL_BRICK_TRIANGLES
     },
   )
 

@@ -83,10 +83,12 @@ export const ST_TESTED = 0,
   ST_TESTED_TRIANGLES = 5,
   ST_OVERSIZED_TRIANGLES = 6,
   ST_REJECTED = 7,
-  ST_REJECTED_TRIANGLES = 8
+  ST_REJECTED_TRIANGLES = 8,
+  /** Box triangles of the voxel rows the cut draws, before the occlusion test: twelve a brick. */
+  ST_VOXEL_TRIANGLES = 9
 
 /** Words of `state` a workgroup tallies: up to the last counter, `ST_TESTED` left unused. */
-const TALLY_WORDS = ST_REJECTED_TRIANGLES + 1
+const TALLY_WORDS = ST_VOXEL_TRIANGLES + 1
 /**
  * The frame's counters, kept on a sampled frame only (`uni.counting`: the `countsDue` answer that
  * also encodes their copy, `counters.ts`), summed per workgroup (`workgroupTallyWgsl`) into

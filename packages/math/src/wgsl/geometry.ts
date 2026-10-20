@@ -107,6 +107,21 @@ export const rayBoxEntry = wgslFn(
 }`,
 )
 
+/** The slab test's whole span (`rayBoxEntry`, unbounded): where the ray from `origin`, its
+ *  direction's reciprocal `inverse`, enters the box `[low, high]`, from 0 on, and where it
+ *  leaves it — a span whose entry is not below its exit misses. */
+export const rayBoxSpan = wgslFn(
+  'rayBoxSpan',
+  [],
+  `fn rayBoxSpan(low:vec3f,high:vec3f,origin:vec3f,inverse:vec3f)->vec2f{
+ let first=(low-origin)*inverse;
+ let second=(high-origin)*inverse;
+ let near=min(first,second);
+ let far=max(first,second);
+ return vec2f(max(max(near.x,near.y),max(near.z,0.0)),min(min(far.x,far.y),far.z));
+}`,
+)
+
 /** The ray–triangle intersection by the triple products of the edges, two-sided, with no plane
  *  stored: the distance along `direction`
  *  from `origin` to the triangle `a, b, c`, or `limit` when it misses — a determinant under 1e-12,

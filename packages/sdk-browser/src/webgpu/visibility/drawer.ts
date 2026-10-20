@@ -1,16 +1,30 @@
 import { visSlotPipeline } from '../pages/prepare/pipelineFor.ts'
-import { BASE_SLOTS, CULL_BINS, HALF_SLOTS } from '../../gpu/draw/contract.ts'
+import {
+  BASE_SLOTS,
+  BIN_KIND,
+  BIN_NONE,
+  CULL_BINS,
+  HALF_SLOTS,
+  type BinKind,
+} from '../../gpu/draw/contract.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { opaqueTwin, VIS_DEPTH, VIS_TARGETS } from './pipelines.ts'
+import { askVoxelTwin, twinOf, VIS_DEPTH, VIS_TARGETS, voxelTwinCount } from './pipelines.ts'
 import { visGroupFor } from './visGroup.ts'
 import type { RecordBundle, RenderCommands } from '../../gpu/core/renderBundles.ts'
 import { prepared } from '../pages/state/prepared.ts'
 
-/** `pipeline`, or its twin that neither reads the page nor discards when the draw holds no cutout
- *  row — an opaque slot, a row that is none: `maskKeep` keeps every pixel of such a row, so both
- *  write the same words. */
-const drawnWith = (pipeline: GPURenderPipeline, cuts: boolean) =>
-  (!cuts && opaqueTwin(pipeline)) || pipeline
+/** The kind of rows bin `bin` of a half holds (`BIN_KIND`). */
+const binKind = (bin: number) => Math.floor(bin / CULL_BINS) as BinKind
+
+/** `pipeline` for a slot of rows of kind `kind`: its twin of that kind (`twinOf`) — the opaque one
+ *  neither reads the page nor discards, `maskKeep` keeping every pixel of such a row; the voxel one
+ *  traces the bricks —, or itself. */
+const drawnWith = (pipeline: GPURenderPipeline, kind: BinKind) => twinOf(pipeline, kind) ?? pipeline
+
+/** Whether bin `bin` of a half is walked: a voxel bin only while the table holds a voxel row, and
+ *  never the two-sided one, which no voxel row takes (`rowSide`). */
+const walked = (bin: number, voxels: boolean) =>
+  binKind(bin) !== BIN_KIND.VOXEL || (voxels && bin % CULL_BINS !== BIN_NONE)
 
 /** The slot draws' bundle layout: the visibility targets — the identifiers and the pyramid's
  *  level 0 — and depth (`passes.ts`). */
@@ -33,7 +47,7 @@ const walking = {
 
 /**
  * Walks a half's slots (`rest` false the occluder half) into `encoder`: each slot with a pipeline
- * is set its pipeline — `pipelineOf` of its raster pipeline and whether its bin holds cutout rows,
+ * is set its pipeline — `pipelineOf` of its raster pipeline and the kind of rows its bin holds,
  * or the one its caller set for every slot —, binds its group and draws its indirect command; a
  * slot with a pipeline whose group cannot be made yet leaves the walk incomplete. A coplanar layer
  * is one more set of slots, drawn in the same order: its clusters carry their pipeline's depth bias,
@@ -45,25 +59,30 @@ export function walkSlots(
   device: GPUDevice,
   encoder: RenderCommands,
   rest: boolean,
-  pipelineOf?: (pipeline: GPURenderPipeline, cuts: boolean) => GPURenderPipeline,
+  pipelineOf?: (pipeline: GPURenderPipeline, kind: BinKind) => GPURenderPipeline,
 ): SlotWalk {
   const { vis } = rt,
     indirect = prepared(vis, 'gpuDraw').indirectBuffer
   const walk = { draws: 0, complete: true }
   // No layout: no slot binds this frame, the key holding it.
   if (!vis.visBindGroupLayout) return walk
+  // A voxel row draws on layer 0 alone (`itemWords.ts`).
+  const voxels = rt.layout.itemWordsHold.voxelRows > 0
   for (let layer = 0; layer < vis.drawLayerSlots; layer++) {
     const start = layer * BASE_SLOTS + (rest ? HALF_SLOTS : 0)
     for (let bin = 0; bin < HALF_SLOTS; bin++) {
+      if (!walked(bin, voxels && layer === 0)) continue
       const s = start + bin,
         pipeline = visSlotPipeline(rt, s)
       if (!pipeline) continue
+      // A voxel slot draws once its twin, asked now, landed: never its boxes as triangles.
+      if (pipelineOf && binKind(bin) === BIN_KIND.VOXEL && !askVoxelTwin(pipeline)) continue
       const group = visGroupFor(rt, device, s)
       if (!group) {
         walk.complete = false
         continue
       }
-      if (pipelineOf) encoder.setPipeline(pipelineOf(pipeline, bin >= CULL_BINS))
+      if (pipelineOf) encoder.setPipeline(pipelineOf(pipeline, binKind(bin)))
       encoder.setBindGroup(0, group)
       encoder.drawIndirect(indirect, s * 16)
       walk.draws++
@@ -83,16 +102,20 @@ const recordSlots: RecordBundle = (encoder): SlotWalk =>
  * compaction left its rejected rows out (`GpuDraw.encodeTested`), so no vertex stage reads a
  * verdict.
  *
- * Each half draws its opaque slots, then its cutout ones (bins from `CULL_BINS`), its opaque rows
- * with the twin: their depth is down, early rejected, before a cutout fragment reads its page. The call count depends only on the slot count,
+ * Each half draws its opaque slots, then its cutout ones (bins from `CULL_BINS`), then its voxel
+ * ones (bins from twice `CULL_BINS`, walked only while the table holds a voxel row), its opaque
+ * rows with the twin: their depth is down, early rejected, before a cutout fragment reads its page;
+ * a voxel fragment, which writes its depth, meets the depth every other one wrote. The call count
+ * depends only on the slot count and on whether a voxel row is held,
  * never on the rows or on what the partition decided: each slot's instance count lives in the
  * indirect command the GPU wrote, and a slot nothing fills draws zero instances.
  *
  * The key holds what decides the walk, not the walk, nor what is the same for every key of a
  * half's bundles (the runtime, its device, the half): the indirect buffer, the
  * layer count, the group layout, the slot groups' revision (`visGroupsRevision`, moved
- * where they are voided), the layer pipelines and layer 0's six — a held frame compares these and
- * replays; the walk runs only when one moved. Each call counts on `rt.run.gpuDrawCalls`.
+ * where they are voided), the layer pipelines and layer 0's six, whether a voxel row is held and
+ * the voxel twins made — a held frame compares these and replays; the walk runs only when one
+ * moved. Each call counts on `rt.run.gpuDrawCalls`.
  */
 export function drawVis(
   rt: WebgpuPagesRuntime,
@@ -107,6 +130,7 @@ export function drawVis(
   key.push(vis.visBindGroupLayout, vis.visGroupsRevision)
   key.push(vis.visLayerPipelines, vis.visLayerPipelines.length)
   key.push(vis.visPipelineBack, vis.visPipelineNone, vis.visPipelineFront)
+  key.push(rt.layout.itemWordsHold.voxelRows > 0, voxelTwinCount())
   walking.rt = rt
   walking.device = device
   walking.rest = rest

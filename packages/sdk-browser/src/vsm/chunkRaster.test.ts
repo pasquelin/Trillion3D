@@ -1,7 +1,7 @@
 // The shadow raster's chunk pass draws one indirect command a corner tier whose arguments the GPU
-// wrote, in a pass of its own between the chunk's compute passes: its commands are encoded directly,
-// never as a render bundle — a bundle there would cost a key and `executeBundles` for the same
-// commands.
+// wrote — the voxel tier too on a frame whose table holds a voxel row, none here —, in a pass of
+// its own between the chunk's compute passes: its commands are encoded directly, never as a render
+// bundle — a bundle there would cost a key and `executeBundles` for the same commands.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
@@ -11,7 +11,7 @@ import { recordingRaster } from './recordingRaster.fixture.ts'
 import {
   VSM_RENDER_ARGS_DRAW,
   VSM_RENDER_ARGS_STRIDE_WORDS,
-  VSM_RENDER_TIERS,
+  VSM_RENDER_CORNER_TIERS,
 } from './renderParamsWgsl.ts'
 
 test('each chunk raster encodes two groups and a pipeline and indirect draw a tier, no bundle', () => {
@@ -26,7 +26,7 @@ test('each chunk raster encodes two groups and a pipeline and indirect draw a ti
   const chunkRasters = fake.passes.filter(({ label }) => /\.raster \d+$/.test(label ?? ''))
   assert.equal(chunkRasters.length, chunks, 'one raster pass a chunk')
   chunkRasters.forEach(({ commands }, c) => {
-    const tiers = Array.from({ length: VSM_RENDER_TIERS }, (_, t) => t)
+    const tiers = Array.from({ length: VSM_RENDER_CORNER_TIERS }, (_, t) => t)
     assert.deepEqual(
       commands.map(([name]) => name),
       [

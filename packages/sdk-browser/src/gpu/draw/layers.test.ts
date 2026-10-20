@@ -14,7 +14,7 @@ import type { DrawItem } from './cpu.fixture.ts'
 import { drawShader } from './shader.ts'
 
 // Behaviour 16: a layer-n item goes to slot bin + HALF_SLOTS·rest + BASE_SLOTS·n — its bin the face
-// mode, plus CULL_BINS on a cutout row —, and layerSlots = 1 (a scene with no stacked coplanar
+// mode, plus CULL_BINS on a cutout row, twice CULL_BINS on a voxel row —, and layerSlots = 1 (a scene with no stacked coplanar
 // layer) folds every layer into layer 0's slots.
 test('evaluateDrawCompact places layer n items at slot bin + HALF_SLOTS*rest + BASE_SLOTS*n', () => {
   const items: DrawItem[] = [
@@ -22,13 +22,14 @@ test('evaluateDrawCompact places layer n items at slot bin + HALF_SLOTS*rest + B
     { pageIndex: 11, bin: BIN_FRONT, rest: 1, layer: 1 },
     { pageIndex: 12, bin: BIN_NONE, rest: 0, layer: 2 },
     { pageIndex: 13, bin: BIN_NONE + CULL_BINS, rest: 1, layer: 2 },
+    { pageIndex: 14, bin: BIN_BACK + 2 * CULL_BINS, rest: 0, layer: 1 },
   ]
   const result = evaluateDrawCompact(items, 768, 8, 3)
   assert.equal(result.counts.length, slotCount(3))
   assert.equal(result.counts.length, 3 * BASE_SLOTS)
   const slotOf = (item: DrawItem) => item.bin + HALF_SLOTS * item.rest + BASE_SLOTS * item.layer!
   for (const item of items) assert.equal(result.counts[slotOf(item)], 1)
-  assert.deepEqual(items.map(slotOf), [0, 2 + 6 + 12, 1 + 24, 4 + 6 + 24])
+  assert.deepEqual(items.map(slotOf), [0, 2 + 9 + 18, 1 + 36, 4 + 9 + 36, 6 + 18])
   assert.equal(
     result.counts.reduce((sum, count) => sum + count, 0),
     items.length,

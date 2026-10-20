@@ -6,7 +6,10 @@ import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
 import { SHADOW_RECEIVER_OF_TRIANGLE_WGSL } from './receiverOffsetWgsl.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
-import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { cofactor3, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { VOXEL_HIT_WGSL } from './voxelHitWgsl.ts'
+import { VOXEL_SURFACE_WGSL } from './voxelWgsl.ts'
+import { VOXEL_STEPS_WGSL } from './voxelStepsWgsl.ts'
 import { DIAGNOSTIC_VIEWS as V } from './shadeMode.ts'
 import { DIAGNOSTIC_PALETTE_WGSL } from '../../diagnostic/colors.ts'
 import { ORM_LAW_WGSL } from '../../lighting/ormWgsl.ts'
@@ -27,13 +30,60 @@ import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
 import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'
 import { visPageIndex, visTriangle } from '../visWords.ts'
 
+/** What a voxel class's resolve adds to the text (`VOXEL`): its own module alone holds it, made
+ *  the first time a voxel class is asked (`shadePipelines.ts`); every other class compiles the text
+ *  it compiled before voxels. The voxel its pixel shows, its surface in the views and the lit
+ *  image, its shadow receiver and its normal. */
+const VOXEL_PIXEL = ` // A voxel row's pixel shows the voxel its ray meets in the brick its box's triangle names, traced
+ // again from the box's point as the raster traced it (\`voxelRay\`, \`voxelPixel\`): its surface,
+ // its normal turned to the eye where the ray is, in the brick's cells, then carried by its joint.
+ var voxel=0u;var voxelN=vec3f(0.0);
+ if(VOXEL){
+  let base=page.pageOffset;let brick=voxelBrickOf(tri);
+  let mask=voxelBrickMask(base,brick);let box=voxelMaskBox(mask);
+  let k=pageTriangle(page,pageHeaderFor(page,false),tri);
+  let o=voxelBoxPoint(box,k.x)*bary.x+voxelBoxPoint(box,k.y)*bary.y+voxelBoxPoint(box,k.z)*bary.z;
+  let carry=voxelCarry(page,brick);
+  let ray=voxelRay(mask,box,o,uni.viewProj*page.world*carry*voxelCells(page,brick));
+  let hit=voxelPixel(ray.from,ray.dir,ray.cells);
+  // A ray the raster met a voxel on and this one grazes past reads the brick's first voxel.
+  voxel=voxelRank(base,brick,select(0u,hit.bit,hit.found));
+  let n=voxelNormal(base,voxel);
+  voxelN=unitOrZero(worldMatrix3(page.world)*cofactor3(carry[0].xyz,carry[1].xyz,carry[2].xyz)*select(n,-n,dot(n,ray.dir)>0.0));
+  // The trace's cost, on a sampled frame, one pixel in 64 (\`voxelStepsTally\`).
+  if(uni.voxelCounting!=0u){voxelStepsTally(pos.xy,hit.steps);}
+ }
+`
+const VOXEL_DIAGNOSTIC = `  if(VOXEL&&(uni.mode==${V.lod.code}u||uni.mode==${V.hlod.code}u)){base=voxelSurface(page.pageOffset,voxel).rgb;}
+`
+const VOXEL_SURFACE = ` // A voxel wears its own prefiltered surface, the spread of the normals it averages added.
+ if(VOXEL){
+  let v=voxelSurface(page.pageOffset,voxel);
+  rgb=v.rgb;metal=v.metal;ao=v.ao;emissive=vec3f(0.0);
+  rough=v.rough;spread=toksvigVariance(v.spread);
+ }
+`
+const VOXEL_RECEIVER = `   // A voxel's receiver is its hit, which the depth already places, and its own normal: no
+   // offset from its box's corners.
+   rcvOffset=select(receiver.offset,vec3f(0.0),VOXEL);
+   rcvPlane=select(receiver.plane,voxelN,VOXEL);
+`
+const PLAIN_RECEIVER = `   rcvOffset=receiver.offset;
+   rcvPlane=receiver.plane;
+`
+const VOXEL_NORMAL = `  if(VOXEL){N=voxelN;Nx=N;Ny=N;}
+`
+
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
  * own feature overrides (`materialClass.ts`), kept on that class's pixels only (`classAdmits`).
  * `HAS_UV`, `HAS_MAP` and the other class constants are pipeline overrides, never tested per pixel
  * on `page.flags`; a kept path runs the per-pixel test's arithmetic, operand for operand.
  */
-export const shadeShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
+export const shadeShader = ({
+  diagnostic,
+  voxel = false,
+}: { diagnostic?: WgslDecl; voxel?: boolean } = {}) =>
   wgslProgram(
     `/** The surfaces of an admitted pixel (\`classAdmits\`), its storage values in the variables of
  *  its entry (\`shadeEntryWgsl.ts\`); its surface's factors and maps its record's (\`materialAt\`). */
@@ -53,7 +103,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let area=edgeFunction(s1.xy,s2.xy,s0.xy);
  var rgb=m.baseColor;
  let bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
- var uv=vec2f(0.0);
+${voxel ? VOXEL_PIXEL : ''} var uv=vec2f(0.0);
  var ddx=vec2f(0.0);var ddy=vec2f(0.0);
  if(HAS_UV){
   uv=t.uva*bary.x+t.uvb*bary.y+t.uvc*bary.z;
@@ -105,8 +155,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  // here, at the pixel's clip w (\`diagnosticScreenError\`).
  if(uni.mode!=0u){
   var base=rgb+emissive;
-  if(VOXEL&&(uni.mode==${V.lod.code}u||uni.mode==${V.hlod.code}u)){base=voxelSurface(page.pageOffset,tri).rgb;}
-  let depth=dot(bary,vec3f(c0.w,c1.w,c2.w));
+${voxel ? VOXEL_DIAGNOSTIC : ''}  let depth=dot(bary,vec3f(c0.w,c1.w,c2.w));
   var screenError=0.0;
   if(uni.mode==${V['screen-error'].code}u){screenError=diagnosticScreenError(diagnosticWorldError(page.diagnosticWord,page.world),depth,uni.viewProj,uni.viewport,uni.pixelRatio,uni.pixelError);}
   return diagnosticSurface(diagnosticColor(uni.mode,DiagnosticPixel(page.clusterHash,tri,page.diagnosticWord,CLASS_KEY,base,faceNormal(w0.xyz,w1.xyz,w2.xyz),screenError)),request);
@@ -114,13 +163,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  var metal=ormMetalness(m.metalness,metalSample.z);var rough=ormRoughness(m.roughness,roughSample.y);
  // The spread of the normals under the pixel the roughness is widened by (\`roughnessWidened\`).
  var spread=0.0;
- // A voxel wears its own prefiltered surface, the spread of the normals it averages added.
- if(VOXEL){
-  let v=voxelSurface(page.pageOffset,tri);
-  rgb=v.rgb;metal=v.metal;ao=v.ao;emissive=vec3f(0.0);
-  rough=v.rough;spread=toksvigVariance(v.spread);
- }
- // Original vertices may straddle the near plane; recover the clipped winding.
+${voxel ? VOXEL_SURFACE : ''} // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=worldMatrix3(page.world);
   // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
@@ -136,9 +179,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   // read takes (\`receiverOffsetWgsl.ts\`).
   if(HAS_VERTEX_NORMAL&&(page.flags&${FLAG_SPRITE | FLAG_LINE}u)==0u){
    let receiver=shadowReceiverOfTriangle(bary,w0,w1,w2,n0,n1,n2,select(1.0,face,DOUBLE_SIDED));
-   rcvOffset=receiver.offset;
-   rcvPlane=receiver.plane;
-  }
+${voxel ? VOXEL_RECEIVER : PLAIN_RECEIVER}  }
   var N=unitOrZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
   // The shading normal one pixel right (\`Nx\`) and one down (\`Ny\`), the same plane's: its change
   // across the pixel, which widens the roughness (\`normalFootprintVariance\`); a flat face's none.
@@ -151,7 +192,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    Ny=unitOrZero(n0*by.x+n1*by.y+n2*by.z);
    if(DOUBLE_SIDED){N*=face;Nx*=face;Ny*=face;}
   }
-  // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
+${voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
   let coatBase=N;
   if(HAS_NORMAL_MAP){
    let scale=vec3f(m.normalScale,select(m.normalScaleY,m.tangentNormalScaleY,HAS_TANGENT),1.0);
@@ -205,6 +246,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       ORM_LAW_WGSL,
       DIAGNOSTIC_PALETTE_WGSL,
       worldMatrix3,
+      ...(voxel ? [VOXEL_HIT_WGSL, VOXEL_SURFACE_WGSL, VOXEL_STEPS_WGSL, cofactor3] : []),
       unitOrZero,
       edgeFunction,
       perspectiveBarycentric,

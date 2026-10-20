@@ -4,6 +4,12 @@ import { validationScope } from '../../gpu/core/errorScope.ts'
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { variesVisibility, visVariantFragment } from '../../diagnostic/gpuGeometry.ts'
 import { VIS_UNMASKED } from '../../visibility/shader/visWgsl.ts'
+import {
+  VIS_VOXEL_FRAGMENT,
+  VIS_VOXEL_VERTEX,
+  visVoxelShader,
+} from '../../visibility/shader/visVoxelWgsl.ts'
+import { BIN_KIND, type BinKind } from '../../gpu/draw/contract.ts'
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 
@@ -34,14 +40,42 @@ export const VIS_DEPTH: GPUDepthStencilState = {
 }
 
 /**
- * Each occluder pipeline's twin for a draw that holds no cutout row: the same states, the same
- * vertex stage and fragment stage, its mask test compiled out (`VIS_UNMASKED`): it neither reads
- * the page nor discards. Keyed by the pipeline itself, a twin follows its pipeline wherever it is replaced or
- * dropped. None under a diagnostic variant of the raster stage, which imposes its one stage on
- * every draw.
+ * Each pipeline's twins, by the kind of rows a slot holds (`BIN_KIND`), keyed by the pipeline
+ * itself, so a twin follows its pipeline wherever it is replaced or dropped:
+ * - an opaque slot's: the same states and stages, its mask test compiled out (`VIS_UNMASKED`): it
+ *   neither reads the page nor discards; none under a diagnostic variant of the raster stage,
+ *   which imposes its one stage on every draw;
+ * - a voxel slot's: the same states, the voxel module's stages (`visVoxelShader`), which trace the
+ *   bricks and write their depth; layer 0's one-sided pipelines alone have one — a voxel row
+ *   draws on layer 0, by one side (`rowSide`) —, and every variant but the one that draws no
+ *   fragment keeps it: a view shows the voxels' own shape, the x-ray view the boxes. It is made
+ *   — its module with it — the first time a frame holds a voxel row (`askVoxelTwin`): a scene
+ *   without voxels compiles none.
+ * A slot without its twin draws with the pipeline itself.
  */
-const opaqueTwins = new WeakMap<GPURenderPipeline, GPURenderPipeline>()
-export const opaqueTwin = (pipeline: GPURenderPipeline) => opaqueTwins.get(pipeline)
+const twins = new WeakMap<GPURenderPipeline, Partial<Record<BinKind, GPURenderPipeline>>>()
+export const twinOf = (pipeline: GPURenderPipeline, kind: BinKind) => twins.get(pipeline)?.[kind]
+/** Each pipeline's voxel twin still to make, once asked (`askVoxelTwin`). */
+const voxelRecipes = new WeakMap<GPURenderPipeline, () => Promise<GPURenderPipeline>>()
+/** Voxel twins made so far: a slot walk keyed on it draws them once they land (`drawVis`). */
+let voxelTwinsMade = 0
+export const voxelTwinCount = () => voxelTwinsMade
+/** `pipeline`'s voxel twin, its compile started the first time it is asked: none until it lands. */
+export function askVoxelTwin(pipeline: GPURenderPipeline) {
+  const made = twinOf(pipeline, BIN_KIND.VOXEL)
+  const recipe = voxelRecipes.get(pipeline)
+  if (made || !recipe) return made
+  voxelRecipes.delete(pipeline)
+  // A refused compile leaves the slot undrawn, as the scene's other refusals do.
+  recipe().then(
+    (voxel) => {
+      twins.set(pipeline, { ...twins.get(pipeline), [BIN_KIND.VOXEL]: voxel })
+      voxelTwinsMade++
+    },
+    () => undefined,
+  )
+  return undefined
+}
 
 /** What every visibility pipeline of one build shares. */
 type VisBuild = {
@@ -50,6 +84,9 @@ type VisBuild = {
   module: GPUShaderModule
   fragment: ReturnType<typeof visVariantFragment>
   twins: boolean
+  /** The voxel slots' module, made the first time one is asked; none under the variant that
+   *  draws no fragment. */
+  voxelModule?: () => GPUShaderModule
 }
 function visBuild(
   device: GPUDevice,
@@ -58,20 +95,24 @@ function visBuild(
   variant?: DiagnosticGpuVariant,
 ): VisBuild {
   const twins = !variesVisibility(variant)
+  let voxel: GPUShaderModule | undefined
+  const voxelModule = () => (voxel ??= device.createShaderModule({ code: visVoxelShader() }))
   return {
     ...{ device, module },
     layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
     fragment: visVariantFragment(variant),
     twins,
+    voxelModule: visVariantFragment(variant).fragmentless ? undefined : voxelModule,
   }
 }
-/** The pipeline of a face mode, both halves', and its twin. */
+/** The pipeline of a face mode, both halves', and its twins (above). */
 async function visPipeline(
   build: VisBuild,
   [cullMode, frontFace]: [GPUCullMode, GPUFrontFace],
   depthStencil = VIS_DEPTH,
 ) {
   const { device, layout, module } = build
+  const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode, frontFace }
   const descriptor = (constants = build.fragment.constants): GPURenderPipelineDescriptor => ({
     layout,
     vertex: { module, entryPoint: 'vis_vs' },
@@ -81,14 +122,26 @@ async function visPipeline(
       targets: VIS_TARGETS,
       ...(constants && { constants }),
     },
-    primitive: { topology: 'triangle-list', cullMode, frontFace },
+    primitive,
     depthStencil,
   })
-  const [pipeline, twin] = await Promise.all([
+  const [pipeline, opaque] = await Promise.all([
     buildRenderPipeline(device, descriptor()),
     build.twins && buildRenderPipeline(device, descriptor(VIS_UNMASKED)),
   ])
-  if (twin) opaqueTwins.set(pipeline, twin)
+  twins.set(pipeline, opaque ? { [BIN_KIND.OPAQUE]: opaque } : {})
+  const voxelModule = cullMode === 'none' || depthStencil.depthBias ? undefined : build.voxelModule
+  if (voxelModule)
+    voxelRecipes.set(pipeline, () => {
+      const stages = voxelModule()
+      return buildRenderPipeline(device, {
+        layout,
+        vertex: { module: stages, entryPoint: VIS_VOXEL_VERTEX },
+        fragment: { module: stages, entryPoint: VIS_VOXEL_FRAGMENT, targets: VIS_TARGETS },
+        primitive,
+        depthStencil,
+      })
+    })
   return pipeline
 }
 

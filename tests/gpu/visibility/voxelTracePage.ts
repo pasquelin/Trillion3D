@@ -1,12 +1,16 @@
-// The engine side of the voxel contour proof (`voxel-contour.gpu.ts`): one brick of 4×4 voxels whose
-// contours lie on one tilted plane, drawn by the real WebGPU engine through the page geometry every
-// raster reads (`voxelWgsl.ts`), beside a plain square on that plane. Its depth: the square a hair in
-// front of the plane covers every voxel, a hair behind it none. Its normal: the brick and the square
-// show the same normal view. Its shadow: lifted over a floor under a sun, it darkens the floor.
+// The engine side of the voxel brick proof (`voxel-trace.gpu.ts`): one brick of 4×4 voxels, one
+// voxel thick, drawn by the real WebGPU engine as its box, each pixel tracing the brick's cells
+// (`voxelWgsl.ts`, `voxelCellTrace`), beside a plain square on its top face. Its depth: the square a hair
+// above the face covers every voxel, a hair below it none. Its normal: the brick and the square show
+// the same normal view. Its shadow: lifted over a floor under a sun, it darkens the floor.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
-import { encodeVoxelPage, GEOMETRY_VOXEL } from '../../../packages/sdk-core/src/page/voxelPage.ts'
+import {
+  encodeVoxelPage,
+  GEOMETRY_VOXEL,
+  VOXEL_BRICK_CORNERS,
+  VOXEL_BRICK_INDICES,
+} from '../../../packages/sdk-core/src/page/voxelPage.ts'
 import type { VoxelFile } from '../../../packages/sdk-core/src/contracts/voxel.ts'
 import { manifestCulling } from '../../../packages/sdk-browser/src/gpu/dag/culling.fixture.ts'
 import type { PageSurface } from '../../../packages/sdk-browser/src/page/surface.ts'
@@ -19,8 +23,8 @@ import * as K from '../kit/sharedSceneProof.ts'
 
 /** The voxels' side; the brick spans [-0.5, 0.5]² about its placement, one voxel thick. */
 const SIDE = 0.25
-/** How far the square stands from the plane in the depth cases: 0.016 of a voxel's side, about
- *  five times the plane's quantization in a voxel's record (`offset`, half its diagonal over 127). */
+/** How far the square stands from the brick's top face in the depth cases: 1/60 of a voxel's side,
+ *  well past the depth's rounding — the trace writes the face's depth itself. */
 const DEPTH_GAP = 0.004
 
 /** A direction's octahedral bytes (`oct_encode`, upper half), and the unit vector they decode to. */
@@ -32,39 +36,36 @@ function octahedral(n: number[]) {
   return { bytes, unit: d.map((c) => c / length3(d[0], d[1], d[2])) }
 }
 
-/** The contour normal every voxel carries: the plane z = x/4, as its record decodes it. */
-const CONTOUR = octahedral([-0.25, 0, 1])
+/** The normal every voxel carries: up, toward the camera, as its record decodes it. */
+const NORMAL = octahedral([0, 0, 1])
+/** The brick's top face, in its placement's units. */
+const TOP = SIDE / 2
 
-/** The brick as its page: 16 voxels of colour `rgb`, every contour on the plane through the
- *  brick's centre along `CONTOUR`, no thickness. */
+/** The brick as its page: 16 voxels of colour `rgb`, each with `NORMAL` — twelve bytes a voxel. */
 function brickPage(rgb: number[]) {
-  const bytes = new Uint8Array(16 + 16 * 16)
+  const bytes = new Uint8Array(16 + 16 * 12)
   const view = new DataView(bytes.buffer)
   view.setUint32(0, 0xffff, true)
   view.setUint16(14, 0xffff, true)
-  for (let k = 0; k < 16; k++) {
-    const at = 16 + 16 * k,
-      centre = [((k & 3) + 0.5) * SIDE - 0.5, ((k >> 2) + 0.5) * SIDE - 0.5, 0]
-    const offset = -centre.reduce((sum, c, a) => sum + c * CONTOUR.unit[a], 0) / SIDE
-    bytes.set([...rgb, 255, 255, 255, 0, 255, ...CONTOUR.bytes, ...CONTOUR.bytes], at)
-    view.setInt8(at + 12, Math.round((offset / (Math.sqrt(3) / 2)) * 127))
-  }
+  for (let k = 0; k < 16; k++)
+    bytes.set([...rgb, 255, 255, 255, 0, 0, ...NORMAL.bytes, 0, 0], 16 + 12 * k)
   const origin: [number, number, number] = [-0.5, -0.5, -SIDE / 2]
   const group = { primitive: 0, group: 0, firstBrick: 0, bricks: 1, firstVoxel: 0, voxels: 16 }
   const voxels = { ...group, error: 0, parentError: Infinity, side: SIDE, origin }
   const file: VoxelFile = { groups: [voxels], view, brickBase: 0, voxelBase: 16 }
-  return encodeVoxelPage(file, voxels, 0, 0)
+  return encodeVoxelPage(file, voxels, [0, 1], 0)
 }
 
 /** Makes primitive `rank` of `scene` the brick, served at its own address: what
  *  `readVoxelLevels` makes of a cache's brick, without a cache. */
 function asBrick(scene: K.ScenePreparee, rank: number, served: Map<string, Uint8Array>) {
   const primitive = scene.metadata.primitives[rank]
-  const { bytes, voxels, min, max } = brickPage([255, 0, 0])
+  const { bytes, bricks, min, max } = brickPage([255, 0, 0])
   const url = `voxels-${rank}`,
-    count = voxels * 12
+    count = bricks * VOXEL_BRICK_INDICES,
+    vertexCount = bricks * VOXEL_BRICK_CORNERS
   for (const page of primitive.pages) scene.indices.delete(page.url)
-  const geometry = { url, sha256: 'proof', bytes: bytes.byteLength, vertexCount: count }
+  const geometry = { url, sha256: 'proof', bytes: bytes.byteLength, vertexCount }
   const flags = { indexCount: count, flags: GEOMETRY_VOXEL, uncompressedBytes: bytes.byteLength }
   const band = { level: 0, lodError: 0, sphere: [0, 0, 0, 0.8], parentError: null }
   const links = { parentSphere: null, group: null, source: null }
@@ -110,20 +111,18 @@ async function shot(
   }
 }
 
-/** Three points a voxel across, off its edges, in each of the 16 voxels: on the plane. */
+/** Three points a voxel across, off its edges, in each of the 16 voxels: on the top face. */
 const SAMPLES = Array.from({ length: 144 }, (_, k) => {
   const voxel = k % 16,
     at = Math.floor(k / 16)
   const x = ((voxel & 3) + 0.5) * SIDE - 0.5 + ((at % 3) - 1) * 0.07
   const y = ((voxel >> 2) + 0.5) * SIDE - 0.5 + (Math.floor(at / 3) - 1) * 0.07
-  return [x, y, -(CONTOUR.unit[0] * x + CONTOUR.unit[1] * y) / CONTOUR.unit[2]]
+  return [x, y, TOP]
 })
 
-/** The square on the contour plane, moved `gap` along its normal, wearing `surface`. */
+/** The square on the brick's top face, moved `gap` along its normal, wearing `surface`. */
 function square(builder: ReturnType<typeof K.batisseur>, surface: PageSurface, gap: number) {
-  const mesh = builder.place(surface, 'exact-clusters', 0.7)
-  mesh.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(...CONTOUR.unit))
-  mesh.position.set(...(CONTOUR.unit.map((c) => c * gap) as [number, number, number]))
+  builder.place(surface, 'exact-clusters', 0.7).position.set(0, 0, TOP + gap)
 }
 
 /** The brick at the origin wearing `surface`: its primitive's rank. */
@@ -133,7 +132,7 @@ const brick = (builder: ReturnType<typeof K.batisseur>, surface: PageSurface) =>
   return builder.source.children.length - 1
 }
 
-export type VoxelContour = {
+export type VoxelTraceProof = {
   /** Red (the brick) and green (the square) samples, the square in front, then behind. */
   front: { red: number; green: number }
   behind: { red: number; green: number }
@@ -155,7 +154,7 @@ const cover = (pixels: Uint8Array) => {
 }
 
 export const run = () =>
-  runOnDevice<VoxelContour>(async (device, events, result) => {
+  runOnDevice<VoxelTraceProof>(async (device, events, result) => {
     const camera = K.cameraFace()
     const unlit = (color: number) => G.basicSurface({ color })
     for (const [name, gap] of [

@@ -19,6 +19,7 @@ export const DIAGNOSTIC_VIEWS = {
   triangles: { code: 8, reads: 'hash' },
   hlod: { code: 9, reads: 'word' },
   xray: { code: 10 },
+  voxels: { code: 11, reads: 'word' },
 } as const satisfies Partial<Record<DiagnosticMode, { code: number; reads?: 'hash' | 'word' }>>
 
 type View = { code: number; reads?: 'hash' | 'word' }

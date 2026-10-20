@@ -109,5 +109,7 @@ export function writeWebgpuVisibilityUniforms(
   writeDepthRamp(shadeUniPacked, SHADE.depthRamp, near, far, perspective)
   shadeInts[SHADE.mode] = diagnosticCode(diagnostic)
   shadeUniPacked[SHADE.pixelError] = run.diagnosticPixelError
+  // The voxel classes count their trace's steps on a sampled frame (`voxelSteps.ts`).
+  shadeInts[SHADE.voxelCounting] = vis.voxelSteps?.due(run.frame) ? 1 : 0
   device.queue.writeBuffer(shadeUniform, 0, shadeUniPacked)
 }

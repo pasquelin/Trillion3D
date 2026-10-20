@@ -55,6 +55,8 @@ export function encodeVsmRaster({ rt, device, encoder, cam, vsm, plan }: VsmFram
       pageLayout,
       pageGroup,
       rowSpheres: spheres,
+      // The voxel tier is drawn while the table holds a voxel row (`vsmEncodeChunks`).
+      voxels: layout.itemWordsHold.voxelRows > 0,
       camera: {
         eye: cam.eye,
         view: cam.view,

@@ -44,6 +44,8 @@ export type ShadeBindResources = AtlasResources & {
   /** The surfaces' records (`../material/materialTable.ts`) and the lobes target the resolve writes. */
   material: GPUTextureView
   lobes: GPUTextureView
+  /** The voxel trace's counters (`../visibility/voxelSteps.ts`). */
+  voxelSteps: GPUBuffer
 }
 /** Resources of the software raster of small triangles: it only reads the alpha cutout. */
 export type SmallBindResources = AtlasResources & {
@@ -117,6 +119,7 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
     bufferEntry(b.shadeCache, () => r.shadeCache),
     resourceEntry(b.material, () => r.material),
     resourceEntry(b.lobes, () => r.lobes),
+    bufferEntry(b.voxelSteps, () => r.voxelSteps),
   ]
 }
 

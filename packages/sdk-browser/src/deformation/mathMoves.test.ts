@@ -105,7 +105,11 @@ test('a soft body reach is the hypot3 one as a float32 and as its mark half floa
     const old = Math.max(0, hypot3(moved[0] - r[0], moved[1] - r[1], moved[2] - r[2]))
     if (old !== source.reach) parted++
     assertSameFloat32(old, source.reach, label)
-    assert.equal(rootMark({ mark: 0, reach: source.reach }), rootMark({ mark: 0, reach: old }), `${label} mark`)
+    assert.equal(
+      rootMark({ mark: 0, reach: source.reach }),
+      rootMark({ mark: 0, reach: old }),
+      `${label} mark`,
+    )
   }
   for (let i = 1; i <= HALTON_SWEEP; i++) {
     const rest = [haltonSpan(i, 2, -50, 50), haltonSpan(i, 3, -50, 50), haltonSpan(i, 5, -50, 50)]

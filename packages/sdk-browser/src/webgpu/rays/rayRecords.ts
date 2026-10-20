@@ -64,9 +64,11 @@ export function createRayRecords(rt: WebgpuPagesCore) {
       finest = !prim.sources || prim.sources[p] < 0,
       ready = prim.readiness.isReady(p) && (finest || !prim.readiness.isChildReady(p))
     words[at] = geo && slot >= 0 ? slot + 1 : 0
+    // A voxel page draws its bricks' boxes, no triangle of the surface: a ray takes the finer
+    // clusters it stands for, never it — a far-field drawing, not a surface to hit.
     words[at + 1] =
       (geo?.quantized ? FLAG_CLUSTER_PAGE : 0) |
-      (geo && slot >= 0 && ready ? RECORD_DRAWABLE : 0) |
+      (geo && slot >= 0 && ready && !geo.voxel ? RECORD_DRAWABLE : 0) |
       (rec.material.sprite ? RECORD_NO_AREA : 0) |
       ((rec.material.lineWidth ?? 0) > 0 ? RECORD_LINE : 0)
     words[at + 2] = geo?.vertexBase ?? 0

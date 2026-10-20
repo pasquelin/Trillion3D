@@ -22,7 +22,11 @@ test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCa
   const { device } = fakeDevice()
   const slotCap = 8
   const buffers = createGpuDrawBuffers(device, slotCap, 1, 1)
-  assert.equal(buffers.slots, BASE_SLOTS, 'layerSlots = 1 reproduces the six slots from before')
+  assert.equal(
+    buffers.slots,
+    BASE_SLOTS,
+    'layerSlots = 1 reproduces one layer: both halves, three kinds of rows, three face modes',
+  )
   assert.equal(buffers.itemsBuf.size, slotCap * DRAW_ITEM_U32 * 4)
   assert.equal(buffers.restBuf.size, Math.max(4, bitWords(slotCap) * 4))
   assert.equal(buffers.uniforms.size, UNIFORM_BYTES)
