@@ -110,6 +110,9 @@
     "fixtures:garden": "node scripts/fixtures/garden.ts"
   },
   "jscpd": {
+    "ignore": [
+      "**/vendor/**"
+    ],
     "minLines": 8,
     "minTokens": 64,
     "reporters": [

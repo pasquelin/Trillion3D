@@ -77,8 +77,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - Source: https://github.com/zeux/meshoptimizer. The C++ sources version 0.25 are carried and built
   by `cc` inside the Rust crate `meshopt` 0.6.2 (https://github.com/gwihlidal/meshopt-rs, licence
-  MIT OR Apache-2.0), linked into the native asset compiler for the simplifier and the cluster
-  builder; its flags are set by `.cargo/config.toml`.
+  MIT OR Apache-2.0), linked into the native asset compiler to decode `EXT_meshopt_compression`;
+  its flags are set by `.cargo/config.toml`.
 - Licence: MIT.
 
 ```text
@@ -124,6 +124,32 @@ https://www.apache.org/licenses/LICENSE-2.0.
 | `tar`        | 0.4.46  | MIT OR Apache-2.0 | https://github.com/composefs/tar-rs      | tar reading (`unitypackage` container driver)                                         |
 | `yaml-rust2` | 0.13.0  | MIT OR Apache-2.0 | https://github.com/Ethiraric/yaml-rust2  | YAML reading for the `unitypackage` driver                                            |
 | `serde_json` | 1.0.151 | MIT OR Apache-2.0 | https://github.com/serde-rs/json         | JSON reading and writing                                                              |
+| `block_compression` | 0.10.0 | MIT | https://github.com/hasenbanck/block_compression | BC7 encoding of every baked texture level; vendored and patched (below) |
+
+`block_compression` is a Rust port of Intel's ISPC Texture Compressor. It is carried in
+`packages/asset-compiler-rust/vendor/block_compression` as published (git
+454e069802a600b8e225fb2c9dca3049630b8523), with one change marked in
+`src/encode/common.rs:compute_axis`: its principal-axis search starts from the covariance row of the
+largest diagonal entry instead of grey. Its licence, kept in the vendored folder:
+
+```
+Copyright (c) 2025, Nils Hasenbanck
+Copyright (c) 2016-2024, Intel Corporation
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 | `sha2`       | 0.10.9  | MIT OR Apache-2.0 | https://github.com/RustCrypto/hashes     | SHA-256 for cache identity                                                            |
 | `rayon`      | 1.12.0  | MIT OR Apache-2.0 | https://github.com/rayon-rs/rayon        | data parallelism                                                                      |
 | `memmap2`    | 0.9.11  | MIT OR Apache-2.0 | https://github.com/RazrFalcon/memmap2-rs | memory-mapped input files                                                             |
